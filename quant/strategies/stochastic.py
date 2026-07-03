@@ -1,0 +1,39 @@
+"""스토캐스틱 오실레이터 전략 (Stochastic Oscillator).
+
+최근 N봉 고저 범위에서 종가의 위치(%K)를 0~100으로 나타낸다. 과매도(기본 20)
+아래면 매수, 과매수(기본 80) 위면 청산/숏. RSI와 비슷한 평균회귀 계열이지만
+고저 범위를 쓰므로 성격이 조금 다르다 — 앙상블 분산에 보탬이 된다.
+"""
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from quant.strategies.base import Strategy
+
+
+class Stochastic(Strategy):
+    name = "stochastic"
+
+    def __init__(self, k_period: int = 14, d_period: int = 3,
+                 oversold: float = 20, overbought: float = 80,
+                 allow_short: bool = False):
+        self.k_period = k_period
+        self.d_period = d_period
+        self.oversold = oversold
+        self.overbought = overbought
+        self.allow_short = allow_short
+
+    def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        low_n = df["low"].rolling(self.k_period).min()
+        high_n = df["high"].rolling(self.k_period).max()
+        rng = (high_n - low_n).replace(0, np.nan)
+        k = 100 * (df["close"] - low_n) / rng
+        k = k.rolling(self.d_period).mean().fillna(50.0)  # %D로 부드럽게
+
+        signal = pd.Series(index=df.index, dtype=float)
+        signal[k < self.oversold] = 1.0
+        signal[k > self.overbought] = -1.0
+        signal[(k >= 50) & (k <= self.overbought)] = 0.0  # 중립 복귀 시 청산
+        signal = signal.ffill().fillna(0.0)
+        return self._finalize(signal, df.index)
