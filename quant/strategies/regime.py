@@ -12,7 +12,6 @@
 """
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 from quant.strategies.base import Strategy
@@ -49,9 +48,6 @@ class RegimeFilter(Strategy):
             vol = df["close"].pct_change().rolling(self.vol_window).std()
             allowed[vol > self.max_daily_vol] = 0.0
 
-        filtered = base_sig * allowed
-        # 숏은 약세장에서 오히려 허용하고 싶을 수 있으나, 기본은 보수적으로 게이팅
-        if self.allow_short:
-            filtered = np.where(allowed.values > 0, base_sig.values, 0.0)
-            filtered = pd.Series(filtered, index=df.index)
-        return self._finalize(filtered, df.index)
+        # allowed ∈ {0,1} 이므로 곱셈만으로 롱/숏 모두 올바르게 게이팅된다
+        # (약세장·고변동성 구간의 신호를 0으로 만든다).
+        return self._finalize(base_sig * allowed, df.index)

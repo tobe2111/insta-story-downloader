@@ -11,8 +11,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quant.backtest import Backtester
 from quant.data import SyntheticDataProvider
+import numpy as np
+
 from quant.strategies import (
     Breakout,
+    MeanReversion,
     MovingAverageCross,
     RSIReversion,
     RegimeFilter,
@@ -54,6 +57,21 @@ def test_ensemble_weight_validation():
 def test_default_ensemble(df):
     result = Backtester(default_ensemble()).run(df)
     assert (result.equity > 0).all()
+
+
+def test_mean_reversion_enters_low_exits_at_mean():
+    """하단밴드 이탈 시 진입하고, 중심선 복귀 시 청산되는지 검증(청산 로직 회귀 테스트)."""
+    n = 60
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    price = np.full(n, 100.0)
+    price[30:35] = 80.0    # 급락 → 하단밴드 이탈 → 롱 진입
+    price[35:] = 105.0     # 평균 위로 복귀 → 청산
+    d = pd.DataFrame({"open": price, "high": price, "low": price,
+                      "close": price, "volume": 1.0}, index=idx)
+
+    sig = MeanReversion(window=20).generate_signals(d)
+    assert (sig.iloc[30:35] > 0).any()   # 급락 구간에서 롱 진입
+    assert sig.iloc[-1] == 0.0           # 평균 복귀 후 청산되어 관망
 
 
 def test_regime_filter_reduces_exposure(df):
