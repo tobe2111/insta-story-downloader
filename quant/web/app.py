@@ -85,8 +85,35 @@ def run_backtest_html(params: dict) -> str:
     result = Backtester(strategy, periods_per_year=ppy).run(df)
 
     body = build_report_html(result, title=f"{strategy_name} · {symbol}")
-    # 리포트 상단에 네비게이션 삽입
-    return body.replace("<h1>", _NAV + "\n<h1>", 1)
+    body = body.replace("<h1>", _NAV + "\n<h1>", 1)   # 상단 네비게이션
+    # "이게 운인가?" 분석(몬테카를로 신뢰구간 + 확률적 샤프)을 리포트에 주입
+    robustness = _robustness_html(result.returns, ppy)
+    return body.replace("</div></body>", robustness + "</div></body>", 1)
+
+
+def _robustness_html(returns, ppy: int) -> str:
+    """몬테카를로 신뢰구간 + PSR 카드 HTML (실패 시 빈 문자열)."""
+    try:
+        from quant.robustness import (
+            bootstrap_metrics,
+            probabilistic_sharpe_ratio,
+            summarize,
+        )
+        dist = bootstrap_metrics(returns, n_sims=500, periods_per_year=ppy)
+        psr = probabilistic_sharpe_ratio(returns, 0.0)
+    except Exception:  # noqa: BLE001
+        return ""
+    verdict = ("높음 ✅" if psr >= 0.95 else "보통 ⚠️" if psr >= 0.75 else "낮음 🚨")
+    table = html.escape(summarize(dist))
+    return (
+        '<h2>이게 운인가? (신뢰도 분석)</h2>'
+        '<div class="card">'
+        f'<p style="font-size:13px">참 샤프가 0보다 클 확률 (PSR): '
+        f'<b>{psr:.1%}</b> — 신뢰도 {verdict}</p>'
+        f'<pre style="font-size:12px;overflow-x:auto;white-space:pre">{table}</pre>'
+        '<p style="font-size:12px;color:#94a3b8">신뢰구간 하단(5%)이 0 근처거나 '
+        'PSR이 낮으면 이 성과는 운일 수 있습니다.</p></div>'
+    )
 
 
 def render_sweep_form(message: str = "") -> str:

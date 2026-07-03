@@ -50,7 +50,9 @@ def test_run_backtest_html_synthetic():
     doc = run_backtest_html({"market": "synthetic", "symbol": "X",
                              "strategy": "ma_cross", "limit": "200"})
     assert "성과 지표" in doc and "샤프지수" in doc
-    assert 'href="/"' in doc  # 다시 실행 링크
+    assert "<nav" in doc  # 조종석 네비게이션
+    # "이게 운인가?" 신뢰도 분석(PSR + 몬테카를로)이 포함되어야 한다
+    assert "이게 운인가" in doc and "PSR" in doc
 
 
 def test_run_backtest_html_ensemble():
