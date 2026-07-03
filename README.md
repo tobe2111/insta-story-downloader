@@ -91,6 +91,19 @@ print(summarize(bootstrap_metrics(result.returns)))
 python examples/run_config.py --config config/config.yaml
 ```
 
+## 웹 UI (로컬 웹서버)
+
+브라우저에서 시장·종목·전략을 고르고 버튼으로 백테스트를 실행해 리포트를 봅니다.
+**외부 웹 프레임워크가 필요 없습니다** (파이썬 표준 라이브러리 `http.server`).
+
+```bash
+python examples/run_web.py          # http://127.0.0.1:8000 접속
+# 또는: python -m quant.web.server
+```
+
+시장·종목·전략·타임프레임을 폼에서 선택 → "백테스트 실행" → 자본곡선(벤치마크
+오버레이 포함)과 성과 지표 리포트가 바로 표시됩니다. 로컬 전용(localhost 바인딩)입니다.
+
 ## 포트폴리오 백테스트 (다중 종목)
 
 여러 종목에 분산투자하여 변동성을 낮춥니다. 배분 방식: `equal`(균등),
@@ -182,6 +195,7 @@ quant/
 ├── reporting/    HTML 리포트 + 라이브 대시보드 + 민감도 히트맵 (의존성 0)
 ├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / KIS / RobustBroker + 거래소규격)
 ├── live/         실시간 루프 (단일·다중 종목) + 알림(텔레그램/슬랙)
+├── web/          로컬 웹서버 (http.server 기반, 브라우저에서 백테스트 실행)
 └── utils/        로깅, HTTP 유틸
 ```
 

@@ -72,6 +72,13 @@ def _overlay(strategy: pd.Series, benchmark: pd.Series,
 def generate_report(result: BacktestResult, path: str | Path,
                     title: str = "백테스트 리포트") -> Path:
     """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다."""
+    out = Path(path)
+    out.write_text(build_report_html(result, title), encoding="utf-8")
+    return out
+
+
+def build_report_html(result: BacktestResult, title: str = "백테스트 리포트") -> str:
+    """BacktestResult를 HTML 문자열로 렌더링한다 (웹서버·파일 저장 공용)."""
     m = result.metrics
     equity = result.equity
     drawdown = equity / equity.cummax() - 1.0
@@ -122,10 +129,7 @@ def generate_report(result: BacktestResult, path: str | Path,
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 몬테카를로 신뢰구간과
 워크포워드 검증을 함께 확인하세요.</p>
 </div></body></html>"""
-
-    out = Path(path)
-    out.write_text(html, encoding="utf-8")
-    return out
+    return html
 
 
 def _metric_rows(m) -> list[tuple[str, str]]:
