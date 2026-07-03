@@ -2,14 +2,23 @@
 from __future__ import annotations
 
 from quant.strategies.base import Strategy
+from quant.strategies.breakout import Breakout
+from quant.strategies.ensemble import StrategyEnsemble
+from quant.strategies.macd import MACD
 from quant.strategies.mean_reversion import MeanReversion
 from quant.strategies.momentum import Momentum
 from quant.strategies.moving_average import MovingAverageCross
+from quant.strategies.regime import RegimeFilter
+from quant.strategies.rsi import RSIReversion
 
+# 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐은 다른 전략을 인자로 받아 별도 취급)
 _REGISTRY = {
     "ma_cross": MovingAverageCross,
     "momentum": Momentum,
     "mean_reversion": MeanReversion,
+    "rsi": RSIReversion,
+    "breakout": Breakout,
+    "macd": MACD,
 }
 
 __all__ = [
@@ -17,8 +26,14 @@ __all__ = [
     "MovingAverageCross",
     "Momentum",
     "MeanReversion",
+    "RSIReversion",
+    "Breakout",
+    "MACD",
+    "StrategyEnsemble",
+    "RegimeFilter",
     "get_strategy",
     "list_strategies",
+    "default_ensemble",
 ]
 
 
@@ -31,3 +46,15 @@ def get_strategy(name: str, **kwargs) -> Strategy:
 
 def list_strategies() -> list[str]:
     return list(_REGISTRY)
+
+
+def default_ensemble(allow_short: bool = False) -> StrategyEnsemble:
+    """추세추종 + 평균회귀를 섞은 기본 앙상블 (상관이 낮아 분산 효과가 좋다)."""
+    return StrategyEnsemble(
+        strategies=[
+            MovingAverageCross(fast=20, slow=60),
+            Breakout(window=55, exit_window=20),
+            RSIReversion(period=14),
+        ],
+        allow_short=allow_short,
+    )

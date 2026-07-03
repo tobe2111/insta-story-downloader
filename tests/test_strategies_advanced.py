@@ -1,0 +1,88 @@
+"""확장 전략(RSI/브레이크아웃/MACD) + 앙상블 + 레짐 필터 테스트."""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from quant.backtest import Backtester
+from quant.data import SyntheticDataProvider
+from quant.strategies import (
+    Breakout,
+    MovingAverageCross,
+    RSIReversion,
+    RegimeFilter,
+    StrategyEnsemble,
+    default_ensemble,
+    get_strategy,
+    list_strategies,
+)
+
+
+@pytest.fixture
+def df():
+    return SyntheticDataProvider(seed=5).get_ohlcv("ADV", "1d", limit=500)
+
+
+@pytest.mark.parametrize("name", ["rsi", "breakout", "macd"])
+def test_new_strategies_registered(df, name):
+    assert name in list_strategies()
+    sig = get_strategy(name).generate_signals(df)
+    assert sig.index.equals(df.index)
+    assert sig.max() <= 1.0 and sig.min() >= -1.0
+
+
+def test_ensemble_runs_and_bounded(df):
+    ens = StrategyEnsemble([MovingAverageCross(), Breakout(), RSIReversion()])
+    sig = ens.generate_signals(df)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    result = Backtester(ens).run(df)
+    assert (result.equity > 0).all()
+
+
+def test_ensemble_weight_validation():
+    with pytest.raises(ValueError):
+        StrategyEnsemble([MovingAverageCross()], weights=[1.0, 2.0])
+    with pytest.raises(ValueError):
+        StrategyEnsemble([])
+
+
+def test_default_ensemble(df):
+    result = Backtester(default_ensemble()).run(df)
+    assert (result.equity > 0).all()
+
+
+def test_regime_filter_reduces_exposure(df):
+    """레짐 필터를 씌우면 노출 시간이 원본보다 늘지 않아야 한다(게이팅)."""
+    base = MovingAverageCross(fast=10, slow=30)
+    filtered = RegimeFilter(base, trend_window=100, use_trend=True)
+
+    base_exposure = (base.generate_signals(df) != 0).mean()
+    filt_exposure = (filtered.generate_signals(df) != 0).mean()
+    assert filt_exposure <= base_exposure + 1e-9
+
+
+def test_regime_filter_blocks_bear_market():
+    """장기MA 아래(약세)에서는 롱 신호가 0으로 게이팅된다."""
+    n = 250
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    # 지속 하락 → 항상 장기MA 아래
+    price = pd.Series(range(n, 0, -1), index=idx, dtype=float) + 100
+    d = pd.DataFrame({"open": price, "high": price * 1.01, "low": price * 0.99,
+                      "close": price, "volume": 1.0}, index=idx)
+
+    class AlwaysLong:
+        name = "long"
+        allow_short = False
+
+        def generate_signals(self, x):
+            return pd.Series(1.0, index=x.index, name="target")
+
+    filtered = RegimeFilter(AlwaysLong(), trend_window=50, use_trend=True)
+    sig = filtered.generate_signals(d)
+    # 하락장이므로 대부분의 구간에서 롱이 차단되어야 한다
+    assert (sig == 0).mean() > 0.5
