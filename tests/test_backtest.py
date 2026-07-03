@@ -135,6 +135,25 @@ def test_benchmark_buy_and_hold(df):
     assert "매수후보유" in result.summary()
 
 
+def test_profit_factor_computation():
+    """이익팩터 = 총이익/총손실 계산 검증."""
+    from quant.backtest.metrics import compute_metrics
+
+    idx = pd.date_range("2020-01-01", periods=5, freq="D")
+    returns = pd.Series([0.0, 0.1, -0.05, 0.2, -0.05], index=idx)
+    positions = pd.Series([1.0, 1.0, 1.0, 1.0, 1.0], index=idx)
+    equity = (1 + returns).cumprod() * 100
+    m = compute_metrics(equity, returns, positions, 365)
+    # gross_win = 0.1+0.2 = 0.3, gross_loss = 0.05+0.05 = 0.1 → PF = 3.0
+    assert abs(m.profit_factor - 3.0) < 1e-9
+    assert "이익팩터" in m.pretty()
+
+
+def test_profit_factor_nonnegative(df):
+    m = Backtester(get_strategy("ma_cross")).run(df).metrics
+    assert m.profit_factor >= 0.0
+
+
 def test_metrics_sane(df):
     bt = Backtester(get_strategy("ma_cross"), initial_capital=10_000.0)
     m = bt.run(df).metrics

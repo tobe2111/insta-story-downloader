@@ -23,11 +23,13 @@ class Metrics:
     win_rate: float          # 승률 (양의 수익 기간 비율)
     num_trades: int          # 거래(포지션 변경) 횟수
     exposure: float          # 시장 노출 시간 비율
+    profit_factor: float = 0.0  # 총이익 / 총손실 (봉 단위). >1 이면 손실보다 이익이 큼
 
     def as_dict(self) -> dict:
         return asdict(self)
 
     def pretty(self) -> str:
+        pf = "∞" if not np.isfinite(self.profit_factor) else f"{self.profit_factor:.2f}"
         return (
             f"총수익률   : {self.total_return:>10.2%}\n"
             f"CAGR       : {self.cagr:>10.2%}\n"
@@ -37,6 +39,7 @@ class Metrics:
             f"최대낙폭   : {self.max_drawdown:>10.2%}\n"
             f"칼마지수   : {self.calmar:>10.2f}\n"
             f"승률       : {self.win_rate:>10.2%}\n"
+            f"이익팩터   : {pf:>10}\n"
             f"거래횟수   : {self.num_trades:>10d}\n"
             f"시장노출   : {self.exposure:>10.2%}"
         )
@@ -84,6 +87,13 @@ def compute_metrics(
     num_trades = int((positions.diff().fillna(positions) != 0).sum())
     exposure = (positions != 0).mean()
 
+    gross_win = float(active[active > 0].sum())
+    gross_loss = float(-active[active < 0].sum())
+    if gross_loss > 0:
+        profit_factor = gross_win / gross_loss
+    else:
+        profit_factor = float("inf") if gross_win > 0 else 0.0
+
     return Metrics(
         total_return=float(total_return),
         cagr=float(cagr),
@@ -95,4 +105,5 @@ def compute_metrics(
         win_rate=float(win_rate),
         num_trades=num_trades,
         exposure=float(exposure),
+        profit_factor=profit_factor,
     )
