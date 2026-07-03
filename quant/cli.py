@@ -52,6 +52,22 @@ def _cmd_sweep(args) -> None:
 
 def _cmd_web(args) -> None:
     from quant.web.server import run_server
+
+    if getattr(args, "open", False):
+        import threading
+        import time
+        import webbrowser
+
+        url = f"http://{args.host}:{args.port}"
+
+        def _open():
+            time.sleep(1.5)
+            try:
+                webbrowser.open(url)
+            except Exception:  # noqa: BLE001
+                pass
+
+        threading.Thread(target=_open, daemon=True).start()
     run_server(args.host, args.port)
 
 
@@ -90,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
     web = sub.add_parser("web", help="로컬 웹 UI 실행")
     web.add_argument("--host", default="127.0.0.1")
     web.add_argument("--port", type=int, default=8000)
+    web.add_argument("--open", action="store_true", help="브라우저 자동 열기")
     web.set_defaults(func=_cmd_web)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")

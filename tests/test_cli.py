@@ -25,6 +25,12 @@ def test_parser_has_subcommands():
 def test_web_defaults():
     ns = cli.build_parser().parse_args(["web"])
     assert ns.command == "web" and ns.host == "127.0.0.1" and ns.port == 8000
+    assert ns.open is False
+
+
+def test_web_open_flag():
+    ns = cli.build_parser().parse_args(["web", "--open", "--port", "9000"])
+    assert ns.open is True and ns.port == 9000
 
 
 def test_no_command_prints_help(capsys=None):
