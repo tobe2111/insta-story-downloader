@@ -21,7 +21,7 @@ def _color(value: float, lo: float, hi: float) -> str:
     return f"hsl({hue:.0f} 65% 45%)"
 
 
-def generate_heatmap(
+def build_heatmap_html(
     x_values: Sequence,
     y_values: Sequence,
     grid: Sequence[Sequence[float | None]],
@@ -29,9 +29,8 @@ def generate_heatmap(
     y_label: str = "y",
     objective: str = "sharpe",
     title: str = "파라미터 민감도 히트맵",
-    path: str | Path = "results/heatmap.html",
-) -> Path:
-    """grid[i][j] = (y_values[i], x_values[j])의 objective 값을 히트맵으로 저장."""
+) -> str:
+    """히트맵을 HTML 문자열로 렌더링한다 (웹서버·파일 저장 공용)."""
     flat = [v for row in grid for v in row if v is not None]
     lo, hi = (min(flat), max(flat)) if flat else (0.0, 1.0)
     best = max(flat) if flat else None
@@ -82,8 +81,23 @@ def generate_heatmap(
 <p class="sub" style="margin-top:18px">💡 넓은 초록 고원 = 견고함. 외딴 초록 점 = 과최적화 위험.
 과거 성과는 미래를 보장하지 않습니다.</p>
 </div></body></html>"""
+    return doc
 
+
+def generate_heatmap(
+    x_values: Sequence,
+    y_values: Sequence,
+    grid: Sequence[Sequence[float | None]],
+    x_label: str = "x",
+    y_label: str = "y",
+    objective: str = "sharpe",
+    title: str = "파라미터 민감도 히트맵",
+    path: str | Path = "results/heatmap.html",
+) -> Path:
+    """히트맵을 HTML 파일로 저장하고 경로를 반환한다."""
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(doc, encoding="utf-8")
+    out.write_text(
+        build_heatmap_html(x_values, y_values, grid, x_label, y_label, objective, title),
+        encoding="utf-8")
     return out

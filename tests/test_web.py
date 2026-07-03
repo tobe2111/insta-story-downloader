@@ -10,16 +10,36 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from quant.web.app import MARKETS, STRATEGIES, render_form, run_backtest_html
+from quant.web.app import (
+    MARKETS,
+    STRATEGIES,
+    render_form,
+    render_sweep_form,
+    run_backtest_html,
+    run_sweep_html,
+)
 
 
 def test_render_form_has_controls():
     doc = render_form()
     assert "<form" in doc and 'action="/backtest"' in doc
+    assert "<nav" in doc and 'href="/sweep"' in doc   # 조종석 네비게이션
     for s in STRATEGIES:
         assert s in doc
     for m in MARKETS:
         assert m in doc
+
+
+def test_render_sweep_form():
+    doc = render_sweep_form()
+    assert "<form" in doc and 'action="/sweep/run"' in doc
+    assert "히트맵" in doc and "<nav" in doc
+
+
+def test_run_sweep_html_synthetic():
+    doc = run_sweep_html({"market": "synthetic", "symbol": "X", "limit": "300"})
+    assert "<table" in doc and "hsl(" in doc      # 히트맵 렌더
+    assert 'href="/"' in doc                       # 네비게이션
 
 
 def test_render_form_message():

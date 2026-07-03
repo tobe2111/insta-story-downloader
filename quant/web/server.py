@@ -10,7 +10,12 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from quant.web.app import render_form, run_backtest_html
+from quant.web.app import (
+    render_form,
+    render_sweep_form,
+    run_backtest_html,
+    run_sweep_html,
+)
 
 
 class QuantHandler(BaseHTTPRequestHandler):
@@ -34,6 +39,14 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_backtest_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/sweep":
+            self._send(render_sweep_form())
+        elif parsed.path == "/sweep/run":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                self._send(run_sweep_html(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_sweep_form(f"실행 오류: {exc}"), status=400)
         else:
             self._send(render_form("알 수 없는 경로입니다."), status=404)
 
