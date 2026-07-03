@@ -59,6 +59,9 @@ def test_render_monitor_with_state(tmp_path):
     # 실시간 갱신: JS 폴러 + 요소 id, 페이지 meta-refresh 제거
     assert 'id="eqline"' in doc and "fetch(" in doc and "setInterval" in doc
     assert 'http-equiv="refresh"' not in doc
+    # 전체 실시간: 포지션·주문 테이블도 JS로 갱신되도록 id 부여
+    assert 'id="pos-body"' in doc and 'id="ord-body"' in doc
+    assert 'id="kpi-dd"' in doc and 'id="kpi-trades"' in doc
 
 
 def test_state_json_reads_file(tmp_path):

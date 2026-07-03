@@ -94,9 +94,9 @@ def build_dashboard_html(state: dict) -> str:
     kpis = "".join([
         _kpi("총자산", f"{cur:,.2f}", vid="kpi-equity"),
         _kpi("손익 (PnL)", f"{pnl:+.2%}", "pos" if pnl >= 0 else "neg", vid="kpi-pnl"),
-        _kpi("최대낙폭", f"{max_dd:.2%}", "neg" if max_dd < 0 else ""),
-        _kpi("현재 목표비중", f"{last_weight:+.0%}"),
-        _kpi("거래횟수", f"{len(orders)}"),
+        _kpi("최대낙폭", f"{max_dd:.2%}", "neg" if max_dd < 0 else "", vid="kpi-dd"),
+        _kpi("현재 목표비중", f"{last_weight:+.0%}", vid="kpi-weight"),
+        _kpi("거래횟수", f"{len(orders)}", vid="kpi-trades"),
     ])
 
     pos_row = "".join(
@@ -149,9 +149,11 @@ def build_dashboard_html(state: dict) -> str:
 <div class="kpis">{kpis}</div>
 <div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#16a34a" if pnl>=0 else "#dc2626", elem_id="eqline")}</div>
 <div class="card"><h2>현재 포지션</h2><div class="over"><table>
-  <tr><th>종목</th><th>수량</th><th>평균단가</th></tr>{pos_row}</table></div></div>
+  <tr><th>종목</th><th>수량</th><th>평균단가</th></tr>
+  <tbody id="pos-body">{pos_row}</tbody></table></div></div>
 <div class="card"><h2>최근 주문</h2><div class="over"><table>
-  <tr><th>방향</th><th>종목</th><th>수량</th><th>체결가</th><th>상태</th></tr>{order_rows}</table></div></div>
+  <tr><th>방향</th><th>종목</th><th>수량</th><th>체결가</th><th>상태</th></tr>
+  <tbody id="ord-body">{order_rows}</tbody></table></div></div>
 <p class="foot">⚠️ 30초마다 자동 새로고침. 과거·현재 성과는 미래 수익을 보장하지 않습니다.</p>
 </div></body></html>"""
     return doc

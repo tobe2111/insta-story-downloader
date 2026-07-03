@@ -117,8 +117,10 @@ def _robustness_html(returns, ppy: int) -> str:
     )
 
 
-# 실시간 차트: /api/state를 주기적으로 폴링해 페이지 새로고침 없이 갱신
+# 실시간: /api/state를 주기적으로 폴링해 페이지 새로고침 없이 전 요소 갱신
 _MONITOR_JS = """<script>
+function _esc(s){const d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
+function _num(v,f){return (Number(v)||0).toLocaleString(undefined,{minimumFractionDigits:f,maximumFractionDigits:f});}
 async function _tick(){
   try{
     const r = await fetch('/api/state', {cache:'no-store'});
@@ -131,12 +133,30 @@ async function _tick(){
       const pts = eq.map((v,i)=>`${(i/(eq.length-1)*W).toFixed(1)},${(H-(v-lo)/rng*H).toFixed(1)}`).join(' ');
       const line = document.getElementById('eqline'); if(line) line.setAttribute('points', pts);
       const cur=eq[eq.length-1], st=eq[0], pnl=st? cur/st-1:0;
-      const e=document.getElementById('kpi-equity'); if(e) e.textContent = cur.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-      const p=document.getElementById('kpi-pnl'); if(p){ p.textContent=(pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%'; p.style.color = pnl>=0? '#16a34a':'#dc2626'; }
+      let peak=st, dd=0; for(const v of eq){ peak=Math.max(peak,v); dd=Math.min(dd, peak? v/peak-1:0); }
+      const setTxt=(id,txt,col)=>{const el=document.getElementById(id); if(el){el.textContent=txt; if(col)el.style.color=col;}};
+      setTxt('kpi-equity', _num(cur,2));
+      setTxt('kpi-pnl', (pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%', pnl>=0?'#16a34a':'#dc2626');
+      setTxt('kpi-dd', (dd*100).toFixed(2)+'%');
+      const lw=(h[h.length-1]||{}).weight||0; setTxt('kpi-weight', (lw>=0?'+':'')+Math.round(lw*100)+'%');
     }
+    const orders = (s && s.orders) || [];
+    setTxtSafe('kpi-trades', String(orders.length));
+    // 포지션 테이블 재구성
+    const pos = (s && (s.positions || (s.position? [s.position]:[]))) || [];
+    const pb=document.getElementById('pos-body');
+    if(pb){ pb.innerHTML = pos.filter(p=>p&&p.quantity).map(p=>
+      `<tr><td>${_esc(p.symbol)}</td><td>${_num(p.quantity,6)}</td><td>${_num(p.avg_price,2)}</td></tr>`).join('')
+      || '<tr><td colspan="3" style="color:#94a3b8">보유 포지션 없음</td></tr>'; }
+    // 주문 테이블 재구성 (최근 15건)
+    const ob=document.getElementById('ord-body');
+    if(ob){ ob.innerHTML = orders.slice(-15).reverse().map(o=>
+      `<tr><td>${_esc((o.side||'').toUpperCase())}</td><td>${_esc(o.symbol)}</td><td>${_num(o.quantity,6)}</td><td>${_num(o.price,2)}</td><td>${_esc(o.status)}</td></tr>`).join('')
+      || '<tr><td colspan="5" style="color:#94a3b8">주문 내역 없음</td></tr>'; }
     const t=document.getElementById('rt-time'); if(t) t.textContent = new Date().toLocaleTimeString();
   }catch(e){}
 }
+function setTxtSafe(id,txt){const el=document.getElementById(id); if(el) el.textContent=txt;}
 setInterval(_tick, 5000); _tick();
 </script>"""
 
