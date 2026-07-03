@@ -31,7 +31,7 @@ def df():
     return SyntheticDataProvider(seed=5).get_ohlcv("ADV", "1d", limit=500)
 
 
-@pytest.mark.parametrize("name", ["rsi", "breakout", "macd"])
+@pytest.mark.parametrize("name", ["rsi", "breakout", "macd", "keltner"])
 def test_new_strategies_registered(df, name):
     assert name in list_strategies()
     sig = get_strategy(name).generate_signals(df)

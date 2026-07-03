@@ -74,6 +74,7 @@ def main() -> None:
         target_vol=rc.get("target_vol", 0.20),
         stop_loss=rc.get("stop_loss", 0.15),
         take_profit=rc.get("take_profit"),
+        trailing_stop=rc.get("trailing_stop"),
         max_position=rc.get("max_position", 1.0),
         periods_per_year=ppy,
     ))

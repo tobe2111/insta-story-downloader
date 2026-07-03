@@ -4,6 +4,7 @@ from __future__ import annotations
 from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
 from quant.strategies.ensemble import StrategyEnsemble
+from quant.strategies.keltner import KeltnerBreakout
 from quant.strategies.macd import MACD
 from quant.strategies.mean_reversion import MeanReversion
 from quant.strategies.momentum import Momentum
@@ -19,6 +20,7 @@ _REGISTRY = {
     "rsi": RSIReversion,
     "breakout": Breakout,
     "macd": MACD,
+    "keltner": KeltnerBreakout,
 }
 
 __all__ = [
@@ -29,6 +31,7 @@ __all__ = [
     "RSIReversion",
     "Breakout",
     "MACD",
+    "KeltnerBreakout",
     "StrategyEnsemble",
     "RegimeFilter",
     "get_strategy",

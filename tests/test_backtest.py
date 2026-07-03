@@ -97,6 +97,33 @@ def test_stop_loss_triggers():
     assert result.metrics.max_drawdown > -0.5
 
 
+def test_trailing_stop_protects_profit():
+    """트레일링 스톱이 고점 이익을 지켜 낙폭을 줄이는지 검증."""
+    n = 60
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    price = np.concatenate([np.linspace(100, 150, 30), np.linspace(150, 100, 30)])
+    d = pd.DataFrame({"open": price, "high": price, "low": price,
+                      "close": price, "volume": 1.0}, index=idx)
+
+    class AlwaysLong:
+        name = "long"
+        allow_short = False
+
+        def generate_signals(self, x):
+            return pd.Series(1.0, index=x.index, name="target")
+
+    def run(trailing):
+        risk = RiskManager(RiskConfig(sizing="fixed", stop_loss=None,
+                                      trailing_stop=trailing))
+        return Backtester(AlwaysLong(), risk, fee=0.0, slippage=0.0).run(d)
+
+    no_trail = run(None)
+    trailed = run(0.1)
+    # 고점(150) 부근에서 이익을 잠가 최종 자본이 더 높고 낙폭이 완화되어야 한다
+    assert trailed.equity.iloc[-1] > no_trail.equity.iloc[-1]
+    assert trailed.metrics.max_drawdown > no_trail.metrics.max_drawdown
+
+
 def test_metrics_sane(df):
     bt = Backtester(get_strategy("ma_cross"), initial_capital=10_000.0)
     m = bt.run(df).metrics

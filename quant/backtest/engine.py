@@ -65,6 +65,7 @@ class Backtester:
         cash_equity = self.initial_capital
         pos = 0.0        # 현재 보유 비중
         entry = 0.0      # 진입가
+        extreme = 0.0    # 보유 중 유리한 방향 극값(롱=최고가, 숏=최저가) — 트레일링용
 
         for i in range(n):
             price = close[i]
@@ -74,21 +75,30 @@ class Backtester:
                 bar_ret = price / close[i - 1] - 1.0
                 cash_equity *= 1.0 + pos * bar_ret
 
-            # 2) 손절/익절 확인 (경로 의존)
+            # 2) 보유 중이면 유리한 극값 갱신 (트레일링 스톱 기준점)
+            if pos > 0:
+                extreme = max(extreme, price)
+            elif pos < 0:
+                extreme = min(extreme, price)
+
+            # 3) 손절/익절/트레일링 확인 (경로 의존)
             pos_after = self.risk.apply_stops(pos, entry, price)
+            pos_after = self.risk.apply_trailing_stop(pos_after, extreme, price)
             stop_triggered = pos_after != pos
 
-            # 3) 다음 봉에 보유할 목표 결정
+            # 4) 다음 봉에 보유할 목표 결정
             new_pos = 0.0 if stop_triggered else float(want[i])
 
-            # 4) 회전율에 따른 거래비용 차감
+            # 5) 회전율에 따른 거래비용 차감
             turnover = abs(new_pos - pos)
             if turnover > 1e-12:
                 cash_equity *= 1.0 - cost * turnover
                 if new_pos == 0.0:
                     entry = 0.0
+                    extreme = 0.0
                 elif pos == 0.0 or np.sign(new_pos) != np.sign(pos):
-                    entry = price  # 신규 진입 또는 방향 전환
+                    entry = price      # 신규 진입 또는 방향 전환
+                    extreme = price    # 극값도 진입가로 초기화
 
             pos = new_pos
             equity[i] = cash_equity

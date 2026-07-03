@@ -25,6 +25,8 @@ class RiskConfig:
     stop_loss: float | None = 0.15
     # 익절선: 진입가 대비 +x. None이면 미사용
     take_profit: float | None = None
+    # 트레일링 스톱: 유리한 방향 고점 대비 x만큼 되돌리면 청산 (이익 보호). None이면 미사용
+    trailing_stop: float | None = None
     # 사이징 방식: 'fixed' | 'vol_target'
     sizing: str = "vol_target"
     # 변동성 타겟팅 시 목표 연율 변동성 (예: 0.2 = 20%)
@@ -78,4 +80,26 @@ class RiskManager:
             return 0.0  # 손절 청산
         if cfg.take_profit is not None and pnl >= cfg.take_profit:
             return 0.0  # 익절 청산
+        return position
+
+    def apply_trailing_stop(
+        self, position: float, extreme_price: float, current_price: float
+    ) -> float:
+        """유리한 방향의 극값(extreme) 대비 되돌림을 확인해 청산 여부를 결정한다.
+
+        롱: 보유 중 최고가(extreme) 대비 trailing_stop 만큼 하락하면 청산.
+        숏: 보유 중 최저가(extreme) 대비 trailing_stop 만큼 상승하면 청산.
+        이익을 낸 뒤 되돌림으로 이익을 반납하는 것을 막아준다.
+        """
+        cfg = self.config
+        if position == 0 or cfg.trailing_stop is None or extreme_price <= 0:
+            return position
+        if position > 0:
+            giveback = (current_price - extreme_price) / extreme_price
+            if giveback <= -cfg.trailing_stop:
+                return 0.0
+        else:
+            giveback = (current_price - extreme_price) / extreme_price
+            if giveback >= cfg.trailing_stop:
+                return 0.0
         return position
