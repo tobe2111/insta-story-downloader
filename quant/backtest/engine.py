@@ -47,6 +47,18 @@ class BacktestResult:
             lines.append(f"초과수익   : {self.excess_return:>10.2%}  {verdict}")
         return "\n".join(lines)
 
+    def trades(self) -> list:
+        """자본곡선/포지션에서 추출한 개별 라운드트립 거래 목록."""
+        from quant.backtest.trades import extract_trades
+
+        return extract_trades(self.equity, self.positions)
+
+    def trade_stats(self) -> dict:
+        """거래 단위 통계(기대값·평균손익·거래별 이익팩터 등)."""
+        from quant.backtest.trades import trade_stats
+
+        return trade_stats(self.trades())
+
     def to_frame(self) -> pd.DataFrame:
         """자본곡선·수익률·포지션(·벤치마크)을 하나의 DataFrame으로 반환한다."""
         data = {
