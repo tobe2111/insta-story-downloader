@@ -65,3 +65,5 @@ def test_html_report_written(result, tmp_path):
     assert html.count("<polyline") >= 2
     # 거래 단위 통계 섹션(기대값)도 포함되어야 한다
     assert "거래 통계" in html and "기대값" in html
+    # 가격 차트 + 매매 시점 마커(진입/청산) 섹션이 포함되어야 한다
+    assert "매매 시점" in html and "진입" in html and "청산" in html

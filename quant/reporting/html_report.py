@@ -69,6 +69,39 @@ def _overlay(strategy: pd.Series, benchmark: pd.Series,
     )
 
 
+def _price_marker_chart(df, positions, width: int = 760, height: int = 200) -> str:
+    """가격 곡선 위에 매매 시점(🟢진입 / 🔴청산) 마커를 그린다."""
+    close = df["close"].to_numpy(dtype=float)
+    pos = positions.reindex(df.index).fillna(0.0).to_numpy()
+    n = len(close)
+    if n < 2:
+        return "<svg></svg>"
+    lo, hi = float(close.min()), float(close.max())
+    rng = (hi - lo) or 1.0
+
+    def _x(i):
+        return i / (n - 1) * width
+
+    def _y(i):
+        return height - (close[i] - lo) / rng * height
+
+    line = " ".join(f"{_x(i):.1f},{_y(i):.1f}" for i in range(n))
+    markers = []
+    for i in range(1, n):
+        prev, cur = pos[i - 1], pos[i]
+        if cur != 0 and prev == 0:            # 신규 진입
+            markers.append(f'<circle cx="{_x(i):.1f}" cy="{_y(i):.1f}" r="3.2" '
+                           'fill="#16a34a" />')
+        elif cur == 0 and prev != 0:          # 청산
+            markers.append(f'<circle cx="{_x(i):.1f}" cy="{_y(i):.1f}" r="3.2" '
+                           'fill="#dc2626" />')
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
+        f'preserveAspectRatio="none"><polyline points="{line}" fill="none" '
+        f'stroke="#64748b" stroke-width="1.4" />{"".join(markers)}</svg>'
+    )
+
+
 def generate_report(result: BacktestResult, path: str | Path,
                     title: str = "백테스트 리포트") -> Path:
     """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다."""
@@ -116,6 +149,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
         ("거래 이익팩터", tpf),
         ("평균 보유(봉)", f"{ts['avg_bars_held']:.1f}"),
     ])
+    price_chart = _price_marker_chart(result.df, result.positions)
     html = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -135,6 +169,10 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <h1>{title}</h1>
 <h2>자본곡선 (Equity Curve)</h2>
 <div class="card">{equity_svg}{legend}</div>
+<h2>가격 & 매매 시점</h2>
+<div class="card">{price_chart}
+<p style="font-size:12px;color:#64748b;margin:8px 0 0">
+<span style="color:#16a34a">●</span> 진입   <span style="color:#dc2626">●</span> 청산</p></div>
 <h2>낙폭 (Drawdown)</h2>
 <div class="card">{_sparkline(drawdown, color="#dc2626")}</div>
 <h2>성과 지표</h2>
