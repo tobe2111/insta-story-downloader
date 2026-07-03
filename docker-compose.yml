@@ -1,0 +1,27 @@
+# 한 줄 실행:  docker compose up
+#   - web : 브라우저 조종석 (http://localhost:8000)
+#   - bot : 페이퍼 트레이딩 봇 (results/를 공유 → web의 📺감시 탭에 실시간 표시)
+#
+# 실거래로 바꾸려면 bot의 command를 --live로 바꾸고 아래 environment에 키를 넣으세요.
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./results:/app/results
+    restart: unless-stopped
+
+  bot:
+    build: .
+    command: >
+      python examples/run_live.py --paper --market crypto
+      --symbol BTC/USDT --interval 60
+      --state results/state.json --dashboard results/dashboard.html
+    volumes:
+      - ./results:/app/results
+    restart: unless-stopped
+    # 실거래 시 (⚠️ 실제 자금) 아래 주석을 풀고 --paper 를 --live 로 변경:
+    # environment:
+    #   EXCHANGE_API_KEY: "${EXCHANGE_API_KEY}"
+    #   EXCHANGE_SECRET: "${EXCHANGE_SECRET}"

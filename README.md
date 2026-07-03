@@ -62,6 +62,18 @@ python -m quant pipeline                                     # 백테스트+리�
 python -m quant --help                                       # 전체 명령 보기
 ```
 
+## 배포 (Docker) — PC/VPS에 한 줄로
+
+```bash
+docker compose up            # 웹 조종석(:8000) + 페이퍼 봇 동시 실행
+# 또는 웹만:
+docker build -t quant . && docker run --rm -p 8000:8000 quant
+```
+
+`docker compose up`은 **웹 조종석**과 **페이퍼 트레이딩 봇**을 함께 띄우고, 봇이 쓰는
+상태를 공유(`results/`)해 웹의 📺감시 탭에 실시간으로 보여줍니다. 24시간 운용은 이
+compose를 작은 VPS에 올리면 됩니다. 실거래 전환은 `docker-compose.yml` 주석 참고.
+
 ## 빠른 시작 (백테스트)
 
 ```bash
