@@ -46,6 +46,7 @@ _OPT_GRIDS = {
     "macd": {"fast": [8, 12], "slow": [21, 26]},
     "keltner": {"ema_window": [10, 20], "atr_window": [10, 14], "mult": [1.5, 2.0, 2.5]},
     "stochastic": {"k_period": [10, 14], "oversold": [20, 25], "overbought": [75, 80]},
+    "ml": {"model": ["logreg", "gb"], "threshold": [0.53, 0.57]},
 }
 
 
@@ -349,6 +350,7 @@ def run_optimize_html(params: dict) -> str:
         MACD,
         KeltnerBreakout,
         MeanReversion,
+        MLStrategy,
         Momentum,
         MovingAverageCross,
         RSIReversion,
@@ -357,7 +359,7 @@ def run_optimize_html(params: dict) -> str:
 
     classes = {"ma_cross": MovingAverageCross, "momentum": Momentum,
                "rsi": RSIReversion, "mean_reversion": MeanReversion, "macd": MACD,
-               "keltner": KeltnerBreakout, "stochastic": Stochastic}
+               "keltner": KeltnerBreakout, "stochastic": Stochastic, "ml": MLStrategy}
     cls = classes[strategy_name]
     grid = _OPT_GRIDS[strategy_name]
     ppy = 365 if market in ("crypto", "synthetic") else 252
