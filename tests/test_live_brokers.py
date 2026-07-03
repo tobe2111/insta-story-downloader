@@ -1,0 +1,124 @@
+"""실거래 브로커 목(mock) 테스트 — 실제 API 없이 주문/조회 로직을 검증한다.
+
+이 브로커들은 실제 자금이 오가므로, 요청 본문 구성과 응답 파싱이 정확한지
+가짜 API로 반드시 확인해야 한다. (pandas 불필요 — 표준 라이브러리만)
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+from unittest import mock
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from quant.broker import crypto_live, kr_live, us_live
+
+
+# --- Alpaca (미국주식) ---
+def test_alpaca_order_and_queries():
+    os.environ["ALPACA_API_KEY"] = "k"
+    os.environ["ALPACA_SECRET"] = "s"
+    broker = us_live.AlpacaBroker(paper=True)
+
+    def fake_get(url, headers=None):
+        if "account" in url:
+            return {"cash": "1000.5", "equity": "1200.0"}
+        return {"qty": "2", "avg_entry_price": "50.0"}
+
+    sent = {}
+
+    def fake_post(url, headers=None, body=None):
+        sent["body"] = body
+        return {"filled_avg_price": "51.0", "filled_qty": "3", "status": "filled"}
+
+    with mock.patch.object(us_live, "get_json", fake_get), \
+         mock.patch.object(us_live, "post_json", fake_post):
+        assert broker.get_cash() == 1000.5
+        assert broker.get_equity() == 1200.0
+        assert broker.get_position("AAPL").quantity == 2.0
+        order = broker.market_order("AAPL", "buy", 3, 50.0)
+
+    assert sent["body"]["symbol"] == "AAPL"
+    assert sent["body"]["side"] == "buy"
+    assert sent["body"]["type"] == "market"
+    assert order.filled_quantity == 3.0 and order.status == "filled"
+
+
+def test_alpaca_missing_keys_raises():
+    for k in ("ALPACA_API_KEY", "ALPACA_SECRET"):
+        os.environ.pop(k, None)
+    try:
+        us_live.AlpacaBroker(paper=True)
+        assert False, "키 없으면 예외여야 함"
+    except RuntimeError:
+        pass
+
+
+# --- 한국투자증권 KIS (국내주식) ---
+def test_kis_order_and_balance():
+    os.environ["KIS_APP_KEY"] = "k"
+    os.environ["KIS_APP_SECRET"] = "s"
+    os.environ["KIS_CANO"] = "12345678"
+    broker = kr_live.KISBroker(paper=True)
+
+    order_body = {}
+
+    def fake_post(url, headers=None, body=None):
+        if "tokenP" in url:
+            return {"access_token": "tok"}
+        if "hashkey" in url:
+            return {"HASH": "hh"}
+        if "order-cash" in url:
+            order_body.update(body or {})
+            return {"rt_cd": "0", "msg1": "정상처리"}
+        return {}
+
+    def fake_get(url, headers=None):
+        return {"output1": [{"pdno": "005930", "hldg_qty": "5",
+                             "pchs_avg_pric": "68000"}],
+                "output2": [{"dnca_tot_amt": "1000000"}]}
+
+    with mock.patch.object(kr_live, "post_json", fake_post), \
+         mock.patch.object(kr_live, "get_json", fake_get):
+        order = broker.market_order("005930", "buy", 10, 70000)
+        cash = broker.get_cash()
+        pos = broker.get_position("005930")
+
+    # 시장가 주문 규격 검증
+    assert order_body["PDNO"] == "005930"
+    assert order_body["ORD_DVSN"] == "01"   # 시장가
+    assert order_body["ORD_QTY"] == "10"
+    assert order.status == "filled"
+    assert cash == 1000000.0
+    assert pos.quantity == 5.0 and pos.avg_price == 68000.0
+
+
+def test_kis_uses_paper_tr_ids():
+    os.environ.update({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s", "KIS_CANO": "1"})
+    broker = kr_live.KISBroker(paper=True)
+    assert broker.env == "paper"
+    assert broker._TR_BUY["paper"].startswith("V")  # 모의투자 tr_id
+
+
+# --- ccxt (암호화폐) ---
+class _FakeCcxt:
+    def __init__(self):
+        self.last_order = None
+
+    def fetch_balance(self):
+        return {"free": {"USDT": 500.0}, "total": {"BTC": 0.1}}
+
+    def create_order(self, symbol, type_, side, quantity):
+        self.last_order = (symbol, type_, side, quantity)
+        return {"average": 60000.0, "filled": quantity, "status": "closed"}
+
+
+def test_crypto_live_injected_client():
+    fake = _FakeCcxt()
+    broker = crypto_live.CryptoLiveBroker(client=fake)
+    assert broker.get_cash() == 500.0
+    assert broker.get_position("BTC/USDT").quantity == 0.1
+    order = broker.market_order("BTC/USDT", "buy", 0.05, 60000)
+    assert fake.last_order == ("BTC/USDT", "market", "buy", 0.05)
+    assert order.filled_quantity == 0.05 and order.status == "closed"
