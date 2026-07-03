@@ -33,7 +33,7 @@ def df():
     return SyntheticDataProvider(seed=5).get_ohlcv("ADV", "1d", limit=500)
 
 
-@pytest.mark.parametrize("name", ["rsi", "breakout", "macd", "keltner"])
+@pytest.mark.parametrize("name", ["rsi", "breakout", "macd", "keltner", "stochastic"])
 def test_new_strategies_registered(df, name):
     assert name in list_strategies()
     sig = get_strategy(name).generate_signals(df)
@@ -100,6 +100,26 @@ def test_mean_reversion_enters_low_exits_at_mean():
     sig = MeanReversion(window=20).generate_signals(d)
     assert (sig.iloc[30:35] > 0).any()   # 급락 구간에서 롱 진입
     assert sig.iloc[-1] == 0.0           # 평균 복귀 후 청산되어 관망
+
+
+def test_adx_filter_reduces_exposure(df):
+    """ADX 필터를 씌우면 (추세 강할 때만 매매) 노출이 원본 이하가 되어야 한다."""
+    from quant.strategies import ADXFilter, MovingAverageCross
+
+    base = MovingAverageCross(fast=10, slow=30)
+    filtered = ADXFilter(base, period=14, min_adx=25)
+    base_exp = (base.generate_signals(df) != 0).mean()
+    filt_exp = (filtered.generate_signals(df) != 0).mean()
+    assert filt_exp <= base_exp + 1e-9
+    # 백테스트도 정상 동작
+    assert (Backtester(filtered).run(df).equity > 0).all()
+
+
+def test_adx_in_range(df):
+    from quant.strategies.adx import adx
+    a = adx(df, 14)
+    assert a.index.equals(df.index)
+    assert (a >= 0).all() and a.max() <= 100.0 + 1e-6
 
 
 def test_regime_filter_reduces_exposure(df):

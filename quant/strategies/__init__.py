@@ -1,6 +1,7 @@
 """전략 계층."""
 from __future__ import annotations
 
+from quant.strategies.adx import ADXFilter
 from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
 from quant.strategies.ensemble import AdaptiveEnsemble, StrategyEnsemble
@@ -11,8 +12,9 @@ from quant.strategies.momentum import Momentum
 from quant.strategies.moving_average import MovingAverageCross
 from quant.strategies.regime import RegimeFilter
 from quant.strategies.rsi import RSIReversion
+from quant.strategies.stochastic import Stochastic
 
-# 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐은 다른 전략을 인자로 받아 별도 취급)
+# 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐/ADX는 다른 전략을 인자로 받아 별도 취급)
 _REGISTRY = {
     "ma_cross": MovingAverageCross,
     "momentum": Momentum,
@@ -21,6 +23,7 @@ _REGISTRY = {
     "breakout": Breakout,
     "macd": MACD,
     "keltner": KeltnerBreakout,
+    "stochastic": Stochastic,
 }
 
 __all__ = [
@@ -32,9 +35,11 @@ __all__ = [
     "Breakout",
     "MACD",
     "KeltnerBreakout",
+    "Stochastic",
     "StrategyEnsemble",
     "AdaptiveEnsemble",
     "RegimeFilter",
+    "ADXFilter",
     "get_strategy",
     "list_strategies",
     "default_ensemble",
