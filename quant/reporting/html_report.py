@@ -103,6 +103,19 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
         f"<tr><td>{k}</td><td>{v}</td></tr>"
         for k, v in metric_rows
     )
+
+    # 거래 단위 통계 (기대값 등)
+    ts = result.trade_stats()
+    tpf = "∞" if not np.isfinite(ts["profit_factor"]) else f"{ts['profit_factor']:.2f}"
+    trade_rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in [
+        ("거래횟수", f"{ts['num_trades']}"),
+        ("거래 승률", f"{ts['win_rate']:.2%}"),
+        ("평균 이익", f"{ts['avg_win']:.2%}"),
+        ("평균 손실", f"{ts['avg_loss']:.2%}"),
+        ("기대값(거래당)", f"{ts['expectancy']:.2%}"),
+        ("거래 이익팩터", tpf),
+        ("평균 보유(봉)", f"{ts['avg_bars_held']:.1f}"),
+    ])
     html = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -126,6 +139,8 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <div class="card">{_sparkline(drawdown, color="#dc2626")}</div>
 <h2>성과 지표</h2>
 <div class="card"><table>{rows}</table></div>
+<h2>거래 통계 (Trade-level)</h2>
+<div class="card"><table>{trade_rows}</table></div>
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 몬테카를로 신뢰구간과
 워크포워드 검증을 함께 확인하세요.</p>
 </div></body></html>"""
