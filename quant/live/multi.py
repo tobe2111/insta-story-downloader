@@ -40,11 +40,13 @@ class MultiTrader:
         state_path: str | None = None,
         dashboard_path: str | None = None,
         notifier=None,
+        circuit_breaker=None,
         mode: str = "paper",
     ):
         self.data = data
         self.strategy = strategy
         self.broker = broker
+        self.circuit_breaker = circuit_breaker
         self.symbols = list(symbols)
         self.timeframe = timeframe
         self.lookback = lookback
@@ -101,6 +103,18 @@ class MultiTrader:
                 self.broker.get_position(s).quantity * prices.get(s, 0.0)
                 for s in self.symbols
             )
+
+        # 서킷브레이커: 발동 시 전 종목 청산 후 신규 매매 중단
+        if self.circuit_breaker is not None:
+            day = str(pd.Timestamp.utcnow())[:10]
+            if self.circuit_breaker.update(equity, day):
+                log.error("🛑 서킷브레이커 발동(%s) — 전 종목 청산 후 중단",
+                          self.circuit_breaker.reason)
+                for s, price in prices.items():
+                    if price:
+                        self.broker.target_weight(s, 0.0, price, equity)
+                self._persist(prices)
+                return
 
         for s, w in weights.items():
             price = prices.get(s)

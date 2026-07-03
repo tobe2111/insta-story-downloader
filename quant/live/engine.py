@@ -38,6 +38,7 @@ class LiveTrader:
         state_path: str | None = None,
         dashboard_path: str | None = None,
         notifier=None,
+        circuit_breaker=None,
         mode: str = "paper",
     ):
         self.data = data
@@ -50,6 +51,7 @@ class LiveTrader:
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
+        self.circuit_breaker = circuit_breaker
         self.mode = mode
         self.history: list[dict] = []
 
@@ -71,6 +73,18 @@ class LiveTrader:
         else:
             pos = self.broker.get_position(self.symbol)
             equity = self.broker.get_cash() + pos.quantity * price
+
+        # 서킷브레이커: 발동 시 포지션 청산 후 신규 매매 중단
+        if self.circuit_breaker is not None:
+            day = str(df.index[-1])[:10]
+            if self.circuit_breaker.update(equity, day):
+                log.error("🛑 서킷브레이커 발동(%s) — 포지션 청산 후 중단",
+                          self.circuit_breaker.reason)
+                self.broker.target_weight(self.symbol, 0.0, price, equity)
+                self.history.append({"time": str(df.index[-1]), "price": price,
+                                     "weight": 0.0, "equity": equity})
+                self._persist()
+                return
 
         log.info("%s 목표비중=%.2f 가격=%.2f 자산=%.2f",
                  self.symbol, weight, price, equity)
