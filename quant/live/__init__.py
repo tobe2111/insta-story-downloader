@@ -1,3 +1,4 @@
+from quant.live.circuit_breaker import BreakerConfig, CircuitBreaker
 from quant.live.engine import LiveTrader
 from quant.live.multi import MultiTrader
 from quant.live.notifications import (
@@ -12,6 +13,8 @@ from quant.live.notifications import (
 __all__ = [
     "LiveTrader",
     "MultiTrader",
+    "CircuitBreaker",
+    "BreakerConfig",
     "Notifier",
     "ConsoleNotifier",
     "TelegramNotifier",
