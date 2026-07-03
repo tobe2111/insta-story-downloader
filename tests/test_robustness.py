@@ -63,3 +63,5 @@ def test_html_report_written(result, tmp_path):
     assert "매수후보유" in html and "이익팩터" in html
     # 자본곡선 카드에 두 개의 선(전략+벤치마크)이 그려져야 한다
     assert html.count("<polyline") >= 2
+    # 거래 단위 통계 섹션(기대값)도 포함되어야 한다
+    assert "거래 통계" in html and "기대값" in html
