@@ -1,0 +1,48 @@
+name: Build App
+
+# 무설치 실행파일(Windows/macOS/Linux)을 빌드해 Actions 아티팩트로 올린다.
+# 수동 실행(Actions 탭 → Run workflow) 또는 v* 태그 push 시 동작.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: quant-cockpit-linux
+          - os: windows-latest
+            asset: quant-cockpit-windows
+          - os: macos-latest
+            asset: quant-cockpit-macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy pyyaml yfinance ccxt pyinstaller
+
+      - name: Build standalone executable
+        run: >
+          pyinstaller --onefile --noconfirm --name quant-cockpit
+          --collect-submodules quant
+          --console
+          start.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error

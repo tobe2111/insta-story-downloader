@@ -20,11 +20,16 @@ import webbrowser
 
 HOST = "127.0.0.1"
 PORT = 8000
-_ROOT = os.path.dirname(os.path.abspath(__file__))
+_FROZEN = getattr(sys, "frozen", False)
+# 무설치 실행파일(frozen)이면 exe 위치, 아니면 스크립트 위치를 기준 폴더로
+_ROOT = os.path.dirname(sys.executable) if _FROZEN \
+    else os.path.dirname(os.path.abspath(__file__))
 
 
 def _ensure_deps() -> None:
     """핵심 라이브러리가 없으면 requirements.txt로 자동 설치한다."""
+    if _FROZEN:
+        return  # 무설치 실행파일은 라이브러리가 이미 포함되어 있음
     try:
         import numpy  # noqa: F401
         import pandas  # noqa: F401
