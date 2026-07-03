@@ -9,7 +9,7 @@ import html
 
 # 폼 셀렉트용 (pandas 임포트를 피하려고 하드코딩; strategies 레지스트리와 일치)
 STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
-              "macd", "keltner", "stochastic", "ensemble"]
+              "macd", "keltner", "stochastic", "ml", "ensemble"]
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
 _STYLE = """

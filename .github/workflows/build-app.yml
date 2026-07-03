@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy pyyaml yfinance ccxt pyinstaller
+          pip install pandas numpy pyyaml scikit-learn yfinance ccxt pyinstaller
 
       - name: Build standalone executable
         run: >
