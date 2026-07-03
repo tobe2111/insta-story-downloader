@@ -25,9 +25,27 @@ class BacktestResult:
     positions: pd.Series
     metrics: Metrics
     df: pd.DataFrame
+    benchmark: pd.Series | None = None  # 단순 매수후보유(buy & hold) 자본곡선
+
+    @property
+    def benchmark_return(self) -> float:
+        """벤치마크(매수후보유) 총수익률."""
+        if self.benchmark is None or len(self.benchmark) < 2:
+            return 0.0
+        return float(self.benchmark.iloc[-1] / self.benchmark.iloc[0] - 1.0)
+
+    @property
+    def excess_return(self) -> float:
+        """전략 총수익률 − 벤치마크 총수익률 (초과수익). 음수면 그냥 보유가 나았다는 뜻."""
+        return self.metrics.total_return - self.benchmark_return
 
     def summary(self) -> str:
-        return self.metrics.pretty()
+        lines = [self.metrics.pretty()]
+        if self.benchmark is not None:
+            lines.append(f"매수후보유 : {self.benchmark_return:>10.2%}")
+            verdict = "✅ 벤치마크 초과" if self.excess_return >= 0 else "⚠️ 벤치마크 하회"
+            lines.append(f"초과수익   : {self.excess_return:>10.2%}  {verdict}")
+        return "\n".join(lines)
 
 
 class Backtester:
@@ -111,4 +129,10 @@ class Backtester:
         metrics = compute_metrics(
             equity_s, returns_s, positions_s, self.periods_per_year
         )
-        return BacktestResult(equity_s, returns_s, positions_s, metrics, df)
+        # 매수후보유(buy & hold) 벤치마크: 첫 봉에 전액 매수해 그대로 보유
+        benchmark = (self.initial_capital * df["close"] / df["close"].iloc[0]).rename(
+            "benchmark"
+        )
+        return BacktestResult(
+            equity_s, returns_s, positions_s, metrics, df, benchmark
+        )

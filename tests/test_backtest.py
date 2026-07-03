@@ -124,6 +124,17 @@ def test_trailing_stop_protects_profit():
     assert trailed.metrics.max_drawdown > no_trail.metrics.max_drawdown
 
 
+def test_benchmark_buy_and_hold(df):
+    """매수후보유 벤치마크와 초과수익이 올바르게 계산되는지 검증."""
+    result = Backtester(get_strategy("ma_cross")).run(df)
+    assert result.benchmark is not None
+    expected = df["close"].iloc[-1] / df["close"].iloc[0] - 1.0
+    assert abs(result.benchmark_return - expected) < 1e-9
+    assert abs(result.excess_return
+               - (result.metrics.total_return - result.benchmark_return)) < 1e-12
+    assert "매수후보유" in result.summary()
+
+
 def test_metrics_sane(df):
     bt = Backtester(get_strategy("ma_cross"), initial_capital=10_000.0)
     m = bt.run(df).metrics
