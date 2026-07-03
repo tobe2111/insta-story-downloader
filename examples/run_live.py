@@ -34,6 +34,9 @@ def main() -> None:
     p.add_argument("--capital", type=float, default=10_000.0)
     p.add_argument("--interval", type=int, default=3600, help="사이클 간격(초)")
     p.add_argument("--iters", type=int, default=None, help="반복 횟수(기본: 무한)")
+    p.add_argument("--state", default="results/state.json", help="상태 저장 경로")
+    p.add_argument("--dashboard", default="results/dashboard.html",
+                   help="모니터링 대시보드 HTML 경로 (브라우저로 열어두면 30초마다 갱신)")
     args = p.parse_args()
 
     ppy = 365 if args.market in ("crypto", "synthetic") else 252
@@ -59,7 +62,10 @@ def main() -> None:
 
     trader = LiveTrader(
         data, strategy, broker, risk, args.symbol, args.timeframe,
+        state_path=args.state, dashboard_path=args.dashboard,
+        mode="live" if args.live else "paper",
     )
+    print(f"📊 모니터링 대시보드: {args.dashboard} (브라우저로 열어두세요)")
     trader.run(interval_sec=args.interval, max_iters=args.iters)
 
 

@@ -116,6 +116,10 @@ python examples/run_live.py --live --market us_stock --symbol AAPL       # Alpac
 python examples/run_live.py --live --market kr_stock --symbol 005930     # 한국투자증권
 ```
 
+실행하면 `results/dashboard.html`이 매 사이클 갱신됩니다. 브라우저로 열어두면
+자본추이·손익·포지션·최근주문을 30초마다 자동 새로고침하며 모니터링할 수 있어요
+(pandas 없이 표준 라이브러리만으로 렌더링).
+
 실거래 API 키 (환경변수로만 주입, 파일 저장 금지):
 
 | 시장 | 환경변수 |
@@ -135,7 +139,7 @@ quant/
 ├── portfolio/    다중 종목 포트폴리오 배분 + 백테스트
 ├── optimize/     그리드 서치 + 워크포워드 검증
 ├── robustness/   몬테카를로 부트스트랩 (신뢰구간)
-├── reporting/    자체 완결형 HTML 리포트 (인라인 SVG 차트)
+├── reporting/    HTML 리포트 + 라이브 모니터링 대시보드 (인라인 SVG, 의존성 0)
 ├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / 한국투자증권)
 ├── live/         실시간 트레이딩 루프
 └── utils/        로깅, HTTP 유틸
@@ -150,5 +154,6 @@ quant/
 - [x] 워크포워드 검증 / 파라미터 최적화
 - [x] 전략 앙상블 + 레짐 필터 (드로다운 방어)
 - [x] 몬테카를로 신뢰구간 + HTML 리포트
+- [x] 실시간 트레이딩 루프 + 라이브 모니터링 대시보드
 - [ ] 실거래 주문 체결/재시도 견고화 (부분체결, 레이트리밋)
-- [ ] 실시간 스케줄러 + 라이브 모니터링 대시보드
+- [ ] 다중 종목 실시간 운용 + 알림(텔레그램/슬랙)
