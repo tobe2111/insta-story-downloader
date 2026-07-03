@@ -55,11 +55,46 @@ python examples/run_backtest.py --market crypto --symbol BTC/USDT --timeframe 1d
 python examples/run_backtest.py --market us_stock --symbol AAPL
 ```
 
-## 페이퍼 트레이딩
+## 포트폴리오 백테스트 (다중 종목)
+
+여러 종목에 분산투자하여 변동성을 낮춥니다. 배분 방식: `equal`(균등),
+`inverse_vol`(변동성 역가중 ≈ 리스크 패리티).
 
 ```bash
-python examples/run_live.py --paper --market crypto --symbol BTC/USDT
+python examples/run_portfolio.py --market crypto --symbols BTC/USDT ETH/USDT SOL/USDT
+python examples/run_portfolio.py --market us_stock --symbols AAPL MSFT NVDA --allocation inverse_vol
 ```
+
+## 파라미터 최적화 + 워크포워드 검증
+
+**가장 중요한 도구입니다.** 단순히 과거 수익률을 최대화하면 과최적화됩니다.
+워크포워드는 "과거로 최적화 → 보지 않은 미래로 검증"을 반복해 **실전에서
+기대할 수 있는 진짜 성과**를 측정합니다.
+
+```bash
+python examples/run_optimize.py --market crypto --symbol BTC/USDT --strategy ma_cross
+```
+> IS(학습) 샤프와 OOS(검증) 샤프의 격차가 크면 그 전략은 과최적화된 것입니다.
+
+## 페이퍼 & 실거래 트레이딩
+
+```bash
+# 페이퍼 (안전, 권장)
+python examples/run_live.py --paper --market crypto --symbol BTC/USDT --iters 5
+
+# 실거래 — 각 시장별 브로커 (환경변수로 API 키 주입)
+python examples/run_live.py --live --market crypto  --symbol BTC/USDT   # ccxt
+python examples/run_live.py --live --market us_stock --symbol AAPL       # Alpaca
+python examples/run_live.py --live --market kr_stock --symbol 005930     # 한국투자증권
+```
+
+실거래 API 키 (환경변수로만 주입, 파일 저장 금지):
+
+| 시장 | 환경변수 |
+|------|----------|
+| 코인 | `EXCHANGE_API_KEY`, `EXCHANGE_SECRET` |
+| 미국주식 (Alpaca) | `ALPACA_API_KEY`, `ALPACA_SECRET` |
+| 국내주식 (KIS) | `KIS_APP_KEY`, `KIS_APP_SECRET`, `KIS_CANO`, `KIS_ACNT_PRDT_CD` |
 
 ## 프로젝트 구조
 
@@ -68,10 +103,12 @@ quant/
 ├── data/         데이터 제공자 (crypto / us_stock / kr_stock / synthetic)
 ├── strategies/   매매 전략 (모멘텀, MA 교차, 평균회귀)
 ├── risk/         리스크 관리 (사이징, 손절, 익절)
-├── backtest/     백테스트 엔진 + 성과 지표
-├── broker/       주문 실행 (페이퍼 / 실거래)
+├── backtest/     단일 종목 백테스트 엔진 + 성과 지표
+├── portfolio/    다중 종목 포트폴리오 배분 + 백테스트
+├── optimize/     그리드 서치 + 워크포워드 검증
+├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / 한국투자증권)
 ├── live/         실시간 트레이딩 루프
-└── utils/        로깅 등 유틸
+└── utils/        로깅, HTTP 유틸
 ```
 
 ## 로드맵
@@ -80,7 +117,9 @@ quant/
 - [x] 다중 전략 + 리스크 관리
 - [x] 페이퍼 트레이딩
 - [x] 코인 실거래 연동 (ccxt)
-- [ ] 국내주식 실거래 (한국투자증권 KIS API)
-- [ ] 미국주식 실거래 (Alpaca)
-- [ ] 포트폴리오 다중 종목 최적화
-- [ ] 워크포워드 검증 / 파라미터 최적화
+- [x] 국내주식 실거래 (한국투자증권 KIS API)
+- [x] 미국주식 실거래 (Alpaca)
+- [x] 포트폴리오 다중 종목 배분/백테스트
+- [x] 워크포워드 검증 / 파라미터 최적화
+- [ ] 실거래 주문 체결/재시도 견고화 (부분체결, 레이트리밋)
+- [ ] 실시간 스케줄러 + 모니터링 대시보드

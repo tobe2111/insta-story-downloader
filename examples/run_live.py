@@ -41,12 +41,18 @@ def main() -> None:
     strategy = get_strategy(args.strategy)
     risk = RiskManager(RiskConfig(periods_per_year=ppy, stop_loss=0.15))
 
+    # 시장 → 실거래 브로커 매핑
+    _live_mode = {"crypto": "crypto_live", "us_stock": "us_live", "kr_stock": "kr_live"}
+
     if args.live:
+        if args.market not in _live_mode:
+            print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
+            return
         confirm = input("⚠️ 실거래 모드입니다. 실제 자금이 사용됩니다. 계속? (yes 입력): ")
         if confirm.strip().lower() != "yes":
             print("취소되었습니다.")
             return
-        broker = get_broker("crypto_live")
+        broker = get_broker(_live_mode[args.market])
     else:
         broker = get_broker("paper", cash=args.capital)
         print("📝 페이퍼 트레이딩 모드 (실제 자금 사용 안 함)")
