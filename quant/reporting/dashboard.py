@@ -52,6 +52,14 @@ def _kpi(label: str, value: str, tone: str = "") -> str:
 
 def generate_dashboard(state: dict, path: str | Path) -> Path:
     """트레이딩 상태 스냅샷을 HTML 대시보드로 저장하고 경로를 반환한다."""
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(build_dashboard_html(state), encoding="utf-8")
+    return out
+
+
+def build_dashboard_html(state: dict) -> str:
+    """트레이딩 상태 스냅샷을 HTML 문자열로 렌더링한다 (파일 저장·웹 공용)."""
     history = state.get("history", [])
     equity = [h.get("equity", 0.0) for h in history]
     symbol = state.get("symbol", "-")
@@ -140,8 +148,4 @@ def generate_dashboard(state: dict, path: str | Path) -> Path:
   <tr><th>방향</th><th>종목</th><th>수량</th><th>체결가</th><th>상태</th></tr>{order_rows}</table></div></div>
 <p class="foot">⚠️ 30초마다 자동 새로고침. 과거·현재 성과는 미래 수익을 보장하지 않습니다.</p>
 </div></body></html>"""
-
-    out = Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(doc, encoding="utf-8")
-    return out
+    return doc

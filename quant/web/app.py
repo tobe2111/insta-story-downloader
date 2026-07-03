@@ -30,7 +30,8 @@ _STYLE = """
 """
 
 _NAV = ('<nav><a href="/">📊 백테스트</a>'
-        '<a href="/sweep">🔥 민감도 스윕</a></nav>')
+        '<a href="/sweep">🔥 민감도 스윕</a>'
+        '<a href="/monitor">📺 감시</a></nav>')
 
 
 def render_form(message: str = "") -> str:
@@ -114,6 +115,44 @@ def _robustness_html(returns, ppy: int) -> str:
         '<p style="font-size:12px;color:#94a3b8">신뢰구간 하단(5%)이 0 근처거나 '
         'PSR이 낮으면 이 성과는 운일 수 있습니다.</p></div>'
     )
+
+
+def render_monitor(state_paths=None) -> str:
+    """실행 중인 봇의 상태(state.json)를 읽어 감시 대시보드를 렌더한다 (pandas 불필요).
+
+    state_paths: 후보 경로 목록. 첫 번째로 존재하는 파일을 사용한다.
+    """
+    import json
+    from pathlib import Path
+
+    from quant.reporting import build_dashboard_html
+
+    candidates = state_paths or ["results/multi_state.json", "results/state.json"]
+    state = None
+    for p in candidates:
+        fp = Path(p)
+        if fp.exists():
+            try:
+                state = json.loads(fp.read_text(encoding="utf-8"))
+                break
+            except (ValueError, OSError):
+                continue
+
+    if state is None:
+        return (f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 감시</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>📺 봇 감시</h1>
+<p style="color:#94a3b8;font-size:14px">실행 중인 페이퍼/실거래 세션이 없습니다.</p>
+<p style="font-size:13px">먼저 봇을 실행하세요:</p>
+<pre style="font-size:12px">python examples/run_live.py --paper --market crypto --symbol BTC/USDT</pre>
+<p style="font-size:13px;color:#94a3b8">봇이 <code>results/state.json</code>을 쓰면
+이 페이지에 자산·포지션·주문이 나타납니다.</p>
+</div></body></html>""")
+
+    # 대시보드 본문에 조종석 네비게이션 삽입
+    return build_dashboard_html(state).replace("<header>", _NAV + "\n<header>", 1)
 
 
 def render_sweep_form(message: str = "") -> str:
