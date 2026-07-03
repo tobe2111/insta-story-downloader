@@ -13,11 +13,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from quant.web.app import (
     MARKETS,
     STRATEGIES,
+    read_state,
     render_form,
     render_monitor,
     render_sweep_form,
     run_backtest_html,
     run_sweep_html,
+    state_json,
 )
 
 
@@ -47,12 +49,26 @@ def test_render_monitor_with_state(tmp_path):
     p = tmp_path / "state.json"
     p.write_text(json.dumps({
         "symbol": "X", "strategy": "s", "mode": "paper",
-        "history": [{"time": "t", "equity": 10000, "weight": 0.5, "price": 0}],
+        "history": [{"time": "t", "equity": 10000 + i, "weight": 0.5, "price": 0}
+                    for i in range(4)],
         "positions": [{"symbol": "X", "quantity": 0.1, "avg_price": 100}],
         "orders": [],
     }), encoding="utf-8")
     doc = render_monitor([str(p)])
     assert "라이브 모니터" in doc and "<nav" in doc and "총자산" in doc
+    # 실시간 갱신: JS 폴러 + 요소 id, 페이지 meta-refresh 제거
+    assert 'id="eqline"' in doc and "fetch(" in doc and "setInterval" in doc
+    assert 'http-equiv="refresh"' not in doc
+
+
+def test_state_json_reads_file(tmp_path):
+    import json
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps({"symbol": "BTC/USDT", "history": []}), encoding="utf-8")
+    assert read_state([str(p)])["symbol"] == "BTC/USDT"
+    assert json.loads(state_json([str(p)]))["symbol"] == "BTC/USDT"
+    # 파일 없으면 빈 객체
+    assert state_json([str(tmp_path / "none.json")]) == "{}"
 
 
 def test_run_sweep_html_synthetic():

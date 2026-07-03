@@ -20,10 +20,14 @@ from typing import Sequence
 
 
 def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
-               color: str = "#2563eb", fill: bool = True) -> str:
+               color: str = "#2563eb", fill: bool = True, elem_id: str = "") -> str:
     vals = [float(v) for v in values]
+    idattr = f' id="{elem_id}"' if elem_id else ""
     if len(vals) < 2:
-        return '<div style="color:#94a3b8;padding:24px 0">데이터 수집 중…</div>'
+        return ('<svg viewBox="0 0 760 180" width="100%" height="180">'
+                f'<polyline{idattr} points="" fill="none" stroke="{color}" '
+                'stroke-width="2.5" /></svg>'
+                '<div style="color:#94a3b8;padding:6px 0;font-size:12px">데이터 수집 중…</div>')
     lo, hi = min(vals), max(vals)
     rng = (hi - lo) or 1.0
     n = len(vals)
@@ -39,15 +43,17 @@ def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
     return (
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
         f'preserveAspectRatio="none">{area}'
-        f'<polyline points="{line}" fill="none" stroke="{color}" '
+        f'<polyline{idattr} points="{line}" fill="none" stroke="{color}" '
         f'stroke-width="2.5" stroke-linejoin="round" /></svg>'
     )
 
 
-def _kpi(label: str, value: str, tone: str = "") -> str:
+def _kpi(label: str, value: str, tone: str = "", vid: str = "") -> str:
     color = {"pos": "#16a34a", "neg": "#dc2626", "": "var(--fg)"}[tone]
+    idattr = f' id="{vid}"' if vid else ""
     return (f'<div class="kpi"><div class="kpi-label">{html.escape(label)}</div>'
-            f'<div class="kpi-val" style="color:{color}">{html.escape(value)}</div></div>')
+            f'<div class="kpi-val"{idattr} style="color:{color}">'
+            f'{html.escape(value)}</div></div>')
 
 
 def generate_dashboard(state: dict, path: str | Path) -> Path:
@@ -86,8 +92,8 @@ def build_dashboard_html(state: dict) -> str:
         positions = [single] if single else []
 
     kpis = "".join([
-        _kpi("총자산", f"{cur:,.2f}"),
-        _kpi("손익 (PnL)", f"{pnl:+.2%}", "pos" if pnl >= 0 else "neg"),
+        _kpi("총자산", f"{cur:,.2f}", vid="kpi-equity"),
+        _kpi("손익 (PnL)", f"{pnl:+.2%}", "pos" if pnl >= 0 else "neg", vid="kpi-pnl"),
         _kpi("최대낙폭", f"{max_dd:.2%}", "neg" if max_dd < 0 else ""),
         _kpi("현재 목표비중", f"{last_weight:+.0%}"),
         _kpi("거래횟수", f"{len(orders)}"),
@@ -141,7 +147,7 @@ def build_dashboard_html(state: dict) -> str:
   <span class="badge">{mode_badge}</span>
 </header>
 <div class="kpis">{kpis}</div>
-<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#16a34a" if pnl>=0 else "#dc2626")}</div>
+<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#16a34a" if pnl>=0 else "#dc2626", elem_id="eqline")}</div>
 <div class="card"><h2>현재 포지션</h2><div class="over"><table>
   <tr><th>종목</th><th>수량</th><th>평균단가</th></tr>{pos_row}</table></div></div>
 <div class="card"><h2>최근 주문</h2><div class="over"><table>

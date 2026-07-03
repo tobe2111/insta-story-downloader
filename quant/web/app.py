@@ -117,26 +117,61 @@ def _robustness_html(returns, ppy: int) -> str:
     )
 
 
-def render_monitor(state_paths=None) -> str:
-    """실행 중인 봇의 상태(state.json)를 읽어 감시 대시보드를 렌더한다 (pandas 불필요).
+# 실시간 차트: /api/state를 주기적으로 폴링해 페이지 새로고침 없이 갱신
+_MONITOR_JS = """<script>
+async function _tick(){
+  try{
+    const r = await fetch('/api/state', {cache:'no-store'});
+    if(!r.ok) return;
+    const s = await r.json();
+    const h = (s && s.history) || [];
+    const eq = h.map(x => (x.equity||0));
+    if(eq.length >= 2){
+      const W=760,H=180, lo=Math.min(...eq), hi=Math.max(...eq), rng=(hi-lo)||1;
+      const pts = eq.map((v,i)=>`${(i/(eq.length-1)*W).toFixed(1)},${(H-(v-lo)/rng*H).toFixed(1)}`).join(' ');
+      const line = document.getElementById('eqline'); if(line) line.setAttribute('points', pts);
+      const cur=eq[eq.length-1], st=eq[0], pnl=st? cur/st-1:0;
+      const e=document.getElementById('kpi-equity'); if(e) e.textContent = cur.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+      const p=document.getElementById('kpi-pnl'); if(p){ p.textContent=(pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%'; p.style.color = pnl>=0? '#16a34a':'#dc2626'; }
+    }
+    const t=document.getElementById('rt-time'); if(t) t.textContent = new Date().toLocaleTimeString();
+  }catch(e){}
+}
+setInterval(_tick, 5000); _tick();
+</script>"""
 
-    state_paths: 후보 경로 목록. 첫 번째로 존재하는 파일을 사용한다.
-    """
+
+def read_state(state_paths=None):
+    """봇 상태 파일을 읽어 dict로 반환한다 (없으면 None). pandas 불필요."""
     import json
     from pathlib import Path
 
-    from quant.reporting import build_dashboard_html
-
     candidates = state_paths or ["results/multi_state.json", "results/state.json"]
-    state = None
     for p in candidates:
         fp = Path(p)
         if fp.exists():
             try:
-                state = json.loads(fp.read_text(encoding="utf-8"))
-                break
+                return json.loads(fp.read_text(encoding="utf-8"))
             except (ValueError, OSError):
                 continue
+    return None
+
+
+def state_json(state_paths=None) -> str:
+    """현재 봇 상태를 JSON 문자열로 반환한다 (/api/state 용). 없으면 '{}'."""
+    import json
+
+    return json.dumps(read_state(state_paths) or {}, ensure_ascii=False)
+
+
+def render_monitor(state_paths=None) -> str:
+    """실행 중인 봇의 상태(state.json)를 읽어 감시 대시보드를 렌더한다 (pandas 불필요).
+
+    차트는 /api/state를 5초마다 폴링해 페이지 새로고침 없이 갱신된다.
+    """
+    from quant.reporting import build_dashboard_html
+
+    state = read_state(state_paths)
 
     if state is None:
         return (f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -151,8 +186,15 @@ def render_monitor(state_paths=None) -> str:
 이 페이지에 자산·포지션·주문이 나타납니다.</p>
 </div></body></html>""")
 
-    # 대시보드 본문에 조종석 네비게이션 삽입
-    return build_dashboard_html(state).replace("<header>", _NAV + "\n<header>", 1)
+    doc = build_dashboard_html(state)
+    doc = doc.replace("<header>", _NAV + "\n<header>", 1)  # 조종석 네비게이션
+    # 페이지 전체 새로고침(meta refresh) 제거 → JS로 부드럽게 실시간 갱신
+    doc = doc.replace('<meta http-equiv="refresh" content="30">', "")
+    doc = doc.replace(
+        "</header>",
+        '</header><p class="sub" style="font-size:12px;color:#94a3b8">'
+        '🟢 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
+    return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
 
 
 def render_sweep_form(message: str = "") -> str:
