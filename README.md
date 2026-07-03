@@ -1,5 +1,7 @@
 # Quant — 주식·코인 퀀트 자동투자 시스템
 
+![CI](https://github.com/tobe2111/insta-story-downloader/actions/workflows/ci.yml/badge.svg)
+
 Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호화폐), 국내주식,
 미국주식을 대상으로 **전략 백테스팅 → 페이퍼 트레이딩 → 실거래**를 단계적으로
 검증하며 진행할 수 있도록 설계되었습니다.
@@ -36,11 +38,17 @@ Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호
 5. **브로커/실행 계층** (`quant/broker`, `quant/live`) — 페이퍼 트레이딩과
    실거래(ccxt 등)를 동일한 인터페이스로 연결.
 
-## 설치
+## 설치 & 개발
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt   # 또는: make install
+pytest -q                          # 전체 테스트 (또는: make test)
+python -m py_compile $(find quant examples tests -name "*.py")  # 문법검사
 ```
+
+> CI(GitHub Actions)가 Python 3.11/3.12에서 매 push·PR마다 전체 테스트를
+> 자동 실행합니다. 데이터 소스가 없으면 합성 데이터로 폴백하므로 오프라인에서도
+> 테스트가 통과합니다.
 
 ## 빠른 시작 (백테스트)
 

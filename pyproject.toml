@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant"
+version = "0.1.0"
+description = "주식·코인 퀀트 자동투자 프레임워크 (백테스트 → 검증 → 실거래)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# 실데이터/실거래 (선택)
+data = ["ccxt>=4.0", "yfinance>=0.2.40"]
+viz = ["matplotlib>=3.7"]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools]
+packages = ["quant"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+python_files = "test_*.py"
+python_functions = "test_*"
