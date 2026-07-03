@@ -61,26 +61,37 @@ def list_strategies() -> list[str]:
     return list(_REGISTRY)
 
 
-def default_ensemble(allow_short: bool = False) -> StrategyEnsemble:
-    """추세추종 + 평균회귀를 섞은 기본 앙상블 (상관이 낮아 분산 효과가 좋다)."""
+def _diversified_book(allow_short: bool = False):
+    """추세추종 2 + 평균회귀 2로 균형 잡은 전략 묶음 (상관이 낮아 분산 효과가 크다)."""
+    return [
+        MovingAverageCross(fast=20, slow=60),      # 추세추종
+        Breakout(window=55, exit_window=20),       # 추세추종(돌파)
+        RSIReversion(period=14),                   # 평균회귀(단기)
+        MeanReversion(window=20, z=2.0),           # 평균회귀(밴드)
+    ]
+
+
+def default_ensemble(allow_short: bool = False,
+                     weighting: str = "fixed") -> StrategyEnsemble:
+    """추세추종 + 평균회귀를 균형 있게 섞은 기본 앙상블.
+
+    weighting="inverse_vol" 이면 리스크 패리티(역변동성 가중)로 결합해 변동성이
+    큰 전략이 포트폴리오 위험을 독점하지 못하게 균형을 맞춘다.
+    """
     return StrategyEnsemble(
-        strategies=[
-            MovingAverageCross(fast=20, slow=60),
-            Breakout(window=55, exit_window=20),
-            RSIReversion(period=14),
-        ],
+        strategies=_diversified_book(allow_short),
         allow_short=allow_short,
+        weighting=weighting,
     )
 
 
-def adaptive_ensemble(lookback: int = 60, allow_short: bool = False) -> AdaptiveEnsemble:
-    """최근 성과에 따라 가중치를 조정하는 적응형 앙상블 (추세추종+평균회귀)."""
+def adaptive_ensemble(lookback: int = 60, allow_short: bool = False,
+                      score: str = "sharpe", risk_parity: bool = True) -> AdaptiveEnsemble:
+    """최근 위험조정 성과에 따라 소프트맥스로 가중치를 조정하는 적응형 앙상블."""
     return AdaptiveEnsemble(
-        strategies=[
-            MovingAverageCross(fast=20, slow=60),
-            Breakout(window=55, exit_window=20),
-            RSIReversion(period=14),
-        ],
+        strategies=_diversified_book(allow_short),
         lookback=lookback,
         allow_short=allow_short,
+        score=score,
+        risk_parity=risk_parity,
     )

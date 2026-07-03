@@ -87,6 +87,47 @@ def test_adaptive_ensemble_empty_raises():
         AdaptiveEnsemble([])
 
 
+def test_ensemble_inverse_vol_bounded(df):
+    """리스크 패리티(역변동성) 가중도 경계 안에서 동작하고 인덱스를 보존한다."""
+    ens = StrategyEnsemble(
+        [MovingAverageCross(), Breakout(), RSIReversion()],
+        weighting="inverse_vol", vol_lookback=40)
+    sig = ens.generate_signals(df)
+    assert sig.index.equals(df.index)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (Backtester(ens).run(df).equity > 0).all()
+
+
+def test_ensemble_weights_sum_to_one_inverse_vol(df):
+    """역변동성 가중이라도 두 전략 결합 신호는 개별 신호 범위를 벗어나지 않는다."""
+    a, b = MovingAverageCross(), MeanReversion()
+    ens = StrategyEnsemble([a, b], weighting="inverse_vol")
+    sig = ens.generate_signals(df)
+    lo = pd.concat([a.generate_signals(df), b.generate_signals(df)], axis=1).min(axis=1)
+    hi = pd.concat([a.generate_signals(df), b.generate_signals(df)], axis=1).max(axis=1)
+    # 가중평균은 항상 [min, max] 사이 (합=1인 볼록결합)
+    assert (sig <= hi + 1e-9).all() and (sig >= lo - 1e-9).all()
+
+
+def test_adaptive_ensemble_sharpe_softmax_bounded(df):
+    """Sharpe 점수 + 소프트맥스 + 리스크패리티 조합이 경계 안에서 동작한다."""
+    ens = AdaptiveEnsemble(
+        [MovingAverageCross(), Breakout(), RSIReversion(), MeanReversion()],
+        lookback=40, score="sharpe", method="softmax", risk_parity=True)
+    sig = ens.generate_signals(df)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (Backtester(ens).run(df).equity > 0).all()
+
+
+def test_adaptive_ensemble_proportional_return_mode(df):
+    """구식 비례배분(return·proportional·리스크패리티 off)도 여전히 동작한다."""
+    ens = AdaptiveEnsemble(
+        [MovingAverageCross(), RSIReversion()], lookback=40,
+        score="return", method="proportional", risk_parity=False)
+    sig = ens.generate_signals(df)
+    assert sig.abs().max() <= 1.0 + 1e-9
+
+
 def test_mean_reversion_enters_low_exits_at_mean():
     """하단밴드 이탈 시 진입하고, 중심선 복귀 시 청산되는지 검증(청산 로직 회귀 테스트)."""
     n = 60
