@@ -1,0 +1,62 @@
+"""데이터 캐싱 — 반복 백테스트 시 거래소 API 재호출을 줄인다.
+
+같은 (종목·타임프레임·봉수) 요청을 디스크에 CSV로 저장해두고, TTL 안이면
+재사용한다. 최신 데이터가 필요한 경우를 위해 TTL(기본 1시간)을 두어 오래된
+캐시는 자동으로 새로 받는다. start/end 범위를 지정한 요청은 캐시하지 않는다.
+"""
+from __future__ import annotations
+
+import re
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
+
+from quant.data.base import DataProvider
+from quant.utils.logging import get_logger
+
+log = get_logger("data.cache")
+
+
+def _safe(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name)
+
+
+class CachedDataProvider(DataProvider):
+    """임의의 DataProvider를 감싸 디스크 캐시를 추가한다."""
+
+    def __init__(self, inner: DataProvider, cache_dir: str = "data_cache",
+                 ttl_seconds: int = 3600):
+        self.inner = inner
+        self.cache_dir = Path(cache_dir)
+        self.ttl_seconds = ttl_seconds
+
+    def get_ohlcv(
+        self,
+        symbol: str,
+        timeframe: str = "1d",
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        limit: int = 500,
+    ) -> pd.DataFrame:
+        # 범위 지정 요청은 캐시하지 않는다 (키가 복잡해짐)
+        if start is not None or end is not None:
+            return self.inner.get_ohlcv(symbol, timeframe, start, end, limit)
+
+        path = self.cache_dir / f"{_safe(symbol)}_{_safe(timeframe)}_{limit}.csv"
+        if path.exists() and (time.time() - path.stat().st_mtime) < self.ttl_seconds:
+            try:
+                df = pd.read_csv(path, index_col=0, parse_dates=True)
+                return self._validate(df)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("캐시 로드 실패(%s), 새로 받습니다.", exc)
+
+        df = self.inner.get_ohlcv(symbol, timeframe, None, None, limit)
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            df.to_csv(path)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("캐시 저장 실패(%s).", exc)
+        return df

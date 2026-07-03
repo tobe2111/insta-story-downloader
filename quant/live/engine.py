@@ -134,8 +134,37 @@ class LiveTrader:
 
             generate_dashboard(snap or self.snapshot(), self.dashboard_path)
 
+    def reconcile(self) -> None:
+        """재시작 시 실제 브로커 포지션과 직전 저장 상태를 대조한다.
+
+        봇이 꺼진 사이 수동매매·부분체결·미체결 등으로 실제 보유가 예상과
+        달라질 수 있다. 시작할 때 실제 포지션을 확인해 로그·알림으로 남긴다.
+        """
+        actual = self.broker.get_position(self.symbol)
+        prev = None
+        if self.state_path and Path(self.state_path).exists():
+            try:
+                prev = json.loads(Path(self.state_path).read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                prev = None
+
+        msg = f"🔄 재시작 정합성 확인: {self.symbol} 실제 보유 {actual.quantity:.6f}"
+        if prev and prev.get("history"):
+            last_w = prev["history"][-1].get("weight", 0.0)
+            msg += f" · 직전 목표비중 {last_w:+.2f}"
+            # 직전엔 관망(비중 0)이었는데 실제 포지션이 남아 있으면 경고
+            if abs(last_w) < 1e-9 and abs(actual.quantity) > 0:
+                msg += "  ⚠️ 관망 상태였는데 잔여 포지션 있음 — 확인 필요"
+        log.info(msg)
+        if self.notifier is not None:
+            self.notifier.send(msg)
+
     def run(self, interval_sec: int = 3600, max_iters: int | None = None) -> None:
-        """주기적으로 step()을 반복한다."""
+        """주기적으로 step()을 반복한다 (시작 시 포지션 정합성 확인 포함)."""
+        try:
+            self.reconcile()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("정합성 확인 실패: %s", exc)
         i = 0
         while max_iters is None or i < max_iters:
             try:
