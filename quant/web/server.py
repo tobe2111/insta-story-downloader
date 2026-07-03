@@ -13,9 +13,11 @@ from urllib.parse import parse_qs, urlparse
 from quant.web.app import (
     render_form,
     render_monitor,
+    render_optimize_form,
     render_portfolio_form,
     render_sweep_form,
     run_backtest_html,
+    run_optimize_html,
     run_portfolio_html,
     run_sweep_html,
     state_json,
@@ -56,6 +58,14 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_portfolio_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_portfolio_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/optimize":
+            self._send(render_optimize_form())
+        elif parsed.path == "/optimize/run":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                self._send(run_optimize_html(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_optimize_form(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":

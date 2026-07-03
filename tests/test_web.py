@@ -16,9 +16,11 @@ from quant.web.app import (
     read_state,
     render_form,
     render_monitor,
+    render_optimize_form,
     render_portfolio_form,
     render_sweep_form,
     run_backtest_html,
+    run_optimize_html,
     run_portfolio_html,
     run_sweep_html,
     state_json,
@@ -39,6 +41,24 @@ def test_render_sweep_form():
     doc = render_sweep_form()
     assert "<form" in doc and 'action="/sweep/run"' in doc
     assert "히트맵" in doc and "<nav" in doc
+
+
+def test_render_optimize_form():
+    doc = render_optimize_form()
+    assert "<form" in doc and 'action="/optimize/run"' in doc
+    assert "워크포워드" in doc and 'href="/optimize"' in doc
+
+
+def test_run_optimize_html_synthetic():
+    doc = run_optimize_html({"market": "synthetic", "symbol": "X",
+                             "strategy": "ma_cross", "limit": "500",
+                             "is_window": "200", "oos_window": "100"})
+    assert "워크포워드 결과" in doc and "OOS" in doc and "<nav" in doc
+
+
+def test_run_optimize_html_unsupported_strategy():
+    doc = run_optimize_html({"strategy": "ensemble"})  # 그리드 없는 전략
+    assert "최적화 미지원" in doc  # 폼으로 안내
 
 
 def test_render_portfolio_form():
