@@ -240,7 +240,7 @@ python examples/run_live.py --live --market kr_stock --symbol 005930     # 한�
 ```
 quant/
 ├── data/         데이터 제공자 (crypto / us_stock / kr_stock / synthetic)
-├── strategies/   전략 (MA/모멘텀/평균회귀/RSI/브레이크아웃/MACD/켈트너/앙상블/레짐필터)
+├── strategies/   전략 (MA/모멘텀/평균회귀/RSI/브레이크아웃/MACD/켈트너/스토캐스틱/ML/앙상블/레짐/ADX)
 ├── risk/         리스크 관리 (사이징, 손절, 익절)
 ├── backtest/     단일 종목 백테스트 엔진 + 성과 지표
 ├── portfolio/    다중 종목 포트폴리오 배분 + 백테스트

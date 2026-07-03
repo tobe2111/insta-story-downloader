@@ -9,6 +9,7 @@ from quant.strategies.keltner import KeltnerBreakout
 from quant.strategies.macd import MACD
 from quant.strategies.mean_reversion import MeanReversion
 from quant.strategies.momentum import Momentum
+from quant.strategies.ml import MLStrategy
 from quant.strategies.moving_average import MovingAverageCross
 from quant.strategies.regime import RegimeFilter
 from quant.strategies.rsi import RSIReversion
@@ -24,6 +25,7 @@ _REGISTRY = {
     "macd": MACD,
     "keltner": KeltnerBreakout,
     "stochastic": Stochastic,
+    "ml": MLStrategy,
 }
 
 __all__ = [
@@ -36,6 +38,7 @@ __all__ = [
     "MACD",
     "KeltnerBreakout",
     "Stochastic",
+    "MLStrategy",
     "StrategyEnsemble",
     "AdaptiveEnsemble",
     "RegimeFilter",
