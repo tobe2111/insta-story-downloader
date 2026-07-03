@@ -149,7 +149,18 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
         ("거래 이익팩터", tpf),
         ("평균 보유(봉)", f"{ts['avg_bars_held']:.1f}"),
     ])
-    price_chart = _price_marker_chart(result.df, result.positions)
+    # 가격 차트는 단일 종목(OHLCV)일 때만 — 포트폴리오 결과엔 'close' 컬럼이 없다
+    has_price = "close" in getattr(result.df, "columns", [])
+    if has_price:
+        price_section = (
+            '<h2>가격 & 매매 시점</h2>\n'
+            f'<div class="card">{_price_marker_chart(result.df, result.positions)}\n'
+            '<p style="font-size:12px;color:#64748b;margin:8px 0 0">'
+            '<span style="color:#16a34a">●</span> 진입   '
+            '<span style="color:#dc2626">●</span> 청산</p></div>'
+        )
+    else:
+        price_section = ""
     html = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -169,10 +180,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <h1>{title}</h1>
 <h2>자본곡선 (Equity Curve)</h2>
 <div class="card">{equity_svg}{legend}</div>
-<h2>가격 & 매매 시점</h2>
-<div class="card">{price_chart}
-<p style="font-size:12px;color:#64748b;margin:8px 0 0">
-<span style="color:#16a34a">●</span> 진입   <span style="color:#dc2626">●</span> 청산</p></div>
+{price_section}
 <h2>낙폭 (Drawdown)</h2>
 <div class="card">{_sparkline(drawdown, color="#dc2626")}</div>
 <h2>성과 지표</h2>

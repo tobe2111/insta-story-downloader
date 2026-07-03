@@ -30,8 +30,11 @@ _STYLE = """
 """
 
 _NAV = ('<nav><a href="/">📊 백테스트</a>'
+        '<a href="/portfolio">📦 포트폴리오</a>'
         '<a href="/sweep">🔥 민감도 스윕</a>'
         '<a href="/monitor">📺 감시</a></nav>')
+
+ALLOCATIONS = ["inverse_vol", "equal"]
 
 
 def render_form(message: str = "") -> str:
@@ -215,6 +218,70 @@ def render_monitor(state_paths=None) -> str:
         '</header><p class="sub" style="font-size:12px;color:#94a3b8">'
         '🟢 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
     return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
+
+
+def render_portfolio_form(message: str = "") -> str:
+    """다중 종목 포트폴리오 백테스트 폼 (pandas 불필요)."""
+    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
+    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in STRATEGIES)
+    alloc_opts = "".join(f'<option value="{a}">{a}</option>' for a in ALLOCATIONS)
+    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 포트폴리오</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>📦 포트폴리오 백테스트</h1>
+<p style="color:#94a3b8;font-size:13px">여러 종목에 분산투자해 변동성을 낮춥니다.
+종목은 쉼표로 구분하세요.</p>
+{msg}
+<form action="/portfolio/run" method="get">
+  <div class="row">
+    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>종목 (쉼표 구분)</label><input name="symbols" value="BTC/USDT, ETH/USDT, SOL/USDT"></div>
+  </div>
+  <div class="row">
+    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
+    <div><label>배분 방식</label><select name="allocation">{alloc_opts}</select></div>
+    <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
+    <div><label>봉 개수</label><input name="limit" value="500"></div>
+  </div>
+  <button type="submit">포트폴리오 백테스트</button>
+</form>
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
+</div></body></html>"""
+
+
+def run_portfolio_html(params: dict) -> str:
+    """다중 종목 포트폴리오 백테스트를 실행하고 리포트 HTML을 반환한다 (pandas 필요)."""
+    market = params.get("market", "synthetic")
+    raw = params.get("symbols", "A, B, C")
+    symbols = [s.strip() for s in raw.split(",") if s.strip()]
+    timeframe = params.get("timeframe", "1d")
+    strategy_name = params.get("strategy", "momentum")
+    allocation = params.get("allocation", "inverse_vol")
+    try:
+        limit = max(50, min(5000, int(params.get("limit", 500))))
+    except (TypeError, ValueError):
+        limit = 500
+    if not symbols:
+        return render_portfolio_form("종목을 하나 이상 입력하세요.")
+
+    # 유효 입력 확인 후에만 무거운(pandas) 모듈을 임포트
+    from quant.data import get_provider
+    from quant.portfolio import PortfolioBacktester
+    from quant.reporting import build_report_html
+    from quant.strategies import default_ensemble, get_strategy
+
+    ppy = 365 if market in ("crypto", "synthetic") else 252
+    provider = get_provider(market)
+    data = {s: provider.get_ohlcv(s, timeframe, limit=limit) for s in symbols}
+    strategy = default_ensemble() if strategy_name == "ensemble" \
+        else get_strategy(strategy_name)
+    result = PortfolioBacktester(
+        strategy=strategy, allocation=allocation, periods_per_year=ppy).run(data)
+
+    body = build_report_html(result, title=f"포트폴리오 · {len(symbols)}종목 ({allocation})")
+    return body.replace("<h1>", _NAV + "\n<h1>", 1)
 
 
 def render_sweep_form(message: str = "") -> str:

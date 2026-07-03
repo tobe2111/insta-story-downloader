@@ -16,8 +16,10 @@ from quant.web.app import (
     read_state,
     render_form,
     render_monitor,
+    render_portfolio_form,
     render_sweep_form,
     run_backtest_html,
+    run_portfolio_html,
     run_sweep_html,
     state_json,
 )
@@ -37,6 +39,23 @@ def test_render_sweep_form():
     doc = render_sweep_form()
     assert "<form" in doc and 'action="/sweep/run"' in doc
     assert "히트맵" in doc and "<nav" in doc
+
+
+def test_render_portfolio_form():
+    doc = render_portfolio_form()
+    assert "<form" in doc and 'action="/portfolio/run"' in doc
+    assert "포트폴리오" in doc and 'href="/portfolio"' in doc
+
+
+def test_run_portfolio_html_synthetic():
+    doc = run_portfolio_html({"market": "synthetic", "symbols": "A, B, C",
+                              "strategy": "momentum", "limit": "200"})
+    assert "성과 지표" in doc and "샤프지수" in doc and "<nav" in doc
+
+
+def test_run_portfolio_html_empty_symbols():
+    doc = run_portfolio_html({"market": "synthetic", "symbols": "  "})
+    assert "종목을 하나 이상" in doc  # 빈 입력 → 폼으로 안내
 
 
 def test_render_monitor_no_state(tmp_path):
