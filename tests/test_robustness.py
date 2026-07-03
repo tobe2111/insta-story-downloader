@@ -59,3 +59,7 @@ def test_html_report_written(result, tmp_path):
     assert out.exists()
     html = out.read_text(encoding="utf-8")
     assert "<svg" in html and "샤프지수" in html and "테스트" in html
+    # 벤치마크 오버레이 + 이익팩터가 리포트에 포함되어야 한다
+    assert "매수후보유" in html and "이익팩터" in html
+    # 자본곡선 카드에 두 개의 선(전략+벤치마크)이 그려져야 한다
+    assert html.count("<polyline") >= 2
