@@ -32,9 +32,21 @@ _STYLE = """
 _NAV = ('<nav><a href="/">📊 백테스트</a>'
         '<a href="/portfolio">📦 포트폴리오</a>'
         '<a href="/sweep">🔥 민감도 스윕</a>'
+        '<a href="/optimize">⚙️ 최적화</a>'
         '<a href="/monitor">📺 감시</a></nav>')
 
 ALLOCATIONS = ["inverse_vol", "equal"]
+
+# 워크포워드 최적화가 지원하는 전략과 파라미터 격자
+_OPT_GRIDS = {
+    "ma_cross": {"fast": [5, 10, 20], "slow": [40, 60, 120]},
+    "momentum": {"lookback": [30, 60, 90, 120]},
+    "rsi": {"period": [7, 14, 21]},
+    "mean_reversion": {"window": [10, 20, 30], "z": [1.5, 2.0, 2.5]},
+    "macd": {"fast": [8, 12], "slow": [21, 26]},
+    "keltner": {"ema_window": [10, 20], "atr_window": [10, 14], "mult": [1.5, 2.0, 2.5]},
+    "stochastic": {"k_period": [10, 14], "oversold": [20, 25], "overbought": [75, 80]},
+}
 
 
 def render_form(message: str = "") -> str:
@@ -282,6 +294,130 @@ def run_portfolio_html(params: dict) -> str:
 
     body = build_report_html(result, title=f"포트폴리오 · {len(symbols)}종목 ({allocation})")
     return body.replace("<h1>", _NAV + "\n<h1>", 1)
+
+
+def render_optimize_form(message: str = "") -> str:
+    """워크포워드 최적화 폼 (pandas 불필요)."""
+    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
+    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _OPT_GRIDS)
+    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 최적화</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>⚙️ 워크포워드 최적화</h1>
+<p style="color:#94a3b8;font-size:13px">과거 구간(IS)에서 최적 파라미터를 찾고,
+<b>보지 않은 미래 구간(OOS)</b>에서 검증합니다. IS와 OOS 성적 격차가 크면 과최적화예요.</p>
+{msg}
+<form action="/optimize/run" method="get">
+  <div class="row">
+    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
+    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
+  </div>
+  <div class="row">
+    <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
+    <div><label>봉 개수</label><input name="limit" value="800"></div>
+    <div><label>학습(IS) 길이</label><input name="is_window" value="250"></div>
+    <div><label>검증(OOS) 길이</label><input name="oos_window" value="125"></div>
+  </div>
+  <button type="submit">최적화 실행</button>
+</form>
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
+</div></body></html>"""
+
+
+def run_optimize_html(params: dict) -> str:
+    """워크포워드 최적화를 실행하고 IS vs OOS 비교 HTML을 반환한다 (pandas 필요)."""
+    market = params.get("market", "synthetic")
+    symbol = params.get("symbol", "DEMO")
+    timeframe = params.get("timeframe", "1d")
+    strategy_name = params.get("strategy", "ma_cross")
+    objective = "sharpe"
+    if strategy_name not in _OPT_GRIDS:
+        return render_optimize_form(f"'{strategy_name}'는 최적화 미지원 전략입니다.")
+    try:
+        limit = max(200, min(5000, int(params.get("limit", 800))))
+        is_window = max(50, int(params.get("is_window", 250)))
+        oos_window = max(20, int(params.get("oos_window", 125)))
+    except (TypeError, ValueError):
+        limit, is_window, oos_window = 800, 250, 125
+
+    from quant.data import get_provider
+    from quant.optimize import grid_search, walk_forward
+    from quant.strategies import (
+        MACD,
+        KeltnerBreakout,
+        MeanReversion,
+        Momentum,
+        MovingAverageCross,
+        RSIReversion,
+        Stochastic,
+    )
+
+    classes = {"ma_cross": MovingAverageCross, "momentum": Momentum,
+               "rsi": RSIReversion, "mean_reversion": MeanReversion, "macd": MACD,
+               "keltner": KeltnerBreakout, "stochastic": Stochastic}
+    cls = classes[strategy_name]
+    grid = _OPT_GRIDS[strategy_name]
+    ppy = 365 if market in ("crypto", "synthetic") else 252
+    df = get_provider(market).get_ohlcv(symbol, timeframe, limit=limit)
+
+    if is_window + oos_window > len(df):
+        return render_optimize_form(
+            f"데이터({len(df)}봉)가 IS+OOS({is_window + oos_window})보다 짧습니다.")
+
+    gs = grid_search(df, cls, grid, objective=objective, periods_per_year=ppy)
+    wf = walk_forward(df, cls, grid, is_window=is_window, oos_window=oos_window,
+                      objective=objective, periods_per_year=ppy)
+    m = wf["oos_metrics"]
+
+    is_sharpe = gs["best_score"]
+    oos_sharpe = m.sharpe
+    if oos_sharpe >= is_sharpe * 0.6:
+        verdict = ("<b style='color:#16a34a'>✅ 견고</b> — OOS가 IS와 비슷하게 유지됨")
+    elif oos_sharpe > 0:
+        verdict = ("<b style='color:#b45309'>⚠️ 주의</b> — OOS가 IS보다 크게 낮음 "
+                   "(과최적화 가능성)")
+    else:
+        verdict = ("<b style='color:#dc2626'>🚨 과최적화</b> — OOS 성적이 무너짐. "
+                   "이 전략은 실전에서 위험")
+
+    seg_rows = "".join(
+        f"<tr><td>{html.escape(seg['oos_start'][:10])}</td>"
+        f"<td>{html.escape(str(seg['params']))}</td>"
+        f"<td>{seg['is_sharpe']}</td><td>{seg['oos_sharpe']}</td>"
+        f"<td>{seg['oos_return']:+.2%}</td></tr>"
+        for seg in wf["segments"]
+    ) or '<tr><td colspan="5" style="color:#94a3b8">검증 구간 없음</td></tr>'
+
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 최적화 결과</title><style>{_STYLE}
+ table{{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}}
+ th,td{{padding:6px 8px;border-bottom:1px solid #334155;text-align:left}}
+ .box{{background:#111c30;border:1px solid #334155;border-radius:10px;padding:16px;margin-top:14px}}
+ @media(prefers-color-scheme:light){{.box{{background:#fff}}}}
+</style></head><body><div class="wrap">
+{_NAV}
+<h1>⚙️ 워크포워드 결과 · {html.escape(strategy_name)} · {html.escape(symbol)}</h1>
+<div class="box">
+<p>IS(학습) 샤프: <b>{is_sharpe:.2f}</b> → OOS(검증) 샤프: <b>{oos_sharpe:.2f}</b></p>
+<p>판정: {verdict}</p>
+</div>
+<div class="box">
+<b>OOS(진짜 성과) 지표</b>
+<pre style="font-size:12px;white-space:pre;overflow-x:auto">{html.escape(m.pretty())}</pre>
+</div>
+<div class="box">
+<b>구간별 (IS 최적 파라미터 → OOS 성적)</b>
+<div style="overflow-x:auto"><table>
+<tr><th>OOS 시작</th><th>파라미터</th><th>IS샤프</th><th>OOS샤프</th><th>OOS수익</th></tr>
+{seg_rows}</table></div>
+</div>
+<p class="warn">⚠️ OOS(보지 않은 미래) 성적이 실전에서 기대할 수 있는 진짜 성과에 가깝습니다.
+IS만 화려하면 그 전략은 과최적화된 것입니다.</p>
+</div></body></html>"""
 
 
 def render_sweep_form(message: str = "") -> str:
