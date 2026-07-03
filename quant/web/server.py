@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 from quant.web.app import (
     render_form,
+    render_monitor,
     render_sweep_form,
     run_backtest_html,
     run_sweep_html,
@@ -39,6 +40,8 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_backtest_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/monitor":
+            self._send(render_monitor())
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":

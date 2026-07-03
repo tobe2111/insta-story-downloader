@@ -14,6 +14,7 @@ from quant.web.app import (
     MARKETS,
     STRATEGIES,
     render_form,
+    render_monitor,
     render_sweep_form,
     run_backtest_html,
     run_sweep_html,
@@ -34,6 +35,24 @@ def test_render_sweep_form():
     doc = render_sweep_form()
     assert "<form" in doc and 'action="/sweep/run"' in doc
     assert "히트맵" in doc and "<nav" in doc
+
+
+def test_render_monitor_no_state(tmp_path):
+    doc = render_monitor([str(tmp_path / "nope.json")])
+    assert "실행 중인" in doc and "<nav" in doc
+
+
+def test_render_monitor_with_state(tmp_path):
+    import json
+    p = tmp_path / "state.json"
+    p.write_text(json.dumps({
+        "symbol": "X", "strategy": "s", "mode": "paper",
+        "history": [{"time": "t", "equity": 10000, "weight": 0.5, "price": 0}],
+        "positions": [{"symbol": "X", "quantity": 0.1, "avg_price": 100}],
+        "orders": [],
+    }), encoding="utf-8")
+    doc = render_monitor([str(p)])
+    assert "라이브 모니터" in doc and "<nav" in doc and "총자산" in doc
 
 
 def test_run_sweep_html_synthetic():
