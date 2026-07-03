@@ -63,4 +63,6 @@ class AlpacaBroker(Broker):
         log.warning("[ALPACA] %s %s %.6f 주문 전송", side.upper(), symbol, quantity)
         res = post_json(f"{self.base}/v2/orders", self._headers(), body)
         filled = float(res.get("filled_avg_price") or price)
-        return Order(symbol, side, quantity, filled, status=res.get("status", "accepted"))
+        filled_qty = float(res.get("filled_qty") or quantity)
+        return Order(symbol, side, quantity, filled,
+                     status=res.get("status", "accepted"), filled_quantity=filled_qty)

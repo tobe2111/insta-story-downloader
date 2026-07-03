@@ -93,6 +93,16 @@ python examples/run_portfolio.py --market crypto --symbols BTC/USDT ETH/USDT SOL
 python examples/run_portfolio.py --market us_stock --symbols AAPL MSFT NVDA --allocation inverse_vol
 ```
 
+## 파라미터 민감도 히트맵 (과최적화 진단)
+
+두 파라미터를 격자로 훑어 성과 '지형'을 그립니다. **넓은 초록 고원 = 견고,
+외딴 초록 점 = 과최적화.** 실전 투입 전 가장 중요한 시각 진단입니다.
+
+```bash
+python examples/run_sweep.py --market crypto --symbol BTC/USDT --objective sharpe
+```
+→ `results/heatmap.html` 생성 (matplotlib 불필요, 인라인 HTML).
+
 ## 파라미터 최적화 + 워크포워드 검증
 
 **가장 중요한 도구입니다.** 단순히 과거 수익률을 최대화하면 과최적화됩니다.
@@ -159,10 +169,10 @@ quant/
 ├── risk/         리스크 관리 (사이징, 손절, 익절)
 ├── backtest/     단일 종목 백테스트 엔진 + 성과 지표
 ├── portfolio/    다중 종목 포트폴리오 배분 + 백테스트
-├── optimize/     그리드 서치 + 워크포워드 검증
+├── optimize/     그리드 서치 + 워크포워드 + 병렬 스윕/민감도
 ├── robustness/   몬테카를로 부트스트랩 (신뢰구간)
-├── reporting/    HTML 리포트 + 라이브 모니터링 대시보드 (인라인 SVG, 의존성 0)
-├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / 한국투자증권 / RobustBroker)
+├── reporting/    HTML 리포트 + 라이브 대시보드 + 민감도 히트맵 (의존성 0)
+├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / KIS / RobustBroker + 거래소규격)
 ├── live/         실시간 루프 (단일·다중 종목) + 알림(텔레그램/슬랙)
 └── utils/        로깅, HTTP 유틸
 ```
@@ -179,5 +189,5 @@ quant/
 - [x] 실시간 트레이딩 루프 + 라이브 모니터링 대시보드
 - [x] 다중 종목 실시간 동시 운용 (MultiTrader)
 - [x] 알림 (텔레그램/슬랙) + 견고한 주문 (재시도/백오프/라운딩)
-- [ ] 부분체결 추적 + 거래소별 정밀 수량/가격 규격 자동 적용
-- [ ] 백테스트 병렬 스윕 + 파라미터 민감도 히트맵
+- [x] 부분체결 추적 + 거래소별 정밀 수량/가격 규격 자동 적용 (MarketSpec)
+- [x] 병렬 파라미터 스윕 + 민감도 히트맵 (과최적화 진단)

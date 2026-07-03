@@ -49,7 +49,8 @@ class PaperBroker(Broker):
                 symbol, new_qty, pos.avg_price if new_qty else 0.0
             )
 
-        order = Order(symbol, side, quantity, price)
+        order = Order(symbol, side, quantity, price, status="filled",
+                      filled_quantity=quantity)
         self.order_log.append(order)
         log.info("[PAPER] %s %s %.6f @ %.2f (현금: %.2f)",
                  side.upper(), symbol, quantity, price, self._cash)

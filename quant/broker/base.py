@@ -16,6 +16,7 @@ class Order:
     quantity: float
     price: float     # 체결가(추정)
     status: str = "filled"
+    filled_quantity: float = 0.0  # 실제 체결 수량 (부분체결 추적용)
 
 
 @dataclass

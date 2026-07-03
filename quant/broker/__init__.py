@@ -1,8 +1,12 @@
 from quant.broker.base import Broker, Order, Position
 from quant.broker.paper import PaperBroker
 from quant.broker.retry import RobustBroker
+from quant.broker.specs import MarketSpec, from_ccxt_market
 
-__all__ = ["Broker", "Order", "Position", "PaperBroker", "RobustBroker", "get_broker"]
+__all__ = [
+    "Broker", "Order", "Position", "PaperBroker", "RobustBroker",
+    "MarketSpec", "from_ccxt_market", "get_broker",
+]
 
 
 def get_broker(mode: str = "paper", **kwargs) -> Broker:

@@ -45,4 +45,6 @@ class CryptoLiveBroker(Broker):
         log.warning("[LIVE] %s %s %.6f @ ~%.2f 실제 주문 전송", side.upper(), symbol, quantity, price)
         result = self.client.create_order(symbol, "market", side, quantity)
         filled_price = float(result.get("average") or price)
-        return Order(symbol, side, quantity, filled_price, status=result.get("status", "unknown"))
+        filled_qty = float(result.get("filled") or quantity)
+        return Order(symbol, side, quantity, filled_price,
+                     status=result.get("status", "unknown"), filled_quantity=filled_qty)
