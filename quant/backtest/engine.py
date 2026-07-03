@@ -47,6 +47,26 @@ class BacktestResult:
             lines.append(f"초과수익   : {self.excess_return:>10.2%}  {verdict}")
         return "\n".join(lines)
 
+    def to_frame(self) -> pd.DataFrame:
+        """자본곡선·수익률·포지션(·벤치마크)을 하나의 DataFrame으로 반환한다."""
+        data = {
+            "equity": self.equity,
+            "returns": self.returns,
+            "position": self.positions,
+        }
+        if self.benchmark is not None:
+            data["benchmark"] = self.benchmark
+        return pd.DataFrame(data)
+
+    def to_csv(self, path: str) -> str:
+        """결과를 CSV로 저장한다 (엑셀 등에서 추가 분석용). 저장 경로를 반환."""
+        from pathlib import Path
+
+        out = Path(path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        self.to_frame().to_csv(out, index_label="time")
+        return str(out)
+
 
 class Backtester:
     def __init__(

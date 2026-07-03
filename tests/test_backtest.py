@@ -154,6 +154,15 @@ def test_profit_factor_nonnegative(df):
     assert m.profit_factor >= 0.0
 
 
+def test_result_to_csv(df, tmp_path):
+    """백테스트 결과 CSV 내보내기 검증."""
+    result = Backtester(get_strategy("ma_cross")).run(df)
+    out = result.to_csv(tmp_path / "result.csv")
+    loaded = pd.read_csv(out)
+    assert {"time", "equity", "returns", "position", "benchmark"} <= set(loaded.columns)
+    assert len(loaded) == len(df)
+
+
 def test_metrics_sane(df):
     bt = Backtester(get_strategy("ma_cross"), initial_capital=10_000.0)
     m = bt.run(df).metrics
