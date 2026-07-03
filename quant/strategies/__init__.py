@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
-from quant.strategies.ensemble import StrategyEnsemble
+from quant.strategies.ensemble import AdaptiveEnsemble, StrategyEnsemble
 from quant.strategies.keltner import KeltnerBreakout
 from quant.strategies.macd import MACD
 from quant.strategies.mean_reversion import MeanReversion
@@ -33,10 +33,12 @@ __all__ = [
     "MACD",
     "KeltnerBreakout",
     "StrategyEnsemble",
+    "AdaptiveEnsemble",
     "RegimeFilter",
     "get_strategy",
     "list_strategies",
     "default_ensemble",
+    "adaptive_ensemble",
 ]
 
 
@@ -59,5 +61,18 @@ def default_ensemble(allow_short: bool = False) -> StrategyEnsemble:
             Breakout(window=55, exit_window=20),
             RSIReversion(period=14),
         ],
+        allow_short=allow_short,
+    )
+
+
+def adaptive_ensemble(lookback: int = 60, allow_short: bool = False) -> AdaptiveEnsemble:
+    """최근 성과에 따라 가중치를 조정하는 적응형 앙상블 (추세추종+평균회귀)."""
+    return AdaptiveEnsemble(
+        strategies=[
+            MovingAverageCross(fast=20, slow=60),
+            Breakout(window=55, exit_window=20),
+            RSIReversion(period=14),
+        ],
+        lookback=lookback,
         allow_short=allow_short,
     )

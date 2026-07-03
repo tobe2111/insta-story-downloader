@@ -14,12 +14,14 @@ from quant.data import SyntheticDataProvider
 import numpy as np
 
 from quant.strategies import (
+    AdaptiveEnsemble,
     Breakout,
     MeanReversion,
     MovingAverageCross,
     RSIReversion,
     RegimeFilter,
     StrategyEnsemble,
+    adaptive_ensemble,
     default_ensemble,
     get_strategy,
     list_strategies,
@@ -57,6 +59,32 @@ def test_ensemble_weight_validation():
 def test_default_ensemble(df):
     result = Backtester(default_ensemble()).run(df)
     assert (result.equity > 0).all()
+
+
+def test_adaptive_ensemble_runs_and_bounded(df):
+    ens = AdaptiveEnsemble(
+        [MovingAverageCross(), Breakout(), RSIReversion()], lookback=40)
+    sig = ens.generate_signals(df)
+    assert sig.index.equals(df.index)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (Backtester(ens).run(df).equity > 0).all()
+
+
+def test_adaptive_ensemble_single_equals_base(df):
+    """전략이 하나뿐이면 가중치가 항상 1 → 원본 신호와 동일해야 한다."""
+    base = MovingAverageCross(fast=10, slow=30)
+    ens = AdaptiveEnsemble([base], lookback=30)
+    assert (ens.generate_signals(df).fillna(0.0)
+            == base.generate_signals(df).fillna(0.0)).all()
+
+
+def test_adaptive_ensemble_helper(df):
+    assert (Backtester(adaptive_ensemble(lookback=30)).run(df).equity > 0).all()
+
+
+def test_adaptive_ensemble_empty_raises():
+    with pytest.raises(ValueError):
+        AdaptiveEnsemble([])
 
 
 def test_mean_reversion_enters_low_exits_at_mean():
