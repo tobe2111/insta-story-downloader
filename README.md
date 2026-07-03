@@ -104,6 +104,28 @@ python examples/run_optimize.py --market crypto --symbol BTC/USDT --strategy ma_
 ```
 > IS(학습) 샤프와 OOS(검증) 샤프의 격차가 크면 그 전략은 과최적화된 것입니다.
 
+## 다중 종목 실시간 운용 + 알림 + 견고한 주문
+
+여러 종목을 동시에 운용하며, 체결·오류를 텔레그램/슬랙으로 통지하고,
+주문 실패 시 자동 재시도합니다.
+
+```bash
+python examples/run_multi.py --paper --market crypto \
+    --symbols BTC/USDT ETH/USDT SOL/USDT --iters 3
+```
+
+- **알림** — 환경변수 설정 시 자동 활성화 (미설정 시 콘솔만):
+  `TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHAT_ID`, 또는 `SLACK_WEBHOOK_URL`
+- **견고한 주문** — `RobustBroker`가 어떤 브로커든 감싸 지수 백오프 재시도 +
+  최소수량/스텝 라운딩 + 실패 알림을 추가 (거래소 거절·레이트리밋 방어)
+
+```python
+from quant.broker import RobustBroker, get_broker
+from quant.live import get_notifier
+broker = RobustBroker(get_broker("crypto_live"), retries=3, backoff=2.0,
+                      min_qty=0.0001, notifier=get_notifier())
+```
+
 ## 페이퍼 & 실거래 트레이딩
 
 ```bash
@@ -140,8 +162,8 @@ quant/
 ├── optimize/     그리드 서치 + 워크포워드 검증
 ├── robustness/   몬테카를로 부트스트랩 (신뢰구간)
 ├── reporting/    HTML 리포트 + 라이브 모니터링 대시보드 (인라인 SVG, 의존성 0)
-├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / 한국투자증권)
-├── live/         실시간 트레이딩 루프
+├── broker/       주문 실행 (페이퍼 / ccxt / Alpaca / 한국투자증권 / RobustBroker)
+├── live/         실시간 루프 (단일·다중 종목) + 알림(텔레그램/슬랙)
 └── utils/        로깅, HTTP 유틸
 ```
 
@@ -155,5 +177,7 @@ quant/
 - [x] 전략 앙상블 + 레짐 필터 (드로다운 방어)
 - [x] 몬테카를로 신뢰구간 + HTML 리포트
 - [x] 실시간 트레이딩 루프 + 라이브 모니터링 대시보드
-- [ ] 실거래 주문 체결/재시도 견고화 (부분체결, 레이트리밋)
-- [ ] 다중 종목 실시간 운용 + 알림(텔레그램/슬랙)
+- [x] 다중 종목 실시간 동시 운용 (MultiTrader)
+- [x] 알림 (텔레그램/슬랙) + 견고한 주문 (재시도/백오프/라운딩)
+- [ ] 부분체결 추적 + 거래소별 정밀 수량/가격 규격 자동 적용
+- [ ] 백테스트 병렬 스윕 + 파라미터 민감도 히트맵

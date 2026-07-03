@@ -1,7 +1,8 @@
 from quant.broker.base import Broker, Order, Position
 from quant.broker.paper import PaperBroker
+from quant.broker.retry import RobustBroker
 
-__all__ = ["Broker", "Order", "Position", "PaperBroker", "get_broker"]
+__all__ = ["Broker", "Order", "Position", "PaperBroker", "RobustBroker", "get_broker"]
 
 
 def get_broker(mode: str = "paper", **kwargs) -> Broker:

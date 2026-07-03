@@ -71,7 +71,11 @@ def generate_dashboard(state: dict, path: str | Path) -> Path:
 
     last_weight = history[-1].get("weight", 0.0) if history else 0.0
     orders = state.get("orders", [])
-    pos = state.get("position", {})
+    # 단일 종목("position": dict) 또는 다중 종목("positions": list) 모두 지원
+    positions = state.get("positions")
+    if positions is None:
+        single = state.get("position", {})
+        positions = [single] if single else []
 
     kpis = "".join([
         _kpi("총자산", f"{cur:,.2f}"),
@@ -81,11 +85,12 @@ def generate_dashboard(state: dict, path: str | Path) -> Path:
         _kpi("거래횟수", f"{len(orders)}"),
     ])
 
-    pos_row = (
-        f'<tr><td>{html.escape(str(pos.get("symbol", "-")))}</td>'
-        f'<td>{pos.get("quantity", 0):.6f}</td>'
-        f'<td>{pos.get("avg_price", 0):,.2f}</td></tr>'
-    ) if pos else '<tr><td colspan="3" style="color:#94a3b8">보유 포지션 없음</td></tr>'
+    pos_row = "".join(
+        f'<tr><td>{html.escape(str(p.get("symbol", "-")))}</td>'
+        f'<td>{p.get("quantity", 0):.6f}</td>'
+        f'<td>{p.get("avg_price", 0):,.2f}</td></tr>'
+        for p in positions if p
+    ) or '<tr><td colspan="3" style="color:#94a3b8">보유 포지션 없음</td></tr>'
 
     order_rows = "".join(
         f'<tr><td>{html.escape(str(o.get("side","")).upper())}</td>'

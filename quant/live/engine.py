@@ -37,6 +37,7 @@ class LiveTrader:
         lookback: int = 300,
         state_path: str | None = None,
         dashboard_path: str | None = None,
+        notifier=None,
         mode: str = "paper",
     ):
         self.data = data
@@ -48,6 +49,7 @@ class LiveTrader:
         self.lookback = lookback
         self.state_path = state_path
         self.dashboard_path = dashboard_path
+        self.notifier = notifier
         self.mode = mode
         self.history: list[dict] = []
 
@@ -75,6 +77,11 @@ class LiveTrader:
         order = self.broker.target_weight(self.symbol, weight, price, equity)
         if order is None:
             log.info("포지션 조정 불필요")
+        elif self.notifier is not None:
+            self.notifier.send(
+                f"[{self.mode}] {order.side.upper()} {self.symbol} "
+                f"{order.quantity:.6f} @ {price:.2f}"
+            )
 
         self.history.append({
             "time": str(df.index[-1]),
@@ -121,6 +128,8 @@ class LiveTrader:
                 self.step()
             except Exception as exc:  # noqa: BLE001
                 log.error("사이클 오류: %s", exc)
+                if self.notifier is not None:
+                    self.notifier.send(f"⚠️ 사이클 오류: {exc}", level="error")
             i += 1
             if max_iters is not None and i >= max_iters:
                 break
