@@ -22,6 +22,16 @@ _TIMEFRAME_TO_DELTA = {
     "1d": timedelta(days=1),
 }
 
+# pandas 주기 문자열 (timestamp floor + date_range 용)
+_TIMEFRAME_TO_FREQ = {
+    "1m": "1min",
+    "5m": "5min",
+    "15m": "15min",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1D",
+}
+
 
 class SyntheticDataProvider(DataProvider):
     """GBM 기반 합성 OHLCV 생성기."""
@@ -70,8 +80,11 @@ class SyntheticDataProvider(DataProvider):
         low = np.minimum(open_, close) * (1 - intrabar)
         volume = rng.uniform(1_000, 10_000, size=n)
 
-        end = end or datetime.utcnow()
-        idx = pd.date_range(end=end, periods=n, freq=delta)
+        # end를 주기 경계로 내림하여, 호출 시각(마이크로초)에 관계없이 여러 종목의
+        # 인덱스가 동일한 격자를 공유하도록 한다 (포트폴리오 정렬에 필수).
+        freq = _TIMEFRAME_TO_FREQ.get(timeframe, "1D")
+        end_ts = pd.Timestamp(end or datetime.utcnow()).floor(freq)
+        idx = pd.date_range(end=end_ts, periods=n, freq=freq)
 
         df = pd.DataFrame(
             {
