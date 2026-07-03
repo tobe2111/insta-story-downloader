@@ -89,13 +89,20 @@ class Backtester:
         fee: float = 0.001,        # 편도 수수료 0.1%
         slippage: float = 0.0005,  # 슬리피지 0.05%
         periods_per_year: int = 365,
+        cost_model=None,
+        vol_window: int = 20,
     ):
+        from quant.backtest.costs import CostModel
+
         self.strategy = strategy
         self.risk = risk or RiskManager(RiskConfig(periods_per_year=periods_per_year))
         self.initial_capital = initial_capital
         self.fee = fee
         self.slippage = slippage
         self.periods_per_year = periods_per_year
+        # cost_model 미지정 시 기존 fee/slippage로 구성 → 동작 하위 호환
+        self.cost_model = cost_model or CostModel(fee=fee, slippage=slippage)
+        self.vol_window = vol_window
 
     def run(self, df: pd.DataFrame) -> BacktestResult:
         if df.empty:
@@ -106,7 +113,10 @@ class Backtester:
 
         close = df["close"].to_numpy()
         want = desired.to_numpy()
-        cost = self.fee + self.slippage
+        cm = self.cost_model
+        # 봉별 최근 변동성(변동성 비례 슬리피지·비용용)
+        vol = (df["close"].pct_change().rolling(self.vol_window).std()
+               .fillna(0.0).to_numpy())
 
         n = len(df)
         equity = np.empty(n)
@@ -125,6 +135,12 @@ class Backtester:
                 bar_ret = price / close[i - 1] - 1.0
                 cash_equity *= 1.0 + pos * bar_ret
 
+            # 1-b) 봉당 보유 비용(펀딩·숏 차입) 차감
+            if pos != 0.0:
+                hold = cm.holding_cost(pos, vol[i])
+                if hold > 0.0:
+                    cash_equity *= 1.0 - hold
+
             # 2) 보유 중이면 유리한 극값 갱신 (트레일링 스톱 기준점)
             if pos > 0:
                 extreme = max(extreme, price)
@@ -139,10 +155,10 @@ class Backtester:
             # 4) 다음 봉에 보유할 목표 결정
             new_pos = 0.0 if stop_triggered else float(want[i])
 
-            # 5) 회전율에 따른 거래비용 차감
+            # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 포함)
             turnover = abs(new_pos - pos)
             if turnover > 1e-12:
-                cash_equity *= 1.0 - cost * turnover
+                cash_equity *= 1.0 - cm.turnover_cost(turnover, vol[i])
                 if new_pos == 0.0:
                     entry = 0.0
                     extreme = 0.0
