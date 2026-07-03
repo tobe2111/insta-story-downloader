@@ -50,6 +50,18 @@ python -m py_compile $(find quant examples tests -name "*.py")  # 문법검사
 > 자동 실행합니다. 데이터 소스가 없으면 합성 데이터로 폴백하므로 오프라인에서도
 > 테스트가 통과합니다.
 
+## 통합 CLI (권장)
+
+하나의 명령으로 주요 기능을 실행합니다:
+
+```bash
+python -m quant backtest --strategy ma_cross --report results/r.html
+python -m quant sweep --market crypto --symbol BTC/USDT      # 민감도 히트맵
+python -m quant web --port 8000                              # 로컬 웹 UI
+python -m quant pipeline                                     # 백테스트+리포트+몬테카를로
+python -m quant --help                                       # 전체 명령 보기
+```
+
 ## 빠른 시작 (백테스트)
 
 ```bash
