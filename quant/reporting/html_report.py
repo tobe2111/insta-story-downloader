@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from quant.backtest.engine import BacktestResult
@@ -40,6 +41,34 @@ def _sparkline(series: pd.Series, width: int = 800, height: int = 200,
     )
 
 
+def _overlay(strategy: pd.Series, benchmark: pd.Series,
+             width: int = 800, height: int = 200) -> str:
+    """전략 자본곡선과 벤치마크를 같은 축에 겹쳐 그린다 (공유 스케일)."""
+    a = strategy.to_numpy(dtype=float)
+    b = benchmark.to_numpy(dtype=float)
+    if len(a) < 2:
+        return "<svg></svg>"
+    lo = min(float(a.min()), float(b.min()))
+    hi = max(float(a.max()), float(b.max()))
+    rng = hi - lo or 1.0
+
+    def _poly(vals):
+        n = len(vals)
+        return " ".join(
+            f"{i / (n - 1) * width:.1f},{height - (v - lo) / rng * height:.1f}"
+            for i, v in enumerate(vals)
+        )
+
+    return (
+        f'<svg viewBox="0 0 {width} {height}" width="100%" '
+        f'preserveAspectRatio="none" style="max-width:100%">'
+        f'<polyline points="{_poly(b)}" fill="none" stroke="#94a3b8" '
+        f'stroke-width="1.5" stroke-dasharray="5 4" />'
+        f'<polyline points="{_poly(a)}" fill="none" stroke="#2563eb" '
+        f'stroke-width="2" /></svg>'
+    )
+
+
 def generate_report(result: BacktestResult, path: str | Path,
                     title: str = "백테스트 리포트") -> Path:
     """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다."""
@@ -47,9 +76,25 @@ def generate_report(result: BacktestResult, path: str | Path,
     equity = result.equity
     drawdown = equity / equity.cummax() - 1.0
 
+    if result.benchmark is not None:
+        equity_svg = _overlay(equity, result.benchmark)
+        legend = ('<p style="font-size:12px;color:#64748b;margin:8px 0 0">'
+                  '<span style="color:#2563eb">━</span> 전략   '
+                  '<span style="color:#94a3b8">╌</span> 매수후보유</p>')
+    else:
+        equity_svg = _sparkline(equity, color="#2563eb")
+        legend = ""
+
+    metric_rows = _metric_rows(m)
+    if result.benchmark is not None:
+        verdict = "초과 ✅" if result.excess_return >= 0 else "하회 ⚠️"
+        metric_rows += [
+            ("매수후보유", f"{result.benchmark_return:.2%}"),
+            ("초과수익", f"{result.excess_return:.2%}  {verdict}"),
+        ]
     rows = "".join(
         f"<tr><td>{k}</td><td>{v}</td></tr>"
-        for k, v in _metric_rows(m)
+        for k, v in metric_rows
     )
     html = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
@@ -69,7 +114,7 @@ def generate_report(result: BacktestResult, path: str | Path,
 </style></head><body><div class="wrap">
 <h1>{title}</h1>
 <h2>자본곡선 (Equity Curve)</h2>
-<div class="card">{_sparkline(equity, color="#2563eb")}</div>
+<div class="card">{equity_svg}{legend}</div>
 <h2>낙폭 (Drawdown)</h2>
 <div class="card">{_sparkline(drawdown, color="#dc2626")}</div>
 <h2>성과 지표</h2>
@@ -93,6 +138,7 @@ def _metric_rows(m) -> list[tuple[str, str]]:
         ("최대낙폭", f"{m.max_drawdown:.2%}"),
         ("칼마지수", f"{m.calmar:.2f}"),
         ("승률", f"{m.win_rate:.2%}"),
+        ("이익팩터", "∞" if not np.isfinite(m.profit_factor) else f"{m.profit_factor:.2f}"),
         ("거래횟수", f"{m.num_trades}"),
         ("시장노출", f"{m.exposure:.2%}"),
     ]
