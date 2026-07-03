@@ -14,8 +14,12 @@ log = get_logger("broker.crypto_live")
 
 
 class CryptoLiveBroker(Broker):
-    def __init__(self, exchange: str = "binance", quote: str = "USDT"):
+    def __init__(self, exchange: str = "binance", quote: str = "USDT", client=None):
         self.quote = quote
+        # client 주입 시 ccxt 초기화를 건너뛴다 (테스트/커스텀 클라이언트용)
+        if client is not None:
+            self.client = client
+            return
         try:
             import ccxt
         except ImportError as exc:  # pragma: no cover
