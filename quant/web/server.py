@@ -16,14 +16,16 @@ from quant.web.app import (
     render_sweep_form,
     run_backtest_html,
     run_sweep_html,
+    state_json,
 )
 
 
 class QuantHandler(BaseHTTPRequestHandler):
-    def _send(self, body: str, status: int = 200) -> None:
+    def _send(self, body: str, status: int = 200,
+              content_type: str = "text/html; charset=utf-8") -> None:
         data = body.encode("utf-8")
         self.send_response(status)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
@@ -42,6 +44,8 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(render_form(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/monitor":
             self._send(render_monitor())
+        elif parsed.path == "/api/state":
+            self._send(state_json(), content_type="application/json; charset=utf-8")
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":
