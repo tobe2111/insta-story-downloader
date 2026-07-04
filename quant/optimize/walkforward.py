@@ -63,7 +63,7 @@ def walk_forward(
     while start + is_window + gap + oos_window <= n:
         is_slice = df.iloc[start : start + is_window]
         oos_start = start + is_window + gap        # 엠바고 갭만큼 띄운다
-        oos_slice = df.iloc[oos_start : oos_start + oos_window]
+        oos_end = oos_start + oos_window
 
         gs = grid_search(
             is_slice, strategy_cls, param_grid, risk, objective,
@@ -74,20 +74,32 @@ def walk_forward(
             start += step
             continue
 
-        # 보지 않은 구간(OOS)에 최적 파라미터 적용
+        # 보지 않은 구간(OOS)에 최적 파라미터 적용.
+        # ⚠️ 워밍업 편향 방지: OOS 구간만 잘라 백테스트하면 이동평균·롤링지표·ML이
+        #    콜드 스타트라 초반 봉이 전부 관망(0)이 되어 OOS 성과가 왜곡된다.
+        #    실전에서는 과거 이력이 이미 있으므로, IS 이력을 워밍업으로 함께 넣어
+        #    백테스트한 뒤 '마지막 oos_window봉'만 성과로 취한다. OOS 봉의 신호는
+        #    여전히 그 봉까지의 과거만 참조하므로 룩어헤드는 없다.
+        warm_slice = df.iloc[start:oos_end]
         strat = strategy_cls(**best)
         res = Backtester(
             strat, risk, initial_capital, fee, periods_per_year=periods_per_year
-        ).run(oos_slice)
-        oos_returns.append(res.returns)
+        ).run(warm_slice)
+        oos_ret = res.returns.iloc[-oos_window:]
+        oos_returns.append(oos_ret)
+
+        # 구간별 OOS 지표는 워밍업을 제외한 '꼬리'로만 계산해야 정직하다.
+        seg_pos = (oos_ret != 0).astype(float)
+        seg_eq = (1 + oos_ret).cumprod() * initial_capital
+        seg_m = compute_metrics(seg_eq, oos_ret, seg_pos, periods_per_year)
         segments.append(
             {
                 "is_start": str(df.index[start]),
                 "oos_start": str(df.index[oos_start]),
                 "params": best,
                 "is_sharpe": round(gs["best_score"], 3),
-                "oos_sharpe": round(res.metrics.sharpe, 3),
-                "oos_return": round(res.metrics.total_return, 4),
+                "oos_sharpe": round(seg_m.sharpe, 3),
+                "oos_return": round(seg_m.total_return, 4),
             }
         )
         start += step

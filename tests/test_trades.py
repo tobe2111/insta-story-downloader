@@ -27,11 +27,13 @@ def test_extract_trades_manual():
 
     trades = extract_trades(equity, positions)
     assert len(trades) == 2
-    # 거래1: 진입 전 자본 100 → 청산 시점(index 3) 103 = +3%
+    # 거래1: 진입 전 자본 100(index 0) → 청산 실현(index 4) 102 = +2%
+    #   (엔진 규약상 마지막 보유봉 index 3의 손익·청산비용은 다음 봉 index 4에
+    #    반영되므로 라운드트립 청산 기준은 eq[end+1]이다.)
     assert trades[0].side == "long"
-    assert abs(trades[0].return_pct - 0.03) < 1e-9
+    assert abs(trades[0].return_pct - 0.02) < 1e-9
     assert trades[0].bars_held == 3
-    # 거래2: 진입 전 자본 102(index 5) → 청산(index 8) 106 = +3.92%
+    # 거래2: 진입 전 자본 102(index 5) → 청산 실현(index 9) 106 = +3.92%
     assert abs(trades[1].return_pct - (106 / 102 - 1)) < 1e-9
     assert trades[1].bars_held == 3
 

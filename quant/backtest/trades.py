@@ -41,8 +41,11 @@ def extract_trades(equity: pd.Series, positions: pd.Series) -> list[Trade]:
             i += 1
         end = i - 1  # 구간의 마지막 보유 봉
 
+        # 엔진 규약: held[t]로 정한 포지션의 시장 손익은 t+1봉에 실현된다.
+        # 따라서 마지막 보유봉(end)의 손익과 청산 비용은 eq[end+1]에 반영된다.
+        # exit을 eq[end]로 잡으면 마지막 봉 손익·청산비용을 통째로 빠뜨린다.
         entry_eq = eq[start - 1] if start > 0 else eq[start]
-        exit_eq = eq[end]
+        exit_eq = eq[end + 1] if end + 1 < n else eq[end]  # 데이터 끝이면 미실현
         ret = (exit_eq / entry_eq - 1.0) if entry_eq else 0.0
         trades.append(Trade(
             entry_time=str(idx[start]),
