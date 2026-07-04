@@ -1,0 +1,86 @@
+"""무기한 선물 펀딩비 실데이터 — ccxt fetchFundingRateHistory.
+
+백테스트의 고정 펀딩률(CostModel.funding)은 보수적 근사일 뿐이다. 실데이터를
+쓰면 '펀딩이 유리했던 구간'과 '불리했던 구간'을 구분할 수 있다. 다만:
+
+⚠️ 과거 펀딩률이 미래에도 반복된다는 보장은 없다. 특히 롱 과열 구간의
+   펀딩 수취를 전략 수익의 핵심으로 삼으면 백테스트가 낙관적으로 왜곡된다.
+
+ccxt 미설치·네트워크 오류 시 빈 Series로 graceful 폴백한다(예외를 던지지 않음).
+"""
+from __future__ import annotations
+
+import math
+from typing import Optional
+
+import pandas as pd
+
+from quant.broker.base import safe_amount
+from quant.utils.logging import get_logger
+
+log = get_logger("data.funding")
+
+
+def fetch_funding_history(
+    symbol: str,
+    exchange: str = "binance",
+    since: Optional[int] = None,
+    limit: int = 1000,
+) -> pd.Series:
+    """거래소 펀딩률 이력을 (정산시각 → 펀딩률) Series로 반환한다.
+
+    부호 규약(거래소 관례): 양수 = 롱이 지불, 음수 = 숏이 지불.
+    since: epoch ms (선택). 실패 시 빈 Series 반환(폴백) — 호출자는 빈 값이면
+    고정 펀딩률 등 보수적 기본값을 쓰는 것을 권장한다.
+    """
+    empty = pd.Series(dtype=float, name="funding_rate")
+    try:
+        import ccxt
+
+        klass = getattr(ccxt, exchange)
+        client = klass({"enableRateLimit": True})
+        raw = client.fetch_funding_rate_history(symbol, since=since, limit=limit)
+    except Exception as exc:  # noqa: BLE001 — ccxt 미설치/미지원 거래소/네트워크
+        log.warning("펀딩비 이력 조회 실패(%s) — 빈 값으로 폴백합니다.", exc)
+        return empty
+
+    idx, vals = [], []
+    for row in raw or []:
+        if not isinstance(row, dict):
+            continue
+        ts = row.get("timestamp")
+        # 금액류는 safe_amount로 검증(inf/NaN/비수치 거부). 펀딩률은 음수가 정상.
+        rate = safe_amount(row.get("fundingRate"), default=math.nan,
+                           allow_negative=True)
+        if ts is None or not math.isfinite(rate):
+            continue
+        try:
+            idx.append(pd.Timestamp(int(ts), unit="ms"))
+        except (TypeError, ValueError, OverflowError):
+            continue
+        vals.append(rate)
+    if not idx:
+        return empty
+    s = pd.Series(vals, index=pd.DatetimeIndex(idx), name="funding_rate")
+    return s.sort_index()
+
+
+def align_funding_to_bars(funding: pd.Series, bar_index) -> pd.Series:
+    """펀딩 정산 이벤트를 봉 인덱스에 맞춘 '봉당 펀딩률' Series로 변환한다.
+
+    각 정산 이벤트를 '정산시각 이후의 첫 봉'에 합산한다 — 정산이 일어난 뒤의
+    봉에만 반영되므로 룩어헤드가 없다. 마지막 봉 이후의 이벤트는 버린다.
+    결과는 CostModel(funding_series=...)에 그대로 넣을 수 있다.
+    """
+    bar_index = pd.DatetimeIndex(bar_index)
+    out = pd.Series(0.0, index=bar_index, name="funding_rate")
+    if funding is None or len(funding) == 0 or len(bar_index) == 0:
+        return out
+    f = funding.sort_index()
+    # searchsorted(side='left') → 정산시각 이상(>=)의 첫 봉 위치
+    pos = bar_index.searchsorted(f.index, side="left")
+    vals = f.to_numpy()
+    for p, v in zip(pos, vals):
+        if p < len(bar_index) and math.isfinite(float(v)):
+            out.iloc[int(p)] += float(v)
+    return out

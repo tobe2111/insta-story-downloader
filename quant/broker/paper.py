@@ -73,3 +73,48 @@ class PaperBroker(Broker):
         log.info("[PAPER] %s %s %.6f @ %.2f (현금: %.2f)",
                  side.upper(), symbol, quantity, price, self._cash)
         return order
+
+    def limit_order(
+        self,
+        symbol: str,
+        side: str,
+        quantity: float,
+        limit_price: float,
+        bar_high: float,
+        bar_low: float,
+        fill_fraction: float = 1.0,
+    ) -> Order:
+        """지정가 주문 시뮬레이션 — 봉의 고저가가 지정가를 지나야만 체결된다.
+
+        체결 조건 (보수적 근사):
+            매수: bar_low  <= limit_price  (가격이 지정가 이하로 내려왔을 때)
+            매도: bar_high >= limit_price  (가격이 지정가 이상으로 올라갔을 때)
+        체결가는 항상 limit_price로 가정한다(가격 개선 없음 — 낙관 방지).
+        fill_fraction(0~1)으로 부분체결을 흉내낸다: 지정가에 닿았다고 전량
+        체결된다는 보장이 없기 때문이다(호가 순서·물량은 시뮬레이션 불가).
+
+        ⚠️ 실제 체결은 호가창 깊이·주문 순서에 좌우되며 이 근사는 그것을
+           대체하지 못한다. 미체결 주문은 status='open'으로 반환만 하고
+           다음 봉으로 이월하지 않는다(호출자가 재주문 여부를 결정).
+        """
+        crossed = (bar_low <= limit_price) if side == "buy" \
+            else (bar_high >= limit_price)
+        frac = min(1.0, max(0.0, fill_fraction))
+        filled = quantity * frac if crossed else 0.0
+
+        if filled <= 0.0:
+            order = Order(symbol, side, quantity, limit_price,
+                          status="open", filled_quantity=0.0)
+            self.order_log.append(order)
+            if len(self.order_log) > _ORDER_LOG_CAP:
+                del self.order_log[:-_ORDER_LOG_CAP]
+            log.info("[PAPER] %s %s %.6f @ %.2f 지정가 미체결",
+                     side.upper(), symbol, quantity, limit_price)
+            return order
+
+        # 회계는 market_order와 동일 경로 재사용(현금·평단 일관성 유지).
+        order = self.market_order(symbol, side, filled, limit_price)
+        order.quantity = quantity                      # 주문 수량은 요청 수량으로
+        order.filled_quantity = filled
+        order.status = "filled" if frac >= 1.0 else "partial"
+        return order

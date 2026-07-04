@@ -125,6 +125,14 @@ class Backtester:
         # 봉별 최근 변동성(변동성 비례 슬리피지·비용용)
         vol = (df["close"].pct_change().rolling(self.vol_window).std()
                .fillna(0.0).to_numpy())
+        # 봉별 거래대금(시장충격 비용용). volume 컬럼이 없으면 충격 비용은 0으로
+        # 과소추정됨을 인지할 것. 이 봉 자체의 거래대금을 쓰는 것은 체결 시점의
+        # 유동성 근사이며 신호 생성에는 쓰이지 않으므로 룩어헤드가 아니다.
+        dollar_vol = (
+            (df["close"] * df["volume"]).to_numpy()
+            if "volume" in df.columns else None
+        )
+        bar_ts = df.index  # 봉 타임스탬프(펀딩 실데이터 조회용)
 
         n = len(df)
         equity = np.empty(n)
@@ -144,10 +152,10 @@ class Backtester:
                 bar_ret = price / close[i - 1] - 1.0
                 cash_equity *= 1.0 + pos * bar_ret
 
-            # 1-b) 봉당 보유 비용(펀딩·숏 차입) 차감
+            # 1-b) 봉당 보유 비용(펀딩·숏 차입) 차감 (음수면 펀딩 수취로 가산)
             if pos != 0.0:
-                hold = cm.holding_cost(pos, vol[i])
-                if hold > 0.0:
+                hold = cm.holding_cost(pos, vol[i], ts=bar_ts[i])
+                if hold != 0.0:
                     cash_equity *= 1.0 - hold
 
             # 1-c) 자산곡선 트레이딩: 실현 자산이 자체 MA 하회 시 익스포저 축소.
@@ -174,10 +182,14 @@ class Backtester:
             # 4) 다음 봉에 보유할 목표 결정 (자산곡선 트로틀 반영)
             new_pos = 0.0 if stop_triggered else float(want[i]) * throttle
 
-            # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 포함)
+            # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 + 시장충격)
             turnover = abs(new_pos - pos)
             if turnover > 1e-12:
-                cash_equity *= 1.0 - cm.turnover_cost(turnover, vol[i])
+                cost = cm.turnover_cost(turnover, vol[i])
+                if dollar_vol is not None:
+                    cost += cm.market_impact_cost(
+                        turnover, cash_equity, dollar_vol[i])
+                cash_equity *= 1.0 - cost
                 if new_pos == 0.0:
                     entry = 0.0
                     extreme = 0.0

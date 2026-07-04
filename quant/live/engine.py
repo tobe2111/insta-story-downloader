@@ -40,6 +40,7 @@ class LiveTrader:
         notifier=None,
         circuit_breaker=None,
         mode: str = "paper",
+        daily_max_loss: float | None = None,
     ):
         self.data = data
         self.strategy = strategy
@@ -54,6 +55,16 @@ class LiveTrader:
         self.circuit_breaker = circuit_breaker
         self.mode = mode
         self.history: list[dict] = []
+        # 일일 최대손실 킬스위치(자동 손실 차단기) — 기본 None=미사용(하위 호환).
+        # 상태를 디스크에 영속화해 재시작해도 '오늘은 쉼'이 유지된다.
+        self.kill_switch = None
+        if daily_max_loss is not None:
+            from quant.live.killswitch import DailyLossKillSwitch
+
+            kill_path = (str(Path(state_path).with_suffix(".kill.json"))
+                         if state_path else None)
+            self.kill_switch = DailyLossKillSwitch(
+                daily_max_loss, kill_path, notifier)
 
     def step(self) -> None:
         """한 사이클 실행 (데이터 → 신호 → 사이징 → 주문 → 기록)."""
@@ -73,6 +84,23 @@ class LiveTrader:
         else:
             pos = self.broker.get_position(self.symbol)
             equity = self.broker.get_cash() + pos.quantity * price
+
+        # 일일 최대손실 킬스위치: 발동 시 청산(best-effort) 후 다음 UTC 일까지 중단.
+        # 리스크 통제 장치이며 손실이 한도 내로 '보장'되지는 않는다(갭 위험).
+        if self.kill_switch is not None and self.kill_switch.update(equity):
+            if self.kill_switch.just_tripped:
+                log.error("🛑 일일 손실 킬스위치 발동 — 포지션 청산 후 "
+                          "다음 UTC 일까지 매매 중단")
+                try:
+                    self.broker.target_weight(self.symbol, 0.0, price, equity)
+                except Exception as exc:  # noqa: BLE001 — 청산 실패해도 중단 상태는 유지
+                    log.error("킬스위치 청산 주문 실패: %s", exc)
+                self.history.append({"time": str(df.index[-1]), "price": price,
+                                     "weight": 0.0, "equity": equity})
+                self._persist()
+            else:
+                log.info("일일 킬스위치 할트 중 — 매매 건너뜀 (다음 UTC 일에 재개)")
+            return
 
         # 서킷브레이커: 발동 시 포지션 청산 후 신규 매매 중단
         if self.circuit_breaker is not None:
