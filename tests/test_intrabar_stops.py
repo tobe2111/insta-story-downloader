@@ -150,9 +150,14 @@ def test_market_presets_exist_and_ordered():
     for m in ("crypto", "crypto_upbit", "us_stock", "kr_stock", "synthetic"):
         assert m in MARKET_COST_PRESETS
     kr = CostModel.for_market("kr_stock")
-    cr = CostModel.for_market("crypto")
-    # 한국주식 왕복(거래세 포함)이 코인 왕복보다 비싸다 — 프리셋의 핵심 사실
-    assert (kr.fee + kr.slippage) > (cr.fee + cr.slippage) * 1.2
+    us = CostModel.for_market("us_stock")
+    up = CostModel.for_market("crypto_upbit")
+    # 프리셋의 핵심 사실: 한국주식은 거래세 때문에 '수수료 무료 시대'에도
+    # 미국주식·업비트보다 왕복 비용이 비싸고, 위탁수수료(0.015%)만 넣은
+    # 순진한 백테스트 대비 실비용이 수 배다.
+    assert (kr.fee + kr.slippage) > (us.fee + us.slippage) * 1.5
+    assert (kr.fee + kr.slippage) > (up.fee + up.slippage)
+    assert kr.fee > 0.00015 * 4          # 세금이 위탁수수료를 압도
 
 
 def test_for_market_unknown_uses_defaults_and_overrides():
