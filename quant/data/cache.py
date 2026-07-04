@@ -87,6 +87,13 @@ class CachedDataProvider(DataProvider):
                 log.warning("캐시 로드 실패(%s), 새로 받습니다.", exc)
 
         df = self.inner.get_ohlcv(symbol, timeframe, None, None, limit)
+        # 합성 폴백 데이터(네트워크/거래소 실패 시 제공자가 반환)는 캐시에 저장하지
+        # 않는다. 저장하면 실제 제공자 키 아래 더미 시세가 남아 TTL 동안 '진짜 데이터'로
+        # 재사용돼, 네트워크가 복구된 뒤에도 계속 가짜 데이터로 백테스트/거래하게 된다.
+        # (의도적으로 synthetic을 쓰는 경우 — inner가 SyntheticDataProvider 자체 —
+        #  는 폴백이 아니므로 표식이 없고, 기존대로 캐시된다.)
+        if df.attrs.get("synthetic_fallback"):
+            return df
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             df.to_csv(path)

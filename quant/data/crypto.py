@@ -76,6 +76,11 @@ class CryptoDataProvider(DataProvider):
     def _fallback(symbol, timeframe, start, end, limit) -> pd.DataFrame:
         from quant.data.synthetic import SyntheticDataProvider
 
-        return SyntheticDataProvider().get_ohlcv(
+        df = SyntheticDataProvider().get_ohlcv(
             symbol, timeframe, start, end, limit
         )
+        # '진짜 시세가 아니라 폴백'임을 표식한다. 이 표식이 없으면
+        # CachedDataProvider가 더미 데이터를 실제 거래소 키로 디스크에 저장해,
+        # 네트워크가 복구된 뒤에도 TTL 동안 가짜 시세를 계속 재사용한다.
+        df.attrs["synthetic_fallback"] = True
+        return df

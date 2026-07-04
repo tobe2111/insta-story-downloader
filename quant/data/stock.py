@@ -73,9 +73,12 @@ class StockDataProvider(DataProvider):
             log.warning("%s 주식 데이터 조회 실패(%s). 합성 데이터로 폴백.", symbol, exc)
             from quant.data.synthetic import SyntheticDataProvider
 
-            return SyntheticDataProvider(start_price=70_000.0).get_ohlcv(
+            fb = SyntheticDataProvider(start_price=70_000.0).get_ohlcv(
                 symbol, timeframe, start, end, limit
             )
+            # 폴백 표식 — 캐시가 더미 데이터를 실제 시세로 저장·재사용하지 않게.
+            fb.attrs["synthetic_fallback"] = True
+            return fb
 
 
 def _align_ts(ts: pd.Timestamp, index: pd.Index) -> pd.Timestamp:

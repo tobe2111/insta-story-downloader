@@ -66,7 +66,8 @@ def fmp_ratios(symbol: str, api_key: Optional[str] = None,
         return {}
     # symbol을 경로에 넣기 전 인코딩 — '/','?','&' 주입으로 URL을 재구성하지 못하게.
     from urllib.parse import quote
-    url = f"{_FMP_URL}/ratios-ttm/{quote(symbol, safe='')}?apikey={key}"
+    url = (f"{_FMP_URL}/ratios-ttm/{quote(symbol, safe='')}"
+           f"?apikey={quote(key, safe='')}")
     try:
         return _parse_fmp_ratios(get_json(url))
     except Exception as exc:  # noqa: BLE001

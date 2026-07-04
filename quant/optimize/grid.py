@@ -11,12 +11,9 @@ from typing import Any, Sequence, Type
 import pandas as pd
 
 from quant.backtest.engine import Backtester
+from quant.objective import LOWER_IS_BETTER as _LOWER_IS_BETTER
 from quant.risk import RiskManager
 from quant.strategies.base import Strategy
-
-# 값이 '작을수록 좋은' 지표. 이 목적함수로 탐색하면 부호를 뒤집어 비교해야
-# 한다. (max_drawdown은 음수로 저장되어 클수록=0에 가까울수록 좋으므로 제외)
-_LOWER_IS_BETTER = {"volatility"}
 
 
 def grid_search(

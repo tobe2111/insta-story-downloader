@@ -225,6 +225,44 @@ def test_stochastic_short_held_to_midline():
     assert ((sig < 0) & (dd < 80) & (dd > 50)).any()
 
 
+def test_rsi_short_held_to_midline():
+    """숏(allow_short=True)이 RSI가 과매수(70) 아래로 내려가도 즉시 청산되지 않고
+    중심선(50)까지 대칭으로 보유되는지 검증(비대칭 청산 버그 수정 — stochastic·
+    mean_reversion과 동일한 상태기계로 통일)."""
+    from quant.strategies.rsi import rsi
+
+    n = 120
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    t = np.linspace(0, 6 * np.pi, n)
+    price = 100 + 20 * np.sin(t)                 # 과매수/과매도 반복하는 진동
+    d = pd.DataFrame({"open": price, "high": price + 1, "low": price - 1,
+                      "close": pd.Series(price, index=idx), "volume": 1.0}, index=idx)
+    sig = get_strategy("rsi", period=14, allow_short=True).generate_signals(d)
+    r = rsi(d["close"], 14)
+
+    assert (sig < 0).any()                       # 숏이 실제로 발생
+    # 숏이면서 RSI가 (50,70) 구간인 봉이 존재 → 대칭 보유 작동
+    # (구버전은 RSI가 [50,70]에 들어오면 곧장 0으로 청산해 이런 봉이 없었다)
+    assert ((sig < 0) & (r < 70) & (r > 50)).any()
+    # 청산 대칭: 롱은 RSI≥50이 된 봉부터, 숏은 RSI≤50이 된 봉부터 관망이다
+    assert ((sig > 0) & (r >= 50)).sum() == 0
+    assert ((sig < 0) & (r <= 50)).sum() == 0
+    assert set(np.unique(sig)) <= {-1.0, 0.0, 1.0}
+
+
+def test_rsi_long_only_unchanged_semantics():
+    """allow_short=False(기본)에서는 여전히 롱/관망만 나온다."""
+    n = 120
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    t = np.linspace(0, 6 * np.pi, n)
+    price = 100 + 20 * np.sin(t)
+    d = pd.DataFrame({"open": price, "high": price + 1, "low": price - 1,
+                      "close": price, "volume": 1.0}, index=idx)
+    sig = get_strategy("rsi", period=14).generate_signals(d)
+    assert sig.min() >= 0.0 and sig.max() <= 1.0
+    assert (sig > 0).any()                       # 과매도에서 롱 진입은 나온다
+
+
 def test_rsi_is_100_when_no_losses():
     """손실이 전혀 없는 상승 구간의 RSI는 100(최대 과매수)이어야 한다(중립 50 아님)."""
     from quant.strategies.rsi import rsi

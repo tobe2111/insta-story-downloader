@@ -38,7 +38,9 @@ class AlpacaBroker(Broker):
 
     def get_cash(self) -> float:
         acct = get_json(f"{self.base}/v2/account", self._headers())
-        return safe_amount(acct.get("cash", 0.0))
+        # 현금은 음수가 정상일 수 있다(마진 차입 계좌). 0으로 깎으면 자산이
+        # 과대평가돼 과대 주문이 나가므로 음수를 허용한다.
+        return safe_amount(acct.get("cash", 0.0), allow_negative=True)
 
     def get_equity(self) -> float:
         acct = get_json(f"{self.base}/v2/account", self._headers())
@@ -81,10 +83,11 @@ class AlpacaBroker(Broker):
         # 미체결을 구분할 수 있게).
         def _num(key: str, default: float) -> float:
             v = res.get(key)
-            try:
-                return float(v) if v not in (None, "") else default
-            except (TypeError, ValueError):
+            if v in (None, ""):
                 return default
+            # 체결 수량·체결가에 inf/nan/음수가 섞이면 상위 사이징이 오염된다.
+            # 다른 경로(잔고·포지션)와 동일하게 safe_amount로 거른다.
+            return safe_amount(v, default=default)
 
         filled_qty = _num("filled_qty", 0.0)
         # 체결가는 체결이 있을 때만 의미가 있다. 없으면 참고용으로 주문가를 둔다.

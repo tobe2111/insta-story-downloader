@@ -81,6 +81,26 @@ def test_target_weight_full_buy_no_negative_cash():
     assert b.get_position("X").quantity < 10_000 / 100       # 수수료만큼 덜 삼
 
 
+def test_target_weight_short_not_fee_shrunk():
+    """숏 목표는 (1+fee) 버퍼로 축소하지 않는다 — 숏은 현금이 부족해질 방향이
+    아니므로 버퍼가 목표 비중만 왜곡한다(과소 진입 버그 수정)."""
+    b = PaperBroker(cash=10_000, fee=0.001)
+    order = b.target_weight("X", -0.5, 100.0, 10_000.0)
+    assert order is not None and order.side == "sell"
+    # 정확히 -0.5 * 10000 / 100 = 50주 (구버전: 50/1.001 ≈ 49.95주)
+    assert abs(order.quantity - 50.0) < 1e-9
+
+
+def test_target_weight_reduce_not_fee_inflated():
+    """포지션 축소(매도)는 (1+fee) 버퍼 없이 정확한 수량만 판다(과다 축소 버그 수정)."""
+    b = PaperBroker(cash=100_000, fee=0.001)
+    b.market_order("Y", "buy", 100, 100.0)               # 100주 보유
+    order = b.target_weight("Y", 0.05, 100.0, 100_000.0)  # 목표 50주 → 50주 매도
+    assert order is not None and order.side == "sell"
+    # 정확히 100 - 50 = 50주 매도 (구버전: 100 - 50/1.001 ≈ 50.05주 과다 매도)
+    assert abs(order.quantity - 50.0) < 1e-9
+
+
 def test_order_log_capped():
     """order_log가 무한 성장하지 않는다(장기 실행 메모리 누수 방지)."""
     from quant.broker.paper import _ORDER_LOG_CAP

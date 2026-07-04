@@ -211,7 +211,13 @@ def read_state(state_paths=None):
     import json
     from pathlib import Path
 
-    candidates = state_paths or ["results/multi_state.json", "results/state.json"]
+    # 'learn' CLI 기본 상태 파일(autolearn_state.json)도 후보에 넣는다. 이게 빠져
+    # 있으면 python -m quant learn 이 쓰는 상태를 감시 탭이 못 읽어 화면이 빈다.
+    candidates = state_paths or [
+        "results/multi_state.json",
+        "results/state.json",
+        "results/autolearn_state.json",
+    ]
     for p in candidates:
         fp = Path(p)
         if fp.exists():
