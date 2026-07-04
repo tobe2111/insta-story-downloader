@@ -10,7 +10,7 @@ __all__ = [
 
 
 def get_broker(mode: str = "paper", **kwargs) -> Broker:
-    """mode: 'paper' | 'crypto_live' | 'us_live' | 'kr_live'
+    """mode: 'paper' | 'crypto_live' | 'us_live' | 'kr_live'(=한국투자) | 'kr_kiwoom'
 
     실거래 브로커는 각각 환경변수로 API 키를 주입해야 한다.
     """
@@ -24,8 +24,12 @@ def get_broker(mode: str = "paper", **kwargs) -> Broker:
         from quant.broker.us_live import AlpacaBroker
 
         return AlpacaBroker(**kwargs)
-    if mode == "kr_live":
+    if mode in ("kr_live", "kr_kis"):
         from quant.broker.kr_live import KISBroker
 
         return KISBroker(**kwargs)
+    if mode == "kr_kiwoom":
+        from quant.broker.kiwoom_live import KiwoomBroker
+
+        return KiwoomBroker(**kwargs)
     raise ValueError(f"알 수 없는 broker mode: {mode}")

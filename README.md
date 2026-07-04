@@ -231,9 +231,12 @@ python examples/run_live.py --live --market kr_stock --symbol 005930     # 한�
 
 | 시장 | 환경변수 |
 |------|----------|
-| 코인 | `EXCHANGE_API_KEY`, `EXCHANGE_SECRET` |
+| 코인 (ccxt 100+ 거래소: 업비트·빗썸·코인원·코빗·바이낸스·바이비트·OKX 등) | `EXCHANGE_API_KEY`, `EXCHANGE_SECRET`, (일부) `EXCHANGE_PASSWORD`, (선택) `EXCHANGE_QUOTE` |
 | 미국주식 (Alpaca) | `ALPACA_API_KEY`, `ALPACA_SECRET` |
-| 국내주식 (KIS) | `KIS_APP_KEY`, `KIS_APP_SECRET`, `KIS_CANO`, `KIS_ACNT_PRDT_CD` |
+| 국내주식 (한국투자 KIS) | `KIS_APP_KEY`, `KIS_APP_SECRET`, `KIS_CANO`, `KIS_ACNT_PRDT_CD` |
+| 국내주식 (키움, 베타) | `KIWOOM_APP_KEY`, `KIWOOM_SECRET`, `KIWOOM_ACCOUNT` |
+
+> 코인 거래소는 `get_broker("crypto_live", exchange="upbit")` 처럼 거래소만 바꾸면 됩니다(업비트·빗썸은 KRW 기본). 국내주식은 **개인용 REST API가 있는 한국투자·키움만** 지원됩니다 — 대신·LS는 Windows COM 전용, 삼성·미래에셋·토스는 개인 API가 없어 연동이 불가능합니다.
 
 ## 프로젝트 구조
 
