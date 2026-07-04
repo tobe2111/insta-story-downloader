@@ -31,6 +31,7 @@ _STYLE = """
 
 _NAV = ('<nav><a href="/">📊 백테스트</a>'
         '<a href="/portfolio">📦 포트폴리오</a>'
+        '<a href="/screener">🎯 종목선별</a>'
         '<a href="/sweep">🔥 민감도 스윕</a>'
         '<a href="/optimize">⚙️ 최적화</a>'
         '<a href="/monitor">📺 감시</a></nav>')
@@ -266,6 +267,93 @@ def render_portfolio_form(message: str = "") -> str:
   <button type="submit">포트폴리오 백테스트</button>
 </form>
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
+</div></body></html>"""
+
+
+def render_screener_form(message: str = "") -> str:
+    """종목 선별(팩터 스크리너) 폼 페이지 (pandas 불필요)."""
+    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 종목선별</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>🎯 종목 선별 (팩터 스크리너)</h1>
+<p style="color:#94a3b8;font-size:13px">관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로
+상위 종목을 자동 선별합니다. 미국주식 티커 권장(FMP 기준). 환경변수
+<code>FMP_API_KEY</code> 필요.</p>
+{msg}
+<form action="/screener/run" method="get">
+  <div><label>후보 종목 (쉼표 구분)</label>
+    <input name="symbols" value="AAPL, MSFT, GOOGL, META, NVDA, TSLA"></div>
+  <div class="row">
+    <div><label>선택 개수 (top N)</label><input name="top_n" value="3"></div>
+    <div><label>팩터</label>
+      <select name="factors">
+        <option value="value_quality">밸류+퀄리티 (PER↓·PBR↓·ROE↑)</option>
+        <option value="value">밸류 (PER↓·PBR↓)</option>
+        <option value="quality">퀄리티 (ROE↑)</option>
+      </select></div>
+  </div>
+  <button type="submit">선별 실행</button>
+</form>
+<p class="warn">⚠️ 팩터 프리미엄은 수년씩 부진할 수 있습니다. 선별 결과를 맹신하지 마세요.</p>
+</div></body></html>"""
+
+
+_FACTOR_PRESETS = {
+    "value_quality": {"pe": -1.0, "pb": -1.0, "roe": 1.0},
+    "value": {"pe": -1.0, "pb": -1.0},
+    "quality": {"roe": 1.0},
+}
+
+
+def run_screener_html(params: dict) -> str:
+    """관심 종목을 팩터로 선별해 결과 표 HTML을 반환한다 (FMP 키 필요)."""
+    raw = params.get("symbols", "")
+    symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
+    if not symbols:
+        return render_screener_form("후보 종목을 하나 이상 입력하세요.")
+    try:
+        top_n = max(1, int(params.get("top_n", 3)))
+    except (TypeError, ValueError):
+        top_n = 3
+    factors = _FACTOR_PRESETS.get(params.get("factors", "value_quality"),
+                                  _FACTOR_PRESETS["value_quality"])
+
+    from quant.portfolio import screen_symbols
+
+    result = screen_symbols(symbols, factors=factors, top_n=top_n)
+    ratios = result["ratios"]
+    weights = result["weights"]
+    if not ratios:
+        return render_screener_form(
+            "재무 데이터를 받지 못했습니다. FMP_API_KEY 환경변수를 확인하세요 "
+            "(무료 키: financialmodelingprep.com).")
+
+    def _fmt(v):
+        return "-" if v is None else f"{v:.2f}"
+
+    rows = "".join(
+        f'<tr><td>{html.escape(sym)}</td>'
+        f'<td>{_fmt(r.get("pe"))}</td><td>{_fmt(r.get("pb"))}</td>'
+        f'<td>{_fmt(r.get("roe"))}</td>'
+        f'<td>{"✅ " + format(weights[sym], ".0%") if sym in weights else "-"}</td></tr>'
+        for sym, r in ratios.items()
+    )
+    picked = ", ".join(weights) or "(선별된 종목 없음)"
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 선별 결과</title><style>{_STYLE}
+ table{{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}}
+ th,td{{border:1px solid #334155;padding:6px 8px;text-align:right}}
+ th:first-child,td:first-child{{text-align:left}}</style></head>
+<body><div class="wrap">{_NAV}
+<h1>🎯 선별 결과</h1>
+<p style="font-size:14px">선택된 종목: <b>{html.escape(picked)}</b></p>
+<table><tr><th>종목</th><th>PER</th><th>PBR</th><th>ROE</th><th>선택·비중</th></tr>
+{rows}</table>
+<p style="font-size:12px;color:#94a3b8;margin-top:10px">이 종목들을 포트폴리오 탭에
+넣어 백테스트/운용하세요. 팩터 랭킹은 '후보 중 상대 비교'일 뿐 미래 수익 보장이 아닙니다.</p>
 </div></body></html>"""
 
 
