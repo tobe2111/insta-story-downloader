@@ -19,6 +19,7 @@ from pathlib import Path
 from quant.broker.base import Broker
 from quant.data.base import DataProvider
 from quant.risk import RiskManager
+from quant.live.summary import load_last_summary_date, notify_daily_summary
 from quant.strategies.base import Strategy
 from quant.utils.logging import get_logger
 
@@ -65,6 +66,9 @@ class LiveTrader:
                          if state_path else None)
             self.kill_switch = DailyLossKillSwitch(
                 daily_max_loss, kill_path, notifier)
+        self._last_error: str | None = None
+        # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
+        self._last_summary_date = load_last_summary_date(state_path)
 
     def step(self) -> None:
         """한 사이클 실행 (데이터 → 신호 → 사이징 → 주문 → 기록)."""
@@ -149,6 +153,8 @@ class LiveTrader:
                 "avg_price": pos.avg_price,
             },
             "orders": orders,
+            "last_error": self._last_error,
+            "last_summary_date": self._last_summary_date,
         }
 
     def _persist(self) -> None:
@@ -202,8 +208,11 @@ class LiveTrader:
                 self.step()
             except Exception as exc:  # noqa: BLE001
                 log.error("사이클 오류: %s", exc)
+                self._last_error = str(exc)
                 if self.notifier is not None:
                     self.notifier.send(f"⚠️ 사이클 오류: {exc}", level="error")
+            # UTC 날짜 롤오버 시 일일 요약 1회(알림기 있을 때만, 오류는 삼킴)
+            notify_daily_summary(self)
             i += 1
             if max_iters is not None and i >= max_iters:
                 break

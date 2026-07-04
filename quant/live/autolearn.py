@@ -21,6 +21,7 @@ import time
 
 from quant.broker.base import Broker
 from quant.data.base import DataProvider
+from quant.live.summary import load_last_summary_date, notify_daily_summary
 from quant.risk import RiskManager
 from quant.robustness.accuracy import directional_accuracy
 from quant.strategies.base import Strategy
@@ -56,6 +57,9 @@ class AutoLearner:
         self.state_path = state_path
         self.notifier = notifier
         self.history: list[dict] = []
+        self._last_error: str | None = None
+        # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
+        self._last_summary_date = load_last_summary_date(state_path)
 
     def cycle(self) -> dict:
         """한 사이클: 데이터→(재학습)신호→페이퍼 매매→정확도·자본 기록."""
@@ -99,16 +103,12 @@ class AutoLearner:
                  f"{recent:.1%}" if recent == recent else "N/A")
         return record
 
-    def _persist(self) -> None:
-        if not self.state_path:
-            return
-        from quant.utils.jsonio import atomic_write_json, cap_history
-
-        self.history = cap_history(self.history)      # 무한 성장 방지
+    def snapshot(self) -> dict:
+        """현재 상태를 직렬화 가능한 dict로 반환한다(저장·일일 요약 공용)."""
         pos = self.broker.get_position(self.symbol)
         # 최근 20건만 dict화(전체 order_log를 매번 vars()하지 않는다).
         orders = [vars(o) for o in getattr(self.broker, "order_log", [])[-20:]]
-        snap = {
+        return {
             "symbol": self.symbol,
             "strategy": getattr(self.strategy, "name", "?"),
             "mode": "paper-autolearn",
@@ -116,9 +116,18 @@ class AutoLearner:
             "position": {"symbol": pos.symbol, "quantity": pos.quantity,
                          "avg_price": pos.avg_price},
             "orders": orders,
+            "last_error": self._last_error,
+            "last_summary_date": self._last_summary_date,
         }
+
+    def _persist(self) -> None:
+        if not self.state_path:
+            return
+        from quant.utils.jsonio import atomic_write_json, cap_history
+
+        self.history = cap_history(self.history)      # 무한 성장 방지
         # NaN 안전(hit_rate 등이 NaN이면 대시보드 JSON.parse가 멈춘다) + 원자적 쓰기.
-        atomic_write_json(self.state_path, snap)
+        atomic_write_json(self.state_path, self.snapshot())
 
     def run(self, cycles: int | None = None, interval_sec: int = 3600) -> list[dict]:
         """사이클을 반복한다. cycles=None 이면 무기한(사용자가 멈출 때까지).
@@ -131,8 +140,11 @@ class AutoLearner:
                 self.cycle()
             except Exception as exc:  # noqa: BLE001
                 log.error("사이클 오류: %s", exc)
+                self._last_error = str(exc)
                 if self.notifier is not None:
                     self.notifier.send(f"⚠️ 자동학습 사이클 오류: {exc}", level="error")
+            # UTC 날짜 롤오버 시 일일 요약 1회(알림기 있을 때만, 오류는 삼킴)
+            notify_daily_summary(self)
             i += 1
             if cycles is not None and i >= cycles:
                 break

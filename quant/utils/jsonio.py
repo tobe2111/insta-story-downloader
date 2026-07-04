@@ -41,11 +41,20 @@ def atomic_write_json(path: str | os.PathLike, obj: Any, indent: int = 2) -> Non
     p.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)
     tmp = p.with_name(p.name + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(text)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, p)   # 같은 파일시스템에서 원자적 교체(부분 파일 노출 없음)
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, p)   # 같은 파일시스템에서 원자적 교체(부분 파일 노출 없음)
+    except BaseException:
+        # 쓰기/교체가 중간에 실패해도 원본은 그대로다(교체 전이므로).
+        # 부분 임시파일만 치우고 예외는 그대로 올린다 — 손상 파일을 남기지 않는다.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
 
 
 def cap_history(history: list) -> list:

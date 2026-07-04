@@ -15,6 +15,11 @@ config/config.yaml
 secrets/
 # 판매자 라이선스 비밀(배포 빌드에만 포함, 절대 커밋 금지)
 quant/_license_key.py
+# Ed25519 개인키 — 판매자만 보관, 절대 커밋·배포 금지(유출 시 키 발급 가능)
+quant/_license_priv*
+*.pem
+# 공개키 모듈은 배포본 빌드 시 생성한다(공개돼도 안전하지만 저장소엔 안 둔다)
+quant/_license_pub.py
 
 # 데이터/결과물
 data_cache/
