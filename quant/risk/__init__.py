@@ -1,3 +1,4 @@
+from quant.risk.kelly import fractional_kelly_cap, kelly_fraction
 from quant.risk.manager import RiskConfig, RiskManager
 from quant.risk.portfolio import (
     correlation_concentration,
@@ -11,4 +12,6 @@ __all__ = [
     "var_cvar",
     "correlation_concentration",
     "rolling_avg_correlation",
+    "kelly_fraction",
+    "fractional_kelly_cap",
 ]

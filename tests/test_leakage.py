@@ -52,6 +52,35 @@ def test_no_lookahead_ensembles():
     _assert_no_lookahead(lambda: adaptive_ensemble(lookback=40), "adaptive_ensemble")
 
 
+def test_no_lookahead_ensemble_hrp_and_rebalance():
+    """HRP(상관 인지) 가중과 가중 갱신 캐던스(rebalance>1)도 미래를 참조하지 않는다.
+
+    rebalance 격자는 시계열 '시작'에서부터의 위치로 정해지므로 미래를 잘라도
+    과거의 갱신 시점·가중치가 변하면 안 된다. HRP 가중은 [t-lookback, t-1]
+    구간 PnL만 쓴다.
+    """
+    from quant.strategies import (
+        AdaptiveEnsemble,
+        MeanReversion,
+        MovingAverageCross,
+        RSIReversion,
+        StrategyEnsemble,
+    )
+
+    strats = lambda: [MovingAverageCross(), RSIReversion(), MeanReversion()]  # noqa: E731
+    _assert_no_lookahead(
+        lambda: StrategyEnsemble(strats(), weighting="hrp",
+                                 vol_lookback=60, rebalance=5),
+        "ensemble_hrp")
+    _assert_no_lookahead(
+        lambda: StrategyEnsemble(strats(), weighting="inverse_vol", rebalance=7),
+        "ensemble_inverse_vol_rebalance")
+    _assert_no_lookahead(
+        lambda: AdaptiveEnsemble(strats(), lookback=40,
+                                 weighting="hrp", rebalance=5),
+        "adaptive_ensemble_hrp_rebalance")
+
+
 def test_no_lookahead_ml_with_extra_features():
     """외부 피처를 붙인 ML도 미래를 참조하지 않는다(reindex+ffill 병합 경로 커버).
 

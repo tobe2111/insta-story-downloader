@@ -138,3 +138,72 @@ def test_ml_no_extra_features_default_names():
     strat = MLStrategy(model="rf", train_window=200)
     strat.generate_signals(_DF)
     assert strat.feature_names_ == list(FEATURE_NAMES)
+
+
+# ── 확률 보정(calibrate) + Δ비중 양자화(weight_step) ─────────────────────
+
+def test_ml_calibrated_bounded_and_index_preserved():
+    """보정(sigmoid·isotonic)을 켜도 신호는 경계 안이고 인덱스가 보존된다.
+
+    보정은 엣지를 만들지 않는다 — 과대확신 확률로 사이징할 때의 기하 손실을
+    줄일 뿐이므로, 여기서는 '수익'이 아니라 계약(경계·인덱스)만 검증한다.
+    """
+    for method in ("sigmoid", "isotonic"):
+        sig = MLStrategy(model="logreg", train_window=200, retrain_every=50,
+                         calibrate=method).generate_signals(_DF)
+        assert sig.index.equals(_DF.index)
+        assert sig.abs().max() <= 1.0 + 1e-9
+        assert sig.min() >= 0.0 - 1e-9        # 롱온리 기본
+
+
+def test_ml_calibrate_invalid_raises():
+    with pytest.raises(ValueError):
+        MLStrategy(calibrate="platt")
+
+
+def test_ml_calibrated_truncation_invariance():
+    """보정 변형도 미래 절단 불변(test_leakage 방식) — 보정기는 학습창 내부
+    3-겹 CV로만 적합되므로 미래를 잘라도 과거 신호가 바뀌면 안 된다."""
+    import numpy as np
+
+    cut = 400
+    make = lambda: MLStrategy(model="logreg", train_window=200,  # noqa: E731
+                              retrain_every=50, calibrate="sigmoid")
+    full = make().generate_signals(_DF)
+    trunc = make().generate_signals(_DF.iloc[:cut])
+    a = full.iloc[:cut - 1].to_numpy()
+    b = trunc.iloc[:cut - 1].to_numpy()
+    assert int(np.sum(~np.isclose(a, b, atol=1e-9))) == 0
+
+
+def test_ml_weight_step_quantizes_to_grid():
+    """weight_step=0.1이면 모든 신호가 0.1 격자 위에 있고 여전히 경계 안이다."""
+    import numpy as np
+
+    step = 0.1
+    sig = MLStrategy(model="rf", train_window=200, sizing="proba",
+                     weight_step=step).generate_signals(_DF)
+    arr = sig.to_numpy()
+    assert np.allclose(np.round(arr / step) * step, arr, atol=1e-9)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (sig != 0).any()                    # 양자화가 신호를 전멸시키지 않는다
+
+
+def test_ml_weight_step_stays_near_unquantized():
+    """양자화는 반올림이므로 비양자화 신호에서 step/2 이상 벗어나지 않는다."""
+    import numpy as np
+
+    base = MLStrategy(model="logreg", train_window=200,
+                      retrain_every=50).generate_signals(_DF)
+    quant = MLStrategy(model="logreg", train_window=200, retrain_every=50,
+                       weight_step=0.1).generate_signals(_DF)
+    assert float(np.abs(base - quant).max()) <= 0.05 + 1e-9
+
+
+def test_ml_weight_step_zero_is_default_behavior():
+    """weight_step=0.0(기본)은 기존 신호와 비트 단위로 같다."""
+    a = MLStrategy(model="logreg", train_window=200,
+                   retrain_every=50).generate_signals(_DF)
+    b = MLStrategy(model="logreg", train_window=200, retrain_every=50,
+                   weight_step=0.0).generate_signals(_DF)
+    assert (a == b).all()
