@@ -33,6 +33,18 @@ def test_cache_avoids_refetch(tmp_path):
     assert np.allclose(a["close"].to_numpy(), b["close"].to_numpy(), rtol=1e-4)
 
 
+def test_cache_evicts_oldest_over_cap(tmp_path):
+    """캐시 파일 수가 상한을 넘으면 오래된 것부터 삭제된다(무한 성장 방지)."""
+    inner = _CountingProvider()
+    cached = CachedDataProvider(inner, cache_dir=str(tmp_path), max_files=3)
+    for i in range(6):                       # 6개 서로 다른 종목 → 파일 6개 시도
+        cached.get_ohlcv(f"SYM{i}", "1d", limit=50)
+    csvs = list(Path(str(tmp_path)).glob("*.csv"))
+    assert len(csvs) <= 3                     # 상한으로 제한됨
+    # 가장 최근 것(SYM5)은 남아 있어야 한다
+    assert any("SYM5" in p.name for p in csvs)
+
+
 def test_cache_range_request_not_cached(tmp_path):
     import datetime as dt
 
