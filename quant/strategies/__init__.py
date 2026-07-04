@@ -6,6 +6,8 @@ from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
 from quant.strategies.ensemble import AdaptiveEnsemble, StrategyEnsemble
 from quant.strategies.keltner import KeltnerBreakout
+from quant.strategies.liquidity import LiquidityFilter
+from quant.strategies.multitimeframe import MultiTimeframeFilter
 from quant.strategies.macd import MACD
 from quant.strategies.mean_reversion import MeanReversion
 from quant.strategies.momentum import Momentum
@@ -43,6 +45,8 @@ __all__ = [
     "AdaptiveEnsemble",
     "RegimeFilter",
     "ADXFilter",
+    "MultiTimeframeFilter",
+    "LiquidityFilter",
     "get_strategy",
     "list_strategies",
     "default_ensemble",
