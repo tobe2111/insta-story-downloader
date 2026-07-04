@@ -82,11 +82,37 @@ def real_report():
     print("  ※ CI에 네트워크가 없으면 위 값은 합성 폴백입니다(거래소 접속 실패 시).")
 
 
+FEES = [0.0005, 0.001, 0.002, 0.003]   # 0.05% ~ 0.3% (편도)
+
+
+def fee_sensitivity_report():
+    """수수료를 바꿔가며 총수익이 어떻게 변하는지 (자주 매매할수록 타격 큼)."""
+    strats = ["ma_cross", "rsi", "ensemble", "ml"]
+    seeds = [1, 2, 3]
+    print(f"\n{'='*72}\n③ 수수료 민감도 — 총수익 (합성 {len(seeds)}회 평균, 봉 {LIMIT}개)"
+          f"\n{'='*72}")
+    print(f"{'전략':<12}" + "".join(f"{f*100:>8.2f}%" for f in FEES))
+    print("-" * 72)
+    for name in strats:
+        cells = []
+        for fee in FEES:
+            rets = []
+            for seed in seeds:
+                df = SyntheticDataProvider(seed=seed).get_ohlcv("SIM", "1d", limit=LIMIT)
+                res = Backtester(_strat(name), periods_per_year=365, fee=fee).run(df)
+                rets.append(res.metrics.total_return)
+            cells.append(st.mean(rets))
+        print(f"{name:<12}" + "".join(f"{_fmt_pct(c):>9}" for c in cells))
+    print("  → 수수료가 오를수록 수익이 깎이고, 흑자가 적자로 뒤집히기도 합니다.")
+    print("    '수수료 후 수익'이 진짜 수익입니다. 자주 매매하는 전략일수록 불리합니다.")
+
+
 if __name__ == "__main__":
     print("전략 성과 리포트 — 방향 정확도 & 수익 지표")
     print("⚠️ 과거/모의 성과이며 미래 수익을 보장하지 않습니다.")
     synthetic_report()
     real_report()
+    fee_sensitivity_report()
     print("\n해석: 방향정확도가 50%대에 머무는 게 정상입니다. 60%+ 가 나오면")
     print("      오히려 룩어헤드/과최적화를 의심해야 합니다. 총수익만 보지 말고")
     print("      샤프(위험대비)·최대낙폭·매수후보유 대비를 함께 보세요.")
