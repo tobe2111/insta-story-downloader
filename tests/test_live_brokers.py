@@ -221,6 +221,24 @@ class _FakeCcxt:
         return {"average": 60000.0, "filled": quantity, "status": "closed"}
 
 
+class _OpenOrderCcxt:
+    """미체결(open) 주문을 반환하는 가짜 거래소."""
+
+    def fetch_balance(self):
+        return {"free": {"USDT": 500.0}, "total": {}}
+
+    def create_order(self, symbol, type_, side, quantity):
+        return {"status": "open", "filled": 0}   # 아직 체결 안 됨
+
+
+def test_crypto_open_order_not_marked_filled():
+    """ccxt가 미체결(open)을 주면 전량 체결로 위조하지 않는다(us_live와 동일 규약)."""
+    broker = crypto_live.CryptoLiveBroker(client=_OpenOrderCcxt())
+    order = broker.market_order("BTC/USDT", "buy", 0.05, 60000)
+    assert order.status == "open"
+    assert order.filled_quantity == 0.0
+
+
 def test_crypto_live_injected_client():
     fake = _FakeCcxt()
     broker = crypto_live.CryptoLiveBroker(client=fake)

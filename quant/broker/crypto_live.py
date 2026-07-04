@@ -84,7 +84,14 @@ class CryptoLiveBroker(Broker):
         log.warning("[LIVE:%s] %s %s %.6f @ ~%.2f 실제 주문 전송",
                     self.exchange, side.upper(), symbol, quantity, price)
         result = self.client.create_order(symbol, "market", side, quantity)
-        filled_price = float(result.get("average") or price)
-        filled_qty = float(result.get("filled") or quantity)
+        status = result.get("status", "unknown")
+        # 미체결(open)·부분체결을 전량 체결로 꾸며내지 않는다. 거래소가 알려준
+        # 값만 신뢰하고, 체결 수량이 없으면 0으로 보고한다(us_live와 동일한 규약).
+        # 그래야 RobustBroker가 잔량 재주문/중복 여부를 정확히 판단한다.
+        raw_filled = result.get("filled")
+        filled_qty = float(raw_filled) if raw_filled not in (None, "") else 0.0
+        raw_avg = result.get("average")
+        filled_price = float(raw_avg) if raw_avg not in (None, "") else (
+            price if filled_qty > 0 else 0.0)
         return Order(symbol, side, quantity, filled_price,
-                     status=result.get("status", "unknown"), filled_quantity=filled_qty)
+                     status=status, filled_quantity=filled_qty)
