@@ -5,6 +5,7 @@ from quant.robustness.deflated_sharpe import (
     probabilistic_sharpe_ratio,
 )
 from quant.robustness.monte_carlo import bootstrap_metrics, summarize
+from quant.robustness.pbo import param_returns_matrix, pbo, pbo_report
 from quant.robustness.regime import (
     classify_regime,
     regime_feature,
@@ -21,4 +22,7 @@ __all__ = [
     "classify_regime",
     "regime_summary",
     "regime_feature",
+    "pbo",
+    "pbo_report",
+    "param_returns_matrix",
 ]
