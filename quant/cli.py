@@ -71,6 +71,34 @@ def _cmd_web(args) -> None:
     run_server(args.host, args.port)
 
 
+def _cmd_learn(args) -> None:
+    from quant.broker import PaperBroker
+    from quant.data import get_provider
+    from quant.live import AutoLearner
+    from quant.risk import RiskManager
+    from quant.strategies import default_ensemble, get_strategy
+
+    strat = default_ensemble() if args.strategy == "ensemble" \
+        else get_strategy(args.strategy)
+    learner = AutoLearner(
+        data=get_provider(args.market, cached=True),
+        strategy=strat,
+        broker=PaperBroker(cash=args.cash),
+        risk=RiskManager(),
+        symbol=args.symbol,
+        timeframe=args.timeframe,
+        lookback=args.lookback,
+        accuracy_window=args.accuracy_window,
+        state_path=args.state,
+    )
+    cycles = None if args.cycles <= 0 else args.cycles
+    print(f"🔁 자동 페이퍼 학습 시작: {args.strategy} · {args.symbol} "
+          f"(주기 {args.interval}s, {'무기한' if cycles is None else str(cycles)+'회'})")
+    print("⚠️ 정확도는 50~55%에서 오르내립니다. 100%로 오르지 않습니다 — 그게 정상입니다.")
+    print(f"📺 대시보드: python -m quant web --open  →  감시 탭에서 {args.state} 확인")
+    learner.run(cycles=cycles, interval_sec=args.interval)
+
+
 def _cmd_pipeline(args) -> None:
     import runpy
     import sys
@@ -108,6 +136,19 @@ def build_parser() -> argparse.ArgumentParser:
     web.add_argument("--port", type=int, default=8000)
     web.add_argument("--open", action="store_true", help="브라우저 자동 열기")
     web.set_defaults(func=_cmd_web)
+
+    ln = sub.add_parser("learn", help="자동 페이퍼 트레이딩 + 지속 재학습 + 정확도 추적")
+    ln.add_argument("--market", default="synthetic")
+    ln.add_argument("--symbol", default="DEMO")
+    ln.add_argument("--strategy", default="ml")
+    ln.add_argument("--timeframe", default="1d")
+    ln.add_argument("--lookback", type=int, default=400)
+    ln.add_argument("--accuracy-window", type=int, default=60, dest="accuracy_window")
+    ln.add_argument("--cash", type=float, default=10_000.0)
+    ln.add_argument("--cycles", type=int, default=0, help="0=무기한, N=N회 후 종료")
+    ln.add_argument("--interval", type=int, default=3600, help="사이클 간격(초)")
+    ln.add_argument("--state", default="results/autolearn_state.json")
+    ln.set_defaults(func=_cmd_learn)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)
