@@ -104,11 +104,16 @@ class AutoLearner:
     def _persist(self) -> None:
         if not self.state_path:
             return
+        pos = self.broker.get_position(self.symbol)
+        orders = [vars(o) for o in getattr(self.broker, "order_log", [])]
         snap = {
             "symbol": self.symbol,
             "strategy": getattr(self.strategy, "name", "?"),
             "mode": "paper-autolearn",
             "history": self.history,
+            "position": {"symbol": pos.symbol, "quantity": pos.quantity,
+                         "avg_price": pos.avg_price},
+            "orders": orders[-20:],
         }
         p = Path(self.state_path)
         p.parent.mkdir(parents=True, exist_ok=True)

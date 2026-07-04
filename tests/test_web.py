@@ -101,6 +101,7 @@ def test_render_monitor_with_state(tmp_path):
     # 전체 실시간: 포지션·주문 테이블도 JS로 갱신되도록 id 부여
     assert 'id="pos-body"' in doc and 'id="ord-body"' in doc
     assert 'id="kpi-dd"' in doc and 'id="kpi-trades"' in doc
+    assert 'id="kpi-acc"' in doc and "방향 정확도" in doc   # 예측 정확도 타일
 
 
 def test_state_json_reads_file(tmp_path):
