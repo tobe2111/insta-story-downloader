@@ -56,6 +56,7 @@ _NAV = ('<nav><a href="/">📊 백테스트</a>'
         '<a href="/screener">🎯 종목선별</a>'
         '<a href="/sweep">🔥 민감도 스윕</a>'
         '<a href="/optimize">⚙️ 최적화</a>'
+        '<a href="/validate">🧪 검증</a>'
         '<a href="/monitor">📺 감시</a></nav>')
 
 ALLOCATIONS = ["inverse_vol", "equal", "hrp"]
@@ -585,6 +586,132 @@ def run_optimize_html(params: dict) -> str:
 </div>
 <p class="warn">⚠️ OOS(보지 않은 미래) 성적이 실전에서 기대할 수 있는 진짜 성과에 가깝습니다.
 IS만 화려하면 그 전략은 과최적화된 것입니다.</p>
+</div></body></html>"""
+
+
+def render_validate_form(message: str = "") -> str:
+    """과최적화 검증 3종(워크포워드+DSR·PBO·CPCV) 폼 (pandas 불필요).
+
+    전략 선택지는 CLI validate와 같은 기본 그리드(_VALIDATE_GRIDS)를 가진
+    전략으로 제한한다 — 그리드가 없으면 검증할 조합 자체가 없다.
+    """
+    from quant.cli import _VALIDATE_GRIDS   # argparse만 쓰는 경량 모듈(pandas 없음)
+
+    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
+    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _VALIDATE_GRIDS)
+    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 검증</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>🧪 과최적화 검증 (워크포워드+DSR · PBO · CPCV)</h1>
+<p style="color:#94a3b8;font-size:13px">"이 전략을 믿어도 되는가"를 세 가지
+과최적화 탐지 도구로 한 화면에서 확인합니다. 셋 다 <b>탐지</b> 도구입니다 —
+통과가 곧 수익은 아닙니다.</p>
+{msg}
+<form action="/validate/run" method="get">
+  <div class="row">
+    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
+    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
+  </div>
+  <div class="row">
+    <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
+    <div><label>봉 개수</label><input name="limit" value="800"></div>
+    <div><label>학습(IS) 길이</label><input name="is_window" value="250"></div>
+    <div><label>검증(OOS) 길이</label><input name="oos_window" value="125"></div>
+  </div>
+  <button type="submit">검증 3종 실행</button>
+</form>
+<p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
+다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>
+</div></body></html>"""
+
+
+def run_validate_html(params: dict) -> str:
+    """검증 3종을 실행하고 결과를 HTML로 렌더한다 (pandas 필요).
+
+    CLI _cmd_validate와 같은 하부 조각(walk_forward·pbo·cpcv)과 같은 한국어
+    리포트 문자열(pbo_report·cpcv_report)을 재사용하고 <pre>로 감싼다.
+    단계별 ValueError(데이터 부족 등)는 그 단계만 '건너뜀'으로 표시한다.
+    """
+    from quant.cli import _VALIDATE_GRIDS
+
+    market = params.get("market", "synthetic")
+    symbol = params.get("symbol", "DEMO")
+    timeframe = params.get("timeframe", "1d")
+    strategy_name = params.get("strategy", "ma_cross")
+    grid = _VALIDATE_GRIDS.get(strategy_name)
+    if not grid:
+        return render_validate_form(
+            f"'{strategy_name}'는 검증 미지원 전략입니다 "
+            f"(기본 그리드 지원: {', '.join(_VALIDATE_GRIDS)}).")
+    try:
+        limit = max(200, min(5000, int(params.get("limit", 800))))
+        is_window = max(50, int(params.get("is_window", 250)))
+        oos_window = max(20, int(params.get("oos_window", 125)))
+    except (TypeError, ValueError):
+        limit, is_window, oos_window = 800, 250, 125
+
+    # 유효 입력 확인 후에만 무거운(pandas) 모듈을 임포트
+    from quant.data import get_provider
+    from quant.optimize import cpcv, cpcv_report, walk_forward
+    from quant.robustness import param_returns_matrix, pbo, pbo_report
+    from quant.strategies import get_strategy
+
+    strategy_cls = type(get_strategy(strategy_name))
+    ppy = 365 if market in ("crypto", "synthetic") else 252
+    df = get_provider(market).get_ohlcv(symbol, timeframe, limit=limit)
+
+    sections: list[tuple[str, str]] = []
+
+    # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
+    try:
+        wf = walk_forward(df, strategy_cls, grid, is_window=is_window,
+                          oos_window=oos_window, embargo=5,
+                          periods_per_year=ppy)
+        m = wf["oos_metrics"]
+        wf_text = (
+            f"OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
+            f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개\n"
+            f"DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
+            + ("— 실력 가능성" if wf["dsr"] >= 0.95 else "— 운일 수 있음(0.95 미만)"))
+    except ValueError as exc:
+        wf_text = f"건너뜀: {exc}"
+    sections.append(("[1/3] 워크포워드 (롤링 IS→OOS) + DSR", wf_text))
+
+    # 2) PBO — IS 1등이 OOS에서 동전던지기인지
+    try:
+        mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
+        pbo_text = pbo_report(pbo(mat, n_blocks=10))
+    except ValueError as exc:
+        pbo_text = f"건너뜀: {exc}"
+    sections.append(("[2/3] PBO (백테스트 과적합 확률)", pbo_text))
+
+    # 3) CPCV — 여러 OOS 경로의 분포
+    try:
+        cv = cpcv(df, strategy_cls, grid, n_groups=6, n_test=2, embargo=5,
+                  periods_per_year=ppy)
+        cpcv_text = cpcv_report(cv)
+    except ValueError as exc:
+        cpcv_text = f"건너뜀: {exc}"
+    sections.append(("[3/3] CPCV (다중 OOS 경로 분포)", cpcv_text))
+
+    boxes = "".join(
+        f'<h2>{html.escape(title)}</h2><div class="card">'
+        f'<pre style="font-size:12.5px;white-space:pre-wrap;overflow-x:auto;'
+        f'margin:0">{html.escape(text)}</pre></div>'
+        for title, text in sections)
+
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 검증 결과</title><style>{_STYLE}</style></head><body><div class="wrap">
+{_NAV}
+<h1>🧪 검증 결과 · {html.escape(strategy_name)} · {html.escape(symbol)} ({len(df)}봉)</h1>
+<p class="sub">그리드: {html.escape(str(grid))}</p>
+{boxes}
+<p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
+다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>
 </div></body></html>"""
 
 

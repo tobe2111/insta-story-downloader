@@ -20,11 +20,13 @@ from quant.web.app import (
     render_portfolio_form,
     render_screener_form,
     render_sweep_form,
+    render_validate_form,
     run_backtest_html,
     run_optimize_html,
     run_portfolio_html,
     run_screener_html,
     run_sweep_html,
+    run_validate_html,
     state_json,
 )
 
@@ -61,6 +63,37 @@ def test_run_optimize_html_synthetic():
 def test_run_optimize_html_unsupported_strategy():
     doc = run_optimize_html({"strategy": "ensemble"})  # 그리드 없는 전략
     assert "최적화 미지원" in doc  # 폼으로 안내
+
+
+def test_render_validate_form():
+    """검증 폼 렌더링 (pandas 불필요 — quant.cli는 argparse만 쓰는 경량 모듈)."""
+    doc = render_validate_form()
+    assert "<form" in doc and 'action="/validate/run"' in doc
+    assert "<nav" in doc and 'href="/validate"' in doc     # 네비게이션에 검증 탭
+    # CLI validate와 같은 기본 그리드 지원 전략만 선택지로 노출
+    from quant.cli import _VALIDATE_GRIDS
+    for s in _VALIDATE_GRIDS:
+        assert s in doc
+    for field in ("market", "symbol", "timeframe", "limit",
+                  "is_window", "oos_window"):
+        assert f'name="{field}"' in doc
+    assert "보장되지 않습니다" in doc            # 정직성 푸터
+
+
+def test_run_validate_html_synthetic():
+    """검증 3종 실행 경로 (pandas 필요 — CI). 합성 시장 + 기본 그리드."""
+    doc = run_validate_html({"market": "synthetic", "symbol": "X",
+                             "strategy": "ma_cross", "limit": "500",
+                             "is_window": "250", "oos_window": "125"})
+    assert "검증 결과" in doc and "<nav" in doc
+    assert "워크포워드" in doc and "PBO" in doc and "CPCV" in doc
+    assert "<pre" in doc                        # 한국어 리포트 문자열을 <pre>로
+    assert "보장되지 않습니다" in doc            # 정직성 푸터
+
+
+def test_run_validate_html_unsupported_strategy():
+    doc = run_validate_html({"strategy": "ensemble"})   # 기본 그리드 없는 전략
+    assert "검증 미지원" in doc                  # 폼으로 안내
 
 
 def test_render_portfolio_form():
