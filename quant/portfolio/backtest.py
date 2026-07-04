@@ -83,5 +83,8 @@ class PortfolioBacktester:
         equity = ((1 + port_ret).cumprod() * self.initial_capital).rename("equity")
         exposure = held.abs().sum(axis=1).rename("position")
 
-        metrics = compute_metrics(equity, port_ret, exposure, self.periods_per_year)
+        # exposure = |weights.shift(1)| 은 이미 '수익을 실현한' 포지션(realized-aligned)
+        # 이므로 compute_metrics가 다시 shift하지 않도록 False를 준다(이중 시프트 방지).
+        metrics = compute_metrics(equity, port_ret, exposure, self.periods_per_year,
+                                  positions_are_decision_time=False)
         return BacktestResult(equity, port_ret, exposure, metrics, close)

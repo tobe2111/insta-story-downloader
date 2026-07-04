@@ -44,7 +44,13 @@ def extract_trades(equity: pd.Series, positions: pd.Series) -> list[Trade]:
         # 엔진 규약: held[t]로 정한 포지션의 시장 손익은 t+1봉에 실현된다.
         # 따라서 마지막 보유봉(end)의 손익과 청산 비용은 eq[end+1]에 반영된다.
         # exit을 eq[end]로 잡으면 마지막 봉 손익·청산비용을 통째로 빠뜨린다.
-        entry_eq = eq[start - 1] if start > 0 else eq[start]
+        #
+        # 진입 기준(entry_eq): 직전 봉이 '관망'이면 eq[start-1]을 써야 진입비용이
+        # 포함된다. 하지만 직전 봉이 '반대 포지션'(플립: 롱→숏 등)이면 eq[start-1]→
+        # eq[start] 구간은 이전 포지션의 마지막 방향성 손익이라 이전 거래 몫이다.
+        # 그걸 이 거래에 넣으면 플립 봉이 두 거래에 이중 계상된다 → eq[start] 사용.
+        flipped = start > 0 and pos[start - 1] != 0
+        entry_eq = eq[start] if (start == 0 or flipped) else eq[start - 1]
         exit_eq = eq[end + 1] if end + 1 < n else eq[end]  # 데이터 끝이면 미실현
         ret = (exit_eq / entry_eq - 1.0) if entry_eq else 0.0
         trades.append(Trade(

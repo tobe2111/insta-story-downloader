@@ -154,6 +154,40 @@ def test_profit_factor_nonnegative(df):
     assert m.profit_factor >= 0.0
 
 
+def test_sortino_finite_for_uniform_losses():
+    """균일한 손실이어도 하방편차>0 → 소르티노가 0이 아니어야 한다(버그 수정).
+
+    구버전은 음수 수익의 표준편차(평균차감)를 써서, 손실이 모두 같으면 분모가 0이
+    되어 '하방위험 없음(소르티노=0)'으로 오판했다.
+    """
+    from quant.backtest.metrics import compute_metrics
+
+    idx = pd.date_range("2020-01-01", periods=4, freq="D")
+    returns = pd.Series([-0.01, -0.01, -0.01, 0.01], index=idx)  # 손실 우세, 균일
+    equity = (1 + returns).cumprod() * 100
+    m = compute_metrics(equity, returns, pd.Series(1.0, index=idx), 365)
+    assert m.sortino < 0.0        # 음의 유한값 (구버전은 0)
+
+
+def test_compute_metrics_positions_alignment_flag():
+    """결정시점 포지션(True)과 이미 정렬된 포지션(False)이 같은 승률을 준다.
+
+    False 경로가 없으면 포트폴리오/워크포워드가 이중 시프트되어 승률·이익팩터가
+    한 봉씩 어긋난다(버그 수정 검증).
+    """
+    from quant.backtest.metrics import compute_metrics
+
+    idx = pd.date_range("2020-01-01", periods=4, freq="D")
+    returns = pd.Series([0.0, 0.1, -0.05, 0.0], index=idx)
+    equity = (1 + returns).cumprod() * 100
+    decision = pd.Series([1.0, 1.0, 0.0, 0.0], index=idx)   # 결정시점
+    realized = pd.Series([0.0, 1.0, 1.0, 0.0], index=idx)   # = decision.shift(1)
+    a = compute_metrics(equity, returns, decision, 365, positions_are_decision_time=True)
+    b = compute_metrics(equity, returns, realized, 365, positions_are_decision_time=False)
+    assert a.win_rate == b.win_rate == 0.5
+    assert a.profit_factor == b.profit_factor
+
+
 def test_win_rate_aligns_return_to_prior_position():
     """수익은 직전 봉 포지션으로 실현된다 — 승률·이익팩터가 한 봉 시프트로
     정렬되는지 검증(off-by-one 버그 수정).

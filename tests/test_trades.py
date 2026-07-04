@@ -38,6 +38,25 @@ def test_extract_trades_manual():
     assert trades[1].bars_held == 3
 
 
+def test_flip_trade_not_double_counted():
+    """롱→숏 직접 전환(플립) 시 전환 봉 손익이 두 거래에 이중 계상되지 않는다.
+
+    positions [+1,+1,-1,-1,0,0], equity [100,101,140,138,150,150]:
+      · 롱: eq[0]→eq[2] = +40% (전환 봉 손익 포함, 롱 몫)
+      · 숏: 실제 노출 eq[2]→eq[4] = 140→150 ≈ +7.14%
+    구버전은 숏 진입기준을 eq[1]=101로 잡아 롱의 +38.6% 봉을 훔쳐 +48.5%로 부풀렸다.
+    """
+    idx = pd.date_range("2020-01-01", periods=6, freq="D")
+    equity = pd.Series([100, 101, 140, 138, 150, 150.0], index=idx)
+    positions = pd.Series([1, 1, -1, -1, 0, 0.0], index=idx)
+    trades = extract_trades(equity, positions)
+    assert len(trades) == 2
+    assert trades[0].side == "long" and abs(trades[0].return_pct - 0.40) < 1e-9
+    assert trades[1].side == "short"
+    assert abs(trades[1].return_pct - (150 / 140 - 1)) < 1e-9
+    assert trades[1].return_pct < 0.10       # 이중계상되면 +48.5%가 됨
+
+
 def test_trade_stats():
     idx = pd.date_range("2020-01-01", periods=6, freq="D")
     equity = pd.Series([100, 110, 110, 99, 99, 99.0], index=idx)
