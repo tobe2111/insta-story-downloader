@@ -16,6 +16,7 @@ import pandas as pd
 
 from quant.broker.base import Broker
 from quant.data.base import DataProvider
+from quant.live.summary import load_last_summary_date, notify_daily_summary
 from quant.portfolio.allocation import get_scheme
 from quant.strategies.base import Strategy
 from quant.utils.logging import get_logger
@@ -70,6 +71,9 @@ class MultiTrader:
                          if state_path else None)
             self.kill_switch = DailyLossKillSwitch(
                 daily_max_loss, kill_path, notifier)
+        self._last_error: str | None = None
+        # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
+        self._last_summary_date = load_last_summary_date(state_path)
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
@@ -203,6 +207,8 @@ class MultiTrader:
             "orders": orders,
             # 상관 레짐 모니터 — 1에 가까울수록 분산 효과가 약한 국면
             "avg_correlation": self._avg_corr,
+            "last_error": self._last_error,
+            "last_summary_date": self._last_summary_date,
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:
@@ -225,8 +231,11 @@ class MultiTrader:
                 self.step()
             except Exception as exc:  # noqa: BLE001
                 log.error("사이클 오류: %s", exc)
+                self._last_error = str(exc)
                 if self.notifier is not None:
                     self.notifier.send(f"⚠️ 사이클 오류: {exc}", level="error")
+            # UTC 날짜 롤오버 시 일일 요약 1회(알림기 있을 때만, 오류는 삼킴)
+            notify_daily_summary(self)
             i += 1
             if max_iters is not None and i >= max_iters:
                 break
