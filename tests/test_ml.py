@@ -103,6 +103,22 @@ def test_ml_extra_features_used():
     assert "x_fear_greed" in strat.last_importances_
 
 
+def test_ml_sparse_extra_feature_does_not_disable_model():
+    """외부 피처가 초반 구간에 NaN이어도(예: 공포탐욕지수 시작 전) 그 구간을
+    통째로 무거래로 만들지 않는다 — valid는 기본 피처만 판정(버그 수정)."""
+    import numpy as np
+    import pandas as pd
+
+    n = len(_DF)
+    vals = np.concatenate([np.full(300, np.nan), np.linspace(0.0, 1.0, n - 300)])
+    ext = pd.DataFrame({"fear_greed": vals}, index=_DF.index)
+    sig = MLStrategy(model="logreg", train_window=200,
+                     extra_features=ext).generate_signals(_DF)
+    # 외부 피처가 NaN인 구간(200~300)에서도 기본 피처가 유효하면 거래가 나온다.
+    # 구버전은 valid가 외부 피처까지 AND라 이 구간이 전부 0이었다.
+    assert (sig.iloc[200:300] != 0).any()
+
+
 def test_ml_extra_features_callable():
     """extra_features 를 callable(df)->DataFrame 로도 줄 수 있다."""
     import pandas as pd

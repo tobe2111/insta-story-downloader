@@ -50,3 +50,19 @@ def test_no_lookahead_ensembles():
     """고정/적응형 앙상블도 미래를 참조하지 않는다."""
     _assert_no_lookahead(default_ensemble, "default_ensemble")
     _assert_no_lookahead(lambda: adaptive_ensemble(lookback=40), "adaptive_ensemble")
+
+
+def test_no_lookahead_ml_with_extra_features():
+    """외부 피처를 붙인 ML도 미래를 참조하지 않는다(reindex+ffill 병합 경로 커버).
+
+    기본 leakage 테스트는 extra_features=None 경로만 돌아, 외부 피처 병합의
+    미래 누수를 못 잡던 사각지대를 메운다.
+    """
+    import pandas as pd
+
+    from quant.strategies import MLStrategy
+
+    ext = pd.DataFrame({"macro": np.linspace(-1.0, 1.0, len(_DF))}, index=_DF.index)
+    _assert_no_lookahead(
+        lambda: MLStrategy(model="logreg", train_window=200, extra_features=ext),
+        "ml+extra")
