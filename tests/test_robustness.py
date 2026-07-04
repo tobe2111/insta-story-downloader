@@ -54,6 +54,17 @@ def test_bootstrap_insufficient_data():
         bootstrap_metrics(pd.Series([0.01]), n_sims=10)
 
 
+def test_bootstrap_cagr_finite_with_extreme_losses():
+    """한 봉이 -100% 이하(레버리지/숏)여도 CAGR이 NaN으로 붕괴하지 않는다(버그 수정)."""
+    import pandas as pd
+
+    r = pd.Series([0.01] * 49 + [-1.5])          # 마지막 봉 -150% → equity 음수 가능
+    dist = bootstrap_metrics(r, n_sims=200, seed=1)
+    assert np.isfinite(dist["cagr"]).all()       # 음수의 분수승(NaN)이 없어야
+    assert (dist["cagr"] >= -1.0 - 1e-9).all()   # 최악은 -100%
+    assert "nan" not in summarize(dist).lower()  # 요약도 NaN 없이
+
+
 def test_html_report_written(result, tmp_path):
     out = generate_report(result, tmp_path / "r.html", title="테스트")
     assert out.exists()

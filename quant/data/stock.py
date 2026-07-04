@@ -40,7 +40,12 @@ class StockDataProvider(DataProvider):
             import yfinance as yf
 
             interval = _TF_MAP.get(timeframe, "1d")
-            period = None if start else _limit_to_period(limit, interval)
+            # ⚠️ start '또는' end가 주어지면 범위 모드다. period를 함께 넘기면
+            # yfinance가 period를 우선해 start/end를 무시하고 '최근 limit봉'을 주는데,
+            # end만 준 워크포워드 요청에서는 요청한 컷오프 이후(미래) 봉이 섞여
+            # 룩어헤드가 된다. 범위 모드에선 period를 반드시 None으로 둔다.
+            range_mode = start is not None or end is not None
+            period = None if range_mode else _limit_to_period(limit, interval)
             df = yf.download(
                 symbol,
                 start=start,
@@ -56,9 +61,12 @@ class StockDataProvider(DataProvider):
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df = df.rename(columns=str.lower)
-            # start/end 범위를 명시한 요청은 그 범위를 그대로 존중한다. limit로
-            # 꼬리를 자르면 사용자가 요청한 기간이 잘려나가므로 period 모드에서만 자른다.
-            if start is None and end is None:
+            if range_mode:
+                # 범위 모드: 방어적으로 end 이후 봉을 잘라낸다(룩어헤드 차단).
+                if end is not None:
+                    df = df[df.index <= _align_ts(pd.Timestamp(end), df.index)]
+            else:
+                # period 모드에서만 최근 limit봉으로 자른다.
                 df = df.tail(limit)
             return self._validate(df)
         except Exception as exc:  # noqa: BLE001
@@ -68,6 +76,14 @@ class StockDataProvider(DataProvider):
             return SyntheticDataProvider(start_price=70_000.0).get_ohlcv(
                 symbol, timeframe, start, end, limit
             )
+
+
+def _align_ts(ts: pd.Timestamp, index: pd.Index) -> pd.Timestamp:
+    """비교용 타임스탬프를 인덱스의 시간대에 맞춘다(intraday는 tz-aware일 수 있음)."""
+    tz = getattr(index, "tz", None)
+    if tz is not None and ts.tzinfo is None:
+        return ts.tz_localize(tz)
+    return ts
 
 
 def _limit_to_period(limit: int, interval: str) -> str:

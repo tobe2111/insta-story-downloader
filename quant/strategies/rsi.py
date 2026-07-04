@@ -17,7 +17,12 @@ def rsi(close: pd.Series, period: int = 14) -> pd.Series:
     gain = delta.clip(lower=0).rolling(period).mean()
     loss = (-delta.clip(upper=0)).rolling(period).mean()
     rs = gain / loss.replace(0, np.nan)
-    return (100 - 100 / (1 + rs)).fillna(50.0)
+    out = 100 - 100 / (1 + rs)
+    # 손실이 전혀 없는 구간(loss=0)의 정통 RSI는 100(최대 과매수)이다.
+    # rs=NaN이 되어 그대로 fillna(50)하면 강한 상승 구간을 '중립'으로 오판하므로,
+    # loss==0 & gain>0 인 곳은 100으로 채운 뒤 나머지(워밍업)만 50으로 채운다.
+    out = out.mask((loss == 0) & (gain > 0), 100.0)
+    return out.fillna(50.0)
 
 
 class RSIReversion(Strategy):

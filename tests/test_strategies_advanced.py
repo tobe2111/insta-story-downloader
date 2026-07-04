@@ -202,6 +202,17 @@ def _downtrend(n=200):
                          "close": price, "volume": 1.0}, index=idx)
 
 
+def test_rsi_is_100_when_no_losses():
+    """손실이 전혀 없는 상승 구간의 RSI는 100(최대 과매수)이어야 한다(중립 50 아님)."""
+    from quant.strategies.rsi import rsi
+
+    idx = pd.date_range("2020-01-01", periods=30, freq="D")
+    close = pd.Series(np.linspace(100.0, 200.0, 30), index=idx)  # 순수 상승 → 손실 0
+    r = rsi(close, 14)
+    assert r.iloc[-1] == 100.0
+    assert (r.dropna() <= 100.0 + 1e-9).all() and (r.dropna() >= 0.0).all()
+
+
 def test_breakout_shorts_in_downtrend():
     """하락 추세에서 allow_short=True면 실제로 숏(-1)이 나온다(버그 수정 검증)."""
     df = _downtrend()

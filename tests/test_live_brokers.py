@@ -83,6 +83,19 @@ def test_kis_token_refreshes_after_expiry():
         assert calls["n"] == 2 and t3 != t1
 
 
+def test_alpaca_equity_uses_account_value():
+    """equity()가 계좌 평가액을 그대로 반환한다(MultiTrader 인터페이스 일관성)."""
+    os.environ.update({"ALPACA_API_KEY": "k", "ALPACA_SECRET": "s"})
+    broker = us_live.AlpacaBroker(paper=True)
+
+    def fake_get(url, headers=None):
+        return {"cash": "1000.0", "equity": "1234.5"}
+
+    with mock.patch.object(us_live, "get_json", fake_get):
+        assert hasattr(broker, "equity")
+        assert broker.equity({"AAPL": 100.0}) == 1234.5   # marks 무시, 계좌값이 정답
+
+
 def test_alpaca_missing_keys_raises():
     for k in ("ALPACA_API_KEY", "ALPACA_SECRET"):
         os.environ.pop(k, None)
