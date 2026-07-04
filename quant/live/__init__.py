@@ -1,3 +1,4 @@
+from quant.live.autolearn import AutoLearner
 from quant.live.circuit_breaker import BreakerConfig, CircuitBreaker
 from quant.live.engine import LiveTrader
 from quant.live.multi import MultiTrader
@@ -12,6 +13,7 @@ from quant.live.notifications import (
 
 __all__ = [
     "LiveTrader",
+    "AutoLearner",
     "MultiTrader",
     "CircuitBreaker",
     "BreakerConfig",

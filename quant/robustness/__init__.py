@@ -1,3 +1,4 @@
+from quant.robustness.accuracy import directional_accuracy
 from quant.robustness.deflated_sharpe import (
     deflated_sharpe_ratio,
     expected_max_sharpe,
@@ -11,4 +12,5 @@ __all__ = [
     "probabilistic_sharpe_ratio",
     "deflated_sharpe_ratio",
     "expected_max_sharpe",
+    "directional_accuracy",
 ]
