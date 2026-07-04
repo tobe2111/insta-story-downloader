@@ -135,4 +135,13 @@ def walk_forward(
     oos_metrics: Metrics = compute_metrics(equity, stitched, positions, periods_per_year,
                                            positions_are_decision_time=False)
 
-    return {"oos_metrics": oos_metrics, "segments": segments, "equity": equity}
+    # 다중검정 보정: 그리드에서 시도한 조합 수만큼 '운으로 나올 최대 샤프'를
+    # 기준선으로 올린 DSR. 0.95↑ 실력 가능성, 0.5 근처면 운일 수 있음.
+    n_trials = 1
+    for vals in param_grid.values():
+        n_trials *= max(1, len(vals))
+    from quant.robustness.deflated_sharpe import deflated_sharpe_ratio
+    dsr = deflated_sharpe_ratio(stitched, n_trials=n_trials)
+
+    return {"oos_metrics": oos_metrics, "segments": segments, "equity": equity,
+            "dsr": dsr, "n_trials": n_trials}
