@@ -108,7 +108,8 @@ class LiveTrader:
     def snapshot(self) -> dict:
         """현재 상태를 직렬화 가능한 dict로 반환한다."""
         pos = self.broker.get_position(self.symbol)
-        orders = [vars(o) for o in getattr(self.broker, "order_log", [])]
+        # 최근 20건만 dict화 — 전체 order_log를 매번 vars()하지 않는다(장기 실행 비용).
+        orders = [vars(o) for o in getattr(self.broker, "order_log", [])[-20:]]
         return {
             "symbol": self.symbol,
             "strategy": getattr(self.strategy, "name", "?"),
@@ -119,16 +120,18 @@ class LiveTrader:
                 "quantity": pos.quantity,
                 "avg_price": pos.avg_price,
             },
-            "orders": orders[-20:],
+            "orders": orders,
         }
 
     def _persist(self) -> None:
+        from quant.utils.jsonio import atomic_write_json, cap_history
+
+        self.history = cap_history(self.history)      # 무한 성장 방지
         snap = None
         if self.state_path:
             snap = self.snapshot()
-            p = Path(self.state_path)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+            # NaN 안전(대시보드 JSON.parse 방지) + 원자적 쓰기(부분/손상 방지).
+            atomic_write_json(self.state_path, snap)
         if self.dashboard_path:
             from quant.reporting.dashboard import generate_dashboard
 

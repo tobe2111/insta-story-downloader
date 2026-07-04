@@ -9,9 +9,7 @@
 """
 from __future__ import annotations
 
-import json
 import time
-from pathlib import Path
 from typing import Callable, Sequence
 
 import pandas as pd
@@ -152,22 +150,25 @@ class MultiTrader:
                     "quantity": pos.quantity,
                     "avg_price": pos.avg_price,
                 })
-        orders = [vars(o) for o in getattr(self.broker, "order_log", [])]
+        # 최근 30건만 dict화(전체 order_log를 매번 vars()하지 않는다).
+        orders = [vars(o) for o in getattr(self.broker, "order_log", [])[-30:]]
         return {
             "symbol": ", ".join(self.symbols),
             "strategy": getattr(self.strategy, "name", "multi"),
             "mode": self.mode,
             "history": self.history,
             "positions": positions,
-            "orders": orders[-30:],
+            "orders": orders,
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:
+        from quant.utils.jsonio import atomic_write_json, cap_history
+
+        self.history = cap_history(self.history)      # 무한 성장 방지(대시보드 점 수도 제한)
         snap = self.snapshot(prices)
         if self.state_path:
-            p = Path(self.state_path)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+            # NaN 안전 + 원자적 쓰기(부분/손상 방지).
+            atomic_write_json(self.state_path, snap)
         if self.dashboard_path:
             from quant.reporting.dashboard import generate_dashboard
 
