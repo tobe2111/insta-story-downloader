@@ -40,6 +40,7 @@ class MultiTrader:
         notifier=None,
         circuit_breaker=None,
         mode: str = "paper",
+        daily_max_loss: float | None = None,
     ):
         self.data = data
         self.strategy = strategy
@@ -57,6 +58,18 @@ class MultiTrader:
         self.mode = mode
         self.history: list[dict] = []
         self._last_bar_ts = None        # 최근 데이터 봉의 타임스탬프(서킷브레이커 일자 기준)
+        self._avg_corr: float | None = None   # 최근 롤링 평균 상관(상관 레짐 모니터)
+        # 일일 최대손실 킬스위치(자동 손실 차단기) — 기본 None=미사용(하위 호환).
+        self.kill_switch = None
+        if daily_max_loss is not None:
+            from pathlib import Path
+
+            from quant.live.killswitch import DailyLossKillSwitch
+
+            kill_path = (str(Path(state_path).with_suffix(".kill.json"))
+                         if state_path else None)
+            self.kill_switch = DailyLossKillSwitch(
+                daily_max_loss, kill_path, notifier)
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
@@ -79,6 +92,17 @@ class MultiTrader:
         if len(close_df.index):
             self._last_bar_ts = close_df.index[-1]
         returns = close_df.pct_change().fillna(0.0)
+        # 상관 레짐 모니터: 쌍별 상관의 롤링 평균(최근값). 급등하면 분산 효과가
+        # 사라지는 국면일 수 있다 — 대시보드/알림에서 노출 축소 판단 참고용.
+        self._avg_corr = None
+        if returns.shape[1] >= 2 and len(returns) >= self.vol_window:
+            try:
+                from quant.risk.portfolio import rolling_avg_correlation
+
+                v = rolling_avg_correlation(returns, self.vol_window).iloc[-1]
+                self._avg_corr = float(v) if pd.notna(v) else None
+            except Exception as exc:  # noqa: BLE001 — 모니터링 실패가 매매를 막지 않게
+                log.warning("평균 상관 계산 실패: %s", exc)
         signals = pd.DataFrame(
             {s: sigs[s].reindex(close_df.index).ffill().fillna(0.0) for s in closes}
         )
@@ -104,6 +128,24 @@ class MultiTrader:
                 self.broker.get_position(s).quantity * prices.get(s, 0.0)
                 for s in self.symbols
             )
+
+        # 일일 최대손실 킬스위치: 발동 시 전 종목 청산(best-effort) 후
+        # 다음 UTC 일까지 중단. 리스크 통제 장치 — 갭에서는 한도 초과 손실 가능.
+        if self.kill_switch is not None and self.kill_switch.update(equity):
+            if self.kill_switch.just_tripped:
+                log.error("🛑 일일 손실 킬스위치 발동 — 전 종목 청산 후 "
+                          "다음 UTC 일까지 매매 중단")
+                for s, price in prices.items():
+                    if not price:
+                        continue
+                    try:
+                        self.broker.target_weight(s, 0.0, price, equity)
+                    except Exception as exc:  # noqa: BLE001 — 일부 실패해도 계속 청산 시도
+                        log.error("킬스위치 청산 실패(%s): %s", s, exc)
+                self._persist(prices)
+            else:
+                log.info("일일 킬스위치 할트 중 — 매매 건너뜀 (다음 UTC 일에 재개)")
+            return
 
         # 서킷브레이커: 발동 시 전 종목 청산 후 신규 매매 중단.
         # 일자 기준은 벽시계(utcnow)가 아니라 '최근 데이터 봉'의 날짜를 쓴다.
@@ -159,6 +201,8 @@ class MultiTrader:
             "history": self.history,
             "positions": positions,
             "orders": orders,
+            # 상관 레짐 모니터 — 1에 가까울수록 분산 효과가 약한 국면
+            "avg_correlation": self._avg_corr,
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:

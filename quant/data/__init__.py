@@ -5,6 +5,7 @@ from quant.data.base import DataProvider
 from quant.data.cache import CachedDataProvider
 from quant.data.crypto import CryptoDataProvider
 from quant.data.fundamentals import fmp_ratios, rank_factors
+from quant.data.funding import align_funding_to_bars, fetch_funding_history
 from quant.data.macro import fred_frame, fred_series
 from quant.data.sentiment import fear_greed_frame, fear_greed_history
 from quant.data.stock import StockDataProvider
@@ -22,6 +23,8 @@ __all__ = [
     "fred_frame",
     "fmp_ratios",
     "rank_factors",
+    "fetch_funding_history",
+    "align_funding_to_bars",
     "get_provider",
 ]
 
