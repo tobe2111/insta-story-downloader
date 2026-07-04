@@ -45,6 +45,44 @@ def test_alpaca_order_and_queries():
     assert order.filled_quantity == 3.0 and order.status == "filled"
 
 
+def test_alpaca_accepted_order_not_marked_filled():
+    """체결 전(accepted) 응답을 전량 체결로 꾸며내지 않는다(중복 주문 방지)."""
+    os.environ["ALPACA_API_KEY"] = "k"
+    os.environ["ALPACA_SECRET"] = "s"
+    broker = us_live.AlpacaBroker(paper=True)
+
+    def fake_post(url, headers=None, body=None):
+        # 시장가 접수 직후: 아직 체결 안 됨
+        return {"status": "accepted", "filled_qty": "0", "filled_avg_price": None}
+
+    with mock.patch.object(us_live, "post_json", fake_post):
+        order = broker.market_order("AAPL", "buy", 3, 50.0)
+
+    assert order.status == "accepted"
+    assert order.filled_quantity == 0.0        # 전량 체결로 위조하지 않음
+
+
+def test_kis_token_refreshes_after_expiry():
+    """토큰 만료 시각이 지나면 재발급한다(장기 실행 시 만료 토큰 주문 실패 방지)."""
+    os.environ.update({"KIS_APP_KEY": "k", "KIS_APP_SECRET": "s", "KIS_CANO": "1"})
+    broker = kr_live.KISBroker(paper=True)
+    calls = {"n": 0}
+
+    def fake_post(url, headers=None, body=None):
+        if "tokenP" in url:
+            calls["n"] += 1
+            return {"access_token": f"tok{calls['n']}", "expires_in": 86400}
+        return {}
+
+    with mock.patch.object(kr_live, "post_json", fake_post):
+        t1 = broker._get_token()
+        t2 = broker._get_token()            # 아직 유효 → 재사용
+        assert t1 == t2 and calls["n"] == 1
+        broker._token_expiry = 0.0          # 만료 강제
+        t3 = broker._get_token()            # 재발급
+        assert calls["n"] == 2 and t3 != t1
+
+
 def test_alpaca_missing_keys_raises():
     for k in ("ALPACA_API_KEY", "ALPACA_SECRET"):
         os.environ.pop(k, None)

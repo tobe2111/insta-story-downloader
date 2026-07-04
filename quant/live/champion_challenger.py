@@ -40,9 +40,18 @@ class ChampionChallenger:
         """두 전략을 같은 데이터에 백테스트해 성과를 비교한다."""
         from quant.backtest import Backtester
 
-        rc = Backtester(self.champion).run(df).returns
-        rh = Backtester(self.challenger).run(df).returns
-        diff = (rh - rc).dropna()
+        res_c = Backtester(self.champion).run(df)
+        res_h = Backtester(self.challenger).run(df)
+        rc, rh = res_c.returns, res_h.returns
+        # 두 전략 모두 관망(무포지션)인 봉은 수익 차이가 0이라 정보가 없다.
+        # 워밍업·무거래 구간의 0들을 t-검정에 넣으면 표본만 부풀려 t-통계를
+        # 인위적으로 0쪽으로 눌러 판단을 왜곡한다. 적어도 한쪽이 '직전 봉에
+        # 포지션을 보유'해 이번 봉 수익을 실현한 구간만 비교한다(1봉 지연 규약).
+        active = (
+            (res_c.positions.shift(1).fillna(0.0) != 0)
+            | (res_h.positions.shift(1).fillna(0.0) != 0)
+        )
+        diff = (rh - rc)[active].dropna()
         n = int(len(diff))
         mean = float(diff.mean()) if n else 0.0
         std = float(diff.std(ddof=1)) if n > 1 else 0.0
