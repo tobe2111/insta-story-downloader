@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import html
 from pathlib import Path
 
 import numpy as np
@@ -111,7 +112,12 @@ def generate_report(result: BacktestResult, path: str | Path,
 
 
 def build_report_html(result: BacktestResult, title: str = "백테스트 리포트") -> str:
-    """BacktestResult를 HTML 문자열로 렌더링한다 (웹서버·파일 저장 공용)."""
+    """BacktestResult를 HTML 문자열로 렌더링한다 (웹서버·파일 저장 공용).
+
+    title은 웹 요청 파라미터(예: 종목명)에서 올 수 있으므로 반드시 이스케이프해
+    <title>/<h1>에 스크립트가 주입되는 반사형 XSS를 막는다.
+    """
+    title = html.escape(str(title))
     m = result.metrics
     equity = result.equity
     drawdown = equity / equity.cummax() - 1.0
@@ -161,7 +167,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
         )
     else:
         price_section = ""
-    html = f"""<!doctype html>
+    page = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
@@ -190,7 +196,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 몬테카를로 신뢰구간과
 워크포워드 검증을 함께 확인하세요.</p>
 </div></body></html>"""
-    return html
+    return page
 
 
 def _metric_rows(m) -> list[tuple[str, str]]:

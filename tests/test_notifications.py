@@ -15,6 +15,18 @@ notif = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(notif)
 
 
+def test_redact_hides_secret_url_path():
+    """오류 로그에서 텔레그램 토큰/슬랙 웹훅 경로가 가려지는지 검증(시크릿 유출 방지)."""
+    tg = "HTTP 400 https://api.telegram.org/bot123456:ABCSECRET/sendMessage: bad"
+    out = notif._redact(tg)
+    assert "ABCSECRET" not in out
+    assert "api.telegram.org" in out and "HTTP 400" in out   # 호스트·상태는 유지
+    slack = "네트워크 오류 https://hooks.slack.com/services/T00/B00/XXXSECRET: refused"
+    out2 = notif._redact(slack)
+    assert "XXXSECRET" not in out2
+    assert "hooks.slack.com" in out2
+
+
 class _Recorder(notif.Notifier):
     def __init__(self):
         self.messages = []

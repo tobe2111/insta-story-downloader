@@ -165,3 +165,11 @@ def test_run_backtest_html_bad_limit_defaults():
     doc = run_backtest_html({"market": "synthetic", "strategy": "rsi",
                              "limit": "abc"})
     assert "성과 지표" in doc
+
+
+def test_run_backtest_html_escapes_symbol_xss():
+    """웹 파라미터(symbol)가 리포트 제목에 이스케이프되어 반사형 XSS가 막힌다."""
+    doc = run_backtest_html({"market": "synthetic", "strategy": "ma_cross",
+                             "symbol": "<script>alert(1)</script>", "limit": "120"})
+    assert "<script>alert(1)</script>" not in doc     # 원본 스크립트 태그 없음
+    assert "&lt;script&gt;" in doc                     # 이스케이프됨

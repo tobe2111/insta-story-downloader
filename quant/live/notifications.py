@@ -12,12 +12,22 @@
 from __future__ import annotations
 
 import os
+import re
 from abc import ABC, abstractmethod
 
 from quant.utils.http import post_json, post_text
 from quant.utils.logging import get_logger
 
 log = get_logger("live.notify")
+
+# 텔레그램 봇 토큰은 URL 경로(.../bot<TOKEN>/...)에, 슬랙 웹훅은 URL 경로 자체가
+# 시크릿이다. HTTP 오류 메시지에 이 URL이 통째로 들어가므로, 로그로 새어나가지
+# 않도록 경로/쿼리를 가린다(호스트와 상태코드는 남겨 디버깅은 가능하게).
+_URL_RE = re.compile(r"(https?://[^/\s]+)(/\S*)?")
+
+
+def _redact(exc: object) -> str:
+    return _URL_RE.sub(lambda m: f"{m.group(1)}/…(redacted)", str(exc))
 
 
 class Notifier(ABC):
@@ -45,7 +55,7 @@ class TelegramNotifier(Notifier):
             post_json(self.url, {"content-type": "application/json"},
                       {"chat_id": self.chat_id, "text": message})
         except Exception as exc:  # noqa: BLE001
-            log.warning("텔레그램 알림 실패: %s", exc)
+            log.warning("텔레그램 알림 실패: %s", _redact(exc))
 
 
 class SlackNotifier(Notifier):
@@ -57,7 +67,7 @@ class SlackNotifier(Notifier):
             post_text(self.webhook_url, {"content-type": "application/json"},
                       {"text": message})
         except Exception as exc:  # noqa: BLE001
-            log.warning("슬랙 알림 실패: %s", exc)
+            log.warning("슬랙 알림 실패: %s", _redact(exc))
 
 
 class MultiNotifier(Notifier):
