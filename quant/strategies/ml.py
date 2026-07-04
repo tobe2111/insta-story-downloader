@@ -225,8 +225,16 @@ class MLStrategy(Strategy):
         label[df["close"].shift(-1).isna()] = np.nan
         y = label.to_numpy()
 
+        # 외부 피처(x_*)의 결측은 0으로 대치한다(아래 valid는 기본 피처만 보므로
+        # 이 대치가 실제로 쓰인다). 0은 이상적 중립값은 아니지만, 외부 피처가
+        # 아직 시작 전인 구간에서 상수(정보 없음)로 취급돼 무해하다.
         X = feats.fillna(0.0).to_numpy()
-        valid = feats.notna().all(axis=1).to_numpy()
+        # ⚠️ valid는 '기본 15개 피처'만으로 판정한다. 외부 피처까지 AND에 넣으면,
+        # 외부 피처가 시작 전(예: 공포탐욕지수는 ~2018년부터)이거나 정렬이 어긋나
+        # NaN인 구간이 학습·예측에서 통째로 빠져 모델이 '조용히 전 구간 무거래'가
+        # 된다(에러도 없이). 외부 피처는 선택적 맥락일 뿐 필수가 아니다.
+        base_cols = [c for c in feats.columns if c in FEATURE_NAMES]
+        valid = feats[base_cols].notna().all(axis=1).to_numpy()
         n = len(df)
         out = np.zeros(n)
         model = None
