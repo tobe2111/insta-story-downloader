@@ -91,3 +91,42 @@ def test_crypto_respects_end_filter():
     df = prov.get_ohlcv("BTC/USDT", "1d", end=datetime(2020, 1, 5), limit=10)
     assert df.index.max() <= pd.Timestamp("2020-01-05")
     assert len(df) == 5   # 01-01 ~ 01-05
+
+
+def test_crypto_end_tz_aware_does_not_fall_back():
+    """tz-aware end여도 naive 인덱스와 정렬해 비교 → TypeError/합성 폴백 없음."""
+    prov = CryptoDataProvider.__new__(CryptoDataProvider)
+    prov.exchange_id = "binance"
+    prov._client = _FakeExchange()
+    end = pd.Timestamp("2020-01-05", tz="UTC").to_pydatetime()   # tz-aware
+    df = prov.get_ohlcv("BTC/USDT", "1d", end=end, limit=10)
+    assert df.index.min() >= pd.Timestamp("2020-01-01")   # 실제 데이터(합성 폴백 아님)
+    assert len(df) == 5
+
+
+def test_validate_normalizes_tz_aware_index_to_naive_utc():
+    """_validate가 tz-aware 인덱스를 UTC tz-naive로 통일한다(혼합 tz 조인 버그 원천 차단)."""
+    from quant.data.base import DataProvider
+    idx = pd.date_range("2020-01-01 00:00", periods=5, freq="h",
+                        tz="America/New_York")
+    df = pd.DataFrame({c: 1.0 for c in ["open", "high", "low", "close", "volume"]},
+                      index=idx)
+    out = DataProvider._validate(df)
+    assert out.index.tz is None                              # tz 제거됨
+    # NY 00:00(EST, -05:00) → UTC 05:00
+    assert out.index[0] == pd.Timestamp("2020-01-01 05:00:00")
+
+
+def test_mixed_tz_frames_join_after_validate():
+    """서로 다른 tz 제공자 출력도 _validate 후엔 naive-UTC라 조인이 비지 않는다."""
+    from quant.data.base import DataProvider
+    cols = ["open", "high", "low", "close", "volume"]
+    aware = pd.DataFrame({c: 1.0 for c in cols},
+                         index=pd.date_range("2020-01-01", periods=6, freq="h",
+                                             tz="UTC"))
+    naive = pd.DataFrame({c: 2.0 for c in cols},
+                         index=pd.date_range("2020-01-01", periods=6, freq="h"))
+    a = DataProvider._validate(aware)["close"]
+    b = DataProvider._validate(naive)["close"]
+    joined = pd.DataFrame({"A": a, "B": b}).dropna()
+    assert len(joined) == 6            # 정규화 전이면 0(빈 결과)이었을 것

@@ -60,8 +60,13 @@ class CryptoDataProvider(DataProvider):
             # unit="ms"는 거래소 epoch(UTC)를 그대로 tz-naive 타임스탬프로 만든다.
             df.index = pd.to_datetime(df["ts"], unit="ms")
             # end가 지정되면 그 이후 봉은 잘라낸다(fetch_ohlcv는 since만 지원).
+            # 인덱스는 naive-UTC이므로, end가 tz-aware여도 naive-UTC로 맞춰 비교한다
+            # (안 맞추면 'naive vs aware' TypeError → 조용한 합성 폴백이 난다).
             if end is not None:
-                df = df[df.index <= pd.Timestamp(end)]
+                end_ts = pd.Timestamp(end)
+                if end_ts.tzinfo is not None:
+                    end_ts = end_ts.tz_convert("UTC").tz_localize(None)
+                df = df[df.index <= end_ts]
             return self._validate(df)
         except Exception as exc:  # noqa: BLE001
             log.warning("%s 시세 조회 실패(%s). 합성 데이터로 폴백.", symbol, exc)

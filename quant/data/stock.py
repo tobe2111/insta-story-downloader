@@ -79,10 +79,18 @@ class StockDataProvider(DataProvider):
 
 
 def _align_ts(ts: pd.Timestamp, index: pd.Index) -> pd.Timestamp:
-    """비교용 타임스탬프를 인덱스의 시간대에 맞춘다(intraday는 tz-aware일 수 있음)."""
+    """비교용 타임스탬프를 인덱스의 시간대에 양방향으로 맞춘다.
+
+    intraday 인덱스는 tz-aware(거래소 tz), 일봉 인덱스는 tz-naive다. end로 어떤
+    쪽이 오든 'naive vs aware 비교 TypeError → 조용한 합성 폴백'이 나지 않게
+    두 방향(aware 인덱스+naive ts, naive 인덱스+aware ts)을 모두 정렬한다.
+    """
+    ts = pd.Timestamp(ts)
     tz = getattr(index, "tz", None)
     if tz is not None and ts.tzinfo is None:
-        return ts.tz_localize(tz)
+        return ts.tz_localize(tz)                       # naive ts → 인덱스 tz
+    if tz is None and ts.tzinfo is not None:
+        return ts.tz_convert("UTC").tz_localize(None)   # aware ts → naive UTC
     return ts
 
 
