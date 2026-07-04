@@ -1,0 +1,26 @@
+name: Report
+
+on:
+  push:
+    branches: ["claude/quick-report"]
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy pyyaml scikit-learn ccxt
+
+      - name: Strategy performance report
+        run: python scripts/quick_report.py
