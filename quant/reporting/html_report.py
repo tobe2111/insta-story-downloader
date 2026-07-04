@@ -167,7 +167,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
         )
     else:
         price_section = ""
-    html = f"""<!doctype html>
+    page = f"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
@@ -196,7 +196,7 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 몬테카를로 신뢰구간과
 워크포워드 검증을 함께 확인하세요.</p>
 </div></body></html>"""
-    return html
+    return page
 
 
 def _metric_rows(m) -> list[tuple[str, str]]:
