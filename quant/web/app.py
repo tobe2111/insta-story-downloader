@@ -330,10 +330,34 @@ _FACTOR_PRESETS = {
 }
 
 
+_MAX_SYMBOLS = 50   # 한 요청당 종목 수 상한 (자원 고갈 DoS 방지)
+
+
+def _parse_symbols(raw: str, upper: bool = False) -> list[str]:
+    """콤마 구분 종목 문자열을 파싱한다 — 중복 제거 + 최대 _MAX_SYMBOLS개로 제한.
+
+    상한이 없으면 심볼 수가 무제한이라, 로컬 웹서버라도 한 요청으로 수만 개
+    종목의 백테스트를 강제해 메모리/CPU를 고갈시킬 수 있다(합성 데이터는 네트워크
+    제한도 없다). 여기서 잘라 방어한다.
+    """
+    seen: list[str] = []
+    for s in raw.split(","):
+        s = s.strip()
+        if not s:
+            continue
+        if upper:
+            s = s.upper()
+        if s not in seen:
+            seen.append(s)
+        if len(seen) >= _MAX_SYMBOLS:
+            break
+    return seen
+
+
 def run_screener_html(params: dict) -> str:
     """관심 종목을 팩터로 선별해 결과 표 HTML을 반환한다 (FMP 키 필요)."""
     raw = params.get("symbols", "")
-    symbols = [s.strip().upper() for s in raw.split(",") if s.strip()]
+    symbols = _parse_symbols(raw, upper=True)   # 종목 수 상한(자원 고갈 방지)
     if not symbols:
         return render_screener_form("후보 종목을 하나 이상 입력하세요.")
     try:
@@ -384,7 +408,7 @@ def run_portfolio_html(params: dict) -> str:
     """다중 종목 포트폴리오 백테스트를 실행하고 리포트 HTML을 반환한다 (pandas 필요)."""
     market = params.get("market", "synthetic")
     raw = params.get("symbols", "A, B, C")
-    symbols = [s.strip() for s in raw.split(",") if s.strip()]
+    symbols = _parse_symbols(raw)      # 종목 수 상한(자원 고갈 방지)
     timeframe = params.get("timeframe", "1d")
     strategy_name = params.get("strategy", "momentum")
     allocation = params.get("allocation", "inverse_vol")

@@ -7,8 +7,12 @@
 """
 from __future__ import annotations
 
+import hmac
+import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
+
+_LOOPBACK = {"127.0.0.1", "localhost", "::1", ""}
 
 from quant.web.app import (
     render_form,
@@ -36,8 +40,26 @@ class QuantHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _authorized(self, parsed) -> bool:
+        """QUANT_WEB_TOKEN이 설정된 경우에만 토큰 인증을 요구한다.
+
+        기본(토큰 미설정)은 게이트 없음 — 로컬 전용 도구라 무리 없다. 비-로컬
+        주소에 바인딩해 노출할 때 이 토큰을 켜면 무인증 접근을 막는다. /health는
+        라이브니스 체크용으로 항상 허용.
+        """
+        token = os.environ.get("QUANT_WEB_TOKEN", "")
+        if not token or parsed.path == "/health":
+            return True
+        q = parse_qs(parsed.query)
+        supplied = q["token"][0] if q.get("token") else self.headers.get("X-Auth-Token", "")
+        return hmac.compare_digest(supplied, token)
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
+        if not self._authorized(parsed):
+            self._send("인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.",
+                       status=401, content_type="text/plain; charset=utf-8")
+            return
         if parsed.path in ("/", "/index.html"):
             self._send(render_form())
         elif parsed.path == "/health":
@@ -97,6 +119,13 @@ class QuantHandler(BaseHTTPRequestHandler):
 
 
 def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
+    # 비-로컬 바인딩은 무인증 노출 위험이 있어 경고한다(/api/state가 포지션·손익을
+    # 공개하고, 어떤 라우트든 백테스트를 강제 실행시킬 수 있다).
+    if host not in _LOOPBACK:
+        print(f"⚠️  경고: 비-로컬 주소({host})에 바인딩합니다. 웹 조종석은 인증이 없어")
+        print("   같은 네트워크의 누구나 포지션·손익(/api/state)을 보고 백테스트를 돌릴 수 있습니다.")
+        if not os.environ.get("QUANT_WEB_TOKEN"):
+            print("   → QUANT_WEB_TOKEN 환경변수를 설정하면 토큰 인증이 켜집니다(권장).")
     server = ThreadingHTTPServer((host, port), QuantHandler)
     print(f"🌐 Quant 웹서버 실행: http://{host}:{port}  (Ctrl+C로 종료)")
     try:
