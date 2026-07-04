@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, safe_amount
 from quant.utils.logging import get_logger
 
 log = get_logger("broker.crypto_live")
@@ -65,19 +65,22 @@ class CryptoLiveBroker(Broker):
             log.warning("%s 는 보통 EXCHANGE_PASSWORD(패스프레이즈)가 필요합니다.", exchange)
         if params:
             cfg.update(params)
-        if not hasattr(__import__("ccxt"), exchange):
+        # hasattr는 ccxt의 아무 속성(기반 클래스·헬퍼)이나 통과시킨다. 실제
+        # 거래소 id 목록(ccxt.exchanges)으로 엄격히 검증한다.
+        if exchange not in getattr(ccxt, "exchanges", []):
             raise ValueError(f"ccxt가 모르는 거래소: {exchange}. "
                              f"available_exchanges()로 확인하세요.")
         self.client = getattr(ccxt, exchange)(cfg)
 
     def get_cash(self) -> float:
         bal = self.client.fetch_balance()
-        return float(bal.get("free", {}).get(self.quote, 0.0))
+        # inf/nan/음수 잔고가 equity 계산을 오염시키지 않게 방어한다.
+        return safe_amount(bal.get("free", {}).get(self.quote, 0.0))
 
     def get_position(self, symbol: str) -> Position:
         base = symbol.split("/")[0]
         bal = self.client.fetch_balance()
-        qty = float(bal.get("total", {}).get(base, 0.0))
+        qty = safe_amount(bal.get("total", {}).get(base, 0.0), allow_negative=True)
         return Position(symbol, qty, 0.0)
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
@@ -88,10 +91,9 @@ class CryptoLiveBroker(Broker):
         # 미체결(open)·부분체결을 전량 체결로 꾸며내지 않는다. 거래소가 알려준
         # 값만 신뢰하고, 체결 수량이 없으면 0으로 보고한다(us_live와 동일한 규약).
         # 그래야 RobustBroker가 잔량 재주문/중복 여부를 정확히 판단한다.
-        raw_filled = result.get("filled")
-        filled_qty = float(raw_filled) if raw_filled not in (None, "") else 0.0
+        filled_qty = safe_amount(result.get("filled"))
         raw_avg = result.get("average")
-        filled_price = float(raw_avg) if raw_avg not in (None, "") else (
+        filled_price = safe_amount(raw_avg) if raw_avg not in (None, "") else (
             price if filled_qty > 0 else 0.0)
         return Order(symbol, side, quantity, filled_price,
                      status=status, filled_quantity=filled_qty)

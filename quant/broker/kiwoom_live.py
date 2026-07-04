@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, safe_amount
 from quant.utils.http import get_json, post_json  # noqa: F401  (get_json: 대칭성)
 from quant.utils.logging import get_logger
 
@@ -101,18 +101,16 @@ class KiwoomBroker(Broker):
 
     def get_cash(self) -> float:
         data = self._balance()
-        try:
-            return float(str(data.get(self.CASH_FIELD, 0)).replace(",", ""))
-        except (TypeError, ValueError):
-            return 0.0
+        # 콤마 제거 후 안전 변환(inf/nan/음수 방어).
+        return safe_amount(str(data.get(self.CASH_FIELD, 0)).replace(",", ""))
 
     def get_position(self, symbol: str) -> Position:
         data = self._balance()
         for item in data.get(self.HOLDINGS_KEY, []) or []:
             code = str(item.get(self.CODE_FIELD, "")).lstrip("A")  # 'A005930' → '005930'
             if code == symbol:
-                qty = float(str(item.get(self.QTY_FIELD, 0)).replace(",", "") or 0)
-                avg = float(str(item.get(self.AVG_FIELD, 0)).replace(",", "") or 0)
+                qty = safe_amount(str(item.get(self.QTY_FIELD, 0)).replace(",", ""))
+                avg = safe_amount(str(item.get(self.AVG_FIELD, 0)).replace(",", ""))
                 return Position(symbol, qty, avg)
         return Position(symbol, 0.0, 0.0)
 

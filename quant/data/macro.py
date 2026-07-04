@@ -91,7 +91,10 @@ def fred_series(series_id: str, api_key: Optional[str] = None,
     if not key:
         log.warning("FRED_API_KEY 가 없어 거시 데이터를 건너뜁니다.")
         return pd.Series(dtype=float, name=sid)
-    url = (f"{_FRED_URL}?series_id={sid}&api_key={key}&file_type=json")
+    # 파라미터 인코딩 — sid에 '&','=' 등이 섞여 쿼리를 재구성하지 못하게.
+    from urllib.parse import quote
+    url = (f"{_FRED_URL}?series_id={quote(str(sid), safe='')}"
+           f"&api_key={quote(key, safe='')}&file_type=json")
     if start is not None:
         url += f"&observation_start={pd.Timestamp(start).date()}"
     try:

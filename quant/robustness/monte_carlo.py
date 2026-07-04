@@ -40,7 +40,9 @@ def bootstrap_metrics(
     r = r[np.isfinite(r)]
     if len(r) < 2:
         raise ValueError("수익률 데이터가 부족합니다.")
-    block = block or max(1, int(np.sqrt(len(r))))
+    # block이 0/None/음수면 기본값으로. (음수 block은 r[start:start+block]가 항상
+    # 비어 while 루프가 무한히 도는 것을 막는다.)
+    block = block if (block and block > 0) else max(1, int(np.sqrt(len(r))))
     rng = np.random.default_rng(seed)
     years = len(r) / periods_per_year
 

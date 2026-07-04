@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, safe_amount
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
 
@@ -116,7 +116,7 @@ class KISBroker(Broker):
         data = self._balance()
         summary = data.get("output2", [{}])
         if summary:
-            return float(summary[0].get("dnca_tot_amt", 0.0))  # 예수금 총액
+            return safe_amount(summary[0].get("dnca_tot_amt", 0.0))  # 예수금 총액
         return 0.0
 
     def get_position(self, symbol: str) -> Position:
@@ -125,8 +125,8 @@ class KISBroker(Broker):
             if item.get("pdno") == symbol:
                 return Position(
                     symbol,
-                    float(item.get("hldg_qty", 0.0)),      # 보유수량
-                    float(item.get("pchs_avg_pric", 0.0)), # 매입평균가격
+                    safe_amount(item.get("hldg_qty", 0.0)),        # 보유수량
+                    safe_amount(item.get("pchs_avg_pric", 0.0)),   # 매입평균가격
                 )
         return Position(symbol, 0.0, 0.0)
 
