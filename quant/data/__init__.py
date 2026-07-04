@@ -4,6 +4,8 @@ from __future__ import annotations
 from quant.data.base import DataProvider
 from quant.data.cache import CachedDataProvider
 from quant.data.crypto import CryptoDataProvider
+from quant.data.fundamentals import fmp_ratios, rank_factors
+from quant.data.macro import fred_frame, fred_series
 from quant.data.sentiment import fear_greed_frame, fear_greed_history
 from quant.data.stock import StockDataProvider
 from quant.data.synthetic import SyntheticDataProvider
@@ -16,6 +18,10 @@ __all__ = [
     "CachedDataProvider",
     "fear_greed_history",
     "fear_greed_frame",
+    "fred_series",
+    "fred_frame",
+    "fmp_ratios",
+    "rank_factors",
     "get_provider",
 ]
 
