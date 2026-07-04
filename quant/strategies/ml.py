@@ -35,7 +35,7 @@ def _ema(s: pd.Series, span: int) -> pd.Series:
     return s.ewm(span=span, adjust=False).mean()
 
 
-def _features(df: pd.DataFrame) -> pd.DataFrame:
+def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFrame:
     """과거 정보만으로 구성한 피처 행렬 (룩어헤드 없음).
 
     모든 값은 '해당 봉 종가까지'의 정보만 사용한다. 미래 봉을 참조하는 항목은
@@ -90,7 +90,14 @@ def _features(df: pd.DataFrame) -> pd.DataFrame:
     else:
         feats["vol_z"] = 0.0
 
-    return feats[FEATURE_NAMES].replace([np.inf, -np.inf], np.nan)
+    out = feats[FEATURE_NAMES].copy()
+    # 외부(거시) 피처 병합 — 예: 공포탐욕지수, 펀딩비, 금리. 날짜로 정렬 후
+    # 전진충전(ffill)한다. 해당 봉 시점까지 알려진 값만 쓰므로 룩어헤드 없음.
+    if extra is not None and len(extra.columns):
+        ext = extra.reindex(df.index).ffill()
+        for col in extra.columns:
+            out[f"x_{col}"] = ext[col]
+    return out.replace([np.inf, -np.inf], np.nan)
 
 
 def _build_model(kind: str):
@@ -146,7 +153,7 @@ class MLStrategy(Strategy):
     def __init__(self, model: str = "logreg", train_window: int = 250,
                  retrain_every: int = 20, threshold: float = 0.55,
                  sizing: str = "proba", min_train: int = 50,
-                 allow_short: bool = False):
+                 allow_short: bool = False, extra_features=None):
         self.model_kind = model
         self.train_window = train_window
         self.retrain_every = max(1, retrain_every)
@@ -154,6 +161,10 @@ class MLStrategy(Strategy):
         self.sizing = sizing            # "proba"(확신도 비례) | "binary"(0/1)
         self.min_train = max(30, min_train)
         self.allow_short = allow_short
+        # 외부(거시) 피처: DataFrame 또는 callable(df)->DataFrame. 예: 공포탐욕지수.
+        self.extra_features = extra_features
+        # 최근 학습에 쓰인 피처 이름(기본 15개 + 외부 피처)
+        self.feature_names_: list[str] = list(FEATURE_NAMES)
         # 최근 학습 모델의 피처 중요도(있으면) — 사후 해석용
         self.last_importances_: dict[str, float] | None = None
 
@@ -192,8 +203,8 @@ class MLStrategy(Strategy):
                 imp = np.abs(np.asarray(clf.coef_, dtype=float)).ravel()
             else:
                 return
-            if len(imp) == len(FEATURE_NAMES):
-                self.last_importances_ = dict(zip(FEATURE_NAMES, imp.tolist()))
+            if len(imp) == len(self.feature_names_):
+                self.last_importances_ = dict(zip(self.feature_names_, imp.tolist()))
         except Exception:  # noqa: BLE001  # pragma: no cover
             pass
 
@@ -204,7 +215,11 @@ class MLStrategy(Strategy):
             raise RuntimeError(
                 "ML 전략에는 scikit-learn이 필요합니다: pip install scikit-learn") from exc
 
-        feats = _features(df)
+        extra = self.extra_features
+        if callable(extra):
+            extra = extra(df)
+        feats = _features(df, extra)
+        self.feature_names_ = list(feats.columns)
         # 라벨: 다음 봉 상승 여부 (마지막 행은 미래가 없어 NaN)
         label = (df["close"].shift(-1) > df["close"]).astype(float)
         label[df["close"].shift(-1).isna()] = np.nan

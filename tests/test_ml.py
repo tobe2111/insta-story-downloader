@@ -87,3 +87,38 @@ def test_ml_importances_recorded():
     strat.generate_signals(_DF)
     assert strat.last_importances_ is not None
     assert set(strat.last_importances_) == set(FEATURE_NAMES)
+
+
+def test_ml_extra_features_used():
+    """외부(거시) 피처를 넣으면 학습에 포함되고 중요도에도 나타난다."""
+    import numpy as np
+    import pandas as pd
+
+    ext = pd.DataFrame({"fear_greed": np.linspace(0.0, 1.0, len(_DF))}, index=_DF.index)
+    strat = MLStrategy(model="rf", train_window=200, extra_features=ext)
+    sig = strat.generate_signals(_DF)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert "x_fear_greed" in strat.feature_names_
+    assert strat.last_importances_ is not None
+    assert "x_fear_greed" in strat.last_importances_
+
+
+def test_ml_extra_features_callable():
+    """extra_features 를 callable(df)->DataFrame 로도 줄 수 있다."""
+    import pandas as pd
+
+    def make(df):
+        return pd.DataFrame({"macro": 0.5}, index=df.index)
+
+    strat = MLStrategy(train_window=200, extra_features=make)
+    strat.generate_signals(_DF)
+    assert "x_macro" in strat.feature_names_
+
+
+def test_ml_no_extra_features_default_names():
+    """외부 피처가 없으면 기본 15개 피처 이름만 쓴다(하위호환)."""
+    from quant.strategies.ml import FEATURE_NAMES
+
+    strat = MLStrategy(model="rf", train_window=200)
+    strat.generate_signals(_DF)
+    assert strat.feature_names_ == list(FEATURE_NAMES)

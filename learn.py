@@ -47,6 +47,7 @@ DEFAULTS = {
     "accuracy_window": 60,
     "interval": 900,
     "cash": 10_000.0,
+    "use_fear_greed": False,   # True + strategy=ml 이면 공포탐욕지수를 피처로 추가
 }
 
 _FROZEN = getattr(sys, "frozen", False)
@@ -104,6 +105,15 @@ def _start_learner(cfg: dict) -> None:
 
     strat = default_ensemble() if cfg["strategy"] == "ensemble" \
         else get_strategy(cfg["strategy"])
+    # 선택: 공포탐욕지수를 ML 외부 피처로 추가 (크립토, 무료 API)
+    if cfg.get("use_fear_greed") and getattr(strat, "name", "") == "ml":
+        from quant.data import fear_greed_frame
+        fg = fear_greed_frame()
+        if not fg.empty:
+            strat.extra_features = fg
+            print(f"🧭 공포탐욕지수 {len(fg)}일치를 ML 피처로 추가했습니다.")
+        else:
+            print("🧭 공포탐욕지수를 받지 못해 기본 피처로 진행합니다.")
     learner = AutoLearner(
         data=get_provider(cfg["market"], cached=True),
         strategy=strat,
