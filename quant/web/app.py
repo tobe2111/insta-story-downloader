@@ -156,6 +156,11 @@ async function _tick(){
       setTxt('kpi-dd', (dd*100).toFixed(2)+'%');
       const lw=(h[h.length-1]||{}).weight||0; setTxt('kpi-weight', (lw>=0?'+':'')+Math.round(lw*100)+'%');
     }
+    // 방향 예측 정확도(최근 우선) — 자동학습 상태에 존재
+    const last = h[h.length-1] || {};
+    let acc = last.recent_hit_rate;
+    if(acc==null || isNaN(acc)) acc = last.hit_rate;
+    setTxtSafe('kpi-acc', (acc==null||isNaN(acc))?'N/A':(acc*100).toFixed(1)+'%');
     const orders = (s && s.orders) || [];
     setTxtSafe('kpi-trades', String(orders.length));
     // 포지션 테이블 재구성

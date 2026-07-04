@@ -84,6 +84,12 @@ def build_dashboard_html(state: dict) -> str:
         cur = pnl = max_dd = 0.0
 
     last_weight = history[-1].get("weight", 0.0) if history else 0.0
+    # 방향 예측 정확도(최근 우선, 없으면 전체) — 자동학습 상태에만 존재할 수 있음
+    last = history[-1] if history else {}
+    acc = last.get("recent_hit_rate")
+    if acc is None or acc != acc:              # None 또는 NaN이면 전체값으로
+        acc = last.get("hit_rate")
+    acc_txt = f"{acc:.1%}" if isinstance(acc, (int, float)) and acc == acc else "N/A"
     orders = state.get("orders", [])
     # 단일 종목("position": dict) 또는 다중 종목("positions": list) 모두 지원
     positions = state.get("positions")
@@ -96,6 +102,7 @@ def build_dashboard_html(state: dict) -> str:
         _kpi("손익 (PnL)", f"{pnl:+.2%}", "pos" if pnl >= 0 else "neg", vid="kpi-pnl"),
         _kpi("최대낙폭", f"{max_dd:.2%}", "neg" if max_dd < 0 else "", vid="kpi-dd"),
         _kpi("현재 목표비중", f"{last_weight:+.0%}", vid="kpi-weight"),
+        _kpi("방향 정확도", acc_txt, vid="kpi-acc"),
         _kpi("거래횟수", f"{len(orders)}", vid="kpi-trades"),
     ])
 

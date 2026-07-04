@@ -48,6 +48,26 @@ def test_dashboard_empty_history(tmp_path):
     assert "데이터 수집 중" in out.read_text(encoding="utf-8")
 
 
+def test_dashboard_shows_accuracy(tmp_path):
+    """자동학습 상태(정확도 포함)면 방향 정확도 KPI가 퍼센트로 표시된다."""
+    hist = [{"time": "t", "price": 100, "weight": 1.0, "equity": 10_000,
+             "hit_rate": 0.53, "recent_hit_rate": 0.55, "n": 40}]
+    state = {"symbol": "X", "strategy": "ml", "mode": "paper-autolearn",
+             "history": hist, "position": {}, "orders": []}
+    out = dashboard.generate_dashboard(state, tmp_path / "acc.html")
+    html = out.read_text(encoding="utf-8")
+    assert "방향 정확도" in html and "55.0%" in html   # recent_hit_rate 우선
+
+
+def test_dashboard_accuracy_na_when_absent(tmp_path):
+    """정확도 정보가 없으면 N/A로 표시(크래시 없음)."""
+    hist = [{"time": "t", "price": 100, "weight": 1.0, "equity": 10_000}]
+    state = {"symbol": "X", "strategy": "ma_cross", "history": hist,
+             "position": {}, "orders": []}
+    out = dashboard.generate_dashboard(state, tmp_path / "na.html")
+    assert "N/A" in out.read_text(encoding="utf-8")
+
+
 def test_dashboard_pnl_sign(tmp_path):
     """손실 상태에서도 정상 렌더 (음수 손익)."""
     hist = [{"time": "t", "price": 100, "weight": 1.0, "equity": 10_000},
