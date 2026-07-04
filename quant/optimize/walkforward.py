@@ -89,9 +89,11 @@ def walk_forward(
         oos_returns.append(oos_ret)
 
         # 구간별 OOS 지표는 워밍업을 제외한 '꼬리'로만 계산해야 정직하다.
+        # seg_pos는 (수익!=0) 마스크라 이미 수익과 정렬돼 있으므로 추가 시프트 금지.
         seg_pos = (oos_ret != 0).astype(float)
         seg_eq = (1 + oos_ret).cumprod() * initial_capital
-        seg_m = compute_metrics(seg_eq, oos_ret, seg_pos, periods_per_year)
+        seg_m = compute_metrics(seg_eq, oos_ret, seg_pos, periods_per_year,
+                                positions_are_decision_time=False)
         segments.append(
             {
                 "is_start": str(df.index[start]),
@@ -110,7 +112,8 @@ def walk_forward(
     stitched = pd.concat(oos_returns)
     stitched = stitched[~stitched.index.duplicated(keep="first")].sort_index()
     equity = (1 + stitched).cumprod() * initial_capital
-    positions = (stitched != 0).astype(float)
-    oos_metrics: Metrics = compute_metrics(equity, stitched, positions, periods_per_year)
+    positions = (stitched != 0).astype(float)   # 수익과 정렬된 마스크 → 시프트 금지
+    oos_metrics: Metrics = compute_metrics(equity, stitched, positions, periods_per_year,
+                                           positions_are_decision_time=False)
 
     return {"oos_metrics": oos_metrics, "segments": segments, "equity": equity}

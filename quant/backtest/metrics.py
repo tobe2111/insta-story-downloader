@@ -51,8 +51,18 @@ def compute_metrics(
     positions: pd.Series,
     periods_per_year: int = 365,
     risk_free: float = 0.0,
+    positions_are_decision_time: bool = True,
 ) -> Metrics:
-    """자본곡선/수익률/포지션으로 성과 지표를 계산한다."""
+    """자본곡선/수익률/포지션으로 성과 지표를 계산한다.
+
+    positions_are_decision_time:
+        True  — positions[t]가 '봉 t 종가에 정한' 결정시점 포지션(단일종목 엔진의
+                규약). t봉 수익은 t-1봉 포지션으로 실현되므로 내부에서 shift(1)해
+                수익과 정렬한다.
+        False — positions[t]가 이미 '봉 t 수익을 실현한' 포지션(포트폴리오
+                백테스터·워크포워드처럼 weights.shift(1)를 먼저 적용한 경우).
+                이땐 추가 시프트 없이 그대로 정렬해야 이중 시프트를 피한다.
+    """
     equity = equity.dropna()
     returns = returns.dropna()
     if len(equity) < 2:
@@ -72,10 +82,13 @@ def compute_metrics(
         if returns.std() > 0
         else 0.0
     )
-    downside = returns[returns < 0].std()
+    # 하방편차: 목표(0) 대비 손실의 제곱평균제곱근. 음수 수익만의 표준편차(ddof=1,
+    # 평균 차감)를 쓰면 손실이 균일할 때 0이 되어 '하방위험 없음'으로 오판하고,
+    # 일반적으로도 분모가 작아져 소르티노가 과대평가된다.
+    downside = float(np.sqrt((np.minimum(excess, 0.0) ** 2).mean()))
     sortino = (
         excess.mean() / downside * np.sqrt(periods_per_year)
-        if downside and downside > 0
+        if downside > 0
         else 0.0
     )
 
@@ -88,7 +101,8 @@ def compute_metrics(
     # (엔진: '이번 봉 종가 결정 → 다음 봉 보유'). 따라서 어떤 봉의 수익이
     # '실제 포지션으로 번 것'인지 판정하려면 포지션을 한 봉 시프트해서 맞춰야
     # 한다. 시프트하지 않으면 진입/청산 경계에서 승률·이익팩터가 한 봉씩 어긋난다.
-    held = positions.shift(1).reindex(returns.index).fillna(0.0)
+    held = positions.shift(1) if positions_are_decision_time else positions
+    held = held.reindex(returns.index).fillna(0.0)
     active = returns[held != 0]
     win_rate = (active > 0).mean() if len(active) else 0.0
     num_trades = int((positions.diff().fillna(positions) != 0).sum())
