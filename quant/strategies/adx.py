@@ -25,7 +25,11 @@ def adx(df: pd.DataFrame, period: int = 14) -> pd.Series:
     atr = average_true_range(df, period).replace(0, np.nan)
     plus_di = 100 * plus_dm.rolling(period).mean() / atr
     minus_di = 100 * minus_dm.rolling(period).mean() / atr
-    dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+    # (plus_di+minus_di)==0(방향성 0인 봉)이면 dx가 NaN이 되고, 이 NaN이 뒤이은
+    # rolling(period).mean()을 period봉 동안 오염시켜 ADX=0으로 만들어 과도하게
+    # 게이팅한다. dx를 먼저 0으로 채워(방향성 0 → 추세강도 0) 오염을 막는다.
+    dx = (100 * (plus_di - minus_di).abs()
+          / (plus_di + minus_di).replace(0, np.nan)).fillna(0.0)
     return dx.rolling(period).mean().fillna(0.0)
 
 

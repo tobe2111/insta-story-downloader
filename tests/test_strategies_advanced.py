@@ -202,6 +202,29 @@ def _downtrend(n=200):
                          "close": price, "volume": 1.0}, index=idx)
 
 
+def test_stochastic_short_held_to_midline():
+    """숏(allow_short=True)이 %D 과매수(80) 아래로 내려가도 즉시 청산되지 않고
+    중심선(50)까지 대칭으로 보유되는지 검증(비대칭 청산 버그 수정)."""
+    n = 120
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    t = np.linspace(0, 6 * np.pi, n)
+    price = 100 + 20 * np.sin(t)                 # 과매수/과매도 반복하는 진동
+    d = pd.DataFrame({"open": price, "high": price + 1, "low": price - 1,
+                      "close": price, "volume": 1.0}, index=idx)
+    sig = get_strategy("stochastic", k_period=14, d_period=3,
+                       allow_short=True).generate_signals(d)
+
+    low_n = d["low"].rolling(14).min()
+    high_n = d["high"].rolling(14).max()
+    rng = (high_n - low_n).replace(0, np.nan)
+    dd = (100 * (d["close"] - low_n) / rng).rolling(3).mean().fillna(50.0)
+
+    assert (sig < 0).any()                       # 숏이 실제로 발생
+    # 숏이면서 %D가 (50,80) 구간인 봉이 존재 → 대칭 보유 작동
+    # (구버전은 %D<80이면 곧장 청산해 이런 봉이 없었다)
+    assert ((sig < 0) & (dd < 80) & (dd > 50)).any()
+
+
 def test_rsi_is_100_when_no_losses():
     """손실이 전혀 없는 상승 구간의 RSI는 100(최대 과매수)이어야 한다(중립 50 아님)."""
     from quant.strategies.rsi import rsi
