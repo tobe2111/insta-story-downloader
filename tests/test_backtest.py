@@ -178,3 +178,21 @@ def test_get_provider_fallback():
         prov = get_provider(market)
         d = prov.get_ohlcv("BTC/USDT" if market == "crypto" else "AAPL", limit=60)
         assert len(d) > 0
+
+
+def test_dd_throttle_default_off_unchanged(df):
+    """dd_throttle 기본(off)은 기존 결과와 완전히 동일해야 한다(하위호환)."""
+    base = Backtester(get_strategy("momentum")).run(df)
+    same = Backtester(get_strategy("momentum"), dd_throttle=False).run(df)
+    assert np.allclose(base.equity.to_numpy(), same.equity.to_numpy(), atol=1e-9)
+
+
+def test_dd_throttle_runs_bounded_and_engages(df):
+    """자산곡선 트로틀: 안전하게 동작하고 실제로 개입해 결과가 달라진다."""
+    base = Backtester(get_strategy("momentum")).run(df)
+    thr = Backtester(get_strategy("momentum"),
+                     dd_throttle=True, dd_window=10, dd_cut=0.0).run(df)
+    assert (thr.equity > 0).all()
+    assert thr.positions.abs().max() <= 1.0 + 1e-9
+    # dd_cut=0 이면 낙폭 국면에서 익스포저를 0으로 → 자산 경로가 달라져야 한다
+    assert not np.allclose(thr.equity.to_numpy(), base.equity.to_numpy())
