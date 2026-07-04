@@ -14,6 +14,10 @@ from quant.backtest.engine import Backtester
 from quant.risk import RiskManager
 from quant.strategies.base import Strategy
 
+# 값이 '작을수록 좋은' 지표. 이 목적함수로 탐색하면 부호를 뒤집어 비교해야
+# 한다. (max_drawdown은 음수로 저장되어 클수록=0에 가까울수록 좋으므로 제외)
+_LOWER_IS_BETTER = {"volatility"}
+
 
 def grid_search(
     df: pd.DataFrame,
@@ -31,7 +35,9 @@ def grid_search(
     반환: {best_params, best_score, best_metrics, results[]}
     """
     keys = list(param_grid)
-    best_score = float("-inf")
+    lower_better = objective in _LOWER_IS_BETTER
+    best_cmp = float("-inf")           # 방향 보정된 비교값(항상 클수록 좋음)
+    best_score = float("-inf")         # 리포트용 원본 점수
     best_params: dict | None = None
     best_metrics = None
     results: list[dict] = []
@@ -47,8 +53,9 @@ def grid_search(
         ).run(df)
         score = getattr(res.metrics, objective)
         results.append({**params, objective: score})
-        if score > best_score:
-            best_score, best_params, best_metrics = score, params, res.metrics
+        cmp = -score if lower_better else score   # 작을수록 좋은 지표는 부호 반전
+        if cmp > best_cmp:
+            best_cmp, best_score, best_params, best_metrics = cmp, score, params, res.metrics
 
     return {
         "best_params": best_params,

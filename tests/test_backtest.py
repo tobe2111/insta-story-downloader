@@ -154,6 +154,24 @@ def test_profit_factor_nonnegative(df):
     assert m.profit_factor >= 0.0
 
 
+def test_win_rate_aligns_return_to_prior_position():
+    """수익은 직전 봉 포지션으로 실현된다 — 승률·이익팩터가 한 봉 시프트로
+    정렬되는지 검증(off-by-one 버그 수정).
+
+    held[1]=1 이 bar2의 +20%를 벌었다. 시프트 없이 positions 그대로 쓰면 bar1
+    (수익 0)만 활성으로 봐 승률 0·이익팩터 0으로 오판한다.
+    """
+    from quant.backtest.metrics import compute_metrics
+
+    idx = pd.date_range("2020-01-01", periods=4, freq="D")
+    returns = pd.Series([0.0, 0.0, 0.2, 0.0], index=idx)
+    positions = pd.Series([0.0, 1.0, 0.0, 0.0], index=idx)   # held: bar1에만 보유
+    equity = (1 + returns).cumprod() * 100
+    m = compute_metrics(equity, returns, positions, 365)
+    assert m.win_rate == 1.0                      # 활성 봉(bar2)은 +20% → 승
+    assert m.profit_factor == float("inf")        # 손실 봉 없음
+
+
 def test_result_to_csv(df, tmp_path):
     """백테스트 결과 CSV 내보내기 검증."""
     result = Backtester(get_strategy("ma_cross")).run(df)

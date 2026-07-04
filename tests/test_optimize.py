@@ -28,6 +28,15 @@ def test_grid_search_finds_best(df):
     assert len(out["results"]) > 0
 
 
+def test_grid_search_minimizes_lower_is_better(df):
+    """변동성처럼 '작을수록 좋은' 목적함수는 최소값을 골라야 한다(방향 버그 수정)."""
+    grid = {"fast": [5, 10, 20], "slow": [40, 60, 120]}
+    out = grid_search(df, MovingAverageCross, grid, objective="volatility")
+    vols = [r["volatility"] for r in out["results"]]
+    assert out["best_score"] == min(vols)          # 최대가 아니라 최소
+    assert out["best_metrics"].volatility == min(vols)
+
+
 def test_grid_search_skips_invalid():
     """fast >= slow 조합은 예외 없이 건너뛴다."""
     df = SyntheticDataProvider(seed=1).get_ohlcv("X", limit=200)

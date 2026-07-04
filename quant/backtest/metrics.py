@@ -59,8 +59,10 @@ def compute_metrics(
         return Metrics(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     total_return = equity.iloc[-1] / equity.iloc[0] - 1.0
-    n = len(returns)
-    years = n / periods_per_year
+    # 복리 기간 수는 '수익률 구간(interval)' 개수다. equity가 m개 점이면 실제
+    # 수익 구간은 m-1개이므로 years를 그만큼으로 잡아야 CAGR이 부풀지 않는다.
+    intervals = max(1, len(equity) - 1)
+    years = intervals / periods_per_year
     cagr = (equity.iloc[-1] / equity.iloc[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
 
     vol = returns.std() * np.sqrt(periods_per_year)
@@ -82,7 +84,12 @@ def compute_metrics(
     max_dd = drawdown.min()
     calmar = cagr / abs(max_dd) if max_dd < 0 else 0.0
 
-    active = returns[positions.reindex(returns.index).fillna(0) != 0]
+    # 룩어헤드 방지 규약상 t봉의 수익은 t-1봉에서 정한 포지션으로 실현된다
+    # (엔진: '이번 봉 종가 결정 → 다음 봉 보유'). 따라서 어떤 봉의 수익이
+    # '실제 포지션으로 번 것'인지 판정하려면 포지션을 한 봉 시프트해서 맞춰야
+    # 한다. 시프트하지 않으면 진입/청산 경계에서 승률·이익팩터가 한 봉씩 어긋난다.
+    held = positions.shift(1).reindex(returns.index).fillna(0.0)
+    active = returns[held != 0]
     win_rate = (active > 0).mean() if len(active) else 0.0
     num_trades = int((positions.diff().fillna(positions) != 0).sum())
     exposure = (positions != 0).mean()
