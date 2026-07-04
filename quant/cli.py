@@ -24,6 +24,15 @@ def _cmd_backtest(args) -> None:
     from quant.strategies import default_ensemble, get_strategy
 
     df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe, limit=args.limit)
+
+    # 데이터 품질 스캔 — 무결성 위반이 있으면 경고만 출력한다 (비파괴, 실행은 계속).
+    # 오염된 데이터 위의 백테스트는 그럴듯한 거짓말이 되므로 먼저 알려준다.
+    from quant.data.quality import is_severe, quality_report, scan_ohlcv
+    findings = scan_ohlcv(df)
+    if is_severe(findings):
+        print("\n⚠️ 데이터 품질 경고 — 아래 항목을 확인한 뒤 결과를 해석하세요.")
+        print(quality_report(df, findings))
+
     strat = default_ensemble() if args.strategy == "ensemble" else get_strategy(args.strategy)
     result = Backtester(strat, periods_per_year=_ppy(args.market)).run(df)
     print(f"\n=== {args.strategy} · {args.symbol} ({len(df)}봉) ===")

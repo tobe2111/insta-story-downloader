@@ -84,3 +84,5 @@ def test_html_report_written(result, tmp_path):
     assert "거래 통계" in html and "기대값" in html
     # 가격 차트 + 매매 시점 마커(진입/청산) 섹션이 포함되어야 한다
     assert "매매 시점" in html and "진입" in html and "청산" in html
+    # 생존 편향 경고 — 현존 종목만의 백테스트는 성과를 과대평가한다
+    assert "생존 편향" in html and "과대평가" in html

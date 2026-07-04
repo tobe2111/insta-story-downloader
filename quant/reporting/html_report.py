@@ -198,6 +198,9 @@ def build_report_html(result: BacktestResult, title: str = "백테스트 리포�
 <div class="card"><table>{trade_rows}</table></div>
 <p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 몬테카를로 신뢰구간과
 워크포워드 검증을 함께 확인하세요.</p>
+<p class="warn">⚠️ 생존 편향(survivorship bias): 현존 종목만으로 한 백테스트는 그동안
+상장폐지·붕괴로 사라진 종목이 빠져 있어 성과를 체계적으로 과대평가합니다.
+특히 종목 스크리닝·포트폴리오 전략에서 이 왜곡이 큽니다.</p>
 </div></body></html>"""
     return page
 

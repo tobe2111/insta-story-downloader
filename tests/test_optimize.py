@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quant.data import SyntheticDataProvider
-from quant.optimize import grid_search, walk_forward
+from quant.optimize import grid_search, tune_and_validate, walk_forward
 from quant.strategies import MovingAverageCross
 
 
@@ -102,6 +102,29 @@ def test_walk_forward_embargo_creates_gap(df):
     first = wf["segments"][0]
     assert first["is_start"] == str(idx[0])
     assert first["oos_start"] == str(idx[250 + embargo])
+
+
+def test_tune_and_validate_wraps_walk_forward(df):
+    """tune_and_validate는 walk_forward와 동일한 결과 + 정직성 안내문을 반환한다."""
+    grid = {"fast": [5, 10], "slow": [40, 60]}
+    tuned = tune_and_validate(df, MovingAverageCross, grid,
+                              is_window=250, oos_window=125, objective="sharpe")
+    wf = walk_forward(df, MovingAverageCross, grid,
+                      is_window=250, oos_window=125, objective="sharpe")
+    # 새 수학 없음 — 순수 래퍼이므로 구간·성과가 동일해야 한다 (결정론적)
+    assert tuned["segments"] == wf["segments"]
+    assert tuned["oos_metrics"].sharpe == wf["oos_metrics"].sharpe
+    # 정직성 안내문: 튜닝은 워크포워드 루프 안에서만, 수익 보장 아님
+    assert "OOS" in tuned["note"] and "룩어헤드" in tuned["note"]
+
+
+def test_tune_and_validate_passes_kwargs(df):
+    """embargo 같은 워크포워드 인자가 그대로 전달된다."""
+    tuned = tune_and_validate(df, MovingAverageCross,
+                              {"fast": [5], "slow": [40]},
+                              is_window=250, oos_window=125, embargo=20)
+    idx = list(df.index)
+    assert tuned["segments"][0]["oos_start"] == str(idx[250 + 20])
 
 
 def test_walk_forward_embargo_insufficient_data():
