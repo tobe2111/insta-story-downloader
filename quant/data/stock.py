@@ -56,7 +56,11 @@ class StockDataProvider(DataProvider):
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df = df.rename(columns=str.lower)
-            return self._validate(df.tail(limit))
+            # start/end 범위를 명시한 요청은 그 범위를 그대로 존중한다. limit로
+            # 꼬리를 자르면 사용자가 요청한 기간이 잘려나가므로 period 모드에서만 자른다.
+            if start is None and end is None:
+                df = df.tail(limit)
+            return self._validate(df)
         except Exception as exc:  # noqa: BLE001
             log.warning("%s 주식 데이터 조회 실패(%s). 합성 데이터로 폴백.", symbol, exc)
             from quant.data.synthetic import SyntheticDataProvider

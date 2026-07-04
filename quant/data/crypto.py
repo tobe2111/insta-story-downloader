@@ -42,14 +42,26 @@ class CryptoDataProvider(DataProvider):
         if self._client is None:
             return self._fallback(symbol, timeframe, start, end, limit)
         try:
-            since = int(start.timestamp() * 1000) if start else None
+            # 거래소 타임스탬프는 UTC epoch(ms) 기준이다. naive datetime을
+            # start.timestamp()로 바꾸면 로컬 시간대가 섞여 since가 어긋나므로,
+            # 시간대 정보가 없으면 UTC로 간주해 변환한다.
+            since = None
+            if start is not None:
+                ts = pd.Timestamp(start)
+                if ts.tzinfo is None:
+                    ts = ts.tz_localize("UTC")
+                since = int(ts.timestamp() * 1000)
             raw = self._client.fetch_ohlcv(
                 symbol, timeframe=timeframe, since=since, limit=limit
             )
             df = pd.DataFrame(
                 raw, columns=["ts", "open", "high", "low", "close", "volume"]
             )
+            # unit="ms"는 거래소 epoch(UTC)를 그대로 tz-naive 타임스탬프로 만든다.
             df.index = pd.to_datetime(df["ts"], unit="ms")
+            # end가 지정되면 그 이후 봉은 잘라낸다(fetch_ohlcv는 since만 지원).
+            if end is not None:
+                df = df[df.index <= pd.Timestamp(end)]
             return self._validate(df)
         except Exception as exc:  # noqa: BLE001
             log.warning("%s 시세 조회 실패(%s). 합성 데이터로 폴백.", symbol, exc)
