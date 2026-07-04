@@ -17,9 +17,7 @@
 """
 from __future__ import annotations
 
-import json
 import time
-from pathlib import Path
 
 from quant.broker.base import Broker
 from quant.data.base import DataProvider
@@ -104,8 +102,12 @@ class AutoLearner:
     def _persist(self) -> None:
         if not self.state_path:
             return
+        from quant.utils.jsonio import atomic_write_json, cap_history
+
+        self.history = cap_history(self.history)      # 무한 성장 방지
         pos = self.broker.get_position(self.symbol)
-        orders = [vars(o) for o in getattr(self.broker, "order_log", [])]
+        # 최근 20건만 dict화(전체 order_log를 매번 vars()하지 않는다).
+        orders = [vars(o) for o in getattr(self.broker, "order_log", [])[-20:]]
         snap = {
             "symbol": self.symbol,
             "strategy": getattr(self.strategy, "name", "?"),
@@ -113,11 +115,10 @@ class AutoLearner:
             "history": self.history,
             "position": {"symbol": pos.symbol, "quantity": pos.quantity,
                          "avg_price": pos.avg_price},
-            "orders": orders[-20:],
+            "orders": orders,
         }
-        p = Path(self.state_path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+        # NaN 안전(hit_rate 등이 NaN이면 대시보드 JSON.parse가 멈춘다) + 원자적 쓰기.
+        atomic_write_json(self.state_path, snap)
 
     def run(self, cycles: int | None = None, interval_sec: int = 3600) -> list[dict]:
         """사이클을 반복한다. cycles=None 이면 무기한(사용자가 멈출 때까지).

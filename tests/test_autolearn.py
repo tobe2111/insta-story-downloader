@@ -74,6 +74,28 @@ def test_autolearn_cycle_records_and_persists(tmp_path):
     assert saved["mode"] == "paper-autolearn" and len(saved["history"]) == 1
 
 
+def test_autolearn_state_json_is_nan_safe(tmp_path):
+    """hit_rate 등이 NaN이어도 저장된 state.json이 유효한 JSON이어야 한다
+    (NaN 토큰이면 대시보드 브라우저의 JSON.parse가 조용히 멈춘다)."""
+    state = tmp_path / "auto.json"
+    learner = AutoLearner(
+        data=SyntheticDataProvider(seed=2),
+        strategy=get_strategy("ma_cross"),
+        broker=PaperBroker(cash=10_000),
+        risk=RiskManager(),
+        symbol="X", lookback=200, accuracy_window=30,
+        state_path=str(state),
+    )
+    learner.history.append({"time": "t", "equity": 10_000.0,
+                            "hit_rate": float("nan"),
+                            "recent_hit_rate": float("inf")})
+    learner._persist()
+    raw = state.read_text(encoding="utf-8")
+    assert "NaN" not in raw and "Infinity" not in raw
+    rec = json.loads(raw)["history"][-1]           # 표준 파서로 파싱 가능해야
+    assert rec["hit_rate"] is None and rec["recent_hit_rate"] is None
+
+
 def test_autolearn_run_multiple_cycles(tmp_path):
     learner = AutoLearner(
         data=SyntheticDataProvider(seed=5),
