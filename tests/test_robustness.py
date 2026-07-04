@@ -65,6 +65,12 @@ def test_bootstrap_cagr_finite_with_extreme_losses():
     assert "nan" not in summarize(dist).lower()  # 요약도 NaN 없이
 
 
+def test_html_report_creates_missing_parent_dirs(result, tmp_path):
+    """부모 폴더가 없는 경로도 자동 생성해 저장한다(FileNotFoundError 방지)."""
+    out = generate_report(result, tmp_path / "new" / "deep" / "r.html")
+    assert out.exists()
+
+
 def test_html_report_written(result, tmp_path):
     out = generate_report(result, tmp_path / "r.html", title="테스트")
     assert out.exists()

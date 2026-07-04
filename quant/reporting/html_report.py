@@ -107,6 +107,9 @@ def generate_report(result: BacktestResult, path: str | Path,
                     title: str = "백테스트 리포트") -> Path:
     """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다."""
     out = Path(path)
+    # 부모 폴더가 없으면 만든다(generate_heatmap·to_csv와 동일). 없으면
+    # '--report 새폴더/r.html' 같은 요청이 FileNotFoundError로 죽는다.
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build_report_html(result, title), encoding="utf-8")
     return out
 

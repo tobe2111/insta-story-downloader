@@ -29,11 +29,25 @@ class Stochastic(Strategy):
         high_n = df["high"].rolling(self.k_period).max()
         rng = (high_n - low_n).replace(0, np.nan)
         k = 100 * (df["close"] - low_n) / rng
-        k = k.rolling(self.d_period).mean().fillna(50.0)  # %D로 부드럽게
+        d = k.rolling(self.d_period).mean().fillna(50.0).to_numpy()  # %D로 부드럽게
 
-        signal = pd.Series(index=df.index, dtype=float)
-        signal[k < self.oversold] = 1.0
-        signal[k > self.overbought] = -1.0
-        signal[(k >= 50) & (k <= self.overbought)] = 0.0  # 중립 복귀 시 청산
-        signal = signal.ffill().fillna(0.0)
-        return self._finalize(signal, df.index)
+        # 진입/청산을 포지션 방향에 맞춰 처리하는 상태기계.
+        # (기존의 무상태 벡터 로직은 청산 구간이 [50,overbought] 뿐이라, 숏은
+        #  %D가 80 아래로 조금만 내려가도 즉시 청산되고 롱만 중심선까지 보유하는
+        #  비대칭이 있었다. 롱은 %D≥50, 숏은 %D≤50에서 대칭으로 청산한다.)
+        n = len(df)
+        out = np.zeros(n)
+        pos = 0.0
+        for i in range(n):
+            v = d[i]
+            if pos == 0.0:
+                if v < self.oversold:
+                    pos = 1.0
+                elif self.allow_short and v > self.overbought:
+                    pos = -1.0
+            elif pos > 0 and v >= 50:      # 롱: 중심선 복귀 시 청산
+                pos = 0.0
+            elif pos < 0 and v <= 50:      # 숏: 중심선 복귀 시 청산(대칭)
+                pos = 0.0
+            out[i] = pos
+        return self._finalize(pd.Series(out, index=df.index), df.index)
