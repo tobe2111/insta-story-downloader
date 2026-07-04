@@ -36,7 +36,11 @@ def var_cvar(returns: pd.Series | pd.DataFrame, alpha: float = 0.95):
     r = returns.dropna()
     if len(r) == 0:
         return float("nan"), float("nan")
-    q = float(r.quantile(1.0 - alpha))
+    # 'lower' 보간: 하위 (1-alpha) 경계를 '그 이하 표본이 실제로 존재하는 값'으로
+    # 잡는다. 기본 선형 보간은 손실 표본이 딱 (1-alpha)×N개일 때 경계가 이익
+    # 구간으로 넘어가 VaR가 손실을 과소평가(음수화)할 수 있다 — 리스크 지표는
+    # 보수적인 쪽을 택한다.
+    q = float(r.quantile(1.0 - alpha, interpolation="lower"))
     var = -q
     tail = r[r <= q]
     cvar = -float(tail.mean()) if len(tail) else var
