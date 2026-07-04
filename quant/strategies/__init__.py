@@ -66,12 +66,15 @@ def list_strategies() -> list[str]:
 
 
 def _diversified_book(allow_short: bool = False):
-    """추세추종 2 + 평균회귀 2로 균형 잡은 전략 묶음 (상관이 낮아 분산 효과가 크다)."""
+    """추세추종 2 + 평균회귀 2로 균형 잡은 전략 묶음 (상관이 낮아 분산 효과가 크다).
+
+    allow_short 를 각 하위 전략에 전달해야 앙상블도 실제로 숏을 낼 수 있다.
+    """
     return [
-        MovingAverageCross(fast=20, slow=60),      # 추세추종
-        Breakout(window=55, exit_window=20),       # 추세추종(돌파)
-        RSIReversion(period=14),                   # 평균회귀(단기)
-        MeanReversion(window=20, z=2.0),           # 평균회귀(밴드)
+        MovingAverageCross(fast=20, slow=60, allow_short=allow_short),   # 추세추종
+        Breakout(window=55, exit_window=20, allow_short=allow_short),    # 추세추종(돌파)
+        RSIReversion(period=14, allow_short=allow_short),                # 평균회귀(단기)
+        MeanReversion(window=20, z=2.0, allow_short=allow_short),        # 평균회귀(밴드)
     ]
 
 
