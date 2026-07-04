@@ -35,27 +35,35 @@ def walk_forward(
     initial_capital: float = 10_000.0,
     fee: float = 0.001,
     periods_per_year: int = 365,
+    embargo: int = 0,
 ) -> dict[str, Any]:
     """롤링 워크포워드 검증을 수행한다.
 
     is_window : 학습(in-sample) 구간 길이(봉 개수)
     oos_window: 검증(out-of-sample) 구간 길이
     step      : 창을 밀어내는 간격(기본 = oos_window, 겹치지 않게)
+    embargo   : 학습(IS)과 검증(OOS) 사이에 두는 공백 봉 수(퍼징/엠바고).
+                지표가 롤링 윈도우를 쓰거나 라벨이 다음 봉을 참조하면 IS 끝과
+                OOS 시작이 맞닿아 정보가 새어들 수 있다. 이 갭이 그 누수를 막아
+                OOS 성과를 더 보수적·정직하게 만든다 (López de Prado 방식).
     반환: {oos_metrics, segments[], equity}
     """
     step = step or oos_window
+    gap = max(0, embargo)
     n = len(df)
-    if is_window + oos_window > n:
+    if is_window + gap + oos_window > n:
         raise ValueError(
-            f"데이터({n})가 is_window+oos_window({is_window + oos_window})보다 짧습니다."
+            f"데이터({n})가 is_window+embargo+oos_window"
+            f"({is_window + gap + oos_window})보다 짧습니다."
         )
 
     oos_returns: list[pd.Series] = []
     segments: list[dict] = []
     start = 0
-    while start + is_window + oos_window <= n:
+    while start + is_window + gap + oos_window <= n:
         is_slice = df.iloc[start : start + is_window]
-        oos_slice = df.iloc[start + is_window : start + is_window + oos_window]
+        oos_start = start + is_window + gap        # 엠바고 갭만큼 띄운다
+        oos_slice = df.iloc[oos_start : oos_start + oos_window]
 
         gs = grid_search(
             is_slice, strategy_cls, param_grid, risk, objective,
@@ -75,7 +83,7 @@ def walk_forward(
         segments.append(
             {
                 "is_start": str(df.index[start]),
-                "oos_start": str(df.index[start + is_window]),
+                "oos_start": str(df.index[oos_start]),
                 "params": best,
                 "is_sharpe": round(gs["best_score"], 3),
                 "oos_sharpe": round(res.metrics.sharpe, 3),
