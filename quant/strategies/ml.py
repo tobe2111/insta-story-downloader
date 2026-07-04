@@ -234,13 +234,17 @@ class MLStrategy(Strategy):
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
         i = self.train_window
         while i < n:
-            # j < i 이고 라벨이 확정된 표본만 사용 → 룩어헤드 없음
-            mask = valid[:i] & ~np.isnan(y[:i])
+            # 최근 train_window봉만 학습에 사용(롤링) → 옛 국면을 버리고 학습량도 O(n²)로
+            # 커지지 않는다. 상한을 i-1로 두어 라벨(y[j]=close[j+1]>close[j])이 예측
+            # 대상 봉을 침범하지 않게 한다(엄격한 룩어헤드 차단).
+            lo = max(0, i - self.train_window)
+            hi = i - 1
+            mask = valid[lo:hi] & ~np.isnan(y[lo:hi])
             if mask.sum() >= self.min_train:
-                yt = y[:i][mask].astype(int)
+                yt = y[lo:hi][mask].astype(int)
                 if len(np.unique(yt)) > 1:      # 두 클래스 모두 있어야 학습 가능
                     model = _build_model(self.model_kind)
-                    model.fit(X[:i][mask], yt)
+                    model.fit(X[lo:hi][mask], yt)
                     self._record_importances(model)
 
             block_end = min(i + self.retrain_every, n)

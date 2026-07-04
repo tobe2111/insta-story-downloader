@@ -193,3 +193,35 @@ def test_regime_filter_blocks_bear_market():
     sig = filtered.generate_signals(d)
     # 하락장이므로 대부분의 구간에서 롱이 차단되어야 한다
     assert (sig == 0).mean() > 0.5
+
+
+def _downtrend(n=200):
+    idx = pd.date_range("2020-01-01", periods=n, freq="D")
+    price = np.linspace(200.0, 100.0, n)
+    return pd.DataFrame({"open": price, "high": price, "low": price,
+                         "close": price, "volume": 1.0}, index=idx)
+
+
+def test_breakout_shorts_in_downtrend():
+    """하락 추세에서 allow_short=True면 실제로 숏(-1)이 나온다(버그 수정 검증)."""
+    df = _downtrend()
+    short = Breakout(window=20, exit_window=10, allow_short=True).generate_signals(df)
+    longonly = Breakout(window=20, exit_window=10, allow_short=False).generate_signals(df)
+    assert short.min() < 0.0                  # 숏이 발생
+    assert longonly.min() >= 0.0              # 롱온리는 숏 안 함
+    assert short.abs().max() <= 1.0 + 1e-9
+
+
+def test_default_ensemble_propagates_allow_short():
+    """default_ensemble(allow_short=True)가 하위 전략에 allow_short를 전달한다(버그 수정).
+
+    (하위 전략이 실제로 숏을 낼 수 있게 되는지 직접 검증 — 순수 하락장에서는
+    평균회귀 전략이 롱, 추세 전략이 숏이라 순 신호가 상쇄될 수 있어 전파 여부로 검증.)
+    """
+    on = default_ensemble(allow_short=True)
+    off = default_ensemble()
+    assert all(getattr(s, "allow_short", False) for s in on.strategies)
+    assert not any(getattr(s, "allow_short", False) for s in off.strategies)
+    # 적응형 앙상블도 동일하게 전파
+    ad = adaptive_ensemble(allow_short=True)
+    assert all(getattr(s, "allow_short", False) for s in ad.strategies)
