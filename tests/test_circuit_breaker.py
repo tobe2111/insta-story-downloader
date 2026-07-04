@@ -67,3 +67,18 @@ def test_reset():
     assert b.tripped
     b.reset()
     assert not b.tripped and b.reason == ""
+
+
+def test_reset_rebaselines_and_allows_resume():
+    """reset 후 재개 시, 여전히 참인 손실 조건으로 '즉시 재발동'하지 않아야 한다.
+
+    구버전은 플래그만 지워 다음 update가 같은 -10%를 재평가해 바로 재발동했다.
+    reset가 기준값(고점·일일 시작 자본)까지 비워 현재 자산으로 새 창을 잡아야 한다.
+    """
+    b = cb.CircuitBreaker(cb.BreakerConfig(max_daily_loss=0.05, max_drawdown=0.2))
+    b.update(10_000, "2026-01-01")
+    assert b.update(9_000, "2026-01-01") is True     # -10% → 발동
+    b.reset()
+    # 같은 날·같은 자산으로 재개 → 새 기준(9000)으로 리셋되어 재발동 안 함
+    assert b.update(9_000, "2026-01-01") is False
+    assert not b.tripped

@@ -109,13 +109,31 @@ class RobustBroker(Broker):
         return Order(symbol, side, qty, price, status=status, filled_quantity=filled_total)
 
     def _submit_with_retry(self, symbol: str, side: str, qty: float, price: float) -> Order:
-        """오류 발생 시 지수 백오프로 재시도. 최종 실패 시 알림 후 예외."""
+        """오류 발생 시 지수 백오프로 재시도. 최종 실패 시 알림 후 예외.
+
+        ⚠️ 시장가 주문은 멱등하지 않다. 응답이 타임아웃돼도 거래소에는 이미 체결됐을
+        수 있으므로, 무턱대고 재주문하면 이중 체결(2배 노출)이 된다. 재시도 전에
+        잔고를 조회해 '주문이 이미 반영됐는지' 확인하고, 반영됐으면 재주문하지 않고
+        체결로 간주한다. (잔고 조회조차 실패하면 확인 불가 → 기존처럼 재시도)
+        """
+        # 제출 전 기준 포지션(중복 감지용). 조회 실패 시 None → 확인 불가.
+        try:
+            base_qty = self.inner.get_position(symbol).quantity
+        except Exception:  # noqa: BLE001
+            base_qty = None
+
         last_exc: Exception | None = None
         for attempt in range(1, self.retries + 1):
             try:
                 return self.inner.market_order(symbol, side, qty, price)
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
+                # 재시도 전, 주문이 이미 체결됐는지 잔고로 확인 → 중복 주문 방지
+                if self._order_already_landed(symbol, side, qty, base_qty):
+                    log.warning("[ROBUST] 응답은 실패했으나 잔고상 체결 확인 → "
+                                "재주문 생략(이중 체결 방지)")
+                    return Order(symbol, side, qty, price,
+                                 status="filled", filled_quantity=qty)
                 if attempt >= self.retries:
                     break
                 wait = self.backoff * (2 ** (attempt - 1))
@@ -128,3 +146,21 @@ class RobustBroker(Broker):
         if self.notifier is not None:
             self.notifier.send(msg, level="error")
         raise RuntimeError(msg) from last_exc
+
+    def _order_already_landed(self, symbol: str, side: str, qty: float,
+                              base_qty: float | None) -> bool:
+        """직전 실패 주문이 실제로는 체결됐는지 잔고 변화로 판정한다.
+
+        base_qty(제출 전 수량)를 알 수 없으면(조회 실패) 판정 불가 → False.
+        조회 시점상: 타임아웃 실패는 대체로 수십 초가 걸려, 그 사이 브로커의
+        잔고 캐시(짧은 TTL)도 만료돼 최신 잔고를 받는다.
+        """
+        if base_qty is None:
+            return False
+        try:
+            now_qty = self.inner.get_position(symbol).quantity
+        except Exception:  # noqa: BLE001
+            return False
+        delta = now_qty - base_qty
+        signed = delta if side == "buy" else -delta   # 매수는 증가, 매도는 감소가 정상
+        return signed >= qty * (1 - 1e-3)

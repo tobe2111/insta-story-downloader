@@ -62,6 +62,15 @@ class CircuitBreaker:
                 self.notifier.send(f"🛑 서킷브레이커 발동: {reason} — 매매 중단", "error")
 
     def reset(self) -> None:
-        """수동 재개 (원인 확인 후에만 호출할 것)."""
+        """수동 재개 (원인 확인 후에만 호출할 것).
+
+        플래그만 지우면 다음 update()가 여전히 참인 손실 조건을 그대로 재평가해
+        즉시 재발동한다(예: 일일 -10%에서 발동 후 reset해도 day_start_equity가
+        10,000이면 9,000에서 또 -10%로 재발동). 따라서 기준값(고점·일일 시작
+        자본)도 비워, 다음 update()에서 '현재 자산'으로 새 기준 창을 시작한다.
+        """
         self.tripped = False
         self.reason = ""
+        self.peak_equity = None
+        self.day_start_equity = None
+        self.current_day = None

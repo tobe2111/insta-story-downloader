@@ -58,6 +58,36 @@ def test_retry_gives_up_and_raises():
     assert sent and sent[0][1] == "error"  # 최종 실패 알림 전송
 
 
+class _LandsButFailsBroker(base.Broker):
+    """주문은 예외를 던지지만 거래소엔 반영되는(응답만 실패) 브로커."""
+
+    def __init__(self):
+        self.calls = 0
+        self._qty = 0.0
+
+    def get_cash(self):
+        return 1000.0
+
+    def get_position(self, symbol):
+        return base.Position(symbol, self._qty, 0.0)
+
+    def market_order(self, symbol, side, quantity, price):
+        self.calls += 1
+        # 거래소엔 체결되어 잔고가 늘지만, 응답은 타임아웃으로 실패
+        self._qty += quantity if side == "buy" else -quantity
+        raise RuntimeError("응답 타임아웃")
+
+
+def test_retry_no_double_submit_when_order_landed():
+    """응답이 실패해도 잔고상 체결이 확인되면 재주문하지 않는다(이중 체결 방지)."""
+    inner = _LandsButFailsBroker()
+    rb = retry.RobustBroker(inner, retries=3, backoff=0.0, sleep=lambda s: None)
+    order = rb.market_order("X", "buy", 1.0, 100.0)
+    assert order.status == "filled"
+    assert inner.calls == 1                 # 재주문 안 함(중복 방지)
+    assert abs(inner._qty - 1.0) < 1e-9     # 1주만 체결 (2주 아님)
+
+
 def test_qty_rounding_skips_tiny():
     inner = _FlakyBroker(fail_times=0)
     rb = retry.RobustBroker(inner, min_qty=0.01, sleep=lambda s: None)
