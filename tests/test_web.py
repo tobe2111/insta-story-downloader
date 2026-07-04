@@ -18,10 +18,12 @@ from quant.web.app import (
     render_monitor,
     render_optimize_form,
     render_portfolio_form,
+    render_screener_form,
     render_sweep_form,
     run_backtest_html,
     run_optimize_html,
     run_portfolio_html,
+    run_screener_html,
     run_sweep_html,
     state_json,
 )
@@ -76,6 +78,25 @@ def test_run_portfolio_html_synthetic():
 def test_run_portfolio_html_empty_symbols():
     doc = run_portfolio_html({"market": "synthetic", "symbols": "  "})
     assert "종목을 하나 이상" in doc  # 빈 입력 → 폼으로 안내
+
+
+def test_render_screener_form():
+    doc = render_screener_form()
+    assert "<form" in doc and 'action="/screener/run"' in doc
+    assert "종목 선별" in doc and "<nav" in doc and 'href="/screener"' in doc
+
+
+def test_run_screener_no_symbols():
+    doc = run_screener_html({"symbols": "  "})
+    assert "후보 종목을 하나 이상" in doc
+
+
+def test_run_screener_no_api_key():
+    """FMP 키가 없으면(=재무데이터 없음) 안내 메시지로 폼을 보여준다."""
+    import os
+    os.environ.pop("FMP_API_KEY", None)
+    doc = run_screener_html({"symbols": "AAPL, MSFT", "top_n": "1"})
+    assert "FMP_API_KEY" in doc
 
 
 def test_render_monitor_no_state(tmp_path):
