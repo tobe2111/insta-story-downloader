@@ -55,6 +55,11 @@ def main() -> None:
     sys.path.insert(0, _ROOT)
     _ensure_deps()
 
+    # 정품 확인(배포본에서 QUANT_REQUIRE_LICENSE=1 일 때만 강제. 개발/CI는 통과).
+    from quant.licensing import require_license
+    if not require_license(root=_ROOT):
+        return
+
     from quant.web.server import run_server
 
     url = f"http://{HOST}:{PORT}"
