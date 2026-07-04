@@ -91,6 +91,9 @@ class Backtester:
         periods_per_year: int = 365,
         cost_model=None,
         vol_window: int = 20,
+        dd_throttle: bool = False,
+        dd_window: int = 50,
+        dd_cut: float = 0.5,
     ):
         from quant.backtest.costs import CostModel
 
@@ -103,6 +106,11 @@ class Backtester:
         # cost_model 미지정 시 기존 fee/slippage로 구성 → 동작 하위 호환
         self.cost_model = cost_model or CostModel(fee=fee, slippage=slippage)
         self.vol_window = vol_window
+        # 자산곡선 트레이딩: 실현 자산이 자체 이동평균(dd_window)을 하회하면
+        # 익스포저를 dd_cut배로 줄인다(낙폭 국면에서 기계적으로 리스크 축소).
+        self.dd_throttle = dd_throttle
+        self.dd_window = max(2, dd_window)
+        self.dd_cut = min(1.0, max(0.0, dd_cut))
 
     def run(self, df: pd.DataFrame) -> BacktestResult:
         if df.empty:
@@ -126,6 +134,7 @@ class Backtester:
         pos = 0.0        # 현재 보유 비중
         entry = 0.0      # 진입가
         extreme = 0.0    # 보유 중 유리한 방향 극값(롱=최고가, 숏=최저가) — 트레일링용
+        eq_hist: list[float] = []   # 자산곡선 트레이딩용 실현 자산 이력
 
         for i in range(n):
             price = close[i]
@@ -141,6 +150,16 @@ class Backtester:
                 if hold > 0.0:
                     cash_equity *= 1.0 - hold
 
+            # 1-c) 자산곡선 트레이딩: 실현 자산이 자체 MA 하회 시 익스포저 축소.
+            #      equity[i]까지의 '과거 실현' 자산만 사용 → 룩어헤드 없음.
+            throttle = 1.0
+            if self.dd_throttle:
+                eq_hist.append(cash_equity)
+                if len(eq_hist) >= self.dd_window:
+                    ma = sum(eq_hist[-self.dd_window:]) / self.dd_window
+                    if cash_equity < ma:
+                        throttle = self.dd_cut
+
             # 2) 보유 중이면 유리한 극값 갱신 (트레일링 스톱 기준점)
             if pos > 0:
                 extreme = max(extreme, price)
@@ -152,8 +171,8 @@ class Backtester:
             pos_after = self.risk.apply_trailing_stop(pos_after, extreme, price)
             stop_triggered = pos_after != pos
 
-            # 4) 다음 봉에 보유할 목표 결정
-            new_pos = 0.0 if stop_triggered else float(want[i])
+            # 4) 다음 봉에 보유할 목표 결정 (자산곡선 트로틀 반영)
+            new_pos = 0.0 if stop_triggered else float(want[i]) * throttle
 
             # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 포함)
             turnover = abs(new_pos - pos)
