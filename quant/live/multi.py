@@ -214,6 +214,10 @@ class MultiTrader:
             "avg_correlation": self._avg_corr,
             "last_error": self._last_error,
             "last_summary_date": self._last_summary_date,
+            # 감시 탭 배지용 — 킬스위치 발동(오늘 매매 중단) 여부
+            "kill_switch_halted": bool(
+                self.kill_switch is not None
+                and self.kill_switch.halted_until is not None),
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:

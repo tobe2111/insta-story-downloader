@@ -34,7 +34,12 @@ def _cmd_backtest(args) -> None:
         print(quality_report(df, findings))
 
     strat = default_ensemble() if args.strategy == "ensemble" else get_strategy(args.strategy)
-    result = Backtester(strat, periods_per_year=_ppy(args.market)).run(df)
+    result = Backtester(
+        strat, periods_per_year=_ppy(args.market),
+        rebalance_band=args.rebalance_band,
+        stop_cooldown=args.stop_cooldown,
+        dd_throttle=args.dd_throttle, dd_band=args.dd_band,
+    ).run(df)
     print(f"\n=== {args.strategy} · {args.symbol} ({len(df)}봉) ===")
     print(result.summary())
     if args.report:
@@ -108,6 +113,75 @@ def _cmd_learn(args) -> None:
     learner.run(cycles=cycles, interval_sec=args.interval)
 
 
+# validate 명령이 지원하는 전략별 기본 파라미터 그리드.
+# 작게 유지한다 — 그리드가 클수록 '운으로 나올 최대 샤프'(DSR 기준선)만 올라간다.
+_VALIDATE_GRIDS = {
+    "ma_cross": {"fast": [5, 10, 20], "slow": [40, 60, 120]},
+    "momentum": {"lookback": [30, 60, 90]},
+    "breakout": {"window": [20, 40, 55]},
+    "rsi": {"period": [7, 14, 21]},
+}
+
+
+def _cmd_validate(args) -> None:
+    """워크포워드(+DSR) → PBO → CPCV를 한 번에 돌려 '이 전략을 믿어도 되는가'를
+    한 화면으로 보여준다. 셋 다 과최적화 탐지 도구다 — 통과해도 수익 보장이 아니다."""
+    import json as _json
+
+    from quant.data import get_provider
+    from quant.optimize import cpcv, cpcv_report, walk_forward
+    from quant.robustness import param_returns_matrix, pbo, pbo_report
+    from quant.strategies import get_strategy
+
+    grid = (_json.loads(args.grid) if args.grid
+            else _VALIDATE_GRIDS.get(args.strategy))
+    if not grid:
+        print(f"'{args.strategy}'의 기본 그리드가 없습니다. --grid JSON으로 지정하세요."
+              f" (기본 지원: {', '.join(_VALIDATE_GRIDS)})")
+        return
+    strategy_cls = type(get_strategy(args.strategy))
+    ppy = _ppy(args.market)
+    df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe,
+                                             limit=args.limit)
+    print(f"\n=== 검증: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    print(f"그리드: {grid}")
+
+    # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
+    print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
+    try:
+        wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
+                          oos_window=args.oos_window, embargo=args.embargo,
+                          periods_per_year=ppy)
+        m = wf["oos_metrics"]
+        print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
+              f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
+        print(f"  DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
+              f"{'— 실력 가능성' if wf['dsr'] >= 0.95 else '— 운일 수 있음(0.95 미만)'}")
+    except ValueError as exc:
+        print(f"  건너뜀: {exc}")
+
+    # 2) PBO — IS 1등이 OOS에서 동전던지기인지
+    print("\n[2/3] PBO (백테스트 과적합 확률)")
+    try:
+        mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
+        print("  " + pbo_report(pbo(mat, n_blocks=args.pbo_blocks))
+              .replace("\n", "\n  "))
+    except ValueError as exc:
+        print(f"  건너뜀: {exc}")
+
+    # 3) CPCV — 여러 OOS 경로의 분포
+    print("\n[3/3] CPCV (다중 OOS 경로 분포)")
+    try:
+        cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
+                  n_test=2, embargo=args.embargo, periods_per_year=ppy)
+        print("  " + cpcv_report(cv).replace("\n", "\n  "))
+    except ValueError as exc:
+        print(f"  건너뜀: {exc}")
+
+    print("\n⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다. "
+          "다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.")
+
+
 def _cmd_pipeline(args) -> None:
     import runpy
     import sys
@@ -129,6 +203,16 @@ def build_parser() -> argparse.ArgumentParser:
     bt.add_argument("--limit", type=int, default=500)
     bt.add_argument("--strategy", default="ma_cross")
     bt.add_argument("--report", default=None, help="HTML 리포트 저장 경로")
+    bt.add_argument("--rebalance-band", type=float, default=0.0,
+                    dest="rebalance_band",
+                    help="리밸런스 데드밴드(권장 0.02~0.05). 미세 조정 거래를 "
+                         "생략해 왕복비용을 아낀다. 0=비활성")
+    bt.add_argument("--stop-cooldown", type=int, default=0, dest="stop_cooldown",
+                    help="스톱 발동 후 N봉 재진입 금지(채찍질 비용 방지). 0=비활성")
+    bt.add_argument("--dd-throttle", action="store_true", dest="dd_throttle",
+                    help="자산곡선이 자체 MA 하회 시 익스포저 축소")
+    bt.add_argument("--dd-band", type=float, default=0.0, dest="dd_band",
+                    help="트로틀 히스테리시스 밴드(예: 0.01). 0=즉시 전환")
     bt.set_defaults(func=_cmd_backtest)
 
     sw = sub.add_parser("sweep", help="파라미터 민감도 히트맵")
@@ -158,6 +242,24 @@ def build_parser() -> argparse.ArgumentParser:
     ln.add_argument("--interval", type=int, default=3600, help="사이클 간격(초)")
     ln.add_argument("--state", default="results/autolearn_state.json")
     ln.set_defaults(func=_cmd_learn)
+
+    va = sub.add_parser(
+        "validate",
+        help="과최적화 검증 3종(워크포워드+DSR·PBO·CPCV)을 한 번에 실행")
+    va.add_argument("--market", default="synthetic")
+    va.add_argument("--symbol", default="DEMO")
+    va.add_argument("--timeframe", default="1d")
+    va.add_argument("--limit", type=int, default=800)
+    va.add_argument("--strategy", default="ma_cross",
+                    help=f"기본 그리드 지원: {', '.join(_VALIDATE_GRIDS)}")
+    va.add_argument("--grid", default=None,
+                    help='파라미터 그리드 JSON (예: \'{"fast":[5,10],"slow":[40,60]}\')')
+    va.add_argument("--is-window", type=int, default=250, dest="is_window")
+    va.add_argument("--oos-window", type=int, default=125, dest="oos_window")
+    va.add_argument("--embargo", type=int, default=5)
+    va.add_argument("--pbo-blocks", type=int, default=10, dest="pbo_blocks")
+    va.add_argument("--cpcv-groups", type=int, default=6, dest="cpcv_groups")
+    va.set_defaults(func=_cmd_validate)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)

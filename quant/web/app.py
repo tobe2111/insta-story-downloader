@@ -265,6 +265,26 @@ def render_monitor(state_paths=None) -> str:
         "</header>",
         '</header><p class="sub" style="font-size:12px;color:#94a3b8">'
         '🟢 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
+
+    # 확장 상태 배지 — 새 리스크/운영 필드가 상태에 있으면 표시한다(없으면 생략).
+    badges = []
+    corr = state.get("avg_correlation")
+    if isinstance(corr, (int, float)):
+        # 위기 국면에서 상관이 1로 수렴하면 분산 효과가 사라진다(경고 임계 0.7)
+        color = "#f87171" if corr >= 0.7 else "#94a3b8"
+        badges.append(f'<span style="color:{color}">🔗 평균상관 {corr:.2f}'
+                      + (" ⚠️ 분산 효과 약화" if corr >= 0.7 else "") + "</span>")
+    err = state.get("last_error")
+    if err:
+        badges.append(f'<span style="color:#f87171">⚠️ 마지막 오류: '
+                      f'{html.escape(str(err)[:120])}</span>')
+    if state.get("kill_switch_halted"):
+        badges.append('<span style="color:#f87171">🛑 일일 손실 킬스위치 발동 — '
+                      '다음 UTC 일까지 매매 중단</span>')
+    if badges:
+        doc = doc.replace(
+            '<span id="rt-time">—</span></p>',
+            '<span id="rt-time">—</span> · ' + " · ".join(badges) + "</p>", 1)
     return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
 
 
