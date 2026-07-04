@@ -5,6 +5,11 @@ from quant.robustness.deflated_sharpe import (
     probabilistic_sharpe_ratio,
 )
 from quant.robustness.monte_carlo import bootstrap_metrics, summarize
+from quant.robustness.regime import (
+    classify_regime,
+    regime_feature,
+    regime_summary,
+)
 
 __all__ = [
     "bootstrap_metrics",
@@ -13,4 +18,7 @@ __all__ = [
     "deflated_sharpe_ratio",
     "expected_max_sharpe",
     "directional_accuracy",
+    "classify_regime",
+    "regime_summary",
+    "regime_feature",
 ]
