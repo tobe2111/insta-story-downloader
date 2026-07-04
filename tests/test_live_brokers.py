@@ -252,6 +252,34 @@ def test_crypto_open_order_not_marked_filled():
     assert order.filled_quantity == 0.0
 
 
+def test_safe_amount_rejects_non_finite_and_negative():
+    """거래소 응답의 inf/nan/음수가 자금 계산을 오염시키지 않게 걸러진다."""
+    from quant.broker.base import safe_amount
+    assert safe_amount("100.5") == 100.5
+    assert safe_amount(float("inf")) == 0.0
+    assert safe_amount("nan") == 0.0
+    assert safe_amount("1e400") == 0.0            # → inf
+    assert safe_amount(-5) == 0.0                 # 음수 거부(기본)
+    assert safe_amount(-5, allow_negative=True) == -5.0   # 숏 수량은 허용
+    assert safe_amount(None) == 0.0
+    assert safe_amount("abc", default=1.0) == 1.0
+
+
+class _BadBalanceCcxt:
+    def fetch_balance(self):
+        return {"free": {"USDT": float("inf")}, "total": {"BTC": float("nan")}}
+
+    def create_order(self, *a):
+        return {"status": "closed", "filled": 0.01, "average": 60000.0}
+
+
+def test_crypto_broker_sanitizes_bad_balance():
+    """inf 현금/nan 수량이 0으로 걸러져 'inf 수량 주문' 같은 사고를 막는다."""
+    b = crypto_live.CryptoLiveBroker(client=_BadBalanceCcxt())
+    assert b.get_cash() == 0.0                              # inf → 0
+    assert b.get_position("BTC/USDT").quantity == 0.0       # nan → 0
+
+
 def test_crypto_live_injected_client():
     fake = _FakeCcxt()
     broker = crypto_live.CryptoLiveBroker(client=fake)

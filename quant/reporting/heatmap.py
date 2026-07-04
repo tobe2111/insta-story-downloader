@@ -77,7 +77,7 @@ def build_heatmap_html(
 {body}
 </table></div>
 <div class="axis">→ 가로축: {html.escape(x_label)}</div>
-<div class="legend"><span>낮음</span><span class="bar"></span><span>높음 ({objective})</span></div>
+<div class="legend"><span>낮음</span><span class="bar"></span><span>높음 ({html.escape(objective)})</span></div>
 <p class="sub" style="margin-top:18px">💡 넓은 초록 고원 = 견고함. 외딴 초록 점 = 과최적화 위험.
 과거 성과는 미래를 보장하지 않습니다.</p>
 </div></body></html>"""

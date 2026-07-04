@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, safe_amount
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
 
@@ -38,11 +38,11 @@ class AlpacaBroker(Broker):
 
     def get_cash(self) -> float:
         acct = get_json(f"{self.base}/v2/account", self._headers())
-        return float(acct.get("cash", 0.0))
+        return safe_amount(acct.get("cash", 0.0))
 
     def get_equity(self) -> float:
         acct = get_json(f"{self.base}/v2/account", self._headers())
-        return float(acct.get("equity", 0.0))
+        return safe_amount(acct.get("equity", 0.0))
 
     def equity(self, marks: dict | None = None) -> float:
         """총자산 — 브로커/래퍼가 찾는 공통 이름(marks는 무시, 계좌값이 정답).
@@ -56,7 +56,9 @@ class AlpacaBroker(Broker):
     def get_position(self, symbol: str) -> Position:
         try:
             p = get_json(f"{self.base}/v2/positions/{symbol}", self._headers())
-            return Position(symbol, float(p.get("qty", 0.0)), float(p.get("avg_entry_price", 0.0)))
+            return Position(symbol,
+                            safe_amount(p.get("qty", 0.0), allow_negative=True),
+                            safe_amount(p.get("avg_entry_price", 0.0)))
         except RuntimeError:
             # 포지션 없음 → 404
             return Position(symbol, 0.0, 0.0)

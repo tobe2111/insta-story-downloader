@@ -6,9 +6,53 @@ HTTPS_PROXY 등 프록시 환경변수는 urllib 기본 opener가 자동 적용�
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
+
+# 응답 본문 상한(악의적/오작동 서버의 초대형 응답으로 인한 메모리 고갈 방지).
+_MAX_RESPONSE_BYTES = 32 * 1024 * 1024   # 32MB (API JSON엔 넉넉)
+
+# 쿼리스트링에 담긴 비밀(FRED api_key, FMP apikey 등)을 오류 메시지에서 가린다.
+# 예외 메시지가 로그로 새어도 키가 노출되지 않도록 소스에서 방어한다.
+_SECRET_QS = re.compile(
+    r"(?i)([?&](?:api[_-]?key|apikey|access[_-]?token|token|app[_-]?secret|"
+    r"app[_-]?key|secret[_-]?key|secret|password|passwd|pwd|sig|signature)=)[^&#\s]*")
+
+# 다른 호스트로 리다이렉트될 때 떼어낼 민감 헤더(인증정보 유출 방지).
+_SENSITIVE_HEADERS = {
+    "authorization", "cookie", "apca-api-key-id", "apca-api-secret-key",
+    "appkey", "appsecret", "secretkey", "api-id", "x-api-key",
+}
+
+
+def _redact_url(url: str) -> str:
+    return _SECRET_QS.sub(r"\1***", url)
+
+
+class _SafeRedirect(urllib.request.HTTPRedirectHandler):
+    """교차 호스트 리다이렉트 시 인증 헤더를 제거한다.
+
+    urllib 기본 동작은 3xx 리다이렉트에 원 요청 헤더(Authorization 등)를 그대로
+    실어 보낸다. 상단 API가 공격자 호스트로 302하면 인증정보가 유출되므로,
+    호스트가 바뀌면 민감 헤더를 떼어낸다.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None:
+            same_host = (urllib.parse.urlsplit(req.full_url).netloc
+                         == urllib.parse.urlsplit(newurl).netloc)
+            if not same_host:
+                for h in [k for k in new.headers if k.lower() in _SENSITIVE_HEADERS]:
+                    del new.headers[h]
+        return new
+
+
+# 프록시(환경변수) 처리는 유지하되 리다이렉트 핸들러만 안전판으로 교체한다.
+_opener = urllib.request.build_opener(_SafeRedirect())
 
 
 def _request(
@@ -27,15 +71,19 @@ def _request(
         data = json.dumps(body).encode()
     req = urllib.request.Request(url, data=data, method=method, headers=headers or {})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read().decode()
+        with _opener.open(req, timeout=timeout) as resp:
+            raw = resp.read(_MAX_RESPONSE_BYTES + 1)
+            if len(raw) > _MAX_RESPONSE_BYTES:
+                raise RuntimeError(f"응답이 너무 큽니다(>{_MAX_RESPONSE_BYTES}B): "
+                                   f"{_redact_url(url)}")
+            return raw.decode()
     except urllib.error.HTTPError as exc:  # 서버가 반환한 오류 본문도 파싱해 전달
-        detail = exc.read().decode(errors="replace")
-        raise RuntimeError(f"HTTP {exc.code} {url}: {detail}") from exc
+        detail = exc.read().decode(errors="replace")[:2000]
+        raise RuntimeError(f"HTTP {exc.code} {_redact_url(url)}: {detail}") from exc
     except urllib.error.URLError as exc:  # DNS·연결거부·타임아웃 등 네트워크 오류
         # HTTPError가 아닌 URLError를 그대로 흘리면 호출측(대개 RuntimeError만
         # 처리)이 놓쳐 예기치 못하게 죽는다. 일관되게 RuntimeError로 감싼다.
-        raise RuntimeError(f"네트워크 오류 {url}: {exc.reason}") from exc
+        raise RuntimeError(f"네트워크 오류 {_redact_url(url)}: {exc.reason}") from exc
 
 
 def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:

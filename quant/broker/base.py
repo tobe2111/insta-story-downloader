@@ -5,8 +5,28 @@
 """
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+
+
+def safe_amount(value, default: float = 0.0, allow_negative: bool = False) -> float:
+    """거래소/API 응답에서 읽은 금액·수량을 안전하게 float로 변환한다.
+
+    inf·nan·(기본적으로) 음수는 거부하고 default를 반환한다. 잘못되거나 악의적인
+    잔고·체결·가격 값이 자금 계산(equity=cash+수량*가격 → 주문 수량)을 오염시켜
+    'inf 수량 주문'이나 NaN 비교 오류를 일으키는 것을 막는다.
+    allow_negative=True 는 숏 포지션 수량처럼 음수가 정상인 경우에만 쓴다.
+    """
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(v):
+        return default
+    if v < 0 and not allow_negative:
+        return default
+    return v
 
 
 @dataclass
