@@ -125,11 +125,39 @@ python -m py_compile $(find quant examples tests -name "*.py")  # 문법검사
 
 ```bash
 python -m quant backtest --strategy ma_cross --report results/r.html
+python -m quant validate --strategy ma_cross                 # 과최적화 검증 3종(아래 참고)
 python -m quant sweep --market crypto --symbol BTC/USDT      # 민감도 히트맵
 python -m quant web --port 8000                              # 로컬 웹 UI
 python -m quant pipeline                                     # 백테스트+리포트+몬테카를로
 python -m quant --help                                       # 전체 명령 보기
 ```
+
+백테스트에는 회전율(비용) 절감 옵션이 있습니다 — 예측 개선이 아니라 미세 조정
+거래의 왕복비용을 아끼는 **확정적 비용 수학**입니다:
+
+```bash
+python -m quant backtest --strategy ml --rebalance-band 0.03 --stop-cooldown 5
+```
+
+## 과최적화 검증 3종 — "이 전략을 믿어도 되는가"
+
+**전략을 실전(페이퍼 포함)에 올리기 전 반드시 이 순서로 검증하세요.**
+셋 다 '수익을 올리는' 도구가 아니라 '그럴듯한 거짓말을 걸러내는' 도구입니다.
+
+```bash
+python -m quant validate --market crypto --symbol BTC/USDT --strategy ma_cross
+```
+
+| 단계 | 도구 | 보는 것 | 통과 기준(관례) |
+|---|---|---|---|
+| 1 | 워크포워드 + **DSR** | OOS 성과 + 다중검정 보정 샤프 신뢰도 | DSR ≥ 0.95 |
+| 2 | **PBO** | IS 1등 파라미터가 OOS에서 동전던지기인지 | PBO < 0.2 |
+| 3 | **CPCV** | 여러 OOS 경로에서 성과가 일관되는지 | 최소 경로 샤프 > 0 |
+
+> 세 검증을 모두 통과해도 **미래 수익은 보장되지 않습니다.** 통과는 "선택
+> 절차가 노이즈를 고르고 있지 않다"는 뜻일 뿐입니다. 다음 단계는 페이퍼
+> 트레이딩(`learn.bat`)으로 실데이터 검증입니다. 반대로 하나라도 크게
+> 실패하면 그 전략/파라미터는 실전에 올리지 마세요.
 
 ## 배포 (Docker) — PC/VPS에 한 줄로
 
