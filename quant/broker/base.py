@@ -68,7 +68,13 @@ class Broker(ABC):
         price:  현재가
         equity: 총 자산 (현금 + 평가액)
         """
-        target_qty = (weight * equity) / price if price > 0 else 0.0
+        if price <= 0:
+            return None
+        # 매수 수수료를 사이징에 반영해, 풀 비중(weight≈1)에서 비용+수수료가 현금을
+        # 초과해 '음수 현금'이 되는 것을 막는다. fee 속성이 있는 브로커(페이퍼)에만
+        # 반영되고, 실거래 브로커는 fee=0으로 무영향(거래소가 잔고를 검증한다).
+        fee = getattr(self, "fee", 0.0) or 0.0
+        target_qty = (weight * equity) / (price * (1.0 + fee))
         current = self.get_position(symbol).quantity
         delta = target_qty - current
         if abs(delta * price) < 1e-6:
