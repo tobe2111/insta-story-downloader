@@ -44,6 +44,15 @@ class AlpacaBroker(Broker):
         acct = get_json(f"{self.base}/v2/account", self._headers())
         return float(acct.get("equity", 0.0))
 
+    def equity(self, marks: dict | None = None) -> float:
+        """총자산 — 브로커/래퍼가 찾는 공통 이름(marks는 무시, 계좌값이 정답).
+
+        MultiTrader·RobustBroker는 hasattr(broker, "equity")로 총자산을 찾는다.
+        이 메서드가 없으면 Alpaca의 권위있는 계좌 평가액 대신 현금+수량*가격으로
+        재구성해버리므로, 동일 개념을 같은 이름으로 노출해 일관성을 맞춘다.
+        """
+        return self.get_equity()
+
     def get_position(self, symbol: str) -> Position:
         try:
             p = get_json(f"{self.base}/v2/positions/{symbol}", self._headers())

@@ -57,7 +57,12 @@ def bootstrap_metrics(
         total_ret[i] = equity[-1] - 1.0
         peak = np.maximum.accumulate(equity)
         max_dd[i] = (equity / peak - 1.0).min()
-        cagr[i] = equity[-1] ** (1 / years) - 1.0 if years > 0 else 0.0
+        # 레버리지/숏으로 한 봉이라도 -100% 아래면 equity가 음수가 돼 음수의
+        # 분수승 → NaN. 이 경우는 사실상 전액 손실이므로 -1.0(=-100%)로 둔다.
+        if years > 0 and equity[-1] > 0:
+            cagr[i] = equity[-1] ** (1 / years) - 1.0
+        else:
+            cagr[i] = -1.0
 
     return {
         "sharpe": sharpe,
@@ -79,7 +84,7 @@ def summarize(dist: dict[str, np.ndarray]) -> str:
     lines.append("-" * 48)
     for key, label in labels.items():
         arr = dist[key]
-        p5, p50, p95 = np.percentile(arr, [5, 50, 95])
+        p5, p50, p95 = np.nanpercentile(arr, [5, 50, 95])   # NaN 방어
         pct = key != "sharpe"
         fmt = (lambda x: f"{x:>8.2%}") if pct else (lambda x: f"{x:>8.2f}")
         lines.append(f"{label:<10} {fmt(p50)}   [{fmt(p5)} ~ {fmt(p95)} ]")

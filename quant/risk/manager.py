@@ -57,6 +57,10 @@ class RiskManager:
             realized = returns.rolling(cfg.vol_window).std() * np.sqrt(
                 cfg.periods_per_year
             )
+            # 실현변동성이 0(예: 거래정지로 종가 고정)이면 target/0=+inf → clip이
+            # 최대 레버리지(3배)로 만들어, 변동성 폭발 직전에 최대 노출이 되는
+            # 정반대 결과가 난다. 0은 NaN으로 바꿔 노출 0으로 처리한다.
+            realized = realized.replace(0.0, np.nan)
             # 목표변동성 / 실현변동성 = 레버리지 배수 (과도한 값은 캡)
             scale = (cfg.target_vol / realized).clip(upper=3.0).fillna(0.0)
         else:

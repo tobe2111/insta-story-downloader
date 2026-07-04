@@ -190,6 +190,21 @@ def test_metrics_sane(df):
     assert m.num_trades >= 0
 
 
+def test_vol_target_zero_vol_no_leverage():
+    """변동성 0(종가 고정) 구간에서 vol_target이 최대 레버리지를 주지 않는다(버그 수정).
+
+    구버전은 target/0=+inf → clip이 3배 레버리지로 만들어, 변동성 폭발 직전에
+    최대 노출이 되는 정반대 결과를 냈다.
+    """
+    idx = pd.date_range("2020-01-01", periods=40, freq="D")
+    price = pd.Series(100.0, index=idx)              # 완전 고정 → 실현변동성 0
+    d = pd.DataFrame({"open": price, "high": price, "low": price,
+                      "close": price, "volume": 1.0}, index=idx)
+    rm = RiskManager(RiskConfig(sizing="vol_target"))
+    sized = rm.size_positions(d, pd.Series(1.0, index=idx))
+    assert sized.abs().max() <= 1e-9                 # 노출 0 (3배 아님)
+
+
 def test_get_provider_fallback():
     # 네트워크 없이도 crypto/stock 제공자가 데이터를 반환(폴백)
     for market in ("crypto", "us_stock", "kr_stock", "synthetic"):
