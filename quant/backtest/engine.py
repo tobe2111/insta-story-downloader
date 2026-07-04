@@ -94,6 +94,9 @@ class Backtester:
         dd_throttle: bool = False,
         dd_window: int = 50,
         dd_cut: float = 0.5,
+        rebalance_band: float = 0.0,
+        stop_cooldown: int = 0,
+        dd_band: float = 0.0,
     ):
         from quant.backtest.costs import CostModel
 
@@ -111,6 +114,24 @@ class Backtester:
         self.dd_throttle = dd_throttle
         self.dd_window = max(2, dd_window)
         self.dd_cut = min(1.0, max(0.0, dd_cut))
+        # ── 회전율 제거 3종 (기본 0 = 기존 동작과 비트 단위 동일) ──────────────
+        # rebalance_band: |목표-현재| 비중 차가 이 밴드 미만이면 거래를 생략한다.
+        #   vol targeting·앙상블 가중·proba 사이징은 매 봉 미세하게 달라지는데,
+        #   그 미세 조정은 기대수익 0에 왕복비용만 확정 지불하는 거래다. 밴드는
+        #   그 비용을 결정론적으로 환급한다(예측 개선이 아니라 비용 수학).
+        #   권장 0.02~0.05. ⚠️ 밴드 폭을 그리드로 최적화하지 말 것(과최적화) —
+        #   비용률에서 유도한 값으로 고정할 것. 청산(목표=0)은 밴드와 무관하게
+        #   항상 실행된다(잔여 포지션이 영구히 남는 것 방지).
+        self.rebalance_band = max(0.0, rebalance_band)
+        # stop_cooldown: 손절/트레일링 발동 후 N봉 동안 재진입을 금지한다.
+        #   신호가 그대로면 스톱 다음 봉에 즉시 같은 포지션으로 복귀해 '청산+재진입'
+        #   왕복비용만 내는 채찍질(whipsaw)이 된다. 쿨다운은 그 확정 낭비를 막는다.
+        self.stop_cooldown = max(0, int(stop_cooldown))
+        # dd_band: 자산곡선 트로틀의 히스테리시스 밴드. 자본이 MA 근처에서 진동하면
+        #   트로틀이 매 봉 0.5↔1.0으로 플립되어 |Δpos|=0.5×|want| 회전율 폭탄이
+        #   된다. MA×(1-band) 하회 시 축소, MA×(1+band) 상회 시 복귀, 사이에서는
+        #   직전 상태를 유지한다. 0이면 기존(즉시 전환) 동작.
+        self.dd_band = max(0.0, dd_band)
 
     def run(self, df: pd.DataFrame) -> BacktestResult:
         if df.empty:
@@ -143,6 +164,8 @@ class Backtester:
         entry = 0.0      # 진입가
         extreme = 0.0    # 보유 중 유리한 방향 극값(롱=최고가, 숏=최저가) — 트레일링용
         eq_hist: list[float] = []   # 자산곡선 트레이딩용 실현 자산 이력
+        throttled = False           # dd_throttle 히스테리시스 상태(축소 국면 여부)
+        cooldown = 0                # 스톱 발동 후 남은 재진입 금지 봉 수
 
         for i in range(n):
             price = close[i]
@@ -165,7 +188,16 @@ class Backtester:
                 eq_hist.append(cash_equity)
                 if len(eq_hist) >= self.dd_window:
                     ma = sum(eq_hist[-self.dd_window:]) / self.dd_window
-                    if cash_equity < ma:
+                    if self.dd_band > 0.0:
+                        # 히스테리시스: 하단 이탈 시 축소, 상단 회복 시 복귀,
+                        # 밴드 안에서는 직전 상태 유지(플립플롭 회전율 방지)
+                        if cash_equity < ma * (1.0 - self.dd_band):
+                            throttled = True
+                        elif cash_equity > ma * (1.0 + self.dd_band):
+                            throttled = False
+                        if throttled:
+                            throttle = self.dd_cut
+                    elif cash_equity < ma:
                         throttle = self.dd_cut
 
             # 2) 보유 중이면 유리한 극값 갱신 (트레일링 스톱 기준점)
@@ -181,6 +213,22 @@ class Backtester:
 
             # 4) 다음 봉에 보유할 목표 결정 (자산곡선 트로틀 반영)
             new_pos = 0.0 if stop_triggered else float(want[i]) * throttle
+
+            # 4-b) 스톱 쿨다운: 발동 직후 N봉은 신규 진입 금지. 상태 신호(예:
+            #      ma_cross)는 스톱 다음 봉에도 같은 방향을 유지하므로, 쿨다운이
+            #      없으면 '청산+재진입' 왕복비용만 내고 원위치하는 채찍질이 된다.
+            if stop_triggered:
+                cooldown = self.stop_cooldown
+            elif cooldown > 0:
+                new_pos = 0.0
+                cooldown -= 1
+
+            # 4-c) 리밸런스 데드밴드: 미세 조정 거래 생략(확정 비용 환급).
+            #      청산(목표=0)은 항상 실행 — 밴드 밑 잔여 포지션이 영구히
+            #      남는 것을 막는다. 진입·확대·축소만 밴드로 거른다.
+            if (self.rebalance_band > 0.0 and new_pos != 0.0
+                    and abs(new_pos - pos) < self.rebalance_band):
+                new_pos = pos
 
             # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 + 시장충격)
             turnover = abs(new_pos - pos)

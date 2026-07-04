@@ -30,6 +30,7 @@ class PortfolioBacktester:
         max_gross: float = 1.0,
         vol_window: int = 30,
         periods_per_year: int = 365,
+        rebalance_band: float = 0.0,
     ):
         self.strategy = strategy
         self.allocation = allocation
@@ -38,6 +39,11 @@ class PortfolioBacktester:
         self.max_gross = max_gross
         self.vol_window = vol_window
         self.periods_per_year = periods_per_year
+        # 종목별 |목표-보유| 비중 차가 이 밴드 미만이면 그 종목 리밸런스를 생략한다.
+        # 역변동성 배분·vol 가중은 매 봉 미세하게 달라져 기대수익 0의 왕복비용만
+        # 확정 지불하는 거래를 만든다(비용 수학 — 예측 아님). 권장 0.01~0.05.
+        # 청산(목표=0)은 밴드와 무관하게 항상 실행. 0=기존 동작(비트 동일).
+        self.rebalance_band = max(0.0, rebalance_band)
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
@@ -69,6 +75,21 @@ class PortfolioBacktester:
         mask = gross > self.max_gross
         scale[mask] = self.max_gross / gross[mask]
         weights = weights.mul(scale, axis=0).fillna(0.0)
+
+        # 리밸런스 데드밴드: 직전 '실제 보유' 대비 변화가 밴드 미만인 종목은
+        # 그 봉 리밸런스를 생략(보유 유지). 청산(목표=0)은 항상 실행.
+        if self.rebalance_band > 0.0:
+            w = weights.to_numpy()
+            out = np.empty_like(w)
+            prev = np.zeros(w.shape[1])
+            for i in range(w.shape[0]):
+                row = w[i].copy()
+                hold = (np.abs(row - prev) < self.rebalance_band) & (row != 0.0)
+                row[hold] = prev[hold]
+                out[i] = row
+                prev = row
+            weights = pd.DataFrame(out, index=weights.index,
+                                   columns=weights.columns)
 
         # 룩어헤드 방지: 전일 종가에 정한 비중으로 당일 수익 실현
         held = weights.shift(1).fillna(0.0)

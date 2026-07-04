@@ -42,6 +42,7 @@ class MultiTrader:
         circuit_breaker=None,
         mode: str = "paper",
         daily_max_loss: float | None = None,
+        rebalance_band: float = 0.02,
     ):
         self.data = data
         self.strategy = strategy
@@ -53,6 +54,9 @@ class MultiTrader:
         self.allocation = allocation
         self.max_gross = max_gross
         self.vol_window = vol_window
+        # 리밸런스 데드밴드 — 종목별 |목표-현재| 비중 차가 이 값 미만이면 주문
+        # 생략(잔조정 왕복비용의 결정론적 환급). 청산은 항상 실행. 0=비활성.
+        self.rebalance_band = max(0.0, rebalance_band)
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
@@ -170,7 +174,8 @@ class MultiTrader:
             price = prices.get(s)
             if not price:
                 continue
-            order = self.broker.target_weight(s, float(w), price, equity)
+            order = self.broker.target_weight(s, float(w), price, equity,
+                                              rebalance_band=self.rebalance_band)
             if order is not None and self.notifier is not None:
                 self.notifier.send(
                     f"[{self.mode}] {order.side.upper()} {s} "
