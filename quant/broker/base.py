@@ -70,13 +70,18 @@ class Broker(ABC):
         """
         if price <= 0:
             return None
-        # 매수 수수료를 사이징에 반영해, 풀 비중(weight≈1)에서 비용+수수료가 현금을
-        # 초과해 '음수 현금'이 되는 것을 막는다. fee 속성이 있는 브로커(페이퍼)에만
-        # 반영되고, 실거래 브로커는 fee=0으로 무영향(거래소가 잔고를 검증한다).
         fee = getattr(self, "fee", 0.0) or 0.0
-        target_qty = (weight * equity) / (price * (1.0 + fee))
+        target_qty = (weight * equity) / price
         current = self.get_position(symbol).quantity
         delta = target_qty - current
+        # 수수료 버퍼는 '롱 노출을 늘리는 매수'에만 적용한다: 풀 비중(weight≈1)에서
+        # 비용+수수료가 현금을 초과해 '음수 현금'이 되는 것을 막는다. 숏(weight<0)이나
+        # 포지션 축소(delta<0)에까지 (1+fee)로 나누면 목표만 왜곡돼(숏 과소진입·축소
+        # 과다) 현금 문제도 없는데 사이징이 틀어진다. fee 속성이 있는 브로커(페이퍼)에만
+        # 반영되고, 실거래 브로커는 fee=0으로 무영향(거래소가 잔고를 검증한다).
+        if fee > 0 and weight > 0 and delta > 0:
+            target_qty = (weight * equity) / (price * (1.0 + fee))
+            delta = target_qty - current
         if abs(delta * price) < 1e-6:
             return None  # 조정 불필요
         side = "buy" if delta > 0 else "sell"

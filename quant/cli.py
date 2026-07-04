@@ -163,4 +163,11 @@ def main(argv=None) -> None:
     if not getattr(args, "command", None):
         parser.print_help()
         return
+    # 배포본(QUANT_REQUIRE_LICENSE=1)에서만 정품 키를 강제한다. 개발·CI·테스트에선
+    # 플래그 미설정이라 항상 통과하므로 지장이 없다. GUI(web)뿐 아니라 CLI 진입점도
+    # 동일하게 게이팅해 라이선스 우회 경로를 막는다.
+    from quant.licensing import require_license
+
+    if not require_license():
+        raise SystemExit(1)
     args.func(args)

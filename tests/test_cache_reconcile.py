@@ -45,6 +45,34 @@ def test_cache_evicts_oldest_over_cap(tmp_path):
     assert any("SYM5" in p.name for p in csvs)
 
 
+def test_cache_skips_synthetic_fallback(tmp_path):
+    """네트워크 실패로 합성 폴백이 반환되면 캐시에 저장하지 않는다.
+
+    저장하면 실제 제공자 키 아래 더미 시세가 TTL 동안 '진짜 데이터'로 재사용돼,
+    네트워크가 복구된 뒤에도 계속 가짜 데이터로 백테스트/거래하게 된다.
+    """
+    class _FallbackProvider(SyntheticDataProvider):
+        def get_ohlcv(self, *a, **k):
+            df = super().get_ohlcv(*a, **k)
+            df.attrs["synthetic_fallback"] = True   # crypto/stock 폴백 경로와 동일
+            return df
+
+    inner = _FallbackProvider(seed=5)
+    cached = CachedDataProvider(inner, cache_dir=str(tmp_path))
+    df = cached.get_ohlcv("BTC", "1d", limit=50)
+    assert len(df) == 50                            # 데이터 자체는 정상 반환
+    assert not list(Path(str(tmp_path)).glob("*.csv"))   # 디스크에 남지 않음
+
+
+def test_crypto_fallback_is_marked():
+    """ccxt 없음/실패 폴백 경로가 synthetic_fallback 표식을 단다."""
+    from quant.data.crypto import CryptoDataProvider
+
+    df = CryptoDataProvider._fallback("BTC/USDT", "1d", None, None, 60)
+    assert df.attrs.get("synthetic_fallback") is True
+    assert len(df) == 60
+
+
 def test_cache_range_request_not_cached(tmp_path):
     import datetime as dt
 

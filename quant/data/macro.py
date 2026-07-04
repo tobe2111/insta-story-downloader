@@ -64,11 +64,18 @@ def _parse_fred(payload: dict) -> pd.Series:
         v = o.get("value", ".")
         if v in (".", "", None):
             continue
+        date = o.get("date")
+        if not date:            # 'date' 누락 관측치는 건너뛴다(graceful 폴백 계약 유지)
+            continue
         try:
             val = float(v)
         except (TypeError, ValueError):
             continue
-        idx.append(pd.Timestamp(o["date"]))
+        try:
+            ts = pd.Timestamp(date)
+        except (ValueError, TypeError):
+            continue
+        idx.append(ts)
         vals.append(val)
     if not idx:
         return pd.Series(dtype=float)

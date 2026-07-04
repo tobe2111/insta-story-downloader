@@ -36,10 +36,26 @@ class RSIReversion(Strategy):
         self.allow_short = allow_short
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
-        r = rsi(df["close"], self.period)
-        signal = pd.Series(index=df.index, dtype=float)
-        signal[r < self.oversold] = 1.0
-        signal[r > self.overbought] = -1.0
-        signal[(r >= 50) & (r <= self.overbought)] = 0.0  # 중립 복귀 시 청산
-        signal = signal.ffill().fillna(0.0)
-        return self._finalize(signal, df.index)
+        r = rsi(df["close"], self.period).to_numpy()
+
+        # 진입/청산을 포지션 방향에 맞춰 처리하는 상태기계.
+        # (기존 무상태 벡터 로직은 청산 구간이 [50,overbought] 뿐이라, 숏은 RSI가
+        #  과매수선(70) 아래로 조금만 내려가도 즉시 청산되고 롱만 중심선(50)까지
+        #  보유하는 비대칭이 있었다. stochastic·mean_reversion과 동일하게 롱은
+        #  RSI≥50, 숏은 RSI≤50에서 대칭으로 청산한다.)
+        n = len(df)
+        out = np.zeros(n)
+        pos = 0.0
+        for i in range(n):
+            v = r[i]
+            if pos == 0.0:
+                if v < self.oversold:
+                    pos = 1.0
+                elif self.allow_short and v > self.overbought:
+                    pos = -1.0
+            elif pos > 0 and v >= 50:      # 롱: 중심선 복귀 시 청산
+                pos = 0.0
+            elif pos < 0 and v <= 50:      # 숏: 중심선 복귀 시 청산(대칭)
+                pos = 0.0
+            out[i] = pos
+        return self._finalize(pd.Series(out, index=df.index), df.index)

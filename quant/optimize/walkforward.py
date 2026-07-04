@@ -23,6 +23,25 @@ from quant.risk import RiskManager
 from quant.strategies.base import Strategy
 
 
+def _oos_equity_curve(returns: pd.Series, capital: float) -> pd.Series:
+    """OOS 수익률 시리즈를 자본곡선으로 변환한다.
+
+    맨 앞에 '첫 수익을 실현하기 전' 자본 점을 넣어 equity[0]==capital이 되게 한다.
+    compute_metrics는 equity[0]을 기준가로, len(equity)-1을 복리 기간 수로 쓰므로,
+    이 선행 점이 없으면 (1+returns).cumprod()의 첫 값이 곧 기준가가 되어 첫 OOS 봉의
+    수익이 total_return·CAGR에서 통째로 누락된다(워밍업 편향 수정이 드러낸 회귀 —
+    샤프/변동성은 returns를 직접 써 첫 봉을 포함하므로 지표 간 불일치가 났었다).
+    선행 봉의 타임스탬프는 첫 봉 간격만큼 앞선 시점으로 둬 그래프 시간축도 잇는다.
+    """
+    grown = (1.0 + returns).cumprod() * capital
+    idx = returns.index
+    if len(idx) > 1:
+        lead = idx[0] - (idx[1] - idx[0])
+    else:
+        lead = idx[0]
+    return pd.concat([pd.Series([capital], index=[lead]), grown])
+
+
 def walk_forward(
     df: pd.DataFrame,
     strategy_cls: Type[Strategy],
@@ -91,7 +110,7 @@ def walk_forward(
         # 구간별 OOS 지표는 워밍업을 제외한 '꼬리'로만 계산해야 정직하다.
         # seg_pos는 (수익!=0) 마스크라 이미 수익과 정렬돼 있으므로 추가 시프트 금지.
         seg_pos = (oos_ret != 0).astype(float)
-        seg_eq = (1 + oos_ret).cumprod() * initial_capital
+        seg_eq = _oos_equity_curve(oos_ret, initial_capital)
         seg_m = compute_metrics(seg_eq, oos_ret, seg_pos, periods_per_year,
                                 positions_are_decision_time=False)
         segments.append(
@@ -111,7 +130,7 @@ def walk_forward(
 
     stitched = pd.concat(oos_returns)
     stitched = stitched[~stitched.index.duplicated(keep="first")].sort_index()
-    equity = (1 + stitched).cumprod() * initial_capital
+    equity = _oos_equity_curve(stitched, initial_capital)
     positions = (stitched != 0).astype(float)   # 수익과 정렬된 마스크 → 시프트 금지
     oos_metrics: Metrics = compute_metrics(equity, stitched, positions, periods_per_year,
                                            positions_are_decision_time=False)

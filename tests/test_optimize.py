@@ -60,6 +60,27 @@ def test_walk_forward(df):
     assert wf["oos_metrics"].max_drawdown <= 0.0
 
 
+def test_walk_forward_includes_first_oos_bar(df):
+    """OOS total_return이 첫 OOS 봉의 수익을 포함해야 한다(누락 회귀 방지).
+
+    equity[0]은 '첫 수익 실현 전' 자본이어야 compute_metrics의
+    total_return=eq[-1]/eq[0]-1 이 모든 OOS 봉을 반영한다. 워밍업 수정 이후
+    첫 OOS 봉 수익이 실제 값(비영)이 되면서, 선행 자본 점 없이 cumprod만 쓰면
+    그 봉이 기준가로 흡수되어 통째로 사라졌었다.
+    """
+    grid = {"fast": [5, 10], "slow": [40, 60]}
+    capital = 10_000.0
+    wf = walk_forward(df, MovingAverageCross, grid,
+                      is_window=250, oos_window=125, initial_capital=capital)
+    eq = wf["equity"]
+    # 선행 점: 자본 그대로에서 시작
+    assert abs(float(eq.iloc[0]) - capital) < 1e-9
+    # total_return == 모든 OOS 수익률의 복리곱 - 1 (첫 봉 포함)
+    rets = eq.pct_change().dropna()
+    expected = float((1 + rets).prod() - 1.0)
+    assert abs(wf["oos_metrics"].total_return - expected) < 1e-12
+
+
 def test_walk_forward_insufficient_data():
     df = SyntheticDataProvider(seed=2).get_ohlcv("Y", limit=100)
     with pytest.raises(ValueError):

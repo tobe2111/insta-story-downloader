@@ -12,10 +12,13 @@ import html
 from pathlib import Path
 from typing import Sequence
 
-
-# 값이 '작을수록 좋은' 지표 — 색·최고값 방향을 뒤집어야 한다. (grid.py와 동일 집합.
-# max_drawdown은 음수로 저장돼 max가 곧 최선이라 여기 넣지 않는다.)
-_LOWER_IS_BETTER = {"volatility"}
+# 값이 '작을수록 좋은' 지표 — 색·최고값 방향을 뒤집어야 한다. grid_search와 단일
+# 출처(quant.objective)를 공유해, 한쪽만 고쳐 색·★가 실제 최적과 어긋나는 드리프트를
+# 막는다. quant.objective는 의존성 0이라 이 모듈의 '순수 stdlib' 성격을 해치지 않는다.
+try:
+    from quant.objective import LOWER_IS_BETTER as _LOWER_IS_BETTER
+except Exception:  # noqa: BLE001 — 패키지 밖 단독 사용 시 폴백(그때는 드리프트 무관)
+    _LOWER_IS_BETTER = frozenset({"volatility"})
 
 
 def _color(value: float, lo: float, hi: float) -> str:
