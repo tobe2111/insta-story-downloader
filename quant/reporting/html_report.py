@@ -104,13 +104,24 @@ def _price_marker_chart(df, positions, width: int = 760, height: int = 200) -> s
 
 
 def generate_report(result: BacktestResult, path: str | Path,
-                    title: str = "백테스트 리포트") -> Path:
-    """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다."""
+                    title: str = "백테스트 리포트",
+                    manifest: dict | None = None) -> Path:
+    """BacktestResult를 HTML 파일로 저장하고 경로를 반환한다.
+
+    manifest가 주어지면(quant.utils.manifest.build_manifest 결과 권장) 리포트
+    옆에 `<리포트파일명>.manifest.json`을 함께 저장한다 — 이 숫자가 어떤
+    코드·설정·데이터에서 나왔는지 나중에 추적할 수 있게 하는 재현성 기록이다.
+    기본 None이면 기존 동작 그대로(매니페스트 없음).
+    """
     out = Path(path)
     # 부모 폴더가 없으면 만든다(generate_heatmap·to_csv와 동일). 없으면
     # '--report 새폴더/r.html' 같은 요청이 FileNotFoundError로 죽는다.
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(build_report_html(result, title), encoding="utf-8")
+    if manifest is not None:
+        from quant.utils.manifest import save_manifest   # 표준 라이브러리만 사용
+
+        save_manifest(out.with_name(out.name + ".manifest.json"), manifest)
     return out
 
 

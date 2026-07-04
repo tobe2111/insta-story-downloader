@@ -21,11 +21,13 @@ from quant.web.app import (
     render_portfolio_form,
     render_screener_form,
     render_sweep_form,
+    render_validate_form,
     run_backtest_html,
     run_optimize_html,
     run_portfolio_html,
     run_screener_html,
     run_sweep_html,
+    run_validate_html,
     state_json,
 )
 
@@ -103,6 +105,14 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_optimize_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_optimize_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/validate":
+            self._send(render_validate_form())
+        elif parsed.path == "/validate/run":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                self._send(run_validate_html(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_validate_form(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":

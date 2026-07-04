@@ -15,6 +15,9 @@ __all__ = [
     "build_dashboard_html",
     "generate_heatmap",
     "build_heatmap_html",
+    "strategy_attribution",
+    "attribution_report",
+    "ensemble_weight_report",
 ]
 
 _LAZY = {
@@ -24,6 +27,9 @@ _LAZY = {
     "build_dashboard_html": "quant.reporting.dashboard",
     "generate_heatmap": "quant.reporting.heatmap",
     "build_heatmap_html": "quant.reporting.heatmap",
+    "strategy_attribution": "quant.reporting.attribution",
+    "attribution_report": "quant.reporting.attribution",
+    "ensemble_weight_report": "quant.reporting.attribution",
 }
 
 
