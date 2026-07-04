@@ -38,10 +38,29 @@ class CachedDataProvider(DataProvider):
     """임의의 DataProvider를 감싸 디스크 캐시를 추가한다."""
 
     def __init__(self, inner: DataProvider, cache_dir: str = "data_cache",
-                 ttl_seconds: int = 3600):
+                 ttl_seconds: int = 3600, max_files: int = 1000):
         self.inner = inner
         self.cache_dir = Path(cache_dir)
         self.ttl_seconds = ttl_seconds
+        # 캐시 파일 수 상한. TTL은 '신선도'만 관리하고 파일을 지우지 않으므로,
+        # 여러 종목·타임프레임·봉수를 오래 스윕하면 data_cache/가 무한히 커진다.
+        # 상한을 넘으면 오래된 것부터 삭제한다. 0 이하면 무제한(비활성).
+        self.max_files = max_files
+
+    def _prune(self) -> None:
+        """캐시 파일 수가 상한을 넘으면 mtime이 오래된 것부터 삭제한다."""
+        if self.max_files <= 0:
+            return
+        try:
+            files = sorted(self.cache_dir.glob("*.csv"),
+                           key=lambda p: p.stat().st_mtime)
+        except OSError:
+            return
+        for p in files[:max(0, len(files) - self.max_files)]:
+            try:
+                p.unlink()
+            except OSError:
+                pass
 
     def get_ohlcv(
         self,
@@ -71,6 +90,7 @@ class CachedDataProvider(DataProvider):
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             df.to_csv(path)
+            self._prune()      # 무한 성장 방지(오래된 캐시 삭제)
         except Exception as exc:  # noqa: BLE001
             log.warning("캐시 저장 실패(%s).", exc)
         return df
