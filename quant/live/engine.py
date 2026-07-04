@@ -42,6 +42,7 @@ class LiveTrader:
         circuit_breaker=None,
         mode: str = "paper",
         daily_max_loss: float | None = None,
+        rebalance_band: float = 0.02,
     ):
         self.data = data
         self.strategy = strategy
@@ -50,6 +51,10 @@ class LiveTrader:
         self.symbol = symbol
         self.timeframe = timeframe
         self.lookback = lookback
+        # 리밸런스 데드밴드 — |목표-현재| 비중 차가 이 값 미만이면 주문 생략.
+        # vol targeting 등이 만드는 매 봉 잔조정은 기대수익 0에 왕복비용만
+        # 확정 지불한다(비용 수학). 청산은 항상 실행. 0이면 비활성.
+        self.rebalance_band = max(0.0, rebalance_band)
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
@@ -120,7 +125,8 @@ class LiveTrader:
 
         log.info("%s 목표비중=%.2f 가격=%.2f 자산=%.2f",
                  self.symbol, weight, price, equity)
-        order = self.broker.target_weight(self.symbol, weight, price, equity)
+        order = self.broker.target_weight(self.symbol, weight, price, equity,
+                                          rebalance_band=self.rebalance_band)
         if order is None:
             log.info("포지션 조정 불필요")
         elif self.notifier is not None:

@@ -60,13 +60,19 @@ class Broker(ABC):
         ...
 
     def target_weight(
-        self, symbol: str, weight: float, price: float, equity: float
+        self, symbol: str, weight: float, price: float, equity: float,
+        rebalance_band: float = 0.0,
     ) -> Order | None:
         """현재 포지션을 목표 비중(weight)에 맞추도록 주문을 낸다.
 
         weight: -1.0 ~ 1.0 (자본 대비 목표 노출)
         price:  현재가
         equity: 총 자산 (현금 + 평가액)
+        rebalance_band: |목표-현재| 비중 차가 이 값 미만이면 주문을 생략한다.
+            매 봉 미세하게 달라지는 목표(vol 가중·proba 사이징)의 잔조정은
+            기대수익 0에 왕복 수수료만 확정 지불한다 — 밴드는 그 비용을
+            결정론적으로 아낀다. 청산(weight=0)은 밴드와 무관하게 항상 실행.
+            0(기본)=기존 동작.
         """
         if price <= 0:
             return None
@@ -74,6 +80,9 @@ class Broker(ABC):
         target_qty = (weight * equity) / price
         current = self.get_position(symbol).quantity
         delta = target_qty - current
+        if (rebalance_band > 0.0 and weight != 0.0 and equity > 0
+                and abs(delta * price) / equity < rebalance_band):
+            return None  # 밴드 미만 잔조정 — 비용만 내는 거래 생략
         # 수수료 버퍼는 '롱 노출을 늘리는 매수'에만 적용한다: 풀 비중(weight≈1)에서
         # 비용+수수료가 현금을 초과해 '음수 현금'이 되는 것을 막는다. 숏(weight<0)이나
         # 포지션 축소(delta<0)에까지 (1+fee)로 나누면 목표만 왜곡돼(숏 과소진입·축소
