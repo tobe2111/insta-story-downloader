@@ -153,7 +153,11 @@ class MLStrategy(Strategy):
     def __init__(self, model: str = "logreg", train_window: int = 250,
                  retrain_every: int = 20, threshold: float = 0.55,
                  sizing: str = "proba", min_train: int = 50,
-                 allow_short: bool = False, extra_features=None):
+                 allow_short: bool = False, extra_features=None,
+                 calibrate: str | None = None, weight_step: float = 0.0):
+        if calibrate not in (None, "sigmoid", "isotonic"):
+            raise ValueError(
+                f"calibrate는 None·'sigmoid'·'isotonic' 중 하나여야 합니다: {calibrate!r}")
         self.model_kind = model
         self.train_window = train_window
         self.retrain_every = max(1, retrain_every)
@@ -161,6 +165,14 @@ class MLStrategy(Strategy):
         self.sizing = sizing            # "proba"(확신도 비례) | "binary"(0/1)
         self.min_train = max(30, min_train)
         self.allow_short = allow_short
+        # 확률 보정: 학습창 내부 3-겹 CV로 CalibratedClassifierCV를 적합한다.
+        # ⚠️ 보정은 엣지를 만들지 않는다 — 모델이 말하는 70%가 실제 70%가 되게
+        # 맞출 뿐이며, 과대확신 확률로 사이징할 때의 기하(복리) 손실을 줄이는
+        # 용도다. 기본 None = 기존 동작 그대로.
+        self.calibrate = calibrate
+        # Δ비중 양자화 격자(예: 0.1). 확률의 미세한 흔들림이 매 봉 소량 매매로
+        # 새는 것을 막는 회전율 절감 장치 — 수익 개선 장치가 아니다. 0 = 끔(기존).
+        self.weight_step = max(0.0, float(weight_step))
         # 외부(거시) 피처: DataFrame 또는 callable(df)->DataFrame. 예: 공포탐욕지수.
         self.extra_features = extra_features
         # 최근 학습에 쓰인 피처 이름(기본 15개 + 외부 피처)
@@ -173,6 +185,7 @@ class MLStrategy(Strategy):
         """상승확률 배열을 [-1,1] 목표비중으로 변환한다.
 
         proba 모드: threshold를 데드존 경계로 두고 확신할수록 크게 태운다.
+                    weight_step>0이면 결과를 격자에 반올림(양자화)한다.
         binary 모드: 임계 넘으면 풀 포지션(1/-1), 아니면 관망(0).
         """
         if self.sizing == "binary":
@@ -190,6 +203,10 @@ class MLStrategy(Strategy):
         if self.allow_short:
             short = edge < -gate
             w[short] = -np.clip((-edge[short] - gate) / span, 0.0, 1.0)
+        if self.weight_step > 0.0:
+            # Δ비중 양자화: 확률 지터로 인한 소량 리밸런스 주문을 죽인다.
+            # 가장 가까운 격자점으로 반올림 → 오차는 step/2 이내, 경계는 유지.
+            w = np.clip(np.round(w / self.weight_step) * self.weight_step, -1.0, 1.0)
         return w
 
     def _record_importances(self, model) -> None:
@@ -252,6 +269,13 @@ class MLStrategy(Strategy):
                 yt = y[lo:hi][mask].astype(int)
                 if len(np.unique(yt)) > 1:      # 두 클래스 모두 있어야 학습 가능
                     model = _build_model(self.model_kind)
+                    # 확률 보정: 학습창 '내부'의 3-겹 CV로만 적합 → 룩어헤드 없음.
+                    # 소수 클래스 표본이 3 미만이면 3-겹 층화 CV가 불가능하므로
+                    # 그 블록만 비보정 모델로 학습한다(조용한 실패 대신 명시적 규칙).
+                    if self.calibrate is not None and np.bincount(yt).min() >= 3:
+                        from sklearn.calibration import CalibratedClassifierCV
+                        model = CalibratedClassifierCV(
+                            model, method=self.calibrate, cv=3)
                     model.fit(X[lo:hi][mask], yt)
                     self._record_importances(model)
 

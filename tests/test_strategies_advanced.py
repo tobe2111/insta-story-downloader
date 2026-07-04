@@ -297,3 +297,112 @@ def test_default_ensemble_propagates_allow_short():
     # 적응형 앙상블도 동일하게 전파
     ad = adaptive_ensemble(allow_short=True)
     assert all(getattr(s, "allow_short", False) for s in ad.strategies)
+
+
+# ── HRP(상관 인지) 가중 + 가중 갱신 캐던스(rebalance) ────────────────────
+
+from quant.strategies.base import Strategy as _Strategy
+
+
+class _PatternStrategy(_Strategy):
+    """테스트용 결정적 신호 전략 — PnL 상관을 정확히 통제하기 위한 장치."""
+
+    name = "pattern"
+    allow_short = False
+
+    def __init__(self, kind: str):
+        self.kind = kind
+
+    def generate_signals(self, df):
+        i = np.arange(len(df))
+        if self.kind == "even":        # 짝수 봉만 롱
+            sig = (i % 2 == 0).astype(float)
+        else:                          # "odd" — 홀수 봉만 롱 (even과 지지구간이
+            sig = (i % 2 == 1).astype(float)   # 겹치지 않아 상관≈0, 분산은 유사)
+        return self._finalize(pd.Series(sig, index=df.index), df.index)
+
+
+def test_ensemble_hrp_bounded_and_backtests(df):
+    """HRP 가중 앙상블도 볼록결합 경계 안에서 동작하고 백테스트가 돈다."""
+    ens = StrategyEnsemble(
+        [MovingAverageCross(), RSIReversion(), MeanReversion()],
+        weighting="hrp", vol_lookback=60, rebalance=5)
+    sig = ens.generate_signals(df)
+    assert sig.index.equals(df.index)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (Backtester(ens).run(df).equity > 0).all()
+    # 가중치는 항상 합=1 (진단 속성으로 검증)
+    assert np.allclose(ens.last_weights_.sum(axis=1).to_numpy(), 1.0, atol=1e-9)
+
+
+def test_ensemble_hrp_downweights_redundant_family(df):
+    """중복(상관 1) 전략 가족은 균등가중(각 1/3, 합 2/3)보다 감량된다.
+
+    실전의 rsi·stochastic·mean_reversion 같은 '같은 베팅 반복' 가족의
+    통제된 대역으로 완전 중복 전략 2개를 쓴다. 균등가중은 중복에 2/3를 주지만,
+    HRP는 상관 1인 둘을 한 군집으로 묶어 사실상 자산 하나처럼 취급해야 한다.
+    """
+    ens = StrategyEnsemble(
+        [_PatternStrategy("even"), _PatternStrategy("even"),
+         _PatternStrategy("odd")],
+        weighting="hrp", vol_lookback=60)
+    ens.generate_signals(df)
+    w = ens.last_weights_.iloc[120:]           # 워밍업 이후 구간만
+    redundant = (w[0] + w[1]).mean()
+    distinct = w[2].mean()
+    assert redundant < 2.0 / 3.0 - 0.05        # 중복 가족은 균등가중보다 확실히 아래
+    assert distinct > 1.0 / 3.0 + 0.05         # 독립 전략은 균등가중보다 위
+    # 완전 중복인 둘은 (거의) 같은 가중을 받아야 한다
+    assert abs((w[0] - w[1]).mean()) < 1e-6
+
+
+def test_adaptive_ensemble_hrp_weighting_bounded(df):
+    """AdaptiveEnsemble의 상관 인지(weighting='hrp') 조합도 경계 안에서 동작한다."""
+    ens = AdaptiveEnsemble(
+        [MovingAverageCross(), Breakout(), RSIReversion(), MeanReversion()],
+        lookback=60, weighting="hrp", rebalance=5)
+    sig = ens.generate_signals(df)
+    assert sig.index.equals(df.index)
+    assert sig.abs().max() <= 1.0 + 1e-9
+    assert (Backtester(ens).run(df).equity > 0).all()
+
+
+def test_ensemble_rebalance_default_matches_legacy(df):
+    """rebalance=1(기본)은 파라미터 도입 전과 비트 단위로 같아야 한다."""
+    strats = lambda: [MovingAverageCross(), Breakout(), RSIReversion()]  # noqa: E731
+    legacy = StrategyEnsemble(strats(), weighting="inverse_vol").generate_signals(df)
+    explicit = StrategyEnsemble(strats(), weighting="inverse_vol",
+                                rebalance=1).generate_signals(df)
+    assert (legacy == explicit).all()
+    ad_legacy = AdaptiveEnsemble(strats(), lookback=40).generate_signals(df)
+    ad_explicit = AdaptiveEnsemble(strats(), lookback=40,
+                                   rebalance=1).generate_signals(df)
+    assert (ad_legacy == ad_explicit).all()
+
+
+def test_ensemble_rebalance_holds_weights_between_updates(df):
+    """rebalance=k면 가중치는 k봉 격자에서만 변한다 — 회전율 절감 장치 검증."""
+    k = 10
+    ens = AdaptiveEnsemble(
+        [MovingAverageCross(), Breakout(), RSIReversion()],
+        lookback=40, rebalance=k)
+    ens.generate_signals(df)
+    w = ens.last_weights_.to_numpy()
+    changed = np.where(np.abs(np.diff(w, axis=0)).sum(axis=1) > 1e-12)[0] + 1
+    assert len(changed) > 0                    # 갱신이 실제로 일어난다
+    assert all(i % k == 0 for i in changed), "격자 밖에서 가중치가 변함"
+
+
+def test_ensemble_rebalance_reduces_weight_turnover(df):
+    """가중 갱신 횟수는 rebalance=1보다 줄어야 한다(존재 이유 그 자체).
+
+    ⚠️ 이것은 회전율(비용) 이야기일 뿐, 수익이 좋아진다는 주장이 아니다.
+    """
+    def turnover(reb):
+        ens = AdaptiveEnsemble(
+            [MovingAverageCross(), Breakout(), RSIReversion()],
+            lookback=40, rebalance=reb)
+        ens.generate_signals(df)
+        return float(np.abs(np.diff(ens.last_weights_.to_numpy(), axis=0)).sum())
+
+    assert turnover(10) < turnover(1)
