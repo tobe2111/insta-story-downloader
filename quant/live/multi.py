@@ -58,6 +58,7 @@ class MultiTrader:
         self.notifier = notifier
         self.mode = mode
         self.history: list[dict] = []
+        self._last_bar_ts = None        # 최근 데이터 봉의 타임스탬프(서킷브레이커 일자 기준)
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
@@ -77,6 +78,8 @@ class MultiTrader:
             return {}, {}
 
         close_df = pd.DataFrame(closes).dropna()
+        if len(close_df.index):
+            self._last_bar_ts = close_df.index[-1]
         returns = close_df.pct_change().fillna(0.0)
         signals = pd.DataFrame(
             {s: sigs[s].reindex(close_df.index).ffill().fillna(0.0) for s in closes}
@@ -104,9 +107,12 @@ class MultiTrader:
                 for s in self.symbols
             )
 
-        # 서킷브레이커: 발동 시 전 종목 청산 후 신규 매매 중단
+        # 서킷브레이커: 발동 시 전 종목 청산 후 신규 매매 중단.
+        # 일자 기준은 벽시계(utcnow)가 아니라 '최근 데이터 봉'의 날짜를 쓴다.
+        # 백테스트/재생·시간대 차이에서 벽시계를 쓰면 손실 한도의 '하루'가
+        # 데이터와 어긋나(예: 장 마감 후 자정 넘어 실행) 잘못 리셋될 수 있다.
         if self.circuit_breaker is not None:
-            day = str(pd.Timestamp.utcnow())[:10]
+            day = str(self._last_bar_ts or pd.Timestamp.utcnow())[:10]
             if self.circuit_breaker.update(equity, day):
                 log.error("🛑 서킷브레이커 발동(%s) — 전 종목 청산 후 중단",
                           self.circuit_breaker.reason)

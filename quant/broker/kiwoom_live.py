@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 from quant.broker.base import Broker, Order, Position
 from quant.utils.http import get_json, post_json  # noqa: F401  (get_json: 대칭성)
@@ -52,10 +53,15 @@ class KiwoomBroker(Broker):
         if not paper:
             log.warning("⚠️ 키움 실거래(REAL) 모드입니다. 실제 자금이 사용됩니다.")
         self._token: str | None = None
+        self._token_expiry = 0.0
+        self._balance_cache: dict | None = None
+        self._balance_ts = 0.0
+        self._balance_ttl = 3.0
 
     # --- 인증 ---
     def _get_token(self) -> str:
-        if self._token:
+        # 키움 토큰도 만료된다(대개 24시간). 무기한 캐시 대신 만료 추적 후 재발급.
+        if self._token and time.time() < self._token_expiry:
             return self._token
         res = post_json(
             f"{self.base}/oauth2/token",
@@ -65,6 +71,11 @@ class KiwoomBroker(Broker):
         )
         # 문서 버전에 따라 'token' 또는 'access_token'
         self._token = res.get("token") or res.get("access_token", "")
+        try:
+            ttl = float(res.get("expires_in", 82800))
+        except (TypeError, ValueError):
+            ttl = 82800.0
+        self._token_expiry = time.time() + max(60.0, ttl - 300.0)
         return self._token
 
     def _headers(self, api_id: str) -> dict[str, str]:
@@ -78,9 +89,15 @@ class KiwoomBroker(Broker):
 
     # --- 계좌 조회 ---
     def _balance(self) -> dict:
+        # 같은 사이클의 get_cash+get_position 중복 조회만 합치는 짧은 TTL 캐시.
+        now = time.time()
+        if self._balance_cache is not None and now - self._balance_ts < self._balance_ttl:
+            return self._balance_cache
         body = {"qry_tp": "1", "dmst_stex_tp": "KRX"}
-        return post_json(f"{self.base}/api/dostk/acnt",
+        data = post_json(f"{self.base}/api/dostk/acnt",
                          self._headers(self.TR_BALANCE), body)
+        self._balance_cache, self._balance_ts = data, now
+        return data
 
     def get_cash(self) -> float:
         data = self._balance()

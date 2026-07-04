@@ -62,7 +62,21 @@ class AlpacaBroker(Broker):
         }
         log.warning("[ALPACA] %s %s %.6f 주문 전송", side.upper(), symbol, quantity)
         res = post_json(f"{self.base}/v2/orders", self._headers(), body)
-        filled = float(res.get("filled_avg_price") or price)
-        filled_qty = float(res.get("filled_qty") or quantity)
+        status = res.get("status", "accepted")
+        # 시장가라도 POST 응답은 흔히 status="accepted"·filled_qty=0으로 즉시
+        # 돌아오고 체결은 비동기다. 여기서 미체결을 '전량 체결'로 꾸며내면
+        # 상위 로직이 주문 완료로 오판해 중복 주문·잘못된 사이징을 낸다. 실제
+        # 응답 값만 신뢰하고, 체결 정보가 없으면 0으로 보고한다(호출측이 상태로
+        # 미체결을 구분할 수 있게).
+        def _num(key: str, default: float) -> float:
+            v = res.get(key)
+            try:
+                return float(v) if v not in (None, "") else default
+            except (TypeError, ValueError):
+                return default
+
+        filled_qty = _num("filled_qty", 0.0)
+        # 체결가는 체결이 있을 때만 의미가 있다. 없으면 참고용으로 주문가를 둔다.
+        filled = _num("filled_avg_price", price if filled_qty > 0 else 0.0)
         return Order(symbol, side, quantity, filled,
-                     status=res.get("status", "accepted"), filled_quantity=filled_qty)
+                     status=status, filled_quantity=filled_qty)

@@ -32,6 +32,10 @@ def _request(
     except urllib.error.HTTPError as exc:  # 서버가 반환한 오류 본문도 파싱해 전달
         detail = exc.read().decode(errors="replace")
         raise RuntimeError(f"HTTP {exc.code} {url}: {detail}") from exc
+    except urllib.error.URLError as exc:  # DNS·연결거부·타임아웃 등 네트워크 오류
+        # HTTPError가 아닌 URLError를 그대로 흘리면 호출측(대개 RuntimeError만
+        # 처리)이 놓쳐 예기치 못하게 죽는다. 일관되게 RuntimeError로 감싼다.
+        raise RuntimeError(f"네트워크 오류 {url}: {exc.reason}") from exc
 
 
 def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:

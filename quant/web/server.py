@@ -49,7 +49,12 @@ class QuantHandler(BaseHTTPRequestHandler):
             except Exception as exc:  # noqa: BLE001
                 self._send(render_form(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/monitor":
-            self._send(render_monitor())
+            # 상태 파일이 없거나 손상돼 render_monitor가 던지면 500 트레이스백 대신
+            # 안내 메시지를 보여준다(다른 라우트와 일관).
+            try:
+                self._send(render_monitor())
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_form(f"모니터 로드 오류: {exc}"), status=400)
         elif parsed.path == "/api/state":
             self._send(state_json(), content_type="application/json; charset=utf-8")
         elif parsed.path == "/portfolio":

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import time
 
 from quant.broker.base import Broker, Order, Position
 from quant.utils.http import get_json, post_json
@@ -44,10 +45,16 @@ class KISBroker(Broker):
         if not paper:
             log.warning("⚠️ KIS 실거래(REAL) 모드입니다. 실제 자금이 사용됩니다.")
         self._token: str | None = None
+        self._token_expiry = 0.0        # epoch초; 지나면 재발급
+        self._balance_cache: dict | None = None
+        self._balance_ts = 0.0
+        self._balance_ttl = 3.0         # 한 사이클 내 중복 조회만 합치는 짧은 TTL
 
     # --- 인증 ---
     def _get_token(self) -> str:
-        if self._token:
+        # KIS 토큰은 약 24시간 뒤 만료된다. 무기한 캐시하면 장기 실행 시 만료된
+        # 토큰으로 주문이 실패하므로, 만료 시각을 추적해 자동 재발급한다.
+        if self._token and time.time() < self._token_expiry:
             return self._token
         res = post_json(
             f"{self.base}/oauth2/tokenP",
@@ -59,6 +66,12 @@ class KISBroker(Broker):
             },
         )
         self._token = res["access_token"]
+        # 응답의 expires_in(초)에서 5분 여유를 빼 조기 갱신. 값이 없으면 23시간.
+        try:
+            ttl = float(res.get("expires_in", 82800))
+        except (TypeError, ValueError):
+            ttl = 82800.0
+        self._token_expiry = time.time() + max(60.0, ttl - 300.0)
         return self._token
 
     def _hashkey(self, body: dict) -> str:
@@ -83,13 +96,21 @@ class KISBroker(Broker):
 
     # --- 계좌 조회 ---
     def _balance(self) -> dict:
+        # get_cash와 get_position이 각각 잔고를 조회하면 한 사이클에 API를 두 번
+        # 호출한다. 아주 짧은 TTL 캐시로 같은 사이클의 중복 호출만 합쳐 레이트리밋
+        # 부담을 줄인다(다음 사이클에는 만료되어 다시 최신 잔고를 받는다).
+        now = time.time()
+        if self._balance_cache is not None and now - self._balance_ts < self._balance_ttl:
+            return self._balance_cache
         params = (
             f"?CANO={self.cano}&ACNT_PRDT_CD={self.acnt}&AFHR_FLPR_YN=N"
             "&OFL_YN=&INQR_DVSN=02&UNPR_DVSN=01&FUND_STTL_ICLD_YN=N"
             "&FNCG_AMT_AUTO_RDPT_YN=N&PRCS_DVSN=00&CTX_AREA_FK100=&CTX_AREA_NK100="
         )
         url = f"{self.base}/uapi/domestic-stock/v1/trading/inquire-balance{params}"
-        return get_json(url, self._headers(self._TR_BALANCE[self.env]))
+        data = get_json(url, self._headers(self._TR_BALANCE[self.env]))
+        self._balance_cache, self._balance_ts = data, now
+        return data
 
     def get_cash(self) -> float:
         data = self._balance()
