@@ -108,4 +108,8 @@ class PortfolioBacktester:
         # 이므로 compute_metrics가 다시 shift하지 않도록 False를 준다(이중 시프트 방지).
         metrics = compute_metrics(equity, port_ret, exposure, self.periods_per_year,
                                   positions_are_decision_time=False)
-        return BacktestResult(equity, port_ret, exposure, metrics, close)
+        result = BacktestResult(equity, port_ret, exposure, metrics, close)
+        # 봉별 '종목별 |Δ비중| 합'(실제 비용이 부과되는 회전율)을 결과에 노출한다.
+        # positions(총노출)의 변동은 종목 간 상쇄 때문에 회전율 대용으로 부적합.
+        result.turnover = turnover.rename("turnover")
+        return result

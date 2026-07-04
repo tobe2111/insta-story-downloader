@@ -181,9 +181,10 @@ def test_portfolio_band_reduces_turnover():
     base = PortfolioBacktester(MovingAverageCross(), allocation="inverse_vol").run(data)
     band = PortfolioBacktester(MovingAverageCross(), allocation="inverse_vol",
                                rebalance_band=0.03).run(data)
-    def total_turnover(res):
-        return float(res.positions.diff().abs().sum())
-    assert total_turnover(band) <= total_turnover(base)
+    # 종목별 |Δ비중| 합(실제 비용이 부과되는 회전율)으로 비교한다. 총노출의
+    # 변동은 종목 간 상쇄로 밴드 적용 시 오히려 늘 수도 있어 대용으로 부적합.
+    # 밴드 경로의 체결 점프는 (삼각부등식) 목표 이동 합을 넘지 못하므로 항상 ≤.
+    assert float(band.turnover.sum()) <= float(base.turnover.sum())
     # 기본값(0)은 기존과 동일
     zero = PortfolioBacktester(MovingAverageCross(), allocation="inverse_vol",
                                rebalance_band=0.0).run(data)
