@@ -97,6 +97,7 @@ class Backtester:
         rebalance_band: float = 0.0,
         stop_cooldown: int = 0,
         dd_band: float = 0.0,
+        intrabar_stops: bool = False,
     ):
         from quant.backtest.costs import CostModel
 
@@ -132,6 +133,40 @@ class Backtester:
         #   된다. MA×(1-band) 하회 시 축소, MA×(1+band) 상회 시 복귀, 사이에서는
         #   직전 상태를 유지한다. 0이면 기존(즉시 전환) 동작.
         self.dd_band = max(0.0, dd_band)
+        # intrabar_stops: 손절/익절을 봉 '안'의 고저가로 판정하고 스톱 가격에
+        #   체결한다(기본 False=기존 종가 판정). 종가 판정은 봉 중간에 스톱선을
+        #   관통했다가 종가가 회복하면 스톱을 놓쳐 손실을 과소평가한다 — 실전
+        #   스톱 주문은 관통 즉시 체결되므로 켜는 쪽이 더 정직하다. 규칙:
+        #   · 손절: 저가(롱)/고가(숏)가 관통 시 스톱 가격 체결, 갭 통과 시
+        #     시가 체결(더 불리한 쪽 — 보수적)
+        #   · 익절: 목표가 정확히 체결(갭 이익은 반영하지 않음 — 보수적)
+        #   · 같은 봉에서 손절·익절 모두 관통하면 순서를 알 수 없으므로 손절 우선
+        #   · 트레일링 스톱은 봉 내 극값 갱신 순서가 모호해 기존대로 종가 판정
+        self.intrabar_stops = bool(intrabar_stops)
+
+    def _intrabar_stop_fill(self, pos: float, entry: float,
+                            o: float, h: float, low_: float) -> float | None:
+        """봉 내 손절/익절 관통 여부를 판정해 체결가를 반환한다(미관통 None)."""
+        cfg = self.risk.config
+        if pos > 0:
+            if cfg.stop_loss is not None:
+                s = entry * (1.0 - cfg.stop_loss)
+                if low_ <= s:
+                    return min(o, s)          # 갭 하락이면 시가(더 불리) 체결
+            if cfg.take_profit is not None:
+                t = entry * (1.0 + cfg.take_profit)
+                if h >= t:
+                    return t                  # 갭 상승 이익은 반영하지 않음
+        elif pos < 0:
+            if cfg.stop_loss is not None:
+                s = entry * (1.0 + cfg.stop_loss)
+                if h >= s:
+                    return max(o, s)          # 갭 상승이면 시가(더 불리) 체결
+            if cfg.take_profit is not None:
+                t = entry * (1.0 - cfg.take_profit)
+                if low_ <= t:
+                    return t
+        return None
 
     def run(self, df: pd.DataFrame) -> BacktestResult:
         if df.empty:
@@ -154,6 +189,10 @@ class Backtester:
             if "volume" in df.columns else None
         )
         bar_ts = df.index  # 봉 타임스탬프(펀딩 실데이터 조회용)
+        if self.intrabar_stops:
+            open_ = df["open"].to_numpy()
+            high = df["high"].to_numpy()
+            low = df["low"].to_numpy()
 
         n = len(df)
         equity = np.empty(n)
@@ -170,7 +209,25 @@ class Backtester:
         for i in range(n):
             price = close[i]
 
+            # 0) 봉 내 손절/익절 (옵션): 고저가가 스톱선을 관통하면 그 자리에서
+            #    체결한다. 종가까지의 나머지 움직임은 겪지 않는다(이미 청산).
+            intrabar_exit = False
+            if self.intrabar_stops and pos != 0.0 and entry > 0.0 and i > 0:
+                fill = self._intrabar_stop_fill(pos, entry, open_[i], high[i], low[i])
+                if fill is not None and fill > 0.0:
+                    cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
+                    exit_cost = cm.turnover_cost(abs(pos), vol[i])
+                    if dollar_vol is not None:
+                        exit_cost += cm.market_impact_cost(
+                            abs(pos), cash_equity, dollar_vol[i])
+                    cash_equity *= 1.0 - exit_cost
+                    pos = 0.0
+                    entry = 0.0
+                    extreme = 0.0
+                    intrabar_exit = True
+
             # 1) 이전 봉에서 설정한 pos로 이번 봉 수익 실현
+            #    (봉 내 청산 시 pos=0이라 자연히 건너뜀 — 부분 수익은 이미 반영)
             if i > 0:
                 bar_ret = price / close[i - 1] - 1.0
                 cash_equity *= 1.0 + pos * bar_ret
@@ -206,10 +263,13 @@ class Backtester:
             elif pos < 0:
                 extreme = min(extreme, price)
 
-            # 3) 손절/익절/트레일링 확인 (경로 의존)
+            # 3) 손절/익절/트레일링 확인 (경로 의존).
+            #    intrabar_stops면 고정 손절/익절은 0)에서 이미 처리 — 여기서는
+            #    트레일링(종가 판정)만 실질 작동한다(관통 안 한 SL/TP는 종가로도
+            #    관통 불가: close ∈ [low, high]).
             pos_after = self.risk.apply_stops(pos, entry, price)
             pos_after = self.risk.apply_trailing_stop(pos_after, extreme, price)
-            stop_triggered = pos_after != pos
+            stop_triggered = (pos_after != pos) or intrabar_exit
 
             # 4) 다음 봉에 보유할 목표 결정 (자산곡선 트로틀 반영)
             new_pos = 0.0 if stop_triggered else float(want[i]) * throttle

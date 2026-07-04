@@ -34,11 +34,19 @@ def _cmd_backtest(args) -> None:
         print(quality_report(df, findings))
 
     strat = default_ensemble() if args.strategy == "ensemble" else get_strategy(args.strategy)
+    cost_model = None
+    if args.market_costs:
+        from quant.backtest.costs import CostModel
+        cost_model = CostModel.for_market(args.market)
+        print(f"💸 시장 비용 프리셋({args.market}): 수수료 {cost_model.fee:.4%} · "
+              f"슬리피지 {cost_model.slippage:.4%} (편도, 근사)")
     result = Backtester(
         strat, periods_per_year=_ppy(args.market),
+        cost_model=cost_model,
         rebalance_band=args.rebalance_band,
         stop_cooldown=args.stop_cooldown,
         dd_throttle=args.dd_throttle, dd_band=args.dd_band,
+        intrabar_stops=args.intrabar_stops,
     ).run(df)
     print(f"\n=== {args.strategy} · {args.symbol} ({len(df)}봉) ===")
     print(result.summary())
@@ -213,6 +221,12 @@ def build_parser() -> argparse.ArgumentParser:
                     help="자산곡선이 자체 MA 하회 시 익스포저 축소")
     bt.add_argument("--dd-band", type=float, default=0.0, dest="dd_band",
                     help="트로틀 히스테리시스 밴드(예: 0.01). 0=즉시 전환")
+    bt.add_argument("--intrabar-stops", action="store_true", dest="intrabar_stops",
+                    help="손절/익절을 봉 내 고저가로 판정(실전에 더 가까움 — "
+                         "종가 판정은 봉 중간 관통을 놓쳐 손실을 과소평가)")
+    bt.add_argument("--market-costs", action="store_true", dest="market_costs",
+                    help="시장별 현실 비용 프리셋 적용(한국주식 거래세 등 — "
+                         "근사치, 본인 브로커 기준 확인 필요)")
     bt.set_defaults(func=_cmd_backtest)
 
     sw = sub.add_parser("sweep", help="파라미터 민감도 히트맵")

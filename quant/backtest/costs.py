@@ -17,6 +17,24 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+# 시장별 현실 비용 프리셋 (편도, 회전율 대비 비율). 출처·가정을 주석으로 남긴다.
+# '몰라서 낙관적인' 백테스트를 막는 게 목적이며, 정확한 값은 본인 브로커 기준으로
+# overrides 하라. 특히 한국주식은 거래세 때문에 왕복 비용이 코인의 ~2배다.
+MARKET_COST_PRESETS: dict[str, dict] = {
+    # 바이낸스 현물 테이커 0.1% + 슬리피지
+    "crypto": {"fee": 0.001, "slippage": 0.0005},
+    # 업비트 0.05% + 슬리피지 (원화마켓)
+    "crypto_upbit": {"fee": 0.0005, "slippage": 0.0005},
+    # 미국주식: 무수수료 브로커 일반화 + SEC/TAF 미미 → 슬리피지가 주 비용
+    "us_stock": {"fee": 0.0001, "slippage": 0.0005},
+    # 한국주식: 위탁수수료 ~0.015% + 증권거래세(매도 시 ~0.15%, 2025 기준)를
+    # 편도당 절반(0.075%)으로 근사 배분. 왕복 합계는 실제와 일치.
+    "kr_stock": {"fee": 0.00015 + 0.00075, "slippage": 0.0005},
+    # 합성 데이터: 기본값 그대로 (검증용)
+    "synthetic": {"fee": 0.001, "slippage": 0.0005},
+}
+
+
 @dataclass
 class CostModel:
     fee: float = 0.001          # 편도 수수료 (회전율 대비)
@@ -35,6 +53,20 @@ class CostModel:
     # 봉 인덱스와 맞추려면 quant.data.funding.align_funding_to_bars 를 쓸 것.
     # 부호 규약: 양수=롱이 지불(숏은 수취). None(기본)=기존 고정 funding 사용.
     funding_series: Any = field(default=None, repr=False)
+
+    @classmethod
+    def for_market(cls, market: str, **overrides) -> "CostModel":
+        """시장별 '현실적' 비용 프리셋으로 CostModel을 만든다.
+
+        모르는 시장이면 기본값(fee 0.1%+슬리피지 0.05%)을 쓴다. overrides로
+        개별 필드를 덮어쓸 수 있다. ⚠️ 근사치다 — 브로커·등급·체결 방식에 따라
+        실제 비용은 다르며, 특히 한국주식 거래세는 '매도에만' 붙지만 이 모델은
+        방향을 모르므로 편도당 절반으로 나눠 근사한다(왕복 합계는 정확).
+        """
+        p = MARKET_COST_PRESETS.get(market.lower())
+        base = dict(p) if p else {}
+        base.update(overrides)
+        return cls(**base)
 
     def turnover_cost(self, turnover: float, vol: float = 0.0) -> float:
         """회전율(포지션 변경량)에 따른 거래 비용 비율."""
