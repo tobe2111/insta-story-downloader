@@ -173,3 +173,40 @@ def test_run_backtest_html_escapes_symbol_xss():
                              "symbol": "<script>alert(1)</script>", "limit": "120"})
     assert "<script>alert(1)</script>" not in doc     # 원본 스크립트 태그 없음
     assert "&lt;script&gt;" in doc                     # 이스케이프됨
+
+
+def test_parse_symbols_caps_and_dedupes():
+    """종목 수가 상한(_MAX_SYMBOLS)으로 제한되고 중복이 제거된다(자원 고갈 방지)."""
+    from quant.web.app import _parse_symbols, _MAX_SYMBOLS
+    many = ",".join(f"S{i}" for i in range(10_000))
+    out = _parse_symbols(many)
+    assert len(out) == _MAX_SYMBOLS               # 수만 개 → 상한으로 잘림
+    # 중복 제거 + upper 옵션
+    assert _parse_symbols("aapl, aapl , msft", upper=True) == ["AAPL", "MSFT"]
+    assert _parse_symbols("  ") == []
+
+
+def test_web_token_gate():
+    """QUANT_WEB_TOKEN이 설정되면 토큰 없는 요청을 401로 막는다(노출 시 인증)."""
+    import os
+    from urllib.parse import urlparse
+    from quant.web import server
+
+    h = server.QuantHandler.__new__(server.QuantHandler)   # __init__ 우회
+
+    class _Hdr(dict):
+        def get(self, k, d=""):
+            return dict.get(self, k, d)
+    h.headers = _Hdr()
+
+    os.environ.pop("QUANT_WEB_TOKEN", None)
+    assert h._authorized(urlparse("/backtest?x=1"))        # 토큰 미설정 → 허용
+
+    os.environ["QUANT_WEB_TOKEN"] = "sekret"
+    try:
+        assert not h._authorized(urlparse("/backtest"))              # 토큰 없음 → 거부
+        assert h._authorized(urlparse("/backtest?token=sekret"))     # 일치 → 허용
+        assert not h._authorized(urlparse("/backtest?token=nope"))   # 불일치 → 거부
+        assert h._authorized(urlparse("/health"))                    # health는 항상 허용
+    finally:
+        os.environ.pop("QUANT_WEB_TOKEN", None)
