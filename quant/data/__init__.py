@@ -3,10 +3,12 @@ from __future__ import annotations
 
 from quant.data.base import DataProvider
 from quant.data.cache import CachedDataProvider
+from quant.data.crosscheck import compare_sources
 from quant.data.crypto import CryptoDataProvider
 from quant.data.fundamentals import fmp_ratios, rank_factors
 from quant.data.funding import align_funding_to_bars, fetch_funding_history
 from quant.data.macro import fred_frame, fred_series
+from quant.data.quality import quality_report, scan_ohlcv
 from quant.data.sentiment import fear_greed_frame, fear_greed_history
 from quant.data.stock import StockDataProvider
 from quant.data.synthetic import SyntheticDataProvider
@@ -25,6 +27,9 @@ __all__ = [
     "rank_factors",
     "fetch_funding_history",
     "align_funding_to_bars",
+    "scan_ohlcv",
+    "quality_report",
+    "compare_sources",
     "get_provider",
 ]
 
