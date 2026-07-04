@@ -12,7 +12,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from quant.broker import crypto_live, kr_live, us_live
+from quant.broker import crypto_live, kiwoom_live, kr_live, us_live
 
 
 # --- Alpaca (미국주식) ---
@@ -99,6 +99,75 @@ def test_kis_uses_paper_tr_ids():
     broker = kr_live.KISBroker(paper=True)
     assert broker.env == "paper"
     assert broker._TR_BUY["paper"].startswith("V")  # 모의투자 tr_id
+
+
+# --- 키움증권 (국내주식) ---
+def test_kiwoom_order_routing_and_balance():
+    os.environ.update({"KIWOOM_APP_KEY": "k", "KIWOOM_SECRET": "s",
+                       "KIWOOM_ACCOUNT": "1234567890"})
+    broker = kiwoom_live.KiwoomBroker(paper=True)
+    assert broker.base == kiwoom_live.KiwoomBroker.MOCK_URL   # 모의 URL
+
+    sent = {}
+
+    def fake_post(url, headers=None, body=None):
+        if url.endswith("/oauth2/token"):
+            return {"token": "tok"}
+        if url.endswith("/api/dostk/ordr"):
+            sent["api_id"] = headers.get("api-id")
+            sent["body"] = body
+            return {"return_code": 0, "return_msg": "정상", "ord_no": "0001"}
+        if url.endswith("/api/dostk/acnt"):
+            return {"prsm_dpst_aset_amt": "2,000,000",
+                    "acnt_evlt_remn_indv_tot": [
+                        {"stk_cd": "A005930", "rmnd_qty": "7", "pur_pric": "68000"}]}
+        return {}
+
+    with mock.patch.object(kiwoom_live, "post_json", fake_post):
+        buy = broker.market_order("005930", "buy", 10, 70000)
+        sell = broker.market_order("005930", "sell", 3, 70000)
+        cash = broker.get_cash()
+        pos = broker.get_position("005930")
+
+    assert sent["api_id"] == broker.TR_SELL          # 마지막 주문은 매도
+    assert sent["body"]["stk_cd"] == "005930"
+    assert sent["body"]["ord_qty"] == "3"
+    assert sent["body"]["trde_tp"] == "3"            # 시장가
+    assert buy.status == "filled" and sell.status == "filled"
+    assert cash == 2_000_000.0                        # 콤마 제거 파싱
+    assert pos.quantity == 7.0 and pos.avg_price == 68000.0   # 'A005930' → '005930' 매칭
+
+
+def test_kiwoom_missing_keys_raises():
+    for k in ("KIWOOM_APP_KEY", "KIWOOM_SECRET", "KIWOOM_ACCOUNT"):
+        os.environ.pop(k, None)
+    try:
+        kiwoom_live.KiwoomBroker(paper=True)
+        assert False, "키 없으면 예외여야 함"
+    except RuntimeError:
+        pass
+
+
+def test_kiwoom_zero_qty_skipped():
+    os.environ.update({"KIWOOM_APP_KEY": "k", "KIWOOM_SECRET": "s",
+                       "KIWOOM_ACCOUNT": "1"})
+    broker = kiwoom_live.KiwoomBroker(paper=True)
+    order = broker.market_order("005930", "buy", 0.4, 70000)  # int(0.4)=0
+    assert order.status == "skipped"
+
+
+# --- ccxt 범용 거래소 ---
+def test_crypto_korean_exchange_defaults_krw():
+    """국내 거래소(업비트)는 기본 정산통화가 KRW."""
+    fake = _FakeCcxt()
+    broker = crypto_live.CryptoLiveBroker(exchange="upbit", client=fake)
+    assert broker.quote == "KRW"
+
+
+def test_crypto_quote_override():
+    fake = _FakeCcxt()
+    broker = crypto_live.CryptoLiveBroker(exchange="binance", quote="USDT", client=fake)
+    assert broker.quote == "USDT"
 
 
 # --- ccxt (암호화폐) ---
