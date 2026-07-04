@@ -57,7 +57,8 @@ class CryptoDataProvider(DataProvider):
             df = pd.DataFrame(
                 raw, columns=["ts", "open", "high", "low", "close", "volume"]
             )
-            df.index = pd.to_datetime(df["ts"], unit="ms", utc=True).tz_convert(None)
+            # unit="ms"는 거래소 epoch(UTC)를 그대로 tz-naive 타임스탬프로 만든다.
+            df.index = pd.to_datetime(df["ts"], unit="ms")
             # end가 지정되면 그 이후 봉은 잘라낸다(fetch_ohlcv는 since만 지원).
             if end is not None:
                 df = df[df.index <= pd.Timestamp(end)]
