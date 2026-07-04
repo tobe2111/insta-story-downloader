@@ -56,3 +56,27 @@ def test_walk_forward_insufficient_data():
     with pytest.raises(ValueError):
         walk_forward(df, MovingAverageCross, {"fast": [5], "slow": [20]},
                      is_window=250, oos_window=125)
+
+
+def test_walk_forward_embargo_creates_gap(df):
+    """엠바고(퍼징) 갭이 있으면 IS 끝과 OOS 시작 사이에 공백이 생긴다."""
+    grid = {"fast": [5, 10], "slow": [40, 60]}
+    embargo = 20
+    wf = walk_forward(
+        df, MovingAverageCross, grid,
+        is_window=250, oos_window=125, objective="sharpe", embargo=embargo,
+    )
+    assert wf["segments"]
+    # 첫 구간: is_start 인덱스 0, oos_start 인덱스는 250+embargo 여야 한다
+    idx = list(df.index)
+    first = wf["segments"][0]
+    assert first["is_start"] == str(idx[0])
+    assert first["oos_start"] == str(idx[250 + embargo])
+
+
+def test_walk_forward_embargo_insufficient_data():
+    """엠바고까지 더하면 데이터가 모자랄 때 명확히 실패한다."""
+    df = SyntheticDataProvider(seed=3).get_ohlcv("Z", limit=380)
+    with pytest.raises(ValueError):
+        walk_forward(df, MovingAverageCross, {"fast": [5], "slow": [20]},
+                     is_window=250, oos_window=125, embargo=20)
