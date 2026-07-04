@@ -35,7 +35,7 @@ _NAV = ('<nav><a href="/">📊 백테스트</a>'
         '<a href="/optimize">⚙️ 최적화</a>'
         '<a href="/monitor">📺 감시</a></nav>')
 
-ALLOCATIONS = ["inverse_vol", "equal"]
+ALLOCATIONS = ["inverse_vol", "equal", "hrp"]
 
 # 워크포워드 최적화가 지원하는 전략과 파라미터 격자
 _OPT_GRIDS = {
