@@ -44,3 +44,16 @@ def test_heatmap_color_bounds():
     lo, hi = 0.0, 2.0
     assert "120" in heatmap._color(2.0, lo, hi)  # 최고 → 초록(hue 120)
     assert heatmap._color(0.0, lo, hi).startswith("hsl(0")  # 최저 → 빨강(hue 0)
+
+
+def test_heatmap_best_marker_follows_objective_direction():
+    """★ 최고값 마커가 목적함수 방향을 따른다(sharpe=max, volatility=min)."""
+    grid = [[0.10, 0.80]]
+    up = heatmap.build_heatmap_html([1, 2], [1], grid, objective="sharpe")
+    assert "0.80 ★" in up and "0.10 ★" not in up      # 클수록 좋음 → 0.80
+    down = heatmap.build_heatmap_html([1, 2], [1], grid, objective="volatility")
+    assert "0.10 ★" in down and "0.80 ★" not in down   # 작을수록 좋음 → 0.10
+    # 색도 반전: 좋은 셀(0.10)이 초록(hue 120)에 매핑된다
+    import re
+    assert re.search(r"hsl\(120 65% 45%\)\"[^<]*>0\.10", down)
+    assert re.search(r"hsl\(0 65% 45%\)\"[^<]*>0\.80", down)

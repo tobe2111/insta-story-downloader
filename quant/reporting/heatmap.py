@@ -13,8 +13,17 @@ from pathlib import Path
 from typing import Sequence
 
 
+# 값이 '작을수록 좋은' 지표 — 색·최고값 방향을 뒤집어야 한다. (grid.py와 동일 집합.
+# max_drawdown은 음수로 저장돼 max가 곧 최선이라 여기 넣지 않는다.)
+_LOWER_IS_BETTER = {"volatility"}
+
+
 def _color(value: float, lo: float, hi: float) -> str:
-    """lo~hi 범위의 값을 빨강(낮음)→노랑→초록(높음) HSL 색으로."""
+    """lo~hi 범위의 값을 빨강(나쁨)→노랑→초록(좋음) HSL 색으로.
+
+    lo가 '나쁨', hi가 '좋음' 끝이다. 작을수록 좋은 지표는 호출부에서 lo/hi를
+    바꿔 넘겨 방향을 뒤집는다.
+    """
     rng = (hi - lo) or 1.0
     t = max(0.0, min(1.0, (value - lo) / rng))
     hue = 120 * t  # 0=빨강, 120=초록
@@ -33,7 +42,11 @@ def build_heatmap_html(
     """히트맵을 HTML 문자열로 렌더링한다 (웹서버·파일 저장 공용)."""
     flat = [v for row in grid for v in row if v is not None]
     lo, hi = (min(flat), max(flat)) if flat else (0.0, 1.0)
-    best = max(flat) if flat else None
+    # 목적함수 방향: volatility처럼 작을수록 좋은 지표는 최고값=min, 색도 반전.
+    # (반전 안 하면 최악 파라미터에 ★+초록이 붙어 사용자를 정반대로 유도한다.)
+    lower_better = objective in _LOWER_IS_BETTER
+    best = (min(flat) if lower_better else max(flat)) if flat else None
+    clo, chi = (hi, lo) if lower_better else (lo, hi)   # 색 방향 지정
 
     header = "".join(f"<th>{html.escape(str(x))}</th>" for x in x_values)
     body = ""
@@ -44,7 +57,7 @@ def build_heatmap_html(
             if v is None:
                 cells += '<td class="na">·</td>'
             else:
-                bg = _color(v, lo, hi)
+                bg = _color(v, clo, chi)
                 mark = " ★" if v == best else ""
                 cells += (f'<td style="background:{bg}" title="{y_label}={y}, '
                           f'{x_label}={x_values[j]}">{v:.2f}{mark}</td>')
@@ -77,7 +90,7 @@ def build_heatmap_html(
 {body}
 </table></div>
 <div class="axis">→ 가로축: {html.escape(x_label)}</div>
-<div class="legend"><span>낮음</span><span class="bar"></span><span>높음 ({html.escape(objective)})</span></div>
+<div class="legend"><span>나쁨</span><span class="bar"></span><span>좋음 ({html.escape(objective)})</span></div>
 <p class="sub" style="margin-top:18px">💡 넓은 초록 고원 = 견고함. 외딴 초록 점 = 과최적화 위험.
 과거 성과는 미래를 보장하지 않습니다.</p>
 </div></body></html>"""
