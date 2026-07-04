@@ -5,11 +5,22 @@
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
 
 import numpy as np
 import pandas as pd
+
+
+def _symbol_seed(symbol: str) -> int:
+    """심볼 문자열을 결정론적 정수로 매핑한다.
+
+    파이썬 내장 hash()는 PYTHONHASHSEED 때문에 프로세스마다 값이 달라져
+    '재현 가능한' 합성 데이터라는 보장을 깨뜨린다. blake2b로 고정한다.
+    """
+    digest = hashlib.blake2b(symbol.encode("utf-8"), digest_size=4).digest()
+    return int.from_bytes(digest, "big") % 10_000
 
 from quant.data.base import DataProvider
 
@@ -56,8 +67,8 @@ class SyntheticDataProvider(DataProvider):
         end: Optional[datetime] = None,
         limit: int = 500,
     ) -> pd.DataFrame:
-        # 심볼별로 다른(그러나 재현 가능한) 시드
-        rng = np.random.default_rng(self.seed + (hash(symbol) % 10_000))
+        # 심볼별로 다른(그러나 재현 가능한) 시드 — 프로세스 간 결정론 보장
+        rng = np.random.default_rng(self.seed + _symbol_seed(symbol))
         delta = _TIMEFRAME_TO_DELTA.get(timeframe, timedelta(days=1))
         periods_per_year = timedelta(days=365) / delta
 

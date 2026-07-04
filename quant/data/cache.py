@@ -24,6 +24,16 @@ def _safe(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", name)
 
 
+def _provider_id(inner: DataProvider) -> str:
+    """캐시 키에 쓸 제공자 식별자. 클래스명 + 거래소/시장 구분자."""
+    parts = [type(inner).__name__]
+    for attr in ("exchange_id", "market"):
+        val = getattr(inner, attr, None)
+        if val:
+            parts.append(str(val))
+    return _safe("-".join(parts))
+
+
 class CachedDataProvider(DataProvider):
     """임의의 DataProvider를 감싸 디스크 캐시를 추가한다."""
 
@@ -45,7 +55,11 @@ class CachedDataProvider(DataProvider):
         if start is not None or end is not None:
             return self.inner.get_ohlcv(symbol, timeframe, start, end, limit)
 
-        path = self.cache_dir / f"{_safe(symbol)}_{_safe(timeframe)}_{limit}.csv"
+        # 캐시 키에 내부 제공자 정체성을 포함한다. 그렇지 않으면 서로 다른
+        # 거래소/시장(예: binance vs upbit, us_stock vs kr_stock)이 같은 심볼로
+        # 캐시를 덮어써 잘못된 데이터를 반환할 수 있다.
+        provider = _provider_id(self.inner)
+        path = self.cache_dir / f"{provider}_{_safe(symbol)}_{_safe(timeframe)}_{limit}.csv"
         if path.exists() and (time.time() - path.stat().st_mtime) < self.ttl_seconds:
             try:
                 df = pd.read_csv(path, index_col=0, parse_dates=True)
