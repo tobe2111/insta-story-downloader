@@ -13,20 +13,42 @@ STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
 _STYLE = """
- body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#0b1220;color:#e2e8f0}
- @media(prefers-color-scheme:light){body{background:#f8fafc;color:#0f172a}}
- .wrap{max-width:720px;margin:0 auto;padding:28px}
- h1{font-size:20px} label{display:block;margin:14px 0 4px;font-size:13px;color:#94a3b8}
- input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid #334155;
-   background:transparent;color:inherit;font-size:14px}
- button{margin-top:20px;padding:11px 18px;border:0;border-radius:8px;background:#2563eb;
-   color:#fff;font-size:14px;font-weight:600;cursor:pointer}
- .row{display:flex;gap:12px}.row>div{flex:1}
- .warn{color:#b45309;font-size:12px;margin-top:20px}
- a{color:#60a5fa}
- nav{display:flex;gap:16px;margin-bottom:18px;font-size:14px;
-   border-bottom:1px solid #334155;padding-bottom:10px}
- nav a{text-decoration:none;font-weight:600}
+ :root{--bg:#0b1220;--panel:#111a2e;--fg:#e6edf7;--muted:#93a1b8;--line:#22304d;
+   --accent:#3b82f6;--accent2:#2563eb;--ok:#16a34a;--bad:#dc2626;--warn:#d97706;--radius:12px}
+ @media(prefers-color-scheme:light){:root{--bg:#f4f6fb;--panel:#ffffff;--fg:#0f172a;
+   --muted:#5b6b86;--line:#e2e8f0;--accent:#2563eb}}
+ *{box-sizing:border-box}
+ body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;
+   background:var(--bg);color:var(--fg);line-height:1.5;
+   -webkit-font-smoothing:antialiased}
+ .wrap{max-width:780px;margin:0 auto;padding:24px 20px 56px}
+ h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px}
+ h2{font-size:16px;font-weight:700;margin:26px 0 10px}
+ p.sub,.sub{color:var(--muted);font-size:13.5px;margin:0 0 4px}
+ label{display:block;margin:14px 0 5px;font-size:12.5px;font-weight:600;color:var(--muted)}
+ input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+   background:var(--panel);color:inherit;font-size:14px;transition:border-color .15s,box-shadow .15s}
+ input:focus,select:focus{outline:none;border-color:var(--accent);
+   box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+ button{margin-top:22px;padding:12px 20px;border:0;border-radius:10px;
+   background:var(--accent2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
+   transition:filter .15s,transform .05s;width:100%}
+ button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
+ .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:120px}
+ .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+   padding:16px 18px;margin:14px 0}
+ .warn{color:var(--warn);font-size:12.5px;margin-top:22px;
+   background:color-mix(in srgb,var(--warn) 10%,transparent);
+   padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+ a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+ nav{display:flex;gap:6px;margin:0 -4px 20px;padding:6px 4px;font-size:13.5px;
+   overflow-x:auto;border-bottom:1px solid var(--line)}
+ nav a{white-space:nowrap;padding:7px 12px;border-radius:9px;font-weight:600;
+   color:var(--muted);transition:background .15s,color .15s}
+ nav a:hover{background:color-mix(in srgb,var(--accent) 14%,transparent);
+   color:var(--fg);text-decoration:none}
+ table{width:100%;border-collapse:collapse;font-size:13px}
+ form{margin-top:8px}
 """
 
 _NAV = ('<nav><a href="/">📊 백테스트</a>'
@@ -61,7 +83,8 @@ def render_form(message: str = "") -> str:
 <title>Quant · 백테스트</title><style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
 <h1>📈 Quant 백테스트</h1>
-<p style="color:#94a3b8;font-size:13px">시장·종목·전략을 고르고 실행하면 성과 리포트가 나옵니다.</p>
+<p class="sub">시장·종목·전략을 고르고 실행하면 성과 리포트가 나옵니다. 처음이라면
+<code>synthetic</code>(모의 데이터)로 감을 잡아보세요.</p>
 {msg}
 <form action="/backtest" method="get">
   <div class="row">
