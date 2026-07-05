@@ -32,11 +32,21 @@ Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호
 
 **아무것도 설치할 필요 없습니다.** 실행파일을 받아 더블클릭만 하세요:
 
-1. GitHub 저장소 → **Actions 탭 → "Build App"** → 최신 실행 → 아티팩트에서
-   본인 OS용(`quant-cockpit-windows` / `-macos` / `-linux`) 다운로드
-   (또는 관리자가 `v1.0` 같은 태그를 push하면 자동 빌드됩니다)
+1. **[Releases 페이지](https://github.com/tobe2111/insta-story-downloader/releases/latest)**
+   에서 본인 OS용 zip 다운로드 (버튼 클릭 한 번):
+   - Windows: `quant-cockpit-windows.zip`
+   - macOS: `quant-cockpit-macos.zip` · Linux: `quant-cockpit-linux.zip`
 2. 압축을 풀고 **`quant-cockpit` 실행파일을 더블클릭**
 3. 브라우저에 조종석이 자동으로 열립니다 → 클릭으로 사용
+
+> 다운로드 랜딩 페이지(`docs/index.html`)도 있습니다 — 저장소 Settings →
+> Pages → Source를 `main` 브랜치의 `/docs` 폴더로 켜면
+> `https://<계정>.github.io/<저장소>/` 주소로 OS 자동 감지 다운로드 버튼
+> 페이지가 공개됩니다.
+>
+> **최초 1회 릴리스 만들기(관리자)**: Actions 탭 → "Build App" →
+> Run workflow → 버전(예: `v0.2.0`) 입력 → 실행. ~5분 후 Releases에
+> 3개 OS용 zip이 자동 첨부됩니다. 이후 버전 태그 push로도 자동 릴리스.
 
 > ⚠️ 윈도우/맥이 "알 수 없는 개발자" 경고를 낼 수 있어요(서명 안 된 개인 빌드).
 > 본인이 빌드한 파일이니 "실행 허용"을 누르면 됩니다.
