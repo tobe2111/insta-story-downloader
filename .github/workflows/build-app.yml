@@ -1,11 +1,27 @@
 name: Build App
 
-# 무설치 실행파일(Windows/macOS/Linux)을 빌드해 Actions 아티팩트로 올린다.
-# 수동 실행(Actions 탭 → Run workflow) 또는 v* 태그 push 시 동작.
+# 무설치 실행파일(Windows/macOS/Linux)을 빌드해 GitHub Release에 첨부한다.
+# → 저장소의 Releases 페이지가 곧 '다운로드 버튼이 있는 웹페이지'가 된다.
+#   (로그인 없이 누구나 클릭 한 번으로 다운로드 가능)
+#
+# 실행 방법 (둘 중 하나):
+#   1. Actions 탭 → "Build App" → Run workflow → 버전 입력(예: v0.2.0) → 실행
+#   2. 또는 v* 태그 push
+# 완료되면 https://github.com/<owner>/<repo>/releases/latest 에 3개 OS용
+# zip이 다운로드 버튼과 함께 올라간다. 아래 '고정 주소'는 항상 최신을 가리킨다:
+#   .../releases/latest/download/quant-cockpit-windows.zip
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "릴리스 버전 태그 (예: v0.2.0)"
+        required: true
+        default: "v0.2.0"
   push:
     tags: ["v*"]
+
+permissions:
+  contents: write   # Release 생성/자산 업로드에 필요
 
 jobs:
   build:
@@ -40,9 +56,42 @@ jobs:
           --console
           start.py
 
+      # OS별 단일 zip으로 묶는다 — Release 자산 이름이 항상 같아야
+      # 'releases/latest/download/<이름>.zip' 고정 주소가 성립한다.
+      - name: Package (zip)
+        shell: python
+        run: |
+          import os, zipfile
+          out = "${{ matrix.asset }}.zip"
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+              for name in os.listdir("dist"):
+                  z.write(os.path.join("dist", name), name)
+          print("packaged:", out)
+
+      # 아티팩트도 유지(태그 없이 돌린 테스트 빌드 확인용)
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
-          path: dist/*
+          path: ${{ matrix.asset }}.zip
           if-no-files-found: error
+
+      # Release에 자산 첨부 — 다운로드 버튼이 있는 공개 페이지가 만들어진다.
+      # 수동 실행이면 입력한 버전으로 태그·릴리스를 만들고, 태그 push면 그 태그를 쓴다.
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: "Quant ${{ github.event.inputs.version || github.ref_name }}"
+          body: |
+            무설치 실행파일 — 본인 OS용 zip을 받아 압축 해제 후 더블클릭하세요.
+
+            | OS | 파일 |
+            |---|---|
+            | Windows | quant-cockpit-windows.zip |
+            | macOS | quant-cockpit-macos.zip |
+            | Linux | quant-cockpit-linux.zip |
+
+            ⚠️ 서명되지 않은 개인 빌드라 "알 수 없는 개발자" 경고가 뜰 수 있습니다(실행 허용으로 진행).
+            ⚠️ 이 프로그램은 수익을 보장하지 않습니다. 백테스트·페이퍼 검증 후 사용하세요.
+          files: ${{ matrix.asset }}.zip
