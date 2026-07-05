@@ -190,6 +190,96 @@ def _cmd_validate(args) -> None:
           "다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.")
 
 
+# setup 마법사가 안내하는 API 키 그룹. (그룹명, 설명, 필요한 이유, [(env, 안내, 비밀?)])
+# ⚠️ 백테스트·검증·페이퍼 트레이딩은 키가 '하나도' 필요 없다 — 실거래·알림·
+#    보조 데이터에만 필요하다. 키 발급 자체는 계좌 소유자 본인 인증이 필요해
+#    본인만 할 수 있고, 이 마법사는 발급받은 키를 안전하게 저장하는 부분을 맡는다.
+_SETUP_GROUPS = [
+    ("암호화폐 실거래 (ccxt — 바이낸스/업비트 등)",
+     "실거래 주문에만 필요. 발급: 거래소 웹 → API 관리 (출금 권한은 끄세요!)",
+     [("EXCHANGE_API_KEY", "API 키", False),
+      ("EXCHANGE_SECRET", "시크릿", True),
+      ("EXCHANGE_PASSWORD", "패스프레이즈(거래소에 따라, 없으면 엔터)", True)]),
+    ("미국주식 실거래 (Alpaca)",
+     "발급: alpaca.markets → Paper/Live API 키",
+     [("ALPACA_API_KEY", "API 키", False),
+      ("ALPACA_SECRET", "시크릿", True)]),
+    ("한국주식 실거래 (한국투자증권 KIS)",
+     "발급: KIS Developers → 앱 등록",
+     [("KIS_APP_KEY", "앱 키", False),
+      ("KIS_APP_SECRET", "앱 시크릿", True),
+      ("KIS_CANO", "계좌번호(앞 8자리)", False),
+      ("KIS_ACNT_PRDT_CD", "계좌상품코드(뒤 2자리, 보통 01)", False)]),
+    ("알림 (텔레그램)",
+     "봇 생성: @BotFather → 토큰. chat_id: @userinfobot",
+     [("TELEGRAM_BOT_TOKEN", "봇 토큰", True),
+      ("TELEGRAM_CHAT_ID", "챗 ID", False)]),
+    ("보조 데이터 (선택)",
+     "FRED(거시, fred.stlouisfed.org)·FMP(재무, financialmodelingprep.com) — 무료 발급",
+     [("FRED_API_KEY", "FRED 키(없으면 엔터)", True),
+      ("FMP_API_KEY", "FMP 키(없으면 엔터)", True)]),
+]
+
+
+def _cmd_setup(args) -> None:
+    """대화형 API 키 설정 — 물어보고, .env에 안전하게 저장하고, 연결을 확인한다."""
+    import getpass
+
+    from quant.utils.envfile import load_env_file, update_env_file
+
+    print("\n🔑 API 키 설정 마법사")
+    print("─" * 46)
+    print("· 백테스트·검증·페이퍼 트레이딩에는 키가 전혀 필요 없습니다.")
+    print("· 키 '발급'은 계좌 본인 인증이 필요해 직접 하셔야 하지만,")
+    print("  발급 후 입력·저장·확인은 여기서 한 번에 끝납니다.")
+    print("· 저장 위치: .env (git 미포함, 본인만 읽기 권한)")
+    print("· 각 그룹은 건너뛸 수 있습니다(엔터).\n")
+
+    load_env_file()          # 기존 값을 알아야 '이미 설정됨'을 표시할 수 있다
+    import os
+    updates: dict[str, str] = {}
+    for title, guide, fields in _SETUP_GROUPS:
+        print(f"\n■ {title}")
+        print(f"  {guide}")
+        use = input("  설정할까요? [y/N] ").strip().lower()
+        if use not in ("y", "yes"):
+            continue
+        for env, label, secret in fields:
+            cur = " (이미 설정됨 — 엔터=유지)" if os.getenv(env) else ""
+            prompt = f"  {label} [{env}]{cur}: "
+            val = (getpass.getpass(prompt) if secret else input(prompt)).strip()
+            if val:
+                updates[env] = val
+
+    if not updates:
+        print("\n변경 없음 — 종료합니다.")
+        return
+    update_env_file(".env", updates)
+    os.environ.update(updates)      # 이번 세션의 연결 확인에 바로 반영
+    print(f"\n✅ {len(updates)}개 키를 .env에 저장했습니다 (권한 600, git 미포함).")
+
+    # 연결 확인 (best-effort — 실패해도 저장은 유지)
+    if any(k.startswith("EXCHANGE_") for k in updates):
+        try:
+            from quant.data import get_provider
+            df = get_provider("crypto").get_ohlcv("BTC/USDT", "1d", limit=5)
+            fb = bool(df.attrs.get("synthetic_fallback"))
+            print("🔌 거래소 시세 연결: " + ("⚠️ 폴백(네트워크/키 확인)" if fb else "✅ 정상"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"🔌 거래소 연결 확인 실패: {exc}")
+    if "TELEGRAM_BOT_TOKEN" in updates:
+        try:
+            from quant.live.notifications import TelegramNotifier
+            TelegramNotifier(
+                os.getenv("TELEGRAM_BOT_TOKEN", updates.get("TELEGRAM_BOT_TOKEN", "")),
+                os.getenv("TELEGRAM_CHAT_ID", updates.get("TELEGRAM_CHAT_ID", "")),
+            ).send("🔑 Quant 설정 마법사 — 알림 연결 확인")
+            print("📨 텔레그램: 테스트 메시지를 보냈습니다(수신 확인하세요).")
+        except Exception as exc:  # noqa: BLE001
+            print(f"📨 텔레그램 확인 실패: {exc}")
+    print("\n⚠️ 키는 절대 커밋·공유하지 마세요. 실거래 키는 출금 권한을 꺼두세요.")
+
+
 def _cmd_pipeline(args) -> None:
     import runpy
     import sys
@@ -275,6 +365,9 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--cpcv-groups", type=int, default=6, dest="cpcv_groups")
     va.set_defaults(func=_cmd_validate)
 
+    st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
+    st.set_defaults(func=_cmd_setup)
+
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)
     pl.set_defaults(func=_cmd_pipeline)
@@ -283,6 +376,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv=None) -> None:
+    # .env 자동 로딩 — setup 마법사로 저장한 API 키를 매번 export하지 않아도
+    # 모든 명령에서 쓸 수 있다. 셸에서 직접 export한 값이 항상 우선한다.
+    from quant.utils.envfile import load_env_file
+    load_env_file()
+
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):

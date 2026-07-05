@@ -129,6 +129,9 @@ class QuantHandler(BaseHTTPRequestHandler):
 
 
 def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
+    # .env 자동 로딩 — setup 마법사로 저장한 키를 웹 경로에서도 쓸 수 있게.
+    from quant.utils.envfile import load_env_file
+    load_env_file()
     # 비-로컬 바인딩은 무인증 노출 위험이 있어 경고한다(/api/state가 포지션·손익을
     # 공개하고, 어떤 라우트든 백테스트를 강제 실행시킬 수 있다).
     if host not in _LOOPBACK:
