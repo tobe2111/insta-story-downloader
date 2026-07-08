@@ -36,6 +36,10 @@ class RobustBroker(Broker):
         partial_retries: int = 2,
         notifier=None,
         sleep: Callable[[float], None] = time.sleep,
+        confirm_fills: bool = False,
+        fill_timeout: float = 0.0,
+        fill_poll_interval: float = 1.0,
+        now: Callable[[], float] = time.time,
     ):
         self.inner = inner
         self.retries = max(1, retries)
@@ -47,6 +51,15 @@ class RobustBroker(Broker):
         self.partial_retries = max(0, partial_retries)
         self.notifier = notifier
         self._sleep = sleep
+        # 체결 확인(주식용): 주식 시장가는 접수 후 체결까지 시차가 있어 접수 응답만으로는
+        # 실제 체결 수량을 알 수 없다. 브로커가 알려준 체결이 0이면, '이미 테스트된'
+        # get_position만으로 주문 전후 포지션 변화를 측정해 실제 체결을 확인한다
+        # (추측성 주문조회 엔드포인트를 늘리지 않는다). fill_timeout 안에서
+        # fill_poll_interval마다 확인하고, 시간 내 안 채워지면 미체결로 보고한다.
+        self.confirm_fills = confirm_fills
+        self.fill_timeout = max(0.0, fill_timeout)
+        self.fill_poll_interval = max(0.1, fill_poll_interval)
+        self._now = now
 
     # --- 조회는 그대로 위임 ---
     def get_cash(self) -> float:
@@ -83,13 +96,21 @@ class RobustBroker(Broker):
             return Order(symbol, side, 0.0, price, status="skipped", filled_quantity=0.0)
 
         filled_total = 0.0
+        last_order_id = ""
         # 첫 주문 + 부분체결 시 잔량 재주문(partial_retries회까지)
         for _ in range(self.partial_retries + 1):
             want = self._round_qty(qty - filled_total)
             if want <= 0 or not self.spec.is_tradeable(want, price):
                 break
+            # 체결 확인용: 제출 직전 포지션(변화량으로 실제 체결을 측정).
+            base_qty = self._safe_pos(symbol) if self.confirm_fills else None
             order = self._submit_with_retry(symbol, side, want, price)
+            last_order_id = getattr(order, "order_id", "") or last_order_id
             got = self._filled_of(order, want)
+            # 접수는 됐지만 체결 수량 미상(주식 시장가 등)이면 포지션 변화로 확인.
+            if (self.confirm_fills and got <= 0 and base_qty is not None
+                    and order.status not in ("skipped", "rejected", "unfilled")):
+                got = self._confirm_by_position(symbol, side, want, base_qty)
             filled_total += got
             if got >= want * (1 - 1e-9):
                 break  # 완전 체결
@@ -106,7 +127,36 @@ class RobustBroker(Broker):
             status = "partial"
         else:
             status = "unfilled"
-        return Order(symbol, side, qty, price, status=status, filled_quantity=filled_total)
+        return Order(symbol, side, qty, price, status=status,
+                     filled_quantity=filled_total, order_id=last_order_id)
+
+    def _safe_pos(self, symbol: str) -> float | None:
+        try:
+            return self.inner.get_position(symbol).quantity
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _confirm_by_position(self, symbol: str, side: str, want: float,
+                             base_qty: float) -> float:
+        """주문 후 포지션 변화를 fill_timeout 동안 폴링해 실제 체결 수량을 측정한다.
+
+        오직 get_position(모든 브로커가 구현·테스트됨)만 사용한다. 매수는 포지션
+        증가, 매도는 감소가 정상이며, 관측된 변화량을 want로 상한한다. 시간 내
+        변화가 없으면 0(미체결)을 반환한다 — 접수 응답을 체결로 위조하지 않는다.
+        """
+        deadline = self._now() + self.fill_timeout
+        best = 0.0
+        while True:
+            now_qty = self._safe_pos(symbol)
+            if now_qty is not None:
+                delta = now_qty - base_qty
+                signed = delta if side == "buy" else -delta
+                best = max(best, min(signed, want))
+                if best >= want * (1 - 1e-6):
+                    return best
+            if self._now() >= deadline:
+                return max(0.0, best)
+            self._sleep(self.fill_poll_interval)
 
     def _submit_with_retry(self, symbol: str, side: str, qty: float, price: float) -> Order:
         """오류 발생 시 지수 백오프로 재시도. 최종 실패 시 알림 후 예외.

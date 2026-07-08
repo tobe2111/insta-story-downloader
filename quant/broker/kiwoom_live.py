@@ -131,6 +131,11 @@ class KiwoomBroker(Broker):
         log.warning("[KIWOOM] %s %s %d주 시장가 주문 전송", side.upper(), symbol, qty)
         res = post_json(f"{self.base}/api/dostk/ordr", self._headers(api_id), body)
         rc = res.get("return_code", res.get("rt_cd"))
-        ok = rc in (0, "0")
-        status = "filled" if ok else str(res.get("return_msg", res.get("msg1", "unknown")))
-        return Order(symbol, side, float(qty), price, status=status)
+        accepted = rc in (0, "0")
+        # KIS와 동일: return_code 0은 '접수 성공'이지 '체결'이 아니다. 접수를
+        # 체결로 위조하지 않고 'accepted'로 보고한다(실제 체결은 포지션 변화로 확인).
+        odno = str(res.get("ord_no", res.get("odno", "")))
+        status = "accepted" if accepted else str(
+            res.get("return_msg", res.get("msg1", "rejected")))
+        return Order(symbol, side, float(qty), price, status=status,
+                     filled_quantity=0.0, order_id=odno)

@@ -122,7 +122,7 @@ def test_kis_order_and_balance():
             return {"HASH": "hh"}
         if "order-cash" in url:
             order_body.update(body or {})
-            return {"rt_cd": "0", "msg1": "정상처리"}
+            return {"rt_cd": "0", "msg1": "정상처리", "output": {"ODNO": "0000117"}}
         return {}
 
     def fake_get(url, headers=None):
@@ -140,7 +140,11 @@ def test_kis_order_and_balance():
     assert order_body["PDNO"] == "005930"
     assert order_body["ORD_DVSN"] == "01"   # 시장가
     assert order_body["ORD_QTY"] == "10"
-    assert order.status == "filled"
+    # 접수(rt_cd=0)를 '체결'로 위조하지 않는다 — 'accepted'로 정직하게 보고하고
+    # 주문번호를 남긴다. 실제 체결은 RobustBroker(confirm_fills)가 포지션으로 확인.
+    assert order.status == "accepted"
+    assert order.filled_quantity == 0.0
+    assert order.order_id == "0000117"
     assert cash == 1000000.0
     assert pos.quantity == 5.0 and pos.avg_price == 68000.0
 
@@ -167,7 +171,7 @@ def test_kiwoom_order_routing_and_balance():
         if url.endswith("/api/dostk/ordr"):
             sent["api_id"] = headers.get("api-id")
             sent["body"] = body
-            return {"return_code": 0, "return_msg": "정상", "ord_no": "0001"}
+            return {"return_code": 0, "return_msg": "정상", "ord_no": "0000123"}
         if url.endswith("/api/dostk/acnt"):
             return {"prsm_dpst_aset_amt": "2,000,000",
                     "acnt_evlt_remn_indv_tot": [
@@ -184,7 +188,9 @@ def test_kiwoom_order_routing_and_balance():
     assert sent["body"]["stk_cd"] == "005930"
     assert sent["body"]["ord_qty"] == "3"
     assert sent["body"]["trde_tp"] == "3"            # 시장가
-    assert buy.status == "filled" and sell.status == "filled"
+    # 접수를 '체결'로 위조하지 않는다(KIS와 동일 규약)
+    assert buy.status == "accepted" and sell.status == "accepted"
+    assert buy.order_id == "0000123" and buy.filled_quantity == 0.0
     assert cash == 2_000_000.0                        # 콤마 제거 파싱
     assert pos.quantity == 7.0 and pos.avg_price == 68000.0   # 'A005930' → '005930' 매칭
 
