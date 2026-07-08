@@ -342,6 +342,36 @@ python -m quant setup
 
 > ⚠️ **정직한 한계 — 실계좌 전 반드시 확인하세요.** ① 위 장치와 브로커 파싱은 전부 목(mock) 테스트로 검증됐지만 **실제 거래소 API로는 아직 검증되지 않았습니다** — 응답 필드가 제 가정과 다르면 첫 실주문에서 어긋날 수 있습니다. **KIS·Alpaca가 무료 제공하는 모의투자 계좌로 소액 실주문을 먼저 넣어보세요.** ② 장 시간 가드에는 **공휴일 달력이 없습니다**(요일+시간만 판정) — 국경일·임시 휴장은 브로커 거부에 의존합니다. ③ 키움은 베타입니다.
 
+## 나만의 전략 넣기 (커스텀 전략)
+
+내 아이디어를 소스 수정 없이 꽂을 수 있습니다. `Strategy`를 상속해
+`generate_signals(df)`가 목표 비중(-1~1)을 돌려주면 끝입니다.
+`examples/custom_strategy.py`를 복사해 시작하세요.
+
+```python
+from quant.strategies.base import Strategy
+class MyStrategy(Strategy):
+    name = "my_strategy"
+    def generate_signals(self, df):
+        signal = ...                      # df로 목표비중 계산(미래 참조 금지)
+        return self._finalize(signal, df.index)
+```
+
+이 파일을 **`strategies_user/` 폴더**에 넣으면 자동 등록되어, 기본 전략과 완전히
+동등하게 쓸 수 있습니다 — 백테스트·**과최적화 검증(validate)**·페이퍼·실거래·웹
+드롭다운 전부:
+
+```bash
+python -m quant backtest --strategy my_strategy
+python -m quant validate --strategy my_strategy --grid '{"window":[20,50,100]}'
+```
+
+코드에서 직접 등록도 됩니다: `from quant.strategies import register_strategy`.
+코딩이 부담되면 트레이딩뷰(Pine Script) 전략을 웹훅으로 받을 수도 있습니다.
+
+> ⚠️ 커스텀 전략도 반드시 `validate`(과최적화 검증) → 페이퍼 순서로 확인하세요.
+> `tests/test_leakage.py`가 미래 참조(룩어헤드)를 자동으로 잡아줍니다.
+
 ## 트레이딩뷰(TradingView) 연동
 
 트레이딩뷰 Pine Script 전략의 알림을 받아 주문을 낼 수 있습니다(웹훅). 트레이딩뷰는

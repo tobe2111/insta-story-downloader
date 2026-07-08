@@ -477,6 +477,14 @@ def main(argv=None) -> None:
     from quant.utils.envfile import load_env_file
     load_env_file()
 
+    # 사용자 전략 폴더(strategies_user/ 또는 QUANT_STRATEGY_DIR)를 불러와 등록한다.
+    # 이러면 내 전략을 --strategy <이름>·validate·웹 드롭다운에서 바로 쓸 수 있다.
+    try:
+        from quant.strategies import load_user_strategies
+        load_user_strategies()
+    except Exception:  # noqa: BLE001 — 사용자 전략 오류가 CLI 전체를 막지 않게
+        pass
+
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):

@@ -132,6 +132,17 @@ def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     # .env 자동 로딩 — setup 마법사로 저장한 키를 웹 경로에서도 쓸 수 있게.
     from quant.utils.envfile import load_env_file
     load_env_file()
+    # 사용자 전략 폴더를 불러와 웹 전략 드롭다운에도 노출한다(폼 렌더는 여전히
+    # pandas 불필요 — 여기서 확장된 목록만 읽는다).
+    try:
+        from quant.strategies import list_strategies, load_user_strategies
+        from quant.web import app as _app
+        if load_user_strategies():
+            for nm in list_strategies():
+                if nm not in _app.STRATEGIES:
+                    _app.STRATEGIES.append(nm)
+    except Exception:  # noqa: BLE001
+        pass
     # 비-로컬 바인딩은 무인증 노출 위험이 있어 경고한다(/api/state가 포지션·손익을
     # 공개하고, 어떤 라우트든 백테스트를 강제 실행시킬 수 있다).
     if host not in _LOOPBACK:
