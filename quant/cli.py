@@ -280,6 +280,78 @@ def _cmd_setup(args) -> None:
     print("\n⚠️ 키는 절대 커밋·공유하지 마세요. 실거래 키는 출금 권한을 꺼두세요.")
 
 
+def _cmd_webhook(args) -> None:
+    """트레이딩뷰 등의 알림 웹훅을 받아 주문을 실행한다(기본 페이퍼, 보안 필수)."""
+    import os
+
+    from quant.broker import RobustBroker, get_broker
+    from quant.data import get_provider
+    from quant.live.webhook import (
+        TRADINGVIEW_IPS,
+        WebhookExecutor,
+        run_webhook_server,
+    )
+
+    secret = os.getenv("QUANT_WEBHOOK_SECRET", "")
+    if not secret:
+        print("❌ 환경변수 QUANT_WEBHOOK_SECRET(공유 비밀키)이 필요합니다.\n"
+              "   인증 없는 주문 엔드포인트는 누구나 내 계좌로 주문을 낼 수 있어 "
+              "실행할 수 없습니다.\n   예: export QUANT_WEBHOOK_SECRET='아주-긴-무작위-문자열'")
+        return
+
+    _live_mode = {"crypto": "crypto_live", "us_stock": "us_live", "kr_stock": "kr_live"}
+    is_stock = args.market in ("us_stock", "kr_stock")
+    if args.live:
+        if args.market not in _live_mode:
+            print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
+            return
+        c = input("⚠️ 실거래 웹훅입니다. 외부 신호가 실제 자금으로 주문을 냅니다. "
+                  "계속? (yes 입력): ")
+        if c.strip().lower() != "yes":
+            print("취소되었습니다.")
+            return
+        inner = get_broker(_live_mode[args.market])
+        broker = RobustBroker(inner, retries=3, backoff=2.0,
+                              confirm_fills=is_stock,
+                              fill_timeout=90.0 if is_stock else 0.0)
+        mode = "live"
+    else:
+        broker = get_broker("paper", cash=args.cash)
+        mode = "paper"
+        print("📝 페이퍼 모드 — 실제 자금 사용 안 함")
+
+    # 페이로드에 price가 없을 때 쓰는 현재가 조회(선택). 트레이딩뷰는 {{close}}를
+    # 실어 보내는 것을 권장(네트워크 조회 없이 즉시 실행).
+    provider = get_provider(args.market)
+
+    def price_fn(symbol: str) -> float:
+        df = provider.get_ohlcv(symbol, args.timeframe, limit=2)
+        return float(df["close"].iloc[-1]) if len(df) else 0.0
+
+    symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
+    executor = WebhookExecutor(
+        broker, symbols=symbols, market=(args.market if is_stock else None),
+        rebalance_band=args.rebalance_band, max_weight=args.max_weight,
+        allow_short=args.allow_short, price_fn=price_fn)
+
+    allow_ips = None
+    if args.tradingview_ips:
+        allow_ips = set(TRADINGVIEW_IPS)
+    elif args.allow_ips:
+        allow_ips = {ip.strip() for ip in args.allow_ips.split(",") if ip.strip()}
+
+    print(f"🔌 웹훅 서버 시작 ({mode}) — {args.host}:{args.port}")
+    print("   Pine Script 알림 메시지(JSON) 예시:")
+    print('   {"secret":"<비밀키>","action":"long","symbol":"'
+          f'{(symbols or ["BTC/USDT"])[0]}","price":{{{{close}}}}}}')
+    if not allow_ips:
+        print("   ⚠️ IP 허용목록 미설정 — --tradingview-ips 권장(공식 IP만 허용).")
+    print("   ⚠️ 이 포트를 인터넷에 열 때는 HTTPS(리버스 프록시) 뒤에 두세요.")
+    run_webhook_server(executor, host=args.host, port=args.port, secret=secret,
+                       allow_ips=allow_ips, replay=True,
+                       max_age_sec=args.max_age)
+
+
 def _cmd_pipeline(args) -> None:
     import runpy
     import sys
@@ -367,6 +439,30 @@ def build_parser() -> argparse.ArgumentParser:
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)
+
+    wh = sub.add_parser(
+        "webhook",
+        help="트레이딩뷰 등 알림 웹훅 수신 → 주문 실행(기본 페이퍼, 비밀키 필수)")
+    wh.add_argument("--market", default="crypto")
+    wh.add_argument("--symbols", default=None,
+                    help="허용 종목(쉼표 구분). 미지정 시 전체 허용")
+    wh.add_argument("--timeframe", default="1h")
+    wh.add_argument("--live", action="store_true", help="실거래(⚠️ 실제 자금)")
+    wh.add_argument("--cash", type=float, default=10_000.0, help="페이퍼 초기자본")
+    wh.add_argument("--host", default="0.0.0.0")
+    wh.add_argument("--port", type=int, default=8100)
+    wh.add_argument("--rebalance-band", type=float, default=0.02,
+                    dest="rebalance_band")
+    wh.add_argument("--max-weight", type=float, default=1.0, dest="max_weight",
+                    help="신호당 최대 목표 비중(0~1)")
+    wh.add_argument("--allow-short", action="store_true", dest="allow_short")
+    wh.add_argument("--tradingview-ips", action="store_true", dest="tradingview_ips",
+                    help="트레이딩뷰 공식 IP만 허용(권장)")
+    wh.add_argument("--allow-ips", default=None, dest="allow_ips",
+                    help="허용 발신 IP 목록(쉼표 구분). 리버스 프록시 뒤면 생략")
+    wh.add_argument("--max-age", type=float, default=0.0, dest="max_age",
+                    help=">0이면 payload timestamp가 이 초보다 오래되면 거부")
+    wh.set_defaults(func=_cmd_webhook)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)
