@@ -61,17 +61,9 @@ _NAV = ('<nav><a href="/">📊 백테스트</a>'
 
 ALLOCATIONS = ["inverse_vol", "equal", "hrp"]
 
-# 워크포워드 최적화가 지원하는 전략과 파라미터 격자
-_OPT_GRIDS = {
-    "ma_cross": {"fast": [5, 10, 20], "slow": [40, 60, 120]},
-    "momentum": {"lookback": [30, 60, 90, 120]},
-    "rsi": {"period": [7, 14, 21]},
-    "mean_reversion": {"window": [10, 20, 30], "z": [1.5, 2.0, 2.5]},
-    "macd": {"fast": [8, 12], "slow": [21, 26]},
-    "keltner": {"ema_window": [10, 20], "atr_window": [10, 14], "mult": [1.5, 2.0, 2.5]},
-    "stochastic": {"k_period": [10, 14], "oversold": [20, 25], "overbought": [75, 80]},
-    "ml": {"model": ["logreg", "gb"], "threshold": [0.53, 0.57]},
-}
+# 워크포워드 최적화가 지원하는 전략과 파라미터 격자 — CLI validate와 단일 출처
+# (quant.markets)를 공유한다. quant.markets는 의존성 0이라 pandas 없는 폼 렌더도 안전.
+from quant.markets import STRATEGY_GRIDS as _OPT_GRIDS
 
 
 def render_form(message: str = "") -> str:
@@ -592,13 +584,12 @@ IS만 화려하면 그 전략은 과최적화된 것입니다.</p>
 def render_validate_form(message: str = "") -> str:
     """과최적화 검증 3종(워크포워드+DSR·PBO·CPCV) 폼 (pandas 불필요).
 
-    전략 선택지는 CLI validate와 같은 기본 그리드(_VALIDATE_GRIDS)를 가진
+    전략 선택지는 CLI validate와 같은 기본 그리드(_OPT_GRIDS)를 가진
     전략으로 제한한다 — 그리드가 없으면 검증할 조합 자체가 없다.
     """
-    from quant.cli import _VALIDATE_GRIDS   # argparse만 쓰는 경량 모듈(pandas 없음)
 
     market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _VALIDATE_GRIDS)
+    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _OPT_GRIDS)
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -635,17 +626,16 @@ def run_validate_html(params: dict) -> str:
     리포트 문자열(pbo_report·cpcv_report)을 재사용하고 <pre>로 감싼다.
     단계별 ValueError(데이터 부족 등)는 그 단계만 '건너뜀'으로 표시한다.
     """
-    from quant.cli import _VALIDATE_GRIDS
 
     market = params.get("market", "synthetic")
     symbol = params.get("symbol", "DEMO")
     timeframe = params.get("timeframe", "1d")
     strategy_name = params.get("strategy", "ma_cross")
-    grid = _VALIDATE_GRIDS.get(strategy_name)
+    grid = _OPT_GRIDS.get(strategy_name)
     if not grid:
         return render_validate_form(
             f"'{strategy_name}'는 검증 미지원 전략입니다 "
-            f"(기본 그리드 지원: {', '.join(_VALIDATE_GRIDS)}).")
+            f"(기본 그리드 지원: {', '.join(_OPT_GRIDS)}).")
     try:
         limit = max(200, min(5000, int(params.get("limit", 800))))
         is_window = max(50, int(params.get("is_window", 250)))

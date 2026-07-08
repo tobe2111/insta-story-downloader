@@ -21,8 +21,7 @@ from quant.live import LiveTrader
 from quant.risk import RiskConfig, RiskManager
 from quant.strategies import get_strategy
 
-# 정규장 시간이 정해진 시장(주식). 코인은 24시간이라 가드 대상이 아니다.
-_SCHEDULED_MARKETS = {"us_stock", "kr_stock"}
+from quant.markets import LIVE_BROKER_FOR_MARKET, SCHEDULED_MARKETS as _SCHEDULED_MARKETS
 
 
 def main() -> None:
@@ -47,18 +46,15 @@ def main() -> None:
     strategy = get_strategy(args.strategy)
     risk = RiskManager(RiskConfig(periods_per_year=ppy, stop_loss=0.15))
 
-    # 시장 → 실거래 브로커 매핑
-    _live_mode = {"crypto": "crypto_live", "us_stock": "us_live", "kr_stock": "kr_live"}
-
     if args.live:
-        if args.market not in _live_mode:
+        if args.market not in LIVE_BROKER_FOR_MARKET:
             print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
             return
         confirm = input("⚠️ 실거래 모드입니다. 실제 자금이 사용됩니다. 계속? (yes 입력): ")
         if confirm.strip().lower() != "yes":
             print("취소되었습니다.")
             return
-        inner = get_broker(_live_mode[args.market])
+        inner = get_broker(LIVE_BROKER_FOR_MARKET[args.market])
         # 실거래는 RobustBroker로 감싼다: 재시도·부분체결 잔량주문·중복 방지.
         # 주식은 시장가 '접수'와 '체결'에 시차가 있으므로 체결 확인(포지션 변화)을
         # 켜서 접수를 체결로 오판하지 않게 한다. 코인은 즉시 체결이라 불필요.

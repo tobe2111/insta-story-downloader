@@ -121,14 +121,8 @@ def _cmd_learn(args) -> None:
     learner.run(cycles=cycles, interval_sec=args.interval)
 
 
-# validate 명령이 지원하는 전략별 기본 파라미터 그리드.
-# 작게 유지한다 — 그리드가 클수록 '운으로 나올 최대 샤프'(DSR 기준선)만 올라간다.
-_VALIDATE_GRIDS = {
-    "ma_cross": {"fast": [5, 10, 20], "slow": [40, 60, 120]},
-    "momentum": {"lookback": [30, 60, 90]},
-    "breakout": {"window": [20, 40, 55]},
-    "rsi": {"period": [7, 14, 21]},
-}
+# validate/웹 최적화가 공유하는 전략별 기본 그리드 — 단일 출처(quant.markets).
+from quant.markets import STRATEGY_GRIDS as _VALIDATE_GRIDS
 
 
 def _cmd_validate(args) -> None:
@@ -299,8 +293,8 @@ def _cmd_webhook(args) -> None:
               "실행할 수 없습니다.\n   예: export QUANT_WEBHOOK_SECRET='아주-긴-무작위-문자열'")
         return
 
-    _live_mode = {"crypto": "crypto_live", "us_stock": "us_live", "kr_stock": "kr_live"}
-    is_stock = args.market in ("us_stock", "kr_stock")
+    from quant.markets import LIVE_BROKER_FOR_MARKET as _live_mode, SCHEDULED_MARKETS
+    is_stock = args.market in SCHEDULED_MARKETS
     if args.live:
         if args.market not in _live_mode:
             print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
