@@ -363,6 +363,43 @@ def _cmd_journal(args) -> None:
     review = review_state_file(args.state, periods_per_year=_ppy(args.market))
     print(f"\n=== 거래 복기: {args.state} ===")
     print(review_report(review))
+def _cmd_costcheck(args) -> None:
+    """손익분기 비용 분석 — 이 전략이 실전 수수료를 이길 수 있는지 폭로한다.
+    손익분기 수수료가 시장 비용보다 낮으면 고회전 전략의 환상이다."""
+    from quant.backtest.cost_sensitivity import (
+        break_even_cost,
+        cost_sensitivity_report,
+        cost_sweep,
+    )
+    from quant.data import get_provider
+    from quant.strategies import get_strategy
+
+    ppy = _ppy(args.market)
+    df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe,
+                                             limit=args.limit)
+    factory = lambda: get_strategy(args.strategy)  # noqa: E731 — 상태 없는 새 전략
+    fees = [0.0, 0.0005, 0.001, 0.002, 0.005]
+    print(f"\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    sweep = cost_sweep(df, factory, fees, periods_per_year=ppy)
+    be = break_even_cost(df, factory, periods_per_year=ppy)
+    print(cost_sensitivity_report(sweep, be))
+
+
+def _cmd_compare(args) -> None:
+    """전략 A/B 유의성 검정 — 차이가 노이즈인지 실제 개선인지 구분한다."""
+    from quant.data import get_provider
+    from quant.robustness import ab_test, compare_report
+    from quant.strategies import get_strategy
+
+    ppy = _ppy(args.market)
+    df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe,
+                                             limit=args.limit)
+    fa = lambda: get_strategy(args.strategy_a)  # noqa: E731
+    fb = lambda: get_strategy(args.strategy_b)  # noqa: E731
+    print(f"\n=== A/B 비교: A={args.strategy_a} vs B={args.strategy_b} · "
+          f"{args.symbol} ({len(df)}봉) ===")
+    result = ab_test(df, fa, fb, periods_per_year=ppy)
+    print(compare_report(result))
 
 
 def _cmd_pipeline(args) -> None:
@@ -483,6 +520,26 @@ def build_parser() -> argparse.ArgumentParser:
     jn.add_argument("--state", default="results/state.json")
     jn.add_argument("--market", default="crypto")
     jn.set_defaults(func=_cmd_journal)
+    cc = sub.add_parser(
+        "costcheck",
+        help="손익분기 비용 분석(수수료 스윕+손익분기) — 비용을 이기는지 확인")
+    cc.add_argument("--market", default="crypto")
+    cc.add_argument("--symbol", default="BTC/USDT")
+    cc.add_argument("--timeframe", default="1d")
+    cc.add_argument("--limit", type=int, default=500)
+    cc.add_argument("--strategy", default="ma_cross")
+    cc.set_defaults(func=_cmd_costcheck)
+
+    cm = sub.add_parser(
+        "compare",
+        help="전략 A/B 유의성 검정 — 차이가 노이즈인지 실제 개선인지")
+    cm.add_argument("--market", default="crypto")
+    cm.add_argument("--symbol", default="BTC/USDT")
+    cm.add_argument("--timeframe", default="1d")
+    cm.add_argument("--limit", type=int, default=500)
+    cm.add_argument("--strategy-a", default="ma_cross", dest="strategy_a")
+    cm.add_argument("--strategy-b", default="momentum", dest="strategy_b")
+    cm.set_defaults(func=_cmd_compare)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)

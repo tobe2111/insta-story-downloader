@@ -93,6 +93,24 @@ def test_validate_runs_end_to_end(capsys):
     assert "보장되지 않습니다" in out
 
 
+def test_costcheck_subcommand_parses():
+    ns = cli.build_parser().parse_args(
+        ["costcheck", "--strategy", "ma_cross", "--market", "crypto",
+         "--limit", "300"])
+    assert ns.command == "costcheck" and callable(ns.func)
+    assert ns.strategy == "ma_cross" and ns.market == "crypto"
+    assert ns.limit == 300
+
+
+def test_compare_subcommand_parses():
+    ns = cli.build_parser().parse_args(
+        ["compare", "--strategy-a", "ma_cross", "--strategy-b", "momentum",
+         "--market", "crypto"])
+    assert ns.command == "compare" and callable(ns.func)
+    assert ns.strategy_a == "ma_cross" and ns.strategy_b == "momentum"
+    assert ns.market == "crypto"
+
+
 def test_webhook_subcommand_parses():
     ns = cli.build_parser().parse_args(
         ["webhook", "--market", "us_stock", "--symbols", "AAPL,MSFT",
