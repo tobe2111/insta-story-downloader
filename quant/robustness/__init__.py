@@ -4,6 +4,11 @@ from quant.robustness.calibration import (
     calibration_bins,
     calibration_summary,
 )
+from quant.robustness.compare import (
+    ab_test,
+    compare_report,
+    compare_strategies,
+)
 from quant.robustness.deflated_sharpe import (
     deflated_sharpe_ratio,
     expected_max_sharpe,
@@ -43,4 +48,7 @@ __all__ = [
     "brier_score",
     "calibration_bins",
     "calibration_summary",
+    "compare_strategies",
+    "compare_report",
+    "ab_test",
 ]
