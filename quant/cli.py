@@ -356,6 +356,15 @@ def _cmd_webhook(args) -> None:
                        max_age_sec=args.max_age)
 
 
+def _cmd_journal(args) -> None:
+    """봇 상태 파일에서 실거래/페이퍼 성과를 복기한다(거래 단위 통계)."""
+    from quant.live.journal import review_report, review_state_file
+
+    review = review_state_file(args.state, periods_per_year=_ppy(args.market))
+    print(f"\n=== 거래 복기: {args.state} ===")
+    print(review_report(review))
+
+
 def _cmd_pipeline(args) -> None:
     import runpy
     import sys
@@ -469,6 +478,11 @@ def build_parser() -> argparse.ArgumentParser:
     wh.add_argument("--max-age", type=float, default=0.0, dest="max_age",
                     help=">0이면 payload timestamp가 이 초보다 오래되면 거부")
     wh.set_defaults(func=_cmd_webhook)
+
+    jn = sub.add_parser("journal", help="봇 상태 파일에서 거래 성과 복기(거래 단위 통계)")
+    jn.add_argument("--state", default="results/state.json")
+    jn.add_argument("--market", default="crypto")
+    jn.set_defaults(func=_cmd_journal)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)
