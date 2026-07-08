@@ -39,10 +39,13 @@ Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호
 2. 압축을 풀고 **`quant-cockpit` 실행파일을 더블클릭**
 3. 브라우저에 조종석이 자동으로 열립니다 → 클릭으로 사용
 
-> 다운로드 랜딩 페이지(`docs/index.html`)도 있습니다 — 저장소 Settings →
-> Pages → Source를 `main` 브랜치의 `/docs` 폴더로 켜면
-> `https://<계정>.github.io/<저장소>/` 주소로 OS 자동 감지 다운로드 버튼
-> 페이지가 공개됩니다.
+> 다운로드 랜딩 페이지(`docs/`)를 무료로 공개하는 두 방법:
+> - **Cloudflare (권장, 영구 무료)**: 저장소를 Cloudflare Workers & Pages에
+>   연결하면 `wrangler.jsonc`(정적 에셋 전용, 빌드 없음)를 읽어 `docs/`를
+>   그대로 서빙합니다. `main`에 push할 때마다 자동 재배포됩니다.
+>   ⚠️ Cloudflare 프로젝트 설정에서 **Build command는 비워두세요**(정적이라 빌드 불필요).
+> - **GitHub Pages**: Settings → Pages → Source를 `main`의 `/docs` 폴더로 →
+>   `https://<계정>.github.io/<저장소>/` 로 공개.
 >
 > **최초 1회 릴리스 만들기(관리자)**: Actions 탭 → "Build App" →
 > Run workflow → 버전(예: `v0.2.0`) 입력 → 실행. ~5분 후 Releases에
