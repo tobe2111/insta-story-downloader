@@ -180,6 +180,16 @@ def _cmd_validate(args) -> None:
     except ValueError as exc:
         print(f"  건너뜀: {exc}")
 
+    if getattr(args, "report", None):
+        from quant.reporting import render_validation_report
+        out = render_validation_report(
+            df, strategy_cls, grid, path=args.report,
+            title=f"{args.strategy} · {args.symbol} 검증",
+            is_window=args.is_window, oos_window=args.oos_window,
+            embargo=args.embargo, pbo_blocks=args.pbo_blocks,
+            cpcv_groups=args.cpcv_groups, periods_per_year=ppy)
+        print(f"\n📄 검증 리포트(그래프): {out}")
+
     print("\n⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다. "
           "다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.")
 
@@ -429,6 +439,8 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--embargo", type=int, default=5)
     va.add_argument("--pbo-blocks", type=int, default=10, dest="pbo_blocks")
     va.add_argument("--cpcv-groups", type=int, default=6, dest="cpcv_groups")
+    va.add_argument("--report", default=None,
+                    help="검증 결과를 그래프 HTML 리포트로 저장(예: results/validate.html)")
     va.set_defaults(func=_cmd_validate)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")

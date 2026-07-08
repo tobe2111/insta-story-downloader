@@ -18,6 +18,8 @@ __all__ = [
     "strategy_attribution",
     "attribution_report",
     "ensemble_weight_report",
+    "build_validation_html",
+    "render_validation_report",
 ]
 
 _LAZY = {
@@ -30,6 +32,8 @@ _LAZY = {
     "strategy_attribution": "quant.reporting.attribution",
     "attribution_report": "quant.reporting.attribution",
     "ensemble_weight_report": "quant.reporting.attribution",
+    "build_validation_html": "quant.reporting.validation_report",
+    "render_validation_report": "quant.reporting.validation_report",
 }
 
 
