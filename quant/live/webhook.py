@@ -31,7 +31,7 @@ log = get_logger("live.webhook")
 
 # 트레이딩뷰 공식 웹훅 발신 IP(문서 기준). ⚠️ 변경될 수 있으니 실제 사용 전
 # 트레이딩뷰 최신 문서로 확인하고 QUANT_WEBHOOK_ALLOW_IPS로 덮어쓸 것.
-TRADINGVIEW_IPS = {"52.89.214.238", "34.212.75.30", "52.32.178.7", "52.89.214.238"}
+TRADINGVIEW_IPS = {"52.89.214.238", "34.212.75.30", "52.32.178.7", "52.30.86.128"}
 
 _LONG = {"long", "buy", "enter_long", "1"}
 _SHORT = {"short", "sell", "enter_short", "-1"}

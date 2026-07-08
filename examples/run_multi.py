@@ -41,7 +41,7 @@ def main() -> None:
     p.add_argument("--dashboard", default="results/multi_dashboard.html")
     args = p.parse_args()
 
-    _live_mode = {"crypto": "crypto_live", "us_stock": "us_live", "kr_stock": "kr_live"}
+    from quant.markets import LIVE_BROKER_FOR_MARKET as _live_mode
     notifier = get_notifier()
 
     if args.live:

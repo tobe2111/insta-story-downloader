@@ -49,9 +49,75 @@ __all__ = [
     "LiquidityFilter",
     "get_strategy",
     "list_strategies",
+    "register_strategy",
+    "load_user_strategies",
     "default_ensemble",
     "adaptive_ensemble",
 ]
+
+
+def register_strategy(name: str, cls: type, *, overwrite: bool = False) -> None:
+    """사용자 전략을 이름으로 등록한다(소스 수정 없이). 이후 CLI·웹·validate에서
+    그 이름으로 바로 쓸 수 있다.
+
+    name : `--strategy <name>` 및 웹 드롭다운에 나타날 이름
+    cls  : Strategy 하위 클래스 (파라미터만으로 생성 가능해야 함 — get_strategy가
+           kwargs 없이도 인스턴스화한다)
+    overwrite=False 면 기존 이름을 덮어쓰려 할 때 막는다(실수 방지).
+    """
+    if not (isinstance(cls, type) and issubclass(cls, Strategy)):
+        raise TypeError(f"{cls!r} 는 Strategy 하위 클래스가 아닙니다.")
+    if name in _REGISTRY and not overwrite:
+        raise ValueError(f"이미 등록된 전략 이름: {name!r} (덮어쓰려면 overwrite=True)")
+    _REGISTRY[name] = cls
+
+
+def load_user_strategies(path: str | None = None) -> list[str]:
+    """사용자 전략 폴더의 *.py 를 불러와 자동 등록한다. 등록된 이름 목록을 반환.
+
+    폴더 경로: 인자 path → 환경변수 QUANT_STRATEGY_DIR → ./strategies_user.
+    각 .py 파일에서:
+        · `register_strategy(...)`를 직접 호출하거나,
+        · Strategy 하위 클래스를 정의하면 클래스의 `name` 속성(없으면 파일명)으로
+          자동 등록한다.
+    한 파일이 실패해도 나머지는 계속 불러온다(경고만). 오프라인·격리 실행 안전.
+    """
+    import importlib.util
+    import os
+    from pathlib import Path
+
+    from quant.utils.logging import get_logger
+
+    log = get_logger("strategies.user")
+    root = Path(path or os.getenv("QUANT_STRATEGY_DIR") or "strategies_user")
+    if not root.exists():
+        return []
+    registered: list[str] = []
+    for fp in sorted(root.glob("*.py")):
+        if fp.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(f"user_strat_{fp.stem}", fp)
+            mod = importlib.util.module_from_spec(spec)
+            before = set(_REGISTRY)
+            spec.loader.exec_module(mod)          # register_strategy 직접 호출 지원
+            new_names = set(_REGISTRY) - before
+            if not new_names:
+                # 파일이 직접 등록하지 않았다면, 정의된 Strategy 하위 클래스 자동 등록
+                for attr in vars(mod).values():
+                    if (isinstance(attr, type) and issubclass(attr, Strategy)
+                            and attr.__module__ == mod.__name__):
+                        nm = getattr(attr, "name", None) or fp.stem
+                        register_strategy(str(nm), attr, overwrite=True)
+                        registered.append(str(nm))
+                        break
+            else:
+                registered.extend(sorted(new_names))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("사용자 전략 로드 실패(%s): %s", fp.name, exc)
+    if registered:
+        log.info("사용자 전략 %d개 등록: %s", len(registered), ", ".join(registered))
+    return registered
 
 
 def get_strategy(name: str, **kwargs) -> Strategy:
