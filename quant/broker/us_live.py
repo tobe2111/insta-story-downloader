@@ -92,5 +92,5 @@ class AlpacaBroker(Broker):
         filled_qty = _num("filled_qty", 0.0)
         # 체결가는 체결이 있을 때만 의미가 있다. 없으면 참고용으로 주문가를 둔다.
         filled = _num("filled_avg_price", price if filled_qty > 0 else 0.0)
-        return Order(symbol, side, quantity, filled,
-                     status=status, filled_quantity=filled_qty)
+        return Order(symbol, side, quantity, filled, status=status,
+                     filled_quantity=filled_qty, order_id=str(res.get("id", "")))

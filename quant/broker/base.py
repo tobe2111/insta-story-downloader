@@ -37,6 +37,7 @@ class Order:
     price: float     # 체결가(추정)
     status: str = "filled"
     filled_quantity: float = 0.0  # 실제 체결 수량 (부분체결 추적용)
+    order_id: str = ""            # 브로커 주문번호 (체결 조회·감사 추적용)
 
 
 @dataclass

@@ -43,6 +43,7 @@ class MultiTrader:
         mode: str = "paper",
         daily_max_loss: float | None = None,
         rebalance_band: float = 0.02,
+        market: str | None = None,
     ):
         self.data = data
         self.strategy = strategy
@@ -51,6 +52,8 @@ class MultiTrader:
         self.symbols = list(symbols)
         self.timeframe = timeframe
         self.lookback = lookback
+        # 장 시간 가드 — 지정 시 정규장이 아니면 그 사이클을 건너뛴다(코인=항상 통과).
+        self.market = market
         self.allocation = allocation
         self.max_gross = max_gross
         self.vol_window = vol_window
@@ -124,6 +127,13 @@ class MultiTrader:
         return last.to_dict(), prices
 
     def step(self) -> None:
+        # 장 시간 가드: 정규장이 아니면 주문 사이클을 건너뛴다.
+        if self.market is not None:
+            from quant.live.market_hours import is_market_open, market_status
+            if not is_market_open(self.market):
+                log.info("⏸ %s", market_status(self.market))
+                return
+
         weights, prices = self._target_weights()
         if not weights:
             log.warning("유효한 종목 데이터 없음, 스킵")

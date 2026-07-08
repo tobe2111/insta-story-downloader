@@ -56,8 +56,13 @@ def main() -> None:
         mode_label = "paper"
         print("📝 페이퍼 모드 (실제 자금 사용 안 함)")
 
-    # 견고한 주문 래퍼 (재시도 + 최종 실패 시 알림)
-    broker = RobustBroker(inner, retries=3, backoff=2.0, notifier=notifier)
+    # 견고한 주문 래퍼 (재시도 + 최종 실패 시 알림). 주식 실거래는 체결 확인
+    # (포지션 변화)을 켜 접수를 체결로 오판하지 않게 한다.
+    is_stock = args.live and args.market in ("us_stock", "kr_stock")
+    broker = RobustBroker(inner, retries=3, backoff=2.0, notifier=notifier,
+                          confirm_fills=is_stock,
+                          fill_timeout=90.0 if is_stock else 0.0,
+                          fill_poll_interval=3.0)
 
     trader = MultiTrader(
         data=get_provider(args.market),
@@ -70,6 +75,7 @@ def main() -> None:
         dashboard_path=args.dashboard,
         notifier=notifier,
         mode=mode_label,
+        market=args.market if is_stock else None,
     )
     print(f"📊 대시보드: {args.dashboard} | 종목: {', '.join(args.symbols)}")
     trader.run(interval_sec=args.interval, max_iters=args.iters)

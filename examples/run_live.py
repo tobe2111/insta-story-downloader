@@ -15,11 +15,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from quant.broker import get_broker
+from quant.broker import RobustBroker, get_broker
 from quant.data import get_provider
 from quant.live import LiveTrader
 from quant.risk import RiskConfig, RiskManager
 from quant.strategies import get_strategy
+
+# 정규장 시간이 정해진 시장(주식). 코인은 24시간이라 가드 대상이 아니다.
+_SCHEDULED_MARKETS = {"us_stock", "kr_stock"}
 
 
 def main() -> None:
@@ -55,15 +58,28 @@ def main() -> None:
         if confirm.strip().lower() != "yes":
             print("취소되었습니다.")
             return
-        broker = get_broker(_live_mode[args.market])
+        inner = get_broker(_live_mode[args.market])
+        # 실거래는 RobustBroker로 감싼다: 재시도·부분체결 잔량주문·중복 방지.
+        # 주식은 시장가 '접수'와 '체결'에 시차가 있으므로 체결 확인(포지션 변화)을
+        # 켜서 접수를 체결로 오판하지 않게 한다. 코인은 즉시 체결이라 불필요.
+        is_stock = args.market in _SCHEDULED_MARKETS
+        broker = RobustBroker(
+            inner, retries=3, backoff=2.0,
+            confirm_fills=is_stock,
+            fill_timeout=90.0 if is_stock else 0.0,
+            fill_poll_interval=3.0,
+        )
     else:
         broker = get_broker("paper", cash=args.capital)
         print("📝 페이퍼 트레이딩 모드 (실제 자금 사용 안 함)")
 
+    # 주식 실거래는 정규장에만 주문(닫힌 시장 주문·거부 방지). 코인은 항상 통과.
+    market_guard = args.market if (args.live and args.market in _SCHEDULED_MARKETS) else None
     trader = LiveTrader(
         data, strategy, broker, risk, args.symbol, args.timeframe,
         state_path=args.state, dashboard_path=args.dashboard,
         mode="live" if args.live else "paper",
+        market=market_guard,
     )
     print(f"📊 모니터링 대시보드: {args.dashboard} (브라우저로 열어두세요)")
     trader.run(interval_sec=args.interval, max_iters=args.iters)

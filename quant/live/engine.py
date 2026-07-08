@@ -43,6 +43,7 @@ class LiveTrader:
         mode: str = "paper",
         daily_max_loss: float | None = None,
         rebalance_band: float = 0.02,
+        market: str | None = None,
     ):
         self.data = data
         self.strategy = strategy
@@ -51,6 +52,9 @@ class LiveTrader:
         self.symbol = symbol
         self.timeframe = timeframe
         self.lookback = lookback
+        # 장 시간 가드 — 지정 시(예: 'us_stock'·'kr_stock') 정규장이 아니면 그
+        # 사이클의 주문을 건너뛴다. 코인·미지정은 24시간이라 항상 통과. None=미적용.
+        self.market = market
         # 리밸런스 데드밴드 — |목표-현재| 비중 차가 이 값 미만이면 주문 생략.
         # vol targeting 등이 만드는 매 봉 잔조정은 기대수익 0에 왕복비용만
         # 확정 지불한다(비용 수학). 청산은 항상 실행. 0이면 비활성.
@@ -77,6 +81,13 @@ class LiveTrader:
 
     def step(self) -> None:
         """한 사이클 실행 (데이터 → 신호 → 사이징 → 주문 → 기록)."""
+        # 장 시간 가드: 정규장이 아니면 주문을 내지 않는다(닫힌 시장 주문·거부 방지).
+        if self.market is not None:
+            from quant.live.market_hours import is_market_open, market_status
+            if not is_market_open(self.market):
+                log.info("⏸ %s", market_status(self.market))
+                return
+
         df = self.data.get_ohlcv(self.symbol, self.timeframe, limit=self.lookback)
         if df.empty:
             log.warning("데이터 없음, 스킵")

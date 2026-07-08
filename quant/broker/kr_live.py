@@ -147,5 +147,15 @@ class KISBroker(Broker):
         url = f"{self.base}/uapi/domestic-stock/v1/trading/order-cash"
         log.warning("[KIS] %s %s %d주 시장가 주문 전송", side.upper(), symbol, qty)
         res = post_json(url, self._headers(tr_id, body), body)
-        status = "filled" if res.get("rt_cd") == "0" else res.get("msg1", "unknown")
-        return Order(symbol, side, float(qty), price, status=status)
+        # ⚠️ rt_cd=="0"은 '주문 접수 성공'이지 '체결'이 아니다. 주식 시장가는
+        # 접수 후 체결까지 시차가 있고, 유동성 부족·장 상황에 따라 부분체결·미체결도
+        # 된다. 접수를 'filled'로 위조하면 상위 로직이 완료로 오판한다(us_live·
+        # crypto_live와 동일 규약: 실제 체결은 별도로 확인). 접수는 'accepted'로
+        # 보고하고 filled_quantity=0을 둔다 — 실제 체결은 RobustBroker의
+        # 포지션 변화 확인(confirm_fills)이 측정한다.
+        accepted = res.get("rt_cd") == "0"
+        out = res.get("output") or {}
+        odno = str(out.get("ODNO", "")) if isinstance(out, dict) else ""
+        status = "accepted" if accepted else str(res.get("msg1", "rejected"))
+        return Order(symbol, side, float(qty), price, status=status,
+                     filled_quantity=0.0, order_id=odno)
