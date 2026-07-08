@@ -91,3 +91,12 @@ def test_validate_runs_end_to_end(capsys):
     assert "워크포워드" in out and "DSR" in out
     assert "PBO" in out and "CPCV" in out
     assert "보장되지 않습니다" in out
+
+
+def test_webhook_subcommand_parses():
+    ns = cli.build_parser().parse_args(
+        ["webhook", "--market", "us_stock", "--symbols", "AAPL,MSFT",
+         "--tradingview-ips", "--port", "9000"])
+    assert ns.command == "webhook" and callable(ns.func)
+    assert ns.market == "us_stock" and ns.tradingview_ips and ns.port == 9000
+    assert ns.symbols == "AAPL,MSFT"
