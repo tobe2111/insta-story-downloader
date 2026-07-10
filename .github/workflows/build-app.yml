@@ -4,9 +4,11 @@ name: Build App
 # → 저장소의 Releases 페이지가 곧 '다운로드 버튼이 있는 웹페이지'가 된다.
 #   (로그인 없이 누구나 클릭 한 번으로 다운로드 가능)
 #
-# 실행 방법 (둘 중 하나):
-#   1. Actions 탭 → "Build App" → Run workflow → 버전 입력(예: v0.2.0) → 실행
-#   2. 또는 v* 태그 push
+# 실행 방법 (셋 중 하나):
+#   1. [자동/권장] VERSION 파일을 바꿔 main에 머지 → 그 값으로 태그·릴리스가 자동 생성.
+#      (예: VERSION 을 v0.2.3 으로 커밋하면 클릭 없이 v0.2.3 릴리스가 빌드됨)
+#   2. Actions 탭 → "Build App" → Run workflow → 버전 입력 → 실행 (수동)
+#   3. 또는 v* 태그 push
 # 완료되면 https://github.com/<owner>/<repo>/releases/latest 에 OS별 파일이
 # 다운로드 버튼과 함께 올라간다. 아래 '고정 주소'는 항상 최신을 가리킨다:
 #   .../releases/latest/download/quant-cockpit-windows.exe   (Windows: 원본 실행파일)
@@ -20,6 +22,9 @@ on:
         default: "v0.2.0"
   push:
     tags: ["v*"]
+    # VERSION 파일이 바뀐 채 main에 들어오면 자동 릴리스 (버전은 VERSION 내용으로 결정)
+    branches: ["main"]
+    paths: ["VERSION"]
 
 permissions:
   contents: write   # Release 생성/자산 업로드에 필요
@@ -40,6 +45,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # 버전 결정: 수동 입력 > 태그 이름 > VERSION 파일 내용. 'v' 접두사는 자동 보정.
+      - name: Resolve version
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            v="${{ github.event.inputs.version }}"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            v="${{ github.ref_name }}"
+          else
+            v="$(tr -d ' \t\r\n' < VERSION)"
+          fi
+          case "$v" in v*) ;; *) v="v$v" ;; esac
+          echo "APP_VERSION=$v" >> "$GITHUB_ENV"
+          echo "resolved version: $v"
 
       - uses: actions/setup-python@v5
         with:
@@ -95,12 +115,12 @@ jobs:
           if-no-files-found: error
 
       # Release에 자산 첨부 — 다운로드 버튼이 있는 공개 페이지가 만들어진다.
-      # 수동 실행이면 입력한 버전으로 태그·릴리스를 만들고, 태그 push면 그 태그를 쓴다.
+      # 버전(APP_VERSION)은 위 'Resolve version'에서 결정된 값을 쓴다.
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          name: "Quant ${{ github.event.inputs.version || github.ref_name }}"
+          tag_name: ${{ env.APP_VERSION }}
+          name: "Quant ${{ env.APP_VERSION }}"
           body: |
             무설치 실행파일 — 본인 OS용 파일을 받아 실행하세요.
 

@@ -47,9 +47,14 @@ Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호
 > - **GitHub Pages**: Settings → Pages → Source를 `main`의 `/docs` 폴더로 →
 >   `https://<계정>.github.io/<저장소>/` 로 공개.
 >
-> **최초 1회 릴리스 만들기(관리자)**: Actions 탭 → "Build App" →
-> Run workflow → 버전(예: `v0.2.0`) 입력 → 실행. ~5분 후 Releases에
-> 3개 OS용 zip이 자동 첨부됩니다. 이후 버전 태그 push로도 자동 릴리스.
+> **릴리스 만들기 — 세 가지 방법**
+> 1. **[자동/권장]** 루트의 `VERSION` 파일을 새 버전으로 바꿔 `main`에 머지하면,
+>    그 값으로 태그·릴리스가 **클릭 없이 자동 빌드**됩니다(예: `VERSION`을
+>    `v0.2.3`으로 커밋 → v0.2.3 릴리스 생성). ~5분 후 Releases에 OS별 파일 첨부.
+> 2. Actions 탭 → "Build App" → Run workflow → 버전 입력 → 실행 (수동).
+> 3. `v*` 태그 push.
+>
+> Windows는 원본 `.exe`(압축 해제 불필요), macOS·Linux는 zip으로 첨부됩니다.
 
 > ⚠️ 윈도우/맥이 "알 수 없는 개발자" 경고를 낼 수 있어요(서명 안 된 개인 빌드).
 > 본인이 빌드한 파일이니 "실행 허용"을 누르면 됩니다.
