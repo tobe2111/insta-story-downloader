@@ -7,9 +7,10 @@ name: Build App
 # 실행 방법 (둘 중 하나):
 #   1. Actions 탭 → "Build App" → Run workflow → 버전 입력(예: v0.2.0) → 실행
 #   2. 또는 v* 태그 push
-# 완료되면 https://github.com/<owner>/<repo>/releases/latest 에 3개 OS용
-# zip이 다운로드 버튼과 함께 올라간다. 아래 '고정 주소'는 항상 최신을 가리킨다:
-#   .../releases/latest/download/quant-cockpit-windows.zip
+# 완료되면 https://github.com/<owner>/<repo>/releases/latest 에 OS별 파일이
+# 다운로드 버튼과 함께 올라간다. 아래 '고정 주소'는 항상 최신을 가리킨다:
+#   .../releases/latest/download/quant-cockpit-windows.exe   (Windows: 원본 실행파일)
+#   .../releases/latest/download/quant-cockpit-macos.zip     (mac/Linux: zip)
 on:
   workflow_dispatch:
     inputs:
@@ -68,6 +69,23 @@ jobs:
                   z.write(os.path.join("dist", name), name)
           print("packaged:", out)
 
+      # 원본 실행파일도 그대로 첨부한다 — Windows는 받자마자 더블클릭(압축 해제 불필요).
+      # mac/Linux는 브라우저로 원본 바이너리를 받으면 실행권한(+x)이 사라져 zip이 안전하므로
+      # 원본 첨부는 Windows(.exe)만 한다.
+      - name: Prepare raw binary
+        shell: python
+        run: |
+          import os, shutil
+          asset = "${{ matrix.asset }}"
+          is_win = asset.endswith("windows")
+          raw = ""
+          if is_win:
+              raw = asset + ".exe"
+              shutil.copy(os.path.join("dist", "quant-cockpit.exe"), raw)
+              print("raw binary:", raw)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write("RAW_ASSET=%s\n" % raw)
+
       # 아티팩트도 유지(태그 없이 돌린 테스트 빌드 확인용)
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -84,14 +102,16 @@ jobs:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
           name: "Quant ${{ github.event.inputs.version || github.ref_name }}"
           body: |
-            무설치 실행파일 — 본인 OS용 zip을 받아 압축 해제 후 더블클릭하세요.
+            무설치 실행파일 — 본인 OS용 파일을 받아 실행하세요.
 
-            | OS | 파일 |
-            |---|---|
-            | Windows | quant-cockpit-windows.zip |
-            | macOS | quant-cockpit-macos.zip |
-            | Linux | quant-cockpit-linux.zip |
+            | OS | 파일 | 실행 |
+            |---|---|---|
+            | Windows | quant-cockpit-windows.exe | 받자마자 더블클릭 (압축 해제 불필요) |
+            | macOS | quant-cockpit-macos.zip | 압축 해제 후 더블클릭 |
+            | Linux | quant-cockpit-linux.zip | 압축 해제 후 실행 |
 
-            ⚠️ 서명되지 않은 개인 빌드라 "알 수 없는 개발자" 경고가 뜰 수 있습니다(실행 허용으로 진행).
+            ⚠️ 서명되지 않은 개인 빌드라 "알 수 없는 개발자"(Windows는 "PC 보호") 경고가 뜰 수 있습니다 → 실행 허용으로 진행.
             ⚠️ 이 프로그램은 수익을 보장하지 않습니다. 백테스트·페이퍼 검증 후 사용하세요.
-          files: ${{ matrix.asset }}.zip
+          files: |
+            ${{ matrix.asset }}.zip
+            ${{ env.RAW_ASSET }}

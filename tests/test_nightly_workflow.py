@@ -42,7 +42,7 @@ def test_workflow_validates_both_markets_and_uploads_artifact():
 
 
 def test_build_app_workflow_creates_release():
-    """빌드 워크플로가 Release에 고정 이름 zip을 첨부한다(다운로드 버튼 페이지의 전제)."""
+    """빌드 워크플로가 Release에 고정 이름 자산을 첨부한다(다운로드 버튼 페이지의 전제)."""
     import yaml
 
     w = yaml.safe_load(
@@ -56,17 +56,32 @@ def test_build_app_workflow_creates_release():
     rel = steps["Attach to GitHub Release"]
     assert rel["uses"].startswith("softprops/action-gh-release@")
     # 자산 이름 고정 → releases/latest/download/<asset>.zip 고정 주소 성립
-    assert rel["with"]["files"] == "${{ matrix.asset }}.zip"
+    assert "${{ matrix.asset }}.zip" in rel["with"]["files"]
     assets = [m["asset"] for m in w["jobs"]["build"]["strategy"]["matrix"]["include"]]
     assert set(assets) == {"quant-cockpit-linux", "quant-cockpit-windows",
                            "quant-cockpit-macos"}
+
+
+def test_build_app_attaches_windows_exe():
+    """Windows는 원본 .exe도 첨부한다 — 받자마자 더블클릭(압축 해제 불필요)."""
+    import yaml
+
+    w = yaml.safe_load(
+        (Path(__file__).resolve().parent.parent
+         / ".github" / "workflows" / "build-app.yml").read_text(encoding="utf-8"))
+    steps = {s.get("name"): s for s in w["jobs"]["build"]["steps"]}
+    assert "Prepare raw binary" in steps           # 원본 바이너리 준비 단계
+    rel = steps["Attach to GitHub Release"]
+    assert "${{ env.RAW_ASSET }}" in rel["with"]["files"]   # 원본(.exe) 자산도 첨부
 
 
 def test_download_page_uses_stable_release_urls():
     """랜딩 페이지의 버튼이 '항상 최신'을 가리키는 고정 주소를 쓴다."""
     html_text = (Path(__file__).resolve().parent.parent
                  / "docs" / "index.html").read_text(encoding="utf-8")
-    for asset in ("windows", "macos", "linux"):
+    # Windows는 원본 .exe 직접 실행, mac/Linux는 zip
+    assert "releases/latest/download/quant-cockpit-windows.exe" in html_text
+    for asset in ("macos", "linux"):
         assert (f"releases/latest/download/quant-cockpit-{asset}.zip"
                 in html_text), asset
     assert "수익을 보장하지 않습니다" in html_text   # 정직성 고지 필수
