@@ -62,6 +62,27 @@ def test_build_app_workflow_creates_release():
                            "quant-cockpit-macos"}
 
 
+def test_build_app_auto_releases_on_version_bump():
+    """VERSION 파일이 바뀌어 main에 들어오면 자동으로 릴리스가 빌드된다."""
+    import yaml
+
+    root = Path(__file__).resolve().parent.parent
+    w = yaml.safe_load(
+        (root / ".github" / "workflows" / "build-app.yml").read_text(encoding="utf-8"))
+    on = w.get("on") or w.get(True)
+    push = on["push"]
+    assert "main" in push["branches"]              # main 브랜치 푸시에서
+    assert "VERSION" in push["paths"]              # VERSION 변경 시 트리거
+    steps = {s.get("name"): s for s in w["jobs"]["build"]["steps"]}
+    assert "Resolve version" in steps              # 버전 자동 결정 단계
+    # 릴리스 태그·이름은 결정된 버전(env.APP_VERSION)을 쓴다
+    rel = steps["Attach to GitHub Release"]
+    assert rel["with"]["tag_name"] == "${{ env.APP_VERSION }}"
+    # VERSION 파일이 존재하고 vX.Y.Z 형태다
+    ver = (root / "VERSION").read_text(encoding="utf-8").strip()
+    assert ver.startswith("v") and ver.count(".") >= 1, ver
+
+
 def test_build_app_attaches_windows_exe():
     """Windows는 원본 .exe도 첨부한다 — 받자마자 더블클릭(압축 해제 불필요)."""
     import yaml
