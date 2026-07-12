@@ -12,52 +12,73 @@ STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
               "macd", "keltner", "stochastic", "ml", "ensemble"]
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
+# 랜딩 페이지(docs/index.html)와 같은 디자인 토큰 — 절제된 다크 핀테크 톤.
+# Pretendard는 사용자 PC에 설치돼 있으면 쓰고, 없으면 시스템 한글 폰트로 폴백
+# (로컬 오프라인 도구라 웹폰트를 받지 않는다).
 _STYLE = """
- :root{--bg:#0b1220;--panel:#111a2e;--fg:#e6edf7;--muted:#93a1b8;--line:#22304d;
-   --accent:#3b82f6;--accent2:#2563eb;--ok:#16a34a;--bad:#dc2626;--warn:#d97706;--radius:12px}
- @media(prefers-color-scheme:light){:root{--bg:#f4f6fb;--panel:#ffffff;--fg:#0f172a;
-   --muted:#5b6b86;--line:#e2e8f0;--accent:#2563eb}}
- *{box-sizing:border-box}
- body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;
-   background:var(--bg);color:var(--fg);line-height:1.5;
+ :root{color-scheme:dark;
+   --bg:#0a0b0e;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;--dim:#5c6370;
+   --line:#1e2128;--line-strong:#2a2e37;--accent:#4c7dff;
+   --ok:#3fb96f;--bad:#e5484d;--warn:#d9a13b;--radius:10px;
+   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+ @media(prefers-color-scheme:light){:root{color-scheme:light;
+   --bg:#fcfcfd;--bg2:#f4f5f8;--fg:#101318;
+   --muted:#5a626e;--dim:#8a919d;--line:#e7e9ee;--line-strong:#d8dbe2;--accent:#2f5fe0}}
+ *{box-sizing:border-box;min-width:0}
+ body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
+   "Apple SD Gothic Neo","Malgun Gothic",sans-serif;margin:0;
+   background:var(--bg);color:var(--fg);line-height:1.6;font-size:14px;
    -webkit-font-smoothing:antialiased}
- .wrap{max-width:780px;margin:0 auto;padding:24px 20px 56px}
- h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px}
- h2{font-size:16px;font-weight:700;margin:26px 0 10px}
- p.sub,.sub{color:var(--muted);font-size:13.5px;margin:0 0 4px}
- label{display:block;margin:14px 0 5px;font-size:12.5px;font-weight:600;color:var(--muted)}
- input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
-   background:var(--panel);color:inherit;font-size:14px;transition:border-color .15s,box-shadow .15s}
+ .wrap{max-width:780px;margin:0 auto;padding:20px 20px 56px}
+ h1{font-size:20px;font-weight:750;letter-spacing:-.02em;margin:22px 0 6px}
+ h2{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:26px 0 10px}
+ p.sub,.sub{color:var(--muted);font-size:13px;margin:0 0 4px}
+ label{display:block;margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--muted)}
+ input,select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line-strong);
+   background:var(--bg2);color:inherit;font-size:13.5px;
+   transition:border-color .15s,box-shadow .15s}
  input:focus,select:focus{outline:none;border-color:var(--accent);
-   box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
- button{margin-top:22px;padding:12px 20px;border:0;border-radius:10px;
-   background:var(--accent2);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
-   transition:filter .15s,transform .05s;width:100%}
- button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
+   box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+ button{margin-top:22px;padding:11px 20px;border:0;border-radius:9px;
+   background:var(--fg);color:var(--bg);font-size:13.5px;font-weight:700;cursor:pointer;
+   transition:opacity .15s,transform .05s;width:100%}
+ button:hover{opacity:.88}button:active{transform:translateY(1px)}
  .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:120px}
- .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+ .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);
    padding:16px 18px;margin:14px 0}
- .warn{color:var(--warn);font-size:12.5px;margin-top:22px;
-   background:color-mix(in srgb,var(--warn) 10%,transparent);
-   padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+ .warn{position:relative;color:var(--muted);font-size:12.5px;margin-top:22px;
+   background:var(--bg2);padding:11px 14px 11px 16px;border-radius:var(--radius);
+   border:1px solid var(--line-strong);border-left:3px solid var(--warn)}
  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
- nav{display:flex;gap:6px;margin:0 -4px 20px;padding:6px 4px;font-size:13.5px;
+ nav{display:flex;align-items:center;gap:2px;margin:0 0 8px;padding:10px 0;font-size:13px;
    overflow-x:auto;border-bottom:1px solid var(--line)}
- nav a{white-space:nowrap;padding:7px 12px;border-radius:9px;font-weight:600;
+ nav .logo{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--fg);
+   margin-right:14px;white-space:nowrap}
+ nav .logo em{font-style:normal;color:var(--accent)}
+ nav a{white-space:nowrap;padding:6px 10px;border-radius:7px;font-weight:550;
    color:var(--muted);transition:background .15s,color .15s}
- nav a:hover{background:color-mix(in srgb,var(--accent) 14%,transparent);
-   color:var(--fg);text-decoration:none}
+ nav a:hover{background:var(--bg2);color:var(--fg);text-decoration:none}
  table{width:100%;border-collapse:collapse;font-size:13px}
+ pre,code{font-family:var(--mono)}
  form{margin-top:8px}
 """
 
-_NAV = ('<nav><a href="/">📊 백테스트</a>'
-        '<a href="/portfolio">📦 포트폴리오</a>'
-        '<a href="/screener">🎯 종목선별</a>'
-        '<a href="/sweep">🔥 민감도 스윕</a>'
-        '<a href="/optimize">⚙️ 최적화</a>'
-        '<a href="/validate">🧪 검증</a>'
-        '<a href="/monitor">📺 감시</a></nav>')
+# 브라우저 탭 아이콘 (외부 파일 없이 data URI) — 랜딩과 같은 심볼
+_FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
+            '%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E'
+            '%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E'
+            '%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 '
+            'stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 '
+            'stroke-linejoin=%22round%22/%3E%3C/svg%3E">')
+
+_NAV = ('<nav><span class="logo">QUANT<em>.</em></span>'
+        '<a href="/">백테스트</a>'
+        '<a href="/portfolio">포트폴리오</a>'
+        '<a href="/screener">종목선별</a>'
+        '<a href="/sweep">민감도</a>'
+        '<a href="/optimize">최적화</a>'
+        '<a href="/validate">검증</a>'
+        '<a href="/monitor">감시</a></nav>')
 
 ALLOCATIONS = ["inverse_vol", "equal", "hrp"]
 
@@ -73,9 +94,9 @@ def render_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 백테스트</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 백테스트</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>📈 Quant 백테스트</h1>
+<h1>백테스트</h1>
 <p class="sub">시장·종목·전략을 고르고 실행하면 성과 리포트가 나옵니다. 처음이라면
 <code>synthetic</code>(모의 데이터)로 감을 잡아보세요.</p>
 {msg}
@@ -145,7 +166,7 @@ def _robustness_html(returns, ppy: int) -> str:
         f'<p style="font-size:13px">참 샤프가 0보다 클 확률 (PSR): '
         f'<b>{psr:.1%}</b> — 신뢰도 {verdict}</p>'
         f'<pre style="font-size:12px;overflow-x:auto;white-space:pre">{table}</pre>'
-        '<p style="font-size:12px;color:#94a3b8">신뢰구간 하단(5%)이 0 근처거나 '
+        '<p style="font-size:12px;color:var(--muted)">신뢰구간 하단(5%)이 0 근처거나 '
         'PSR이 낮으면 이 성과는 운일 수 있습니다.</p></div>'
     )
 
@@ -169,7 +190,7 @@ async function _tick(){
       let peak=st, dd=0; for(const v of eq){ peak=Math.max(peak,v); dd=Math.min(dd, peak? v/peak-1:0); }
       const setTxt=(id,txt,col)=>{const el=document.getElementById(id); if(el){el.textContent=txt; if(col)el.style.color=col;}};
       setTxt('kpi-equity', _num(cur,2));
-      setTxt('kpi-pnl', (pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%', pnl>=0?'#16a34a':'#dc2626');
+      setTxt('kpi-pnl', (pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%', pnl>=0?'#3fb96f':'#e5484d');
       setTxt('kpi-dd', (dd*100).toFixed(2)+'%');
       const lw=(h[h.length-1]||{}).weight||0; setTxt('kpi-weight', (lw>=0?'+':'')+Math.round(lw*100)+'%');
     }
@@ -185,12 +206,12 @@ async function _tick(){
     const pb=document.getElementById('pos-body');
     if(pb){ pb.innerHTML = pos.filter(p=>p&&p.quantity).map(p=>
       `<tr><td>${_esc(p.symbol)}</td><td>${_num(p.quantity,6)}</td><td>${_num(p.avg_price,2)}</td></tr>`).join('')
-      || '<tr><td colspan="3" style="color:#94a3b8">보유 포지션 없음</td></tr>'; }
+      || '<tr><td colspan="3" style="color:var(--muted)">보유 포지션 없음</td></tr>'; }
     // 주문 테이블 재구성 (최근 15건)
     const ob=document.getElementById('ord-body');
     if(ob){ ob.innerHTML = orders.slice(-15).reverse().map(o=>
       `<tr><td>${_esc((o.side||'').toUpperCase())}</td><td>${_esc(o.symbol)}</td><td>${_num(o.quantity,6)}</td><td>${_num(o.price,2)}</td><td>${_esc(o.status)}</td></tr>`).join('')
-      || '<tr><td colspan="5" style="color:#94a3b8">주문 내역 없음</td></tr>'; }
+      || '<tr><td colspan="5" style="color:var(--muted)">주문 내역 없음</td></tr>'; }
     const t=document.getElementById('rt-time'); if(t) t.textContent = new Date().toLocaleTimeString();
   }catch(e){}
 }
@@ -240,13 +261,13 @@ def render_monitor(state_paths=None) -> str:
     if state is None:
         return (f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 감시</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 감시</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>📺 봇 감시</h1>
-<p style="color:#94a3b8;font-size:14px">실행 중인 페이퍼/실거래 세션이 없습니다.</p>
+<h1>봇 감시</h1>
+<p style="color:var(--muted);font-size:14px">실행 중인 페이퍼/실거래 세션이 없습니다.</p>
 <p style="font-size:13px">먼저 봇을 실행하세요:</p>
 <pre style="font-size:12px">python examples/run_live.py --paper --market crypto --symbol BTC/USDT</pre>
-<p style="font-size:13px;color:#94a3b8">봇이 <code>results/state.json</code>을 쓰면
+<p style="font-size:13px;color:var(--muted)">봇이 <code>results/state.json</code>을 쓰면
 이 페이지에 자산·포지션·주문이 나타납니다.</p>
 </div></body></html>""")
 
@@ -256,8 +277,8 @@ def render_monitor(state_paths=None) -> str:
     doc = doc.replace('<meta http-equiv="refresh" content="30">', "")
     doc = doc.replace(
         "</header>",
-        '</header><p class="sub" style="font-size:12px;color:#94a3b8">'
-        '🟢 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
+        '</header><p class="sub" style="font-size:12px;color:var(--muted)">'
+        '<span style="color:var(--ok)">●</span> 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
 
     # 확장 상태 배지 — 새 리스크/운영 필드가 상태에 있으면 표시한다(없으면 생략).
     badges = []
@@ -289,10 +310,10 @@ def render_portfolio_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 포트폴리오</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 포트폴리오</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>📦 포트폴리오 백테스트</h1>
-<p style="color:#94a3b8;font-size:13px">여러 종목에 분산투자해 변동성을 낮춥니다.
+<h1>포트폴리오 백테스트</h1>
+<p style="color:var(--muted);font-size:13px">여러 종목에 분산투자해 변동성을 낮춥니다.
 종목은 쉼표로 구분하세요.</p>
 {msg}
 <form action="/portfolio/run" method="get">
@@ -317,10 +338,10 @@ def render_screener_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 종목선별</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 종목선별</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>🎯 종목 선별 (팩터 스크리너)</h1>
-<p style="color:#94a3b8;font-size:13px">관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로
+<h1>종목 선별 (팩터 스크리너)</h1>
+<p style="color:var(--muted);font-size:13px">관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로
 상위 종목을 자동 선별합니다. 미국주식 티커 권장(FMP 기준). 환경변수
 <code>FMP_API_KEY</code> 필요.</p>
 {msg}
@@ -409,16 +430,16 @@ def run_screener_html(params: dict) -> str:
     picked = ", ".join(weights) or "(선별된 종목 없음)"
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 선별 결과</title><style>{_STYLE}
+<title>Quant · 선별 결과</title>{_FAVICON}<style>{_STYLE}
  table{{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}}
  th,td{{border:1px solid #334155;padding:6px 8px;text-align:right}}
  th:first-child,td:first-child{{text-align:left}}</style></head>
 <body><div class="wrap">{_NAV}
-<h1>🎯 선별 결과</h1>
+<h1>선별 결과</h1>
 <p style="font-size:14px">선택된 종목: <b>{html.escape(picked)}</b></p>
 <table><tr><th>종목</th><th>PER</th><th>PBR</th><th>ROE</th><th>선택·비중</th></tr>
 {rows}</table>
-<p style="font-size:12px;color:#94a3b8;margin-top:10px">이 종목들을 포트폴리오 탭에
+<p style="font-size:12px;color:var(--muted);margin-top:10px">이 종목들을 포트폴리오 탭에
 넣어 백테스트/운용하세요. 팩터 랭킹은 '후보 중 상대 비교'일 뿐 미래 수익 보장이 아닙니다.</p>
 </div></body></html>"""
 
@@ -463,10 +484,10 @@ def render_optimize_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 최적화</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 최적화</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>⚙️ 워크포워드 최적화</h1>
-<p style="color:#94a3b8;font-size:13px">과거 구간(IS)에서 최적 파라미터를 찾고,
+<h1>워크포워드 최적화</h1>
+<p style="color:var(--muted);font-size:13px">과거 구간(IS)에서 최적 파라미터를 찾고,
 <b>보지 않은 미래 구간(OOS)</b>에서 검증합니다. IS와 OOS 성적 격차가 크면 과최적화예요.</p>
 {msg}
 <form action="/optimize/run" method="get">
@@ -550,18 +571,18 @@ def run_optimize_html(params: dict) -> str:
         f"<td>{seg['is_sharpe']}</td><td>{seg['oos_sharpe']}</td>"
         f"<td>{seg['oos_return']:+.2%}</td></tr>"
         for seg in wf["segments"]
-    ) or '<tr><td colspan="5" style="color:#94a3b8">검증 구간 없음</td></tr>'
+    ) or '<tr><td colspan="5" style="color:var(--muted)">검증 구간 없음</td></tr>'
 
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 최적화 결과</title><style>{_STYLE}
+<title>Quant · 최적화 결과</title>{_FAVICON}<style>{_STYLE}
  table{{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}}
  th,td{{padding:6px 8px;border-bottom:1px solid #334155;text-align:left}}
  .box{{background:#111c30;border:1px solid #334155;border-radius:10px;padding:16px;margin-top:14px}}
  @media(prefers-color-scheme:light){{.box{{background:#fff}}}}
 </style></head><body><div class="wrap">
 {_NAV}
-<h1>⚙️ 워크포워드 결과 · {html.escape(strategy_name)} · {html.escape(symbol)}</h1>
+<h1>워크포워드 결과 · {html.escape(strategy_name)} · {html.escape(symbol)}</h1>
 <div class="box">
 <p>IS(학습) 샤프: <b>{is_sharpe:.2f}</b> → OOS(검증) 샤프: <b>{oos_sharpe:.2f}</b></p>
 <p>판정: {verdict}</p>
@@ -593,10 +614,10 @@ def render_validate_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 검증</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 검증</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>🧪 과최적화 검증 (워크포워드+DSR · PBO · CPCV)</h1>
-<p style="color:#94a3b8;font-size:13px">"이 전략을 믿어도 되는가"를 세 가지
+<h1>과최적화 검증 (워크포워드+DSR · PBO · CPCV)</h1>
+<p style="color:var(--muted);font-size:13px">"이 전략을 믿어도 되는가"를 세 가지
 과최적화 탐지 도구로 한 화면에서 확인합니다. 셋 다 <b>탐지</b> 도구입니다 —
 통과가 곧 수익은 아닙니다.</p>
 {msg}
@@ -695,9 +716,9 @@ def run_validate_html(params: dict) -> str:
 
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 검증 결과</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 검증 결과</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>🧪 검증 결과 · {html.escape(strategy_name)} · {html.escape(symbol)} ({len(df)}봉)</h1>
+<h1>검증 결과 · {html.escape(strategy_name)} · {html.escape(symbol)} ({len(df)}봉)</h1>
 <p class="sub">그리드: {html.escape(str(grid))}</p>
 {boxes}
 <p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
@@ -711,10 +732,10 @@ def render_sweep_form(message: str = "") -> str:
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 민감도 스윕</title><style>{_STYLE}</style></head><body><div class="wrap">
+<title>Quant · 민감도 스윕</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
 {_NAV}
-<h1>🔥 파라미터 민감도 히트맵</h1>
-<p style="color:#94a3b8;font-size:13px">이동평균 교차(단기×장기)의 성과 지형을 그립니다.
+<h1>파라미터 민감도 히트맵</h1>
+<p style="color:var(--muted);font-size:13px">이동평균 교차(단기×장기)의 성과 지형을 그립니다.
 넓은 초록 고원=견고, 외딴 점=과최적화.</p>
 {msg}
 <form action="/sweep/run" method="get">
