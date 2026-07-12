@@ -20,14 +20,14 @@ from typing import Sequence
 
 
 def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
-               color: str = "#2563eb", fill: bool = True, elem_id: str = "") -> str:
+               color: str = "#4c7dff", fill: bool = True, elem_id: str = "") -> str:
     vals = [float(v) for v in values]
     idattr = f' id="{elem_id}"' if elem_id else ""
     if len(vals) < 2:
         return ('<svg viewBox="0 0 760 180" width="100%" height="180">'
                 f'<polyline{idattr} points="" fill="none" stroke="{color}" '
                 'stroke-width="2.5" /></svg>'
-                '<div style="color:#94a3b8;padding:6px 0;font-size:12px">데이터 수집 중…</div>')
+                '<div style="color:#8f96a3;padding:6px 0;font-size:12px">데이터 수집 중…</div>')
     lo, hi = min(vals), max(vals)
     rng = (hi - lo) or 1.0
     n = len(vals)
@@ -49,7 +49,7 @@ def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
 
 
 def _kpi(label: str, value: str, tone: str = "", vid: str = "") -> str:
-    color = {"pos": "#16a34a", "neg": "#dc2626", "": "var(--fg)"}[tone]
+    color = {"pos": "#3fb96f", "neg": "#e5484d", "": "var(--fg)"}[tone]
     idattr = f' id="{vid}"' if vid else ""
     return (f'<div class="kpi"><div class="kpi-label">{html.escape(label)}</div>'
             f'<div class="kpi-val"{idattr} style="color:{color}">'
@@ -111,7 +111,7 @@ def build_dashboard_html(state: dict) -> str:
         f'<td>{p.get("quantity", 0):.6f}</td>'
         f'<td>{p.get("avg_price", 0):,.2f}</td></tr>'
         for p in positions if p
-    ) or '<tr><td colspan="3" style="color:#94a3b8">보유 포지션 없음</td></tr>'
+    ) or '<tr><td colspan="3" style="color:var(--muted)">보유 포지션 없음</td></tr>'
 
     order_rows = "".join(
         f'<tr><td>{html.escape(str(o.get("side","")).upper())}</td>'
@@ -120,41 +120,62 @@ def build_dashboard_html(state: dict) -> str:
         f'<td>{o.get("price",0):,.2f}</td>'
         f'<td>{html.escape(str(o.get("status","")))}</td></tr>'
         for o in reversed(orders[-15:])
-    ) or '<tr><td colspan="5" style="color:#94a3b8">주문 내역 없음</td></tr>'
+    ) or '<tr><td colspan="5" style="color:var(--muted)">주문 내역 없음</td></tr>'
 
-    mode_badge = ("🔴 실거래" if mode != "paper" else "📝 페이퍼")
+    mode_badge = ('<span class="badge live">실거래</span>' if mode != "paper"
+                  else '<span class="badge">페이퍼</span>')
 
     doc = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="30">
 <title>퀀트 라이브 모니터 · {html.escape(symbol)}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <style>
- :root{{--bg:#f1f5f9;--card:#fff;--fg:#0f172a;--muted:#64748b;--line:#e2e8f0;--accent:#2563eb}}
- @media(prefers-color-scheme:dark){{:root{{--bg:#0b1220;--card:#111c30;--fg:#e2e8f0;--muted:#94a3b8;--line:#243244;--accent:#60a5fa}}}}
- *{{box-sizing:border-box}} body{{margin:0;background:var(--bg);color:var(--fg);
-   font-family:system-ui,-apple-system,'Segoe UI',sans-serif}}
+ :root{{color-scheme:dark;
+   --bg:#0a0b0e;--card:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;--line:#1e2128;
+   --line-strong:#2a2e37;--accent:#4c7dff;--ok:#3fb96f;--bad:#e5484d;--warn:#d9a13b}}
+ @media(prefers-color-scheme:light){{:root{{color-scheme:light;
+   --bg:#fcfcfd;--card:#f4f5f8;--fg:#101318;
+   --muted:#5a626e;--line:#e7e9ee;--line-strong:#d8dbe2;--accent:#2f5fe0}}}}
+ *{{box-sizing:border-box;min-width:0}} body{{margin:0;background:var(--bg);color:var(--fg);
+   font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
+   "Apple SD Gothic Neo","Malgun Gothic",sans-serif;line-height:1.6;
+   -webkit-font-smoothing:antialiased}}
  .wrap{{max-width:960px;margin:0 auto;padding:20px}}
+ nav{{display:flex;align-items:center;gap:2px;margin:0 0 14px;padding:0 0 10px;font-size:13px;
+   overflow-x:auto;border-bottom:1px solid var(--line)}}
+ nav .logo{{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--fg);
+   margin-right:14px;white-space:nowrap}}
+ nav .logo em{{font-style:normal;color:var(--accent)}}
+ nav a{{white-space:nowrap;padding:6px 10px;border-radius:7px;font-weight:550;
+   color:var(--muted);text-decoration:none;transition:background .15s,color .15s}}
+ nav a:hover{{background:var(--card);color:var(--fg)}}
  header{{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:16px}}
- h1{{font-size:19px;margin:0}} .sub{{color:var(--muted);font-size:13px}}
- .badge{{margin-left:auto;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:999px}}
- .kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}}
- .kpi{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}}
- .kpi-label{{color:var(--muted);font-size:12px;margin-bottom:6px}}
- .kpi-val{{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}}
+ h1{{font-size:18px;margin:0;font-weight:750;letter-spacing:-.02em}}
+ .sub{{color:var(--muted);font-size:13px}}
+ .badge{{margin-left:auto;font-size:11.5px;font-weight:600;padding:4px 12px;
+   color:var(--muted);border:1px solid var(--line-strong);border-radius:999px}}
+ .badge.live{{color:var(--bad);border-color:var(--bad)}}
+ .kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;
+   background:var(--line);border:1px solid var(--line);border-radius:12px;
+   overflow:hidden;margin-bottom:16px}}
+ .kpi{{background:var(--card);padding:14px 16px}}
+ .kpi-label{{color:var(--muted);font-size:11.5px;margin-bottom:5px;font-weight:600}}
+ .kpi-val{{font-size:21px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}}
  .card{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}}
- .card h2{{font-size:13px;color:var(--muted);margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}}
+ .card h2{{font-size:11.5px;color:var(--muted);margin:0 0 10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}}
  table{{border-collapse:collapse;width:100%;font-size:13px}}
  th,td{{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}}
- th{{color:var(--muted);font-weight:600}} .foot{{color:#b45309;font-size:12px}}
+ th{{color:var(--muted);font-weight:600}} .foot{{color:var(--warn);font-size:12px}}
  .over{{overflow-x:auto}}
 </style></head><body><div class="wrap">
 <header>
   <h1>퀀트 라이브 모니터</h1>
   <span class="sub">{html.escape(symbol)} · {html.escape(strategy)} 전략</span>
-  <span class="badge">{mode_badge}</span>
+  {mode_badge}
 </header>
 <div class="kpis">{kpis}</div>
-<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#16a34a" if pnl>=0 else "#dc2626", elem_id="eqline")}</div>
+<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#3fb96f" if pnl>=0 else "#e5484d", elem_id="eqline")}</div>
 <div class="card"><h2>현재 포지션</h2><div class="over"><table>
   <tr><th>종목</th><th>수량</th><th>평균단가</th></tr>
   <tbody id="pos-body">{pos_row}</tbody></table></div></div>

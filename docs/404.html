@@ -4,24 +4,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>페이지를 찾을 수 없음 · Quant</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <style>
- :root{--bg:#0b1220;--fg:#e6edf7;--muted:#93a1b8;--accent:#3b82f6}
- @media(prefers-color-scheme:light){:root{--bg:#f4f6fb;--fg:#0f172a;--muted:#5b6b86}}
+ :root{color-scheme:dark;--bg:#0a0b0e;--fg:#f4f5f7;--muted:#8f96a3;
+   --line:#2a2e37;--accent:#4c7dff}
+ @media(prefers-color-scheme:light){:root{color-scheme:light;--bg:#fcfcfd;
+   --fg:#101318;--muted:#5a626e;--line:#d8dbe2}}
  *{box-sizing:border-box}
- body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;
+ body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
+   "Apple SD Gothic Neo","Malgun Gothic",sans-serif;margin:0;
    min-height:100vh;display:flex;align-items:center;justify-content:center;
-   background:var(--bg);color:var(--fg);text-align:center;padding:24px}
- h1{font-size:48px;margin:0 0 8px}
- p{color:var(--muted);margin:0 0 24px}
- a{display:inline-block;padding:12px 24px;border-radius:12px;background:var(--accent);
-   color:#fff;text-decoration:none;font-weight:700}
+   background:var(--bg);color:var(--fg);text-align:center;padding:24px;line-height:1.7}
+ .code{font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--accent);
+   margin:0 0 10px}
+ h1{font-size:30px;margin:0 0 8px;font-weight:800;letter-spacing:-.03em}
+ p{color:var(--muted);margin:0 0 28px;font-size:14.5px}
+ a{display:inline-block;padding:12px 26px;border-radius:10px;background:var(--fg);
+   color:var(--bg);text-decoration:none;font-weight:700;font-size:14px}
+ a:hover{opacity:.88}
 </style>
 </head>
 <body>
 <div>
-  <h1>404</h1>
-  <p>찾으시는 페이지가 없습니다.</p>
-  <a href="/">📈 Quant 홈으로</a>
+  <p class="code">404</p>
+  <h1>페이지를 찾을 수 없습니다</h1>
+  <p>주소가 바뀌었거나 잘못 입력된 것 같습니다.</p>
+  <a href="/">Quant 홈으로</a>
 </div>
 </body>
 </html>
