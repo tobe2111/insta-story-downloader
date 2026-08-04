@@ -23,18 +23,23 @@ log = get_logger("champion_challenger")
 
 class ChampionChallenger:
     def __init__(self, champion: Strategy, challenger: Strategy,
-                 min_obs: int = 60, edge: float = 0.0, t_threshold: float = 2.0):
+                 min_obs: int = 60, edge: float = 0.0, t_threshold: float = 2.0,
+                 cost_model=None):
         """champion을 challenger로 교체할지 판단한다.
 
         min_obs     : 판단에 필요한 최소 봉 수(표본이 적으면 교체 보류)
         edge        : 챌린저 평균 초과수익이 이 값보다 커야 함(거래비용 여유 등)
         t_threshold : t-통계 임계(≈2.0 → 약 95% 신뢰). 넘어야 교체 권고.
+        cost_model  : 시장별 거래비용 프리셋(CostModel). 없으면 백테스터 기본
+                      비용(편도 0.1%+슬리피지 0.05%)이 적용된다 — 비용 없는
+                      대결은 회전율 높은 전략에 유리하게 왜곡되므로 금지.
         """
         self.champion = champion
         self.challenger = challenger
         self.min_obs = min_obs
         self.edge = edge
         self.t_threshold = t_threshold
+        self.cost_model = cost_model
 
     def evaluate(self, df: pd.DataFrame, tail: int | None = None) -> dict:
         """두 전략을 같은 데이터에 백테스트해 성과를 비교한다.
@@ -45,8 +50,8 @@ class ChampionChallenger:
         """
         from quant.backtest import Backtester
 
-        res_c = Backtester(self.champion).run(df)
-        res_h = Backtester(self.challenger).run(df)
+        res_c = Backtester(self.champion, cost_model=self.cost_model).run(df)
+        res_h = Backtester(self.challenger, cost_model=self.cost_model).run(df)
         rc, rh = res_c.returns, res_h.returns
         if tail is not None and tail > 0:
             rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]

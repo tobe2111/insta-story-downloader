@@ -117,6 +117,27 @@ def test_skips_challenger_identical_to_champion():
     assert out["candidates"] == []             # 자기 자신과의 대결은 건너뜀
 
 
+def test_cross_strategy_challenger_can_win():
+    """전통 전략도 {"strategy": ...} 형식으로 참전해 챔피언이 될 수 있다."""
+    df, build = _dummy_setup()
+    champion = {"strategy": "dummy", "params": {"which": "flat"}}
+    out = nightly_retrain(
+        df, champion, [{"strategy": "dummy", "params": {"which": "up"}}],
+        build=build, confirm_window=120)
+    assert out["promoted"] is True
+    assert out["champion"] == {"strategy": "dummy", "params": {"which": "up"}}
+
+
+def test_cross_strategy_identical_champion_is_skipped():
+    """새 형식이라도 챔피언과 전략·파라미터가 같으면 대결하지 않는다."""
+    df, build = _dummy_setup()
+    champion = {"strategy": "dummy", "params": {"which": "up"}}
+    out = nightly_retrain(
+        df, champion, [{"strategy": "dummy", "params": {"which": "up"}}],
+        build=build, confirm_window=120)
+    assert out["candidates"] == []
+
+
 def test_insufficient_data_keeps_champion():
     df, build = _dummy_setup()
     champion = {"strategy": "dummy", "params": {"which": "flat"}}

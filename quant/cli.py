@@ -129,15 +129,37 @@ def _cmd_learn(args) -> None:
     learner.run(cycles=cycles, interval_sec=args.interval)
 
 
+def _notify_extra(message: str) -> None:
+    """텔레그램/슬랙이 환경변수로 설정돼 있으면 그 채널로만 알린다(콘솔 중복 방지).
+
+    설정이 없으면 조용히 아무것도 안 한다 — 야간 자동화 잡에서 알림은 옵션이다.
+    GitHub Secrets에 TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID를 넣으면 켜진다.
+    """
+    try:
+        from quant.live.notifications import ConsoleNotifier, get_notifier
+        n = get_notifier()
+        extra = [c for c in getattr(n, "notifiers", [])
+                 if not isinstance(c, ConsoleNotifier)]
+        for c in extra:
+            c.send(message)
+    except Exception as exc:  # noqa: BLE001 — 알림 실패가 본 작업을 죽이면 안 된다
+        print(f"(알림 전송 실패: {exc})")
+
+
 def _cmd_paper_daily(args) -> None:
     from quant.live.daily import run_daily_paper, write_docs_status
 
     print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
-    run_daily_paper(args.market, args.symbol, timeframe=args.timeframe,
-                    lookback=args.lookback, state_dir=args.state_dir,
-                    require_real_data=not args.allow_synthetic)
+    rec = run_daily_paper(args.market, args.symbol, timeframe=args.timeframe,
+                          lookback=args.lookback, state_dir=args.state_dir,
+                          require_real_data=not args.allow_synthetic)
     if args.docs:
         write_docs_status(args.state_dir)
+    if rec and not rec.get("skipped"):
+        _notify_extra(
+            f"📅 페이퍼 {args.market}/{args.symbol} [{rec['date']}] "
+            f"자산 {rec['equity']:,.0f} ({rec['return_pct']:+.2f}%) · "
+            f"비중 {rec['weight']:+.2f}")
     print("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
@@ -149,10 +171,15 @@ def _cmd_retrain(args) -> None:
           f"(결승전 {args.confirm_window}봉, 기록: {args.state_dir}/)")
     print("⚠️ 챔피언이 안 바뀌는 날이 대부분입니다 — 확실히 나은 후보가 없었다는 "
           "뜻이고, 그게 이 장치가 일하는 방식입니다.")
-    run_retrain(args.market, args.symbol, timeframe=args.timeframe,
-                limit=args.limit, state_dir=args.state_dir,
-                confirm_window=args.confirm_window,
-                require_real_data=not args.allow_synthetic)
+    out = run_retrain(args.market, args.symbol, timeframe=args.timeframe,
+                      limit=args.limit, state_dir=args.state_dir,
+                      confirm_window=args.confirm_window,
+                      require_real_data=not args.allow_synthetic)
+    if out.get("promoted"):                     # 교체는 드문 사건 — 폰으로 알린다
+        c = out["champion"]
+        _notify_extra(
+            f"🔁 챔피언 교체: {args.market}/{args.symbol} → "
+            f"{c['strategy']} {c['params']}\n근거: {out['reason']}")
 
 
 # validate/웹 최적화가 공유하는 전략별 기본 그리드 — 단일 출처(quant.markets).

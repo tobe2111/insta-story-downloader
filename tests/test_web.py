@@ -243,3 +243,26 @@ def test_web_token_gate():
         assert h._authorized(urlparse("/health"))                    # health는 항상 허용
     finally:
         os.environ.pop("QUANT_WEB_TOKEN", None)
+
+
+def test_fallback_banner_flags_synthetic_data():
+    """실데이터 폴백이면 결과 화면에 '가짜 데이터' 경고가 떠야 한다(정직성)."""
+    from types import SimpleNamespace
+
+    from quant.web.app import _fallback_banner
+
+    fake = SimpleNamespace(attrs={"synthetic_fallback": True})
+    real = SimpleNamespace(attrs={})
+    assert "실데이터가 아닙니다" in _fallback_banner(fake)
+    assert _fallback_banner(real) == ""
+    assert "실데이터가 아닙니다" in _fallback_banner(real, fake)  # 하나라도 폴백이면 경고
+
+
+def test_page_has_loading_overlay_and_korean_labels():
+    """폼 페이지에 로딩 오버레이·한글 전략 라벨이 포함된다."""
+    from quant.web.app import render_form
+
+    doc = render_form()
+    assert 'id="busy"' in doc and "계산 중" in doc      # 로딩 오버레이
+    assert "이동평균 교차" in doc and "머신러닝" in doc  # 한글 라벨
+    assert 'value="ma_cross"' in doc                    # 값은 코드명 유지

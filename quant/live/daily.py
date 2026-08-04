@@ -129,10 +129,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 st = json.load(f)
             hist = st.get("history", [])
             key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
+            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다
+            peak, mdd = 0.0, 0.0
+            for r in hist:
+                eq = float(r.get("equity", 0.0))
+                peak = max(peak, eq)
+                if peak > 0:
+                    mdd = min(mdd, eq / peak - 1)
             status["paper"][key] = {
                 "start_cash": st.get("start_cash", START_CASH),
                 "equity": (hist[-1]["equity"] if hist else st.get("cash")),
                 "return_pct": (hist[-1].get("return_pct") if hist else 0.0),
+                "mdd_pct": round(mdd * 100, 2),
                 "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
             }
             if hist:

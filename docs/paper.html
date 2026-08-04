@@ -80,9 +80,11 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <td>${(r.weight*100).toFixed(0)}%</td><td>${r.equity.toLocaleString()}</td>
         <td class="${r.return_pct>=0?"pos":"neg"}">${r.return_pct>=0?"+":""}${r.return_pct}%</td>
         <td>${hr}</td></tr>`}).join("");
+    const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
     return `<div class="card"><h2>${esc(k)}</h2>
       <div class="big ${cls}">${ret>=0?"+":""}${ret}%</div>
-      <div class="sub">시작 ${p.start_cash.toLocaleString()} → 현재 ${Number(p.equity).toLocaleString()} (가짜 돈)</div>
+      <div class="sub">시작 ${p.start_cash.toLocaleString()} → 현재 ${Number(p.equity).toLocaleString()} (가짜 돈)${
+        mdd==null?"":` · 최대낙폭 <b class="neg">${mdd}%</b>`}</div>
       ${spark(hist)}
       <div class="sub" style="margin-top:8px">🏆 현재 챔피언: <code>${champ}</code></div>
       <table><tr><th>날짜</th><th>가격</th><th>비중</th><th>자산</th><th>누적수익</th><th>적중률(60일)</th></tr>${rows}</table>
