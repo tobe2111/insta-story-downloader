@@ -68,6 +68,19 @@ jobs:
         run: |
           python -c "from quant.live.daily import write_docs_status; write_docs_status()"
 
+      - name: 주간 요약 (월요일 아침 KST, 텔레그램)
+        # 20:30 UTC 실행 = KST 다음날 새벽 5:30 — 일요일(UTC 일=7) 실행분이
+        # 한국의 월요일 아침에 도착하므로 UTC 요일 7에 보낸다.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "$(date -u +%u)" = "7" ]; then
+            python -m quant weekly | tee weekly.txt
+          else
+            echo "월요일(KST) 아님 — 주간 요약 건너뜀"
+          fi
+
       - name: 결과 요약 (Actions Summary)
         if: always()
         run: |

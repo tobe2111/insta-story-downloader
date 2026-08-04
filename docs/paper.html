@@ -88,6 +88,32 @@ function spark(hist){
     ${line(eq,up?"var(--ok)":"var(--bad)",2)}</svg>
   <div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면</div>`;
 }
+function mondayOf(dstr){
+  const d=new Date(dstr+"T00:00:00Z");
+  const dow=(d.getUTCDay()+6)%7;             // 월=0 … 일=6
+  d.setUTCDate(d.getUTCDate()-dow);
+  return d.toISOString().slice(0,10);
+}
+function weeklyTable(hist){
+  if(hist.length<6) return "";               // 한 주도 안 됐으면 생략
+  const weeks=new Map();                     // 주 시작(월) → 그 주 마지막 기록
+  hist.forEach(r=>weeks.set(mondayOf(r.date),r));
+  const keys=[...weeks.keys()].sort();
+  let prevEq=10000, rows="";
+  keys.slice(-8).forEach((wk,i,arr)=>{
+    // 기준 자산: 직전 주 마지막 자산(전체 기록에서 탐색)
+    const kAll=[...weeks.keys()].sort();
+    const idx=kAll.indexOf(wk);
+    const base=idx>0?weeks.get(kAll[idx-1]).equity:10000;
+    const r=weeks.get(wk), w=(r.equity/base-1)*100;
+    rows+=`<tr><td>${esc(wk)} 주</td>
+      <td class="${w>=0?"pos":"neg"}">${pct(w)}</td>
+      <td>${won(r.equity)}</td>
+      <td class="${r.return_pct>=0?"pos":"neg"}">${pct(Number(r.return_pct))}</td></tr>`;
+  });
+  return `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;color:var(--muted)">주간 수익률 보기 (최근 8주)</summary>
+    <div class="tablewrap"><table><tr><th>주(월요일 시작)</th><th>주간</th><th>주말 자산</th><th>누적</th></tr>${rows}</table></div></details>`;
+}
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const el=document.getElementById("content");
   const keys=Object.keys(st.paper||{});
@@ -124,6 +150,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       ${spark(hist)}
       <div class="sub" style="margin-top:10px;font-size:12.5px">🏆 현재 챔피언: <code>${champ}</code></div>
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
+      ${weeklyTable(hist)}
     </div>`}).join("");
   if(st.updated){document.querySelector(".sub").innerHTML+=` <b>마지막 갱신: ${esc(st.updated)}</b>`}
 }).catch(()=>{document.getElementById("content").innerHTML=
