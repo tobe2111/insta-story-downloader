@@ -111,6 +111,76 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
+GOAL_KRW = 100_000_000          # '만원 → 1억' 챌린지 목표
+
+
+def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
+                date: str | None = None) -> dict:
+    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (만원 → 1억 챌린지).
+
+    ⚠️ 법적 구조(반드시 유지): 시청자의 후원금 자체를 굴리는 것이 아니다.
+    후원은 대가·지분 없는 방송 후원이고, 운영자가 '같은 금액만큼' 가상 계좌
+    원금을 늘리는 이벤트다. 이 구조를 바꾸면(타인 자금 운용) 유사수신·무인가
+    집합투자 위험이 생긴다.
+
+    모든 입금은 장부(deposits)에 기록되어 git 커밋으로 공개된다 — 수익률
+    계산은 원금과 손익을 분리해(TWR) 입금이 실력처럼 보이지 않게 한다.
+    """
+    from datetime import date as _date
+
+    from quant.utils.jsonio import atomic_write_json
+
+    amount = float(amount)
+    if not (0 < amount <= 10_000_000):
+        raise ValueError("입금액은 0원 초과 1,000만원 이하여야 합니다.")
+
+    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+    else:
+        st = {"market": "portfolio", "symbol": "ALL", "start_cash": START_CASH,
+              "cash": START_CASH, "positions": {}, "base_prices": {},
+              "last_bar": None, "history": [], "deposits": []}
+
+    entry = {"date": date or _date.today().isoformat(),
+             "amount": round(amount, 2), "memo": str(memo)[:80]}
+    st.setdefault("deposits", []).append(entry)
+    st["cash"] = float(st.get("cash", 0.0)) + amount
+    atomic_write_json(path, st)
+
+    principal = START_CASH + sum(d["amount"] for d in st["deposits"])
+    print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
+          f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
+    return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
+
+
+def time_weighted_return(history: list[dict], deposits: list[dict],
+                         start_cash: float = START_CASH) -> float:
+    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력.
+
+    일별 구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
+    입금 날짜가 기록일 사이면 '그 이후 첫 기록일'에 귀속시킨다(보수적).
+    """
+    if not history:
+        return 0.0
+    flows: dict[str, float] = {}
+    dates = [r["date"] for r in history]
+    for d in deposits or []:
+        target = next((dt for dt in dates if dt >= d["date"]), None)
+        if target is not None:
+            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    twr = 1.0
+    prev = start_cash
+    for r in history:
+        eq = float(r["equity"])
+        flow = flows.get(r["date"], 0.0)
+        if prev > 0:
+            twr *= max(0.0, (eq - flow) / prev)
+        prev = eq
+    return round((twr - 1) * 100, 2)
+
+
 def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         lookback: int = 400, state_dir: str = STATE_DIR,
                         require_real_data: bool = True) -> dict:
@@ -184,11 +254,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
     gross = sum(abs(w) for w in weights.values()) / n
+    # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
+    principal = START_CASH + sum(d["amount"] for d in st.get("deposits", []))
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
-              "return_pct": round((equity / START_CASH - 1) * 100, 2),
+              "return_pct": round((equity / principal - 1) * 100, 2),
+              "principal": round(principal, 2),
+              "pnl": round(equity - principal, 2),
               "hit_rate": None,
               "champion": {"symbols": n, "skipped": skipped}}
+    record["twr_pct"] = time_weighted_return(
+        st["history"] + [record], st.get("deposits", []))
     st["positions"] = {
         p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
         for p in broker._positions.values() if abs(p.quantity) > 0}
@@ -380,6 +456,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 "mdd_pct": round(mdd * 100, 2),
                 "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
             }
+            if st.get("market") == "portfolio":   # 만원 → 1억 챌린지 필드
+                deposits = st.get("deposits", [])
+                principal = (st.get("start_cash", START_CASH)
+                             + sum(d["amount"] for d in deposits))
+                eq_now = float(status["paper"][key]["equity"] or principal)
+                status["paper"][key].update({
+                    "goal": GOAL_KRW,
+                    "principal": round(principal, 2),
+                    "pnl": round(eq_now - principal, 2),
+                    "twr_pct": time_weighted_return(hist, deposits),
+                    "deposits": deposits[-30:],
+                })
             if hist:
                 status["updated"] = max(status["updated"] or "", hist[-1]["date"])
 

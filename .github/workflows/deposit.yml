@@ -1,0 +1,60 @@
+name: Deposit (만원→1억 매칭 입금)
+
+# 방송 중 폰에서 입금 등록: GitHub 앱/웹 → Actions → 이 워크플로 → Run workflow
+# → 금액·메모 입력. 통합 계좌 원금이 늘고 사이트가 갱신되며 방송 화면에
+# 배너가 뜬다(다음 폴링 주기).
+#
+# ⚠️ 법적 구조: 후원금 자체를 굴리는 것이 아니다 — 운영자가 같은 금액만큼
+# '가상' 계좌 원금을 늘리는 매칭 이벤트다(대가·지분 없음).
+
+on:
+  workflow_dispatch:
+    inputs:
+      amount:
+        description: "입금액(원) — 예: 10000"
+        required: true
+      memo:
+        description: "메모 — 예: 슈퍼챗 ○○님"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  deposit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 입금 등록 + 사이트 갱신
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
+        run: |
+          python -m quant deposit --amount "${{ github.event.inputs.amount }}" \
+            --memo "${{ github.event.inputs.memo }}"
+          python -c "from quant.live.daily import write_docs_status; write_docs_status()"
+
+      - name: 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/ docs/status.json
+          git commit -m "매칭 입금: +${{ github.event.inputs.amount }}원 (${{ github.event.inputs.memo }}) [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "❌ 푸시 실패"; exit 1
