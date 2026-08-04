@@ -36,13 +36,20 @@ class ChampionChallenger:
         self.edge = edge
         self.t_threshold = t_threshold
 
-    def evaluate(self, df: pd.DataFrame) -> dict:
-        """두 전략을 같은 데이터에 백테스트해 성과를 비교한다."""
+    def evaluate(self, df: pd.DataFrame, tail: int | None = None) -> dict:
+        """두 전략을 같은 데이터에 백테스트해 성과를 비교한다.
+
+        tail이 주어지면 백테스트는 전체 구간으로 하되(워크포워드 워밍업 확보)
+        '마지막 tail봉'의 수익만 비교한다 — 재학습 파이프라인의 확인(홀드아웃)
+        단계처럼 최근 구간만으로 공정하게 판정할 때 쓴다.
+        """
         from quant.backtest import Backtester
 
         res_c = Backtester(self.champion).run(df)
         res_h = Backtester(self.challenger).run(df)
         rc, rh = res_c.returns, res_h.returns
+        if tail is not None and tail > 0:
+            rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]
         # 두 전략 모두 관망(무포지션)인 봉은 수익 차이가 0이라 정보가 없다.
         # 워밍업·무거래 구간의 0들을 t-검정에 넣으면 표본만 부풀려 t-통계를
         # 인위적으로 0쪽으로 눌러 판단을 왜곡한다. 적어도 한쪽이 '직전 봉에
