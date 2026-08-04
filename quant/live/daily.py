@@ -334,7 +334,10 @@ def write_docs_status(state_dir: str = STATE_DIR,
     """
     from quant.utils.jsonio import atomic_write_json
 
-    status: dict = {"champions": {}, "paper": {}, "updated": None, "swaps": []}
+    status: dict = {"champions": {}, "paper": {}, "updated": None, "swaps": [],
+                    # 유튜브 라이브 주소 — 저장소 변수(QUANT_LIVE_URL)를 설정하면
+                    # 사이트에 '라이브 보러가기' 버튼이 자동으로 나타난다
+                    "live_url": os.getenv("QUANT_LIVE_URL") or None}
     hist_file = os.path.join(state_dir, "retrain_history.jsonl")
     if os.path.exists(hist_file):
         with open(hist_file, encoding="utf-8") as f:

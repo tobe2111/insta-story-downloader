@@ -44,6 +44,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
         run: |
           python -m quant paper-daily --all --docs | tee paper-all.txt
 

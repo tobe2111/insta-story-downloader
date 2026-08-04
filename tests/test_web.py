@@ -405,3 +405,29 @@ def test_indicator_chips_champion_aware(tmp_path, monkeypatch):
 
     monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Fb())
     assert indicator_chips("crypto", "ETH/USDT", str(tmp_path)) == []
+
+
+def test_broadcast_has_watermark_event_comment():
+    """방송 화면: QR 워터마크·이벤트 배너·장중 상황 코멘트 슬롯이 존재한다."""
+    from quant.web.app import render_broadcast
+
+    doc = render_broadcast()
+    assert "quant.jiwon-1a2.workers.dev" in doc          # 사이트 유입 다리
+    assert 'id="event"' in doc and "popEvent" in doc     # 사건 배너
+    assert 'id="c-comment"' in doc and "판단 아님" in doc  # 상황≠판단 명시
+    assert "M0 0" in doc or "<path d=" in doc            # QR 인라인
+
+
+def test_docs_status_live_url_env(tmp_path, monkeypatch):
+    """QUANT_LIVE_URL 변수를 설정하면 사이트 라이브 버튼용 필드가 채워진다."""
+    import json as _json
+
+    from quant.live.daily import write_docs_status
+
+    monkeypatch.setenv("QUANT_LIVE_URL", "https://youtube.com/@example/live")
+    out = tmp_path / "docs" / "status.json"
+    st = write_docs_status(str(tmp_path), docs_path=str(out))
+    assert st["live_url"] == "https://youtube.com/@example/live"
+    monkeypatch.delenv("QUANT_LIVE_URL")
+    st = write_docs_status(str(tmp_path), docs_path=str(out))
+    assert st["live_url"] is None
