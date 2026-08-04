@@ -124,7 +124,17 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
 
 
 def build_strategy(spec: dict):
-    """{"strategy": 이름, "params": {...}} 스펙으로 전략 인스턴스를 만든다."""
+    """{"strategy": 이름, "params": {...}} 스펙으로 전략 인스턴스를 만든다.
+
+    특수형 "regime_wrap": 다른 전략(inner)을 레짐 필터로 감싼다 — 약세장·
+    고변동성 구간에서 자동 관망하는 변형. 수익을 올리는 장치가 아니라
+    대낙폭을 피하는 장치다.
+    """
+    if spec["strategy"] == "regime_wrap":
+        from quant.strategies import RegimeFilter
+        params = dict(spec.get("params", {}))
+        inner = build_strategy(params.pop("inner"))
+        return RegimeFilter(inner, **params)
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -270,6 +280,25 @@ def champion_strategy(market: str, symbol: str, state_dir: str = STATE_DIR):
     return _Champion()
 
 
+def _normalize_challengers(specs: list[dict], champion: dict) -> list[dict]:
+    """merge형({"model": ...}) 후보를 챔피언 전략에 맞게 해석한다.
+
+    merge형은 'ml 챔피언의 파라미터 변형'이라는 의미다. 챔피언이 ml이 아닌
+    날에도 ML 후보가 링에서 사라지면 안 되므로, 그때는 기본 ml 파라미터 위에
+    변형을 얹은 '독립 ml 후보'로 바꿔 참전시킨다.
+    """
+    if champion["strategy"] == "ml":
+        return list(specs)
+    out = []
+    for spec in specs:
+        if "strategy" in spec:
+            out.append(spec)
+        else:
+            out.append({"strategy": "ml",
+                        "params": {**DEFAULT_CHAMPION["params"], **spec}})
+    return out
+
+
 def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,
@@ -292,11 +321,28 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     current_spec = {"strategy": entry["strategy"], "params": entry["params"]}
     asof = str(df.index[-1])[:10]              # 기준 시점 = 데이터 마지막 봉(재현 가능)
 
-    # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색). 돌연변이 시드가
-    # 날짜라 매일 다른 주변을 탐색하고, 같은 날 재실행은 같은 후보를 만든다.
-    challengers = list(DEFAULT_CHALLENGERS)
+    # 멱등 가드 — 같은 봉(같은 날)에 이미 대결했으면 통째로 건너뛴다.
+    # 예비(재시도) 크론이 성공한 날을 다시 돌려 기록을 중복시키지 않게 한다.
+    if entry.get("last_run_asof") == asof:
+        print(f"[{asof}] {market}/{symbol} — 오늘 이미 재학습함, 건너뜀")
+        return {"skipped": True, "key": key, "champion": entry}
+
+    # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색) + 레짐 변형.
+    # 돌연변이 시드가 날짜라 매일 다른 주변을 탐색하고, 같은 날 재실행은
+    # 같은 후보를 만든다.
+    challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
     if evolve:
         challengers += mutate_champion(current_spec, seed=f"{asof}:{key}")
+        if current_spec["strategy"] != "regime_wrap":
+            # 현 챔피언에 레짐 필터를 씌운 변형 — 하락장이 오면 진화 루프가
+            # '관망할 줄 아는 챔피언'으로 스스로 갈아탈 수 있게 한다.
+            challengers.append({"strategy": "regime_wrap",
+                                "params": {"inner": current_spec,
+                                           "trend_window": 200}})
+        else:
+            # 챔피언이 이미 레짐 래핑이면 '벗긴 원본'을 도전시킨다 — 필터가
+            # 더는 도움이 안 되는 국면에서 되돌아갈 길을 항상 열어 둔다.
+            challengers.append(current_spec["params"]["inner"])
 
     # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
     from quant.backtest.costs import CostModel
@@ -308,11 +354,9 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         entry = {**decision["champion"],
                  "promoted_at": asof,
                  "promotions": int(entry.get("promotions", 0)) + 1}
-        champions[key] = entry
-        save_champions(champions, state_dir)
-    elif key not in champions:                 # 첫 실행: 기본 챔피언을 명시적으로 기록
-        champions[key] = entry
-        save_champions(champions, state_dir)
+    entry["last_run_asof"] = asof              # 멱등 가드 기준(재시도 크론용)
+    champions[key] = entry
+    save_champions(champions, state_dir)
 
     append_history({
         "asof": asof, "market": market, "symbol": symbol, "bars": len(df),

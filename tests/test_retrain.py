@@ -246,3 +246,51 @@ def test_auto_targets_shape():
     for market, symbol in AUTO_TARGETS:
         assert market in LIVE_BROKER_FOR_MARKET
         assert isinstance(symbol, str) and symbol
+
+
+def test_regime_wrap_build_and_challenger_forms():
+    """레짐 래핑 스펙이 RegimeFilter로 빌드되고, ml 아닌 챔피언에도 ml 후보가 참전."""
+    from quant.live.retrain import build_strategy
+    from quant.strategies import RegimeFilter
+
+    spec = {"strategy": "regime_wrap",
+            "params": {"inner": {"strategy": "ma_cross",
+                                 "params": {"fast": 5, "slow": 20}},
+                       "trend_window": 100}}
+    s = build_strategy(spec)
+    assert isinstance(s, RegimeFilter)
+    assert s.base.fast == 5 and s.trend_window == 100
+
+    # ml이 아닌 챔피언 + merge형({"model": ...}) 후보 → 독립 ml 스펙으로 정규화
+    from quant.live.retrain import _normalize_challengers
+
+    non_ml = {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}}
+    normed = _normalize_challengers(
+        [{"model": "gb"}, {"strategy": "breakout", "params": {"window": 55}}],
+        non_ml)
+    assert normed[0] == {"strategy": "ml",
+                         "params": {**DEFAULT_CHAMPION["params"], "model": "gb"}}
+    assert normed[1]["strategy"] == "breakout"            # 명시형은 그대로
+    ml_champ = {"strategy": "ml", "params": DEFAULT_CHAMPION["params"]}
+    assert _normalize_challengers([{"model": "gb"}], ml_champ) == [{"model": "gb"}]
+
+
+def test_run_retrain_same_day_is_idempotent(tmp_path):
+    """같은 날 재실행(재시도 크론)은 대결을 반복하지 않고 건너뛴다."""
+    import quant.live.retrain as rt
+
+    orig = rt.DEFAULT_CHALLENGERS
+    rt.DEFAULT_CHALLENGERS = [{"model": "logreg", "threshold": 0.60}]
+    try:
+        r1 = rt.run_retrain("synthetic", "DEMO", limit=400,
+                            state_dir=str(tmp_path), confirm_window=100,
+                            require_real_data=False, evolve=False)
+        r2 = rt.run_retrain("synthetic", "DEMO", limit=400,
+                            state_dir=str(tmp_path), confirm_window=100,
+                            require_real_data=False, evolve=False)
+    finally:
+        rt.DEFAULT_CHALLENGERS = orig
+    assert r1.get("skipped") is not True
+    assert r2.get("skipped") is True
+    hist = (tmp_path / "retrain_history.jsonl").read_text(encoding="utf-8")
+    assert hist.count('"asof"') == 1           # 기록도 하루 1건

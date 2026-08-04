@@ -122,8 +122,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const p=st.paper[k],hist=p.history||[];
     const ret=p.return_pct??0,cls=ret>=0?"pos":"neg";
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
-    const champ=(st.champions&&st.champions[k])
-      ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
+    const champ=k.startsWith("portfolio")
+      ?"8종목 자본 균등 분산 (각 종목의 챔피언 전략 추종)"
+      :(st.champions&&st.champions[k])
+        ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
     // 그냥 보유(벤치마크): 첫 기록일에 같은 돈으로 사서 들고만 있었다면
     let benchTxt="";
     if(hist.length>=2){

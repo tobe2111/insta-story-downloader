@@ -164,3 +164,62 @@ def test_run_daily_paper_all_tolerates_partial_failure(tmp_path, monkeypatch):
     with _pytest.raises(RuntimeError):           # 전 종목 실패 → 조기 경보
         dl.run_daily_paper_all(targets=[("synthetic", "BAD")],
                                state_dir=str(tmp_path))
+
+
+# ── 통합 포트폴리오 챌린지 ────────────────────────────────────────────────
+
+def test_portfolio_account_runs_and_is_idempotent(tmp_path):
+    from quant.live.daily import run_daily_portfolio
+    from quant.live.retrain import save_champions
+
+    d = str(tmp_path)
+    save_champions({
+        "synthetic:DEMO": {"strategy": "ma_cross",
+                           "params": {"fast": 10, "slow": 30}, "promotions": 0},
+        "synthetic:DEMO2": {"strategy": "ma_cross",
+                            "params": {"fast": 5, "slow": 20}, "promotions": 0},
+    }, d)
+    targets = [("synthetic", "DEMO"), ("synthetic", "DEMO2")]
+
+    r1 = run_daily_portfolio(targets, lookback=200, state_dir=d,
+                             require_real_data=False)
+    assert r1.get("skipped") is not True
+    st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                    .read_text(encoding="utf-8"))
+    assert st["market"] == "portfolio" and len(st["history"]) == 1
+    assert abs(st["history"][0]["price"] - 100.0) < 1e-6   # 지수 첫 관측 = 100
+    assert st["history"][0]["champion"]["symbols"] == 2
+
+    r2 = run_daily_portfolio(targets, lookback=200, state_dir=d,
+                             require_real_data=False)
+    assert r2.get("skipped") is True                       # 같은 봉 → 멱등
+
+    # 다음 날 시뮬레이션: last_bar를 되돌리면 계좌가 이어진다
+    st["last_bar"] = "1999-01-01"
+    (tmp_path / "paper" / "portfolio_ALL.json").write_text(
+        json.dumps(st), encoding="utf-8")
+    r3 = run_daily_portfolio(targets, lookback=200, state_dir=d,
+                             require_real_data=False)
+    assert r3.get("skipped") is not True
+    st2 = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                     .read_text(encoding="utf-8"))
+    assert len(st2["history"]) == 2
+
+
+def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
+    import quant.data as qd
+    from quant.live.daily import run_daily_portfolio
+
+    real = qd.get_provider("synthetic")
+
+    class _FallbackStub:
+        def get_ohlcv(self, *a, **k):
+            df = real.get_ohlcv("DEMO", "1d", limit=100)
+            df.attrs["synthetic_fallback"] = True   # 폴백 데이터 흉내
+            return df
+
+    monkeypatch.setattr(qd, "get_provider", lambda market, **k: _FallbackStub())
+    with pytest.raises(RuntimeError):                # 전 종목 거부 → 기록 금지
+        run_daily_portfolio([("crypto", "BTC/USDT")], lookback=100,
+                            state_dir=str(tmp_path), require_real_data=True)
+    assert not (tmp_path / "paper" / "portfolio_ALL.json").exists()

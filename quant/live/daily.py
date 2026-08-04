@@ -105,6 +105,97 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
+def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
+                        lookback: int = 400, state_dir: str = STATE_DIR,
+                        require_real_data: bool = True) -> dict:
+    """통합 만원 계좌 — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
+
+    각 종목의 챔피언 전략 비중을 종목 수로 나눠(자본 균등 슬라이스) 한
+    PaperBroker 계좌에 담는다. 실데이터를 못 받은 종목은 그날 매매하지 않고
+    기존 포지션을 유지한다(가짜 데이터로 매매 금지). 멱등: 같은 봉 재실행 무시.
+    사이트 벤치마크('그냥 보유')를 위해 균등가중 지수(첫 관측일=100)를 가격으로
+    기록한다.
+    """
+    from quant.broker import PaperBroker
+    from quant.broker.base import Position
+    from quant.data import get_provider
+    from quant.risk import RiskManager
+    from quant.utils.jsonio import atomic_write_json, cap_history
+
+    from quant.markets import AUTO_TARGETS
+    targets = targets or AUTO_TARGETS
+
+    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+    else:
+        st = {"market": "portfolio", "symbol": "ALL", "start_cash": START_CASH,
+              "cash": START_CASH, "positions": {}, "base_prices": {},
+              "last_bar": None, "history": []}
+
+    risk = RiskManager()
+    prices, weights, skipped = {}, {}, []
+    last_dates = []
+    for market, symbol in targets:
+        key = f"{market}:{symbol}"
+        try:
+            df = get_provider(market).get_ohlcv(symbol, timeframe,
+                                                limit=lookback)
+            if df.empty or (require_real_data
+                            and df.attrs.get("synthetic_fallback")):
+                raise RuntimeError("실데이터 없음")
+            signals = champion_strategy(market, symbol,
+                                        state_dir).generate_signals(df)
+            weights[key] = float(risk.size_positions(df, signals).iloc[-1])
+            prices[key] = float(df["close"].iloc[-1])
+            st["base_prices"].setdefault(key, prices[key])
+            last_dates.append(str(df.index[-1])[:10])
+        except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
+            skipped.append(key)
+            log.warning("포트폴리오 %s 스킵: %s", key, exc)
+    if not prices:
+        raise RuntimeError("포트폴리오: 전 종목 데이터 실패 — 기록하지 않음")
+
+    bar = max(last_dates)
+    if st.get("last_bar") == bar:
+        log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
+        return {"skipped": True, "last_bar": bar}
+
+    broker = PaperBroker(cash=float(st["cash"]))
+    for key, pos in st.get("positions", {}).items():
+        if abs(float(pos.get("quantity", 0.0))) > 0:
+            broker._positions[key] = Position(
+                key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
+    # 평가: 오늘 가격이 없는(스킵) 종목은 평단가로 보수 평가된다(equity 내부 동작)
+    equity = broker.equity(prices)
+    n = len(targets)
+    for key, w in weights.items():
+        broker.target_weight(key, w / n, prices[key], equity)
+    equity = broker.equity(prices)
+
+    # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
+    idx = 100.0 * sum(prices[k] / st["base_prices"][k]
+                      for k in prices) / len(prices)
+    gross = sum(abs(w) for w in weights.values()) / n
+    record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
+              "equity": round(equity, 2),
+              "return_pct": round((equity / START_CASH - 1) * 100, 2),
+              "hit_rate": None,
+              "champion": {"symbols": n, "skipped": skipped}}
+    st["positions"] = {
+        p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
+        for p in broker._positions.values() if abs(p.quantity) > 0}
+    st.update({"cash": broker.get_cash(), "last_bar": bar})
+    st["history"] = cap_history(st["history"] + [record])
+    atomic_write_json(path, st)
+
+    print(f"[{bar}] 포트폴리오({n}종목 분산) — 자산 {equity:,.2f} "
+          f"({record['return_pct']:+.2f}%) · 총노출 {gross:.0%}"
+          + (f" · 스킵 {len(skipped)}종목" if skipped else ""))
+    return record
+
+
 def run_daily_paper_all(targets=None, **kwargs) -> dict:
     """AUTO_TARGETS 전체를 순회 페이퍼 운용한다 — 한 종목 실패가 나머지를 안 막는다.
 
