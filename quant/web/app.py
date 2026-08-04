@@ -249,6 +249,52 @@ def state_json(state_paths=None) -> str:
     return json.dumps(read_state(state_paths) or {}, ensure_ascii=False)
 
 
+def champions_html(state_dir: str = "state") -> str:
+    """야간 재학습 챔피언 현황 카드 (기록이 없으면 빈 문자열). pandas 불필요."""
+    import json
+    from pathlib import Path
+
+    fp = Path(state_dir) / "champions.json"
+    if not fp.exists():
+        return ""
+    try:
+        champions = json.loads(fp.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return ""
+    if not champions:
+        return ""
+
+    # 최근 결정 이유(있으면) — 시장별 마지막 기록
+    reasons: dict[str, dict] = {}
+    hist = Path(state_dir) / "retrain_history.jsonl"
+    if hist.exists():
+        try:
+            for line in hist.read_text(encoding="utf-8").splitlines()[-50:]:
+                rec = json.loads(line)
+                reasons[f"{rec.get('market')}:{rec.get('symbol')}"] = rec
+        except (ValueError, OSError):
+            pass
+
+    rows = []
+    for key, c in champions.items():
+        rec = reasons.get(key, {})
+        params = html.escape(json.dumps(c.get("params", {}), ensure_ascii=False))
+        badge = ("🔁 어젯밤 교체" if rec.get("promoted")
+                 else f"🏆 유지 (교체 {c.get('promotions', 0)}회)")
+        rows.append(
+            f"<tr><td>{html.escape(key)}</td><td>{badge}</td>"
+            f"<td style='font-size:12px'>{params}</td>"
+            f"<td style='font-size:12px;color:var(--muted)'>"
+            f"{html.escape(str(rec.get('reason', ''))[:90])}</td></tr>")
+    return (
+        '<div class="card"><h2>🌙 야간 자동 재학습 (챔피언/챌린저)</h2>'
+        '<p style="font-size:13px;color:var(--muted)">매일 밤 새 데이터로 후보들을 '
+        '학습시켜 현재 챔피언과 2단계 검증(선발전→결승전)으로 대결시키고, 확실히 '
+        '이긴 후보만 교체합니다. 챔피언이 오래 안 바뀌는 것이 정상입니다.</p>'
+        '<table><tr><th>시장</th><th>상태</th><th>챔피언 설정</th><th>최근 결정</th></tr>'
+        + "".join(rows) + "</table></div>")
+
+
 def render_monitor(state_paths=None) -> str:
     """실행 중인 봇의 상태(state.json)를 읽어 감시 대시보드를 렌더한다 (pandas 불필요).
 
@@ -269,6 +315,7 @@ def render_monitor(state_paths=None) -> str:
 <pre style="font-size:12px">python examples/run_live.py --paper --market crypto --symbol BTC/USDT</pre>
 <p style="font-size:13px;color:var(--muted)">봇이 <code>results/state.json</code>을 쓰면
 이 페이지에 자산·포지션·주문이 나타납니다.</p>
+{champions_html()}
 </div></body></html>""")
 
     doc = build_dashboard_html(state)
@@ -299,6 +346,7 @@ def render_monitor(state_paths=None) -> str:
         doc = doc.replace(
             '<span id="rt-time">—</span></p>',
             '<span id="rt-time">—</span> · ' + " · ".join(badges) + "</p>", 1)
+    doc = doc.replace("</body>", champions_html() + "</body>", 1)
     return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
 
 

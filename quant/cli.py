@@ -121,6 +121,19 @@ def _cmd_learn(args) -> None:
     learner.run(cycles=cycles, interval_sec=args.interval)
 
 
+def _cmd_retrain(args) -> None:
+    from quant.live.retrain import run_retrain
+
+    print(f"🌙 야간 재학습: {args.market}/{args.symbol} "
+          f"(결승전 {args.confirm_window}봉, 기록: {args.state_dir}/)")
+    print("⚠️ 챔피언이 안 바뀌는 날이 대부분입니다 — 확실히 나은 후보가 없었다는 "
+          "뜻이고, 그게 이 장치가 일하는 방식입니다.")
+    run_retrain(args.market, args.symbol, timeframe=args.timeframe,
+                limit=args.limit, state_dir=args.state_dir,
+                confirm_window=args.confirm_window,
+                require_real_data=not args.allow_synthetic)
+
+
 # validate/웹 최적화가 공유하는 전략별 기본 그리드 — 단일 출처(quant.markets).
 from quant.markets import STRATEGY_GRIDS as _VALIDATE_GRIDS
 
@@ -488,6 +501,21 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--report", default=None,
                     help="검증 결과를 그래프 HTML 리포트로 저장(예: results/validate.html)")
     va.set_defaults(func=_cmd_validate)
+
+    rt = sub.add_parser(
+        "retrain",
+        help="야간 자동 재학습 — 챔피언/챌린저 2단계 검증, 이길 때만 교체")
+    rt.add_argument("--market", default="crypto")
+    rt.add_argument("--symbol", default="BTC/USDT")
+    rt.add_argument("--timeframe", default="1d")
+    rt.add_argument("--limit", type=int, default=800)
+    rt.add_argument("--confirm-window", type=int, default=120,
+                    dest="confirm_window",
+                    help="결승전(최근 미공개 구간) 봉 수")
+    rt.add_argument("--state-dir", default="state", dest="state_dir")
+    rt.add_argument("--allow-synthetic", action="store_true",
+                    help="합성 폴백 데이터 허용(테스트 전용 — 실서비스 금지)")
+    rt.set_defaults(func=_cmd_retrain)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)
