@@ -86,7 +86,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-03"
+      "last_run_asof": "2026-08-04"
     }
   },
   "paper": {
@@ -161,9 +161,9 @@
     },
     "kr_stock:005930.KS": {
       "start_cash": 10000.0,
-      "equity": 10000.0,
-      "return_pct": 0.0,
-      "mdd_pct": 0.0,
+      "equity": 9999.78,
+      "return_pct": -0.0,
+      "mdd_pct": -0.0,
       "history": [
         {
           "date": "2026-08-03",
@@ -179,6 +179,21 @@
             "retrain_every": 20
           },
           "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 10일 수익률, MACD 히스토그램, 변동성(20일)"
+        },
+        {
+          "date": "2026-08-04",
+          "price": 240000.0,
+          "weight": 0.0218,
+          "equity": 9999.78,
+          "return_pct": -0.0,
+          "hit_rate": 0.5285714285714286,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델이 내일 상승확률을 약 56%로 추정(기준 55% 초과) · 주요 판단 재료: 10일 수익률, 변동성(20일), MACD 히스토그램"
         }
       ]
     },
