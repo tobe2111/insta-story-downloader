@@ -67,6 +67,62 @@ def _key(market: str, symbol: str) -> str:
     return f"{market}:{symbol}"
 
 
+def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
+    """현재 챔피언의 '돌연변이' 후보를 만든다 — 진화 탐색의 엔진.
+
+    고정 후보만으로는 그 목록 밖의 설정을 영원히 탐색하지 못한다. 매일 밤
+    챔피언 주변을 조금씩 변형한 후보를 새로 만들어 도전시키면, 이긴 변형이
+    다음 날의 챔피언이 되고 그 주변을 다시 탐색한다 — 언덕오르기식 진화.
+    승격 관문(선발전+결승전)은 그대로이므로 탐색이 넓어져도 과최적화
+    방어선은 약해지지 않는다.
+
+    seed(날짜+시장)로 결정적이라 같은 날 재실행해도 같은 후보가 나온다(멱등).
+    ⚠️ 진화는 성공률의 끝없는 상승을 만들지 않는다 — 시장이 변하는 한 최적
+    설정도 계속 움직이고, 이 탐색은 그 이동을 '따라가는' 장치일 뿐이다.
+    """
+    import random
+    rng = random.Random(f"{seed}:{json.dumps(spec, sort_keys=True)}")
+    params = spec.get("params", {})
+    out: list[dict] = []
+    seen = {json.dumps(spec, sort_keys=True)}
+    for _ in range(n * 8):                     # 중복 제거를 감안해 넉넉히 시도
+        if len(out) >= n:
+            break
+        p = dict(params)
+        if spec["strategy"] == "ml":
+            axis = rng.choice(["model", "threshold", "train_window",
+                               "retrain_every", "calibrate"])
+            if axis == "model":
+                p["model"] = rng.choice(["logreg", "rf", "gb", "vote"])
+            elif axis == "threshold":
+                base = float(p.get("threshold", 0.55))
+                step = rng.choice([-0.05, -0.02, 0.02, 0.05])
+                p["threshold"] = round(min(0.70, max(0.52, base + step)), 2)
+            elif axis == "train_window":
+                p["train_window"] = rng.choice([150, 250, 350, 500])
+            elif axis == "retrain_every":
+                p["retrain_every"] = rng.choice([10, 20, 40])
+            else:
+                p["calibrate"] = rng.choice([None, "sigmoid"])
+        else:
+            # 수치 파라미터 하나를 곱셈 변형(불리언·문자열은 건드리지 않는다).
+            # 잘못된 조합(예: ma_cross fast>=slow)은 생성 단계에서 거르지 않고
+            # 대결 루프의 예외 처리에 맡긴다 — 후보 하나의 실패는 무해하다.
+            nums = [k for k, v in p.items()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)]
+            if not nums:
+                break
+            k = rng.choice(nums)
+            v = p[k] * rng.choice([0.6, 0.8, 1.25, 1.6])
+            p[k] = max(2, int(round(v))) if isinstance(p[k], int) else round(v, 4)
+        cand = {"strategy": spec["strategy"], "params": p}
+        cand_key = json.dumps(cand, sort_keys=True)
+        if cand_key not in seen:
+            seen.add(cand_key)
+            out.append(cand)
+    return out
+
+
 def build_strategy(spec: dict):
     """{"strategy": 이름, "params": {...}} 스펙으로 전략 인스턴스를 만든다."""
     from quant.strategies import get_strategy
@@ -217,7 +273,8 @@ def champion_strategy(market: str, symbol: str, state_dir: str = STATE_DIR):
 def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,
-                require_real_data: bool = True) -> dict:
+                require_real_data: bool = True,
+                evolve: bool = True) -> dict:
     """데이터 수신 → 대결 → 승격/유지 → 기록까지의 야간 재학습 1회분."""
     from quant.data import get_provider
 
@@ -233,13 +290,19 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     key = _key(market, symbol)
     entry = champions.get(key) or {**DEFAULT_CHAMPION, "promotions": 0}
     current_spec = {"strategy": entry["strategy"], "params": entry["params"]}
+    asof = str(df.index[-1])[:10]              # 기준 시점 = 데이터 마지막 봉(재현 가능)
+
+    # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색). 돌연변이 시드가
+    # 날짜라 매일 다른 주변을 탐색하고, 같은 날 재실행은 같은 후보를 만든다.
+    challengers = list(DEFAULT_CHALLENGERS)
+    if evolve:
+        challengers += mutate_champion(current_spec, seed=f"{asof}:{key}")
 
     # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
     from quant.backtest.costs import CostModel
-    decision = nightly_retrain(df, current_spec, DEFAULT_CHALLENGERS,
+    decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
                                cost_model=CostModel.for_market(market))
-    asof = str(df.index[-1])[:10]              # 기준 시점 = 데이터 마지막 봉(재현 가능)
 
     if decision["promoted"]:
         entry = {**decision["champion"],

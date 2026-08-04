@@ -13,8 +13,40 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quant.live.retrain import (  # noqa: E402
     DEFAULT_CHAMPION, append_history, champion_spec, champion_strategy,
-    load_champions, nightly_retrain, save_champions,
+    load_champions, mutate_champion, nightly_retrain, save_champions,
 )
+
+
+# ── 진화(돌연변이) 탐색 (pandas 불필요) ────────────────────────────────────
+
+def test_mutate_champion_is_deterministic_and_bounded():
+    spec = {"strategy": "ml", "params": {"model": "logreg", "threshold": 0.55,
+                                         "train_window": 250, "retrain_every": 20}}
+    a = mutate_champion(spec, seed="2026-08-04:crypto:BTC/USDT")
+    b = mutate_champion(spec, seed="2026-08-04:crypto:BTC/USDT")
+    assert a == b, "같은 시드는 같은 후보(멱등)여야 한다"
+    assert 1 <= len(a) <= 4
+    keys = [str(m) for m in a]
+    assert len(keys) == len(set(keys)), "중복 후보 금지"
+    for m in a:
+        assert m != spec, "챔피언 자신은 후보가 아니다"
+        th = m["params"].get("threshold", 0.55)
+        assert 0.52 <= th <= 0.70, "임계는 보수적 경계 안에서만 변형"
+    # 다른 날(시드)에는 다른 주변을 탐색한다
+    c = mutate_champion(spec, seed="2026-08-05:crypto:BTC/USDT")
+    assert c != a
+
+
+def test_mutate_champion_non_ml_strategy():
+    """전통 전략 챔피언도 수치 파라미터를 변형해 진화를 잇는다."""
+    spec = {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}}
+    muts = mutate_champion(spec, seed="2026-08-04:test")
+    assert muts, "후보가 나와야 한다"
+    for m in muts:
+        assert m["strategy"] == "ma_cross"
+        assert m["params"] != spec["params"]
+        for v in m["params"].values():
+            assert isinstance(v, int) and v >= 2
 
 
 # ── 상태 파일 (pandas 불필요 — 어디서나 실행) ──────────────────────────────
@@ -177,7 +209,7 @@ def test_run_retrain_writes_state(tmp_path, monkeypatch=None):
     try:
         out = rt.run_retrain("synthetic", "DEMO", limit=400,
                              state_dir=str(tmp_path), confirm_window=100,
-                             require_real_data=False)
+                             require_real_data=False, evolve=False)
     finally:
         rt.DEFAULT_CHALLENGERS = orig
 
