@@ -147,19 +147,33 @@ def _notify_extra(message: str) -> None:
 
 
 def _cmd_paper_daily(args) -> None:
-    from quant.live.daily import run_daily_paper, write_docs_status
+    from quant.live.daily import (
+        run_daily_paper, run_daily_paper_all, write_docs_status,
+    )
 
-    print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
-    rec = run_daily_paper(args.market, args.symbol, timeframe=args.timeframe,
-                          lookback=args.lookback, state_dir=args.state_dir,
-                          require_real_data=not args.allow_synthetic)
+    common = dict(timeframe=args.timeframe, lookback=args.lookback,
+                  state_dir=args.state_dir,
+                  require_real_data=not args.allow_synthetic)
+    if args.all:
+        from quant.markets import AUTO_TARGETS
+        print(f"📅 매일 자동 페이퍼 — 전체 {len(AUTO_TARGETS)}종목 (챔피언 추종)")
+        out = run_daily_paper_all(**common)
+        lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
+                 for k, r in out["records"].items() if not r.get("skipped")]
+        if lines:
+            _notify_extra("📅 만원 챌린지 오늘 기록\n" + "\n".join(lines)
+                          + (f"\n⚠️ 실패: {', '.join(out['failed'])}"
+                             if out["failed"] else ""))
+    else:
+        print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
+        rec = run_daily_paper(args.market, args.symbol, **common)
+        if rec and not rec.get("skipped"):
+            _notify_extra(
+                f"📅 페이퍼 {args.market}/{args.symbol} [{rec['date']}] "
+                f"자산 {rec['equity']:,.0f} ({rec['return_pct']:+.2f}%) · "
+                f"비중 {rec['weight']:+.2f}")
     if args.docs:
         write_docs_status(args.state_dir)
-    if rec and not rec.get("skipped"):
-        _notify_extra(
-            f"📅 페이퍼 {args.market}/{args.symbol} [{rec['date']}] "
-            f"자산 {rec['equity']:,.0f} ({rec['return_pct']:+.2f}%) · "
-            f"비중 {rec['weight']:+.2f}")
     print("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
@@ -176,14 +190,23 @@ def _cmd_weekly(args) -> None:
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
-    print(f"🌙 야간 재학습: {args.market}/{args.symbol} "
+    target = "전체 종목(AUTO_TARGETS)" if args.all else f"{args.market}/{args.symbol}"
+    print(f"🌙 야간 재학습: {target} "
           f"(결승전 {args.confirm_window}봉, 기록: {args.state_dir}/)")
     print("⚠️ 챔피언이 안 바뀌는 날이 대부분입니다 — 확실히 나은 후보가 없었다는 "
           "뜻이고, 그게 이 장치가 일하는 방식입니다.")
-    out = run_retrain(args.market, args.symbol, timeframe=args.timeframe,
-                      limit=args.limit, state_dir=args.state_dir,
-                      confirm_window=args.confirm_window,
-                      require_real_data=not args.allow_synthetic)
+    common = dict(timeframe=args.timeframe, limit=args.limit,
+                  state_dir=args.state_dir, confirm_window=args.confirm_window,
+                  require_real_data=not args.allow_synthetic)
+    if args.all:
+        from quant.live.retrain import run_retrain_all
+        out = run_retrain_all(**common)
+        if out["promoted"]:                     # 교체는 드문 사건 — 폰으로 알린다
+            _notify_extra("🔁 챔피언 교체: " + ", ".join(out["promoted"]))
+        if out["failed"]:
+            _notify_extra("⚠️ 재학습 실패 종목: " + ", ".join(out["failed"]))
+        return
+    out = run_retrain(args.market, args.symbol, **common)
     if out.get("promoted"):                     # 교체는 드문 사건 — 폰으로 알린다
         c = out["champion"]
         _notify_extra(
@@ -573,6 +596,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="docs/status.json 갱신(사이트에 결과 표시)")
     pd_.add_argument("--allow-synthetic", action="store_true",
                      help="합성 폴백 데이터 허용(테스트 전용)")
+    pd_.add_argument("--all", action="store_true",
+                     help="AUTO_TARGETS 전 종목 순회(야간 자동화용)")
     pd_.set_defaults(func=_cmd_paper_daily)
 
     wk = sub.add_parser(
@@ -596,6 +621,8 @@ def build_parser() -> argparse.ArgumentParser:
     rt.add_argument("--state-dir", default="state", dest="state_dir")
     rt.add_argument("--allow-synthetic", action="store_true",
                     help="합성 폴백 데이터 허용(테스트 전용 — 실서비스 금지)")
+    rt.add_argument("--all", action="store_true",
+                    help="AUTO_TARGETS 전 종목 순회(야간 자동화용)")
     rt.set_defaults(func=_cmd_retrain)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")

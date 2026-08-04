@@ -51,32 +51,14 @@ jobs:
               print(f"✅ {market}/{symbol}: 실데이터 {len(df)}봉 수신")
           PY
 
-      - name: Retrain crypto (BTC/USDT)
+      - name: Retrain all targets (AUTO_TARGETS)
+        # 대상 목록은 quant/markets.py AUTO_TARGETS 단일 출처 — 한 종목의
+        # 실패는 건너뛰고 전 종목 실패 시에만 잡이 실패한다(조기 경보).
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python -m quant retrain --market crypto --symbol BTC/USDT \
-            --limit 800 | tee retrain-crypto.txt
-
-      - name: Retrain us_stock (SPY)
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -m quant retrain --market us_stock --symbol SPY \
-            --limit 800 | tee retrain-us-stock.txt
-
-      - name: Retrain kr_stock (KODEX 200)
-        # 국내주식은 데이터 소스(yfinance .KS)가 상대적으로 불안정하다 — 실패해도
-        # 다른 시장의 재학습·기록 커밋을 막지 않는다.
-        continue-on-error: true
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -m quant retrain --market kr_stock --symbol 069500.KS \
-            --limit 800 | tee retrain-kr-stock.txt
+          python -m quant retrain --all --limit 800 | tee retrain-all.txt
 
       - name: 결과 요약 (Actions Summary)
         if: always()
@@ -84,7 +66,7 @@ jobs:
           {
             echo "## 🌙 야간 재학습 결과"
             echo '```'
-            cat retrain-crypto.txt retrain-us-stock.txt retrain-kr-stock.txt 2>/dev/null || true
+            cat retrain-all.txt 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -110,7 +92,5 @@ jobs:
         with:
           name: retrain-${{ github.run_id }}
           path: |
-            retrain-crypto.txt
-            retrain-us-stock.txt
-            retrain-kr-stock.txt
+            retrain-all.txt
           if-no-files-found: ignore
