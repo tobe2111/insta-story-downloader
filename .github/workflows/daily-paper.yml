@@ -39,34 +39,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy pyyaml scikit-learn yfinance ccxt
 
-      - name: Daily paper crypto (BTC/USDT)
+      - name: Daily paper all targets (AUTO_TARGETS)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python -m quant paper-daily --market crypto --symbol BTC/USDT \
-            | tee paper-crypto.txt
-
-      - name: Daily paper us_stock (SPY)
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -m quant paper-daily --market us_stock --symbol SPY \
-            | tee paper-us-stock.txt
-
-      - name: Daily paper kr_stock (KODEX 200)
-        continue-on-error: true
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          python -m quant paper-daily --market kr_stock --symbol 069500.KS \
-            | tee paper-kr-stock.txt
-
-      - name: 사이트 상태 갱신 (docs/status.json)
-        run: |
-          python -c "from quant.live.daily import write_docs_status; write_docs_status()"
+          python -m quant paper-daily --all --docs | tee paper-all.txt
 
       - name: 주간 요약 (월요일 아침 KST, 텔레그램)
         # 20:30 UTC 실행 = KST 다음날 새벽 5:30 — 일요일(UTC 일=7) 실행분이
@@ -87,7 +65,7 @@ jobs:
           {
             echo "## 📅 매일 자동 페이퍼 결과"
             echo '```'
-            cat paper-crypto.txt paper-us-stock.txt paper-kr-stock.txt 2>/dev/null || true
+            cat paper-all.txt 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

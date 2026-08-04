@@ -136,3 +136,31 @@ def test_weekly_summary_empty(tmp_path):
 
     s = weekly_summary(str(tmp_path))
     assert s["markets"] == {} and "없습니다" in format_weekly(s)
+
+
+def test_run_daily_paper_all_tolerates_partial_failure(tmp_path, monkeypatch):
+    """한 종목의 실패가 나머지를 막지 않고, 전 종목 실패 시에만 예외."""
+    import quant.live.daily as dl
+
+    _setup_champion(str(tmp_path))
+    calls = []
+
+    def fake_run(market, symbol, **kw):
+        calls.append(symbol)
+        if symbol == "BAD":
+            raise RuntimeError("데이터 없음")
+        return {"date": "2026-08-04", "equity": 10100.0, "return_pct": 1.0,
+                "weight": 0.5}
+
+    monkeypatch.setattr(dl, "run_daily_paper", fake_run)
+    out = dl.run_daily_paper_all(
+        targets=[("synthetic", "DEMO"), ("synthetic", "BAD")],
+        state_dir=str(tmp_path), require_real_data=False)
+    assert calls == ["DEMO", "BAD"]              # 실패 후에도 순회 계속
+    assert out["ok"] == ["synthetic:DEMO"]
+    assert "synthetic:BAD" in out["failed"]
+
+    import pytest as _pytest
+    with _pytest.raises(RuntimeError):           # 전 종목 실패 → 조기 경보
+        dl.run_daily_paper_all(targets=[("synthetic", "BAD")],
+                               state_dir=str(tmp_path))

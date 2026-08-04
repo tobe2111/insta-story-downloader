@@ -218,3 +218,31 @@ def test_run_retrain_writes_state(tmp_path, monkeypatch=None):
     assert "synthetic:DEMO" in champs          # 첫 실행도 챔피언을 명시 기록
     hist = (tmp_path / "retrain_history.jsonl").read_text(encoding="utf-8")
     assert '"promoted"' in hist
+
+
+def test_run_retrain_all_tolerates_partial_failure(tmp_path, monkeypatch):
+    """AUTO_TARGETS 순회: 한 종목 실패는 건너뛰고 승격·실패를 집계한다."""
+    import quant.live.retrain as rt
+
+    def fake_run(market, symbol, **kw):
+        if symbol == "BAD":
+            raise RuntimeError("거래소 점검")
+        return {"promoted": symbol == "WIN", "champion": {}, "reason": "-"}
+
+    monkeypatch.setattr(rt, "run_retrain", fake_run)
+    out = rt.run_retrain_all(
+        targets=[("crypto", "WIN"), ("crypto", "BAD"), ("crypto", "OK")],
+        state_dir=str(tmp_path))
+    assert out["ok"] == ["crypto:WIN", "crypto:OK"]
+    assert out["promoted"] == ["crypto:WIN"]
+    assert "crypto:BAD" in out["failed"]
+
+
+def test_auto_targets_shape():
+    """AUTO_TARGETS는 (시장, 종목) 쌍이며 지원 시장만 담는다."""
+    from quant.markets import AUTO_TARGETS, LIVE_BROKER_FOR_MARKET
+
+    assert len(AUTO_TARGETS) >= 6
+    for market, symbol in AUTO_TARGETS:
+        assert market in LIVE_BROKER_FOR_MARKET
+        assert isinstance(symbol, str) and symbol

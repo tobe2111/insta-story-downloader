@@ -105,6 +105,31 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
+def run_daily_paper_all(targets=None, **kwargs) -> dict:
+    """AUTO_TARGETS 전체를 순회 페이퍼 운용한다 — 한 종목 실패가 나머지를 안 막는다.
+
+    전 종목이 실패했을 때만 예외를 올린다(조기 경보). 반환에 성공/실패 요약.
+    """
+    from quant.markets import AUTO_TARGETS
+    targets = targets or AUTO_TARGETS
+
+    ok, failed, records = [], {}, {}
+    for market, symbol in targets:
+        key = f"{market}:{symbol}"
+        try:
+            records[key] = run_daily_paper(market, symbol, **kwargs)
+            ok.append(key)
+        except Exception as exc:  # noqa: BLE001
+            failed[key] = str(exc)
+            log.warning("페이퍼 실패 %s: %s", key, exc)
+            print(f"⚠️ {key}: 페이퍼 실패 — {exc}")
+    print(f"\n요약: 성공 {len(ok)} · 실패 {len(failed)}"
+          + (f" ({', '.join(failed)})" if failed else ""))
+    if targets and not ok:
+        raise RuntimeError(f"전 종목 페이퍼 실패: {failed}")
+    return {"ok": ok, "failed": failed, "records": records}
+
+
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     """최근 7일(기록 기준) 요약 — 시장별 수익률·최고/최악일·챔피언 교체 이력.
 

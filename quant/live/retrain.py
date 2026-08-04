@@ -327,3 +327,31 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
           f"{champions[key]['strategy']} {champions[key]['params']}")
     print(f"  근거: {decision['reason']}")
     return {"key": key, "champion": champions[key], **decision}
+
+
+def run_retrain_all(targets=None, **kwargs) -> dict:
+    """AUTO_TARGETS 전체를 순회 재학습한다 — 한 종목의 실패가 나머지를 막지 않는다.
+
+    반환: {"ok": [키...], "failed": {키: 오류}, "promoted": [키...]}.
+    전 종목이 실패했을 때만 예외를 올린다(잡을 크게 실패시켜 조기 경보).
+    """
+    from quant.markets import AUTO_TARGETS
+    targets = targets or AUTO_TARGETS
+
+    ok, promoted, failed = [], [], {}
+    for market, symbol in targets:
+        key = _key(market, symbol)
+        try:
+            out = run_retrain(market, symbol, **kwargs)
+            ok.append(key)
+            if out.get("promoted"):
+                promoted.append(key)
+        except Exception as exc:  # noqa: BLE001
+            failed[key] = str(exc)
+            log.warning("재학습 실패 %s: %s", key, exc)
+            print(f"⚠️ {key}: 재학습 실패 — {exc}")
+    print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 실패 {len(failed)}"
+          + (f" ({', '.join(failed)})" if failed else ""))
+    if targets and not ok:
+        raise RuntimeError(f"전 종목 재학습 실패: {failed}")
+    return {"ok": ok, "failed": failed, "promoted": promoted}
