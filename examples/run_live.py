@@ -32,7 +32,8 @@ def main() -> None:
     p.add_argument("--market", default="crypto")
     p.add_argument("--symbol", default="BTC/USDT")
     p.add_argument("--timeframe", default="1h")
-    p.add_argument("--strategy", default="ma_cross")
+    p.add_argument("--strategy", default="ma_cross",
+                   help="전략 이름, 또는 champion(야간 재학습 챔피언 자동 추종)")
     p.add_argument("--capital", type=float, default=10_000.0)
     p.add_argument("--interval", type=int, default=3600, help="사이클 간격(초)")
     p.add_argument("--iters", type=int, default=None, help="반복 횟수(기본: 무한)")
@@ -43,7 +44,13 @@ def main() -> None:
 
     ppy = 365 if args.market in ("crypto", "synthetic") else 252
     data = get_provider(args.market)
-    strategy = get_strategy(args.strategy)
+    if args.strategy == "champion":
+        from quant.live.retrain import champion_spec, champion_strategy
+        strategy = champion_strategy(args.market, args.symbol)
+        print(f"🏆 현재 챔피언 사용: {champion_spec(args.market, args.symbol)['params']}"
+              " (야간 재학습이 교체하면 자동 반영됩니다)")
+    else:
+        strategy = get_strategy(args.strategy)
     risk = RiskManager(RiskConfig(periods_per_year=ppy, stop_loss=0.15))
 
     if args.live:

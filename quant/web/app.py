@@ -89,7 +89,10 @@ from quant.markets import STRATEGY_GRIDS as _OPT_GRIDS
 
 def render_form(message: str = "") -> str:
     """백테스트 실행 폼 페이지를 반환한다 (pandas 불필요)."""
-    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in STRATEGIES)
+    # champion = 야간 재학습이 뽑은 현재 챔피언(시장·종목별) — 백테스트 폼 전용.
+    # 종목선별 등 다른 폼에는 넣지 않는다(종목마다 챔피언이 달라 의미가 없다).
+    strat_opts = "".join(f'<option value="{s}">{s}</option>'
+                         for s in STRATEGIES + ["champion"])
     market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
     msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -135,8 +138,13 @@ def run_backtest_html(params: dict) -> str:
 
     ppy = 365 if market in ("crypto", "synthetic") else 252
     df = get_provider(market).get_ohlcv(symbol, timeframe, limit=limit)
-    strategy = default_ensemble() if strategy_name == "ensemble" \
-        else get_strategy(strategy_name)
+    if strategy_name == "champion":
+        from quant.live.retrain import champion_strategy
+        strategy = champion_strategy(market, symbol)
+    elif strategy_name == "ensemble":
+        strategy = default_ensemble()
+    else:
+        strategy = get_strategy(strategy_name)
     result = Backtester(strategy, periods_per_year=ppy).run(df)
 
     body = build_report_html(result, title=f"{strategy_name} · {symbol}")

@@ -100,8 +100,16 @@ def _cmd_learn(args) -> None:
     from quant.risk import RiskManager
     from quant.strategies import default_ensemble, get_strategy
 
-    strat = default_ensemble() if args.strategy == "ensemble" \
-        else get_strategy(args.strategy)
+    if args.strategy == "champion":
+        # 야간 재학습이 뽑은 현재 챔피언을 사용 — 승격되면 재시작 없이 자동 반영
+        from quant.live.retrain import champion_spec, champion_strategy
+        strat = champion_strategy(args.market, args.symbol)
+        print(f"🏆 현재 챔피언 사용: {champion_spec(args.market, args.symbol)['params']}"
+              " (야간 재학습이 교체하면 자동 반영됩니다)")
+    elif args.strategy == "ensemble":
+        strat = default_ensemble()
+    else:
+        strat = get_strategy(args.strategy)
     learner = AutoLearner(
         data=get_provider(args.market, cached=True),
         strategy=strat,
@@ -119,6 +127,19 @@ def _cmd_learn(args) -> None:
     print("⚠️ 정확도는 50~55%에서 오르내립니다. 100%로 오르지 않습니다 — 그게 정상입니다.")
     print(f"📺 대시보드: python -m quant web --open  →  감시 탭에서 {args.state} 확인")
     learner.run(cycles=cycles, interval_sec=args.interval)
+
+
+def _cmd_paper_daily(args) -> None:
+    from quant.live.daily import run_daily_paper, write_docs_status
+
+    print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
+    run_daily_paper(args.market, args.symbol, timeframe=args.timeframe,
+                    lookback=args.lookback, state_dir=args.state_dir,
+                    require_real_data=not args.allow_synthetic)
+    if args.docs:
+        write_docs_status(args.state_dir)
+    print("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
+          "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
 
 def _cmd_retrain(args) -> None:
@@ -472,7 +493,9 @@ def build_parser() -> argparse.ArgumentParser:
     ln = sub.add_parser("learn", help="자동 페이퍼 트레이딩 + 지속 재학습 + 정확도 추적")
     ln.add_argument("--market", default="synthetic")
     ln.add_argument("--symbol", default="DEMO")
-    ln.add_argument("--strategy", default="ml")
+    ln.add_argument("--strategy", default="champion",
+                    help="champion(기본, 야간 재학습 챔피언 자동 추종) | ml | "
+                         "ensemble | 개별 전략 이름")
     ln.add_argument("--timeframe", default="1d")
     ln.add_argument("--lookback", type=int, default=400)
     ln.add_argument("--accuracy-window", type=int, default=60, dest="accuracy_window")
@@ -501,6 +524,20 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--report", default=None,
                     help="검증 결과를 그래프 HTML 리포트로 저장(예: results/validate.html)")
     va.set_defaults(func=_cmd_validate)
+
+    pd_ = sub.add_parser(
+        "paper-daily",
+        help="매일 1사이클 자동 페이퍼 운용 — 챔피언 추종, 상태 이어받기(멱등)")
+    pd_.add_argument("--market", default="crypto")
+    pd_.add_argument("--symbol", default="BTC/USDT")
+    pd_.add_argument("--timeframe", default="1d")
+    pd_.add_argument("--lookback", type=int, default=400)
+    pd_.add_argument("--state-dir", default="state", dest="state_dir")
+    pd_.add_argument("--docs", action="store_true",
+                     help="docs/status.json 갱신(사이트에 결과 표시)")
+    pd_.add_argument("--allow-synthetic", action="store_true",
+                     help="합성 폴백 데이터 허용(테스트 전용)")
+    pd_.set_defaults(func=_cmd_paper_daily)
 
     rt = sub.add_parser(
         "retrain",
