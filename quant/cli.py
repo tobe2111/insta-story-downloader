@@ -155,11 +155,19 @@ def _cmd_paper_daily(args) -> None:
                   state_dir=args.state_dir,
                   require_real_data=not args.allow_synthetic)
     if args.all:
+        from quant.live.daily import run_daily_portfolio
         from quant.markets import AUTO_TARGETS
         print(f"📅 매일 자동 페이퍼 — 전체 {len(AUTO_TARGETS)}종목 (챔피언 추종)")
         out = run_daily_paper_all(**common)
         lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
                  for k, r in out["records"].items() if not r.get("skipped")]
+        try:                                     # 통합 분산 계좌(실전과 가장 유사)
+            prec = run_daily_portfolio(**common)
+            if prec and not prec.get("skipped"):
+                lines.append(f"  📦 통합 분산 계좌: 자산 {prec['equity']:,.0f} "
+                             f"({prec['return_pct']:+.2f}%)")
+        except Exception as exc:  # noqa: BLE001
+            print(f"⚠️ 통합 포트폴리오 실패 — {exc}")
         if lines:
             _notify_extra("📅 만원 챌린지 오늘 기록\n" + "\n".join(lines)
                           + (f"\n⚠️ 실패: {', '.join(out['failed'])}"

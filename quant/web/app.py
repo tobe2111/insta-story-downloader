@@ -26,6 +26,7 @@ STRATEGY_LABELS = {
     "ml": "머신러닝 · 상승확률 예측",
     "ensemble": "앙상블 · 여러 전략 결합",
     "champion": "챔피언 · 야간 재학습 1위",
+    "regime_wrap": "레짐 필터 · 약세장 자동 관망",
 }
 MARKET_LABELS = {
     "synthetic": "모의 데이터 · 연습용",

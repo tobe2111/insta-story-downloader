@@ -10,7 +10,8 @@ name: Daily Paper
 
 on:
   schedule:
-    - cron: "30 20 * * *"
+    - cron: "30 20 * * *"   # 본 실행 (새벽 5:30 KST)
+    - cron: "0 22 * * *"    # 예비 재시도 — 이미 기록된 날은 멱등 가드가 건너뜀
   workflow_dispatch:
 
 permissions:
@@ -53,7 +54,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ "$(date -u +%u)" = "7" ]; then
+          # 재시도 크론(0 22)에서는 보내지 않는다 — 주간 요약 중복 발송 방지
+          if [ "${{ github.event.schedule }}" = "0 22 * * *" ]; then
+            echo "재시도 실행 — 주간 요약 건너뜀"
+          elif [ "$(date -u +%u)" = "7" ]; then
             python -m quant weekly | tee weekly.txt
           else
             echo "월요일(KST) 아님 — 주간 요약 건너뜀"
