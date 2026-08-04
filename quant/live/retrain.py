@@ -45,6 +45,12 @@ DEFAULT_CHAMPION = {
 # 챌린저 후보 격자 — 매일 밤 챔피언에게 도전하는 설정들.
 # 후보를 늘릴수록 '우연히 좋아 보이는' 후보도 늘어나므로(다중검정) 소수 정예로
 # 유지하고, 결승전(홀드아웃)으로 걸러낸다.
+#
+# 두 가지 형식을 지원한다:
+#   {"model": ...}                 → 챔피언과 같은 전략(ml)의 파라미터 변형
+#   {"strategy": 이름, "params": …} → 아예 다른 전략(전통 전략도 참전)
+# 전통 전략을 섞는 이유: 퀀트에서 단순한 전략이 ML을 이기는 구간은 흔하다.
+# "ML이 시장보다 못한 날"에 자동으로 더 견고한 전략으로 갈아타게 한다.
 DEFAULT_CHALLENGERS = [
     {"model": "logreg", "threshold": 0.55},
     {"model": "logreg", "threshold": 0.60},
@@ -52,6 +58,8 @@ DEFAULT_CHALLENGERS = [
     {"model": "gb", "threshold": 0.55},
     {"model": "gb", "threshold": 0.60},
     {"model": "vote", "threshold": 0.55},
+    {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
+    {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]
 
 
@@ -96,6 +104,7 @@ def nightly_retrain(
     confirm_t: float = 1.0,
     min_obs: int = 60,
     edge: float = 0.0,
+    cost_model=None,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -112,14 +121,20 @@ def nightly_retrain(
     select_df = df.iloc[:-confirm_window]      # 선발전: 결승 구간을 전혀 못 본다
     candidates = []
     for spec in challenger_specs:
-        full_spec = {"strategy": champion_spec["strategy"],
-                     "params": {**champion_spec.get("params", {}), **spec}}
-        if full_spec["params"] == champion_spec.get("params", {}):
+        if "strategy" in spec:                  # 다른 전략(전통 전략 등)의 도전
+            full_spec = {"strategy": spec["strategy"],
+                         "params": dict(spec.get("params", {}))}
+        else:                                   # 챔피언과 같은 전략의 파라미터 변형
+            full_spec = {"strategy": champion_spec["strategy"],
+                         "params": {**champion_spec.get("params", {}), **spec}}
+        if (full_spec["strategy"] == champion_spec["strategy"]
+                and full_spec["params"] == champion_spec.get("params", {})):
             continue                            # 챔피언 자신과의 대결은 무의미
         try:
             cc = ChampionChallenger(
                 build(champion_spec), build(full_spec),
-                min_obs=min_obs, edge=edge, t_threshold=select_t)
+                min_obs=min_obs, edge=edge, t_threshold=select_t,
+                cost_model=cost_model)
             r = cc.evaluate(select_df)
         except Exception as exc:  # noqa: BLE001 — 후보 하나의 실패로 전체를 죽이지 않는다
             log.warning("챌린저 평가 실패 %s: %s", spec, exc)
@@ -140,7 +155,7 @@ def nightly_retrain(
     cc = ChampionChallenger(
         build(champion_spec), build(best["spec"]),
         min_obs=min(min_obs, confirm_window // 2), edge=edge,
-        t_threshold=confirm_t)
+        t_threshold=confirm_t, cost_model=cost_model)
     final = cc.evaluate(df, tail=confirm_window)
 
     if not final["swap"]:
@@ -217,10 +232,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     champions = load_champions(state_dir)
     key = _key(market, symbol)
     entry = champions.get(key) or {**DEFAULT_CHAMPION, "promotions": 0}
-    champion_spec = {"strategy": entry["strategy"], "params": entry["params"]}
+    current_spec = {"strategy": entry["strategy"], "params": entry["params"]}
 
-    decision = nightly_retrain(df, champion_spec, DEFAULT_CHALLENGERS,
-                               confirm_window=confirm_window)
+    # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
+    from quant.backtest.costs import CostModel
+    decision = nightly_retrain(df, current_spec, DEFAULT_CHALLENGERS,
+                               confirm_window=confirm_window,
+                               cost_model=CostModel.for_market(market))
     asof = str(df.index[-1])[:10]              # 기준 시점 = 데이터 마지막 봉(재현 가능)
 
     if decision["promoted"]:
@@ -237,11 +255,12 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "asof": asof, "market": market, "symbol": symbol, "bars": len(df),
         "promoted": decision["promoted"], "reason": decision["reason"],
         "champion": champions[key]["params"],
+        "champion_strategy": champions[key]["strategy"],
         "n_candidates": len(decision.get("candidates", [])),
     }, state_dir)
 
     label = "🔁 교체" if decision["promoted"] else "🏆 유지"
     print(f"[{asof}] {market}/{symbol} — 챔피언 {label}: "
-          f"{champions[key]['params']}")
+          f"{champions[key]['strategy']} {champions[key]['params']}")
     print(f"  근거: {decision['reason']}")
     return {"key": key, "champion": champions[key], **decision}

@@ -52,14 +52,31 @@ jobs:
           PY
 
       - name: Retrain crypto (BTC/USDT)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python -m quant retrain --market crypto --symbol BTC/USDT \
             --limit 800 | tee retrain-crypto.txt
 
       - name: Retrain us_stock (SPY)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           python -m quant retrain --market us_stock --symbol SPY \
             --limit 800 | tee retrain-us-stock.txt
+
+      - name: Retrain kr_stock (KODEX 200)
+        # 국내주식은 데이터 소스(yfinance .KS)가 상대적으로 불안정하다 — 실패해도
+        # 다른 시장의 재학습·기록 커밋을 막지 않는다.
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python -m quant retrain --market kr_stock --symbol 069500.KS \
+            --limit 800 | tee retrain-kr-stock.txt
 
       - name: 결과 요약 (Actions Summary)
         if: always()
@@ -67,7 +84,7 @@ jobs:
           {
             echo "## 🌙 야간 재학습 결과"
             echo '```'
-            cat retrain-crypto.txt retrain-us-stock.txt 2>/dev/null || true
+            cat retrain-crypto.txt retrain-us-stock.txt retrain-kr-stock.txt 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -95,4 +112,5 @@ jobs:
           path: |
             retrain-crypto.txt
             retrain-us-stock.txt
+            retrain-kr-stock.txt
           if-no-files-found: ignore

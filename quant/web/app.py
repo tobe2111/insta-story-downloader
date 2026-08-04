@@ -12,55 +12,152 @@ STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
               "macd", "keltner", "stochastic", "ml", "ensemble"]
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
+# 사람이 읽는 한글 라벨 — 값(value)은 코드명 그대로 유지하고 표시만 바꾼다.
+# 비전문가에게 ma_cross·us_stock 같은 코드명은 첫 화면에서 이탈하는 장벽이다.
+STRATEGY_LABELS = {
+    "ma_cross": "이동평균 교차 · 추세추종",
+    "momentum": "모멘텀 · 추세추종",
+    "mean_reversion": "평균회귀 · 되돌림 매수",
+    "rsi": "RSI 과매도 반등",
+    "breakout": "채널 돌파 · 추세추종",
+    "macd": "MACD 히스토그램",
+    "keltner": "켈트너 채널 돌파",
+    "stochastic": "스토캐스틱",
+    "ml": "머신러닝 · 상승확률 예측",
+    "ensemble": "앙상블 · 여러 전략 결합",
+    "champion": "챔피언 · 야간 재학습 1위",
+}
+MARKET_LABELS = {
+    "synthetic": "모의 데이터 · 연습용",
+    "crypto": "코인 (암호화폐)",
+    "us_stock": "미국주식",
+    "kr_stock": "국내주식",
+}
+
+
+def _opts(values, labels=None) -> str:
+    """<option> 목록 — value는 코드명, 표시는 '한글 라벨 (코드명)'."""
+    out = []
+    for v in values:
+        lab = (labels or {}).get(v)
+        text = f"{lab} ({v})" if lab else v
+        out.append(f'<option value="{html_escape(v)}">{html_escape(text)}</option>')
+    return "".join(out)
+
+
+def html_escape(s) -> str:
+    return html.escape(str(s), quote=True)
+
 # 랜딩 페이지(docs/index.html)와 같은 디자인 토큰 — 절제된 다크 핀테크 톤.
 # Pretendard는 사용자 PC에 설치돼 있으면 쓰고, 없으면 시스템 한글 폰트로 폴백
 # (로컬 오프라인 도구라 웹폰트를 받지 않는다).
 _STYLE = """
  :root{color-scheme:dark;
-   --bg:#0a0b0e;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;--dim:#5c6370;
-   --line:#1e2128;--line-strong:#2a2e37;--accent:#4c7dff;
-   --ok:#3fb96f;--bad:#e5484d;--warn:#d9a13b;--radius:10px;
-   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+   --bg:#0a0b0e;--bg2:#0e1013;--bg3:#13161b;--fg:#f4f5f7;--muted:#8f96a3;--dim:#5c6370;
+   --line:#1e2128;--line-strong:#2a2e37;--accent:#4c7dff;--accent-soft:rgba(76,125,255,.11);
+   --ok:#3fb96f;--bad:#e5484d;--warn:#d9a13b;--radius:12px;
+   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+   --shadow:0 1px 2px rgba(0,0,0,.25),0 8px 28px -12px rgba(0,0,0,.45)}
  @media(prefers-color-scheme:light){:root{color-scheme:light;
-   --bg:#fcfcfd;--bg2:#f4f5f8;--fg:#101318;
-   --muted:#5a626e;--dim:#8a919d;--line:#e7e9ee;--line-strong:#d8dbe2;--accent:#2f5fe0}}
+   --bg:#fcfcfd;--bg2:#f5f6f9;--bg3:#fff;--fg:#101318;
+   --muted:#5a626e;--dim:#8a919d;--line:#e7e9ee;--line-strong:#d8dbe2;
+   --accent:#2f5fe0;--accent-soft:rgba(47,95,224,.08);
+   --shadow:0 1px 2px rgba(16,19,24,.05),0 8px 24px -14px rgba(16,19,24,.14)}}
  *{box-sizing:border-box;min-width:0}
+ html{scrollbar-gutter:stable}
  body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
    "Apple SD Gothic Neo","Malgun Gothic",sans-serif;margin:0;
-   background:var(--bg);color:var(--fg);line-height:1.6;font-size:14px;
+   background:var(--bg);color:var(--fg);line-height:1.65;font-size:14px;
    -webkit-font-smoothing:antialiased}
- .wrap{max-width:780px;margin:0 auto;padding:20px 20px 56px}
- h1{font-size:20px;font-weight:750;letter-spacing:-.02em;margin:22px 0 6px}
- h2{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:26px 0 10px}
- p.sub,.sub{color:var(--muted);font-size:13px;margin:0 0 4px}
- label{display:block;margin:14px 0 6px;font-size:12px;font-weight:600;color:var(--muted)}
- input,select{width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line-strong);
-   background:var(--bg2);color:inherit;font-size:13.5px;
+ .wrap{max-width:800px;margin:0 auto;padding:0 22px 64px}
+ .kicker{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--accent);
+   text-transform:uppercase;margin:30px 0 4px}
+ h1{font-size:22px;font-weight:800;letter-spacing:-.022em;margin:0 0 6px}
+ h2{font-size:14px;font-weight:700;letter-spacing:-.01em;margin:28px 0 10px;
+   display:flex;align-items:center;gap:8px}
+ h2::after{content:"";flex:1;height:1px;background:var(--line)}
+ p.sub,.sub{color:var(--muted);font-size:13.5px;margin:0 0 4px;max-width:60ch}
+ label{display:block;margin:0 0 6px;font-size:12px;font-weight:650;color:var(--muted)}
+ .hint{font-size:11.5px;color:var(--dim);margin-top:5px}
+ input,select{width:100%;padding:10px 12px;border-radius:9px;border:1px solid var(--line-strong);
+   background:var(--bg);color:inherit;font-size:13.5px;
    transition:border-color .15s,box-shadow .15s}
+ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238f96a3' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+   background-repeat:no-repeat;background-position:right 12px center;padding-right:30px}
  input:focus,select:focus{outline:none;border-color:var(--accent);
-   box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
- button{margin-top:22px;padding:11px 20px;border:0;border-radius:9px;
-   background:var(--fg);color:var(--bg);font-size:13.5px;font-weight:700;cursor:pointer;
-   transition:opacity .15s,transform .05s;width:100%}
- button:hover{opacity:.88}button:active{transform:translateY(1px)}
- .row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:120px}
- .card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);
-   padding:16px 18px;margin:14px 0}
+   box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 20%,transparent)}
+ button{margin-top:6px;padding:12px 22px;border:0;border-radius:10px;
+   background:var(--accent);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;
+   font-family:inherit;letter-spacing:-.01em;
+   transition:filter .15s,transform .05s;width:100%}
+ button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
+ .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+   gap:14px;margin:0 0 16px}
+ .card,form.panel{background:var(--bg3);border:1px solid var(--line);
+   border-radius:var(--radius);padding:20px;margin:14px 0;box-shadow:var(--shadow)}
  .warn{position:relative;color:var(--muted);font-size:12.5px;margin-top:22px;
    background:var(--bg2);padding:11px 14px 11px 16px;border-radius:var(--radius);
-   border:1px solid var(--line-strong);border-left:3px solid var(--warn)}
+   border:1px solid var(--line);border-left:3px solid var(--warn);line-height:1.6}
+ .danger{margin:14px 0;padding:13px 16px;border-radius:var(--radius);font-size:13px;
+   background:color-mix(in srgb,var(--bad) 9%,var(--bg2));
+   border:1px solid color-mix(in srgb,var(--bad) 38%,transparent);color:var(--fg)}
+ .danger b{color:var(--bad)}
+ .errbox{margin:14px 0;padding:13px 16px;border-radius:var(--radius);font-size:13px;
+   background:var(--bg2);border:1px solid var(--line-strong);
+   border-left:3px solid var(--bad)}
+ .errbox details{margin-top:6px}
+ .errbox summary{cursor:pointer;color:var(--dim);font-size:12px}
+ .errbox pre{margin:8px 0 0;font-size:11.5px;color:var(--muted);white-space:pre-wrap}
  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
- nav{display:flex;align-items:center;gap:2px;margin:0 0 8px;padding:10px 0;font-size:13px;
-   overflow-x:auto;border-bottom:1px solid var(--line)}
- nav .logo{font-weight:800;font-size:13.5px;letter-spacing:.12em;color:var(--fg);
-   margin-right:14px;white-space:nowrap}
+ .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+   backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -22px 6px;
+   padding:0 22px}
+ nav{display:flex;align-items:center;gap:2px;font-size:13px;overflow-x:auto;
+   height:52px;scrollbar-width:none}
+ nav::-webkit-scrollbar{display:none}
+ nav .logo{font-weight:800;font-size:13.5px;letter-spacing:.13em;color:var(--fg);
+   margin-right:16px;white-space:nowrap}
  nav .logo em{font-style:normal;color:var(--accent)}
- nav a{white-space:nowrap;padding:6px 10px;border-radius:7px;font-weight:550;
+ nav a{white-space:nowrap;padding:6px 11px;border-radius:8px;font-weight:550;
    color:var(--muted);transition:background .15s,color .15s}
  nav a:hover{background:var(--bg2);color:var(--fg);text-decoration:none}
- table{width:100%;border-collapse:collapse;font-size:13px}
+ nav a.on{color:var(--fg);background:var(--accent-soft);font-weight:650}
+ .steps{display:flex;gap:0;margin:16px 0 4px;border:1px solid var(--line);
+   border-radius:var(--radius);overflow:hidden;background:var(--bg3)}
+ .steps a{flex:1;padding:10px 8px;text-align:center;font-size:12px;color:var(--muted);
+   border-right:1px solid var(--line);line-height:1.45}
+ .steps a:last-child{border-right:0}
+ .steps a:hover{background:var(--bg2);text-decoration:none;color:var(--fg)}
+ .steps b{display:block;font-size:12.5px;color:var(--fg);letter-spacing:-.01em}
+ .steps .num{display:inline-block;font-size:10.5px;color:var(--accent);font-weight:700;
+   margin-bottom:1px}
+ table{width:100%;border-collapse:collapse;font-size:13px;
+   font-variant-numeric:tabular-nums}
+ th{color:var(--muted);font-weight:600;font-size:12px}
+ th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+ th:first-child,td:first-child{text-align:left}
+ tr:last-child td{border-bottom:0}
+ .tablewrap{overflow-x:auto;margin:8px -4px 0;padding:0 4px}
  pre,code{font-family:var(--mono)}
+ code{font-size:.92em;background:var(--bg2);border:1px solid var(--line);
+   border-radius:5px;padding:1px 5px}
  form{margin-top:8px}
+ #busy{position:fixed;inset:0;display:none;place-items:center;z-index:50;
+   background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(3px)}
+ #busy.show{display:grid}
+ #busy .box{background:var(--bg3);border:1px solid var(--line);border-radius:14px;
+   padding:26px 34px;text-align:center;box-shadow:var(--shadow)}
+ #busy .spin{width:26px;height:26px;margin:0 auto 12px;border-radius:50%;
+   border:3px solid var(--line-strong);border-top-color:var(--accent);
+   animation:spin .8s linear infinite}
+ @keyframes spin{to{transform:rotate(360deg)}}
+ #busy p{margin:0;font-size:13.5px}
+ #busy .sub{font-size:12px;color:var(--muted);margin-top:4px}
+ @media(max-width:560px){
+   .wrap{padding:0 14px 48px}.topbar{margin:0 -14px 6px;padding:0 14px}
+   .card,form.panel{padding:16px}
+   .steps{flex-wrap:wrap}.steps a{flex:1 1 50%;border-bottom:1px solid var(--line)}
+ }
 """
 
 # 브라우저 탭 아이콘 (외부 파일 없이 data URI) — 랜딩과 같은 심볼
@@ -71,14 +168,85 @@ _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
             'stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 '
             'stroke-linejoin=%22round%22/%3E%3C/svg%3E">')
 
-_NAV = ('<nav><span class="logo">QUANT<em>.</em></span>'
-        '<a href="/">백테스트</a>'
-        '<a href="/portfolio">포트폴리오</a>'
-        '<a href="/screener">종목선별</a>'
-        '<a href="/sweep">민감도</a>'
-        '<a href="/optimize">최적화</a>'
-        '<a href="/validate">검증</a>'
-        '<a href="/monitor">감시</a></nav>')
+_NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
+              ("/screener", "종목선별"), ("/sweep", "민감도"),
+              ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시")]
+
+
+def _nav(active: str = "") -> str:
+    on = ' class="on"'
+    links = "".join(
+        f'<a href="{p}"{on if p == active else ""}>{t}</a>'
+        for p, t in _NAV_ITEMS)
+    return ('<div class="topbar"><nav><span class="logo">QUANT<em>.</em></span>'
+            + links + "</nav></div>")
+
+
+_NAV = _nav()   # 외부 생성 문서(리포트/대시보드)에 주입할 때 쓰는 기본 내비게이션
+
+# 실행 버튼 → 결과까지 수 초~수십 초 걸린다(ML은 20~30초). 표시가 없으면
+# 사용자는 멈춘 줄 알고 닫는다 — 폼 제출 시 오버레이를 띄우고 중복 제출을 막는다.
+_UX_JS = """<script>
+document.addEventListener('submit',function(e){
+  var f=e.target; if(!(f instanceof HTMLFormElement)) return;
+  var b=document.getElementById('busy'); if(b) b.classList.add('show');
+  var btn=f.querySelector('button[type=submit],button:not([type])');
+  if(btn){btn.disabled=true;btn.style.opacity=.6;}
+},true);
+window.addEventListener('pageshow',function(){
+  var b=document.getElementById('busy'); if(b) b.classList.remove('show');
+});
+</script>"""
+
+_BUSY = ('<div id="busy"><div class="box"><div class="spin"></div>'
+         '<p>계산 중입니다…</p>'
+         '<p class="sub">머신러닝 전략은 20~30초 걸릴 수 있어요. 창을 닫지 마세요.</p>'
+         '</div></div>')
+
+
+def _page(title: str, body: str, active: str = "") -> str:
+    """공통 문서 골격 — 헤더·내비게이션·로딩 오버레이·스타일을 한곳에서."""
+    return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">\n'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+            f'<title>Quant · {html_escape(title)}</title>{_FAVICON}'
+            f'<style>{_STYLE}</style></head><body><div class="wrap">\n'
+            f'{_nav(active)}\n{body}\n</div>{_BUSY}{_UX_JS}</body></html>')
+
+
+def _msg_html(message: str) -> str:
+    """오류/안내 메시지 박스 — 개발자용 원문은 접어서 보여준다."""
+    if not message:
+        return ""
+    if message.startswith(("실행 오류", "모니터 로드 오류")):
+        return ('<div class="errbox"><b>문제가 발생해 실행하지 못했습니다.</b> '
+                '입력값(종목·봉 개수)을 확인하고 다시 시도해 주세요. 반복되면 '
+                '네트워크나 데이터 소스 문제일 수 있습니다.'
+                f'<details><summary>자세한 오류 내용</summary>'
+                f'<pre>{html.escape(message)}</pre></details></div>')
+    return f'<div class="errbox">{html.escape(message)}</div>'
+
+
+def _fallback_banner(*dfs) -> str:
+    """실데이터 수신 실패 → 합성 폴백으로 계산된 결과임을 화면에 명시한다.
+
+    CLI에는 이 경고가 있는데 웹에 없으면, 사용자가 가짜 데이터 백테스트를
+    진짜 성과로 믿게 된다 — 이 제품에서 가장 위험한 종류의 침묵이다.
+    """
+    if any(getattr(df, "attrs", {}).get("synthetic_fallback") for df in dfs):
+        return ('<div class="danger"><b>⚠️ 주의: 이 결과는 실데이터가 아닙니다.</b> '
+                '시세 서버에서 실데이터를 받지 못해 <b>모의(합성) 데이터</b>로 계산된 '
+                '결과입니다. 인터넷 연결과 데이터 소스를 확인한 뒤 다시 실행하세요 — '
+                '이 화면의 수익률로 어떤 판단도 하지 마세요.</div>')
+    return ""
+
+
+# 올바른 사용 순서 안내 — 첫 화면에서 길을 잃지 않게 한다(README에만 있던 흐름).
+_STEPS = ('<div class="steps">'
+          '<a href="/"><span class="num">1단계</span><b>백테스트</b>과거로 감 잡기</a>'
+          '<a href="/validate"><span class="num">2단계</span><b>검증</b>과최적화 걸러내기</a>'
+          '<a href="/monitor"><span class="num">3단계</span><b>페이퍼</b>가짜 돈 실전 연습</a>'
+          '<a href="/monitor"><span class="num">4단계</span><b>실전</b>소액부터, 직접 결정</a>'
+          '</div>')
 
 ALLOCATIONS = ["inverse_vol", "equal", "hrp"]
 
@@ -91,32 +259,30 @@ def render_form(message: str = "") -> str:
     """백테스트 실행 폼 페이지를 반환한다 (pandas 불필요)."""
     # champion = 야간 재학습이 뽑은 현재 챔피언(시장·종목별) — 백테스트 폼 전용.
     # 종목선별 등 다른 폼에는 넣지 않는다(종목마다 챔피언이 달라 의미가 없다).
-    strat_opts = "".join(f'<option value="{s}">{s}</option>'
-                         for s in STRATEGIES + ["champion"])
-    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 백테스트</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Backtest</p>
 <h1>백테스트</h1>
-<p class="sub">시장·종목·전략을 고르고 실행하면 성과 리포트가 나옵니다. 처음이라면
-<code>synthetic</code>(모의 데이터)로 감을 잡아보세요.</p>
-{msg}
-<form action="/backtest" method="get">
+<p class="sub">과거 데이터로 전략을 돌려 성과를 확인합니다. 처음이라면 시장을
+'모의 데이터'로 두고 감부터 잡아보세요 — 인터넷 없이도 됩니다.</p>
+{_STEPS}
+{_msg_html(message)}
+<form action="/backtest" method="get" class="panel">
   <div class="row">
-    <div><label>시장</label><select name="market">{market_opts}</select></div>
-    <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
+    <div><label>시장</label><select name="market">{_opts(MARKETS, MARKET_LABELS)}</select></div>
+    <div><label>종목</label><input name="symbol" value="BTC/USDT">
+      <div class="hint">코인: BTC/USDT · 미국주식: AAPL, SPY</div></div>
   </div>
   <div class="row">
-    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
-    <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
-    <div><label>봉 개수</label><input name="limit" value="500"></div>
+    <div><label>전략</label>
+      <select name="strategy">{_opts(STRATEGIES + ["champion"], STRATEGY_LABELS)}</select></div>
+    <div><label>타임프레임</label><input name="timeframe" value="1d">
+      <div class="hint">1d=일봉 · 1h=시간봉</div></div>
+    <div><label>봉 개수</label><input name="limit" value="500">
+      <div class="hint">일봉 500개 ≈ 2년</div></div>
   </div>
   <button type="submit">백테스트 실행</button>
 </form>
-<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 실거래 전 반드시 검증하세요.</p>
-</div></body></html>"""
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 실거래 전 반드시 검증하세요.</p>"""
+    return _page("백테스트", body, "/")
 
 
 def run_backtest_html(params: dict) -> str:
@@ -147,8 +313,10 @@ def run_backtest_html(params: dict) -> str:
         strategy = get_strategy(strategy_name)
     result = Backtester(strategy, periods_per_year=ppy).run(df)
 
-    body = build_report_html(result, title=f"{strategy_name} · {symbol}")
-    body = body.replace("<h1>", _NAV + "\n<h1>", 1)   # 상단 네비게이션
+    label = STRATEGY_LABELS.get(strategy_name, strategy_name)
+    body = build_report_html(result, title=f"{label} · {symbol}")
+    # 상단 내비게이션 + 합성 폴백 경고(가짜 데이터 결과를 진짜로 믿지 않게)
+    body = body.replace("<h1>", _NAV + "\n" + _fallback_banner(df) + "<h1>", 1)
     # "이게 운인가?" 분석(몬테카를로 신뢰구간 + 확률적 샤프)을 리포트에 주입
     robustness = _robustness_html(result.returns, ppy)
     return body.replace("</div></body>", robustness + "</div></body>", 1)
@@ -286,21 +454,23 @@ def champions_html(state_dir: str = "state") -> str:
     rows = []
     for key, c in champions.items():
         rec = reasons.get(key, {})
+        strat = STRATEGY_LABELS.get(c.get("strategy", ""), c.get("strategy", ""))
         params = html.escape(json.dumps(c.get("params", {}), ensure_ascii=False))
         badge = ("🔁 어젯밤 교체" if rec.get("promoted")
                  else f"🏆 유지 (교체 {c.get('promotions', 0)}회)")
         rows.append(
             f"<tr><td>{html.escape(key)}</td><td>{badge}</td>"
-            f"<td style='font-size:12px'>{params}</td>"
+            f"<td style='font-size:12px'><b>{html.escape(strat)}</b> {params}</td>"
             f"<td style='font-size:12px;color:var(--muted)'>"
             f"{html.escape(str(rec.get('reason', ''))[:90])}</td></tr>")
     return (
-        '<div class="card"><h2>🌙 야간 자동 재학습 (챔피언/챌린저)</h2>'
-        '<p style="font-size:13px;color:var(--muted)">매일 밤 새 데이터로 후보들을 '
-        '학습시켜 현재 챔피언과 2단계 검증(선발전→결승전)으로 대결시키고, 확실히 '
-        '이긴 후보만 교체합니다. 챔피언이 오래 안 바뀌는 것이 정상입니다.</p>'
+        '<div class="card"><b>야간 자동 재학습 — 챔피언/챌린저</b>'
+        '<p class="sub" style="font-size:12.5px;margin:6px 0 4px">매일 밤 새 데이터로 '
+        '후보들을 학습시켜 현재 챔피언과 2단계 검증(선발전→결승전)으로 대결시키고, '
+        '확실히 이긴 후보만 교체합니다. 챔피언이 오래 안 바뀌는 것이 정상입니다.</p>'
+        '<div class="tablewrap">'
         '<table><tr><th>시장</th><th>상태</th><th>챔피언 설정</th><th>최근 결정</th></tr>'
-        + "".join(rows) + "</table></div>")
+        + "".join(rows) + "</table></div></div>")
 
 
 def render_monitor(state_paths=None) -> str:
@@ -313,18 +483,19 @@ def render_monitor(state_paths=None) -> str:
     state = read_state(state_paths)
 
     if state is None:
-        return (f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 감시</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+        body = f"""<p class="kicker">Monitor</p>
 <h1>봇 감시</h1>
-<p style="color:var(--muted);font-size:14px">실행 중인 페이퍼/실거래 세션이 없습니다.</p>
-<p style="font-size:13px">먼저 봇을 실행하세요:</p>
-<pre style="font-size:12px">python examples/run_live.py --paper --market crypto --symbol BTC/USDT</pre>
-<p style="font-size:13px;color:var(--muted)">봇이 <code>results/state.json</code>을 쓰면
-이 페이지에 자산·포지션·주문이 나타납니다.</p>
-{champions_html()}
-</div></body></html>""")
+<p class="sub">실행 중인 페이퍼/실거래 세션이 없습니다.</p>
+<div class="card">
+<b>페이퍼(가짜 돈) 봇 시작하기</b>
+<p class="sub" style="margin:6px 0 8px">윈도우는 <code>learn.bat</code> 더블클릭,
+또는 터미널에서:</p>
+<pre style="font-size:12px;overflow-x:auto;margin:0">python -m quant learn</pre>
+<p class="hint">봇이 상태 파일을 쓰기 시작하면 이 페이지에 자산·포지션·주문이
+실시간으로 나타납니다.</p>
+</div>
+{champions_html()}"""
+        return _page("감시", body, "/monitor")
 
     doc = build_dashboard_html(state)
     doc = doc.replace("<header>", _NAV + "\n<header>", 1)  # 조종석 네비게이션
@@ -358,52 +529,48 @@ def render_monitor(state_paths=None) -> str:
     return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
 
 
+ALLOCATION_LABELS = {
+    "inverse_vol": "변동성 역가중 · 안정적 배분",
+    "equal": "동일 비중",
+    "hrp": "계층적 리스크 패리티 (HRP)",
+}
+
+
 def render_portfolio_form(message: str = "") -> str:
     """다중 종목 포트폴리오 백테스트 폼 (pandas 불필요)."""
-    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in STRATEGIES)
-    alloc_opts = "".join(f'<option value="{a}">{a}</option>' for a in ALLOCATIONS)
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 포트폴리오</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Portfolio</p>
 <h1>포트폴리오 백테스트</h1>
-<p style="color:var(--muted);font-size:13px">여러 종목에 분산투자해 변동성을 낮춥니다.
-종목은 쉼표로 구분하세요.</p>
-{msg}
-<form action="/portfolio/run" method="get">
+<p class="sub">여러 종목에 분산투자해 변동성을 낮춥니다. 종목은 쉼표로 구분하세요.</p>
+{_msg_html(message)}
+<form action="/portfolio/run" method="get" class="panel">
   <div class="row">
-    <div><label>시장</label><select name="market">{market_opts}</select></div>
-    <div><label>종목 (쉼표 구분)</label><input name="symbols" value="BTC/USDT, ETH/USDT, SOL/USDT"></div>
+    <div><label>시장</label><select name="market">{_opts(MARKETS, MARKET_LABELS)}</select></div>
+    <div><label>종목 (쉼표 구분)</label>
+      <input name="symbols" value="BTC/USDT, ETH/USDT, SOL/USDT"></div>
   </div>
   <div class="row">
-    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
-    <div><label>배분 방식</label><select name="allocation">{alloc_opts}</select></div>
+    <div><label>전략</label><select name="strategy">{_opts(STRATEGIES, STRATEGY_LABELS)}</select></div>
+    <div><label>배분 방식</label>
+      <select name="allocation">{_opts(ALLOCATIONS, ALLOCATION_LABELS)}</select></div>
     <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
     <div><label>봉 개수</label><input name="limit" value="500"></div>
   </div>
   <button type="submit">포트폴리오 백테스트</button>
 </form>
-<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
-</div></body></html>"""
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>"""
+    return _page("포트폴리오", body, "/portfolio")
 
 
 def render_screener_form(message: str = "") -> str:
     """종목 선별(팩터 스크리너) 폼 페이지 (pandas 불필요)."""
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 종목선별</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Screener</p>
 <h1>종목 선별 (팩터 스크리너)</h1>
-<p style="color:var(--muted);font-size:13px">관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로
-상위 종목을 자동 선별합니다. 미국주식 티커 권장(FMP 기준). 환경변수
-<code>FMP_API_KEY</code> 필요.</p>
-{msg}
-<form action="/screener/run" method="get">
-  <div><label>후보 종목 (쉼표 구분)</label>
-    <input name="symbols" value="AAPL, MSFT, GOOGL, META, NVDA, TSLA"></div>
+<p class="sub">관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로 상위 종목을 자동
+선별합니다. 미국주식 티커 권장(FMP 기준). 환경변수 <code>FMP_API_KEY</code> 필요.</p>
+{_msg_html(message)}
+<form action="/screener/run" method="get" class="panel">
+  <div class="row"><div><label>후보 종목 (쉼표 구분)</label>
+    <input name="symbols" value="AAPL, MSFT, GOOGL, META, NVDA, TSLA"></div></div>
   <div class="row">
     <div><label>선택 개수 (top N)</label><input name="top_n" value="3"></div>
     <div><label>팩터</label>
@@ -415,8 +582,8 @@ def render_screener_form(message: str = "") -> str:
   </div>
   <button type="submit">선별 실행</button>
 </form>
-<p class="warn">⚠️ 팩터 프리미엄은 수년씩 부진할 수 있습니다. 선별 결과를 맹신하지 마세요.</p>
-</div></body></html>"""
+<p class="warn">⚠️ 팩터 프리미엄은 수년씩 부진할 수 있습니다. 선별 결과를 맹신하지 마세요.</p>"""
+    return _page("종목선별", body, "/screener")
 
 
 _FACTOR_PRESETS = {
@@ -484,20 +651,15 @@ def run_screener_html(params: dict) -> str:
         for sym, r in ratios.items()
     )
     picked = ", ".join(weights) or "(선별된 종목 없음)"
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 선별 결과</title>{_FAVICON}<style>{_STYLE}
- table{{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}}
- th,td{{border:1px solid #334155;padding:6px 8px;text-align:right}}
- th:first-child,td:first-child{{text-align:left}}</style></head>
-<body><div class="wrap">{_NAV}
+    body = f"""<p class="kicker">Screener</p>
 <h1>선별 결과</h1>
-<p style="font-size:14px">선택된 종목: <b>{html.escape(picked)}</b></p>
+<p class="sub">선택된 종목: <b>{html.escape(picked)}</b></p>
+<div class="card"><div class="tablewrap">
 <table><tr><th>종목</th><th>PER</th><th>PBR</th><th>ROE</th><th>선택·비중</th></tr>
-{rows}</table>
-<p style="font-size:12px;color:var(--muted);margin-top:10px">이 종목들을 포트폴리오 탭에
-넣어 백테스트/운용하세요. 팩터 랭킹은 '후보 중 상대 비교'일 뿐 미래 수익 보장이 아닙니다.</p>
-</div></body></html>"""
+{rows}</table></div></div>
+<p class="sub" style="font-size:12px">이 종목들을 포트폴리오 탭에 넣어 백테스트/운용하세요.
+팩터 랭킹은 '후보 중 상대 비교'일 뿐 미래 수익 보장이 아닙니다.</p>"""
+    return _page("선별 결과", body, "/screener")
 
 
 def run_portfolio_html(params: dict) -> str:
@@ -529,28 +691,24 @@ def run_portfolio_html(params: dict) -> str:
     result = PortfolioBacktester(
         strategy=strategy, allocation=allocation, periods_per_year=ppy).run(data)
 
-    body = build_report_html(result, title=f"포트폴리오 · {len(symbols)}종목 ({allocation})")
-    return body.replace("<h1>", _NAV + "\n<h1>", 1)
+    alloc_label = ALLOCATION_LABELS.get(allocation, allocation)
+    body = build_report_html(result, title=f"포트폴리오 · {len(symbols)}종목 ({alloc_label})")
+    return body.replace("<h1>",
+                        _NAV + "\n" + _fallback_banner(*data.values()) + "<h1>", 1)
 
 
 def render_optimize_form(message: str = "") -> str:
     """워크포워드 최적화 폼 (pandas 불필요)."""
-    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _OPT_GRIDS)
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 최적화</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Walk-forward</p>
 <h1>워크포워드 최적화</h1>
-<p style="color:var(--muted);font-size:13px">과거 구간(IS)에서 최적 파라미터를 찾고,
-<b>보지 않은 미래 구간(OOS)</b>에서 검증합니다. IS와 OOS 성적 격차가 크면 과최적화예요.</p>
-{msg}
-<form action="/optimize/run" method="get">
+<p class="sub">과거 구간(IS)에서 최적 파라미터를 찾고, <b>보지 않은 미래 구간(OOS)</b>에서
+검증합니다. IS와 OOS 성적 격차가 크면 과최적화예요.</p>
+{_msg_html(message)}
+<form action="/optimize/run" method="get" class="panel">
   <div class="row">
-    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>시장</label><select name="market">{_opts(MARKETS, MARKET_LABELS)}</select></div>
     <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
-    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
+    <div><label>전략</label><select name="strategy">{_opts(list(_OPT_GRIDS), STRATEGY_LABELS)}</select></div>
   </div>
   <div class="row">
     <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
@@ -560,8 +718,8 @@ def render_optimize_form(message: str = "") -> str:
   </div>
   <button type="submit">최적화 실행</button>
 </form>
-<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
-</div></body></html>"""
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>"""
+    return _page("최적화", body, "/optimize")
 
 
 def run_optimize_html(params: dict) -> str:
@@ -629,33 +787,27 @@ def run_optimize_html(params: dict) -> str:
         for seg in wf["segments"]
     ) or '<tr><td colspan="5" style="color:var(--muted)">검증 구간 없음</td></tr>'
 
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 최적화 결과</title>{_FAVICON}<style>{_STYLE}
- table{{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}}
- th,td{{padding:6px 8px;border-bottom:1px solid #334155;text-align:left}}
- .box{{background:#111c30;border:1px solid #334155;border-radius:10px;padding:16px;margin-top:14px}}
- @media(prefers-color-scheme:light){{.box{{background:#fff}}}}
-</style></head><body><div class="wrap">
-{_NAV}
-<h1>워크포워드 결과 · {html.escape(strategy_name)} · {html.escape(symbol)}</h1>
-<div class="box">
+    label = STRATEGY_LABELS.get(strategy_name, strategy_name)
+    body = f"""<p class="kicker">Walk-forward</p>
+<h1>워크포워드 결과 · {html.escape(label)} · {html.escape(symbol)}</h1>
+{_fallback_banner(df)}
+<div class="card">
 <p>IS(학습) 샤프: <b>{is_sharpe:.2f}</b> → OOS(검증) 샤프: <b>{oos_sharpe:.2f}</b></p>
 <p>판정: {verdict}</p>
 </div>
-<div class="box">
+<div class="card">
 <b>OOS(진짜 성과) 지표</b>
 <pre style="font-size:12px;white-space:pre;overflow-x:auto">{html.escape(m.pretty())}</pre>
 </div>
-<div class="box">
+<div class="card">
 <b>구간별 (IS 최적 파라미터 → OOS 성적)</b>
-<div style="overflow-x:auto"><table>
+<div class="tablewrap"><table>
 <tr><th>OOS 시작</th><th>파라미터</th><th>IS샤프</th><th>OOS샤프</th><th>OOS수익</th></tr>
 {seg_rows}</table></div>
 </div>
 <p class="warn">⚠️ OOS(보지 않은 미래) 성적이 실전에서 기대할 수 있는 진짜 성과에 가깝습니다.
-IS만 화려하면 그 전략은 과최적화된 것입니다.</p>
-</div></body></html>"""
+IS만 화려하면 그 전략은 과최적화된 것입니다.</p>"""
+    return _page("최적화 결과", body, "/optimize")
 
 
 def render_validate_form(message: str = "") -> str:
@@ -665,23 +817,16 @@ def render_validate_form(message: str = "") -> str:
     전략으로 제한한다 — 그리드가 없으면 검증할 조합 자체가 없다.
     """
 
-    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    strat_opts = "".join(f'<option value="{s}">{s}</option>' for s in _OPT_GRIDS)
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 검증</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Validation</p>
 <h1>과최적화 검증 (워크포워드+DSR · PBO · CPCV)</h1>
-<p style="color:var(--muted);font-size:13px">"이 전략을 믿어도 되는가"를 세 가지
-과최적화 탐지 도구로 한 화면에서 확인합니다. 셋 다 <b>탐지</b> 도구입니다 —
-통과가 곧 수익은 아닙니다.</p>
-{msg}
-<form action="/validate/run" method="get">
+<p class="sub">"이 전략을 믿어도 되는가"를 세 가지 과최적화 탐지 도구로 한 화면에서
+확인합니다. 셋 다 <b>탐지</b> 도구입니다 — 통과가 곧 수익은 아닙니다.</p>
+{_msg_html(message)}
+<form action="/validate/run" method="get" class="panel">
   <div class="row">
-    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>시장</label><select name="market">{_opts(MARKETS, MARKET_LABELS)}</select></div>
     <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
-    <div><label>전략</label><select name="strategy">{strat_opts}</select></div>
+    <div><label>전략</label><select name="strategy">{_opts(list(_OPT_GRIDS), STRATEGY_LABELS)}</select></div>
   </div>
   <div class="row">
     <div><label>타임프레임</label><input name="timeframe" value="1d"></div>
@@ -692,8 +837,8 @@ def render_validate_form(message: str = "") -> str:
   <button type="submit">검증 3종 실행</button>
 </form>
 <p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
-다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>
-</div></body></html>"""
+다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>"""
+    return _page("검증", body, "/validate")
 
 
 def run_validate_html(params: dict) -> str:
@@ -770,33 +915,27 @@ def run_validate_html(params: dict) -> str:
         f'margin:0">{html.escape(text)}</pre></div>'
         for title, text in sections)
 
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 검증 결과</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
-<h1>검증 결과 · {html.escape(strategy_name)} · {html.escape(symbol)} ({len(df)}봉)</h1>
+    label = STRATEGY_LABELS.get(strategy_name, strategy_name)
+    body = f"""<p class="kicker">Validation</p>
+<h1>검증 결과 · {html.escape(label)} · {html.escape(symbol)} ({len(df)}봉)</h1>
 <p class="sub">그리드: {html.escape(str(grid))}</p>
+{_fallback_banner(df)}
 {boxes}
 <p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
-다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>
-</div></body></html>"""
+다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.</p>"""
+    return _page("검증 결과", body, "/validate")
 
 
 def render_sweep_form(message: str = "") -> str:
     """파라미터 민감도 스윕 폼 페이지 (pandas 불필요)."""
-    market_opts = "".join(f'<option value="{m}">{m}</option>' for m in MARKETS)
-    msg = f'<p class="warn">{html.escape(message)}</p>' if message else ""
-    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 민감도 스윕</title>{_FAVICON}<style>{_STYLE}</style></head><body><div class="wrap">
-{_NAV}
+    body = f"""<p class="kicker">Sensitivity</p>
 <h1>파라미터 민감도 히트맵</h1>
-<p style="color:var(--muted);font-size:13px">이동평균 교차(단기×장기)의 성과 지형을 그립니다.
+<p class="sub">이동평균 교차(단기×장기)의 성과 지형을 그립니다.
 넓은 초록 고원=견고, 외딴 점=과최적화.</p>
-{msg}
-<form action="/sweep/run" method="get">
+{_msg_html(message)}
+<form action="/sweep/run" method="get" class="panel">
   <div class="row">
-    <div><label>시장</label><select name="market">{market_opts}</select></div>
+    <div><label>시장</label><select name="market">{_opts(MARKETS, MARKET_LABELS)}</select></div>
     <div><label>종목</label><input name="symbol" value="BTC/USDT"></div>
   </div>
   <div class="row">
@@ -806,8 +945,8 @@ def render_sweep_form(message: str = "") -> str:
   </div>
   <button type="submit">히트맵 생성</button>
 </form>
-<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>
-</div></body></html>"""
+<p class="warn">⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.</p>"""
+    return _page("민감도 스윕", body, "/sweep")
 
 
 def run_sweep_html(params: dict) -> str:
