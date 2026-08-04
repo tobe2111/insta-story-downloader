@@ -155,6 +155,50 @@ def nightly_retrain(
         "best_candidate": best, "final": final, "candidates": candidates}
 
 
+def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
+    """현재 챔피언 스펙을 반환한다. 기록이 없으면 기본 챔피언으로 폴백한다.
+
+    실행파일/새 설치처럼 state/가 없는 환경에서도 항상 동작해야 하므로
+    폴백은 조용히 일어난다(기본 챔피언 = ml logreg, MLStrategy 기본값과 동일).
+    """
+    entry = load_champions(state_dir).get(_key(market, symbol))
+    if entry:
+        return {"strategy": entry["strategy"], "params": dict(entry["params"])}
+    return {"strategy": DEFAULT_CHAMPION["strategy"],
+            "params": dict(DEFAULT_CHAMPION["params"])}
+
+
+def champion_strategy(market: str, symbol: str, state_dir: str = STATE_DIR):
+    """'현재 챔피언'을 위임 실행하는 전략을 반환한다 — 야간 승격을 자동 반영.
+
+    매 신호 계산 전에 state/champions.json을 다시 읽어, 야간 재학습이 챔피언을
+    교체했으면 봇 재시작 없이 새 설정으로 갈아탄다(파일 1회 읽기라 비용 무시).
+    학습 자체는 위임받은 MLStrategy가 워크포워드로 수행한다.
+    """
+    from quant.strategies.base import Strategy
+
+    class _Champion(Strategy):
+        name = "champion"
+
+        def __init__(self):
+            self._spec: dict | None = None
+            self._impl = None
+
+        def _refresh(self) -> None:
+            spec = champion_spec(market, symbol, state_dir)
+            if spec != self._spec:
+                if self._spec is not None:
+                    log.info("🔁 챔피언 교체 감지 → 새 설정 적용: %s", spec["params"])
+                self._impl = build_strategy(spec)
+                self._spec = spec
+
+        def generate_signals(self, df):
+            self._refresh()
+            return self._impl.generate_signals(df)
+
+    return _Champion()
+
+
 def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,

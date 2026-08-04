@@ -12,7 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quant.live.retrain import (  # noqa: E402
-    append_history, load_champions, nightly_retrain, save_champions,
+    DEFAULT_CHAMPION, append_history, champion_spec, champion_strategy,
+    load_champions, nightly_retrain, save_champions,
 )
 
 
@@ -35,6 +36,25 @@ def test_history_append(tmp_path):
         encoding="utf-8").strip().splitlines()
     assert len(lines) == 2
     assert json.loads(lines[1])["promoted"] is True
+
+
+def test_champion_spec_falls_back_to_default(tmp_path):
+    """기록이 없어도(새 설치/실행파일) 기본 챔피언으로 항상 동작해야 한다."""
+    spec = champion_spec("crypto", "BTC/USDT", str(tmp_path))
+    assert spec == {"strategy": DEFAULT_CHAMPION["strategy"],
+                    "params": DEFAULT_CHAMPION["params"]}
+    spec["params"]["model"] = "변조"          # 반환값 변조가 원본을 오염시키면 안 됨
+    assert DEFAULT_CHAMPION["params"]["model"] == "logreg"
+
+
+def test_champion_spec_reads_promoted(tmp_path):
+    d = str(tmp_path)
+    save_champions({"crypto:BTC/USDT": {
+        "strategy": "ml", "params": {"model": "gb", "threshold": 0.6},
+        "promotions": 1}}, d)
+    assert champion_spec("crypto", "BTC/USDT", d)["params"]["model"] == "gb"
+    # 다른 종목은 여전히 기본 챔피언
+    assert champion_spec("crypto", "ETH/USDT", d)["params"]["model"] == "logreg"
 
 
 # ── 승격 판정 (pandas 필요 — CI에서 실행) ──────────────────────────────────
@@ -104,6 +124,26 @@ def test_insufficient_data_keeps_champion():
                           build=build, confirm_window=120)
     assert out["promoted"] is False
     assert "데이터 부족" in out["reason"]
+
+
+def test_champion_strategy_hot_reloads_on_promotion(tmp_path):
+    """야간 승격이 일어나면 실행 중인 봇이 재시작 없이 새 챔피언으로 갈아탄다."""
+    df, _build = _dummy_setup()
+    d = str(tmp_path)
+    save_champions({"crypto:BTC/USDT": {
+        "strategy": "ma_cross", "params": {"fast": 5, "slow": 20},
+        "promotions": 0}}, d)
+
+    strat = champion_strategy("crypto", "BTC/USDT", d)
+    strat.generate_signals(df)
+    assert strat._impl.fast == 5               # 저장된 챔피언을 위임 실행
+
+    # 야간 재학습이 챔피언을 교체했다고 가정
+    save_champions({"crypto:BTC/USDT": {
+        "strategy": "ma_cross", "params": {"fast": 10, "slow": 40},
+        "promotions": 1}}, d)
+    strat.generate_signals(df)
+    assert strat._impl.fast == 10              # 재시작 없이 자동 반영
 
 
 def test_run_retrain_writes_state(tmp_path, monkeypatch=None):

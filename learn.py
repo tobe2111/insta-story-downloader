@@ -41,7 +41,9 @@ STATE = os.path.join("results", "state.json")   # 웹 감시 탭이 자동으로
 DEFAULTS = {
     "market": "crypto",
     "symbol": "BTC/USDT",
-    "strategy": "ml",
+    # champion = 야간 재학습(챔피언/챌린저)이 뽑은 현재 챔피언을 자동 추종.
+    # 기록이 없으면 ml(logreg) 기본값과 동일하게 동작하므로 손해가 없다.
+    "strategy": "champion",
     "timeframe": "1h",
     "lookback": 500,
     "accuracy_window": 60,
@@ -103,8 +105,15 @@ def _start_learner(cfg: dict) -> None:
     from quant.risk import RiskManager
     from quant.strategies import default_ensemble, get_strategy
 
-    strat = default_ensemble() if cfg["strategy"] == "ensemble" \
-        else get_strategy(cfg["strategy"])
+    if cfg["strategy"] == "champion":
+        from quant.live.retrain import champion_spec, champion_strategy
+        strat = champion_strategy(cfg["market"], cfg["symbol"])
+        print(f"🏆 현재 챔피언 사용: {champion_spec(cfg['market'], cfg['symbol'])['params']}"
+              " (야간 재학습이 교체하면 자동 반영됩니다)")
+    elif cfg["strategy"] == "ensemble":
+        strat = default_ensemble()
+    else:
+        strat = get_strategy(cfg["strategy"])
     # 선택: 공포탐욕지수를 ML 외부 피처로 추가 (크립토, 무료 API)
     if cfg.get("use_fear_greed") and getattr(strat, "name", "") == "ml":
         from quant.data import fear_greed_frame
