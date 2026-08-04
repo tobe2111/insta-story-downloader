@@ -266,3 +266,33 @@ def test_page_has_loading_overlay_and_korean_labels():
     assert 'id="busy"' in doc and "계산 중" in doc      # 로딩 오버레이
     assert "이동평균 교차" in doc and "머신러닝" in doc  # 한글 라벨
     assert 'value="ma_cross"' in doc                    # 값은 코드명 유지
+
+
+def test_broadcast_page_and_api(tmp_path):
+    """방송 모드: 전용 화면에 LIVE·고지 문구, API에 계좌·확정/실시간 구분."""
+    import json as _json
+
+    from quant.web.app import broadcast_json, render_broadcast
+
+    doc = render_broadcast()
+    assert "LIVE" in doc and "/api/broadcast" in doc
+    assert "모의투자" in doc and "보장" in doc          # 방송 고지 상시 노출
+    assert "<nav" not in doc                            # 송출용 — 내비게이션 없음
+
+    # 상태 파일 → API JSON (실시간 시세 없이도 확정 기록으로 동작해야 한다)
+    d = tmp_path / "paper"; d.mkdir()
+    (d / "crypto_BTC.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "start_cash": 10000,
+        "cash": 5000, "quantity": 0.1, "avg_price": 50000,
+        "history": [{"date": "2026-08-03", "equity": 10200, "return_pct": 2.0,
+                     "price": 52000, "weight": 0.5, "hit_rate": 0.52},
+                    {"date": "2026-08-04", "equity": 10100, "return_pct": 1.0,
+                     "price": 51000, "weight": 0.5, "hit_rate": 0.52}]}),
+        encoding="utf-8")
+    out = _json.loads(broadcast_json(str(tmp_path), with_live=False))
+    assert out["disclaimer"] and "모의" in out["disclaimer"]
+    a = out["accounts"][0]
+    assert a["key"] == "crypto:BTC/USDT" and a["equity"] == 10100
+    assert a["mdd_pct"] < 0                             # 10200→10100 낙폭 반영
+    assert "live_equity" not in a                       # 시세 없으면 확정만(정직)
+    assert "cash" not in a and "positions" not in a     # 내부 필드 비노출
