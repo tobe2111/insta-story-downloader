@@ -16,6 +16,7 @@ _LOOPBACK = {"127.0.0.1", "localhost", "::1", ""}
 
 from quant.web.app import (
     broadcast_json,
+    candles_json,
     render_broadcast,
     render_form,
     render_monitor,
@@ -86,9 +87,19 @@ class QuantHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/broadcast":
             # 방송 모드 — OBS 브라우저 소스로 잡아 유튜브 라이브에 송출하는 화면
             self._send(render_broadcast())
-        elif parsed.path == "/api/broadcast":
+        elif parsed.path == "/api/candles":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
             try:
-                self._send(broadcast_json(),
+                self._send(candles_json(params.get("key", "crypto:BTC/USDT"),
+                                        tf=params.get("tf", "1m")),
+                           content_type="application/json; charset=utf-8")
+            except Exception:  # noqa: BLE001
+                self._send("{}", content_type="application/json; charset=utf-8")
+        elif parsed.path == "/api/broadcast":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                # nolive=1: 첫 페인트용 — 느릴 수 있는 실시간 시세 수집을 건너뛴다
+                self._send(broadcast_json(with_live=not params.get("nolive")),
                            content_type="application/json; charset=utf-8")
             except Exception:  # noqa: BLE001 — 방송 화면은 조용히 재시도한다
                 self._send("{}", content_type="application/json; charset=utf-8")

@@ -73,6 +73,11 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     weight = float(RiskManager().size_positions(df, signals).iloc[-1])
     price = float(df["close"].iloc[-1])
 
+    # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시
+    from quant.live.explain import explain_signal
+    reason = explain_signal(champion_spec(market, symbol, state_dir), df,
+                            weight, getattr(strategy, "_impl", None))
+
     broker = PaperBroker(cash=float(st["cash"]))
     if abs(float(st.get("quantity", 0.0))) > 0:
         broker._positions[symbol] = Position(       # 어제의 포지션 복원
@@ -89,6 +94,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
+        "reason": reason,
     }
     st.update({
         "market": market, "symbol": symbol, "start_cash": START_CASH,
@@ -328,7 +334,21 @@ def write_docs_status(state_dir: str = STATE_DIR,
     """
     from quant.utils.jsonio import atomic_write_json
 
-    status: dict = {"champions": {}, "paper": {}, "updated": None}
+    status: dict = {"champions": {}, "paper": {}, "updated": None, "swaps": []}
+    hist_file = os.path.join(state_dir, "retrain_history.jsonl")
+    if os.path.exists(hist_file):
+        with open(hist_file, encoding="utf-8") as f:
+            for line in f.read().splitlines()[-400:]:
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if rec.get("promoted"):
+                    # 사이트 차트의 '챔피언 교체' 마커용 — 진화의 서사를 새긴다
+                    status["swaps"].append({
+                        "date": rec.get("asof"),
+                        "key": f"{rec.get('market')}:{rec.get('symbol')}",
+                        "strategy": rec.get("champion_strategy")})
     champ_file = os.path.join(state_dir, "champions.json")
     if os.path.exists(champ_file):
         with open(champ_file, encoding="utf-8") as f:

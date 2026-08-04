@@ -72,21 +72,50 @@ function esc(s){const d=document.createElement("div");d.textContent=String(s);re
 function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
 function pct(v,digits){const d=(digits==null)?2:digits;
   return (v>=0?"+":"")+v.toFixed(d)+"%"}
-function spark(hist){
+function niceTicks(mn,mx,n){
+  const span=(mx-mn)||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0)));
+  const step=[1,2,2.5,5,10].map(m=>m*mag).find(sv=>span/sv<=n)||mag*10;
+  const t=[];for(let v=Math.ceil(mn/step)*step;v<=mx;v+=step)t.push(v);return t}
+function spark(hist,markers){
   if(hist.length<2) return "";
-  const w=800,h=64,eq=hist.map(r=>r.equity);
+  const v=hist.map(r=>r.equity), dates=hist.map(r=>r.date);
   const p0=hist[0].price, bench=hist.map(r=>10000*r.price/p0);
-  const all=eq.concat(bench);
-  const mn=Math.min(...all),mx=Math.max(...all),span=(mx-mn)||1;
-  const line=(arr,color,width,dash)=>{
-    const pts=arr.map((v,i)=>`${(i/(arr.length-1)*w).toFixed(1)},${(h-4-(v-mn)/span*(h-8)).toFixed(1)}`);
-    return `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}"
-      stroke-width="${width}"${dash?` stroke-dasharray="4 4"`:""}/>`};
-  const up=eq[eq.length-1]>=eq[0];
-  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    ${line(bench,"var(--dim)",1.5,true)}
-    ${line(eq,up?"var(--ok)":"var(--bad)",2)}</svg>
-  <div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면</div>`;
+  const W=800,H=96,padR=56,padT=5,padB=4,base=10000;
+  let mn=Math.min(...v,...bench,base),mx=Math.max(...v,...bench,base);
+  const sp=(mx-mn)||1, mainH=H-padT-padB;
+  const X=i=>i/(v.length-1)*(W-padR);
+  const Y=val=>padT+(1-(val-mn)/sp)*mainH;
+  const line=a=>a.map((val,i)=>`${X(i).toFixed(1)},${Y(val).toFixed(1)}`).join(" ");
+  let out=`<svg class="spark" style="height:96px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+  niceTicks(mn,mx,3).forEach(t=>{out+=`<line x1="0" y1="${Y(t)}" x2="${W-padR}" y2="${Y(t)}"
+    stroke="var(--line)" stroke-width="1"/><text x="${W-padR+6}" y="${Y(t)+4}"
+    font-size="10" fill="var(--dim)">${Math.round(t).toLocaleString()}</text>`});
+  const yb=Y(base), gid="g"+Math.floor(Math.random()*1e9);
+  out+=`<defs><linearGradient id="${gid}u" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="var(--ok)" stop-opacity=".25"/>
+    <stop offset="1" stop-color="var(--ok)" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${gid}d" x1="0" y1="1" x2="0" y2="0">
+    <stop offset="0" stop-color="var(--bad)" stop-opacity=".25"/>
+    <stop offset="1" stop-color="var(--bad)" stop-opacity="0"/></linearGradient>
+    <clipPath id="${gid}cu"><rect x="0" y="0" width="${W-padR}" height="${yb}"/></clipPath>
+    <clipPath id="${gid}cd"><rect x="0" y="${yb}" width="${W-padR}" height="${H-yb}"/></clipPath></defs>`;
+  const area=`M0,${yb} L`+line(v)+` L${X(v.length-1)},${yb} Z`;
+  out+=`<path d="${area}" fill="url(#${gid}u)" clip-path="url(#${gid}cu)"/>
+    <path d="${area}" fill="url(#${gid}d)" clip-path="url(#${gid}cd)"/>
+    <line x1="0" y1="${yb}" x2="${W-padR}" y2="${yb}" stroke="var(--dim)" stroke-width="1" stroke-dasharray="5 4"/>
+    <polyline points="${line(bench)}" fill="none" stroke="var(--dim)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+  const up=v[v.length-1]>=base;
+  out+=`<polyline points="${line(v)}" fill="none" stroke="${up?"var(--ok)":"var(--bad)"}" stroke-width="2"/>`;
+  (markers||[]).forEach(d=>{const i=dates.indexOf(d);
+    if(i>=0)out+=`<path d="M${X(i)},${Y(v[i])-8} l4.5,4.5 -4.5,4.5 -4.5,-4.5 z" fill="var(--accent)"/>`});
+  const lx=X(v.length-1),ly=Y(v[v.length-1]);
+  out+=`<circle cx="${lx}" cy="${ly}" r="3" fill="${up?"var(--ok)":"var(--bad)"}"/>
+    <rect x="${W-padR+2}" y="${ly-9}" width="${padR-6}" height="18" rx="4"
+      fill="${up?"var(--ok)":"var(--bad)"}"/>
+    <text x="${W-padR+(padR-6)/2+2}" y="${ly+4}" font-size="10" font-weight="700"
+      fill="#0a0b0e" text-anchor="middle">${Math.round(v[v.length-1]).toLocaleString()}</text>`;
+  return out+`</svg><div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면
+    <span style="color:var(--accent)">◆</span> 챔피언 교체</div>`;
 }
 function mondayOf(dstr){
   const d=new Date(dstr+"T00:00:00Z");
@@ -99,9 +128,8 @@ function weeklyTable(hist){
   const weeks=new Map();                     // 주 시작(월) → 그 주 마지막 기록
   hist.forEach(r=>weeks.set(mondayOf(r.date),r));
   const keys=[...weeks.keys()].sort();
-  let prevEq=10000, rows="";
-  keys.slice(-8).forEach((wk,i,arr)=>{
-    // 기준 자산: 직전 주 마지막 자산(전체 기록에서 탐색)
+  let rows="";
+  keys.slice(-8).forEach(wk=>{
     const kAll=[...weeks.keys()].sort();
     const idx=kAll.indexOf(wk);
     const base=idx>0?weeks.get(kAll[idx-1]).equity:10000;
@@ -149,8 +177,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div class="sub" style="margin:2px 0 0">10,000원으로 시작한 가상 자금${
         mdd==null?"":` · 최대낙폭 <b class="neg">${mdd}%</b>`}</div>
       <div class="vs">${benchTxt}</div>
-      ${spark(hist)}
+      ${spark(hist,(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date))}
       <div class="sub" style="margin-top:10px;font-size:12.5px">🏆 현재 챔피언: <code>${champ}</code></div>
+      ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">🧭 오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
       ${weeklyTable(hist)}
     </div>`}).join("");

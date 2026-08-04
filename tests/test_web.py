@@ -296,3 +296,112 @@ def test_broadcast_page_and_api(tmp_path):
     assert a["mdd_pct"] < 0                             # 10200→10100 낙폭 반영
     assert "live_equity" not in a                       # 시세 없으면 확정만(정직)
     assert "cash" not in a and "positions" not in a     # 내부 필드 비노출
+
+
+def test_broadcast_api_includes_reason_and_news(tmp_path):
+    """방송 API: 새벽 판단 근거(reason)와 어젯밤 재학습 소식(news)을 담는다."""
+    import json as _json
+
+    from quant.web.app import broadcast_json
+
+    d = tmp_path / "paper"; d.mkdir()
+    (d / "crypto_BTC.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "cash": 0, "quantity": 0,
+        "history": [{"date": "2026-08-04", "equity": 10100, "return_pct": 1.0,
+                     "price": 51000, "weight": 0.5,
+                     "reason": "매수 +50% — 이동평균 교차: 상승 추세"}]}),
+        encoding="utf-8")
+    (tmp_path / "retrain_history.jsonl").write_text(
+        _json.dumps({"asof": "2026-08-04", "market": "crypto",
+                     "symbol": "BTC/USDT", "promoted": True,
+                     "champion_strategy": "ml"}) + "\n", encoding="utf-8")
+    out = _json.loads(broadcast_json(str(tmp_path), with_live=False))
+    assert out["accounts"][0]["reason"].startswith("매수 +50%")
+    assert "챔피언 교체" in out["news"] and "BTC/USDT" in out["news"]
+    assert out["swaps"][0]["key"] == "crypto:BTC/USDT"
+
+
+def test_candles_api_shape_and_synthetic_refusal(tmp_path, monkeypatch):
+    """캔들 API: 실시세만 내보내고(합성 폴백 거부), 보유 정보를 오버레이용으로 담는다."""
+    import json as _json
+
+    import pandas as pd
+
+    import quant.data as qd
+    from quant.web.app import _CANDLE_CACHE, candles_json
+
+    _CANDLE_CACHE.clear()
+    idx = pd.date_range("2026-08-04 09:00", periods=30, freq="min")
+    df = pd.DataFrame({"open": 100.0, "high": 101.0, "low": 99.0,
+                       "close": 100.5, "volume": 1.0}, index=idx)
+
+    class _Stub:
+        def __init__(self, synthetic):
+            self.synthetic = synthetic
+
+        def get_ohlcv(self, *a, **k):
+            d = df.copy()
+            if self.synthetic:
+                d.attrs["synthetic_fallback"] = True
+            return d
+
+    d = tmp_path / "paper"; d.mkdir()
+    (d / "crypto_BTC_USDT.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "cash": 1000,
+        "quantity": 0.5, "avg_price": 99.5,
+        "history": [{"date": "2026-08-04", "weight": 0.64, "equity": 10100,
+                     "return_pct": 1.0, "price": 100.5}]}), encoding="utf-8")
+
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub(False))
+    out = _json.loads(candles_json("crypto:BTC/USDT", state_dir=str(tmp_path)))
+    assert len(out["candles"]) == 30 and out["last"] == 100.5
+    assert out["candles"][0][0] == "09:00"          # 시:분 라벨
+    assert out["position"]["side"] == "매수 보유"
+    assert out["position"]["weight"] == 0.64
+
+    _CANDLE_CACHE.clear()
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub(True))
+    out = _json.loads(candles_json("crypto:ETH/USDT", state_dir=str(tmp_path)))
+    assert out["candles"] == []                     # 가짜 캔들은 방송에 안 나간다
+
+
+def test_indicator_chips_champion_aware(tmp_path, monkeypatch):
+    """판단 지표 칩: 챔피언 파라미터로 계산되고, 합성 폴백이면 비어 있다."""
+    import numpy as np
+    import pandas as pd
+
+    import quant.data as qd
+    from quant.live.retrain import save_champions
+    from quant.web.app import _CHIP_CACHE, indicator_chips
+
+    _CHIP_CACHE.clear()
+    n = 260
+    close = 100 * np.cumprod(1 + np.full(n, 0.002))     # 뚜렷한 상승 추세
+    idx = pd.date_range("2025-06-01", periods=n, freq="D")
+    df = pd.DataFrame({"open": close, "high": close * 1.01, "low": close * 0.99,
+                       "close": close, "volume": 1.0}, index=idx)
+
+    class _Stub:
+        def get_ohlcv(self, *a, **k):
+            return df.copy()
+
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub())
+    save_champions({"crypto:BTC/USDT": {
+        "strategy": "ma_cross", "params": {"fast": 10, "slow": 30},
+        "promotions": 0}}, str(tmp_path))
+
+    chips = indicator_chips("crypto", "BTC/USDT", str(tmp_path))
+    labels = [c["label"] for c in chips]
+    assert "10일선 > 30일선" in labels                    # 챔피언 파라미터 사용
+    assert "RSI(14)" in labels and "200일선(레짐)" in labels
+    assert all(c["state"] in ("pos", "neg", "mid") for c in chips)
+
+    # 합성 폴백 → 빈 목록(방송에 가짜 지표 금지)
+    _CHIP_CACHE.clear()
+
+    class _Fb(_Stub):
+        def get_ohlcv(self, *a, **k):
+            d = df.copy(); d.attrs["synthetic_fallback"] = True; return d
+
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Fb())
+    assert indicator_chips("crypto", "ETH/USDT", str(tmp_path)) == []
