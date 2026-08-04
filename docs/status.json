@@ -1,0 +1,309 @@
+{
+  "champions": {
+    "crypto:BTC/USDT": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "crypto:ETH/USDT": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "crypto:SOL/USDT": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "us_stock:SPY": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "us_stock:QQQ": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "us_stock:NVDA": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "kr_stock:069500.KS": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-04"
+    },
+    "kr_stock:005930.KS": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "last_run_asof": "2026-08-03"
+    }
+  },
+  "paper": {
+    "crypto:BTC/USDT": {
+      "start_cash": 10000.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 64194.5,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.42105263157894735,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 50일선 이격, 평균 진폭(ATR), MACD 히스토그램"
+        }
+      ]
+    },
+    "crypto:ETH/USDT": {
+      "start_cash": 10000.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 1873.32,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.4444444444444444,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 거래량 이상치, 50일선 이격, 20일선 이격"
+        }
+      ]
+    },
+    "crypto:SOL/USDT": {
+      "start_cash": 10000.0,
+      "equity": 9999.12,
+      "return_pct": -0.01,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 74.13,
+          "weight": 0.0882,
+          "equity": 9999.12,
+          "return_pct": -0.01,
+          "hit_rate": 0.6666666666666666,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 59%로 추정(기준 55% 초과) · 주요 판단 재료: MACD 히스토그램, 볼린저 위치, 10일 수익률"
+        }
+      ]
+    },
+    "kr_stock:005930.KS": {
+      "start_cash": 10000.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-03",
+          "price": 239500.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5492957746478874,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 10일 수익률, MACD 히스토그램, 변동성(20일)"
+        }
+      ]
+    },
+    "kr_stock:069500.KS": {
+      "start_cash": 10000.0,
+      "equity": 9999.14,
+      "return_pct": -0.01,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 100330.0,
+          "weight": 0.0859,
+          "equity": 9999.14,
+          "return_pct": -0.01,
+          "hit_rate": 0.6410256410256411,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 59%로 추정(기준 55% 초과) · 주요 판단 재료: 10일 수익률, MACD 히스토그램, 60일 모멘텀"
+        }
+      ]
+    },
+    "portfolio:ALL": {
+      "start_cash": 10000.0,
+      "equity": 9999.14,
+      "return_pct": -0.01,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 100.0,
+          "weight": 0.0866,
+          "equity": 9999.14,
+          "return_pct": -0.01,
+          "principal": 10000.0,
+          "pnl": -0.86,
+          "hit_rate": null,
+          "champion": {
+            "symbols": 8,
+            "skipped": []
+          },
+          "twr_pct": -0.01
+        }
+      ],
+      "goal": 100000000,
+      "principal": 10000.0,
+      "pnl": -0.86,
+      "twr_pct": -0.01,
+      "deposits": []
+    },
+    "us_stock:NVDA": {
+      "start_cash": 10000.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 211.94000244140625,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5178571428571429,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일선 이격, MACD 히스토그램, 볼린저 위치"
+        }
+      ]
+    },
+    "us_stock:QQQ": {
+      "start_cash": 10000.0,
+      "equity": 9998.52,
+      "return_pct": -0.01,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 723.8499755859375,
+          "weight": 0.1481,
+          "equity": 9998.52,
+          "return_pct": -0.01,
+          "hit_rate": 0.4727272727272727,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +15% — 로지스틱회귀 모델이 내일 상승확률을 약 62%로 추정(기준 55% 초과) · 주요 판단 재료: MACD 히스토그램, 10일 수익률, 60일 모멘텀"
+        }
+      ]
+    },
+    "us_stock:SPY": {
+      "start_cash": 10000.0,
+      "equity": 9996.3,
+      "return_pct": -0.04,
+      "mdd_pct": 0.0,
+      "history": [
+        {
+          "date": "2026-08-04",
+          "price": 771.3300170898438,
+          "weight": 0.3702,
+          "equity": 9996.3,
+          "return_pct": -0.04,
+          "hit_rate": 0.4418604651162791,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +37% — 로지스틱회귀 모델이 내일 상승확률을 약 72%로 추정(기준 55% 초과) · 주요 판단 재료: RSI(14), 60일 모멘텀, 50일선 이격"
+        }
+      ]
+    }
+  },
+  "updated": "2026-08-04",
+  "swaps": [],
+  "live_url": null
+}
