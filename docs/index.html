@@ -222,6 +222,7 @@
     <p class="meta"><span class="ok">✓</span> 백테스트·검증·페이퍼 트레이딩은 API 키 없이 바로
     · <a href="https://github.com/tobe2111/insta-story-downloader">소스코드</a>
     · <a href="https://github.com/tobe2111/insta-story-downloader/releases">전체 버전</a></p>
+    <p class="meta" id="paper-live" style="display:none"></p>
   </div>
   <div class="shotwrap">
     <figure class="shot">
@@ -422,6 +423,23 @@ try {
     setTimeout(showAll, 2500);
   } catch (e) { showAll(); }
 })();
+</script>
+<script>
+/* 만원 챌린지 라이브 배지 — 매일 자동 페이퍼 결과가 있으면 히어로에 표시 */
+fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(st){
+  if(!st||!st.paper) return;
+  var keys=Object.keys(st.paper); if(!keys.length) return;
+  var parts=keys.map(function(k){
+    var p=st.paper[k], ret=Number(p.return_pct||0);
+    var col=ret>=0?"#34d399":"#f87171";
+    return esc(k)+' <b style="color:'+col+'">'+(ret>=0?"+":"")+ret.toFixed(2)+"%</b>";
+  });
+  var el=document.getElementById("paper-live");
+  el.innerHTML="📈 만원 챌린지(자동 페이퍼"+(st.updated?" · "+esc(st.updated):"")+"): "
+    +parts.join(" · ")+' · <a href="paper.html">매일 기록 보기 →</a>';
+  el.style.display="";
+  function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+}).catch(function(){});
 </script>
 </body>
 </html>

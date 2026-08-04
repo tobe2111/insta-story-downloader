@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 매일 자동 페이퍼 현황</title>
+<title>Quant · 만원 챌린지 — 매일 자동 페이퍼 현황</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <style>
 :root{
@@ -19,22 +19,32 @@ body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe
      background:var(--bg);color:var(--fg);line-height:1.7;font-size:15px}
 a{color:var(--accent);text-decoration:none}
 .wrap{max-width:860px;margin:0 auto;padding:0 20px}
-nav{position:sticky;top:0;border-bottom:1px solid var(--line);background:var(--bg)}
+nav{position:sticky;top:0;border-bottom:1px solid var(--line);background:var(--bg);z-index:5}
 nav .wrap{display:flex;align-items:center;height:58px;gap:12px}
 .logo{font-weight:800;letter-spacing:.14em;color:var(--fg)}
 .logo em{color:var(--accent);font-style:normal}
-h1{font-size:26px;margin:34px 0 6px}
-.sub{color:var(--muted);font-size:14px;margin-bottom:22px}
-.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;
-      padding:18px 20px;margin:14px 0}
-.card h2{font-size:16px;margin-bottom:8px}
-.big{font-size:30px;font-weight:800}
+h1{font-size:26px;margin:34px 0 6px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:14px;margin-bottom:22px;max-width:64ch}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+      padding:20px 22px;margin:14px 0}
+.card h2{font-size:16px;margin-bottom:2px}
+.big{font-size:32px;font-weight:800;letter-spacing:-.02em}
 .pos{color:var(--ok)} .neg{color:var(--bad)}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.vs{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0 2px;font-size:13px}
+.vs div{background:var(--bg);border:1px solid var(--line);border-radius:10px;
+        padding:8px 14px}
+.vs b{font-size:15px}
+.vs .lbl{color:var(--muted);font-size:11.5px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;
+      font-variant-numeric:tabular-nums}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
-th{color:var(--muted);font-weight:600}
-.spark{width:100%;height:56px;margin-top:10px}
+th{color:var(--muted);font-weight:600;font-size:12px}
+.tablewrap{overflow-x:auto}
+.spark{width:100%;height:64px;margin-top:12px}
+.legend{font-size:11.5px;color:var(--muted);margin-top:4px}
+.legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;
+          margin:0 4px 0 10px}
 .note{color:var(--muted);font-size:12.5px;margin:26px 0 40px}
 .err{color:var(--bad);padding:30px 0}
 </style>
@@ -45,49 +55,75 @@ th{color:var(--muted);font-weight:600}
   <a href="index.html" style="font-size:13.5px;color:var(--muted)">← 홈</a>
 </div></nav>
 <div class="wrap">
-<h1>매일 자동 페이퍼 현황</h1>
-<p class="sub">클라우드가 매일 새벽 챔피언 전략으로 모의 매매를 하고 이 페이지를
-갱신합니다 — 여러분은 아무것도 하지 않아도 됩니다. <b>가짜 돈</b>이며, 좋은
-결과도 미래 수익을 보장하지 않습니다.</p>
+<h1>만원 챌린지 — 매일 자동 페이퍼</h1>
+<p class="sub"><b>가상 자금 10,000원</b>으로 시작해, 클라우드가 매일 새벽(한국시간)
+챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
+됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
-<p class="note">🌙 챔피언은 매일 밤 챔피언/챌린저 2단계 검증으로 재평가되며,
-확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).
+<p class="note">🌙 챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
+재평가되며, 확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).
+날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.
+"그냥 보유"는 같은 돈으로 첫날 사서 들고만 있었을 때입니다 — 전략이 이 값을
+꾸준히 못 이기면 전략의 의미가 없으므로 함께 보여드립니다.
 기록 원본: 저장소 <code>state/</code> 폴더.</p>
 </div>
 <script>
 function esc(s){const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
+function pct(v,digits){const d=(digits==null)?2:digits;
+  return (v>=0?"+":"")+v.toFixed(d)+"%"}
 function spark(hist){
   if(hist.length<2) return "";
-  const w=800,h=56,eq=hist.map(r=>r.equity);
-  const mn=Math.min(...eq),mx=Math.max(...eq),span=(mx-mn)||1;
-  const pts=eq.map((v,i)=>`${(i/(eq.length-1)*w).toFixed(1)},${(h-4-(v-mn)/span*(h-8)).toFixed(1)}`);
+  const w=800,h=64,eq=hist.map(r=>r.equity);
+  const p0=hist[0].price, bench=hist.map(r=>10000*r.price/p0);
+  const all=eq.concat(bench);
+  const mn=Math.min(...all),mx=Math.max(...all),span=(mx-mn)||1;
+  const line=(arr,color,width,dash)=>{
+    const pts=arr.map((v,i)=>`${(i/(arr.length-1)*w).toFixed(1)},${(h-4-(v-mn)/span*(h-8)).toFixed(1)}`);
+    return `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}"
+      stroke-width="${width}"${dash?` stroke-dasharray="4 4"`:""}/>`};
   const up=eq[eq.length-1]>=eq[0];
   return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-    <polyline points="${pts.join(" ")}" fill="none"
-      stroke="${up?"var(--ok)":"var(--bad)"}" stroke-width="2"/></svg>`;
+    ${line(bench,"var(--dim)",1.5,true)}
+    ${line(eq,up?"var(--ok)":"var(--bad)",2)}</svg>
+  <div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면</div>`;
 }
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const el=document.getElementById("content");
   const keys=Object.keys(st.paper||{});
-  if(!keys.length){el.innerHTML='<p class="sub">아직 기록이 없습니다 — 첫 자동 실행(새벽 5:30) 이후에 나타납니다.</p>';return}
+  if(!keys.length){el.innerHTML='<p class="sub">아직 기록이 없습니다 — 첫 자동 실행(새벽 5:30 KST) 이후에 나타납니다.</p>';return}
   el.innerHTML=keys.map(k=>{
     const p=st.paper[k],hist=p.history||[];
     const ret=p.return_pct??0,cls=ret>=0?"pos":"neg";
-    const champ=(st.champions&&st.champions[k])?esc(JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
-    const rows=hist.slice(-14).reverse().map(r=>{
-      const hr=(typeof r.hit_rate==="number")?(r.hit_rate*100).toFixed(1)+"%":"–";
-      return `<tr><td>${esc(r.date)}</td><td>${r.price.toLocaleString()}</td>
-        <td>${(r.weight*100).toFixed(0)}%</td><td>${r.equity.toLocaleString()}</td>
-        <td class="${r.return_pct>=0?"pos":"neg"}">${r.return_pct>=0?"+":""}${r.return_pct}%</td>
-        <td>${hr}</td></tr>`}).join("");
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
+    const champ=(st.champions&&st.champions[k])
+      ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
+    // 그냥 보유(벤치마크): 첫 기록일에 같은 돈으로 사서 들고만 있었다면
+    let benchTxt="";
+    if(hist.length>=2){
+      const b=10000*hist[hist.length-1].price/hist[0].price;
+      const alpha=(p.equity-b)/10000*100;
+      benchTxt=`<div><span class="lbl">그냥 보유했다면</span><b>${won(b)}</b></div>
+        <div><span class="lbl">전략 − 보유 (초과성과)</span>
+        <b class="${alpha>=0?"pos":"neg"}">${pct(alpha)}</b></div>`;
+    }
+    const rows=hist.slice(-14).reverse().map(r=>{
+      const prev=hist[hist.indexOf(r)-1];
+      const day=prev?((r.equity/prev.equity-1)*100):null;
+      const hr=(typeof r.hit_rate==="number")?(r.hit_rate*100).toFixed(1)+"%":"–";
+      return `<tr><td>${esc(r.date)}</td>
+        <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
+        <td>${won(r.equity)}</td>
+        <td class="${r.return_pct>=0?"pos":"neg"}">${pct(Number(r.return_pct))}</td>
+        <td>${(r.weight*100).toFixed(0)}%</td><td>${hr}</td></tr>`}).join("");
     return `<div class="card"><h2>${esc(k)}</h2>
-      <div class="big ${cls}">${ret>=0?"+":""}${ret}%</div>
-      <div class="sub">시작 ${p.start_cash.toLocaleString()} → 현재 ${Number(p.equity).toLocaleString()} (가짜 돈)${
+      <div class="big ${cls}">${won(p.equity)} <span style="font-size:18px">(${pct(Number(ret))})</span></div>
+      <div class="sub" style="margin:2px 0 0">10,000원으로 시작한 가상 자금${
         mdd==null?"":` · 최대낙폭 <b class="neg">${mdd}%</b>`}</div>
+      <div class="vs">${benchTxt}</div>
       ${spark(hist)}
-      <div class="sub" style="margin-top:8px">🏆 현재 챔피언: <code>${champ}</code></div>
-      <table><tr><th>날짜</th><th>가격</th><th>비중</th><th>자산</th><th>누적수익</th><th>적중률(60일)</th></tr>${rows}</table>
+      <div class="sub" style="margin-top:10px;font-size:12.5px">🏆 현재 챔피언: <code>${champ}</code></div>
+      <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
     </div>`}).join("");
   if(st.updated){document.querySelector(".sub").innerHTML+=` <b>마지막 갱신: ${esc(st.updated)}</b>`}
 }).catch(()=>{document.getElementById("content").innerHTML=
