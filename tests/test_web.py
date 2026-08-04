@@ -296,3 +296,26 @@ def test_broadcast_page_and_api(tmp_path):
     assert a["mdd_pct"] < 0                             # 10200→10100 낙폭 반영
     assert "live_equity" not in a                       # 시세 없으면 확정만(정직)
     assert "cash" not in a and "positions" not in a     # 내부 필드 비노출
+
+
+def test_broadcast_api_includes_reason_and_news(tmp_path):
+    """방송 API: 새벽 판단 근거(reason)와 어젯밤 재학습 소식(news)을 담는다."""
+    import json as _json
+
+    from quant.web.app import broadcast_json
+
+    d = tmp_path / "paper"; d.mkdir()
+    (d / "crypto_BTC.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "cash": 0, "quantity": 0,
+        "history": [{"date": "2026-08-04", "equity": 10100, "return_pct": 1.0,
+                     "price": 51000, "weight": 0.5,
+                     "reason": "매수 +50% — 이동평균 교차: 상승 추세"}]}),
+        encoding="utf-8")
+    (tmp_path / "retrain_history.jsonl").write_text(
+        _json.dumps({"asof": "2026-08-04", "market": "crypto",
+                     "symbol": "BTC/USDT", "promoted": True,
+                     "champion_strategy": "ml"}) + "\n", encoding="utf-8")
+    out = _json.loads(broadcast_json(str(tmp_path), with_live=False))
+    assert out["accounts"][0]["reason"].startswith("매수 +50%")
+    assert "챔피언 교체" in out["news"] and "BTC/USDT" in out["news"]
+    assert out["swaps"][0]["key"] == "crypto:BTC/USDT"
