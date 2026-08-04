@@ -319,3 +319,47 @@ def test_broadcast_api_includes_reason_and_news(tmp_path):
     assert out["accounts"][0]["reason"].startswith("매수 +50%")
     assert "챔피언 교체" in out["news"] and "BTC/USDT" in out["news"]
     assert out["swaps"][0]["key"] == "crypto:BTC/USDT"
+
+
+def test_candles_api_shape_and_synthetic_refusal(tmp_path, monkeypatch):
+    """캔들 API: 실시세만 내보내고(합성 폴백 거부), 보유 정보를 오버레이용으로 담는다."""
+    import json as _json
+
+    import pandas as pd
+
+    import quant.data as qd
+    from quant.web.app import _CANDLE_CACHE, candles_json
+
+    _CANDLE_CACHE.clear()
+    idx = pd.date_range("2026-08-04 09:00", periods=30, freq="min")
+    df = pd.DataFrame({"open": 100.0, "high": 101.0, "low": 99.0,
+                       "close": 100.5, "volume": 1.0}, index=idx)
+
+    class _Stub:
+        def __init__(self, synthetic):
+            self.synthetic = synthetic
+
+        def get_ohlcv(self, *a, **k):
+            d = df.copy()
+            if self.synthetic:
+                d.attrs["synthetic_fallback"] = True
+            return d
+
+    d = tmp_path / "paper"; d.mkdir()
+    (d / "crypto_BTC_USDT.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "cash": 1000,
+        "quantity": 0.5, "avg_price": 99.5,
+        "history": [{"date": "2026-08-04", "weight": 0.64, "equity": 10100,
+                     "return_pct": 1.0, "price": 100.5}]}), encoding="utf-8")
+
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub(False))
+    out = _json.loads(candles_json("crypto:BTC/USDT", state_dir=str(tmp_path)))
+    assert len(out["candles"]) == 30 and out["last"] == 100.5
+    assert out["candles"][0][0] == "09:00"          # 시:분 라벨
+    assert out["position"]["side"] == "매수 보유"
+    assert out["position"]["weight"] == 0.64
+
+    _CANDLE_CACHE.clear()
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub(True))
+    out = _json.loads(candles_json("crypto:ETH/USDT", state_dir=str(tmp_path)))
+    assert out["candles"] == []                     # 가짜 캔들은 방송에 안 나간다

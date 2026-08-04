@@ -1116,6 +1116,67 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
     }), ensure_ascii=False)
 
 
+_CANDLE_CACHE: dict = {}
+
+
+def candles_json(key: str, tf: str = "1m", limit: int = 90,
+                 state_dir: str = "state", ttl: float = 12.0) -> str:
+    """방송용 실시간 캔들(1분봉) — 거래소에서 직접 받아 TTL 캐시로 반환한다.
+
+    ⚠️ 전략의 매매 판단은 일봉(하루 1회)이다. 이 캔들은 '보여주기 위한 실시간
+    시세'이며 화면에도 그렇게 라벨링한다. 합성 폴백 시세는 절대 내보내지
+    않는다 — 방송에 가짜 캔들을 그릴 수는 없다(빈 응답이 정직하다).
+    """
+    import json
+    import re
+    import time
+    from pathlib import Path
+
+    market, _, symbol = key.partition(":")
+    now = time.time()
+    cached = _CANDLE_CACHE.get((key, tf))
+    if cached and now - cached[0] < ttl:
+        return cached[1]
+
+    candles = []
+    try:
+        from quant.data import get_provider
+        df = get_provider(market).get_ohlcv(symbol, tf, limit=limit)
+        if len(df) and not df.attrs.get("synthetic_fallback"):
+            candles = [[str(ix)[11:16] or str(ix)[:10],
+                        round(float(r["open"]), 6), round(float(r["high"]), 6),
+                        round(float(r["low"]), 6), round(float(r["close"]), 6)]
+                       for ix, r in df.tail(limit).iterrows()]
+    except Exception:  # noqa: BLE001
+        pass
+
+    # 보유 정보(진입가·방향) 오버레이용 — 페이퍼 상태에서 읽는다
+    position = None
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{market}_{symbol}")
+    fp = Path(state_dir) / "paper" / f"{safe}.json"
+    if fp.exists():
+        try:
+            st = json.loads(fp.read_text(encoding="utf-8"))
+            qty = float(st.get("quantity", 0.0))
+            if abs(qty) > 0:
+                position = {"quantity": qty,
+                            "avg_price": float(st.get("avg_price", 0.0)),
+                            "side": "매수 보유" if qty > 0 else "매도 보유"}
+            hist = st.get("history", [])
+            if hist and position is not None:
+                position["weight"] = hist[-1].get("weight")
+        except (ValueError, OSError):
+            pass
+
+    out = json.dumps({"key": key, "tf": tf, "candles": candles,
+                      "position": position,
+                      "last": candles[-1][4] if candles else None},
+                     ensure_ascii=False)
+    if candles:
+        _CANDLE_CACHE[(key, tf)] = (now, out)
+    return out
+
+
 def render_broadcast() -> str:
     """유튜브 라이브 송출용 전체 화면 대시보드 (OBS 브라우저 소스 1920×1080).
 
@@ -1155,6 +1216,14 @@ header{{display:flex;align-items:center;gap:16px;padding:14px 30px 6px}}
 .pos{{color:var(--ok)}}.neg{{color:var(--bad)}}
 .meta{{font-size:12px;color:var(--muted);margin-top:2px}}
 .hero .chartwrap{{flex:1;min-width:0}}
+.candle{{margin:0 30px 4px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:14px;padding:10px 20px 6px;height:274px;display:flex;
+  flex-direction:column}}
+.candle .head{{display:flex;align-items:baseline;gap:12px;font-size:13px;
+  color:var(--muted)}}
+.candle .sym{{font-size:16px;font-weight:800;color:var(--fg)}}
+.candle .px{{font-size:16px;font-weight:700}}
+.candle .body{{flex:1;min-height:0}}
 .grid{{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
   padding:8px 30px;overflow:hidden}}
 .card{{background:var(--bg2);border:1px solid var(--line);border-radius:12px;
@@ -1178,6 +1247,11 @@ svg text{{font-family:inherit}}
 <span id="news">만원 챌린지 — 가상 자금 자동 모의투자</span>
 <span id="clock">—</span></header>
 <div class="hero" id="hero"><div class="nums"><div class="k">불러오는 중…</div></div></div>
+<div class="candle" id="candle" style="display:none"><div class="head">
+  <span class="sym" id="c-sym">—</span><span id="c-px" class="px">—</span>
+  <span id="c-pos"></span>
+  <span style="margin-left:auto">실시간 1분봉 — 시세는 실시간, <b>매매 판단은 일봉(하루 1회 새벽)</b></span>
+</div><div class="body" id="c-body"></div></div>
 <div class="grid" id="grid"></div>
 <div class="tape"><div class="inner" id="tape">&nbsp;</div></div>
 <footer id="disc">⚠️ 모의투자(가짜 돈)입니다 — 실제 돈이 아니며, 수익을 보장하지
@@ -1260,9 +1334,10 @@ function card(a){{
     <span class="pct2 ${{cls}}">${{pct(rp)}}</span></div>
     <div class="reason">${{a.reason?"🧭 "+esc(a.reason):"최대낙폭 "+a.mdd_pct+"%"}}</div>
     <div style="flex:1;min-height:0;margin-top:2px">${{proChart({{vals:a.spark,dates:a.spark_dates,w:320,h:58,axes:false}})}}</div></div>`}}
-async function tick(){{
+async function tick(first){{
   try{{
-    const r=await fetch("/api/broadcast"+location.search,{{cache:"no-store"}});
+    const q=(location.search?location.search+"&":"?")+(first?"nolive=1":"x=1");
+    const r=await fetch("/api/broadcast"+q,{{cache:"no-store"}});
     if(!r.ok)return;
     const d=await r.json();
     const accs=d.accounts||[]; if(!accs.length)return;
@@ -1281,10 +1356,12 @@ async function tick(){{
         <div class="pct ${{cls}}">${{pct(rp)}} <span class="meta">시작 10,000원</span></div>
         <div class="meta">최대낙폭 ${{hero.mdd_pct}}% · ─ 전략 ┄ 그냥 보유 ◆ 챔피언 교체</div></div>
         <div class="chartwrap">${{proChart({{vals:hero.spark,dates:hero.spark_dates,
-          w:1280,h:230,axes:true,dd:true,markers:mk,
+          w:1280,h:170,axes:true,dd:true,markers:mk,
           bench:(hero.spark_price&&hero.spark_price[0])?hero.spark_price.map(p=>10000*p/hero.spark_price[0]):null}})}}</div>`;
     }}
     document.getElementById("grid").innerHTML=rest.map(card).join("");
+    cKeys=rest.filter(a=>a.market==="crypto").map(a=>a.key)
+      .concat(rest.filter(a=>a.market!=="crypto").map(a=>a.key));
     // 티커 테이프 — 실시간가(가능 시) 또는 확정 기록
     const items=rest.map(a=>{{
       const lp=(d.live_prices||{{}})[a.key];
@@ -1300,6 +1377,80 @@ async function tick(){{
     if(d.disclaimer)document.getElementById("disc").textContent="⚠️ "+d.disclaimer;
   }}catch(e){{}}
 }}
-setInterval(tick,15000);tick();
+let cKeys=[],cIdx=0;
+function candleChart(d){{
+  const c=d.candles; if(!c||c.length<5) return "";
+  const W=1560,H=200,padR=70,padB=14;
+  let mn=Math.min(...c.map(x=>x[3])),mx=Math.max(...c.map(x=>x[2]));
+  if(d.position&&d.position.avg_price){{mn=Math.min(mn,d.position.avg_price);mx=Math.max(mx,d.position.avg_price)}}
+  const sp=(mx-mn)||1,mainH=H-padB-4;
+  const N=c.length,cw=(W-padR)/N,bw=Math.max(2,cw*0.62);
+  const Y=v=>4+(1-(v-mn)/sp)*mainH;
+  let out=`<svg viewBox="0 0 ${{W}} ${{H}}" style="width:100%;height:100%" preserveAspectRatio="none">`;
+  niceTicks(mn,mx,4).forEach(t=>{{out+=`<line x1="0" y1="${{Y(t)}}" x2="${{W-padR}}" y2="${{Y(t)}}"
+    stroke="var(--line)"/><text x="${{W-padR+8}}" y="${{Y(t)+4}}" font-size="11"
+    fill="var(--dim)">${{t.toLocaleString()}}</text>`}});
+  c.forEach((k,i)=>{{
+    const [t,o,h,l,cl]=k,x=i*cw+cw/2,up=cl>=o;
+    const col=up?"var(--ok)":"var(--bad)";
+    out+=`<line x1="${{x}}" y1="${{Y(h)}}" x2="${{x}}" y2="${{Y(l)}}" stroke="${{col}}" stroke-width="1"/>
+      <rect x="${{x-bw/2}}" y="${{Y(Math.max(o,cl))}}" width="${{bw}}"
+      height="${{Math.max(1,Math.abs(Y(o)-Y(cl)))}}" fill="${{col}}"/>`;
+    if(i%15===0)out+=`<text x="${{x}}" y="${{H-2}}" font-size="10" fill="var(--dim)"
+      text-anchor="middle">${{t}}</text>`}});
+  // 진입가 라인(보유 시)
+  if(d.position&&d.position.avg_price>=mn&&d.position.avg_price<=mx){{
+    const yv=Y(d.position.avg_price);
+    out+=`<line x1="0" y1="${{yv}}" x2="${{W-padR}}" y2="${{yv}}" stroke="var(--accent)"
+      stroke-width="1.2" stroke-dasharray="6 4"/>
+      <text x="4" y="${{yv-4}}" font-size="10.5" fill="var(--accent)">진입가 ${{d.position.avg_price.toLocaleString()}}</text>`}}
+  // 현재가 태그
+  const last=c[c.length-1][4],ly=Y(last),lu=last>=c[c.length-1][1];
+  out+=`<line x1="0" y1="${{ly}}" x2="${{W-padR}}" y2="${{ly}}" stroke="var(--dim)"
+    stroke-width="0.7" stroke-dasharray="2 3"/>
+    <rect x="${{W-padR+2}}" y="${{ly-10}}" width="${{padR-6}}" height="20" rx="5"
+    fill="${{lu?"var(--ok)":"var(--bad)"}}"/>
+    <text x="${{W-padR+(padR-6)/2+2}}" y="${{ly+4}}" font-size="11" font-weight="700"
+    fill="#07080b" text-anchor="middle">${{last.toLocaleString()}}</text>`;
+  return out+"</svg>"}}
+async function candleTick(rotate){{
+  if(!cKeys.length)return;
+  if(rotate)cIdx=(cIdx+1)%cKeys.length;
+  for(let n=0;n<cKeys.length;n++){{
+    const key=cKeys[(cIdx+n)%cKeys.length];
+    try{{
+      const r=await fetch("/api/candles?key="+encodeURIComponent(key)+
+        (location.search?"&"+location.search.slice(1):""),{{cache:"no-store"}});
+      if(!r.ok)continue;
+      const d=await r.json();
+      if(!d.candles||d.candles.length<5)continue;   // 장 마감 등 → 다음 종목
+      cIdx=(cIdx+n)%cKeys.length;
+      const el=document.getElementById("candle");el.style.display="flex";
+      document.getElementById("c-sym").textContent=key.split(":")[1]||key;
+      const last=d.candles[d.candles.length-1],prev=d.candles[0];
+      const chg=(last[4]/prev[1]-1)*100,cls=chg>=0;
+      const px=document.getElementById("c-px");
+      px.textContent=Number(last[4]).toLocaleString()+" ("+pct(chg)+")";
+      px.style.color=cls?"var(--ok)":"var(--bad)";
+      document.getElementById("c-pos").textContent=
+        d.position?("🧭 "+d.position.side+(d.position.weight!=null?" · 비중 "+Math.round(d.position.weight*100)+"%":"")):"관망 (현금)";
+      document.getElementById("c-body").innerHTML=candleChart(d);
+      return;
+    }}catch(e){{}}
+  }}
+}}
+setInterval(tick,15000);tick(true).then(()=>tick());
+// 캔들 첫 성공까지 2초 간격 재시도(첫 로딩 레이스 방지), 이후 15초 갱신
+let cReady=false;
+async function candleBoot(){{
+  if(cReady)return;
+  await candleTick(false);
+  if(document.getElementById("candle").style.display==="flex"){{cReady=true;return}}
+  setTimeout(candleBoot,2000);
+}}
+setTimeout(candleBoot,600);
+setInterval(()=>candleTick(false),15000);
+setInterval(()=>candleTick(true),45000);
+setTimeout(()=>candleTick(false),800);
 setInterval(()=>{{document.getElementById("clock").textContent=new Date().toLocaleString("ko-KR")}},1000);
 </script></body></html>"""
