@@ -1119,6 +1119,70 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
 _CANDLE_CACHE: dict = {}
 
 
+_CHIP_CACHE: dict = {}
+
+
+def indicator_chips(market: str, symbol: str, state_dir: str = "state",
+                    ttl: float = 600.0) -> list[dict]:
+    """'챔피언이 실제로 보는' 판단 지표 현재값 칩 — 일봉 기준(라벨에 명시).
+
+    1분봉 위에 일봉 지표를 그리면 거짓이 되므로, 캔들 옆에 '판단 지표(일봉)'
+    칩으로 분리해 보여준다. 챔피언 전략의 파라미터를 그대로 써서 계산한다.
+    실패 시 빈 목록(방송은 조용히 생략).
+    """
+    import time
+    key = (market, symbol)
+    now = time.time()
+    cached = _CHIP_CACHE.get(key)
+    if cached and now - cached[0] < ttl:
+        return cached[1]
+    chips: list[dict] = []
+    try:
+        from quant.data import get_provider
+        from quant.live.retrain import champion_spec
+        df = get_provider(market).get_ohlcv(symbol, "1d", limit=260)
+        if not len(df) or df.attrs.get("synthetic_fallback"):
+            return []
+        close = df["close"]
+        spec = champion_spec(market, symbol, state_dir)
+        params = spec.get("params", {})
+        inner = params.get("inner", {}) if spec["strategy"] == "regime_wrap" else spec
+        ip = inner.get("params", {}) if inner else {}
+
+        def ma(n):
+            return float(close.rolling(n).mean().iloc[-1])
+
+        # 챔피언 전략별 핵심 지표
+        if inner.get("strategy") == "ma_cross" or spec["strategy"] == "ma_cross":
+            f_, s_ = int(ip.get("fast", 20)), int(ip.get("slow", 60))
+            up = ma(f_) > ma(s_)
+            chips.append({"label": f"{f_}일선 {'>' if up else '<'} {s_}일선",
+                          "value": "상승 추세" if up else "하락/횡보",
+                          "state": "pos" if up else "neg"})
+        if inner.get("strategy") == "breakout" or spec["strategy"] == "breakout":
+            w_ = int(ip.get("window", 55))
+            hi = float(df["high"].rolling(w_).max().iloc[-2])
+            px = float(close.iloc[-1])
+            chips.append({"label": f"{w_}일 채널 상단", "value": f"{hi:,.0f}",
+                          "state": "pos" if px >= hi else "mid"})
+        # 공통 판단 재료(ML 피처와 동일 계열) — 항상 표시
+        from quant.strategies.rsi import rsi as _rsi
+        r = float(_rsi(close, 14).iloc[-1])
+        chips.append({"label": "RSI(14)", "value": f"{r:.0f}",
+                      "state": "neg" if r > 70 else "pos" if r < 30 else "mid"})
+        mom = float(close.pct_change(20).iloc[-1])
+        chips.append({"label": "20일 모멘텀", "value": f"{mom:+.1%}",
+                      "state": "pos" if mom > 0 else "neg"})
+        above = float(close.iloc[-1]) > ma(200)
+        chips.append({"label": "200일선(레짐)",
+                      "value": "위 · 매매 허용" if above else "아래 · 약세 국면",
+                      "state": "pos" if above else "neg"})
+        _CHIP_CACHE[key] = (now, chips)
+    except Exception:  # noqa: BLE001
+        return chips
+    return chips
+
+
 def candles_json(key: str, tf: str = "1m", limit: int = 90,
                  state_dir: str = "state", ttl: float = 12.0) -> str:
     """방송용 실시간 캔들(1분봉) — 거래소에서 직접 받아 TTL 캐시로 반환한다.
@@ -1170,6 +1234,7 @@ def candles_json(key: str, tf: str = "1m", limit: int = 90,
 
     out = json.dumps({"key": key, "tf": tf, "candles": candles,
                       "position": position,
+                      "chips": indicator_chips(market, symbol, state_dir),
                       "last": candles[-1][4] if candles else None},
                      ensure_ascii=False)
     if candles:
@@ -1224,6 +1289,14 @@ header{{display:flex;align-items:center;gap:16px;padding:14px 30px 6px}}
 .candle .sym{{font-size:16px;font-weight:800;color:var(--fg)}}
 .candle .px{{font-size:16px;font-weight:700}}
 .candle .body{{flex:1;min-height:0}}
+.chips{{display:flex;gap:8px;margin:5px 0 3px;flex-wrap:wrap}}
+.chip{{font-size:11.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);
+  background:var(--bg);color:var(--muted)}}
+.chip b{{color:var(--fg);font-weight:650}}
+.chip.pos{{border-color:color-mix(in srgb,var(--ok) 45%,transparent);color:var(--ok)}}
+.chip.pos b{{color:var(--ok)}}
+.chip.neg{{border-color:color-mix(in srgb,var(--bad) 45%,transparent);color:var(--bad)}}
+.chip.neg b{{color:var(--bad)}}
 .grid{{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
   padding:8px 30px;overflow:hidden}}
 .card{{background:var(--bg2);border:1px solid var(--line);border-radius:12px;
@@ -1251,7 +1324,7 @@ svg text{{font-family:inherit}}
   <span class="sym" id="c-sym">—</span><span id="c-px" class="px">—</span>
   <span id="c-pos"></span>
   <span style="margin-left:auto">실시간 1분봉 — 시세는 실시간, <b>매매 판단은 일봉(하루 1회 새벽)</b></span>
-</div><div class="body" id="c-body"></div></div>
+</div><div class="chips" id="c-chips"></div><div class="body" id="c-body"></div></div>
 <div class="grid" id="grid"></div>
 <div class="tape"><div class="inner" id="tape">&nbsp;</div></div>
 <footer id="disc">⚠️ 모의투자(가짜 돈)입니다 — 실제 돈이 아니며, 수익을 보장하지
@@ -1434,6 +1507,10 @@ async function candleTick(rotate){{
       px.style.color=cls?"var(--ok)":"var(--bad)";
       document.getElementById("c-pos").textContent=
         d.position?("🧭 "+d.position.side+(d.position.weight!=null?" · 비중 "+Math.round(d.position.weight*100)+"%":"")):"관망 (현금)";
+      document.getElementById("c-chips").innerHTML=(d.chips&&d.chips.length)
+        ?`<span class="chip" style="border-style:dashed">판단 지표 · 일봉 기준</span>`+
+          d.chips.map(c=>`<span class="chip ${{c.state==="pos"?"pos":c.state==="neg"?"neg":""}}">${{esc(c.label)}} <b>${{esc(c.value)}}</b></span>`).join("")
+        :"";
       document.getElementById("c-body").innerHTML=candleChart(d);
       return;
     }}catch(e){{}}
