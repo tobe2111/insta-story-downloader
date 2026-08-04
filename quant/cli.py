@@ -164,6 +164,15 @@ def _cmd_paper_daily(args) -> None:
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
 
+def _cmd_weekly(args) -> None:
+    from quant.live.daily import format_weekly, weekly_summary
+
+    text = format_weekly(weekly_summary(args.state_dir))
+    print(text)
+    if not args.no_notify:
+        _notify_extra(text)
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
@@ -565,6 +574,14 @@ def build_parser() -> argparse.ArgumentParser:
     pd_.add_argument("--allow-synthetic", action="store_true",
                      help="합성 폴백 데이터 허용(테스트 전용)")
     pd_.set_defaults(func=_cmd_paper_daily)
+
+    wk = sub.add_parser(
+        "weekly",
+        help="주간 요약 — 시장별 주간 수익·최악일·챔피언 교체 이력(텔레그램 전송)")
+    wk.add_argument("--state-dir", default="state", dest="state_dir")
+    wk.add_argument("--no-notify", action="store_true",
+                    help="텔레그램 전송 없이 출력만")
+    wk.set_defaults(func=_cmd_weekly)
 
     rt = sub.add_parser(
         "retrain",

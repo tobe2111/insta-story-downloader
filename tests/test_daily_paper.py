@@ -86,3 +86,53 @@ def test_write_docs_status(tmp_path):
     assert saved["paper"]["synthetic:DEMO"]["history"], "히스토리가 비면 안 됨"
     assert saved["champions"]["synthetic:DEMO"]["params"]["fast"] == 10
     assert saved["updated"] == saved["paper"]["synthetic:DEMO"]["history"][-1]["date"]
+
+
+# ── 주간 요약 (pandas 불필요) ──────────────────────────────────────────────
+
+def _write_paper_state(tmp_path, market, symbol, dates_equities):
+    import json as _json
+    d = tmp_path / "paper"
+    d.mkdir(exist_ok=True)
+    hist = [{"date": dt, "price": 100.0, "weight": 0.5, "equity": eq,
+             "return_pct": round((eq / 10000 - 1) * 100, 2), "hit_rate": 0.52}
+            for dt, eq in dates_equities]
+    (d / f"{market}_{symbol}.json").write_text(_json.dumps(
+        {"market": market, "symbol": symbol, "start_cash": 10000,
+         "cash": 0, "quantity": 1, "avg_price": 100,
+         "last_bar": dates_equities[-1][0], "history": hist}), encoding="utf-8")
+
+
+def test_weekly_summary_and_format(tmp_path):
+    import json as _json
+
+    from quant.live.daily import format_weekly, weekly_summary
+
+    _write_paper_state(tmp_path, "crypto", "BTC", [
+        ("2026-07-27", 10000), ("2026-07-28", 10100), ("2026-07-29", 9900),
+        ("2026-07-30", 10200), ("2026-07-31", 10300), ("2026-08-01", 10400),
+        ("2026-08-02", 10500), ("2026-08-03", 10600),
+    ])
+    (tmp_path / "retrain_history.jsonl").write_text(_json.dumps({
+        "asof": "2026-08-01", "market": "crypto", "symbol": "BTC",
+        "promoted": True, "champion": {"model": "gb"},
+        "champion_strategy": "ml"}) + "\n", encoding="utf-8")
+
+    s = weekly_summary(str(tmp_path))
+    assert s["period"] == ["2026-07-28", "2026-08-03"]   # 마지막 날 기준 7일
+    m = s["markets"]["crypto:BTC"]
+    assert m["n_days"] == 7
+    assert m["week_return_pct"] == 6.0                   # 10000 → 10600
+    assert m["worst_day"] == {"date": "2026-07-29", "pct": -1.98}
+    assert len(s["swaps"]) == 1 and s["swaps"][0]["strategy"] == "ml"
+
+    text = format_weekly(s)
+    assert "주간 요약" in text and "crypto:BTC" in text
+    assert "챔피언 교체" in text and "수익 보장이 아닙니다" in text
+
+
+def test_weekly_summary_empty(tmp_path):
+    from quant.live.daily import format_weekly, weekly_summary
+
+    s = weekly_summary(str(tmp_path))
+    assert s["markets"] == {} and "없습니다" in format_weekly(s)
