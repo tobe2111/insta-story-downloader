@@ -223,3 +223,65 @@ def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
         run_daily_portfolio([("crypto", "BTC/USDT")], lookback=100,
                             state_dir=str(tmp_path), require_real_data=True)
     assert not (tmp_path / "paper" / "portfolio_ALL.json").exists()
+
+
+# ── 만원 → 1억 챌린지 (매칭 입금 · 분리 회계) ─────────────────────────────
+
+def test_add_deposit_ledger_and_principal(tmp_path):
+    from quant.live.daily import GOAL_KRW, add_deposit
+
+    out = add_deposit(10000, "슈퍼챗 홍길동", state_dir=str(tmp_path),
+                      date="2026-08-05")
+    assert out["principal"] == 20000 and out["goal"] == GOAL_KRW
+    st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                    .read_text(encoding="utf-8"))
+    assert st["cash"] == 20000                       # 현금 증액
+    assert st["deposits"][0]["memo"] == "슈퍼챗 홍길동"
+
+    add_deposit(5000, state_dir=str(tmp_path), date="2026-08-06")
+    st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                    .read_text(encoding="utf-8"))
+    assert len(st["deposits"]) == 2 and st["cash"] == 25000
+
+    with pytest.raises(ValueError):                  # 상한·양수 검증
+        add_deposit(0, state_dir=str(tmp_path))
+    with pytest.raises(ValueError):
+        add_deposit(20_000_000, state_dir=str(tmp_path))
+
+
+def test_time_weighted_return_removes_deposit_effect():
+    """입금으로 자산이 뛰어도 TWR(실력 지표)은 속지 않는다."""
+    from quant.live.daily import time_weighted_return
+
+    # 1일차 10,000→10,100(+1%), 2일차에 10,000 입금 후 20,100(운용 손익 0),
+    # 3일차 20,100→20,301(+1%)
+    history = [
+        {"date": "2026-08-01", "equity": 10100},
+        {"date": "2026-08-02", "equity": 20100},
+        {"date": "2026-08-03", "equity": 20301},
+    ]
+    deposits = [{"date": "2026-08-02", "amount": 10000}]
+    twr = time_weighted_return(history, deposits)
+    assert abs(twr - 2.01) < 0.01                    # (1.01×1.00×1.01)−1 ≈ +2.01%
+    # 입금을 수익으로 치는 순진한 계산이라면 +103%가 나왔을 것
+    naive = (20301 / 10000 - 1) * 100
+    assert naive > 100 and twr < 3
+
+
+def test_docs_status_challenge_fields(tmp_path):
+    import quant.live.daily as dl
+
+    dl.add_deposit(10000, "테스트", state_dir=str(tmp_path), date="2026-08-05")
+    # 수동으로 기록 1건 구성(운용 손익 +500 가정)
+    p = tmp_path / "paper" / "portfolio_ALL.json"
+    st = json.loads(p.read_text(encoding="utf-8"))
+    st["history"] = [{"date": "2026-08-05", "equity": 20500,
+                      "return_pct": 2.5, "price": 100, "weight": 0.5}]
+    p.write_text(json.dumps(st), encoding="utf-8")
+
+    out = dl.write_docs_status(str(tmp_path),
+                               docs_path=str(tmp_path / "s.json"))
+    pf = out["paper"]["portfolio:ALL"]
+    assert pf["principal"] == 20000 and pf["pnl"] == 500
+    assert pf["goal"] == dl.GOAL_KRW
+    assert pf["deposits"][0]["amount"] == 10000

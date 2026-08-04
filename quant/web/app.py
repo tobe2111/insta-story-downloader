@@ -1052,6 +1052,26 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             "quantity": st.get("quantity"),
             "positions": st.get("positions"),      # 포트폴리오 계좌 전용
         })
+        if st.get("market") == "portfolio":        # 만원 → 1억 챌린지 필드
+            from quant.live.daily import (
+                GOAL_KRW, START_CASH, time_weighted_return,
+            )
+            deposits = st.get("deposits", [])
+            principal = (st.get("start_cash", START_CASH)
+                         + sum(d["amount"] for d in deposits))
+            a = accounts[-1]
+            tail = hist[-60:]
+            base_series = []
+            for r in tail:
+                pr = st.get("start_cash", START_CASH) + sum(
+                    dd["amount"] for dd in deposits if dd["date"] <= r["date"])
+                base_series.append(round(pr, 2))
+            a.update({"goal": GOAL_KRW,
+                      "principal": round(principal, 2),
+                      "pnl": round(float(a["equity"]) - principal, 2),
+                      "twr_pct": time_weighted_return(hist, deposits),
+                      "deposits": deposits[-30:],
+                      "spark_base": base_series})
 
     live = _live_prices([a["key"] for a in accounts]) if with_live else {}
     for a in accounts:
@@ -1110,9 +1130,11 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         "swaps": swaps,
         "live_prices": live,
         "live_available": bool(live),
-        "disclaimer": ("본 방송의 계좌는 가상 자금 10,000원 모의투자이며 실제 "
-                       "돈이 아닙니다. 과거·현재 성과는 미래 수익을 보장하지 "
-                       "않으며, 본 방송은 투자 자문·권유가 아닙니다."),
+        "disclaimer": ("본 방송의 계좌는 가상 자금 모의투자이며 실제 돈이 "
+                       "아닙니다. 후원금 자체를 운용하지 않으며, 후원과 동일한 "
+                       "금액만큼 '가상 원금'을 늘리는 매칭 이벤트입니다"
+                       "(대가·지분 없음). 성과는 미래 수익을 보장하지 않으며 "
+                       "투자 자문·권유가 아닙니다."),
     }), ensure_ascii=False)
 
 
@@ -1286,6 +1308,13 @@ header{{display:flex;align-items:center;gap:16px;padding:14px 30px 6px}}
 .pos{{color:var(--ok)}}.neg{{color:var(--bad)}}
 .meta{{font-size:12px;color:var(--muted);margin-top:2px}}
 .hero .chartwrap{{flex:1;min-width:0}}
+.goal{{margin-top:8px}}
+.goal .bar{{height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);
+  overflow:hidden}}
+.goal .fill{{height:100%;background:linear-gradient(90deg,var(--accent),var(--ok));
+  border-radius:99px;min-width:3px}}
+.goal .lbl{{display:flex;justify-content:space-between;font-size:11.5px;
+  color:var(--muted);margin-top:3px}}
 .candle{{margin:0 30px 4px;background:var(--bg2);border:1px solid var(--line);
   border-radius:14px;padding:10px 20px 6px;height:274px;display:flex;
   flex-direction:column}}
@@ -1367,7 +1396,9 @@ function proChart(o){{
   const W=o.w,H=o.h,padR=64,padB=o.axes?16:4,padT=6;
   const ddH=o.dd?Math.round(H*0.18):0, mainH=H-ddH-padB-padT;
   const base=o.base||10000;
+  const bs=o.baseSeries&&o.baseSeries.length===v.length?o.baseSeries:null;
   let mn=Math.min(...v,base),mx=Math.max(...v,base);
+  if(bs){{mn=Math.min(mn,...bs);mx=Math.max(mx,...bs)}}
   if(o.bench){{mn=Math.min(mn,...o.bench);mx=Math.max(mx,...o.bench)}}
   const sp=(mx-mn)||1;
   const X=i=>i/(v.length-1)*(W-padR);
@@ -1381,6 +1412,35 @@ function proChart(o){{
     // 하단 시간축: 월 경계
     if(o.dates){{let pm="";o.dates.forEach((d,i)=>{{const m=(d||"").slice(0,7);
       if(m&&m!==pm){{pm=m;if(i>0)out+=`<text x="${{X(i)}}" y="${{H-3}}" font-size="10" fill="var(--dim)">${{m.slice(5)}}월</text>`}}}})}}}}
+  // 원금 계단선(입금 반영) — 음영 분할은 입금 점프를 수익처럼 칠하므로 끈다
+  if(bs){{
+    let step="";
+    bs.forEach((bv,i)=>{{const x=X(i),y=Y(bv);
+      step+=(i===0?`M${{x}},${{y}}`:`L${{x}},${{Y(bs[i-1])}} L${{x}},${{y}}`)}});
+    step+=`L${{X(v.length-1)}},${{Y(bs[bs.length-1])}}`;
+    let out2=`<path d="${{step}}" fill="none" stroke="var(--dim)" stroke-width="1.2"
+      stroke-dasharray="5 4"/>`;
+    const up=v[v.length-1]>=bs[bs.length-1];
+    out+=out2+`<polyline points="${{line(v)}}" fill="none"
+      stroke="${{up?"var(--ok)":"var(--bad)"}}" stroke-width="2.2"/>`;
+    if(o.markers&&o.dates)o.markers.forEach(d=>{{const i=o.dates.indexOf(d);
+      if(i>=0)out+=`<path d="M${{X(i)}},${{Y(v[i])-9}} l5,5 -5,5 -5,-5 z" fill="var(--accent)"/>`}});
+    if(o.dmarkers&&o.dates)o.dmarkers.forEach(d=>{{
+      let i=o.dates.findIndex(dt=>dt>=d); if(i<0)i=o.dates.length-1;
+      out+=`<path d="M${{X(i)}},${{Y(v[i])+13}} l5,8 -10,0 z" fill="var(--ok)"/>`}});
+    const lx=X(v.length-1),ly=Y(v[v.length-1]);
+    out+=`<circle cx="${{lx}}" cy="${{ly}}" r="3.4" fill="${{up?"var(--ok)":"var(--bad)"}}"/>
+      <rect x="${{W-padR+2}}" y="${{ly-10}}" width="${{padR-6}}" height="20" rx="5"
+        fill="${{up?"var(--ok)":"var(--bad)"}}"/>
+      <text x="${{W-padR+(padR-6)/2+2}}" y="${{ly+4}}" font-size="11" font-weight="700"
+        fill="#07080b" text-anchor="middle">${{Math.round(v[v.length-1]).toLocaleString()}}</text>`;
+    if(o.dd){{let peak=v[0];const dd2=v.map(x=>{{peak=Math.max(peak,x);return peak?x/peak-1:0}});
+      const dmn=Math.min(...dd2,-0.001);
+      const DY=val=>H-padB-ddH+( -val/-dmn)*ddH;
+      const dline=dd2.map((val,i)=>`${{X(i).toFixed(1)}},${{DY(val).toFixed(1)}}`).join(" ");
+      out+=`<path d="M0,${{H-padB-ddH}} L${{dline}} L${{X(v.length-1)}},${{H-padB-ddH}} Z"
+        fill="var(--bad)" fill-opacity=".22"/>`}}
+    return out+"</svg>"}}
   // 기준선 상하 분할 영역
   const yb=Y(base), gid="g"+Math.floor(Math.random()*1e9);
   out+=`<defs><linearGradient id="${{gid}}u" x1="0" y1="0" x2="0" y2="1">
@@ -1405,6 +1465,10 @@ function proChart(o){{
   // 챔피언 교체 마커 ◆
   if(o.markers&&o.dates)o.markers.forEach(d=>{{const i=o.dates.indexOf(d);
     if(i>=0)out+=`<path d="M${{X(i)}},${{Y(v[i])-9}} l5,5 -5,5 -5,-5 z" fill="var(--accent)"/>`}});
+  // 매칭 입금 마커 ▲ (원금 증액 시점 — 점프는 후원, 기울기는 실력)
+  if(o.dmarkers&&o.dates)o.dmarkers.forEach(d=>{{
+    let i=o.dates.findIndex(dt=>dt>=d); if(i<0)i=o.dates.length-1;
+    out+=`<path d="M${{X(i)}},${{Y(v[i])+13}} l5,8 -10,0 z" fill="var(--ok)"/>`}});
   // 현재값 점+태그
   const lx=X(v.length-1),ly=Y(v[v.length-1]);
   out+=`<circle cx="${{lx}}" cy="${{ly}}" r="3.4" fill="${{up?"var(--ok)":"var(--bad)"}}">
@@ -1444,17 +1508,37 @@ async function tick(first){{
       if(d.news.includes("교체"))popEvent(d.news);}}
     const hero=pf||rest[0];
     if(hero){{
-      const eq=hero.live_equity??hero.equity, rp=hero.live_return_pct??hero.return_pct;
+      const eq=hero.live_equity??hero.equity;
+      const rp=hero.principal!=null?((eq/hero.principal-1)*100)
+              :(hero.live_return_pct??hero.return_pct);
       const cls=rp>=0?"pos":"neg";
       const mk=(d.swaps||[]).filter(s=>s.key===hero.key).map(s=>s.date);
+      const dmk=(hero.deposits||[]).map(x=>x.date);
+      // 입금 배너 — 새 입금이 감지되면 사건으로 알린다
+      if(hero.deposits&&hero.deposits.length){{
+        const lastD=hero.deposits[hero.deposits.length-1];
+        popEvent(`💝 후원 매칭 +${{won(lastD.amount)}} ${{lastD.memo?"("+esc(lastD.memo)+")":""}} — 원금 ${{won(hero.principal)}}`);
+      }}
+      let breakdown="", goal="";
+      if(hero.principal!=null){{
+        const pnl=hero.live_equity!=null?(hero.live_equity-hero.principal):hero.pnl;
+        breakdown=`<div class="meta">원금(매칭 포함) <b>${{won(hero.principal)}}</b> ·
+          운용 손익 <b class="${{pnl>=0?"pos":"neg"}}">${{(pnl>=0?"+":"")+won(Math.abs(pnl)).replace("원","")}}원</b>
+          · 실력 지표(TWR) <b class="${{hero.twr_pct>=0?"pos":"neg"}}">${{pct(hero.twr_pct)}}</b></div>`;
+        const ratio=Math.min(1,eq/hero.goal);
+        goal=`<div class="goal"><div class="bar"><div class="fill" style="width:${{Math.max(0.3,ratio*100)}}%"></div></div>
+          <div class="lbl"><span>만원 → 1억 챌린지</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
+      }}
       document.getElementById("hero").innerHTML=
         `<div class="nums"><div class="k">${{hero.market==="portfolio"?"📦 통합 분산 계좌 (8종목)":esc(hero.key)}}
           · ${{hero.live_equity!=null?"실시간 평가":"확정 "+esc(hero.date||"")}}</div>
         <div class="eq ${{cls}}">${{won(eq)}}</div>
-        <div class="pct ${{cls}}">${{pct(rp)}} <span class="meta">시작 10,000원</span></div>
-        <div class="meta">최대낙폭 ${{hero.mdd_pct}}% · ─ 전략 ┄ 그냥 보유 ◆ 챔피언 교체</div></div>
+        <div class="pct ${{cls}}">${{pct(rp)}} <span class="meta">${{hero.principal!=null?"원금 대비":"시작 10,000원"}}</span></div>
+        ${{breakdown}}${{goal}}
+        <div class="meta" style="margin-top:4px">최대낙폭 ${{hero.mdd_pct}}% · ─ 전략 ┄ 그냥 보유 ◆ 교체 ▲ 입금</div></div>
         <div class="chartwrap">${{proChart({{vals:hero.spark,dates:hero.spark_dates,
-          w:1280,h:170,axes:true,dd:true,markers:mk,
+          baseSeries:hero.spark_base,
+          w:1280,h:170,axes:true,dd:true,markers:mk,dmarkers:dmk,
           bench:(hero.spark_price&&hero.spark_price[0])?hero.spark_price.map(p=>10000*p/hero.spark_price[0]):null}})}}</div>`;
     }}
     // 통합 계좌 신고가 감지(실시간 평가 기준, 래칫)

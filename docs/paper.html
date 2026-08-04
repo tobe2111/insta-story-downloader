@@ -69,6 +69,9 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.
 "그냥 보유"는 같은 돈으로 첫날 사서 들고만 있었을 때입니다 — 전략이 이 값을
 꾸준히 못 이기면 전략의 의미가 없으므로 함께 보여드립니다.
+💝 <b>매칭 입금</b>: 방송 후원금 자체를 운용하는 것이 아니라, 후원과 동일한
+금액만큼 운영자가 '가상 원금'을 늘리는 이벤트입니다(대가·지분 없음). 원금과
+운용 손익은 분리 표시되며, 실력 지표(TWR)는 입금 효과를 제거한 값입니다.
 기록 원본: 저장소 <code>state/</code> 폴더 —
 <a href="trust.html">이 기록이 조작 불가능한 이유 →</a></p>
 </div>
@@ -81,12 +84,14 @@ function niceTicks(mn,mx,n){
   const span=(mx-mn)||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0)));
   const step=[1,2,2.5,5,10].map(m=>m*mag).find(sv=>span/sv<=n)||mag*10;
   const t=[];for(let v=Math.ceil(mn/step)*step;v<=mx;v+=step)t.push(v);return t}
-function spark(hist,markers){
+function spark(hist,markers,dmarkers,baseSeries){
   if(hist.length<2) return "";
   const v=hist.map(r=>r.equity), dates=hist.map(r=>r.date);
   const p0=hist[0].price, bench=hist.map(r=>10000*r.price/p0);
   const W=800,H=96,padR=56,padT=5,padB=4,base=10000;
+  const bs=baseSeries&&baseSeries.length===v.length?baseSeries:null;
   let mn=Math.min(...v,...bench,base),mx=Math.max(...v,...bench,base);
+  if(bs){mn=Math.min(mn,...bs);mx=Math.max(mx,...bs)}
   const sp=(mx-mn)||1, mainH=H-padT-padB;
   const X=i=>i/(v.length-1)*(W-padR);
   const Y=val=>padT+(1-(val-mn)/sp)*mainH;
@@ -95,6 +100,32 @@ function spark(hist,markers){
   niceTicks(mn,mx,3).forEach(t=>{out+=`<line x1="0" y1="${Y(t)}" x2="${W-padR}" y2="${Y(t)}"
     stroke="var(--line)" stroke-width="1"/><text x="${W-padR+6}" y="${Y(t)+4}"
     font-size="10" fill="var(--dim)">${Math.round(t).toLocaleString()}</text>`});
+  if(bs){
+    let step="";
+    bs.forEach((bv,i)=>{const x=X(i),y=Y(bv);
+      step+=(i===0?`M${x},${y}`:`L${x},${Y(bs[i-1])} L${x},${y}`)});
+    let o2=`<svg class="spark" style="height:96px" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+    niceTicks(mn,mx,3).forEach(t=>{o2+=`<line x1="0" y1="${Y(t)}" x2="${W-padR}" y2="${Y(t)}"
+      stroke="var(--line)" stroke-width="1"/><text x="${W-padR+6}" y="${Y(t)+4}"
+      font-size="10" fill="var(--dim)">${Math.round(t).toLocaleString()}</text>`});
+    o2+=`<path d="${step}" fill="none" stroke="var(--dim)" stroke-width="1.1" stroke-dasharray="5 4"/>
+      <polyline points="${line(bench)}" fill="none" stroke="var(--dim)" stroke-width="1" stroke-dasharray="2 4" opacity="0.6"/>`;
+    const up=v[v.length-1]>=bs[bs.length-1];
+    o2+=`<polyline points="${line(v)}" fill="none" stroke="${up?"var(--ok)":"var(--bad)"}" stroke-width="2"/>`;
+    (markers||[]).forEach(d=>{const i=dates.indexOf(d);
+      if(i>=0)o2+=`<path d="M${X(i)},${Y(v[i])-8} l4.5,4.5 -4.5,4.5 -4.5,-4.5 z" fill="var(--accent)"/>`});
+    (dmarkers||[]).forEach(d=>{let i=dates.findIndex(dt=>dt>=d);if(i<0)i=dates.length-1;
+      o2+=`<path d="M${X(i)},${Y(v[i])+11} l4.5,7 -9,0 z" fill="var(--ok)"/>`});
+    const lx=X(v.length-1),ly=Y(v[v.length-1]);
+    o2+=`<circle cx="${lx}" cy="${ly}" r="3" fill="${up?"var(--ok)":"var(--bad)"}"/>
+      <rect x="${W-padR+2}" y="${ly-9}" width="${padR-6}" height="18" rx="4"
+        fill="${up?"var(--ok)":"var(--bad)"}"/>
+      <text x="${W-padR+(padR-6)/2+2}" y="${ly+4}" font-size="10" font-weight="700"
+        fill="#0a0b0e" text-anchor="middle">${Math.round(v[v.length-1]).toLocaleString()}</text>`;
+    return o2+`</svg><div class="legend">─ 전략 ┄ 원금(입금 계단) · 옅은 점선 그냥 보유
+      <span style="color:var(--accent)">◆</span> 챔피언 교체
+      <span style="color:var(--ok)">▲</span> 매칭 입금</div>`;
+  }
   const yb=Y(base), gid="g"+Math.floor(Math.random()*1e9);
   out+=`<defs><linearGradient id="${gid}u" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="var(--ok)" stop-opacity=".25"/>
@@ -113,6 +144,8 @@ function spark(hist,markers){
   out+=`<polyline points="${line(v)}" fill="none" stroke="${up?"var(--ok)":"var(--bad)"}" stroke-width="2"/>`;
   (markers||[]).forEach(d=>{const i=dates.indexOf(d);
     if(i>=0)out+=`<path d="M${X(i)},${Y(v[i])-8} l4.5,4.5 -4.5,4.5 -4.5,-4.5 z" fill="var(--accent)"/>`});
+  (dmarkers||[]).forEach(d=>{let i=dates.findIndex(dt=>dt>=d);if(i<0)i=dates.length-1;
+    out+=`<path d="M${X(i)},${Y(v[i])+11} l4.5,7 -9,0 z" fill="var(--ok)"/>`});
   const lx=X(v.length-1),ly=Y(v[v.length-1]);
   out+=`<circle cx="${lx}" cy="${ly}" r="3" fill="${up?"var(--ok)":"var(--bad)"}"/>
     <rect x="${W-padR+2}" y="${ly-9}" width="${padR-6}" height="18" rx="4"
@@ -120,7 +153,8 @@ function spark(hist,markers){
     <text x="${W-padR+(padR-6)/2+2}" y="${ly+4}" font-size="10" font-weight="700"
       fill="#0a0b0e" text-anchor="middle">${Math.round(v[v.length-1]).toLocaleString()}</text>`;
   return out+`</svg><div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면
-    <span style="color:var(--accent)">◆</span> 챔피언 교체</div>`;
+    <span style="color:var(--accent)">◆</span> 챔피언 교체
+    <span style="color:var(--ok)">▲</span> 매칭 입금(원금 증액)</div>`;
 }
 function mondayOf(dstr){
   const d=new Date(dstr+"T00:00:00Z");
@@ -153,12 +187,27 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   if(!keys.length){el.innerHTML='<p class="sub">아직 기록이 없습니다 — 첫 자동 실행(새벽 5:30 KST) 이후에 나타납니다.</p>';return}
   el.innerHTML=keys.map(k=>{
     const p=st.paper[k],hist=p.history||[];
-    const ret=p.return_pct??0,cls=ret>=0?"pos":"neg";
+    const ret=p.principal!=null?((p.equity/p.principal-1)*100):(p.return_pct??0);
+    const cls=ret>=0?"pos":"neg";
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
     const champ=k.startsWith("portfolio")
       ?"8종목 자본 균등 분산 (각 종목의 챔피언 전략 추종)"
       :(st.champions&&st.champions[k])
         ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
+    // 만원 → 1억 챌린지(통합 계좌): 원금·손익 분해 + 목표 게이지
+    let challenge="";
+    if(p.principal!=null){
+      const ratio=Math.min(1,(p.equity||0)/p.goal);
+      challenge=`<div class="vs">
+        <div><span class="lbl">원금 (매칭 입금 포함)</span><b>${won(p.principal)}</b></div>
+        <div><span class="lbl">운용 손익</span><b class="${p.pnl>=0?"pos":"neg"}">${p.pnl>=0?"+":""}${won(Math.abs(p.pnl)).replace("원","")}원</b></div>
+        <div><span class="lbl">실력 지표 (시간가중 TWR)</span><b class="${p.twr_pct>=0?"pos":"neg"}">${pct(p.twr_pct)}</b></div>
+      </div>
+      <div style="margin:10px 0 2px"><div style="height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden">
+        <div style="height:100%;min-width:3px;width:${Math.max(0.3,ratio*100)}%;background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:99px"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:3px">
+        <span>만원 → 1억 챌린지</span><span>${(ratio*100).toFixed(3)}% · 목표 1억원</span></div></div>`;
+    }
     // 그냥 보유(벤치마크): 첫 기록일에 같은 돈으로 사서 들고만 있었다면
     let benchTxt="";
     if(hist.length>=2){
@@ -181,8 +230,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div class="big ${cls}">${won(p.equity)} <span style="font-size:18px">(${pct(Number(ret))})</span></div>
       <div class="sub" style="margin:2px 0 0">10,000원으로 시작한 가상 자금${
         mdd==null?"":` · 최대낙폭 <b class="neg">${mdd}%</b>`}</div>
+      ${challenge}
       <div class="vs">${benchTxt}</div>
-      ${spark(hist,(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date))}
+      ${spark(hist,(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date),(p.deposits||[]).map(x=>x.date),
+        p.deposits&&p.deposits.length?hist.map(r=>10000+p.deposits.filter(dd=>dd.date<=r.date).reduce((a,b)=>a+b.amount,0)):null)}
       <div class="sub" style="margin-top:10px;font-size:12.5px">🏆 현재 챔피언: <code>${champ}</code></div>
       ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">🧭 오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>

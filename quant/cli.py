@@ -186,6 +186,17 @@ def _cmd_paper_daily(args) -> None:
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
 
+def _cmd_deposit(args) -> None:
+    from quant.live.daily import add_deposit
+
+    out = add_deposit(args.amount, args.memo, state_dir=args.state_dir)
+    _notify_extra(f"💝 후원 매칭 입금 +{out['deposit']['amount']:,.0f}원 "
+                  f"({out['deposit']['memo'] or '메모 없음'}) — "
+                  f"누적 원금 {out['principal']:,.0f}원")
+    print("⚠️ 후원금 자체를 굴리는 것이 아니라, 같은 금액만큼 가상 계좌 원금을 "
+          "늘리는 '매칭' 이벤트입니다(대가·지분 없음).")
+
+
 def _cmd_weekly(args) -> None:
     from quant.live.daily import format_weekly, weekly_summary
 
@@ -607,6 +618,14 @@ def build_parser() -> argparse.ArgumentParser:
     pd_.add_argument("--all", action="store_true",
                      help="AUTO_TARGETS 전 종목 순회(야간 자동화용)")
     pd_.set_defaults(func=_cmd_paper_daily)
+
+    dp = sub.add_parser(
+        "deposit",
+        help="만원→1억 챌린지 매칭 입금 — 후원 금액만큼 통합 계좌 원금 증액")
+    dp.add_argument("--amount", type=float, required=True, help="입금액(원)")
+    dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
+    dp.add_argument("--state-dir", default="state", dest="state_dir")
+    dp.set_defaults(func=_cmd_deposit)
 
     wk = sub.add_parser(
         "weekly",
