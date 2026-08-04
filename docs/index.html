@@ -200,6 +200,10 @@
   <a class="lnk" href="#start">시작하기</a>
   <a class="lnk" href="#faq">FAQ</a>
   <a class="lnk" href="paper.html">자동 페이퍼 현황</a>
+  <a class="lnk" href="trust.html">기록 검증</a>
+  <a id="livebtn" href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
+    font-weight:700;color:#fff;background:#e5484d;padding:6px 14px;border-radius:99px">
+    ● LIVE</a>
   <a class="navcta" href="#download">다운로드</a>
 </div></nav>
 
@@ -438,6 +442,8 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
   el.innerHTML="📈 만원 챌린지(자동 페이퍼"+(st.updated?" · "+esc(st.updated):"")+"): "
     +parts.join(" · ")+' · <a href="paper.html">매일 기록 보기 →</a>';
   el.style.display="";
+  if(st.live_url){var lb=document.getElementById("livebtn");
+    if(lb){lb.href=st.live_url;lb.style.display="inline-block"}}
   function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
 }).catch(function(){});
 </script>

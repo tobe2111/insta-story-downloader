@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 이 기록은 조작할 수 없습니다</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
+<style>
+:root{--bg:#0a0b0e;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
+  --line:rgba(255,255,255,.08);--accent:#4c7dff;--ok:#34d399;--bad:#f87171}
+@media (prefers-color-scheme: light){
+  :root{--bg:#fcfcfd;--bg2:#f4f5f8;--fg:#101318;--muted:#5a626e;
+        --line:rgba(0,0,0,.09);--accent:#2f5fe0}}
+*{box-sizing:border-box;margin:0}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",sans-serif;
+     background:var(--bg);color:var(--fg);line-height:1.75;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px 60px}
+nav{position:sticky;top:0;border-bottom:1px solid var(--line);background:var(--bg);z-index:5}
+nav .wrap{display:flex;align-items:center;height:58px;gap:12px;padding-bottom:0}
+.logo{font-weight:800;letter-spacing:.14em;color:var(--fg)}
+.logo em{color:var(--accent);font-style:normal}
+h1{font-size:26px;margin:34px 0 10px;letter-spacing:-.02em}
+h2{font-size:17px;margin:30px 0 8px}
+p{margin:10px 0;color:var(--muted)}
+p b,li b{color:var(--fg)}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+      padding:20px 22px;margin:16px 0}
+ol,ul{margin:8px 0 8px 20px;color:var(--muted)}
+li{margin:6px 0}
+.warn{border-left:3px solid var(--bad);padding:12px 16px;background:var(--bg2);
+  border-radius:0 12px 12px 0;font-size:13.5px;color:var(--muted);margin:18px 0}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="index.html">QUANT<em>.</em></a>
+  <a href="paper.html" style="font-size:13.5px;color:var(--muted)">만원 챌린지</a>
+  <a href="index.html" style="font-size:13.5px;color:var(--muted)">← 홈</a>
+</div></nav>
+<div class="wrap">
+<h1>이 기록은 조작할 수 없습니다</h1>
+<p>"수익률을 그럴듯하게 꾸민 것 아니냐"는 의심은 정당합니다 — 인터넷의 수익 인증
+대부분이 실제로 그렇기 때문입니다. 그래서 이 챌린지는 <b>기록 구조 자체를
+공개 장부로</b> 만들었습니다. 누구든 아래 방법으로 직접 검증할 수 있습니다.</p>
+
+<div class="card">
+<h2>어떻게 조작이 불가능한가</h2>
+<ol>
+<li><b>모든 기록은 공개 저장소에 git 커밋으로 쌓입니다.</b> 매일 새벽 자동화가
+매매 결과를 <a href="https://github.com/tobe2111/insta-story-downloader/commits/main/state">
+state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 영구히 남습니다.
+과거 기록을 몰래 고치면 커밋 역사에 흔적이 남아 즉시 드러납니다.</li>
+<li><b>계산 코드도 전부 공개입니다.</b> 수익률 계산·매매 로직·검증 절차가
+<a href="https://github.com/tobe2111/insta-story-downloader">오픈소스</a>라
+"어떻게 계산했는지"를 직접 확인할 수 있습니다.</li>
+<li><b>가짜 데이터 차단이 코드에 박혀 있습니다.</b> 실제 시세를 받지 못한 날은
+기록을 남기지 않고 건너뜁니다 — 합성 데이터로 기록을 채우는 경로 자체가
+없으며, 이 동작은 자동 테스트로 고정돼 있습니다.</li>
+<li><b>불리한 숫자도 함께 보여줍니다.</b> 전략 수익률만이 아니라
+"그냥 보유했다면"과 최대낙폭을 나란히 표시합니다 — 전략이 지고 있으면
+지고 있다고 화면에 그대로 나옵니다.</li>
+</ol>
+</div>
+
+<h2>정직한 한계</h2>
+<ul>
+<li>이것은 <b>모의투자(가짜 돈)</b>입니다. 실제 주문·체결·세금의 마찰은 근사치
+(수수료·슬리피지 모델)로만 반영됩니다.</li>
+<li>과거·현재 성과는 <b>미래 수익을 보장하지 않습니다</b>. 이 페이지는 기록이
+진짜임을 보증할 뿐, 전략이 앞으로 돈을 번다는 보증이 아닙니다.</li>
+<li>본 사이트와 방송은 <b>투자 자문·권유가 아닙니다</b>.</li>
+</ul>
+
+<div class="warn">⚠️ 직접 검증하는 법: 저장소의
+<a href="https://github.com/tobe2111/insta-story-downloader/commits/main/state">state/ 커밋
+목록</a>을 열어 아무 날짜나 골라 보세요. 그날의 자산·수익률이 사이트 표시와
+일치하는지, 커밋 시각이 매일 새벽인지 확인할 수 있습니다.</div>
+
+<p style="margin-top:26px"><a href="paper.html">→ 만원 챌린지 실기록 보기</a></p>
+</div>
+</body>
+</html>
