@@ -15,6 +15,8 @@ from urllib.parse import parse_qs, urlparse
 _LOOPBACK = {"127.0.0.1", "localhost", "::1", ""}
 
 from quant.web.app import (
+    broadcast_json,
+    render_broadcast,
     render_form,
     render_monitor,
     render_optimize_form,
@@ -81,6 +83,15 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(render_form(f"모니터 로드 오류: {exc}"), status=400)
         elif parsed.path == "/api/state":
             self._send(state_json(), content_type="application/json; charset=utf-8")
+        elif parsed.path == "/broadcast":
+            # 방송 모드 — OBS 브라우저 소스로 잡아 유튜브 라이브에 송출하는 화면
+            self._send(render_broadcast())
+        elif parsed.path == "/api/broadcast":
+            try:
+                self._send(broadcast_json(),
+                           content_type="application/json; charset=utf-8")
+            except Exception:  # noqa: BLE001 — 방송 화면은 조용히 재시도한다
+                self._send("{}", content_type="application/json; charset=utf-8")
         elif parsed.path == "/portfolio":
             self._send(render_portfolio_form())
         elif parsed.path == "/portfolio/run":

@@ -974,3 +974,202 @@ def run_sweep_html(params: dict) -> str:
     heat = build_heatmap_html(fast, slow, grid, x_label="단기 MA", y_label="장기 MA",
                               objective=objective, title=f"MA 민감도 · {symbol}")
     return heat.replace("<h1", _NAV + "\n<h1", 1)
+
+
+# ── 방송 모드 (/broadcast) — 유튜브 라이브 송출용 전용 화면 ────────────────
+
+_PRICE_CACHE: dict = {"ts": 0.0, "prices": {}}
+
+
+def _live_prices(keys, ttl: float = 45.0) -> dict:
+    """방송 화면용 현재가 — TTL 캐시로 데이터 소스 호출을 절제한다.
+
+    실패한 종목은 조용히 빠진다(방송 화면은 '지연' 표기로 정직하게 처리).
+    합성 폴백 가격은 절대 쓰지 않는다 — 방송에 가짜 시세를 내보낼 수는 없다.
+    """
+    import time
+    now = time.time()
+    if now - _PRICE_CACHE["ts"] < ttl and _PRICE_CACHE["prices"]:
+        return _PRICE_CACHE["prices"]
+    prices: dict = {}
+    try:
+        from quant.data import get_provider
+        for key in keys:
+            market, _, symbol = key.partition(":")
+            if market == "portfolio":
+                continue
+            try:
+                df = get_provider(market).get_ohlcv(symbol, "1d", limit=2)
+                if len(df) and not df.attrs.get("synthetic_fallback"):
+                    prices[key] = float(df["close"].iloc[-1])
+            except Exception:  # noqa: BLE001
+                pass
+    except Exception:  # noqa: BLE001
+        pass
+    if prices:
+        _PRICE_CACHE.update(ts=now, prices=prices)
+    return prices
+
+
+def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
+    """방송 화면 데이터(JSON) — 확정 기록 + (가능하면) 실시간 평가 자산.
+
+    '확정'은 매일 새벽 기록된 값, '실시간 평가'는 보유 포지션 × 현재가로
+    지금 이 순간을 근사한 값이다. 화면에서 둘을 구분 표기한다(정직성).
+    """
+    import json
+    from pathlib import Path
+
+    accounts = []
+    paper_dir = Path(state_dir) / "paper"
+    files = sorted(paper_dir.glob("*.json")) if paper_dir.is_dir() else []
+    for fp in files:
+        try:
+            st = json.loads(fp.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            continue
+        hist = st.get("history", [])
+        if not hist:
+            continue
+        peak, mdd = 0.0, 0.0
+        for r in hist:
+            eq = float(r.get("equity", 0.0))
+            peak = max(peak, eq)
+            if peak > 0:
+                mdd = min(mdd, eq / peak - 1)
+        accounts.append({
+            "key": f"{st.get('market', '?')}:{st.get('symbol', '?')}",
+            "market": st.get("market"),
+            "equity": hist[-1]["equity"],
+            "return_pct": hist[-1].get("return_pct", 0.0),
+            "mdd_pct": round(mdd * 100, 2),
+            "date": hist[-1].get("date"),
+            "spark": [r["equity"] for r in hist[-60:]],
+            "cash": st.get("cash"),
+            "quantity": st.get("quantity"),
+            "positions": st.get("positions"),      # 포트폴리오 계좌 전용
+        })
+
+    live = _live_prices([a["key"] for a in accounts]) if with_live else {}
+    for a in accounts:
+        le = None
+        if a["market"] == "portfolio" and a.get("positions"):
+            # 포지션이 비어 있으면 실시간 계산을 하지 않는다 — 현금만으로
+            # '실시간 평가'를 만들면 확정 기록과 어긋난 숫자가 방송에 나간다.
+            vals, missing = [], False
+            for key, pos in a["positions"].items():
+                p = live.get(key)
+                if p is None:
+                    missing = True
+                    break
+                vals.append(float(pos.get("quantity", 0.0)) * p)
+            if not missing and a.get("cash") is not None:
+                le = float(a["cash"]) + sum(vals)
+        elif a.get("cash") is not None and a.get("quantity") is not None:
+            p = live.get(a["key"])
+            if p is not None:
+                le = float(a["cash"]) + float(a["quantity"]) * p
+        if le is not None:
+            a["live_equity"] = round(le, 2)
+            a["live_return_pct"] = round((le / 10000 - 1) * 100, 2)
+        a.pop("cash", None); a.pop("quantity", None); a.pop("positions", None)
+
+    from quant.utils.jsonio import sanitize
+    return json.dumps(sanitize({
+        "accounts": accounts,
+        "live_available": bool(live),
+        "disclaimer": ("본 방송의 계좌는 가상 자금 10,000원 모의투자이며 실제 "
+                       "돈이 아닙니다. 과거·현재 성과는 미래 수익을 보장하지 "
+                       "않으며, 본 방송은 투자 자문·권유가 아닙니다."),
+    }), ensure_ascii=False)
+
+
+def render_broadcast() -> str:
+    """유튜브 라이브 송출용 전체 화면 대시보드 (OBS 브라우저 소스 1920×1080).
+
+    내비게이션·폼 없이 큰 숫자만: 계좌별 자산·수익률·최대낙폭·스파크라인,
+    실시간 평가(가능 시), 시계, 그리고 화면에 상시 고정되는 모의투자 고지.
+    """
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 방송 모드</title>{_FAVICON}<style>
+:root{{color-scheme:dark;--bg:#07080b;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
+  --line:#1e2128;--accent:#4c7dff;--ok:#3fb96f;--bad:#e5484d}}
+*{{box-sizing:border-box;margin:0}}
+body{{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,
+  "Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);
+  color:var(--fg);overflow:hidden;height:100vh;display:flex;flex-direction:column;
+  font-variant-numeric:tabular-nums}}
+header{{display:flex;align-items:baseline;gap:18px;padding:22px 34px 10px}}
+.logo{{font-weight:800;font-size:22px;letter-spacing:.14em}}
+.logo em{{font-style:normal;color:var(--accent)}}
+.live{{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--bad);
+  font-weight:700}}
+.live i{{width:9px;height:9px;border-radius:50%;background:var(--bad);
+  animation:blink 1.4s infinite}}
+@keyframes blink{{50%{{opacity:.25}}}}
+.sub{{color:var(--muted);font-size:14px}}
+#clock{{margin-left:auto;font-size:18px;color:var(--muted)}}
+.grid{{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+  padding:8px 34px 12px;overflow:hidden}}
+.card{{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:14px 18px;display:flex;flex-direction:column;min-height:0}}
+.card.wide{{grid-column:1/-1;flex-direction:row;align-items:center;gap:34px}}
+.k{{font-size:13px;color:var(--muted);font-weight:650}}
+.eq{{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.25}}
+.card.wide .eq{{font-size:52px}}
+.pct{{font-size:16px;font-weight:700}}.card.wide .pct{{font-size:24px}}
+.pos{{color:var(--ok)}}.neg{{color:var(--bad)}}
+.meta{{font-size:12px;color:var(--muted);margin-top:2px}}
+svg.spark{{width:100%;height:34px;margin-top:auto}}
+.card.wide svg.spark{{height:64px;flex:1}}
+footer{{background:#141313;border-top:1px solid var(--line);color:#e9b6b6;
+  font-size:14px;padding:10px 34px;font-weight:600}}
+</style></head><body>
+<header><span class="logo">QUANT<em>.</em></span>
+<span class="live"><i></i>LIVE</span>
+<span class="sub">만원 챌린지 — 가상 자금 자동 모의투자 (매일 새벽 확정 기록
++ 실시간 평가)</span><span id="clock">—</span></header>
+<div class="grid" id="grid"><div class="card"><div class="k">불러오는 중…</div></div></div>
+<footer id="disc">⚠️ 모의투자(가짜 돈)입니다 — 실제 돈이 아니며, 수익을 보장하지
+않고, 투자 자문·권유가 아닙니다.</footer>
+<script>
+function esc(s){{const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}}
+function won(v){{return Math.round(v).toLocaleString("ko-KR")+"원"}}
+function pct(v){{return (v>=0?"+":"")+Number(v).toFixed(2)+"%"}}
+function spark(a,w,h){{
+  if(!a||a.length<2)return"";
+  const mn=Math.min(...a),mx=Math.max(...a),sp=(mx-mn)||1;
+  const pts=a.map((v,i)=>`${{(i/(a.length-1)*w).toFixed(1)}},${{(h-3-(v-mn)/sp*(h-6)).toFixed(1)}}`);
+  const up=a[a.length-1]>=a[0];
+  return `<svg class="spark" viewBox="0 0 ${{w}} ${{h}}" preserveAspectRatio="none">
+    <polyline points="${{pts.join(" ")}}" fill="none"
+    stroke="${{up?"var(--ok)":"var(--bad)"}}" stroke-width="2"/></svg>`}}
+function card(a,wide){{
+  const eq=a.live_equity??a.equity, rp=a.live_return_pct??a.return_pct;
+  const liveTag=a.live_equity!=null?"실시간 평가":"확정 "+esc(a.date||"");
+  const cls=rp>=0?"pos":"neg";
+  const name=a.market==="portfolio"?"📦 통합 분산 계좌 (8종목)":esc(a.key);
+  return `<div class="card${{wide?" wide":""}}"><div style="min-width:0">
+    <div class="k">${{name}} · ${{liveTag}}</div>
+    <div class="eq ${{cls}}">${{won(eq)}} <span class="pct ${{cls}}">${{pct(rp)}}</span></div>
+    <div class="meta">시작 10,000원 · 최대낙폭 ${{a.mdd_pct}}%</div></div>
+    ${{spark(a.spark,wide?900:300,wide?64:34)}}</div>`}}
+async function tick(){{
+  try{{
+    const r=await fetch("/api/broadcast"+location.search,{{cache:"no-store"}});
+    if(!r.ok)return;
+    const d=await r.json();
+    const accs=d.accounts||[];
+    if(!accs.length)return;
+    const pf=accs.find(a=>a.market==="portfolio");
+    const rest=accs.filter(a=>a.market!=="portfolio");
+    document.getElementById("grid").innerHTML=
+      (pf?card(pf,true):"")+rest.map(a=>card(a,false)).join("");
+    if(d.disclaimer)document.getElementById("disc").textContent="⚠️ "+d.disclaimer;
+  }}catch(e){{}}
+  document.getElementById("clock").textContent=new Date().toLocaleString("ko-KR");
+}}
+setInterval(tick,15000);tick();
+setInterval(()=>{{document.getElementById("clock").textContent=new Date().toLocaleString("ko-KR")}},1000);
+</script></body></html>"""
