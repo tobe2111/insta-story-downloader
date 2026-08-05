@@ -239,3 +239,85 @@ def test_live_cli_real_unsupported_market_exits():
 
     with pytest.raises(SystemExit, match="실거래를 지원하지"):
         main(["live", "--market", "synthetic", "--symbol", "T", "--real"])
+
+
+# ── 종목별 관련 뉴스 + 방송 장면·사이트 개선 ─────────────────────────
+
+def test_collect_briefing_symbol_news(tmp_path, monkeypatch):
+    """종목 검색 피드의 항목에 sym 키가 붙는다 (방송 카드 매칭용)."""
+    import urllib.parse
+
+    import quant.live.briefing as bf
+    import quant.utils.http as _http
+
+    btc_q = urllib.parse.quote("비트코인")
+
+    def fake_get_text(url, headers=None, timeout=30):
+        if btc_q in url:
+            return ("<rss><channel><item><title>비트코인 신고가 - 코인뉴스</title>"
+                    "<link>https://e.com/b</link></item></channel></rss>")
+        raise RuntimeError("차단")
+
+    monkeypatch.setattr(_http, "get_text", fake_get_text)
+    out = bf.collect_briefing(str(tmp_path))
+    syms = [it for it in out["items"] if it.get("sym")]
+    assert syms and syms[0]["sym"] == "crypto:BTC/USDT"
+    assert syms[0]["title"] == "비트코인 신고가"
+
+
+def test_broadcast_attaches_symbol_news(tmp_path):
+    """계좌 키와 일치하는 종목 뉴스가 방송 계좌 데이터에 붙는다."""
+    import json as _json
+
+    from quant.web.app import broadcast_json
+
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    (paper / "crypto_BTC_USDT.json").write_text(_json.dumps({
+        "market": "crypto", "symbol": "BTC/USDT", "cash": 0, "quantity": 0,
+        "history": [{"date": "2026-08-05", "equity": 10000.0,
+                     "return_pct": 0.0, "price": 100.0}]}), encoding="utf-8")
+    (tmp_path / "briefing.json").write_text(_json.dumps({
+        "date": "2026-08-05", "note": "참고",
+        "items": [{"cat": "종목", "title": "비트코인 뉴스", "source": "S",
+                   "link": "", "time": "", "sym": "crypto:BTC/USDT"}]}),
+        encoding="utf-8")
+    d = _json.loads(broadcast_json(state_dir=str(tmp_path), with_live=False))
+    acc = [a for a in d["accounts"] if a["key"] == "crypto:BTC/USDT"][0]
+    assert acc["news"]["title"] == "비트코인 뉴스"
+
+
+def test_broadcast_scene_cycle_present():
+    """방송 화면: 장면 전환(종목 확대·게이지 오버레이) 요소가 존재한다."""
+    from quant.web.app import render_broadcast
+
+    doc = render_broadcast()
+    assert 'id="scene"' in doc and "sceneLoop" in doc
+    assert "body.focus .candle" in doc
+
+
+def test_docs_have_table_and_weekly_and_hero():
+    root = Path(__file__).resolve().parent.parent / "docs"
+    paper = (root / "paper.html").read_text(encoding="utf-8")
+    assert "종목별 현황" in paper                    # 증권사 시세표
+    assert 'href="weekly.html"' in paper
+    weekly = (root / "weekly.html").read_text(encoding="utf-8")
+    assert "주간 아카이브" in weekly and "status.json" in weekly
+    assert "종목별 주간 수익률" in weekly
+    index = (root / "index.html").read_text(encoding="utf-8")
+    assert "만원 챌린지 · 통합 실기록" in index      # 히어로 실계좌 카드
+
+
+def test_live_cli_multi_symbols_paper(tmp_path):
+    """--symbols 다중 종목 페이퍼 1사이클 — MultiTrader 경로."""
+    import json as _json
+
+    from quant.cli import main
+
+    state = tmp_path / "m.json"
+    main(["live", "--market", "synthetic", "--symbols", "AAA,BBB",
+          "--strategy", "ma_cross", "--iters", "1", "--interval", "1",
+          "--state", str(state), "--dashboard", str(tmp_path / "d.html")])
+    st = _json.loads(state.read_text(encoding="utf-8"))
+    assert st["mode"] == "paper" and st["history"]
+    assert "positions" in st

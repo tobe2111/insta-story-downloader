@@ -24,6 +24,26 @@ STATE_DIR = "state"
 BRIEFING_FILE = "briefing.json"
 NOTE = "판단에 사용되지 않는 참고 정보입니다 — 매매는 검증된 챔피언 전략만 수행합니다."
 
+# 종목별 관련 뉴스 검색어 — AUTO_TARGETS의 각 종목에 대응(한국어 뉴스).
+# 방송 종목 카드에 "관련 뉴스" 한 줄을 붙이는 용도. 역시 표시 전용이다.
+SYMBOL_QUERIES = {
+    "crypto:BTC/USDT": "비트코인",
+    "crypto:ETH/USDT": "이더리움",
+    "crypto:SOL/USDT": "솔라나",
+    "kr_stock:005930.KS": "삼성전자 주가",
+    "kr_stock:069500.KS": "코스피200",
+    "us_stock:NVDA": "엔비디아 주가",
+    "us_stock:QQQ": "나스닥",
+    "us_stock:SPY": "미국 증시",
+}
+
+
+def _search_feed(query: str) -> str:
+    import urllib.parse
+    return ("https://news.google.com/rss/search?q="
+            + urllib.parse.quote(query) + "&hl=ko&gl=KR&ceid=KR:ko")
+
+
 # 무료·무키 RSS 피드 — 구글 뉴스 검색 결과. 카테고리별 상위 몇 개만 쓴다.
 FEEDS = [
     ("증시", "https://news.google.com/rss/search?"
@@ -97,6 +117,27 @@ def collect_briefing(state_dir: str = STATE_DIR, *,
             if it["title"] in seen:            # 카테고리 간 중복 제거
                 continue
             seen.add(it["title"])
+            items.append(it)
+
+    # 종목별 관련 뉴스 — 방송 종목 카드용. 실패는 종목 단위로 격리.
+    for sym_key, query in SYMBOL_QUERIES.items():
+        try:
+            xml_text = get_text(_search_feed(query),
+                                {"User-Agent": "Mozilla/5.0 (quant-briefing)"},
+                                timeout=15)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("종목 뉴스 실패(%s): %s", sym_key, exc)
+            continue
+        for it in parse_rss(xml_text, "종목", top_n=2):
+            if it["title"] in seen:
+                # 일반 피드에 이미 있는 기사면 그 항목에 종목 표식만 붙인다
+                for prev in items:
+                    if prev["title"] == it["title"] and "sym" not in prev:
+                        prev["sym"] = sym_key
+                        break
+                continue
+            seen.add(it["title"])
+            it["sym"] = sym_key
             items.append(it)
 
     briefing = {"date": date or _date.today().isoformat(),

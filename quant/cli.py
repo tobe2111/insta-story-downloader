@@ -219,11 +219,19 @@ def _cmd_live(args) -> None:
     from quant.risk import RiskConfig, RiskManager
 
     data = get_provider(args.market)
+    symbols = [s.strip() for s in (args.symbols or "").split(",") if s.strip()]
     if args.strategy == "champion":
         from quant.live.retrain import champion_spec, champion_strategy
-        strategy = champion_strategy(args.market, args.symbol)
-        spec = champion_spec(args.market, args.symbol)
-        print(f"🏆 챔피언 자동 추종: {spec['strategy']} {spec['params']}")
+        if symbols:
+            # 다중 종목 — 종목마다 그 종목의 챔피언을 위임 실행(핫리로드 포함)
+            strategy = lambda sym: champion_strategy(args.market, sym)  # noqa: E731
+            for sym in symbols:
+                spec = champion_spec(args.market, sym)
+                print(f"챔피언({sym}): {spec['strategy']} {spec['params']}")
+        else:
+            strategy = champion_strategy(args.market, args.symbol)
+            spec = champion_spec(args.market, args.symbol)
+            print(f"챔피언 자동 추종: {spec['strategy']} {spec['params']}")
         print("   야간 재학습이 챔피언을 교체하면 재시작 없이 자동 반영됩니다.")
     else:
         from quant.strategies import get_strategy
@@ -270,11 +278,23 @@ def _cmd_live(args) -> None:
                              notifier=notifier)
     market_guard = (args.market
                     if (args.real and args.market in SCHEDULED_MARKETS) else None)
-    trader = LiveTrader(
-        data, strategy, broker, risk, args.symbol, args.timeframe,
-        state_path=args.state, dashboard_path=args.dashboard,
-        notifier=notifier, circuit_breaker=breaker, mode=mode,
-        daily_max_loss=args.daily_max_loss, market=market_guard)
+    if symbols:
+        # 같은 시장의 여러 종목을 한 계좌로 분산 운용(역변동성 배분)
+        from quant.live.multi import MultiTrader
+        state = args.state
+        if state == "results/state.json":       # 감시 탭이 읽는 다중 상태 경로
+            state = "results/multi_state.json"
+        trader = MultiTrader(
+            data, strategy, broker, symbols, args.timeframe,
+            state_path=state, dashboard_path=args.dashboard,
+            notifier=notifier, circuit_breaker=breaker, mode=mode,
+            daily_max_loss=args.daily_max_loss, market=market_guard)
+    else:
+        trader = LiveTrader(
+            data, strategy, broker, risk, args.symbol, args.timeframe,
+            state_path=args.state, dashboard_path=args.dashboard,
+            notifier=notifier, circuit_breaker=breaker, mode=mode,
+            daily_max_loss=args.daily_max_loss, market=market_guard)
     print(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
     trader.run(interval_sec=args.interval, max_iters=args.iters)
 
@@ -721,6 +741,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="실시간 루프 — 챔피언(야간 진화) 자동 추종 · 기본 페이퍼, --real 시 실전")
     lv.add_argument("--market", default="crypto")
     lv.add_argument("--symbol", default="BTC/USDT")
+    lv.add_argument("--symbols", default="",
+                    help='같은 시장 다중 종목 분산 운용 — 예: "BTC/USDT,ETH/USDT,SOL/USDT"')
     lv.add_argument("--timeframe", default="1d",
                     help="1d=챔피언 검증과 같은 일봉 기준(권장)")
     lv.add_argument("--strategy", default="champion",
