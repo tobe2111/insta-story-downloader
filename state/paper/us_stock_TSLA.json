@@ -1,0 +1,38 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-05 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-05",
+      "price": 321.54998779296875,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.4927536231884058,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 거래량 이상치, gk_vol, MACD 히스토그램",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "57c61efe0af8",
+      "data_sha256": "28e5f463b8eec968b684b42bdbcbe8233d4aa06cdabd2d30a2b3b15ff29fae1c",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.2866086072143816,
+      "drift_psi": 0.0993
+    }
+  ],
+  "pending": {
+    "weight": 0.0,
+    "decided_bar": "2026-08-05 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "TSLA",
+  "start_cash": 10000.0
+}

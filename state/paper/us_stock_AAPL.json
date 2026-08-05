@@ -1,0 +1,38 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-05 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-05",
+      "price": 311.0,
+      "weight": 0.3632,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.463768115942029,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +36% — 로지스틱회귀 모델이 내일 상승확률을 약 88%로 추정(기준 55% 초과) · 주요 판단 재료: 변동성(20일), 볼린저 위치, 50일선 이격",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "57c61efe0af8",
+      "data_sha256": "4fa834b6c0e10be96c764728074bb9238b8a0b41ec4185caf94d3c07999c1cde",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.881524075267599,
+      "drift_psi": 0.212
+    }
+  ],
+  "pending": {
+    "weight": 0.3632,
+    "decided_bar": "2026-08-05 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "AAPL",
+  "start_cash": 10000.0
+}

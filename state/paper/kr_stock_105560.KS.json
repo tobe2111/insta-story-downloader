@@ -1,0 +1,38 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-05 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-05",
+      "price": 169545.0,
+      "weight": 0.0956,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5833333333333334,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +10% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 주요 판단 재료: gk_vol, 50일선 이격, 변동성(20일)",
+      "fill": null,
+      "fill_cost": 0.0014,
+      "code_sha": "57c61efe0af8",
+      "data_sha256": "6a4a12d1a484b6f35e526a704c607b96c915b71be52a9967fe51f6b65b5c777a",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.647441519195699,
+      "drift_psi": 0.3338
+    }
+  ],
+  "pending": {
+    "weight": 0.0956,
+    "decided_bar": "2026-08-05 00:00:00"
+  },
+  "market": "kr_stock",
+  "symbol": "105560.KS",
+  "start_cash": 10000.0
+}
