@@ -114,10 +114,12 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const nm=((st.symbols||{})[k]||{}).name||k.split(":")[1]||k;
     const w=last.weight;
     const stance=w==null?"–":(Math.abs(w)<0.005?"관망 (현금)":(w>0?"매수 ":"매도 ")+Math.round(Math.abs(w)*100)+"%");
+    const sgn=v=>v>0.004?"pos":v<-0.004?"neg":"";
+    const zpct=v=>Math.abs(v)<0.005?"0.00%":pct(v);
     return `<tr><td><b>${esc(nm)}</b></td>
       <td>${stance}</td>
-      <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
-      <td class="rsn">${esc(String(last.reason||"").slice(0,80))}</td></tr>`;
+      <td class="${day==null?"":sgn(day)}">${day==null?"–":zpct(day)}</td>
+      <td class="rsn">${esc(String(last.reason||""))}</td></tr>`;
   }).join("");
   out+=`<table><tr><th>종목</th><th>오늘의 자세</th><th>일간</th>
     <th class="rsncol" style="text-align:left">판단 근거 (새벽 기준)</th></tr>${rows}</table>`;

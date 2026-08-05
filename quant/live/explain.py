@@ -89,8 +89,15 @@ def _explain(spec: dict, df, weight: float, strategy) -> str:
             top = " · 주요 판단 재료: " + ", ".join(
                 FEATURE_KO.get(k, k) for k, _ in best)
         if prob is not None:
-            return (f"{head} — {model_ko} 모델이 내일 상승확률을 약 "
-                    f"{prob:.0%}로 추정(기준 {thr:.0%} 초과){top}")
+            body = (f"{model_ko} 모델이 내일 상승확률을 약 "
+                    f"{prob:.0%}로 추정(기준 {thr:.0%} 초과)")
+            # 신호는 났지만 변동성 위험 조절이 비중을 아주 작게 잡은 경우 —
+            # '관망'이라고 쓰면 확률 초과 설명과 모순되므로 정확히 말한다.
+            if abs(weight) <= 0.05:
+                side = "매수" if weight > 0 else "매도"
+                return (f"소액 {side} {weight:+.1%} — {body} · 최근 변동성이 "
+                        f"커서 위험 조절이 비중을 낮게 잡음{top}")
+            return f"{head} — {body}{top}"
         return (f"{head} — {model_ko} 모델의 상승확률이 기준({thr:.0%})에 "
                 f"못 미쳐 관망{top}")
 
