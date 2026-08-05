@@ -111,12 +111,16 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
-GOAL_KRW = 100_000_000          # '만원 → 1억' 챌린지 목표
+GOAL_KRW = 100_000_000          # 8마일 챌린지 목표 (8만원 → 1억)
+
+# 8마일 챌린지 — 통합 계좌 시작금. 8종목 × 만원 = 8만원 (영화 8 Mile 오마주).
+# 개별 종목 계좌는 여전히 각자 만원(START_CASH)으로 참고용 기록을 쌓는다.
+PORTFOLIO_START_CASH = 80_000.0
 
 
 def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
                 date: str | None = None) -> dict:
-    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (만원 → 1억 챌린지).
+    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (8마일 챌린지 · 8만원 → 1억).
 
     ⚠️ 법적 구조(반드시 유지): 시청자의 후원금 자체를 굴리는 것이 아니다.
     후원은 대가·지분 없는 방송 후원이고, 운영자가 '같은 금액만큼' 가상 계좌
@@ -139,8 +143,9 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
         with open(path, encoding="utf-8") as f:
             st = json.load(f)
     else:
-        st = {"market": "portfolio", "symbol": "ALL", "start_cash": START_CASH,
-              "cash": START_CASH, "positions": {}, "base_prices": {},
+        st = {"market": "portfolio", "symbol": "ALL",
+              "start_cash": PORTFOLIO_START_CASH,
+              "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": [], "deposits": []}
 
     entry = {"date": date or _date.today().isoformat(),
@@ -149,7 +154,8 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     st["cash"] = float(st.get("cash", 0.0)) + amount
     atomic_write_json(path, st)
 
-    principal = START_CASH + sum(d["amount"] for d in st["deposits"])
+    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
+                 + sum(d["amount"] for d in st["deposits"]))
     print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
           f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
@@ -184,7 +190,7 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
 def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         lookback: int = 400, state_dir: str = STATE_DIR,
                         require_real_data: bool = True) -> dict:
-    """통합 만원 계좌 — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
+    """통합 8마일 계좌(8만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
 
     각 종목의 챔피언 전략 비중을 종목 수로 나눠(자본 균등 슬라이스) 한
     PaperBroker 계좌에 담는다. 실데이터를 못 받은 종목은 그날 매매하지 않고
@@ -206,8 +212,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         with open(path, encoding="utf-8") as f:
             st = json.load(f)
     else:
-        st = {"market": "portfolio", "symbol": "ALL", "start_cash": START_CASH,
-              "cash": START_CASH, "positions": {}, "base_prices": {},
+        st = {"market": "portfolio", "symbol": "ALL",
+              "start_cash": PORTFOLIO_START_CASH,
+              "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
 
     risk = RiskManager()
@@ -255,7 +262,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                       for k in prices) / len(prices)
     gross = sum(abs(w) for w in weights.values()) / n
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
-    principal = START_CASH + sum(d["amount"] for d in st.get("deposits", []))
+    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
+                 + sum(d["amount"] for d in st.get("deposits", [])))
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
               "return_pct": round((equity / principal - 1) * 100, 2),
@@ -264,7 +272,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "hit_rate": None,
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
-        st["history"] + [record], st.get("deposits", []))
+        st["history"] + [record], st.get("deposits", []),
+        start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
     st["positions"] = {
         p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
         for p in broker._positions.values() if abs(p.quantity) > 0}
@@ -383,7 +392,7 @@ def format_weekly(summary: dict) -> str:
     if not summary.get("markets"):
         return "📭 지난주 페이퍼 기록이 없습니다."
     a, b = summary["period"]
-    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 만원 챌린지"]
+    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 8마일 챌린지"]
     for key, m in summary["markets"].items():
         sign = "🔺" if m["week_return_pct"] >= 0 else "🔻"
         line = (f"{sign} {key}: 주간 {m['week_return_pct']:+.2f}% · "
@@ -456,16 +465,17 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 "mdd_pct": round(mdd * 100, 2),
                 "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
             }
-            if st.get("market") == "portfolio":   # 만원 → 1억 챌린지 필드
+            if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
                 deposits = st.get("deposits", [])
-                principal = (st.get("start_cash", START_CASH)
-                             + sum(d["amount"] for d in deposits))
+                sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
+                principal = sc + sum(d["amount"] for d in deposits)
                 eq_now = float(status["paper"][key]["equity"] or principal)
                 status["paper"][key].update({
                     "goal": GOAL_KRW,
                     "principal": round(principal, 2),
                     "pnl": round(eq_now - principal, 2),
-                    "twr_pct": time_weighted_return(hist, deposits),
+                    "twr_pct": time_weighted_return(hist, deposits,
+                                                    start_cash=sc),
                     "deposits": deposits[-30:],
                 })
             if hist:

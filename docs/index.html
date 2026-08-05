@@ -440,7 +440,7 @@ try {
 })();
 </script>
 <script>
-/* 만원 챌린지 실계좌 카드 — 히어로에 '실제로 돌아가는 서비스'의 숫자를 크게 보여준다 */
+/* 8마일 챌린지 실계좌 카드 — 히어로에 '실제로 돌아가는 서비스'의 숫자를 크게 보여준다 */
 fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(st){
   if(!st||!st.paper) return;
   function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
@@ -465,7 +465,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
     }
     el.innerHTML='<span style="display:inline-block;background:var(--bg2);border:1px solid var(--line);'
       +'border-radius:14px;padding:14px 18px;margin-top:6px;text-align:left">'
-      +'<span style="font-size:12px;color:var(--muted);font-weight:650">만원 챌린지 · 통합 실기록'
+      +'<span style="font-size:12px;color:var(--muted);font-weight:650">8마일 챌린지 · 통합 실기록'
       +(st.updated?' · '+esc(st.updated):'')+'</span><br>'
       +'<span style="font-size:30px;font-weight:800;letter-spacing:-.02em">'+won(p.equity)+'</span> '
       +'<b style="color:'+col+';font-size:16px">'+arrow+' '+(ret>=0?"+":"")+ret.toFixed(2)+'%</b>'
@@ -479,7 +479,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
       var col=ret>=0?up:down;
       return esc(k)+' <b style="color:'+col+'">'+(ret>=0?"+":"")+ret.toFixed(2)+"%</b>";
     });
-    el.innerHTML="만원 챌린지(자동 페이퍼): "+parts.join(" · ")
+    el.innerHTML="8마일 챌린지(자동 페이퍼): "+parts.join(" · ")
       +' · <a href="paper.html">매일 기록 보기 →</a>';
   }
   el.style.display="";

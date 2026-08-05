@@ -1122,24 +1122,25 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             "quantity": st.get("quantity"),
             "positions": st.get("positions"),      # 포트폴리오 계좌 전용
         })
-        if st.get("market") == "portfolio":        # 만원 → 1억 챌린지 필드
+        if st.get("market") == "portfolio":        # 8마일 챌린지(8만원 → 1억) 필드
             from quant.live.daily import (
-                GOAL_KRW, START_CASH, time_weighted_return,
+                GOAL_KRW, PORTFOLIO_START_CASH, time_weighted_return,
             )
             deposits = st.get("deposits", [])
-            principal = (st.get("start_cash", START_CASH)
-                         + sum(d["amount"] for d in deposits))
+            sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
+            principal = sc + sum(d["amount"] for d in deposits)
             a = accounts[-1]
             tail = hist[-60:]
             base_series = []
             for r in tail:
-                pr = st.get("start_cash", START_CASH) + sum(
+                pr = sc + sum(
                     dd["amount"] for dd in deposits if dd["date"] <= r["date"])
                 base_series.append(round(pr, 2))
             a.update({"goal": GOAL_KRW,
                       "principal": round(principal, 2),
                       "pnl": round(float(a["equity"]) - principal, 2),
-                      "twr_pct": time_weighted_return(hist, deposits),
+                      "twr_pct": time_weighted_return(hist, deposits,
+                                                      start_cash=sc),
                       "deposits": deposits[-30:],
                       "spark_base": base_series})
 
@@ -1176,7 +1177,9 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                 le = float(a["cash"]) + float(a["quantity"]) * p
         if le is not None:
             a["live_equity"] = round(le, 2)
-            a["live_return_pct"] = round((le / 10000 - 1) * 100, 2)
+            # 기준: 통합 계좌는 원금(8마일 시작금+입금), 개별 계좌는 시작 만원
+            basis = a.get("principal") or 10000
+            a["live_return_pct"] = round((le / basis - 1) * 100, 2)
         a.pop("cash", None); a.pop("quantity", None); a.pop("positions", None)
 
     # 어젯밤 재학습 서사 — 방송 상단 '오늘의 소식' 배너와 차트 마커용
@@ -1438,10 +1441,10 @@ def render_deposit_form(message: str = "") -> str:
 <pre>QUANT_GH_TOKEN=github_pat_...</pre></li>
 <li>웹 조종석 재시작</li></ol>
 <p style="margin-top:8px">토큰 없이도 GitHub 앱/웹 → Actions →
-"Deposit (만원→1억 매칭 입금)" → Run workflow 로 직접 등록할 수 있습니다.</p>
+"Deposit (8마일 매칭 입금)" → Run workflow 로 직접 등록할 수 있습니다.</p>
 </details></div>""")
     body = f"""<p class="kicker">Deposit</p>
-<h1>매칭 입금 (만원 → 1억)</h1>
+<h1>매칭 입금 (8마일 · 8만원 → 1억)</h1>
 <p class="sub">방송 후원이 들어오면 같은 금액만큼 통합 계좌의 <b>가상 원금</b>을
 늘립니다. {principal_txt}</p>
 {_msg_html(message)}
@@ -1498,7 +1501,7 @@ def run_deposit_html(params: dict) -> str:
     return _page("입금 접수 완료", body, "/deposit")
 
 
-# 방송 워터마크 QR — 사이트(만원 챌린지 기록 페이지)로 가는 다리.
+# 방송 워터마크 QR — 사이트(8마일 챌린지 기록 페이지)로 가는 다리.
 # 오프라인 생성 후 인라인(외부 요청 0). URL 변경 시 재생성 필요.
 _QR_VIEWBOX = "0 0 35 35"
 _QR_PATH = "M1,1H2V2H1zM2,1H3V2H2zM3,1H4V2H3zM4,1H5V2H4zM5,1H6V2H5zM6,1H7V2H6zM7,1H8V2H7zM11,1H12V2H11zM13,1H14V2H13zM19,1H20V2H19zM23,1H24V2H23zM25,1H26V2H25zM27,1H28V2H27zM28,1H29V2H28zM29,1H30V2H29zM30,1H31V2H30zM31,1H32V2H31zM32,1H33V2H32zM33,1H34V2H33zM1,2H2V3H1zM7,2H8V3H7zM9,2H10V3H9zM10,2H11V3H10zM12,2H13V3H12zM13,2H14V3H13zM14,2H15V3H14zM15,2H16V3H15zM17,2H18V3H17zM18,2H19V3H18zM21,2H22V3H21zM23,2H24V3H23zM25,2H26V3H25zM27,2H28V3H27zM33,2H34V3H33zM1,3H2V4H1zM3,3H4V4H3zM4,3H5V4H4zM5,3H6V4H5zM7,3H8V4H7zM9,3H10V4H9zM11,3H12V4H11zM14,3H15V4H14zM16,3H17V4H16zM17,3H18V4H17zM18,3H19V4H18zM19,3H20V4H19zM22,3H23V4H22zM23,3H24V4H23zM27,3H28V4H27zM29,3H30V4H29zM30,3H31V4H30zM31,3H32V4H31zM33,3H34V4H33zM1,4H2V5H1zM3,4H4V5H3zM4,4H5V5H4zM5,4H6V5H5zM7,4H8V5H7zM9,4H10V5H9zM10,4H11V5H10zM11,4H12V5H11zM12,4H13V5H12zM13,4H14V5H13zM22,4H23V5H22zM25,4H26V5H25zM27,4H28V5H27zM29,4H30V5H29zM30,4H31V5H30zM31,4H32V5H31zM33,4H34V5H33zM1,5H2V6H1zM3,5H4V6H3zM4,5H5V6H4zM5,5H6V6H5zM7,5H8V6H7zM12,5H13V6H12zM13,5H14V6H13zM16,5H17V6H16zM19,5H20V6H19zM24,5H25V6H24zM27,5H28V6H27zM29,5H30V6H29zM30,5H31V6H30zM31,5H32V6H31zM33,5H34V6H33zM1,6H2V7H1zM7,6H8V7H7zM11,6H12V7H11zM14,6H15V7H14zM17,6H18V7H17zM19,6H20V7H19zM21,6H22V7H21zM22,6H23V7H22zM23,6H24V7H23zM25,6H26V7H25zM27,6H28V7H27zM33,6H34V7H33zM1,7H2V8H1zM2,7H3V8H2zM3,7H4V8H3zM4,7H5V8H4zM5,7H6V8H5zM6,7H7V8H6zM7,7H8V8H7zM9,7H10V8H9zM11,7H12V8H11zM13,7H14V8H13zM15,7H16V8H15zM17,7H18V8H17zM19,7H20V8H19zM21,7H22V8H21zM23,7H24V8H23zM25,7H26V8H25zM27,7H28V8H27zM28,7H29V8H28zM29,7H30V8H29zM30,7H31V8H30zM31,7H32V8H31zM32,7H33V8H32zM33,7H34V8H33zM9,8H10V9H9zM12,8H13V9H12zM13,8H14V9H13zM1,9H2V10H1zM7,9H8V10H7zM9,9H10V10H9zM12,9H13V10H12zM14,9H15V10H14zM15,9H16V10H15zM16,9H17V10H16zM18,9H19V10H18zM19,9H20V10H19zM21,9H22V10H21zM23,9H24V10H23zM26,9H27V10H26zM27,9H28V10H27zM30,9H31V10H30zM31,9H32V10H31zM32,9H33V10H32zM3,10H4V11H3zM4,10H5V11H4zM5,10H6V11H5zM8,10H9V11H8zM9,10H10V11H9zM11,10H12V11H11zM12,10H13V11H12zM16,10H17V11H16zM20,10H21V11H20zM21,10H22V11H21zM22,10H23V11H22zM23,10H24V11H23zM24,10H25V11H24zM29,10H30V11H29zM30,10H31V11H30zM31,10H32V11H31zM2,11H3V12H2zM7,11H8V12H7zM8,11H9V12H8zM11,11H12V12H11zM16,11H17V12H16zM17,11H18V12H17zM19,11H20V12H19zM21,11H22V12H21zM22,11H23V12H22zM23,11H24V12H23zM25,11H26V12H25zM29,11H30V12H29zM31,11H32V12H31zM32,11H33V12H32zM4,12H5V13H4zM5,12H6V13H5zM6,12H7V13H6zM8,12H9V13H8zM10,12H11V13H10zM11,12H12V13H11zM13,12H14V13H13zM15,12H16V13H15zM16,12H17V13H16zM21,12H22V13H21zM24,12H25V13H24zM28,12H29V13H28zM29,12H30V13H29zM30,12H31V13H30zM31,12H32V13H31zM2,13H3V14H2zM7,13H8V14H7zM8,13H9V14H8zM10,13H11V14H10zM11,13H12V14H11zM13,13H14V14H13zM14,13H15V14H14zM15,13H16V14H15zM17,13H18V14H17zM18,13H19V14H18zM19,13H20V14H19zM21,13H22V14H21zM22,13H23V14H22zM23,13H24V14H23zM27,13H28V14H27zM33,13H34V14H33zM1,14H2V15H1zM3,14H4V15H3zM6,14H7V15H6zM9,14H10V15H9zM10,14H11V15H10zM11,14H12V15H11zM12,14H13V15H12zM14,14H15V15H14zM15,14H16V15H15zM17,14H18V15H17zM21,14H22V15H21zM22,14H23V15H22zM24,14H25V15H24zM27,14H28V15H27zM28,14H29V15H28zM30,14H31V15H30zM31,14H32V15H31zM32,14H33V15H32zM33,14H34V15H33zM3,15H4V16H3zM4,15H5V16H4zM7,15H8V16H7zM8,15H9V16H8zM10,15H11V16H10zM12,15H13V16H12zM13,15H14V16H13zM15,15H16V16H15zM18,15H19V16H18zM19,15H20V16H19zM20,15H21V16H20zM25,15H26V16H25zM26,15H27V16H26zM27,15H28V16H27zM30,15H31V16H30zM31,15H32V16H31zM32,15H33V16H32zM1,16H2V17H1zM2,16H3V17H2zM3,16H4V17H3zM5,16H6V17H5zM6,16H7V17H6zM8,16H9V17H8zM9,16H10V17H9zM10,16H11V17H10zM13,16H14V17H13zM15,16H16V17H15zM16,16H17V17H16zM19,16H20V17H19zM20,16H21V17H20zM23,16H24V17H23zM25,16H26V17H25zM26,16H27V17H26zM29,16H30V17H29zM30,16H31V17H30zM31,16H32V17H31zM33,16H34V17H33zM1,17H2V18H1zM3,17H4V18H3zM6,17H7V18H6zM7,17H8V18H7zM8,17H9V18H8zM10,17H11V18H10zM11,17H12V18H11zM12,17H13V18H12zM18,17H19V18H18zM19,17H20V18H19zM20,17H21V18H20zM23,17H24V18H23zM24,17H25V18H24zM25,17H26V18H25zM26,17H27V18H26zM28,17H29V18H28zM29,17H30V18H29zM30,17H31V18H30zM33,17H34V18H33zM3,18H4V19H3zM8,18H9V19H8zM9,18H10V19H9zM10,18H11V19H10zM12,18H13V19H12zM13,18H14V19H13zM14,18H15V19H14zM15,18H16V19H15zM16,18H17V19H16zM17,18H18V19H17zM18,18H19V19H18zM19,18H20V19H19zM20,18H21V19H20zM22,18H23V19H22zM24,18H25V19H24zM26,18H27V19H26zM27,18H28V19H27zM30,18H31V19H30zM31,18H32V19H31zM33,18H34V19H33zM2,19H3V20H2zM4,19H5V20H4zM6,19H7V20H6zM7,19H8V20H7zM8,19H9V20H8zM10,19H11V20H10zM11,19H12V20H11zM12,19H13V20H12zM16,19H17V20H16zM17,19H18V20H17zM20,19H21V20H20zM21,19H22V20H21zM24,19H25V20H24zM27,19H28V20H27zM28,19H29V20H28zM30,19H31V20H30zM31,19H32V20H31zM33,19H34V20H33zM4,20H5V21H4zM5,20H6V21H5zM9,20H10V21H9zM11,20H12V21H11zM12,20H13V21H12zM15,20H16V21H15zM16,20H17V21H16zM18,20H19V21H18zM19,20H20V21H19zM20,20H21V21H20zM21,20H22V21H21zM22,20H23V21H22zM25,20H26V21H25zM26,20H27V21H26zM29,20H30V21H29zM30,20H31V21H30zM31,20H32V21H31zM33,20H34V21H33zM1,21H2V22H1zM2,21H3V22H2zM3,21H4V22H3zM7,21H8V22H7zM10,21H11V22H10zM12,21H13V22H12zM13,21H14V22H13zM14,21H15V22H14zM16,21H17V22H16zM17,21H18V22H17zM20,21H21V22H20zM21,21H22V22H21zM22,21H23V22H22zM23,21H24V22H23zM25,21H26V22H25zM26,21H27V22H26zM28,21H29V22H28zM29,21H30V22H29zM30,21H31V22H30zM32,21H33V22H32zM33,21H34V22H33zM1,22H2V23H1zM2,22H3V23H2zM3,22H4V23H3zM4,22H5V23H4zM6,22H7V23H6zM10,22H11V23H10zM11,22H12V23H11zM12,22H13V23H12zM14,22H15V23H14zM17,22H18V23H17zM18,22H19V23H18zM19,22H20V23H19zM21,22H22V23H21zM22,22H23V23H22zM23,22H24V23H23zM24,22H25V23H24zM26,22H27V23H26zM28,22H29V23H28zM29,22H30V23H29zM30,22H31V23H30zM31,22H32V23H31zM1,23H2V24H1zM5,23H6V24H5zM6,23H7V24H6zM7,23H8V24H7zM9,23H10V24H9zM11,23H12V24H11zM13,23H14V24H13zM16,23H17V24H16zM17,23H18V24H17zM18,23H19V24H18zM21,23H22V24H21zM22,23H23V24H22zM25,23H26V24H25zM28,23H29V24H28zM32,23H33V24H32zM1,24H2V25H1zM3,24H4V25H3zM8,24H9V25H8zM10,24H11V25H10zM11,24H12V25H11zM15,24H16V25H15zM19,24H20V25H19zM23,24H24V25H23zM24,24H25V25H24zM26,24H27V25H26zM31,24H32V25H31zM33,24H34V25H33zM1,25H2V26H1zM2,25H3V26H2zM3,25H4V26H3zM4,25H5V26H4zM5,25H6V26H5zM7,25H8V26H7zM10,25H11V26H10zM11,25H12V26H11zM12,25H13V26H12zM14,25H15V26H14zM15,25H16V26H15zM16,25H17V26H16zM20,25H21V26H20zM21,25H22V26H21zM25,25H26V26H25zM26,25H27V26H26zM27,25H28V26H27zM28,25H29V26H28zM29,25H30V26H29zM30,25H31V26H30zM9,26H10V27H9zM10,26H11V27H10zM12,26H13V27H12zM13,26H14V27H13zM16,26H17V27H16zM17,26H18V27H17zM20,26H21V27H20zM21,26H22V27H21zM23,26H24V27H23zM25,26H26V27H25zM29,26H30V27H29zM31,26H32V27H31zM33,26H34V27H33zM1,27H2V28H1zM2,27H3V28H2zM3,27H4V28H3zM4,27H5V28H4zM5,27H6V28H5zM6,27H7V28H6zM7,27H8V28H7zM10,27H11V28H10zM11,27H12V28H11zM15,27H16V28H15zM16,27H17V28H16zM17,27H18V28H17zM19,27H20V28H19zM21,27H22V28H21zM22,27H23V28H22zM24,27H25V28H24zM25,27H26V28H25zM27,27H28V28H27zM29,27H30V28H29zM31,27H32V28H31zM1,28H2V29H1zM7,28H8V29H7zM10,28H11V29H10zM11,28H12V29H11zM12,28H13V29H12zM14,28H15V29H14zM16,28H17V29H16zM20,28H21V29H20zM24,28H25V29H24zM25,28H26V29H25zM29,28H30V29H29zM30,28H31V29H30zM31,28H32V29H31zM32,28H33V29H32zM1,29H2V30H1zM3,29H4V30H3zM4,29H5V30H4zM5,29H6V30H5zM7,29H8V30H7zM10,29H11V30H10zM11,29H12V30H11zM13,29H14V30H13zM14,29H15V30H14zM19,29H20V30H19zM20,29H21V30H20zM22,29H23V30H22zM25,29H26V30H25zM26,29H27V30H26zM27,29H28V30H27zM28,29H29V30H28zM29,29H30V30H29zM30,29H31V30H30zM1,30H2V31H1zM3,30H4V31H3zM4,30H5V31H4zM5,30H6V31H5zM7,30H8V31H7zM10,30H11V31H10zM11,30H12V31H11zM13,30H14V31H13zM14,30H15V31H14zM17,30H18V31H17zM21,30H22V31H21zM23,30H24V31H23zM24,30H25V31H24zM25,30H26V31H25zM26,30H27V31H26zM28,30H29V31H28zM29,30H30V31H29zM30,30H31V31H30zM33,30H34V31H33zM1,31H2V32H1zM3,31H4V32H3zM4,31H5V32H4zM5,31H6V32H5zM7,31H8V32H7zM11,31H12V32H11zM15,31H16V32H15zM17,31H18V32H17zM21,31H22V32H21zM25,31H26V32H25zM28,31H29V32H28zM29,31H30V32H29zM32,31H33V32H32zM33,31H34V32H33zM1,32H2V33H1zM7,32H8V33H7zM10,32H11V33H10zM11,32H12V33H11zM13,32H14V33H13zM15,32H16V33H15zM16,32H17V33H16zM17,32H18V33H17zM20,32H21V33H20zM21,32H22V33H21zM23,32H24V33H23zM28,32H29V33H28zM29,32H30V33H29zM30,32H31V33H30zM31,32H32V33H31zM1,33H2V34H1zM2,33H3V34H2zM3,33H4V34H3zM4,33H5V34H4zM5,33H6V34H5zM6,33H7V34H6zM7,33H8V34H7zM9,33H10V34H9zM11,33H12V34H11zM12,33H13V34H12zM14,33H15V34H14zM18,33H19V34H18zM20,33H21V34H20zM23,33H24V34H23zM25,33H26V34H25zM27,33H28V34H27zM28,33H29V34H28zM30,33H31V34H30zM32,33H33V34H32z"
@@ -1617,7 +1620,7 @@ svg text{{font-family:inherit}}
 </style></head><body>
 <header><span class="logo">QUANT<em>.</em></span>
 <span class="live"><i></i>LIVE</span>
-<span id="news">만원 챌린지 — 가상 자금 자동 모의투자</span>
+<span id="news">8마일 챌린지 — 8만원으로 시작하는 가상 자금 자동 모의투자</span>
 <span id="clock">—</span></header>
 <div class="hero" id="hero"><div class="nums"><div class="k">불러오는 중…</div></div></div>
 <div class="candle" id="candle" style="display:none"><div class="head">
@@ -1630,7 +1633,7 @@ svg text{{font-family:inherit}}
 <div id="event"></div>
 <div id="scene"></div>
 <div class="wm"><svg viewBox="{_QR_VIEWBOX}"><path d="{_QR_PATH}" fill="#000"/></svg>
-<div class="u"><b>만원 챌린지 실기록</b><br>quant.jiwon-1a2.workers.dev<br>모의투자 · 수익 보장 아님</div></div>
+<div class="u"><b>8마일 챌린지 실기록</b><br>quant.jiwon-1a2.workers.dev<br>모의투자 · 수익 보장 아님</div></div>
 <div class="grid" id="grid"></div>
 <div class="tape"><div class="inner" id="tape">&nbsp;</div></div>
 <footer id="disc">⚠️ 모의투자(가짜 돈)입니다 — 실제 돈이 아니며, 수익을 보장하지
@@ -1648,8 +1651,9 @@ function proChart(o){{
   const v=o.vals; if(!v||v.length<2) return "";
   const W=o.w,H=o.h,padR=64,padB=o.axes?16:4,padT=6;
   const ddH=o.dd?Math.round(H*0.18):0, mainH=H-ddH-padB-padT;
-  const base=o.base||10000;
   const bs=o.baseSeries&&o.baseSeries.length===v.length?o.baseSeries:null;
+  // 기준선: 명시값 > 원금 계단선의 시작값 > 만원(개별 계좌 기본)
+  const base=o.base||(bs?bs[0]:10000);
   let mn=Math.min(...v,base),mx=Math.max(...v,base);
   if(bs){{mn=Math.min(mn,...bs);mx=Math.max(mx,...bs)}}
   if(o.bench){{mn=Math.min(mn,...o.bench);mx=Math.max(mx,...o.bench)}}
@@ -1792,7 +1796,7 @@ async function tick(first){{
           · 실력 지표(TWR) <b class="${{hero.twr_pct>=0?"pos":"neg"}}">${{pct(hero.twr_pct)}}</b></div>`;
         const ratio=Math.min(1,eq/hero.goal);
         goal=`<div class="goal"><div class="bar"><div class="fill" style="width:${{Math.max(0.3,ratio*100)}}%"></div></div>
-          <div class="lbl"><span>만원 → 1억 챌린지</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
+          <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
       }}
       document.getElementById("hero").innerHTML=
         `<div class="nums"><div class="k">${{hero.market==="portfolio"?"통합 분산 계좌 (8종목)":esc(hero.key)}}
@@ -1804,13 +1808,13 @@ async function tick(first){{
         <div class="chartwrap">${{proChart({{vals:hero.spark,dates:hero.spark_dates,
           baseSeries:hero.spark_base,
           w:1280,h:170,axes:true,dd:true,markers:mk,dmarkers:dmk,
-          bench:(hero.spark_price&&hero.spark_price[0])?hero.spark_price.map(p=>10000*p/hero.spark_price[0]):null}})}}</div>`;
+          bench:(hero.spark_price&&hero.spark_price[0])?hero.spark_price.map(p=>((hero.spark_base&&hero.spark_base[0])||10000)*p/hero.spark_price[0]):null}})}}</div>`;
     }}
     // 통합 계좌 신고가 감지(실시간 평가 기준, 래칫)
     if(pf){{
       const eqNow=pf.live_equity??pf.equity;
       const prevPeak=Math.max(peakEquity,...(pf.spark||[0]));
-      if(peakEquity&&eqNow>prevPeak&&eqNow>10000)
+      if(peakEquity&&eqNow>prevPeak&&eqNow>(pf.principal||10000))
         popEvent(`📈 통합 계좌 신고가! ${{won(eqNow)}}`);
       peakEquity=Math.max(prevPeak,eqNow);
     }}
@@ -1841,7 +1845,7 @@ function showGoalScene(){{
   const eq=lastHero.live_equity??lastHero.equity;
   const ratio=Math.min(1,eq/lastHero.goal);
   const el=document.getElementById("scene");
-  el.innerHTML=`<div class="box"><div class="t">만원 → 1억 챌린지</div>
+  el.innerHTML=`<div class="box"><div class="t">8마일 챌린지 · 8만원 → 1억</div>
     <div class="v ${{eq>=lastHero.principal?"pos":"neg"}}">${{won(eq)}}</div>
     <div class="m">원금(매칭 포함) ${{won(lastHero.principal)}} · 실력 지표(TWR) ${{pct(lastHero.twr_pct)}}</div>
     <div class="bar"><div class="fill" style="width:${{Math.max(0.4,ratio*100)}}%"></div></div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 만원 챌린지 — 매일 자동 페이퍼 현황</title>
+<title>Quant · 8마일 챌린지 — 매일 자동 페이퍼 현황</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/pretendard.css">
 <style>
@@ -73,8 +73,8 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 </div></nav>
 <div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
-<h1>만원 챌린지 — 매일 자동 페이퍼</h1>
-<p class="sub"><b>가상 자금 10,000원</b>으로 시작해, 클라우드가 매일 새벽(한국시간)
+<h1>8마일 챌린지 — 매일 자동 페이퍼</h1>
+<p class="sub">통합 계좌는 <b>가상 자금 80,000원(8종목 × 만원)</b>으로 시작해, 클라우드가 매일 새벽(한국시간)
 챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
@@ -98,11 +98,12 @@ function niceTicks(mn,mx,n){
   const span=(mx-mn)||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0)));
   const step=[1,2,2.5,5,10].map(m=>m*mag).find(sv=>span/sv<=n)||mag*10;
   const t=[];for(let v=Math.ceil(mn/step)*step;v<=mx;v+=step)t.push(v);return t}
-function spark(hist,markers,dmarkers,baseSeries){
+function spark(hist,markers,dmarkers,baseSeries,base0){
   if(hist.length<2) return "";
+  base0=base0||10000;                        // 개별 계좌 만원 · 통합 계좌 8만원
   const v=hist.map(r=>r.equity), dates=hist.map(r=>r.date);
-  const p0=hist[0].price, bench=hist.map(r=>10000*r.price/p0);
-  const W=800,H=96,padR=56,padT=5,padB=4,base=10000;
+  const p0=hist[0].price, bench=hist.map(r=>base0*r.price/p0);
+  const W=800,H=96,padR=56,padT=5,padB=4,base=base0;
   const bs=baseSeries&&baseSeries.length===v.length?baseSeries:null;
   let mn=Math.min(...v,...bench,base),mx=Math.max(...v,...bench,base);
   if(bs){mn=Math.min(mn,...bs);mx=Math.max(mx,...bs)}
@@ -176,8 +177,9 @@ function mondayOf(dstr){
   d.setUTCDate(d.getUTCDate()-dow);
   return d.toISOString().slice(0,10);
 }
-function weeklyTable(hist){
+function weeklyTable(hist,start0){
   if(hist.length<6) return "";               // 한 주도 안 됐으면 생략
+  start0=start0||10000;
   const weeks=new Map();                     // 주 시작(월) → 그 주 마지막 기록
   hist.forEach(r=>weeks.set(mondayOf(r.date),r));
   const keys=[...weeks.keys()].sort();
@@ -185,7 +187,7 @@ function weeklyTable(hist){
   keys.slice(-8).forEach(wk=>{
     const kAll=[...weeks.keys()].sort();
     const idx=kAll.indexOf(wk);
-    const base=idx>0?weeks.get(kAll[idx-1]).equity:10000;
+    const base=idx>0?weeks.get(kAll[idx-1]).equity:start0;
     const r=weeks.get(wk), w=(r.equity/base-1)*100;
     rows+=`<tr><td>${esc(wk)} 주</td>
       <td class="${w>=0?"pos":"neg"}">${pct(w)}</td>
@@ -208,7 +210,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       ?"8종목 자본 균등 분산 (각 종목의 챔피언 전략 추종)"
       :(st.champions&&st.champions[k])
         ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
-    // 만원 → 1억 챌린지(통합 계좌): 원금·손익 분해 + 목표 게이지
+    // 8마일 챌린지(통합 계좌, 8만원 → 1억): 원금·손익 분해 + 목표 게이지
     let challenge="";
     if(p.principal!=null){
       const ratio=Math.min(1,(p.equity||0)/p.goal);
@@ -220,13 +222,14 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div style="margin:10px 0 2px"><div style="height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden">
         <div style="height:100%;min-width:3px;width:${Math.max(0.3,ratio*100)}%;background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:99px"></div></div>
       <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:3px">
-        <span>만원 → 1억 챌린지</span><span>${(ratio*100).toFixed(3)}% · 목표 1억원</span></div></div>`;
+        <span>8마일 챌린지 · 8만원 → 1억</span><span>${(ratio*100).toFixed(3)}% · 목표 1억원</span></div></div>`;
     }
     // 그냥 보유(벤치마크): 첫 기록일에 같은 돈으로 사서 들고만 있었다면
     let benchTxt="";
     if(hist.length>=2){
-      const b=10000*hist[hist.length-1].price/hist[0].price;
-      const alpha=(p.equity-b)/10000*100;
+      const base0=p.start_cash||10000;
+      const b=base0*hist[hist.length-1].price/hist[0].price;
+      const alpha=(p.equity-b)/base0*100;
       benchTxt=`<div><span class="lbl">그냥 보유했다면</span><b>${won(b)}</b></div>
         <div><span class="lbl">전략 − 보유 (초과성과)</span>
         <b class="${alpha>=0?"pos":"neg"}">${pct(alpha)}</b></div>`;
@@ -242,16 +245,17 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <td>${(r.weight*100).toFixed(0)}%</td><td>${hr}</td></tr>`}).join("");
     return `<div class="card"><h2>${esc(k)}</h2>
       <div class="big ${cls}">${won(p.equity)} <span style="font-size:18px">(${pct(Number(ret))})</span></div>
-      <div class="sub" style="margin:2px 0 0">10,000원으로 시작한 가상 자금${
+      <div class="sub" style="margin:2px 0 0">${won(p.start_cash||10000)}으로 시작한 가상 자금${
         mdd==null?"":` · 최대낙폭 <b class="neg">${mdd}%</b>`}</div>
       ${challenge}
       <div class="vs">${benchTxt}</div>
       ${spark(hist,(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date),(p.deposits||[]).map(x=>x.date),
-        p.deposits&&p.deposits.length?hist.map(r=>10000+p.deposits.filter(dd=>dd.date<=r.date).reduce((a,b)=>a+b.amount,0)):null)}
+        p.deposits&&p.deposits.length?hist.map(r=>(p.start_cash||10000)+p.deposits.filter(dd=>dd.date<=r.date).reduce((a,b)=>a+b.amount,0)):null,
+        p.start_cash||10000)}
       <div class="sub" style="margin-top:10px;font-size:12.5px">현재 챔피언: <code>${champ}</code></div>
       ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
-      ${weeklyTable(hist)}
+      ${weeklyTable(hist,p.start_cash||10000)}
     </div>`};
   // 통합 계좌는 큰 카드로, 개별 8종목은 증권사 시세표 스타일의 한 표로 압축
   const pfKeys=keys.filter(k=>k.startsWith("portfolio"));

@@ -169,7 +169,7 @@ def _cmd_paper_daily(args) -> None:
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ 통합 포트폴리오 실패 — {exc}")
         if lines:
-            _notify_extra("📅 만원 챌린지 오늘 기록\n" + "\n".join(lines)
+            _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
                           + (f"\n⚠️ 실패: {', '.join(out['failed'])}"
                              if out["failed"] else ""))
     else:
@@ -730,7 +730,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dp = sub.add_parser(
         "deposit",
-        help="만원→1억 챌린지 매칭 입금 — 후원 금액만큼 통합 계좌 원금 증액")
+        help="8마일 챌린지 매칭 입금 (8만원→1억) — 후원 금액만큼 통합 계좌 원금 증액")
     dp.add_argument("--amount", type=float, required=True, help="입금액(원)")
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
