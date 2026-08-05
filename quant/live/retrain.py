@@ -285,6 +285,19 @@ def champion_strategy(market: str, symbol: str, state_dir: str = STATE_DIR):
             self._impl = None
 
         def _refresh(self) -> None:
+            # 의회(다수 의원)가 있으면 혼합 전략으로, 아니면 단일 챔피언으로.
+            # 스펙 비교 키에 의회 명단을 포함해 구성 변화도 핫리로드된다.
+            entry = load_champions(state_dir).get(_key(market, symbol))
+            members = (entry or {}).get("parliament") or []
+            if len(members) >= 2:
+                spec = {"strategy": "__parliament__", "params": members}
+                if spec != self._spec:
+                    if self._spec is not None:
+                        log.info("🏛 의회 구성 변화 감지 → 새 구성 적용")
+                    from quant.live.parliament import ParliamentStrategy
+                    self._impl = ParliamentStrategy(members, build_strategy)
+                    self._spec = spec
+                return
             spec = champion_spec(market, symbol, state_dir)
             if spec != self._spec:
                 if self._spec is not None:
@@ -533,19 +546,37 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
 
     if decision["promoted"]:
         prev_trials = entry.get("trials_total")
+        prev_parliament = entry.get("parliament")
         entry = {**decision["champion"],
                  "promoted_at": asof,
                  "promotions": int(entry.get("promotions", 0)) + 1,
-                 "trials_total": prev_trials}
+                 "trials_total": prev_trials,
+                 "parliament": prev_parliament}
+
+    # ── 의회 갱신 — 교체가 아니라 혼합. 오디션 통과자만 입성하고, 의석
+    # 비중은 홀드아웃 성과로 서서히(EMA) 이동한다. 상관 과다 의원은 탈락
+    # (다양성 강제). 리더가 strategy/params 자리를 유지해 기존 경로와 호환.
+    from quant.live.parliament import update_parliament
+    entry["parliament"] = update_parliament(
+        entry, df, build=build_strategy,
+        cost_model=CostModel.for_market(market),
+        confirm_window=confirm_window,
+        promoted_spec=decision["champion"] if decision["promoted"] else None)
+    leader = entry["parliament"][0]
+    entry["strategy"], entry["params"] = leader["strategy"], leader["params"]
+
     entry["last_run_asof"] = asof              # 멱등 가드 기준(재시도 크론용)
     champions[key] = entry
     save_champions(champions, state_dir)
 
+    # verify 대조용 champion 필드는 '오디션 결정의 결과'를 기록한다 — 의회
+    # 리더는 비중 이동으로 결정과 무관하게 바뀔 수 있어 여기 쓰면 안 된다.
+    decided = decision["champion"] if decision["promoted"] else current_spec
     append_history({
         "asof": asof, "market": market, "symbol": symbol, "bars": len(df),
         "promoted": decision["promoted"], "reason": decision["reason"],
-        "champion": champions[key]["params"],
-        "champion_strategy": champions[key]["strategy"],
+        "champion": decided["params"],
+        "champion_strategy": decided["strategy"],
         "champion_before": current_spec,       # verify가 대결을 재구성할 출발점
         "n_candidates": len(decision.get("candidates", [])),
         "trials_total": trials_total,
@@ -557,6 +588,9 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 피처셋 태그 — 피처는 '가설 그룹' 단위로 추가되며, 성과 변화가
         # 어느 배치 이후인지 이 태그로 추적한다(피처 중요도로 판단 금지).
         "feature_set": _feature_set(),
+        # 의회 구성 — "챔피언 교체" 대신 "구성 변화"의 서사이자 감사 흔적
+        "parliament": [{"strategy": m["strategy"], "weight": m["weight"]}
+                       for m in entry.get("parliament", [])],
     }, state_dir)
 
     label = "🔁 교체" if decision["promoted"] else "🏆 유지"

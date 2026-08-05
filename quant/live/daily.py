@@ -167,6 +167,16 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     from quant.live.explain import explain_signal
     reason = explain_signal(champion_spec(market, symbol, state_dir), df,
                             weight, getattr(strategy, "_impl", None))
+    # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
+    try:
+        from quant.live.parliament import parliament_summary
+        from quant.live.retrain import _key, load_champions
+        entry = load_champions(state_dir).get(_key(market, symbol))
+        ps = parliament_summary(entry) if entry else None
+        if ps:
+            reason += f" · 🏛 의회 운용: {ps}"
+    except Exception:  # noqa: BLE001 — 표기 실패가 기록을 막으면 안 된다
+        pass
 
     broker = PaperBroker(cash=float(st["cash"]), fee=_fill_cost(market))
     if abs(float(st.get("quantity", 0.0))) > 0:
