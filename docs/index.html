@@ -446,7 +446,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
   function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
   function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
   var keys=Object.keys(st.paper); if(!keys.length) return;
-  var pfk=keys.filter(function(k){return k.indexOf("portfolio")===0})[0];
+  var pfk=keys.filter(function(k){return k.indexOf("portfolio:")===0})[0];
   var up="#f04452", down="#3182f6";      /* 증권사 관례: 상승 빨강 · 하락 파랑 */
   var el=document.getElementById("paper-live");
   if(pfk){

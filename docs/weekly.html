@@ -83,7 +83,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   }
   const ws=[...weeks].sort();                  // 과거 → 최근
   if(ws.length<1){el.innerHTML='<p class="err">아직 주간 집계가 없습니다.</p>';return}
-  const pfk=keys.filter(k=>k.startsWith("portfolio"))[0];
+  const pfk=keys.filter(k=>k.startsWith("portfolio:"))[0];
   const rest=keys.filter(k=>!k.startsWith("portfolio"));
   // 통합 계좌 카드 — 주간 수익률 + 그 주의 입금
   let pfHtml="";

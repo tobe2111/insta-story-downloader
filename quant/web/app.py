@@ -1097,6 +1097,7 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
     from pathlib import Path
 
     accounts = []
+    shadow = None                   # 섀도 대조군(진화 없음) — 비교 표시용
     paper_dir = Path(state_dir) / "paper"
     files = sorted(paper_dir.glob("*.json")) if paper_dir.is_dir() else []
     for fp in files:
@@ -1107,6 +1108,9 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         hist = st.get("history", [])
         if not hist:
             continue
+        if st.get("market") == "portfolio_shadow":
+            shadow = {"equity": hist[-1]["equity"], "date": hist[-1].get("date")}
+            continue                # 카드에는 안 띄우고 비교 수치로만 쓴다
         peak, mdd = 0.0, 0.0
         for r in hist:
             eq = float(r.get("equity", 0.0))
@@ -1151,6 +1155,7 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                       "twr_pct": time_weighted_return(hist, deposits,
                                                       start_cash=sc),
                       "deposits": deposits[-30:],
+                      "random_pctile": hist[-1].get("random_pctile"),
                       "spark_base": base_series})
 
     # 종목별 관련 뉴스(표시 전용) — 브리핑에서 해당 종목 항목을 찾아 붙인다
@@ -1224,6 +1229,8 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         "swaps": swaps,
         "live_prices": live,
         "live_available": bool(live),
+        # 섀도 대조군(진화 없음) — "오디션이 실제로 가치를 더하나"의 증거
+        "shadow": shadow,
         # 조종석에서 방금 접수된 입금 — 장부 반영 전 '반영 중' 배너용(숫자에는
         # 반영하지 않는다 — 정본은 git 장부).
         "pending": _pending_deposits(),
@@ -1818,7 +1825,9 @@ async function tick(first){{
         const pnl=hero.live_equity!=null?(hero.live_equity-hero.principal):hero.pnl;
         breakdown=`<div class="meta">원금(매칭 포함) <b>${{won(hero.principal)}}</b> ·
           운용 손익 <b class="${{sgnCls(pnl)}}">${{(pnl>=0?"+":"")+won(Math.abs(pnl)).replace("원","")}}원</b>
-          · 실력 지표(TWR) <b class="${{sgnCls(hero.twr_pct)}}">${{pct(hero.twr_pct)}}</b></div>`;
+          · 실력 지표(TWR) <b class="${{sgnCls(hero.twr_pct)}}">${{pct(hero.twr_pct)}}</b>${{
+          hero.random_pctile!=null?` · 무작위 1,000개 중 상위 <b>${{(100-hero.random_pctile).toFixed(0)}}%</b>`:""}}${{
+          d.shadow?` · 진화 없이 고정이었다면 <b>${{won(d.shadow.equity)}}</b>`:""}}</div>`;
         const ratio=Math.min(1,eq/hero.goal);
         goal=`<div class="goal"><div class="bar"><div class="fill" style="width:${{Math.max(0.3,ratio*100)}}%"></div></div>
           <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;

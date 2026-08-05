@@ -74,7 +74,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const keys=Object.keys(st.paper||{});
   if(!keys.length){el.innerHTML='<p class="err">아직 기록이 없습니다.</p>';return}
   if(st.updated)document.getElementById("date").textContent=st.updated+" 새벽 확정";
-  const pfk=keys.filter(k=>k.startsWith("portfolio"))[0];
+  const pfk=keys.filter(k=>k.startsWith("portfolio:"))[0];
   const rest=keys.filter(k=>!k.startsWith("portfolio"));
   let out="";
   // 통합 계좌 히어로

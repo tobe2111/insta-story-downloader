@@ -164,10 +164,23 @@ def _cmd_paper_daily(args) -> None:
         try:                                     # 통합 분산 계좌(실전과 가장 유사)
             prec = run_daily_portfolio(**common)
             if prec and not prec.get("skipped"):
+                pct_txt = (f" · 무작위 1,000개 중 상위 "
+                           f"{100 - prec['random_pctile']:.0f}%"
+                           if prec.get("random_pctile") is not None else "")
                 lines.append(f"  📦 통합 분산 계좌: 자산 {prec['equity']:,.0f} "
-                             f"({prec['return_pct']:+.2f}%)")
+                             f"({prec['return_pct']:+.2f}%){pct_txt}")
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ 통합 포트폴리오 실패 — {exc}")
+        try:
+            # 섀도 대조군 — 진화(오디션) 없이 최초 기본 챔피언으로 고정한 계좌.
+            # 오디션 시스템이 실제로 가치를 더하는지 증명하는 유일한 방법이다.
+            srec = run_daily_portfolio(**common, use_champions=False,
+                                       state_file="portfolio_SHADOW.json")
+            if srec and not srec.get("skipped"):
+                lines.append(f"  🕯 섀도(진화 없음): 자산 {srec['equity']:,.0f} "
+                             f"({srec['return_pct']:+.2f}%)")
+        except Exception as exc:  # noqa: BLE001
+            print(f"⚠️ 섀도 대조군 실패 — {exc}")
         if lines:
             _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
                           + (f"\n⚠️ 실패: {', '.join(out['failed'])}"
@@ -297,6 +310,25 @@ def _cmd_live(args) -> None:
             daily_max_loss=args.daily_max_loss, market=market_guard)
     print(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
     trader.run(interval_sec=args.interval, max_iters=args.iters)
+
+
+def _cmd_verify(args) -> None:
+    from quant.live.retrain import verify_retrain
+
+    scope = (f"{args.market}/{args.symbol}"
+             if args.symbol else "전체 종목")
+    print(f"🔍 재현성 검증: {args.date} · {scope}")
+    out = verify_retrain(args.date, market=args.market or None,
+                         symbol=args.symbol or None,
+                         state_dir=args.state_dir)
+    for r in out:
+        print(f"  {'✔' if r['ok'] else '✘'} {r['key']}: {r['detail']}")
+    if all(r["ok"] for r in out):
+        print("✅ 모든 결정이 재현되었습니다 — 같은 데이터·같은 코드에서 "
+              "같은 결과가 나옵니다.")
+    else:
+        print("⚠️ 일부 검증 실패 — 위 상세를 확인하세요.")
+        raise SystemExit(1)
 
 
 def _cmd_briefing(args) -> None:
@@ -765,6 +797,15 @@ def build_parser() -> argparse.ArgumentParser:
                     help="상태 저장 경로(웹 조종석 감시 탭이 읽음)")
     lv.add_argument("--dashboard", default="results/dashboard.html")
     lv.set_defaults(func=_cmd_live)
+
+    vf = sub.add_parser(
+        "verify",
+        help="재현성 검증 — 스냅샷·시드로 그날의 재학습 결정을 재실행해 대조")
+    vf.add_argument("--date", required=True, help="예: 2026-08-06")
+    vf.add_argument("--market", default="", help="비우면 전체")
+    vf.add_argument("--symbol", default="", help="비우면 전체")
+    vf.add_argument("--state-dir", default="state", dest="state_dir")
+    vf.set_defaults(func=_cmd_verify)
 
     bf = sub.add_parser(
         "briefing",
