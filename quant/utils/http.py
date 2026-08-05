@@ -91,6 +91,12 @@ def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
     return json.loads(raw) if raw else {}
 
 
+def get_text(url: str, headers: dict[str, str] | None = None,
+             timeout: int = 30) -> str:
+    """GET 응답 본문을 원문(str)으로 반환한다 — RSS/XML 등 비-JSON용."""
+    return _request("GET", url, headers, timeout=timeout)
+
+
 def post_json(
     url: str, headers: dict[str, str] | None = None, body: Any = None
 ) -> dict[str, Any]:

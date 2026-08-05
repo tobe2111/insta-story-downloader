@@ -197,6 +197,13 @@ def _cmd_deposit(args) -> None:
           "늘리는 '매칭' 이벤트입니다(대가·지분 없음).")
 
 
+def _cmd_briefing(args) -> None:
+    from quant.live.briefing import collect_briefing
+
+    collect_briefing(args.state_dir)
+    print("⚠️ 브리핑은 표시 전용입니다 — 매매 판단에 사용되지 않습니다.")
+
+
 def _cmd_weekly(args) -> None:
     from quant.live.daily import format_weekly, weekly_summary
 
@@ -626,6 +633,12 @@ def build_parser() -> argparse.ArgumentParser:
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
     dp.set_defaults(func=_cmd_deposit)
+
+    bf = sub.add_parser(
+        "briefing",
+        help="시장 브리핑 수집(무료 RSS) — 방송·사이트 표시 전용, 판단 미사용")
+    bf.add_argument("--state-dir", default="state", dest="state_dir")
+    bf.set_defaults(func=_cmd_briefing)
 
     wk = sub.add_parser(
         "weekly",

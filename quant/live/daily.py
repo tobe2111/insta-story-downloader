@@ -471,6 +471,12 @@ def write_docs_status(state_dir: str = STATE_DIR,
             if hist:
                 status["updated"] = max(status["updated"] or "", hist[-1]["date"])
 
+    # 오늘의 시장 브리핑(표시 전용) — 있으면 사이트에도 싣는다
+    from quant.live.briefing import load_briefing
+    briefing = load_briefing(state_dir)
+    if briefing and briefing.get("items"):
+        status["briefing"] = briefing
+
     atomic_write_json(docs_path, status)
     print(f"🌐 사이트 상태 갱신: {docs_path} (마지막 기록 {status['updated']})")
     return status

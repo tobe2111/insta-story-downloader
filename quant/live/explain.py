@@ -59,6 +59,20 @@ def _explain(spec: dict, df, weight: float, strategy) -> str:
                          getattr(strategy, "base", None))
         return f"{inner} · 레짐 필터: {tw}일선 위(매매 허용)"
 
+    if name == "event_wrap":
+        from datetime import date as _date
+
+        from quant.events import is_event_day
+        pad = int(p.get("pad_days", 1))
+        last = df.index[-1]
+        d = last.date() if hasattr(last, "date") else _date.today()
+        if is_event_day(d, pad):
+            return (f"{head} — 이벤트 가드: FOMC 등 예고된 거시 이벤트 창"
+                    f"(±{pad}일) → 변동성 위험을 피해 비중 축소/관망")
+        inner = _explain(p.get("inner", {}), df, weight,
+                         getattr(strategy, "base", None))
+        return f"{inner} · 이벤트 가드: 오늘은 주요 이벤트 없음(매매 허용)"
+
     if name == "ml":
         thr = float(p.get("threshold", 0.55))
         model = p.get("model", "logreg")

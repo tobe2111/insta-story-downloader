@@ -40,6 +40,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy pyyaml scikit-learn yfinance ccxt
 
+      - name: 시장 브리핑 수집 (표시 전용 — 판단 미사용)
+        run: |
+          # 실패해도 페이퍼 운용은 계속한다 — 브리핑은 참고 정보일 뿐이다
+          python -m quant briefing || echo "브리핑 수집 실패 — 건너뜀"
+
       - name: Daily paper all targets (AUTO_TARGETS)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
