@@ -197,6 +197,88 @@ def _cmd_deposit(args) -> None:
           "늘리는 '매칭' 이벤트입니다(대가·지분 없음).")
 
 
+def _cmd_live(args) -> None:
+    """실시간 루프 — 야간 진화 챔피언을 실제 계좌에 반영한다 (기본은 페이퍼).
+
+    안전 원칙:
+      · 기본 모드는 페이퍼(가짜 돈). --real + 타이핑 확인을 모두 거쳐야 실전.
+      · 실전은 안전장치가 기본으로 켜진다: 일일 손실 킬스위치, 최대낙폭
+        서킷브레이커, 최대 비중 상한, 주식 장시간 가드, 견고 주문(재시도).
+      · 챔피언 자동 추종: 야간 재학습이 챔피언을 교체하면 재시작 없이
+        다음 사이클부터 새 전략이 적용된다 — '그 능력'이 실전에 이어진다.
+    """
+    from quant.utils.envfile import load_env_file
+    load_env_file()                      # setup 마법사가 저장한 API 키 로드
+
+    from quant.broker import RobustBroker, get_broker
+    from quant.data import get_provider
+    from quant.live import LiveTrader
+    from quant.live.circuit_breaker import BreakerConfig, CircuitBreaker
+    from quant.live.notifications import get_notifier
+    from quant.markets import LIVE_BROKER_FOR_MARKET, SCHEDULED_MARKETS
+    from quant.risk import RiskConfig, RiskManager
+
+    data = get_provider(args.market)
+    if args.strategy == "champion":
+        from quant.live.retrain import champion_spec, champion_strategy
+        strategy = champion_strategy(args.market, args.symbol)
+        spec = champion_spec(args.market, args.symbol)
+        print(f"🏆 챔피언 자동 추종: {spec['strategy']} {spec['params']}")
+        print("   야간 재학습이 챔피언을 교체하면 재시작 없이 자동 반영됩니다.")
+    else:
+        from quant.strategies import get_strategy
+        strategy = get_strategy(args.strategy)
+
+    notifier = get_notifier()
+    risk = RiskManager(RiskConfig(periods_per_year=_ppy(args.market),
+                                  stop_loss=0.15,
+                                  max_position=args.max_weight))
+
+    if args.real:
+        if args.market not in LIVE_BROKER_FOR_MARKET:
+            raise SystemExit(f"'{args.market}' 시장은 실거래를 지원하지 않습니다. "
+                             f"지원: {sorted(LIVE_BROKER_FOR_MARKET)}")
+        print("\n⚠️ 실전 모드 — 실제 자금으로 주문합니다.")
+        print(f"   안전장치: 일일 손실 킬스위치 -{args.daily_max_loss:.0%} · "
+              f"최대낙폭 서킷 -{args.max_drawdown:.0%} · "
+              f"최대 비중 {args.max_weight:.0%} · 주문 재시도/체결 확인")
+        print("   ⚠️ 갭·급변 구간에서는 한도를 넘는 손실이 날 수 있습니다(보장 아님).")
+        print("   잃어도 되는 소액으로만 시작하세요. 수익 보장은 없습니다.")
+        try:
+            confirm = input("계속하려면 '실전' 두 글자를 입력: ").strip()
+        except EOFError:                 # 파이프/스크립트 실행 — 실전 진입 금지
+            confirm = ""
+        if confirm != "실전":
+            print("취소되었습니다.")
+            return
+        inner = get_broker(LIVE_BROKER_FOR_MARKET[args.market])
+        is_stock = args.market in SCHEDULED_MARKETS
+        broker = RobustBroker(
+            inner, retries=3, backoff=2.0,
+            confirm_fills=is_stock,
+            fill_timeout=90.0 if is_stock else 0.0,
+            fill_poll_interval=3.0)
+        mode = "live"
+    else:
+        broker = get_broker("paper", cash=args.capital)
+        mode = "paper"
+        print("📝 페이퍼 모드 (실제 자금 사용 안 함) — 실전은 --real")
+
+    # 일일 손실은 킬스위치가, 최대낙폭은 서킷브레이커가 담당(역할 중복 없음)
+    breaker = CircuitBreaker(BreakerConfig(max_daily_loss=None,
+                                           max_drawdown=args.max_drawdown),
+                             notifier=notifier)
+    market_guard = (args.market
+                    if (args.real and args.market in SCHEDULED_MARKETS) else None)
+    trader = LiveTrader(
+        data, strategy, broker, risk, args.symbol, args.timeframe,
+        state_path=args.state, dashboard_path=args.dashboard,
+        notifier=notifier, circuit_breaker=breaker, mode=mode,
+        daily_max_loss=args.daily_max_loss, market=market_guard)
+    print(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
+    trader.run(interval_sec=args.interval, max_iters=args.iters)
+
+
 def _cmd_briefing(args) -> None:
     from quant.live.briefing import collect_briefing
 
@@ -633,6 +715,34 @@ def build_parser() -> argparse.ArgumentParser:
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
     dp.set_defaults(func=_cmd_deposit)
+
+    lv = sub.add_parser(
+        "live",
+        help="실시간 루프 — 챔피언(야간 진화) 자동 추종 · 기본 페이퍼, --real 시 실전")
+    lv.add_argument("--market", default="crypto")
+    lv.add_argument("--symbol", default="BTC/USDT")
+    lv.add_argument("--timeframe", default="1d",
+                    help="1d=챔피언 검증과 같은 일봉 기준(권장)")
+    lv.add_argument("--strategy", default="champion",
+                    help="champion=야간 재학습 챔피언 자동 추종(기본), 또는 전략 이름")
+    lv.add_argument("--real", action="store_true",
+                    help="⚠️ 실거래 — 실제 자금. 타이핑 확인을 거칩니다")
+    lv.add_argument("--capital", type=float, default=10_000.0,
+                    help="페이퍼 모드 시작 자금(실전에서는 무시 — 계좌 잔고 사용)")
+    lv.add_argument("--max-weight", type=float, default=0.5, dest="max_weight",
+                    help="자산 대비 최대 포지션 비중 (기본 0.5 = 절반)")
+    lv.add_argument("--daily-max-loss", type=float, default=0.03,
+                    dest="daily_max_loss",
+                    help="일일 손실 킬스위치 한도 (기본 0.03 = -3%%)")
+    lv.add_argument("--max-drawdown", type=float, default=0.15,
+                    dest="max_drawdown",
+                    help="최대낙폭 서킷브레이커 한도 (기본 0.15 = -15%%)")
+    lv.add_argument("--interval", type=int, default=3600, help="사이클 간격(초)")
+    lv.add_argument("--iters", type=int, default=None, help="반복 횟수(기본 무한)")
+    lv.add_argument("--state", default="results/state.json",
+                    help="상태 저장 경로(웹 조종석 감시 탭이 읽음)")
+    lv.add_argument("--dashboard", default="results/dashboard.html")
+    lv.set_defaults(func=_cmd_live)
 
     bf = sub.add_parser(
         "briefing",
