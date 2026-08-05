@@ -341,14 +341,17 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const champ=(st.champions&&st.champions[k])?st.champions[k].strategy:"기본";
     const code=k.split(":")[1]||k;
     const nm=((st.symbols||{})[k]||{}).name;
+    // ±0.005% 미만은 사실상 0 — 색·부호 없이 중립 표기(오해 방지)
+    const sgn=v=>v>0.004?"pos":v<-0.004?"neg":"";
+    const zpct=v=>Math.abs(v)<0.005?"0.00%":pct(v);
     return `<tr><td><b>${esc(nm||code)}</b><div style="font-size:11px;color:var(--muted)">${esc(nm?code:k.split(":")[0])}</div></td>
       <td>${last.equity!=null?won(last.equity):(p.equity!=null?won(p.equity):"–")}</td>
-      <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
-      <td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>
-      <td class="neg">${typeof p.mdd_pct==="number"?p.mdd_pct+"%":"–"}</td>
+      <td class="${day==null?"":sgn(day)}">${day==null?"–":zpct(day)}</td>
+      <td class="${sgn(ret)}">${zpct(ret)}</td>
+      <td class="${p.mdd_pct?"neg":""}">${typeof p.mdd_pct==="number"?p.mdd_pct+"%":"–"}</td>
       <td>${last.weight!=null?(last.weight*100).toFixed(0)+"%":"–"}</td>
       <td>${hr}</td><td>${mini(hist)}</td>
-      <td style="text-align:left;font-size:12px;color:var(--muted);max-width:280px">${esc(String(last.reason||champ).slice(0,70))}</td></tr>`};
+      <td style="text-align:left;font-size:12px;color:var(--muted);min-width:280px">${esc(String(last.reason||champ))}</td></tr>`};
   const tbl=rest.length?`<div class="card"><h2>종목별 현황 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
     <div class="tablewrap"><table>
     <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>

@@ -55,3 +55,20 @@ def test_explain_never_raises():
     """어떤 입력에도 예외 없이 폴백 문장을 낸다 — 해설이 매매를 막으면 안 된다."""
     text = explain_signal({"strategy": "없는전략"}, None, 0.3)
     assert "챔피언 전략 신호에 따름" in text
+
+
+def test_ml_small_weight_not_contradictory():
+    """확률이 기준을 넘었는데 위험 조절로 비중이 작으면 '관망'이라 말하지 않는다."""
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.explain import explain_signal
+
+    idx = pd.date_range("2026-01-01", periods=120, freq="D")
+    close = pd.Series(np.linspace(100, 120, len(idx)), index=idx)
+    df = pd.DataFrame({"open": close, "high": close, "low": close,
+                       "close": close, "volume": 1.0})
+    spec = {"strategy": "ml", "params": {"model": "logreg", "threshold": 0.55}}
+    out = explain_signal(spec, df, 0.02)          # 신호 있음 + 비중 2%
+    assert "관망" not in out
+    assert "소액 매수" in out and "비중을 낮게" in out

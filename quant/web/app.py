@@ -1663,7 +1663,9 @@ svg text{{font-family:inherit}}
 <script>
 function esc(s){{const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}}
 function won(v){{return Math.round(v).toLocaleString("ko-KR")+"원"}}
-function pct(v){{return (v>=0?"+":"")+Number(v).toFixed(2)+"%"}}
+function pct(v){{return Math.abs(v)<0.005?"0.00%":(v>=0?"+":"")+Number(v).toFixed(2)+"%"}}
+// ±0.005% 미만은 사실상 0 — 빨강/파랑을 칠하지 않는다(중립)
+function sgnCls(v){{return v>0.004?"pos":v<-0.004?"neg":""}}
 function niceTicks(mn,mx,n){{
   const span=(mx-mn)||1,step0=span/n,mag=Math.pow(10,Math.floor(Math.log10(step0)));
   const step=[1,2,2.5,5,10].map(m=>m*mag).find(sv=>span/sv<=n)||mag*10;
@@ -1768,14 +1770,14 @@ function proChart(o){{
 function card(a){{
   const eq=a.live_equity??a.equity, rp=a.live_return_pct??a.return_pct;
   const liveTag=a.live_equity!=null?"실시간 평가":"확정 "+esc(a.date||"");
-  const cls=rp>=0?"pos":"neg";
+  const cls=sgnCls(rp);
   const news=a.news?`<div class="reason" style="opacity:.75">관련 뉴스 · ${{esc(a.news.title)}}${{a.news.source?" — "+esc(a.news.source):""}}</div>`:"";
   const label=a.name?`${{esc(a.name)}} <span style="opacity:.6">${{esc(a.key.split(":")[1]||a.key)}}</span>`:esc(a.key);
   return `<div class="card"><div class="k">${{label}} · ${{liveTag}}</div>
     <div><span class="eq2 ${{cls}}">${{won(eq)}}</span>
     <span class="pct2 ${{cls}}">${{pct(rp)}}</span></div>
     <div class="reason">${{a.reason?esc(a.reason):"최대낙폭 "+a.mdd_pct+"%"}}</div>${{news}}
-    <div style="flex:1;min-height:0;margin-top:2px">${{proChart({{vals:a.spark,dates:a.spark_dates,w:320,h:58,axes:false}})}}</div></div>`}}
+    <div style="height:64px;margin-top:auto">${{proChart({{vals:a.spark,dates:a.spark_dates,w:320,h:58,axes:false}})}}</div></div>`}}
 async function tick(first){{
   try{{
     const q=(location.search?location.search+"&":"?")+(first?"nolive=1":"x=1");
@@ -1800,7 +1802,7 @@ async function tick(first){{
       const eq=hero.live_equity??hero.equity;
       const rp=hero.principal!=null?((eq/hero.principal-1)*100)
               :(hero.live_return_pct??hero.return_pct);
-      const cls=rp>=0?"pos":"neg";
+      const cls=sgnCls(rp);
       const mk=(d.swaps||[]).filter(s=>s.key===hero.key).map(s=>s.date);
       const dmk=(hero.deposits||[]).map(x=>x.date);
       // 입금 배너 — 새 입금이 감지되면 사건으로 알린다
@@ -1815,8 +1817,8 @@ async function tick(first){{
       if(hero.principal!=null){{
         const pnl=hero.live_equity!=null?(hero.live_equity-hero.principal):hero.pnl;
         breakdown=`<div class="meta">원금(매칭 포함) <b>${{won(hero.principal)}}</b> ·
-          운용 손익 <b class="${{pnl>=0?"pos":"neg"}}">${{(pnl>=0?"+":"")+won(Math.abs(pnl)).replace("원","")}}원</b>
-          · 실력 지표(TWR) <b class="${{hero.twr_pct>=0?"pos":"neg"}}">${{pct(hero.twr_pct)}}</b></div>`;
+          운용 손익 <b class="${{sgnCls(pnl)}}">${{(pnl>=0?"+":"")+won(Math.abs(pnl)).replace("원","")}}원</b>
+          · 실력 지표(TWR) <b class="${{sgnCls(hero.twr_pct)}}">${{pct(hero.twr_pct)}}</b></div>`;
         const ratio=Math.min(1,eq/hero.goal);
         goal=`<div class="goal"><div class="bar"><div class="fill" style="width:${{Math.max(0.3,ratio*100)}}%"></div></div>
           <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
@@ -1851,8 +1853,9 @@ async function tick(first){{
       const base=a.spark_price&&a.spark_price.length?a.spark_price[a.spark_price.length-1]:null;
       let chg=null; if(lp&&base)chg=(lp/base-1)*100;
       const px=lp??base;
-      const c=(chg??a.return_pct)>=0?"var(--ok)":"var(--bad)";
-      const arrow=(chg??a.return_pct)>=0?"▲":"▼";
+      const v=(chg??a.return_pct)||0;
+      const c=v>0.004?"var(--ok)":v<-0.004?"var(--bad)":"var(--muted)";
+      const arrow=v>0.004?"▲":v<-0.004?"▼":"·";
       return `<b>${{esc(a.name||a.key.split(":")[1]||a.key)}}</b>`+
         (px?`${{Number(px).toLocaleString()}} `:"")+
         `<span style="color:${{c}}">${{arrow}} ${{pct(chg??a.return_pct)}}</span>`}}).join("");
