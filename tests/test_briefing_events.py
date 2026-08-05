@@ -195,3 +195,47 @@ def test_retrain_injects_event_wrap_challenger(tmp_path, monkeypatch):
     assert "event_wrap" in kinds
     assert "regime_wrap" in kinds
     monkeypatch.setattr(rt, "nightly_retrain", real)
+
+
+# ── 실전 반영 CLI (quant live) ────────────────────────────────────
+
+def test_live_cli_paper_mode_runs_one_cycle(tmp_path, capsys):
+    """기본(페이퍼) 모드 1사이클 — 실제 자금 없이 챔피언/전략 루프가 돈다."""
+    from quant.cli import main
+
+    state = tmp_path / "state.json"
+    main(["live", "--market", "synthetic", "--symbol", "TEST",
+          "--strategy", "ma_cross", "--iters", "1", "--interval", "1",
+          "--state", str(state), "--dashboard", str(tmp_path / "d.html")])
+    out = capsys.readouterr().out
+    assert "페이퍼 모드" in out
+    assert state.exists()
+    st = json.loads(state.read_text(encoding="utf-8"))
+    assert st["mode"] == "paper" and st["history"]
+
+
+def test_live_cli_real_requires_typed_confirmation(monkeypatch, capsys):
+    """--real은 '실전' 타이핑 없이는 절대 시작되지 않는다 (EOF 포함)."""
+    from quant.cli import main
+
+    monkeypatch.setattr("builtins.input", lambda *a: "yes")   # 오답
+    main(["live", "--market", "crypto", "--symbol", "BTC/USDT", "--real",
+          "--iters", "1"])
+    assert "취소" in capsys.readouterr().out
+
+    def eof(*a):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof)                # 비대화형
+    main(["live", "--market", "crypto", "--symbol", "BTC/USDT", "--real",
+          "--iters", "1"])
+    assert "취소" in capsys.readouterr().out
+
+
+def test_live_cli_real_unsupported_market_exits():
+    import pytest
+
+    from quant.cli import main
+
+    with pytest.raises(SystemExit, match="실거래를 지원하지"):
+        main(["live", "--market", "synthetic", "--symbol", "T", "--real"])
