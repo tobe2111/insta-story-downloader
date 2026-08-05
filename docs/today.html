@@ -87,7 +87,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const ret=base?((eq/base-1)*100):0;
     const cls=ret>=0?"pos":"neg";
     const ratio=p.goal?Math.min(1,eq/p.goal):0;
-    out+=`<div class="hero"><div class="k">통합 계좌 (8종목 분산 · 시작 ${won(p.start_cash||80000)})</div>
+    out+=`<div class="hero"><div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>
       <div><span class="eq ${cls}">${won(eq)}</span>
         <span class="pct ${cls}" style="margin-left:10px">${pct(ret)}</span>
         ${day!=null?`<span class="pct ${day>=0?"pos":"neg"}" style="margin-left:10px;font-size:15px">오늘 ${pct(day)}</span>`:""}</div>

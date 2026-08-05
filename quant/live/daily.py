@@ -17,6 +17,8 @@ import json
 import os
 import re
 
+import numpy as np
+
 from quant.live.retrain import STATE_DIR, champion_spec, champion_strategy
 from quant.utils.logging import get_logger
 
@@ -351,6 +353,64 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     return round(beaten / n * 100, 1)
 
 
+def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
+    """공분산 기반 위험기여도 균등(ERC) 슬라이스 — 자본 균등(1/n)의 상위 호환.
+
+    비트코인 만원과 은행주 만원은 위험 기여가 5~10배 다르다 — 종목별 변동성만
+    보는 것도 부족하다(위험자산은 같이 움직인다). 최근 90일 수익률의 공분산에서
+    각 종목의 위험 기여가 같아지는 비중을 반복법으로 구해, 가용 종목들의 총
+    예산(k/n_total)을 그 비율로 나눈다. 슬라이스 상한 3/n_total(집중 방지).
+    표본이 부족하거나 계산이 퇴화하면 None — 호출자는 균등 배분으로 폴백한다.
+    """
+    import pandas as pd
+    try:
+        cols = {}
+        for key, s in rets_map.items():
+            s = s.dropna()
+            if len(s) >= 40:
+                s.index = pd.DatetimeIndex(s.index).normalize()
+                cols[key] = s[~s.index.duplicated()]
+        if len(cols) < 2:
+            return None
+        R = pd.DataFrame(cols).dropna()
+        if len(R) < 40:
+            return None
+        cov = R.cov().values
+        k = len(R.columns)
+        w = np.ones(k) / k
+        for _ in range(300):
+            rc = w * (cov @ w)                 # 위험 기여
+            if not np.isfinite(rc).all() or rc.sum() <= 0:
+                return None
+            w = w * np.sqrt(rc.mean() / np.maximum(rc, 1e-16))
+            w = np.clip(w, 1e-6, None)
+            w = w / w.sum()
+        budget = len(R.columns) / n_total      # 가용 종목 수만큼의 자본 예산
+        raw = {c: float(budget * wi) for c, wi in zip(R.columns, w)}
+        cap = 3.0 / n_total                    # 한 종목 과집중 방지
+        capped = {c: min(v, cap) for c, v in raw.items()}
+        return capped
+    except Exception:  # noqa: BLE001 — 배분 실패가 매매를 막으면 안 된다(균등 폴백)
+        return None
+
+
+def _kill_switch_scale(prev: float, dd: float) -> float:
+    """자동 킬스위치 — 낙폭 단계별 노출 축소와 '단계적' 복귀(히스테리시스).
+
+    낙폭 -25% 이하: 전량 관망(0) · -15% 이하: 노출 절반(0.5).
+    복귀는 한 번에 안 한다: 0 → (낙폭 -15% 안쪽 회복) 0.5 → (-10% 안쪽) 1.0.
+    성과가 무너질 때 스스로 물러나는 규칙이 있다는 것 자체가
+    '실전에 쓸 수 있는 시스템'의 증명이다.
+    """
+    if dd <= -0.25:
+        return 0.0
+    if dd <= -0.15:
+        return 0.5 if prev > 0.0 else 0.0
+    if dd <= -0.10:
+        return max(0.5, prev) if prev >= 0.5 else 0.5
+    return 1.0
+
+
 def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         lookback: int = 400, state_dir: str = STATE_DIR,
                         require_real_data: bool = True,
@@ -388,6 +448,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
     last_dates = []
+    rets_map: dict = {}             # key → 최근 90일 수익률 — ERC 배분 재료
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -409,6 +470,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df)
             weights[key] = float(
                 _risk_for(market).size_positions(df, signals).iloc[-1])
+            rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
@@ -443,7 +505,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             continue
         broker.fee = _fill_cost(key.split(":")[0])
         eq_now = broker.equity({**prices, key: fopen})
-        broker.target_weight(key, float(pend["weight"]) / n, fopen, eq_now,
+        sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
+        broker.target_weight(key, float(pend["weight"]) * sl, fopen, eq_now,
                              rebalance_band=REBALANCE_BAND / n)
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]), 4)})
@@ -451,15 +514,32 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
     # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열로
     equity = broker.equity(prices)
+
+    # 자동 킬스위치 — 계좌 낙폭 단계별 노출 축소·단계 복귀(히스테리시스).
+    # 낙폭은 자산 고점 대비라 매칭 입금이 있으면 약간 보수적으로(빨리 회복한
+    # 것처럼) 왜곡되지만, 입금은 드물고 방향은 안전한 쪽이다.
+    peak_eq = max([float(r.get("equity", 0.0)) for r in st["history"]]
+                  + [equity, 1e-9])
+    drawdown = equity / peak_eq - 1
+    risk_scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), drawdown)
+    st["risk_scale"] = risk_scale
+    if risk_scale < 1.0:
+        log.warning("킬스위치: 낙폭 %.1f%% → 노출 %.0f%%로 제한",
+                    drawdown * 100, risk_scale * 100)
+
+    # ERC(위험기여 균등) 슬라이스 — 실패 시 자본 균등(1/n) 폴백
+    slices = _erc_slices(rets_map, n) or {k: 1.0 / n for k in weights}
     for key, w in weights.items():
         market = key.split(":")[0]
+        sl = slices.get(key, 1.0 / n)
+        eff = w * risk_scale                   # 킬스위치 반영된 전략 비중
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
-            # 밴드도 슬라이스 크기에 비례(자본의 5%p/n) — 종목 간 공평
-            broker.target_weight(key, w / n, prices[key], equity,
+            # 밴드도 슬라이스 크기에 비례 — 종목 간 공평
+            broker.target_weight(key, eff * sl, prices[key], equity,
                                  rebalance_band=REBALANCE_BAND / n)
         else:
-            pending[key] = {"weight": round(w, 4),
+            pending[key] = {"weight": round(eff, 4), "slice": round(sl, 5),
                             "decided_bar": last_bars[key]}
     st["pending"] = pending
     equity = broker.equity(prices)
@@ -467,7 +547,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
-    gross = sum(abs(w) for w in weights.values()) / n
+    gross = sum(abs(w) * risk_scale * slices.get(k, 1.0 / n)
+                for k, w in weights.items())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))
@@ -481,6 +562,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "code_sha": _code_sha(),
               "env": _env_fingerprint(),
               "accounting": ACCOUNTING_VERSION,
+              # 킬스위치·배분의 흔적 — 그날 왜 노출이 줄었는지 장부로 남는다
+              "risk_scale": risk_scale,
+              "drawdown_pct": round(drawdown * 100, 2),
+              "alloc": {k: round(v, 4) for k, v in slices.items()},
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
@@ -636,23 +721,38 @@ def write_docs_status(state_dir: str = STATE_DIR,
     from quant.utils.jsonio import atomic_write_json
 
     status: dict = {"champions": {}, "paper": {}, "updated": None, "swaps": [],
+                    "retrain_recent": [],
                     # 유튜브 라이브 주소 — 저장소 변수(QUANT_LIVE_URL)를 설정하면
                     # 사이트에 '라이브 보러가기' 버튼이 자동으로 나타난다
                     "live_url": os.getenv("QUANT_LIVE_URL") or None}
     hist_file = os.path.join(state_dir, "retrain_history.jsonl")
     if os.path.exists(hist_file):
         with open(hist_file, encoding="utf-8") as f:
-            for line in f.read().splitlines()[-400:]:
-                try:
-                    rec = json.loads(line)
-                except ValueError:
-                    continue
-                if rec.get("promoted"):
-                    # 사이트 차트의 '챔피언 교체' 마커용 — 진화의 서사를 새긴다
-                    status["swaps"].append({
-                        "date": rec.get("asof"),
-                        "key": f"{rec.get('market')}:{rec.get('symbol')}",
-                        "strategy": rec.get("champion_strategy")})
+            lines = f.read().splitlines()
+        for line in lines[-400:]:
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if rec.get("promoted"):
+                # 사이트 차트의 '챔피언 교체' 마커용 — 진화의 서사를 새긴다
+                status["swaps"].append({
+                    "date": rec.get("asof"),
+                    "key": f"{rec.get('market')}:{rec.get('symbol')}",
+                    "strategy": rec.get("champion_strategy")})
+        for line in lines[-120:]:
+            # 탈락자 아카이브 — 몇 명이 도전해 몇 명이 떨어졌는지 그대로 공개.
+            # 다중검정 정직성(운 좋은 승자를 얼마나 걸렀는가)의 시각화 재료.
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            status["retrain_recent"].append({
+                "asof": rec.get("asof"),
+                "key": f"{rec.get('market')}:{rec.get('symbol')}",
+                "promoted": bool(rec.get("promoted")),
+                "n_candidates": rec.get("n_candidates"),
+                "trials_total": rec.get("trials_total")})
     champ_file = os.path.join(state_dir, "champions.json")
     if os.path.exists(champ_file):
         with open(champ_file, encoding="utf-8") as f:

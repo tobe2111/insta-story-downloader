@@ -161,6 +161,12 @@ def _cmd_paper_daily(args) -> None:
         out = run_daily_paper_all(**common)
         lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
                  for k, r in out["records"].items() if not r.get("skipped")]
+        drifted = [k for k, r in out["records"].items()
+                   if isinstance(r.get("drift_psi"), (int, float))
+                   and r["drift_psi"] >= 0.25]
+        if drifted:
+            lines.append("  ⚠️ 드리프트 경보(PSI≥0.25): " + ", ".join(drifted)
+                         + " — 시장 분포가 학습 시점과 달라짐, 판단 신뢰도 주의")
         try:                                     # 통합 분산 계좌(실전과 가장 유사)
             prec = run_daily_portfolio(**common)
             if prec and not prec.get("skipped"):
@@ -169,6 +175,11 @@ def _cmd_paper_daily(args) -> None:
                            if prec.get("random_pctile") is not None else "")
                 lines.append(f"  📦 통합 분산 계좌: 자산 {prec['equity']:,.0f} "
                              f"({prec['return_pct']:+.2f}%){pct_txt}")
+                if float(prec.get("risk_scale", 1.0)) < 1.0:
+                    lines.append(
+                        f"  🛑 킬스위치 작동: 낙폭 {prec.get('drawdown_pct')}%"
+                        f" → 총 노출 {float(prec['risk_scale']):.0%}로 제한"
+                        " (회복 시 단계 복귀)")
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ 통합 포트폴리오 실패 — {exc}")
         try:
