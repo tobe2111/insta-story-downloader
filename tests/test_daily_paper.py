@@ -230,18 +230,20 @@ def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
 def test_add_deposit_ledger_and_principal(tmp_path):
     from quant.live.daily import GOAL_KRW, add_deposit
 
+    # 8마일 챌린지: 통합 계좌 시작금 8만원 + 입금 1만원 = 원금 9만원
     out = add_deposit(10000, "슈퍼챗 홍길동", state_dir=str(tmp_path),
                       date="2026-08-05")
-    assert out["principal"] == 20000 and out["goal"] == GOAL_KRW
+    assert out["principal"] == 90000 and out["goal"] == GOAL_KRW
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
                     .read_text(encoding="utf-8"))
-    assert st["cash"] == 20000                       # 현금 증액
+    assert st["cash"] == 90000                       # 현금 증액
+    assert st["start_cash"] == 80000                 # 8종목 × 만원
     assert st["deposits"][0]["memo"] == "슈퍼챗 홍길동"
 
     add_deposit(5000, state_dir=str(tmp_path), date="2026-08-06")
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
                     .read_text(encoding="utf-8"))
-    assert len(st["deposits"]) == 2 and st["cash"] == 25000
+    assert len(st["deposits"]) == 2 and st["cash"] == 95000
 
     with pytest.raises(ValueError):                  # 상한·양수 검증
         add_deposit(0, state_dir=str(tmp_path))
@@ -275,13 +277,31 @@ def test_docs_status_challenge_fields(tmp_path):
     # 수동으로 기록 1건 구성(운용 손익 +500 가정)
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text(encoding="utf-8"))
-    st["history"] = [{"date": "2026-08-05", "equity": 20500,
+    st["history"] = [{"date": "2026-08-05", "equity": 90500,
                       "return_pct": 2.5, "price": 100, "weight": 0.5}]
     p.write_text(json.dumps(st), encoding="utf-8")
 
     out = dl.write_docs_status(str(tmp_path),
                                docs_path=str(tmp_path / "s.json"))
     pf = out["paper"]["portfolio:ALL"]
-    assert pf["principal"] == 20000 and pf["pnl"] == 500
+    assert pf["principal"] == 90000 and pf["pnl"] == 500
     assert pf["goal"] == dl.GOAL_KRW
     assert pf["deposits"][0]["amount"] == 10000
+
+
+def test_8mile_portfolio_start_cash(tmp_path, monkeypatch):
+    """8마일 챌린지: 새 통합 계좌는 8만원으로 시작하고 TWR도 그 기준으로 계산."""
+    import quant.live.daily as dl
+
+    assert dl.PORTFOLIO_START_CASH == 80_000.0
+    # 새 계좌 생성 경로(add_deposit 폴백)가 8만원 기반인지
+    out = dl.add_deposit(1000, state_dir=str(tmp_path), date="2026-08-05")
+    assert out["principal"] == 81000
+    # 저장된 start_cash를 존중하는지(과거 만원 계좌 하위호환)
+    p = tmp_path / "paper" / "portfolio_ALL.json"
+    st = json.loads(p.read_text(encoding="utf-8"))
+    st["start_cash"] = 10000.0
+    st["cash"] = 11000.0
+    p.write_text(json.dumps(st), encoding="utf-8")
+    out2 = dl.add_deposit(500, state_dir=str(tmp_path), date="2026-08-06")
+    assert out2["principal"] == 11500                # 10000 + 1000 + 500

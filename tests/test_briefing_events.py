@@ -305,7 +305,7 @@ def test_docs_have_table_and_weekly_and_hero():
     assert "주간 아카이브" in weekly and "status.json" in weekly
     assert "종목별 주간 수익률" in weekly
     index = (root / "index.html").read_text(encoding="utf-8")
-    assert "만원 챌린지 · 통합 실기록" in index      # 히어로 실계좌 카드
+    assert "8마일 챌린지 · 통합 실기록" in index      # 히어로 실계좌 카드
 
 
 def test_live_cli_multi_symbols_paper(tmp_path):
