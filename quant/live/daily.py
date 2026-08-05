@@ -487,6 +487,10 @@ def write_docs_status(state_dir: str = STATE_DIR,
     if briefing and briefing.get("items"):
         status["briefing"] = briefing
 
+    # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
+    from quant.markets import SYMBOL_INFO
+    status["symbols"] = SYMBOL_INFO
+
     atomic_write_json(docs_path, status)
     print(f"🌐 사이트 상태 갱신: {docs_path} (마지막 기록 {status['updated']})")
     return status
