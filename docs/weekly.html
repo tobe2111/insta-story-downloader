@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 주간 아카이브 — 주 단위 성과 기록</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/pretendard.css">
+<style>
+:root{
+  --bg:#0a0b0e; --bg2:#0e1013; --fg:#f4f5f7; --muted:#8f96a3; --dim:#5c6370;
+  --line:rgba(255,255,255,.08); --accent:#4c7dff;
+  /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 */
+  --ok:#f04452; --bad:#3182f6; --rec:#f87171;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#fcfcfd; --bg2:#f4f5f8; --fg:#101318; --muted:#5a626e;
+         --dim:#8a919d; --line:rgba(0,0,0,.09); --accent:#2f5fe0; }
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",sans-serif;
+     background:var(--bg);color:var(--fg);line-height:1.7;font-size:15px}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:860px;margin:0 auto;padding:0 20px}
+nav{position:sticky;top:0;border-bottom:1px solid var(--line);background:var(--bg);z-index:5}
+nav .wrap{display:flex;align-items:center;height:58px;gap:12px}
+.logo{font-weight:800;letter-spacing:.14em;color:var(--fg)}
+.logo em{color:var(--accent);font-style:normal}
+h1{font-size:26px;margin:34px 0 6px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:14px;margin-bottom:22px;max-width:64ch}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+      padding:20px 22px;margin:14px 0}
+.card h2{font-size:16px;margin-bottom:2px}
+.pos{color:var(--ok)} .neg{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;
+      font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+.tablewrap{overflow-x:auto}
+.note{color:var(--muted);font-size:12.5px;margin:26px 0 40px}
+.err{color:var(--rec);padding:30px 0}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="index.html">QUANT<em>.</em></a>
+  <a href="paper.html" style="font-size:13.5px;color:var(--muted)">매일 기록</a>
+  <a href="trust.html" style="font-size:13.5px;color:var(--muted)">기록 검증</a>
+  <a href="index.html" style="font-size:13.5px;color:var(--muted);margin-left:auto">← 홈</a>
+</div></nav>
+<div class="wrap">
+<h1>주간 아카이브</h1>
+<p class="sub">매일 새벽 확정된 페이퍼 기록을 <b>주 단위(월요일 시작)</b>로 묶은
+아카이브입니다. 가상 자금 모의투자이며, 좋은 주가 있어도 미래 수익을 보장하지
+않습니다.</p>
+<div id="content"><p class="sub">불러오는 중…</p></div>
+<p class="note">주간 수익률 = 그 주 마지막 확정 자산 ÷ 직전 주 마지막 확정 자산 − 1.
+통합 계좌는 매칭 입금이 있는 주에 입금액을 함께 표기합니다(입금은 수익이 아닙니다).
+모든 원본 기록은 <a href="trust.html">git 장부</a>에서 검증할 수 있습니다.</p>
+</div>
+<script>
+function esc(s){const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
+function pct(v){return (v>=0?"+":"")+Number(v).toFixed(2)+"%"}
+function mondayOf(ds){
+  const d=new Date(ds+"T00:00:00Z");
+  const wd=(d.getUTCDay()+6)%7;               // 월=0
+  d.setUTCDate(d.getUTCDate()-wd);
+  return d.toISOString().slice(0,10);
+}
+fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  const el=document.getElementById("content");
+  const keys=Object.keys(st.paper||{});
+  if(!keys.length){el.innerHTML='<p class="err">아직 기록이 없습니다 — 첫 자동 실행 이후에 나타납니다.</p>';return}
+  // 계좌별로 주 → 그 주 마지막 기록 매핑
+  const weekly={}, weeks=new Set();
+  for(const k of keys){
+    const hist=(st.paper[k].history||[]);
+    const byWeek={};
+    for(const r of hist){ const w=mondayOf(r.date); byWeek[w]=r; weeks.add(w); }
+    weekly[k]=byWeek;
+  }
+  const ws=[...weeks].sort();                  // 과거 → 최근
+  if(ws.length<1){el.innerHTML='<p class="err">아직 주간 집계가 없습니다.</p>';return}
+  const pfk=keys.filter(k=>k.startsWith("portfolio"))[0];
+  const rest=keys.filter(k=>!k.startsWith("portfolio"));
+  // 통합 계좌 카드 — 주간 수익률 + 그 주의 입금
+  let pfHtml="";
+  if(pfk){
+    const deposits=st.paper[pfk].deposits||[];
+    const rows=[];
+    for(let i=ws.length-1;i>=0;i--){
+      const w=ws[i], cur=weekly[pfk][w];
+      if(!cur)continue;
+      const prevW=ws.slice(0,i).reverse().find(x=>weekly[pfk][x]);
+      const prev=prevW?weekly[pfk][prevW]:null;
+      const ret=prev?((cur.equity/prev.equity-1)*100):null;
+      const dep=deposits.filter(d=>mondayOf(d.date)===w)
+                        .reduce((a,b)=>a+b.amount,0);
+      rows.push(`<tr><td>${esc(w)} 주</td>
+        <td class="${ret==null?"":ret>=0?"pos":"neg"}">${ret==null?"–":pct(ret)}</td>
+        <td>${won(cur.equity)}</td>
+        <td>${dep?("+"+won(dep)):"–"}</td></tr>`);
+    }
+    pfHtml=`<div class="card"><h2>통합 계좌 (만원 챌린지)</h2>
+      <div class="tablewrap"><table>
+      <tr><th>주(월요일 시작)</th><th>주간 수익률</th><th>주말 자산</th><th>매칭 입금</th></tr>
+      ${rows.join("")}</table></div></div>`;
+  }
+  // 종목별 주간 수익률 매트릭스
+  let grid="";
+  if(rest.length){
+    const head=rest.map(k=>`<th>${esc(k.split(":")[1]||k)}</th>`).join("");
+    const rows=[];
+    for(let i=ws.length-1;i>=0;i--){
+      const w=ws[i];
+      const cells=rest.map(k=>{
+        const cur=weekly[k][w];
+        if(!cur)return "<td>–</td>";
+        const prevW=ws.slice(0,i).reverse().find(x=>weekly[k][x]);
+        const prev=prevW?weekly[k][prevW]:null;
+        if(!prev)return "<td>–</td>";
+        const ret=(cur.equity/prev.equity-1)*100;
+        return `<td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>`;
+      }).join("");
+      if(cells.replace(/<td>–<\/td>/g,""))rows.push(`<tr><td>${esc(w)} 주</td>${cells}</tr>`);
+    }
+    grid=`<div class="card"><h2>종목별 주간 수익률</h2>
+      <div class="tablewrap"><table>
+      <tr><th>주</th>${head}</tr>${rows.join("")}</table></div></div>`;
+  }
+  el.innerHTML=(pfHtml+grid)||'<p class="err">집계할 기록이 부족합니다.</p>';
+  if(st.updated)document.querySelector(".sub").innerHTML+=` <b>마지막 갱신: ${esc(st.updated)}</b>`;
+}).catch(()=>{document.getElementById("content").innerHTML=
+  '<p class="err">아직 기록이 없습니다 — 첫 자동 실행 이후에 나타납니다.</p>'});
+</script>
+</body>
+</html>

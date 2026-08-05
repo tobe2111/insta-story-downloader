@@ -64,6 +64,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <body>
 <nav><div class="wrap">
   <a class="logo" href="index.html">QUANT<em>.</em></a>
+  <a href="weekly.html" style="font-size:13.5px;color:var(--muted)">주간 아카이브</a>
   <a href="trust.html" style="font-size:13.5px;color:var(--muted)">기록 검증</a>
   <a id="livebtn" href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
     font-weight:700;color:#fff;background:var(--rec);padding:5px 13px;border-radius:99px">
@@ -77,7 +78,7 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
-<p class="note">🌙 챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
+<p class="note">챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
 재평가되며, 확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).
 날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.
 "그냥 보유"는 같은 돈으로 첫날 사서 들고만 있었을 때입니다 — 전략이 이 값을
@@ -198,7 +199,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const el=document.getElementById("content");
   const keys=Object.keys(st.paper||{});
   if(!keys.length){el.innerHTML='<p class="sub">아직 기록이 없습니다 — 첫 자동 실행(새벽 5:30 KST) 이후에 나타납니다.</p>';return}
-  el.innerHTML=keys.map(k=>{
+  const card=(k)=>{
     const p=st.paper[k],hist=p.history||[];
     const ret=p.principal!=null?((p.equity/p.principal-1)*100):(p.return_pct??0);
     const cls=ret>=0?"pos":"neg";
@@ -247,18 +248,48 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div class="vs">${benchTxt}</div>
       ${spark(hist,(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date),(p.deposits||[]).map(x=>x.date),
         p.deposits&&p.deposits.length?hist.map(r=>10000+p.deposits.filter(dd=>dd.date<=r.date).reduce((a,b)=>a+b.amount,0)):null)}
-      <div class="sub" style="margin-top:10px;font-size:12.5px">🏆 현재 챔피언: <code>${champ}</code></div>
-      ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">🧭 오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
+      <div class="sub" style="margin-top:10px;font-size:12.5px">현재 챔피언: <code>${champ}</code></div>
+      ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
       ${weeklyTable(hist)}
-    </div>`}).join("");
+    </div>`};
+  // 통합 계좌는 큰 카드로, 개별 8종목은 증권사 시세표 스타일의 한 표로 압축
+  const pfKeys=keys.filter(k=>k.startsWith("portfolio"));
+  const rest=keys.filter(k=>!k.startsWith("portfolio"));
+  const mini=(hist)=>{
+    const v=(hist||[]).slice(-30).map(r=>r.equity);
+    if(v.length<2)return "";
+    const mn=Math.min(...v),mx=Math.max(...v),sp=(mx-mn)||1;
+    const pts=v.map((x,i)=>`${(i/(v.length-1)*90).toFixed(1)},${(22-((x-mn)/sp)*20).toFixed(1)}`).join(" ");
+    const up=v[v.length-1]>=v[0];
+    return `<svg width="90" height="24" viewBox="0 0 90 24"><polyline points="${pts}" fill="none" stroke="${up?"var(--ok)":"var(--bad)"}" stroke-width="1.6"/></svg>`};
+  const row=(k)=>{
+    const p=st.paper[k],hist=p.history||[],last=hist[hist.length-1]||{};
+    const prev=hist[hist.length-2];
+    const day=prev&&last.equity?((last.equity/prev.equity-1)*100):null;
+    const ret=Number(p.return_pct||0);
+    const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"–";
+    const champ=(st.champions&&st.champions[k])?st.champions[k].strategy:"기본";
+    return `<tr><td><b>${esc(k.split(":")[1]||k)}</b><div style="font-size:11px;color:var(--muted)">${esc(k.split(":")[0])}</div></td>
+      <td>${last.equity!=null?won(last.equity):(p.equity!=null?won(p.equity):"–")}</td>
+      <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
+      <td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>
+      <td class="neg">${typeof p.mdd_pct==="number"?p.mdd_pct+"%":"–"}</td>
+      <td>${last.weight!=null?(last.weight*100).toFixed(0)+"%":"–"}</td>
+      <td>${hr}</td><td>${mini(hist)}</td>
+      <td style="text-align:left;font-size:12px;color:var(--muted);max-width:280px">${esc(String(last.reason||champ).slice(0,70))}</td></tr>`};
+  const tbl=rest.length?`<div class="card"><h2>종목별 현황 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
+    <div class="tablewrap"><table>
+    <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
+    ${rest.map(row).join("")}</table></div></div>`:"";
+  el.innerHTML=pfKeys.map(card).join("")+tbl;
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>
       `<li style="margin:6px 0"><span style="font-size:11px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--muted);margin-right:7px">${esc(b.cat)}</span>`+
       (b.link?`<a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a>`:esc(b.title))+
       (b.source?` <span style="color:var(--muted);font-size:12px">— ${esc(b.source)}</span>`:"")+`</li>`).join("");
-    el.innerHTML+=`<div class="card"><h2>📰 오늘의 시장 브리핑 <span style="font-size:12px;color:var(--muted);font-weight:400">(${esc(st.briefing.date||"")})</span></h2>
+    el.innerHTML+=`<div class="card"><h2>오늘의 시장 브리핑 <span style="font-size:12px;color:var(--muted);font-weight:400">(${esc(st.briefing.date||"")})</span></h2>
       <ul style="list-style:none;padding:0;margin:8px 0 4px">${rows}</ul>
       <div class="sub" style="font-size:12px">⚠️ ${esc(st.briefing.note||"판단에 사용되지 않는 참고 정보입니다.")}</div></div>`;
   }

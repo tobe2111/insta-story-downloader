@@ -1143,6 +1143,18 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                       "deposits": deposits[-30:],
                       "spark_base": base_series})
 
+    # 종목별 관련 뉴스(표시 전용) — 브리핑에서 해당 종목 항목을 찾아 붙인다
+    briefing = _briefing_payload(state_dir)
+    if briefing:
+        by_sym = {}
+        for it in briefing.get("items", []):
+            if it.get("sym") and it["sym"] not in by_sym:
+                by_sym[it["sym"]] = it
+        for a in accounts:
+            hit = by_sym.get(a["key"])
+            if hit:
+                a["news"] = {"title": hit["title"], "source": hit.get("source", "")}
+
     live = _live_prices([a["key"] for a in accounts]) if with_live else {}
     for a in accounts:
         le = None
@@ -1204,7 +1216,7 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         # 반영하지 않는다 — 정본은 git 장부).
         "pending": _pending_deposits(),
         # 오늘의 시장 브리핑(표시 전용 — 판단에 사용되지 않음)
-        "briefing": _briefing_payload(state_dir),
+        "briefing": briefing,
         "disclaimer": ("본 방송의 계좌는 가상 자금 모의투자이며 실제 돈이 "
                        "아닙니다. 후원금 자체를 운용하지 않으며, 후원과 동일한 "
                        "금액만큼 '가상 원금'을 늘리는 매칭 이벤트입니다"
@@ -1541,7 +1553,23 @@ header{{display:flex;align-items:center;gap:16px;padding:14px 30px 6px}}
   color:var(--muted);margin-top:3px}}
 .candle{{margin:0 30px 4px;background:var(--bg2);border:1px solid var(--line);
   border-radius:14px;padding:10px 20px 6px;height:274px;display:flex;
-  flex-direction:column}}
+  flex-direction:column;transition:height .8s ease}}
+/* 장면 전환: 종목 확대 — 캔들을 키우고 카드 그리드를 잠시 접는다 */
+body.focus .candle{{height:560px}}
+body.focus .grid{{display:none}}
+/* 장면 전환: 챌린지 게이지 오버레이 */
+#scene{{position:fixed;inset:0;display:none;place-items:center;z-index:40;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);
+  text-align:center}}
+#scene.show{{display:grid}}
+#scene .box{{min-width:720px}}
+#scene .t{{font-size:22px;color:var(--muted);font-weight:700;letter-spacing:.06em}}
+#scene .v{{font-size:96px;font-weight:800;letter-spacing:-.03em;margin:6px 0}}
+#scene .bar{{height:18px;border-radius:99px;background:var(--bg2);
+  border:1px solid var(--line);overflow:hidden;margin:18px 0 8px}}
+#scene .fill{{height:100%;background:linear-gradient(90deg,var(--accent),var(--ok));
+  border-radius:99px}}
+#scene .m{{font-size:16px;color:var(--muted)}}
 .candle .head{{display:flex;align-items:baseline;gap:12px;font-size:13px;
   color:var(--muted)}}
 .candle .sym{{font-size:16px;font-weight:800;color:var(--fg)}}
@@ -1600,6 +1628,7 @@ svg text{{font-family:inherit}}
 <div class="comment" id="c-comment"></div>
 <div class="body" id="c-body"></div></div>
 <div id="event"></div>
+<div id="scene"></div>
 <div class="wm"><svg viewBox="{_QR_VIEWBOX}"><path d="{_QR_PATH}" fill="#000"/></svg>
 <div class="u"><b>만원 챌린지 실기록</b><br>quant.jiwon-1a2.workers.dev<br>모의투자 · 수익 보장 아님</div></div>
 <div class="grid" id="grid"></div>
@@ -1714,10 +1743,11 @@ function card(a){{
   const eq=a.live_equity??a.equity, rp=a.live_return_pct??a.return_pct;
   const liveTag=a.live_equity!=null?"실시간 평가":"확정 "+esc(a.date||"");
   const cls=rp>=0?"pos":"neg";
+  const news=a.news?`<div class="reason" style="opacity:.75">관련 뉴스 · ${{esc(a.news.title)}}${{a.news.source?" — "+esc(a.news.source):""}}</div>`:"";
   return `<div class="card"><div class="k">${{esc(a.key)}} · ${{liveTag}}</div>
     <div><span class="eq2 ${{cls}}">${{won(eq)}}</span>
     <span class="pct2 ${{cls}}">${{pct(rp)}}</span></div>
-    <div class="reason">${{a.reason?"🧭 "+esc(a.reason):"최대낙폭 "+a.mdd_pct+"%"}}</div>
+    <div class="reason">${{a.reason?esc(a.reason):"최대낙폭 "+a.mdd_pct+"%"}}</div>${{news}}
     <div style="flex:1;min-height:0;margin-top:2px">${{proChart({{vals:a.spark,dates:a.spark_dates,w:320,h:58,axes:false}})}}</div></div>`}}
 async function tick(first){{
   try{{
@@ -1738,6 +1768,7 @@ async function tick(first){{
     if(newsPool.length&&!newsTimer){{rotateNews();
       newsTimer=setInterval(rotateNews,12000);}}
     const hero=pf||rest[0];
+    lastHero=hero;
     if(hero){{
       const eq=hero.live_equity??hero.equity;
       const rp=hero.principal!=null?((eq/hero.principal-1)*100)
@@ -1764,7 +1795,7 @@ async function tick(first){{
           <div class="lbl"><span>만원 → 1억 챌린지</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
       }}
       document.getElementById("hero").innerHTML=
-        `<div class="nums"><div class="k">${{hero.market==="portfolio"?"📦 통합 분산 계좌 (8종목)":esc(hero.key)}}
+        `<div class="nums"><div class="k">${{hero.market==="portfolio"?"통합 분산 계좌 (8종목)":esc(hero.key)}}
           · ${{hero.live_equity!=null?"실시간 평가":"확정 "+esc(hero.date||"")}}</div>
         <div class="eq ${{cls}}">${{won(eq)}}</div>
         <div class="pct ${{cls}}">${{pct(rp)}} <span class="meta">${{hero.principal!=null?"원금 대비":"시작 10,000원"}}</span></div>
@@ -1802,6 +1833,28 @@ async function tick(first){{
   }}catch(e){{}}
 }}
 let cKeys=[],cIdx=0;
+// 장면 자동 전환 — 90초 주기: 기본 → 종목 확대(18초) → 챌린지 게이지(10초).
+// 라이브가 한 화면에 머물지 않게 한다. 데이터가 없으면 조용히 건너뛴다.
+let lastHero=null;
+function showGoalScene(){{
+  if(!lastHero||lastHero.principal==null)return;
+  const eq=lastHero.live_equity??lastHero.equity;
+  const ratio=Math.min(1,eq/lastHero.goal);
+  const el=document.getElementById("scene");
+  el.innerHTML=`<div class="box"><div class="t">만원 → 1억 챌린지</div>
+    <div class="v ${{eq>=lastHero.principal?"pos":"neg"}}">${{won(eq)}}</div>
+    <div class="m">원금(매칭 포함) ${{won(lastHero.principal)}} · 실력 지표(TWR) ${{pct(lastHero.twr_pct)}}</div>
+    <div class="bar"><div class="fill" style="width:${{Math.max(0.4,ratio*100)}}%"></div></div>
+    <div class="m">${{(ratio*100).toFixed(3)}}% · 목표 1억원</div></div>`;
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),10000);
+}}
+function sceneLoop(){{
+  if(!lastHero)return;
+  document.body.classList.add("focus");
+  setTimeout(()=>{{document.body.classList.remove("focus");showGoalScene();}},18000);
+}}
+setInterval(sceneLoop,90000);
 // 상단 배너 회전 — 재학습 소식과 브리핑 헤드라인을 번갈아 보여준다
 let newsPool=[],newsIdx=0,newsTimer=null;
 function rotateNews(){{
@@ -1872,7 +1925,7 @@ async function candleTick(rotate){{
       px.textContent=Number(last[4]).toLocaleString()+" ("+pct(chg)+")";
       px.style.color=cls?"var(--ok)":"var(--bad)";
       document.getElementById("c-pos").textContent=
-        d.position?("🧭 "+d.position.side+(d.position.weight!=null?" · 비중 "+Math.round(d.position.weight*100)+"%":"")):"관망 (현금)";
+        d.position?(d.position.side+(d.position.weight!=null?" · 비중 "+Math.round(d.position.weight*100)+"%":"")):"관망 (현금)";
       document.getElementById("c-chips").innerHTML=(d.chips&&d.chips.length)
         ?`<span class="chip" style="border-style:dashed">판단 지표 · 일봉 기준</span>`+
           d.chips.map(c=>`<span class="chip ${{c.state==="pos"?"pos":c.state==="neg"?"neg":""}}">${{esc(c.label)}} <b>${{esc(c.value)}}</b></span>`).join("")
