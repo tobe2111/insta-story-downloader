@@ -59,9 +59,20 @@ DEFAULT_CHALLENGERS = [
     {"model": "gb", "threshold": 0.55},
     {"model": "gb", "threshold": 0.60},
     {"model": "vote", "threshold": 0.55},
+    # 확률 보정 변형 — GBDT류 출력은 대개 과대확신이라, 보정된 확률로
+    # 사이징하면 복리 손실이 줄 수 있다. 보정은 엣지를 만들지 않으므로
+    # 강제 적용이 아니라 오디션(2단계 관문)을 통과할 때만 챔피언이 된다.
+    {"model": "gb", "threshold": 0.55, "calibrate": "isotonic"},
+    {"model": "logreg", "threshold": 0.55, "calibrate": "sigmoid"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]
+
+
+def _feature_set() -> str:
+    """현재 ML 피처셋 버전 태그 (장부 기록용)."""
+    from quant.strategies.ml import FEATURE_SET
+    return FEATURE_SET
 
 
 def _key(market: str, symbol: str) -> str:
@@ -328,6 +339,10 @@ def build_challengers(current_spec: dict, seed: str,
         challengers.append({"strategy": "event_wrap",
                             "params": {"inner": current_spec,
                                        "pad_days": 1, "factor": 0.0}})
+        # 마이너 캘린더 변형 — 옵션만기·월말에 비중 절반(위험 회피 전용)
+        challengers.append({"strategy": "event_wrap",
+                            "params": {"inner": current_spec, "pad_days": 0,
+                                       "factor": 0.5, "include_minor": True}})
     else:
         challengers.append(current_spec["params"]["inner"])
     return challengers
@@ -461,6 +476,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         raise RuntimeError(
             f"{market}/{symbol}: 실데이터 수신 실패 → 합성 폴백 감지. "
             "가짜 데이터로 재학습·승격하면 안 되므로 중단합니다.")
+    if market == "crypto":
+        # 펀딩비 컬럼 — ML x_funding 피처 재료. 스냅샷·해시에 함께 보존돼
+        # verify가 같은 피처로 그날의 대결을 재현할 수 있다(실패 시 생략).
+        from quant.data.funding import attach_funding
+        df = attach_funding(df, symbol)
 
     champions = load_champions(state_dir)
     key = _key(market, symbol)
@@ -534,6 +554,9 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "code_sha": code_sha(),
         "data_sha256": data_sha256(df),
         "env": env_fingerprint(),      # 라이브러리 버전 차이로 인한 불일치 판별용
+        # 피처셋 태그 — 피처는 '가설 그룹' 단위로 추가되며, 성과 변화가
+        # 어느 배치 이후인지 이 태그로 추적한다(피처 중요도로 판단 금지).
+        "feature_set": _feature_set(),
     }, state_dir)
 
     label = "🔁 교체" if decision["promoted"] else "🏆 유지"

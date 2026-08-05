@@ -65,6 +65,29 @@ def fetch_funding_history(
     return s.sort_index()
 
 
+def attach_funding(df: pd.DataFrame, symbol: str,
+                   exchange: str = "binance") -> pd.DataFrame:
+    """OHLCV 데이터프레임에 'funding' 컬럼(봉당 펀딩률)을 붙여 반환한다.
+
+    ML 피처(x_funding)용 — 가격에서 유도할 수 없는 포지셔닝 정보를 컬럼으로
+    싣는 이유는 재현성이다: 입력 스냅샷(csv.gz)에 함께 보존돼 verify가 같은
+    피처로 재현할 수 있고, data_sha256에도 포함돼 변조가 드러난다.
+    실패(ccxt 미설치·네트워크·현물 심볼)하면 컬럼 없이 원본을 그대로 반환한다
+    — 피처는 '있으면 쓰는' 선택적 맥락이지 필수가 아니다.
+    """
+    try:
+        hist = fetch_funding_history(symbol, exchange=exchange,
+                                     limit=1000)
+        if hist is None or hist.empty:
+            return df
+        out = df.copy()
+        out["funding"] = align_funding_to_bars(hist, df.index)
+        return out
+    except Exception as exc:  # noqa: BLE001 — 부가 정보 실패가 본류를 막으면 안 됨
+        log.warning("펀딩 컬럼 부착 실패(%s) — 펀딩 피처 없이 진행", exc)
+        return df
+
+
 def align_funding_to_bars(funding: pd.Series, bar_index) -> pd.Series:
     """펀딩 정산 이벤트를 봉 인덱스에 맞춘 '봉당 펀딩률' Series로 변환한다.
 

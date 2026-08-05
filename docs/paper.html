@@ -378,7 +378,44 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       종목들입니다. 소형주·테마주는 검증이 어려워 제외했습니다.</p>
       <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:13.5px">${lis}</ul></div>`;
   }
-  el.innerHTML=pfKeys.map(card).join("")+tbl+why;
+  // 신뢰도 곡선 — "AI가 60%라고 한 날들의 실제 상승 비율"을 확률 구간별로
+  // 집계한다. 예측확률(prob_up)은 판단 당일 새벽에 커밋되고, 결과는 다음
+  // 기록에서야 확정되므로 사후 서술이 불가능하다. 잘 맞는 척이 아니라
+  // '말한 확률이 실제 빈도와 맞는가'(보정)를 공개 검증하는 표.
+  let calib="";
+  {
+    const buckets=[[0,0.45,"45% 미만(하락 쪽)"],[0.45,0.55,"45~55% (중립권)"],
+      [0.55,0.60,"55~60%"],[0.60,0.70,"60~70%"],[0.70,1.01,"70% 이상"]];
+    const agg=buckets.map(()=>({n:0,up:0}));
+    for(const k of rest){
+      const h=(st.paper[k]||{}).history||[];
+      for(let i=0;i+1<h.length;i++){
+        const p=h[i].prob_up;
+        if(typeof p!=="number")continue;
+        if(typeof h[i].price!=="number"||typeof h[i+1].price!=="number")continue;
+        const bi=buckets.findIndex(b=>p>=b[0]&&p<b[1]);
+        if(bi<0)continue;
+        agg[bi].n++; if(h[i+1].price>h[i].price)agg[bi].up++;
+      }
+    }
+    const total=agg.reduce((a,b)=>a+b.n,0);
+    if(total>0){
+      const rowsC=buckets.map((b,i)=>{
+        const a=agg[i];
+        const real=a.n?`${(a.up/a.n*100).toFixed(0)}%`:"–";
+        return `<tr><td>${b[2]}</td><td>${a.n}일</td><td>${real}</td></tr>`;
+      }).join("");
+      calib=`<div class="card"><h2>AI 확률의 정직성 검증 <span style="font-size:12px;color:var(--muted);font-weight:400">신뢰도 곡선${total<30?` · 수집 중(${total}일) — 표본이 쌓일수록 의미가 생깁니다`:` · 표본 ${total}일`}</span></h2>
+        <p class="sub" style="margin:6px 0 4px;font-size:13px">모델이 말한 상승확률
+        구간별로, 실제로 오른 날의 비율입니다. "60%라고 한 날들"이 실제로 약
+        60% 오르면 확률이 <b>보정</b>된 것이고, 크게 어긋나면 그 사실이 그대로
+        여기 보입니다. 예측은 새벽에 먼저 기록되고 결과는 다음 날 붙습니다.</p>
+        <div class="tablewrap"><table>
+        <tr><th style="text-align:left">예측 확률</th><th>일수</th><th>실제 상승 비율</th></tr>
+        ${rowsC}</table></div></div>`;
+    }
+  }
+  el.innerHTML=pfKeys.map(card).join("")+tbl+calib+why;
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>

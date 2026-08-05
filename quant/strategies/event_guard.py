@@ -19,16 +19,23 @@ from quant.strategies.base import Strategy
 class EventGuard(Strategy):
     name = "event_guard"
 
-    def __init__(self, base: Strategy, pad_days: int = 1, factor: float = 0.0):
+    def __init__(self, base: Strategy, pad_days: int = 1, factor: float = 0.0,
+                 include_minor: bool = False):
         self.base = base
         self.pad_days = int(pad_days)
         # factor ∈ [0,1]: 0=이벤트 창 완전 관망, 0.5=비중 절반 등
         self.factor = min(1.0, max(0.0, float(factor)))
+        # include_minor: 옵션만기·월말(마이너 캘린더)도 가드에 포함 —
+        # 위험 회피용이며, 이 변형도 오디션을 통과해야만 챔피언이 된다.
+        self.include_minor = bool(include_minor)
         self.allow_short = base.allow_short
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         sig = self.base.generate_signals(df).reindex(df.index).fillna(0.0)
-        guarded = event_dates(self.pad_days)
+        guarded = set(event_dates(self.pad_days))
+        if self.include_minor:
+            from quant.events import minor_event_dates
+            guarded |= set(minor_event_dates())
         scale = pd.Series(
             [self.factor if getattr(ix, "date", lambda: None)() in guarded
              else 1.0 for ix in df.index],

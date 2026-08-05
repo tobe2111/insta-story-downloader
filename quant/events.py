@@ -71,3 +71,37 @@ def event_dates(pad_days: int = 1) -> frozenset[date]:
 
 def is_event_day(d: date, pad_days: int = 1) -> bool:
     return d in event_dates(pad_days)
+
+
+# ── 마이너 캘린더 — 옵션만기(매월 셋째 금요일)·월말 ─────────────────
+# 예측용이 아니라 위험 회피용이다: 만기일 수급 왜곡·월말 리밸런싱 플로우로
+# 변동성이 구조적으로 커지는 날, 노출을 줄이는 규칙에 쓴다. 날짜가 순수
+# 달력 계산이라 데이터 소스가 필요 없고 결정적(재현 가능)이다.
+def _third_friday(year: int, month: int) -> date:
+    d = date(year, month, 15)                  # 15~21일 사이에 셋째 금요일이 있다
+    while d.weekday() != 4:
+        d += timedelta(days=1)
+    return d
+
+
+def _month_end(year: int, month: int) -> date:
+    nxt = date(year + (month == 12), month % 12 + 1, 1)
+    return nxt - timedelta(days=1)
+
+
+@lru_cache(maxsize=8)
+def minor_event_dates(start_year: int = 2018,
+                      end_year: int = 2027) -> frozenset[date]:
+    """옵션만기일 + 월말(달력 마지막 날·전일)의 집합."""
+    out: set[date] = set()
+    for y in range(start_year, end_year + 1):
+        for m in range(1, 13):
+            out.add(_third_friday(y, m))
+            me = _month_end(y, m)
+            out.add(me)
+            out.add(me - timedelta(days=1))    # 월말 리밸런싱은 전일부터 시작
+    return frozenset(out)
+
+
+def is_minor_event_day(d: date) -> bool:
+    return d in minor_event_dates()
