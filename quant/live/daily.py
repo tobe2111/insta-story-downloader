@@ -50,6 +50,12 @@ def _first_bar_after(df, bar_ts: str):
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
 from quant.utils.repro import code_sha as _code_sha
 from quant.utils.repro import data_sha256 as _data_sha256
+from quant.utils.repro import env_fingerprint as _env_fingerprint
+
+# 회계 기준 버전 — v0.5.0부터 '다음 시가 체결 + 거래세·슬리피지' 기준.
+# 이전 기록(종가 즉시 체결)은 재계산하지 않고 그대로 둔다(과거 불변 약속).
+# 이 태그로 어느 기준으로 계산된 기록인지 영구히 구분할 수 있다.
+ACCOUNTING_VERSION = "next_open_v2"
 
 
 def _paper_path(market: str, symbol: str, state_dir: str) -> str:
@@ -146,6 +152,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 재현성: 코드 커밋 + 입력 데이터 해시 — verify로 재검증 가능
         "code_sha": _code_sha(),
         "data_sha256": _data_sha256(df),
+        "env": _env_fingerprint(),
+        "accounting": ACCOUNTING_VERSION,
     }
     st.update({
         "market": market, "symbol": symbol, "start_cash": START_CASH,
@@ -241,26 +249,37 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
                                n: int = 1000, seed: str = "rand",
                                cost: float = 0.002) -> float | None:
-    """무작위 매매 전략 n개의 수익률 분포에서 실제 TWR의 백분위(%)를 잰다.
+    """무작위 '순열' 전략 n개의 수익률 분포에서 실제 TWR의 백분위(%)를 잰다.
 
-    무작위 전략 = 매일 비중을 {0, 0.5, 1} 중 무작위로 고르는 '동전 던지기'가
-    같은 균등가중 지수(record.price) 위에서 같은 비용을 내며 거래한 것.
+    조건을 맞춘 무작위(순열 검정): 각 무작위 전략은 실제 기록의 일별 비중
+    수열을 그대로 가져다 '순서만' 무작위로 섞어, 같은 지수(record.price) 위에서
+    같은 비용을 내며 거래한 것이다. 매매 빈도·포지션 크기 분포가 실제와
+    동일하므로, 백분위가 재는 것은 오직 '타이밍 실력'뿐이다 — 조건 없는
+    동전 던지기와 비교하면 빈도 차이가 실력처럼 보이는 왜곡이 생긴다.
     반환 75.0 = "무작위 1,000개 중 상위 25%". 기록 2일 미만이면 None.
     시드가 날짜 기반이라 같은 날 재실행 시 같은 값(재현 가능).
+    비중이 늘 일정했던 구간에서는 순열이 전부 같아져 백분위가 낮게(우위
+    없음으로) 나온다 — 타이밍을 쓰지 않았으니 그것이 정직한 값이다.
     """
     import random as _random
 
-    px = [float(r["price"]) for r in history
-          if isinstance(r.get("price"), (int, float))]
+    px, ws = [], []
+    for r in history:
+        if isinstance(r.get("price"), (int, float)):
+            px.append(float(r["price"]))
+            w = r.get("weight")
+            ws.append(float(w) if isinstance(w, (int, float)) else 0.0)
     if len(px) < 3:
         return None
     rets = [px[i] / px[i - 1] - 1 for i in range(1, len(px))]
+    base = ws[:-1]                    # t일 비중이 t→t+1 수익률에 노출된다
     rng = _random.Random(seed)
     finals = []
     for _ in range(n):
+        perm = base[:]
+        rng.shuffle(perm)
         eq, prev_w = 1.0, 0.0
-        for r in rets:
-            w = rng.choice((0.0, 0.5, 1.0))
+        for w, r in zip(perm, rets):
             eq *= 1 + w * r
             eq -= eq * cost * abs(w - prev_w)      # 비중 변화분만 비용 지불
             prev_w = w
@@ -393,6 +412,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "hit_rate": None,
               "fills": fills,                      # 체결 현실성: 시가 체결 내역
               "code_sha": _code_sha(),
+              "env": _env_fingerprint(),
+              "accounting": ACCOUNTING_VERSION,
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),

@@ -75,6 +75,9 @@ def test_stock_decision_queues_and_fills_at_next_open(tmp_path, monkeypatch):
     assert st["pending"]["weight"] == r1["weight"]
     # 체결 비용에 국내 거래세가 포함된 현실 프리셋(수수료+거래세+슬리피지)
     assert r1["fill_cost"] == pytest.approx(0.00015 + 0.00075 + 0.0005)
+    # 회계 기준 태그 + 환경 지문 — 어느 기준·어느 환경의 숫자인지 영구 구분
+    assert r1["accounting"] == "next_open_v2"
+    assert r1["env"].startswith("py")
 
     day2 = _df(61)                                  # 다음 세션 봉이 생겼다
     monkeypatch.setattr(qd, "get_provider", lambda market: _Prov(day2))
@@ -135,7 +138,9 @@ def test_retrain_multiple_testing_ledger_and_verify(tmp_path):
         assert rec["mutation_seed"] == f"{rec['asof']}:synthetic:DEMO"
         assert len(rec["data_sha256"]) == 64 and rec["code_sha"]
         assert rec["trials_total"] == n1
-        assert rec["select_t"] >= 2.0 and rec["confirm_t"] >= 1.0
+        assert rec["select_t"] >= 2.0
+        assert 1.0 <= rec["confirm_t"] <= rt.CONFIRM_T_CAP  # 상한 안에서만 상승
+        assert rec["env"].startswith("py")                  # 환경 지문 기록
         # 입력 스냅샷이 보존됐다
         snap = tmp_path / "snapshots" / rec["asof"] / "synthetic_DEMO.csv.gz"
         assert snap.exists()
@@ -205,8 +210,10 @@ def test_shadow_portfolio_recorded_but_not_broadcast_card(tmp_path):
 # ── ⑤ 무작위 전략 분포 벤치마크 ─────────────────────────────────
 
 
-def test_random_percentile_deterministic_and_ordered():
-    hist = [{"price": 100.0 + i * 0.8 + 3.0 * np.sin(i / 7.0)}
+def test_random_percentile_is_permutation_matched_and_deterministic():
+    """순열 검정: 무작위가 실제와 같은 매매 빈도·비중 분포를 쓰는지 검증."""
+    hist = [{"price": 100.0 + i * 0.8 + 3.0 * np.sin(i / 7.0),
+             "weight": (0.0, 0.5, 1.0)[i % 3]}      # 실제 비중 수열
             for i in range(30)]
     a = random_strategy_percentile(hist, 5.0, n=200, seed="rand:2026-08-06")
     b = random_strategy_percentile(hist, 5.0, n=200, seed="rand:2026-08-06")
@@ -215,6 +222,40 @@ def test_random_percentile_deterministic_and_ordered():
     lo = random_strategy_percentile(hist, -90.0, n=200, seed="s")
     assert hi > lo and hi == 100.0 and lo == 0.0
     assert random_strategy_percentile(hist[:2], 5.0) is None  # 기록 부족
+    # 비중이 늘 일정하면 순열이 전부 같다 — 타이밍 우위 없음(낮은 백분위)이
+    # 정직한 값이고, 죽지 않고 계산돼야 한다
+    flat = [{"price": p["price"], "weight": 1.0} for p in hist]
+    v = random_strategy_percentile(flat, 0.0, n=50, seed="s")
+    assert v is not None and 0.0 <= v <= 100.0
+
+
+def test_confirm_threshold_capped_and_trials_window_rolls():
+    """문턱이 단조 증가로 영원히 오르면 진화가 멈춘다 — 상한·롤링 윈도 검증."""
+    import quant.live.retrain as rt
+
+    assert rt.confirm_threshold(0) == 1.0
+    assert rt.confirm_threshold(3000) < rt.CONFIRM_T_CAP
+    assert rt.confirm_threshold(10 ** 9) == rt.CONFIRM_T_CAP  # 상한 고정
+
+
+def test_recent_trials_only_counts_rolling_window(tmp_path):
+    import quant.live.retrain as rt
+
+    lines = [
+        {"asof": "2020-01-01", "market": "crypto", "symbol": "BTC",
+         "n_candidates": 999},                       # 윈도 밖 — 무시돼야 함
+        {"asof": "2026-07-01", "market": "crypto", "symbol": "BTC",
+         "n_candidates": 7},
+        {"asof": "2026-08-01", "market": "crypto", "symbol": "BTC",
+         "n_candidates": 8},
+        {"asof": "2026-08-01", "market": "kr_stock", "symbol": "X",
+         "n_candidates": 5},                         # 다른 종목 — 무시
+    ]
+    (tmp_path / "retrain_history.jsonl").write_text(
+        "\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+    got = rt.recent_trials("crypto", "BTC", "2026-08-05",
+                           state_dir=str(tmp_path))
+    assert got == 15
 
 
 # ── 사이트: 섀도가 종목처럼 섞여 그려지면 안 된다 ────────────────
@@ -230,3 +271,6 @@ def test_site_pages_filter_shadow_and_explain_repro():
     trust = (DOCS / "trust.html").read_text(encoding="utf-8")
     assert "재현" in trust and "quant verify" in trust
     assert "다음 거래 세션의 시가" in trust           # 체결 규칙 고지
+    # 회계 기준 변경 고백 — 과거는 재계산하지 않고, 변경 사실을 명시한다
+    assert "이전 숫자는 낙관적이었습니다" in trust
+    assert "이전 숫자는 낙관적이었습니다" in paper

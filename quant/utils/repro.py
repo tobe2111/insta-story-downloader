@@ -38,6 +38,38 @@ def code_sha() -> str:
         return "unknown"
 
 
+def env_fingerprint() -> str:
+    """실행 환경 지문 — 파이썬·핵심 라이브러리 버전 + 의존성 잠금 해시.
+
+    코드·데이터·시드가 같아도 numpy/pandas 버전이 다르면 부동소수점 결과가
+    미세하게 달라질 수 있다. 기록에 환경 지문을 함께 박아, verify 불일치가
+    '조작'인지 '환경 차이'인지 구분할 수 있게 한다.
+    """
+    import platform
+    parts = [f"py{platform.python_version()}"]
+    for mod, name in (("numpy", "np"), ("pandas", "pd"), ("sklearn", "sk")):
+        try:
+            m = __import__(mod)
+            parts.append(f"{name}{m.__version__}")
+        except Exception:  # noqa: BLE001
+            parts.append(f"{name}?")
+    lock = _lock_sha()
+    if lock:
+        parts.append(f"lock:{lock}")
+    return "|".join(parts)
+
+
+def _lock_sha() -> str:
+    """requirements.txt(의존성 잠금)의 짧은 해시 — 없으면 빈 문자열."""
+    for cand in ("requirements.txt",):
+        try:
+            with open(cand, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()[:12]
+        except OSError:
+            continue
+    return ""
+
+
 def _snap_path(state_dir: str, asof: str, market: str, symbol: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{market}_{symbol}")
     return os.path.join(state_dir, SNAP_DIR, asof, f"{safe}.csv.gz")

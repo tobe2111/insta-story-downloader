@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from typing import Callable
 
@@ -332,6 +333,48 @@ def build_challengers(current_spec: dict, seed: str,
     return challengers
 
 
+# ── 다중검정 문턱 — 롤링 윈도 + 상한 ────────────────────────────
+# 누적 시도 수가 단조 증가하면 문턱도 영원히 올라가 진화가 완전히 멈춘다.
+# 그래서 문턱 계산에는 '최근 1년 시도 수'만 쓰고 상한을 둔다(장부의 누적
+# 총계 trials_total은 투명성 표시용으로 계속 쌓는다).
+TRIALS_WINDOW_DAYS = 365
+CONFIRM_T_CAP = 1.35
+
+
+def confirm_threshold(trials_recent: int) -> float:
+    """결승전(홀드아웃) t-임계 — 최근 시도 수에 로그 비례, 상한 고정."""
+    return min(CONFIRM_T_CAP,
+               1.0 + 0.5 * math.log10(1 + max(0, trials_recent) / 1000))
+
+
+def recent_trials(market: str, symbol: str, asof: str,
+                  state_dir: str = STATE_DIR,
+                  window_days: int = TRIALS_WINDOW_DAYS) -> int:
+    """재학습 장부에서 이 종목의 최근 window_days일 도전자 수 합계."""
+    path = os.path.join(state_dir, HISTORY_FILE)
+    if not os.path.exists(path):
+        return 0
+    import datetime as _dt
+    try:
+        cutoff = (_dt.date.fromisoformat(asof)
+                  - _dt.timedelta(days=window_days)).isoformat()
+    except ValueError:
+        return 0
+    total = 0
+    with open(path, encoding="utf-8") as f:
+        for ln in f:
+            if not ln.strip():
+                continue
+            try:
+                r = json.loads(ln)
+            except ValueError:
+                continue
+            if (r.get("market") == market and r.get("symbol") == symbol
+                    and cutoff <= str(r.get("asof", "")) <= asof):
+                total += int(r.get("n_candidates") or 0)
+    return total
+
+
 def verify_retrain(asof: str, *, market: str | None = None,
                    symbol: str | None = None,
                    state_dir: str = STATE_DIR,
@@ -344,7 +387,7 @@ def verify_retrain(asof: str, *, market: str | None = None,
     반환: 종목별 {"key", "ok", "detail"} 목록.
     """
     from quant.backtest.costs import CostModel
-    from quant.utils.repro import data_sha256, load_snapshot
+    from quant.utils.repro import data_sha256, env_fingerprint, load_snapshot
 
     path = os.path.join(state_dir, HISTORY_FILE)
     results: list[dict] = []
@@ -389,11 +432,17 @@ def verify_retrain(asof: str, *, market: str | None = None,
             same_champion = (got["strategy"] == rec["champion_strategy"]
                              and got.get("params") == rec.get("champion"))
         ok = same_promoted and same_champion
+        env_note = ""
+        if rec.get("env") and rec["env"] != env_fingerprint():
+            env_note = (" · 주의: 실행 환경이 기록과 다름"
+                        f"(기록 {rec['env']} vs 현재 {env_fingerprint()})"
+                        " — 불일치 시 조작이 아니라 라이브러리 버전 차이일 수 있음")
         results.append({"key": key, "ok": ok,
-                        "detail": ("재현 일치 — 같은 데이터·같은 코드에서 "
-                                   "같은 결정" if ok else
-                                   f"결정 불일치: 기록 promoted={rec['promoted']}"
-                                   f" vs 재실행 {decision['promoted']}")})
+                        "detail": (("재현 일치 — 같은 데이터·같은 코드에서 "
+                                    "같은 결정" if ok else
+                                    f"결정 불일치: 기록 promoted={rec['promoted']}"
+                                    f" vs 재실행 {decision['promoted']}")
+                                   + env_note)})
     return results
 
 
@@ -433,17 +482,18 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     # ── 다중검정 보정 — 오디션을 반복할수록 '운 좋은 승자'가 나올 확률이
     # 커진다. 누적 시도 횟수를 장부에 남기고, 그에 비례해 승격 관문을 높인다.
     #   선발전: 그날 후보 수 N의 기대 최댓값 근사 sqrt(2·ln N) 이상을 요구
-    #   결승전: 누적 시도 수에 로그 비례로 임계 상향 (DSR 정신의 보수적 근사)
-    # 정확한 Deflated Sharpe는 아니지만, '시도할수록 어려워지는' 방향은 같다.
-    import math
+    #   결승전: '최근 1년' 시도 수에 로그 비례 + 상한(진화가 영원히 멈추는
+    #   것을 방지) — DSR 정신의 보수적 근사. 누적 총계는 표시용으로만 쌓는다.
     n_cand = len(challengers)
     trials_total = int(entry.get("trials_total", 0)) + n_cand
     entry["trials_total"] = trials_total
+    trials_recent = recent_trials(market, symbol, asof, state_dir) + n_cand
     select_t_eff = max(2.0, math.sqrt(2 * math.log(max(2, n_cand))))
-    confirm_t_eff = 1.0 + 0.5 * math.log10(1 + trials_total / 1000)
-    print(f"  🔬 다중검정 보정: 오늘 후보 {n_cand}개 · 누적 검증 도전자 "
-          f"{trials_total:,}개 → 선발 t≥{select_t_eff:.2f} · "
-          f"결승 t≥{confirm_t_eff:.2f}")
+    confirm_t_eff = confirm_threshold(trials_recent)
+    print(f"  🔬 다중검정 보정: 오늘 후보 {n_cand}개 · 최근 1년 "
+          f"{trials_recent:,}개 · 누적 검증 도전자 {trials_total:,}개 → "
+          f"선발 t≥{select_t_eff:.2f} · 결승 t≥{confirm_t_eff:.2f}"
+          f" (상한 {CONFIRM_T_CAP})")
 
     # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
     from quant.backtest.costs import CostModel
@@ -453,8 +503,9 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                confirm_t=confirm_t_eff,
                                cost_model=CostModel.for_market(market))
 
-    # 재현성 — 입력 스냅샷 보존 + 해시·시드 기록 → verify로 재검증 가능
-    from quant.utils.repro import code_sha, data_sha256, save_snapshot
+    # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
+    from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
+                                   save_snapshot)
     try:
         save_snapshot(df, state_dir, asof, market, symbol)
     except Exception as exc:  # noqa: BLE001 — 스냅샷 실패가 재학습을 막으면 안 된다
@@ -482,6 +533,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "mutation_seed": f"{asof}:{key}",
         "code_sha": code_sha(),
         "data_sha256": data_sha256(df),
+        "env": env_fingerprint(),      # 라이브러리 버전 차이로 인한 불일치 판별용
     }, state_dir)
 
     label = "🔁 교체" if decision["promoted"] else "🏆 유지"
