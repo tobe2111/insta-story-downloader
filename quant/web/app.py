@@ -182,6 +182,12 @@ _FONT = ('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/'
          'pretendard@v1.3.9/dist/web/variable/'
          'pretendardvariable-dynamic-subset.min.css">')
 
+# 전문 금융 차트 엔진 (TradingView Lightweight Charts, Apache-2.0 오픈소스).
+# 실제 증권사·거래소가 쓰는 캔들 엔진 — 크로스헤어·가격축·부드러운 갱신.
+# 로드 실패(오프라인) 시 기존 SVG 렌더러로 폴백하므로 필수 의존성이 아니다.
+_LWC = ('<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/'
+        'dist/lightweight-charts.standalone.production.js"></script>')
+
 # 브라우저 탭 아이콘 (외부 파일 없이 data URI) — 랜딩과 같은 심볼
 _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
             '%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E'
@@ -1322,9 +1328,17 @@ def candles_json(key: str, tf: str = "1m", limit: int = 90,
         from quant.data import get_provider
         df = get_provider(market).get_ohlcv(symbol, tf, limit=limit)
         if len(df) and not df.attrs.get("synthetic_fallback"):
+            # 6번째 필드 epoch(초) — 전문 차트 엔진(Lightweight Charts)용.
+            # 시간축이 없는 인덱스면 None → 클라이언트가 SVG 렌더러로 폴백한다.
+            def _epoch(ix):
+                try:
+                    return int(ix.timestamp())
+                except (AttributeError, ValueError, OSError):
+                    return None
             candles = [[str(ix)[11:16] or str(ix)[:10],
                         round(float(r["open"]), 6), round(float(r["high"]), 6),
-                        round(float(r["low"]), 6), round(float(r["close"]), 6)]
+                        round(float(r["low"]), 6), round(float(r["close"]), 6),
+                        _epoch(ix)]
                        for ix, r in df.tail(limit).iterrows()]
     except Exception:  # noqa: BLE001
         pass
@@ -1520,7 +1534,7 @@ def render_broadcast() -> str:
     """
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 방송 모드</title>{_FAVICON}{_FONT}<style>
+<title>Quant · 방송 모드</title>{_FAVICON}{_FONT}{_LWC}<style>
 :root{{color-scheme:dark;--bg:#07080b;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
   --dim:#5c6370;--line:#1e2128;--accent:#4c7dff;
   /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 (--ok=상승, --bad=하락) */
@@ -1578,6 +1592,10 @@ body.focus .grid{{display:none}}
 #scene .m{{font-size:16px;color:var(--muted)}}
 .candle .head{{display:flex;align-items:baseline;gap:12px;font-size:13px;
   color:var(--muted)}}
+/* '분석 갱신' 펄스 — 새 데이터 재계산 순간에만 잠깐 나타난다 */
+#c-pulse{{font-size:11px;color:var(--accent);opacity:0;font-weight:700}}
+#c-pulse.on{{animation:pulse 1.6s ease-out}}
+@keyframes pulse{{0%{{opacity:0}}15%{{opacity:1}}100%{{opacity:0}}}}
 .candle .sym{{font-size:16px;font-weight:800;color:var(--fg)}}
 .candle .px{{font-size:16px;font-weight:700}}
 .candle .body{{flex:1;min-height:0}}
@@ -1629,7 +1647,8 @@ svg text{{font-family:inherit}}
 <div class="candle" id="candle" style="display:none"><div class="head">
   <span class="sym" id="c-sym">—</span><span id="c-px" class="px">—</span>
   <span id="c-pos"></span>
-  <span style="margin-left:auto">실시간 1분봉 — 시세는 실시간, <b>매매 판단은 일봉(하루 1회 새벽)</b></span>
+  <span id="c-pulse">분석 갱신</span>
+  <span style="margin-left:auto">실시간 1분봉 · 보조선 <span style="color:var(--accent)">MA20</span>·<span style="color:#d9a13b">MA60</span> — 시세는 실시간, <b>매매 판단은 일봉(하루 1회 새벽)</b></span>
 </div><div class="chips" id="c-chips"></div>
 <div class="comment" id="c-comment"></div>
 <div class="body" id="c-body"></div></div>
@@ -1952,10 +1971,63 @@ async function candleTick(rotate){{
       if(regime)cm+=` · 레짐 ${{esc(regime.value)}}`;
       document.getElementById("c-comment").innerHTML=
         `<b>장중 상황</b> (판단 아님 · 다음 판단은 내일 새벽 5시): ${{cm}}`;
-      document.getElementById("c-body").innerHTML=candleChart(d);
+      renderCandles(key,d);
       return;
     }}catch(e){{}}
   }}
+}}
+// 전문 차트 엔진(TradingView Lightweight Charts, 오픈소스) — 크로스헤어·
+// 가격축·부드러운 갱신. CDN 로드 실패(오프라인)나 epoch 없는 데이터면
+// 기존 SVG 렌더러로 조용히 폴백한다.
+let lwc=null,lwcSeries=null,lwcKey=null,lwcLine=null,lwcMa20=null,lwcMa60=null;
+function renderCandles(key,d){{
+  try{{renderCandlesLwc(key,d)}}catch(e){{   // 엔진 오류 시 SVG로 안전 폴백
+    if(lwc){{try{{lwc.remove()}}catch(_e){{}};lwc=null;lwcSeries=null;lwcKey=null}}
+    document.getElementById("c-body").innerHTML=candleChart(d);
+  }}
+}}
+function renderCandlesLwc(key,d){{
+  const body=document.getElementById("c-body");
+  const ok=window.LightweightCharts&&d.candles[0]&&d.candles[0][5]!=null;
+  if(!ok){{if(lwc){{lwc.remove();lwc=null;lwcSeries=null;lwcKey=null}}
+    body.innerHTML=candleChart(d);return}}
+  if(!lwc){{
+    body.innerHTML="";
+    lwc=LightweightCharts.createChart(body,{{
+      autoSize:true,
+      layout:{{background:{{type:"solid",color:"transparent"}},textColor:"#8f96a3",
+        fontFamily:"Pretendard Variable,Pretendard,sans-serif",fontSize:11}},
+      grid:{{vertLines:{{color:"rgba(140,150,165,.07)"}},
+        horzLines:{{color:"rgba(140,150,165,.07)"}}}},
+      rightPriceScale:{{borderVisible:false}},
+      timeScale:{{borderVisible:false,timeVisible:true,secondsVisible:false}},
+      crosshair:{{mode:0}},
+      localization:{{locale:"ko-KR",
+        priceFormatter:p=>Number(p).toLocaleString("ko-KR")}}}});
+    lwcSeries=lwc.addCandlestickSeries({{
+      upColor:"#f04452",downColor:"#3182f6",borderUpColor:"#f04452",
+      borderDownColor:"#3182f6",wickUpColor:"#f04452",wickDownColor:"#3182f6"}});
+    // 모델이 보는 보조선 — 1분봉 이동평균(표시용). '실시간 분석 중' 연출의
+    // 정직한 재료: 실제 데이터로 매 갱신마다 다시 계산된다.
+    lwcMa20=lwc.addLineSeries({{color:"#4c7dff",lineWidth:1,
+      priceLineVisible:false,lastValueVisible:false}});
+    lwcMa60=lwc.addLineSeries({{color:"#d9a13b",lineWidth:1,
+      priceLineVisible:false,lastValueVisible:false}});
+  }}
+  lwcSeries.setData(d.candles.map(k=>({{time:k[5],open:k[1],high:k[2],low:k[3],close:k[4]}})));
+  const ma=(n)=>{{const out=[];let s=0;
+    d.candles.forEach((k,i)=>{{s+=k[4];if(i>=n)s-=d.candles[i-n][4];
+      if(i>=n-1)out.push({{time:k[5],value:s/n}})}});return out}};
+  lwcMa20.setData(ma(20)); lwcMa60.setData(ma(60));
+  if(lwcLine){{lwcSeries.removePriceLine(lwcLine);lwcLine=null}}
+  if(d.position&&d.position.avg_price)
+    lwcLine=lwcSeries.createPriceLine({{price:d.position.avg_price,color:"#4c7dff",
+      lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible:true,title:"진입가"}});
+  if(lwcKey!==key){{lwc.timeScale().fitContent();lwcKey=key}}
+  // '분석 갱신' 펄스 — 새 데이터로 다시 계산했음을 시각적으로 알린다
+  const pulse=document.getElementById("c-pulse");
+  if(pulse){{pulse.classList.remove("on");void pulse.offsetWidth;pulse.classList.add("on")}}
 }}
 setInterval(tick,15000);tick(true).then(()=>tick());
 // 캔들 첫 성공까지 2초 간격 재시도(첫 로딩 레이스 방지), 이후 15초 갱신
