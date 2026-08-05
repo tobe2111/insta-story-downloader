@@ -6,6 +6,7 @@
 환경변수:
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   (텔레그램 봇)
     SLACK_WEBHOOK_URL                       (슬랙 Incoming Webhook)
+    DISCORD_WEBHOOK_URL                     (디스코드 채널 웹훅)
 설정된 채널만 자동으로 활성화되며, 콘솔 알림은 항상 켜져 있다.
 모든 전송 오류는 삼켜서(swallow) 알림 실패가 매매를 멈추지 않게 한다.
 """
@@ -70,6 +71,21 @@ class SlackNotifier(Notifier):
             log.warning("슬랙 알림 실패: %s", _redact(exc))
 
 
+class DiscordNotifier(Notifier):
+    """디스코드 웹훅 알림 — 서버 채널 설정에서 웹훅 URL 하나만 만들면 된다."""
+
+    def __init__(self, webhook_url: str):
+        self.webhook_url = webhook_url
+
+    def send(self, message: str, level: str = "info") -> None:
+        try:
+            # 디스코드는 {"content": ...} 형식, 2000자 제한
+            post_text(self.webhook_url, {"content-type": "application/json"},
+                      {"content": message[:1900]})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("디스코드 알림 실패: %s", _redact(exc))
+
+
 class MultiNotifier(Notifier):
     """여러 채널로 동시에 전송. 개별 채널 실패는 서로 격리된다."""
 
@@ -98,5 +114,10 @@ def get_notifier() -> Notifier:
     if slack:
         channels.append(SlackNotifier(slack))
         log.info("슬랙 알림 활성화")
+
+    discord = os.getenv("DISCORD_WEBHOOK_URL")
+    if discord:
+        channels.append(DiscordNotifier(discord))
+        log.info("디스코드 알림 활성화")
 
     return MultiNotifier(channels)

@@ -16,6 +16,7 @@ _EXPORTS = {
     "MultiTrader": "quant.live.multi",
     "Notifier": "quant.live.notifications",
     "ConsoleNotifier": "quant.live.notifications",
+    "DiscordNotifier": "quant.live.notifications",
     "TelegramNotifier": "quant.live.notifications",
     "SlackNotifier": "quant.live.notifications",
     "MultiNotifier": "quant.live.notifications",

@@ -64,9 +64,44 @@ def test_get_notifier_defaults_to_console(monkeypatch=None):
     # 환경변수 없이 호출 시 콘솔만 포함하는 MultiNotifier 반환
     import os
 
-    for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL"):
+    for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL",
+              "DISCORD_WEBHOOK_URL"):
         os.environ.pop(k, None)
     n = notif.get_notifier()
     assert isinstance(n, notif.MultiNotifier)
     assert len(n.notifiers) == 1
     assert isinstance(n.notifiers[0], notif.ConsoleNotifier)
+
+
+def test_discord_notifier_posts_content(monkeypatch):
+    """디스코드 웹훅 형식({"content": ...})과 2000자 제한 준수 검증."""
+    calls = []
+
+    def fake_post(url, headers=None, body=None):
+        calls.append((url, headers, body))
+        return ""
+
+    monkeypatch.setattr(notif, "post_text", fake_post)
+    d = notif.DiscordNotifier("https://discord.com/api/webhooks/1/SECRET")
+    d.send("가" * 3000)
+    assert len(calls) == 1
+    url, headers, body = calls[0]
+    assert url.endswith("/1/SECRET")
+    assert "content" in body and len(body["content"]) <= 1900
+
+
+def test_discord_notifier_swallows_errors(monkeypatch):
+    """웹훅 실패가 매매를 멈추지 않아야 한다(예외 삼킴)."""
+    def boom(*a, **k):
+        raise RuntimeError("HTTP 404 https://discord.com/api/webhooks/1/SECRET: no")
+
+    monkeypatch.setattr(notif, "post_text", boom)
+    notif.DiscordNotifier("https://discord.com/api/webhooks/1/SECRET").send("x")
+
+
+def test_get_notifier_enables_discord(monkeypatch):
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.com/api/webhooks/1/x")
+    n = notif.get_notifier()
+    assert any(isinstance(c, notif.DiscordNotifier) for c in n.notifiers)

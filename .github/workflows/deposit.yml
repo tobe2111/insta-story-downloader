@@ -41,6 +41,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
         run: |
           python -m quant deposit --amount "${{ github.event.inputs.amount }}" \
