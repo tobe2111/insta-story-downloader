@@ -404,6 +404,45 @@ def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
         return None
 
 
+def _xsec_tilt(weights: dict, lo: float = 0.75, hi: float = 1.25) -> dict:
+    """횡단면 확신도 틸트 — 같은 위험예산 안에서 고확신 종목으로 자본을 기울인다.
+
+    지금까지 배분(ERC)은 '위험'만 보고 종목을 나눴다 — 챔피언이 A는 확신
+    100%, B는 확신 60%라고 말해도 두 종목의 자본 예산은 같았다. 이 틸트는
+    각 챔피언의 |목표비중|(확신도)을 종목 간 '순위'로 바꿔 [lo, hi] 배수로
+    매핑한다(꼴찌 lo배, 1등 hi배). 순위를 쓰는 이유: 종목마다 전략·보정이
+    달라 확신도의 절대값은 비교 불가능하지만 순서는 비교 가능하다.
+    동률은 평균 순위 — 유니버스 나열 순서가 배분을 좌우하면 안 된다.
+    활성(|w|>0) 종목이 2개 미만이면 순위가 무의미하므로 전부 1.0.
+    ⚠️ 이것은 '검증된 알파'가 아니라 배분 규칙이다. 배수는 호출자가 총예산
+    보존으로 재정규화하며, 그날의 배수가 장부(xsec_tilt)에 남아 사후 검증
+    가능하다. 확신도가 무정보라면 장기적으로 균등 배분과 다르지 않다.
+    """
+    active = {k: abs(float(w)) for k, w in weights.items() if abs(float(w)) > 0}
+    if len(active) < 2:
+        return {k: 1.0 for k in weights}
+    order = sorted(active, key=lambda k: (active[k], k))   # 결정적 정렬
+    n = len(order)
+    # 동률 그룹에 평균 순위 부여
+    rank: dict = {}
+    i = 0
+    while i < n:
+        j = i
+        while j + 1 < n and active[order[j + 1]] == active[order[i]]:
+            j += 1
+        mean_rank = (i + j) / 2.0
+        for kk in order[i:j + 1]:
+            rank[kk] = mean_rank
+        i = j + 1
+    out = {}
+    for k in weights:
+        if k in rank:
+            out[k] = lo + (hi - lo) * rank[k] / (n - 1)
+        else:
+            out[k] = 1.0                       # 관망 종목은 틸트 무의미(비중 0)
+    return out
+
+
 def _kill_switch_scale(prev: float, dd: float) -> float:
     """자동 킬스위치 — 낙폭 단계별 노출 축소와 '단계적' 복귀(히스테리시스).
 
@@ -539,6 +578,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
     # ERC(위험기여 균등) 슬라이스 — 실패 시 자본 균등(1/n) 폴백
     slices = _erc_slices(rets_map, n) or {k: 1.0 / n for k in weights}
+    # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
+    # 자본을 고확신 종목으로 기울인다. 총예산 보존 재정규화 후 과집중 상한
+    # (3/n)을 다시 적용한다(상한 초과분은 재분배하지 않고 버림 — 보수적).
+    tilt = _xsec_tilt(weights)
+    budget = sum(slices.get(k, 1.0 / n) for k in weights)
+    tilted = {k: slices.get(k, 1.0 / n) * tilt.get(k, 1.0) for k in weights}
+    tot = sum(tilted.values())
+    if budget > 0 and tot > 0:
+        cap = 3.0 / n
+        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
@@ -576,6 +625,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "risk_scale": risk_scale,
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
+              # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
+              "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),

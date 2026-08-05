@@ -5,8 +5,10 @@
 돌리므로 API 토큰·요금이 전혀 들지 않는다.
 
     1. 피처: 수익률(다기간)·변동성 레짐·RSI·MACD·볼린저·거래량 z 등 (모두 '과거')
-    2. 라벨: 다음 봉이 올랐는가(1) 내렸는가(0)
+    2. 라벨: 다음 봉이 올랐는가(nextbar, 기본) 또는 트리플 배리어(triple —
+       ±k·변동성 이익/손절 배리어와 수직 만료 중 무엇을 먼저 치는가)
     3. 학습: 로지스틱회귀 / 랜덤포레스트 / 그라디언트부스팅 / 소프트보팅 앙상블
+       (선택: 표본 시간감쇠 가중 · 메타라벨링 — 방향은 추세 규칙, 크기만 ML)
     4. 사이징: 상승확률을 목표비중으로 매핑 — 확신할수록 크게(conviction sizing)
 
 ⚠️ 룩어헤드 방지가 생명이다. 각 시점의 예측은 '그 이전' 데이터로만 학습한
@@ -126,6 +128,70 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
     return out.replace([np.inf, -np.inf], np.nan)
 
 
+def _triple_barrier_labels(df: pd.DataFrame, horizon: int = 10,
+                           k: float = 1.5) -> np.ndarray:
+    """트리플 배리어 라벨 — '다음 봉 방향'보다 잡음이 적은 라벨링 (López de Prado).
+
+    각 봉 i에서 상단(진입가+k·변동성)·하단(진입가-k·변동성)·수직(horizon봉)
+    세 배리어를 치고, 이후 고가/저가 경로가 어느 배리어를 먼저 치는지 본다:
+        상단 먼저 → 1 (이익실현), 하단 먼저 → 0 (손절),
+        같은 봉에서 둘 다 → 0 (보수적: 손절이 먼저였다고 가정),
+        수직 만료 → 만료 시점 종가가 진입가보다 높으면 1, 아니면 0.
+    다음-봉 라벨은 하루짜리 잡음을 그대로 배우지만, 이 라벨은 '의미 있는
+    폭의 움직임'만 배운다. ⚠️ 라벨 하나가 미래 horizon봉을 보므로, 학습창
+    상한도 horizon만큼 당겨야 룩어헤드가 없다(generate_signals에서 처리).
+    마지막 horizon봉과 변동성 미정의 구간은 NaN(학습 제외).
+    """
+    close = df["close"]
+    high = df.get("high", close).to_numpy(dtype=float)
+    low = df.get("low", close).to_numpy(dtype=float)
+    cl = close.to_numpy(dtype=float)
+    vol = close.pct_change().rolling(20).std().to_numpy()
+    n = len(df)
+    up = cl * (1.0 + k * vol)
+    dn = cl * (1.0 - k * vol)
+    never = horizon + 1                      # '한 번도 안 침'을 뜻하는 오프셋
+    first_up = np.full(n, never, dtype=int)
+    first_dn = np.full(n, never, dtype=int)
+    for h in range(horizon, 0, -1):          # 역순: 가까운 터치가 최종값이 된다
+        idx = np.arange(0, n - h)
+        first_up[idx] = np.where(high[idx + h] >= up[idx], h, first_up[idx])
+        first_dn[idx] = np.where(low[idx + h] <= dn[idx], h, first_dn[idx])
+    y = np.full(n, np.nan)
+    have = np.arange(n) < n - horizon        # 수직 배리어까지 관측 가능한 봉만
+    have &= np.isfinite(vol) & (vol > 0)
+    i = np.where(have)[0]
+    win = first_up[i] < first_dn[i]                          # 상단 먼저
+    expire = (first_up[i] > horizon) & (first_dn[i] > horizon)   # 무터치 만료
+    y[i] = np.where(win, 1.0,
+                    np.where(expire, (cl[i + horizon] > cl[i]).astype(float),
+                             0.0))          # 하단 먼저·동시 터치 → 0(보수적)
+    return y
+
+
+def _fit(model, X: np.ndarray, y: np.ndarray, sw: np.ndarray | None) -> None:
+    """표본 가중을 지원하는 경로로 학습한다 — 미지원 조합은 무가중 폴백.
+
+    sklearn 추정기마다 sample_weight 전달 방법이 다르다(직접 인자, 파이프라인
+    단계 접두사). 조용한 실패 대신 명시적 폴백 사다리: 직접 → 파이프라인
+    접두사 → 무가중. 폴백해도 학습 자체는 항상 성공한다.
+    """
+    if sw is None:
+        model.fit(X, y)
+        return
+    try:
+        model.fit(X, y, sample_weight=sw)
+        return
+    except (TypeError, ValueError):
+        pass
+    try:                                     # Pipeline: 마지막 단계로 라우팅
+        step = model.steps[-1][0]
+        model.fit(X, y, **{f"{step}__sample_weight": sw})
+        return
+    except Exception:  # noqa: BLE001 — 가중 미지원 조합(vote 등)은 무가중으로
+        model.fit(X, y)
+
+
 def _build_model(kind: str):
     """모델 팩토리. sklearn 추정기를 반환한다.
 
@@ -180,10 +246,20 @@ class MLStrategy(Strategy):
                  retrain_every: int = 20, threshold: float = 0.55,
                  sizing: str = "proba", min_train: int = 50,
                  allow_short: bool = False, extra_features=None,
-                 calibrate: str | None = None, weight_step: float = 0.0):
+                 calibrate: str | None = None, weight_step: float = 0.0,
+                 label: str = "nextbar", label_horizon: int = 10,
+                 label_k: float = 1.5, meta: bool = False,
+                 sample_weight: str | None = None,
+                 weight_halflife: int = 125):
         if calibrate not in (None, "sigmoid", "isotonic"):
             raise ValueError(
                 f"calibrate는 None·'sigmoid'·'isotonic' 중 하나여야 합니다: {calibrate!r}")
+        if label not in ("nextbar", "triple"):
+            raise ValueError(
+                f"label은 'nextbar'·'triple' 중 하나여야 합니다: {label!r}")
+        if sample_weight not in (None, "decay"):
+            raise ValueError(
+                f"sample_weight는 None·'decay' 중 하나여야 합니다: {sample_weight!r}")
         self.model_kind = model
         self.train_window = train_window
         self.retrain_every = max(1, retrain_every)
@@ -199,6 +275,19 @@ class MLStrategy(Strategy):
         # Δ비중 양자화 격자(예: 0.1). 확률의 미세한 흔들림이 매 봉 소량 매매로
         # 새는 것을 막는 회전율 절감 장치 — 수익 개선 장치가 아니다. 0 = 끔(기존).
         self.weight_step = max(0.0, float(weight_step))
+        # 라벨 재설계 — nextbar(다음 봉 방향, 기존) | triple(트리플 배리어).
+        # triple은 ±label_k·변동성 배리어와 label_horizon봉 수직 배리어 중
+        # 어느 쪽을 먼저 치는지 배운다 — 하루짜리 잡음 대신 '의미 있는 움직임'.
+        self.label = label
+        self.label_horizon = max(2, int(label_horizon))
+        self.label_k = max(0.1, float(label_k))
+        # 메타라벨링 — 방향은 단순 추세 규칙(종가 vs MA50)이 정하고, ML은
+        # '그 판단이 이익이 될 확률'만 추정해 크기를 정한다(방향·크기 분업).
+        self.meta = bool(meta)
+        # 표본 시간감쇠 가중 — 최근 표본에 더 큰 학습 가중(반감기 weight_halflife봉).
+        # 옛 국면을 창에서 자르는 롤링 창의 연속화 버전이다.
+        self.sample_weight = sample_weight
+        self.weight_halflife = max(5, int(weight_halflife))
         # 외부(거시) 피처: DataFrame 또는 callable(df)->DataFrame. 예: 공포탐욕지수.
         self.extra_features = extra_features
         # 최근 학습에 쓰인 피처 이름(기본 15개 + 외부 피처)
@@ -209,16 +298,18 @@ class MLStrategy(Strategy):
         self.last_proba_: float | None = None
 
     # ── 확률 → 목표비중 매핑 ────────────────────────────────────────────
-    def _size(self, prob_up: np.ndarray) -> np.ndarray:
+    def _size(self, prob_up: np.ndarray, *, long_only: bool = False) -> np.ndarray:
         """상승확률 배열을 [-1,1] 목표비중으로 변환한다.
 
         proba 모드: threshold를 데드존 경계로 두고 확신할수록 크게 태운다.
                     weight_step>0이면 결과를 격자에 반올림(양자화)한다.
         binary 모드: 임계 넘으면 풀 포지션(1/-1), 아니면 관망(0).
+        long_only=True: 낮은 확률을 숏이 아니라 관망으로 해석한다 — 메타라벨링
+        (확률='이익 확률')처럼 방향이 이미 정해진 경우의 크기 계산용.
         """
         if self.sizing == "binary":
             w = np.where(prob_up >= self.threshold, 1.0, 0.0)
-            if self.allow_short:
+            if self.allow_short and not long_only:
                 w = np.where(prob_up <= 1.0 - self.threshold, -1.0, w)
             return w
 
@@ -228,7 +319,7 @@ class MLStrategy(Strategy):
         w = np.zeros_like(edge, dtype=float)
         long = edge > gate
         w[long] = np.clip((edge[long] - gate) / span, 0.0, 1.0)
-        if self.allow_short:
+        if self.allow_short and not long_only:
             short = edge < -gate
             w[short] = -np.clip((-edge[short] - gate) / span, 0.0, 1.0)
         if self.weight_step > 0.0:
@@ -265,10 +356,33 @@ class MLStrategy(Strategy):
             extra = extra(df)
         feats = _features(df, extra)
         self.feature_names_ = list(feats.columns)
-        # 라벨: 다음 봉 상승 여부 (마지막 행은 미래가 없어 NaN)
-        label = (df["close"].shift(-1) > df["close"]).astype(float)
-        label[df["close"].shift(-1).isna()] = np.nan
-        y = label.to_numpy()
+        if self.label == "triple":
+            # 트리플 배리어: 어느 배리어(이익/손절/만료)를 먼저 치는가
+            y = _triple_barrier_labels(df, self.label_horizon, self.label_k)
+            span = self.label_horizon          # 라벨 하나가 보는 미래 봉 수
+        else:
+            # 기존 라벨: 다음 봉 상승 여부 (마지막 행은 미래가 없어 NaN)
+            label = (df["close"].shift(-1) > df["close"]).astype(float)
+            label[df["close"].shift(-1).isna()] = np.nan
+            y = label.to_numpy()
+            span = 1
+
+        # 메타라벨링의 1차 신호 — 단순 추세 규칙(종가 vs MA50). 학습이 필요
+        # 없는 결정적 규칙이라 룩어헤드가 없고, ML(2차)은 '이 방향 판단이
+        # 이익이 될 확률'만 배운다. 롱온리면 하락 추세는 0(관망).
+        side = np.zeros(len(df))
+        if self.meta:
+            ma50 = df["close"].rolling(50).mean()
+            trend = np.sign((df["close"] - ma50).to_numpy())
+            side = trend if self.allow_short else np.clip(trend, 0.0, 1.0)
+            side[~np.isfinite(side)] = 0.0
+            # 메타 라벨: '1차 방향대로 갔으면 이익이었나' — 방향이 있는 봉만.
+            #   롱(+1)이고 라벨 1(상승/이익배리어) → 1 · 숏(-1)이고 라벨 0 → 1
+            y_meta = np.where(np.isnan(y), np.nan,
+                              ((side > 0) & (y == 1))
+                              | ((side < 0) & (y == 0)))
+            y_meta = np.where(side == 0, np.nan, y_meta)  # 관망 봉은 학습 제외
+            y = y_meta.astype(float)
 
         # 외부 피처(x_*)의 결측은 0으로 대치한다(아래 valid는 기본 피처만 보므로
         # 이 대치가 실제로 쓰인다). 0은 이상적 중립값은 아니지만, 외부 피처가
@@ -289,10 +403,11 @@ class MLStrategy(Strategy):
         i = self.train_window
         while i < n:
             # 최근 train_window봉만 학습에 사용(롤링) → 옛 국면을 버리고 학습량도 O(n²)로
-            # 커지지 않는다. 상한을 i-1로 두어 라벨(y[j]=close[j+1]>close[j])이 예측
-            # 대상 봉을 침범하지 않게 한다(엄격한 룩어헤드 차단).
+            # 커지지 않는다. 상한은 i-span: 라벨 하나가 미래 span봉을 보므로
+            # (nextbar=1, triple=horizon), 마지막 학습 라벨이 참조하는 미래가
+            # 예측 시점 i를 절대 넘지 않게 한다(엄격한 룩어헤드 차단).
             lo = max(0, i - self.train_window)
-            hi = i - 1
+            hi = i - span
             mask = valid[lo:hi] & ~np.isnan(y[lo:hi])
             if mask.sum() >= self.min_train:
                 yt = y[lo:hi][mask].astype(int)
@@ -305,17 +420,31 @@ class MLStrategy(Strategy):
                         from sklearn.calibration import CalibratedClassifierCV
                         model = CalibratedClassifierCV(
                             model, method=self.calibrate, cv=3)
-                    model.fit(X[lo:hi][mask], yt)
+                    sw = None
+                    if self.sample_weight == "decay":
+                        # 시간감쇠: 창의 최신 표본 가중 1.0, 반감기마다 절반.
+                        age = (hi - 1) - np.arange(lo, hi)[mask]
+                        sw = np.power(0.5, age / self.weight_halflife)
+                    _fit(model, X[lo:hi][mask], yt, sw)
                     self._record_importances(model)
 
             block_end = min(i + self.retrain_every, n)
             if model is not None:
                 rows = np.arange(i, block_end)
                 rows = rows[valid[i:block_end]]
+                if self.meta:                   # 1차 방향이 없는 봉은 관망
+                    rows = rows[side[rows] != 0]
                 if len(rows):
-                    prob_up = model.predict_proba(X[rows])[:, 1]
-                    out[rows] = self._size(prob_up)
-                    probs[rows] = prob_up
+                    p = model.predict_proba(X[rows])[:, 1]
+                    if self.meta:
+                        # p = '1차 방향 판단이 이익이 될 확률' → 크기만 정하고
+                        # 방향은 1차 규칙(side)이 정한다. 기록용 상승확률은
+                        # 롱이면 p, 숏이면 1-p로 환산(신뢰도 곡선과 호환).
+                        out[rows] = side[rows] * self._size(p, long_only=True)
+                        probs[rows] = np.where(side[rows] > 0, p, 1.0 - p)
+                    else:
+                        out[rows] = self._size(p)
+                        probs[rows] = p
             i = block_end
 
         # 마지막 봉(오늘 판단)의 예측확률 — 매일 기록에 남겨, "AI가 60%라고
