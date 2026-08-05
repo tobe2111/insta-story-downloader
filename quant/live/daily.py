@@ -57,6 +57,58 @@ from quant.utils.repro import env_fingerprint as _env_fingerprint
 # 이 태그로 어느 기준으로 계산된 기록인지 영구히 구분할 수 있다.
 ACCOUNTING_VERSION = "next_open_v2"
 
+# 무행동 밴드 — 목표 비중이 어제 대비 5%p 미만으로만 달라졌으면 리밸런싱을
+# 생략한다. 확률·변동성의 미세한 흔들림이 만드는 잔조정은 기대수익 0에
+# 왕복 수수료만 확정 지불하는 거래다. 청산(비중 0)은 밴드와 무관하게 실행.
+REBALANCE_BAND = 0.05
+
+
+def _risk_for(market: str):
+    """시장별 연율화 계수를 반영한 RiskManager — 코인 365일, 주식 252거래일.
+
+    연율화가 틀리면 변동성 타깃팅 배율이 주식에서 약 20% 어긋난다(√(365/252)).
+    """
+    from quant.risk import RiskManager
+    from quant.risk.manager import RiskConfig
+    ppy = 365 if market in ("crypto", "synthetic") else 252
+    return RiskManager(RiskConfig(periods_per_year=ppy))
+
+
+def _last_proba(strategy) -> float | None:
+    """전략(래퍼 포함)에서 마지막 봉의 ML 예측확률을 꺼낸다. 없으면 None.
+
+    핫리로드 래퍼(_impl)·레짐/이벤트 래퍼(base)를 재귀로 벗겨 가며 찾는다 —
+    기록된 확률은 설명 문장·신뢰도 곡선과 '같은 숫자'여야 한다(사후 검증 가능).
+    """
+    seen = 0
+    while strategy is not None and seen < 6:
+        p = getattr(strategy, "last_proba_", None)
+        if p is not None:
+            return float(p)
+        strategy = getattr(strategy, "_impl", None) or getattr(
+            strategy, "base", None)
+        seen += 1
+    return None
+
+
+def _drift_psi(df) -> float | None:
+    """최근 60일 수익률 분포의 PSI(기준: 그 이전 ~250일) — 레짐 이탈 감지.
+
+    0.25 이상이면 '학습 시점과 시장이 달라졌다'는 경고 신호로 기록·알림한다.
+    표본 부족이면 None(계산불가를 0으로 위장하지 않는다).
+    """
+    try:
+        from quant.robustness import psi
+        rets = df["close"].pct_change().dropna()
+        if len(rets) < 130:
+            return None
+        recent = rets.iloc[-60:]
+        ref = rets.iloc[-310:-60]
+        v = psi(list(ref), list(recent))
+        return round(float(v), 4) if v == v else None
+    except Exception:  # noqa: BLE001 — 감시 실패가 본류를 막으면 안 된다
+        return None
+
 
 def _paper_path(market: str, symbol: str, state_dir: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{market}_{symbol}")
@@ -82,7 +134,6 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     from quant.broker import PaperBroker
     from quant.broker.base import Position
     from quant.data import get_provider
-    from quant.risk import RiskManager
     from quant.robustness.accuracy import directional_accuracy
     from quant.utils.jsonio import atomic_write_json, cap_history
 
@@ -93,6 +144,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         raise RuntimeError(
             f"{market}/{symbol}: 실데이터 수신 실패 → 합성 폴백 감지. "
             "가짜 데이터로 페이퍼 기록을 오염시키지 않도록 중단합니다.")
+    if market == "crypto":
+        # 펀딩비 컬럼 — ML의 x_funding 피처 재료(실패 시 조용히 생략)
+        from quant.data.funding import attach_funding
+        df = attach_funding(df, symbol)
 
     path = _paper_path(market, symbol, state_dir)
     st = _load_paper(path)
@@ -103,7 +158,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
 
     strategy = champion_strategy(market, symbol, state_dir)
     signals = strategy.generate_signals(df)
-    weight = float(RiskManager().size_positions(df, signals).iloc[-1])
+    weight = float(_risk_for(market).size_positions(df, signals).iloc[-1])
     price = float(df["close"].iloc[-1])
 
     # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시
@@ -123,7 +178,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         fbar, fopen = _first_bar_after(df, pending["decided_bar"])
         if fopen is not None:
             eq_open = broker.equity({symbol: fopen})
-            broker.target_weight(symbol, float(pending["weight"]), fopen, eq_open)
+            broker.target_weight(symbol, float(pending["weight"]), fopen,
+                                 eq_open, rebalance_band=REBALANCE_BAND)
             fill = {"price": round(fopen, 6), "bar": fbar,
                     "weight": round(float(pending["weight"]), 4),
                     "decided_bar": pending["decided_bar"]}
@@ -131,7 +187,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열에 올린다
     if market in IMMEDIATE_FILL_MARKETS:
         eq_now = broker.equity({symbol: price})
-        broker.target_weight(symbol, weight, price, eq_now)
+        broker.target_weight(symbol, weight, price, eq_now,
+                             rebalance_band=REBALANCE_BAND)
     else:
         st["pending"] = {"weight": round(weight, 4), "decided_bar": last_bar}
 
@@ -154,6 +211,11 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "data_sha256": _data_sha256(df),
         "env": _env_fingerprint(),
         "accounting": ACCOUNTING_VERSION,
+        # 예측확률(ML 챔피언일 때) — 신뢰도 곡선("60%라고 한 날 실제 적중률")과
+        # 설명 문장 대조의 원천 숫자. 서술은 이 숫자에서 기계 생성된다.
+        "prob_up": _last_proba(strategy),
+        # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
+        "drift_psi": _drift_psi(df),
     }
     st.update({
         "market": market, "symbol": symbol, "start_cash": START_CASH,
@@ -305,7 +367,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     from quant.broker import PaperBroker
     from quant.broker.base import Position
     from quant.data import get_provider
-    from quant.risk import RiskManager
     from quant.utils.jsonio import atomic_write_json, cap_history
 
     from quant.markets import AUTO_TARGETS
@@ -323,7 +384,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
 
-    risk = RiskManager()
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
@@ -337,6 +397,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
+            if market == "crypto":
+                from quant.data.funding import attach_funding
+                df = attach_funding(df, symbol)
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -344,7 +407,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 from quant.live.retrain import DEFAULT_CHAMPION, build_strategy
                 strat = build_strategy(DEFAULT_CHAMPION)
             signals = strat.generate_signals(df)
-            weights[key] = float(risk.size_positions(df, signals).iloc[-1])
+            weights[key] = float(
+                _risk_for(market).size_positions(df, signals).iloc[-1])
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
@@ -379,7 +443,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             continue
         broker.fee = _fill_cost(key.split(":")[0])
         eq_now = broker.equity({**prices, key: fopen})
-        broker.target_weight(key, float(pend["weight"]) / n, fopen, eq_now)
+        broker.target_weight(key, float(pend["weight"]) / n, fopen, eq_now,
+                             rebalance_band=REBALANCE_BAND / n)
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]), 4)})
         pending.pop(key, None)
@@ -390,7 +455,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         market = key.split(":")[0]
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
-            broker.target_weight(key, w / n, prices[key], equity)
+            # 밴드도 슬라이스 크기에 비례(자본의 5%p/n) — 종목 간 공평
+            broker.target_weight(key, w / n, prices[key], equity,
+                                 rebalance_band=REBALANCE_BAND / n)
         else:
             pending[key] = {"weight": round(w, 4),
                             "decided_bar": last_bars[key]}

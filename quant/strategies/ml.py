@@ -28,7 +28,16 @@ FEATURE_NAMES = [
     "ret1", "ret5", "ret10", "vol", "vol_ratio", "rsi14", "rsi7",
     "ma_dist20", "ma_dist50", "mom20", "mom60", "macd_hist",
     "bb_pctb", "atr", "vol_z",
+    # fs2 — 변동성 구조: 고가·저가를 쓰는 Garman-Klass 추정량(같은 기간에
+    # 종가 표준편차보다 정확)과 단기/장기 실현변동성 비율(레짐 신호).
+    "gk_vol", "rv_5_60",
 ]
+
+# 피처셋 버전 — 피처를 '가설 그룹' 단위로 추가·기록하기 위한 태그.
+# 재학습 장부에 함께 남겨, 성과 변화가 어느 피처 배치 이후인지 추적 가능하다.
+#   fs1: 기본 15개 (가격 유도 지표)
+#   fs2: +변동성 구조(gk_vol, rv_5_60) +코인 펀딩비(x_funding, 컬럼 있을 때)
+FEATURE_SET = "fs2:+volstruct+funding"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:
@@ -83,6 +92,17 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
     feats["macd_hist"] = macd_hist
     feats["bb_pctb"] = bb_pctb
     feats["atr"] = atr
+    # Garman-Klass 변동성(고저가 활용) — 하루 봉 하나에서도 분산 정보를 뽑아
+    # 종가 표준편차보다 같은 윈도에서 추정 오차가 작다. 가격 유도지만 OHLC
+    # 4개를 모두 쓰는 유일한 변동성 추정량이라 vol(종가 std)과 정보가 다르다.
+    opn = df.get("open", close)
+    log_hl = np.log((high / low).replace([np.inf, -np.inf], np.nan))
+    log_co = np.log((close / opn).replace([np.inf, -np.inf], np.nan))
+    gk_var = 0.5 * log_hl ** 2 - (2 * np.log(2) - 1) * log_co ** 2
+    feats["gk_vol"] = np.sqrt(gk_var.rolling(20).mean().clip(lower=0.0))
+    # 단기/장기 실현변동성 비율(5일/60일) — 1보다 크면 변동성 확장 국면.
+    # 사이징의 변동성 타깃팅과 같은 재료를 예측 피처로도 재사용한다.
+    feats["rv_5_60"] = ret1.rolling(5).std() / vol60
     if volume is not None and float(volume.abs().sum()) > 0:
         vmean = volume.rolling(20).mean()
         vstd = volume.rolling(20).std()
@@ -91,6 +111,12 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
         feats["vol_z"] = 0.0
 
     out = feats[FEATURE_NAMES].copy()
+    # 코인 펀딩비 — 데이터 로더가 df에 'funding' 컬럼을 붙여 준 경우에만 쓴다.
+    # 가격에서 유도할 수 없는 진짜 신규 정보(포지셔닝 과열도)이며, 컬럼으로
+    # 받는 이유는 재현성 때문이다: 입력 스냅샷(csv.gz)에 함께 보존돼
+    # verify가 같은 피처로 그날의 결정을 재현할 수 있다.
+    if "funding" in df.columns:
+        out["x_funding"] = pd.to_numeric(df["funding"], errors="coerce").ffill()
     # 외부(거시) 피처 병합 — 예: 공포탐욕지수, 펀딩비, 금리. 날짜로 정렬 후
     # 전진충전(ffill)한다. 해당 봉 시점까지 알려진 값만 쓰므로 룩어헤드 없음.
     if extra is not None and len(extra.columns):
@@ -179,6 +205,8 @@ class MLStrategy(Strategy):
         self.feature_names_: list[str] = list(FEATURE_NAMES)
         # 최근 학습 모델의 피처 중요도(있으면) — 사후 해석용
         self.last_importances_: dict[str, float] | None = None
+        # 마지막 봉의 예측 상승확률 — 신뢰도 곡선(보정 검증) 기록용
+        self.last_proba_: float | None = None
 
     # ── 확률 → 목표비중 매핑 ────────────────────────────────────────────
     def _size(self, prob_up: np.ndarray) -> np.ndarray:
@@ -254,6 +282,7 @@ class MLStrategy(Strategy):
         valid = feats[base_cols].notna().all(axis=1).to_numpy()
         n = len(df)
         out = np.zeros(n)
+        probs = np.full(n, np.nan)     # 봉별 예측확률 — 신뢰도 곡선(보정 검증)용
         model = None
 
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
@@ -286,6 +315,11 @@ class MLStrategy(Strategy):
                 if len(rows):
                     prob_up = model.predict_proba(X[rows])[:, 1]
                     out[rows] = self._size(prob_up)
+                    probs[rows] = prob_up
             i = block_end
 
+        # 마지막 봉(오늘 판단)의 예측확률 — 매일 기록에 남겨, "AI가 60%라고
+        # 한 날들의 실제 적중률"(신뢰도 곡선)을 사이트에서 검증할 수 있게 한다.
+        self.last_proba_ = (float(probs[-1])
+                            if n and np.isfinite(probs[-1]) else None)
         return self._finalize(pd.Series(out, index=df.index), df.index)

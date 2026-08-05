@@ -16,8 +16,14 @@ SNAP_DIR = "snapshots"
 
 
 def data_sha256(df) -> str:
-    """OHLCV 데이터프레임의 정규화 해시 — 부동소수 표현 차이에 안정적."""
-    cols = [c for c in ("open", "high", "low", "close", "volume") if c in df]
+    """입력 데이터프레임의 정규화 해시 — 부동소수 표현 차이에 안정적.
+
+    funding 등 부가 피처 컬럼도 포함한다 — 판단에 쓰인 모든 입력이 해시에
+    묶여야 '입력이 같았다'는 검증이 성립한다(OHLCV만 있던 과거 기록과는
+    컬럼 교집합이 같으므로 하위 호환).
+    """
+    cols = [c for c in ("open", "high", "low", "close", "volume", "funding")
+            if c in df]
     body = "\n".join(
         f"{ix},{','.join(format(float(r[c]), '.10g') for c in cols)}"
         for ix, r in df[cols].iterrows())
