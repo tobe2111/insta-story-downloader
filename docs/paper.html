@@ -78,7 +78,8 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
 <h1>8마일 챌린지 — 매일 자동 페이퍼</h1>
-<p class="sub">통합 계좌는 <b>가상 자금 80,000원(8종목 × 만원)</b>으로 시작해, 클라우드가 매일 새벽(한국시간)
+<p class="sub">통합 계좌는 <b>가상 자금 80,000원</b>(영화 '8마일' 오마주)으로 시작해, 현재 20종목에
+위험균등 분산하며, 클라우드가 매일 새벽(한국시간)
 챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
@@ -278,7 +279,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const cls=ret>=0?"pos":"neg";
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
     const champ=k.startsWith("portfolio")
-      ?"8종목 자본 균등 분산 (각 종목의 챔피언 전략 추종)"
+      ?rest.length+"종목 위험균등(ERC) 분산 (각 종목의 챔피언 전략 추종)"
       :(st.champions&&st.champions[k])
         ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
     // 8마일 챌린지(통합 계좌, 8만원 → 1억): 원금·손익 분해 + 목표 게이지
@@ -328,7 +329,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
       ${weeklyTable(hist,p.start_cash||10000)}
     </div>`};
-  // 통합 계좌는 큰 카드로, 개별 8종목은 증권사 시세표 스타일의 한 표로 압축
+  // 통합 계좌는 큰 카드로, 개별 종목은 증권사 시세표 스타일의 한 표로 압축
   const pfKeys=keys.filter(k=>k.startsWith("portfolio:"));
   const rest=keys.filter(k=>!k.startsWith("portfolio"));   // 섀도 계좌도 제외
   const shadow=st.paper["portfolio_shadow:SHADOW"]||null;
@@ -363,7 +364,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     <div class="tablewrap"><table>
     <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
     ${rest.map(row).join("")}</table></div></div>`:"";
-  // 왜 이 8종목인가 — 선정 원칙과 종목별 이유(status.json의 단일 출처)
+  // 왜 이 종목들인가 — 선정 원칙과 종목별 이유(status.json의 단일 출처)
   let why="";
   if(st.symbols&&rest.length){
     const lis=rest.map(k=>{
@@ -371,9 +372,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       if(!info.why)return "";
       return `<li style="margin:5px 0"><b>${esc(info.name||k)}</b> <span style="color:var(--muted);font-size:12px">${esc(k.split(":")[1]||k)}</span> — ${esc(info.why)}</li>`;
     }).join("");
-    if(lis)why=`<div class="card"><h2>왜 이 8종목인가</h2>
+    if(lis)why=`<div class="card"><h2>왜 이 종목들인가</h2>
       <p class="sub" style="margin:6px 0 4px;font-size:13px">시장 3곳(코인·한국·미국)을
-      각각 <b>시장 전체(지수)</b>와 <b>대표 종목</b>으로 나눠 담고, 전부 유동성
+      각각 <b>시장 전체(지수)</b>와 <b>대표 종목</b>으로 나눠 담고(2026-08 8→20종목
+확장 — 분산이 곧 통계적 신뢰), 전부 유동성
       최상위 자산만 골랐습니다 — 시세 데이터가 깨끗하고 실전 이전이 쉬운
       종목들입니다. 소형주·테마주는 검증이 어려워 제외했습니다.</p>
       <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:13.5px">${lis}</ul></div>`;
@@ -415,7 +417,71 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         ${rowsC}</table></div></div>`;
     }
   }
-  el.innerHTML=pfKeys.map(card).join("")+tbl+calib+why;
+  // 오답 노트 — 가장 크게 틀린 날을 숨기지 않고 상단에 상시 전시한다.
+  // 신뢰 자산으로는 수익률 자랑보다 이것이 세다.
+  let wrong="";
+  if(pfKeys.length){
+    const h=(st.paper[pfKeys[0]]||{}).history||[];
+    const days=[];
+    for(let i=1;i<h.length;i++){
+      if(typeof h[i].equity!=="number"||typeof h[i-1].equity!=="number")continue;
+      days.push({date:h[i].date,ret:(h[i].equity/h[i-1].equity-1)*100,eq:h[i].equity});
+    }
+    const worst=days.filter(d=>d.ret<0).sort((a,b)=>a.ret-b.ret).slice(0,3);
+    if(worst.length){
+      const rowsW=worst.map(d=>{
+        // 그날 가장 크게 틀린 종목의 판단 근거를 함께 — 변명이 아니라 기록
+        let sym=null;
+        for(const k of rest){
+          const sh=(st.paper[k]||{}).history||[];
+          const idx=sh.findIndex(r=>r.date===d.date);
+          if(idx>0&&typeof sh[idx].equity==="number"&&typeof sh[idx-1].equity==="number"){
+            const r=(sh[idx].equity/sh[idx-1].equity-1)*100;
+            if(!sym||r<sym.ret)sym={key:k,ret:r,reason:sh[idx].reason||""};
+          }
+        }
+        const nm=sym?(((st.symbols||{})[sym.key]||{}).name||sym.key):"";
+        return `<tr><td>${esc(d.date)}</td><td class="neg">${pct(d.ret)}</td>
+          <td>${won(d.eq)}</td>
+          <td style="text-align:left;font-size:12px;color:var(--muted)">${sym?esc(nm)+" "+pct(sym.ret)+" — "+esc(String(sym.reason).slice(0,90)):"–"}</td></tr>`;
+      }).join("");
+      wrong=`<div class="card"><h2>오답 노트 <span style="font-size:12px;color:var(--muted);font-weight:400">가장 크게 틀린 날들 — 상시 공개</span></h2>
+        <p class="sub" style="margin:6px 0 4px;font-size:13px">모델이 가장 크게
+        틀린 날을 먼저 보여드립니다. 그날 새벽의 판단 근거도 그대로 —
+        사후에 지우거나 꾸밀 수 없는 구조(git 장부)입니다.</p>
+        <div class="tablewrap"><table>
+        <tr><th style="text-align:left">날짜</th><th>일간</th><th>자산</th><th style="text-align:left">그날 가장 아팠던 종목과 새벽 판단</th></tr>
+        ${rowsW}</table></div></div>`;
+    }
+  }
+  // 탈락자 아카이브 — 몇 명이 도전해 몇 명이 떨어졌는지 그대로 공개.
+  // 다중검정 정직성("운 좋은 승자를 얼마나 걸러내는가")의 시각화.
+  let ring="";
+  {
+    const rr=st.retrain_recent||[];
+    if(rr.length){
+      const cand=rr.reduce((a,b)=>a+(b.n_candidates||0),0);
+      const promo=rr.filter(r=>r.promoted).length;
+      const trials=Object.values(st.champions||{})
+        .reduce((a,c)=>a+(c.trials_total||0),0);
+      const recent=rr.slice(-10).reverse().map(r=>{
+        const nm=((st.symbols||{})[r.key]||{}).name||r.key;
+        return `<tr><td>${esc(r.asof||"")}</td><td style="text-align:left">${esc(nm)}</td>
+          <td>${r.n_candidates||"–"}</td>
+          <td>${r.promoted?'<b class="pos">교체</b>':"유지"}</td></tr>`;
+      }).join("");
+      ring=`<div class="card"><h2>탈락자 아카이브 <span style="font-size:12px;color:var(--muted);font-weight:400">최근 오디션 ${rr.length}회 · 후보 ${cand}명 중 승격 ${promo}회</span></h2>
+        <p class="sub" style="margin:6px 0 4px;font-size:13px">지금까지 누적
+        <b>${trials.toLocaleString("ko-KR")}개</b>의 도전자를 검증해 대부분을
+        떨어뜨렸습니다. 시도가 쌓일수록 승격 문턱이 자동으로 올라갑니다
+        (다중검정 보정) — 탈락시킨 수를 공개하는 것이 "운 좋은 승자"가
+        아니라는 증거입니다.</p>
+        <div class="tablewrap"><table>
+        <tr><th style="text-align:left">날짜</th><th style="text-align:left">종목</th><th>후보</th><th>결과</th></tr>
+        ${recent}</table></div></div>`;
+    }
+  }
+  el.innerHTML=pfKeys.map(card).join("")+tbl+calib+wrong+ring+why;
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>

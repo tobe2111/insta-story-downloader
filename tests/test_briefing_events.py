@@ -356,7 +356,7 @@ def test_names_in_status_and_broadcast(tmp_path):
 def test_paper_page_has_names_and_reasons_section():
     root = Path(__file__).resolve().parent.parent / "docs"
     paper = (root / "paper.html").read_text(encoding="utf-8")
-    assert "왜 이 8종목인가" in paper
+    assert "왜 이 종목들인가" in paper
     assert "st.symbols" in paper
 
 

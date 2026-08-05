@@ -1833,7 +1833,7 @@ async function tick(first){{
           <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span><span>${{(ratio*100).toFixed(3)}}% · 목표 1억원</span></div></div>`;
       }}
       document.getElementById("hero").innerHTML=
-        `<div class="nums"><div class="k">${{hero.market==="portfolio"?"통합 분산 계좌 (8종목)":esc(hero.key)}}
+        `<div class="nums"><div class="k">${{hero.market==="portfolio"?"통합 분산 계좌":esc(hero.key)}}
           · ${{hero.live_equity!=null?"실시간 평가":"확정 "+esc(hero.date||"")}}</div>
         <div class="eq ${{cls}}">${{won(eq)}}</div>
         <div class="pct ${{cls}}">${{pct(rp)}} <span class="meta">${{hero.principal!=null?"원금 대비":"시작 10,000원"}}</span></div>

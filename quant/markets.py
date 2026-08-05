@@ -21,15 +21,30 @@ SCHEDULED_MARKETS = frozenset({"us_stock", "kr_stock"})
 # 늘릴 때의 비용: 야간 잡 시간(종목당 수 분)과 '종목이 많을수록 우연히 좋아
 # 보이는 종목도 생긴다'는 해석 주의(각 종목은 독립 챌린지다 — 좋은 것만 골라
 # 보여주는 건 부정직하다. 사이트는 전 종목을 항상 다 보여준다).
+# 2026-08: 8종목 → 20종목 확장. 8종목은 통계적으로 분산이 부족해 운의 비중이
+# 컸다(어드바이저 지적). '8마일'은 시작 금액(8만원) 컨셉으로만 남긴다.
+# 전부 각 시장 유동성 최상위 — 시세 데이터가 깨끗하고 실전 이전이 쉬운 자산만.
 AUTO_TARGETS = [
     ("crypto", "BTC/USDT"),
     ("crypto", "ETH/USDT"),
     ("crypto", "SOL/USDT"),
+    ("crypto", "BNB/USDT"),
+    ("crypto", "XRP/USDT"),
     ("us_stock", "SPY"),        # S&P500 ETF
     ("us_stock", "QQQ"),        # 나스닥100 ETF
-    ("us_stock", "NVDA"),       # 개별주 표본
+    ("us_stock", "NVDA"),
+    ("us_stock", "MSFT"),
+    ("us_stock", "AAPL"),
+    ("us_stock", "AMZN"),
+    ("us_stock", "META"),
+    ("us_stock", "TSLA"),
     ("kr_stock", "069500.KS"),  # KODEX 200
     ("kr_stock", "005930.KS"),  # 삼성전자
+    ("kr_stock", "000660.KS"),  # SK하이닉스
+    ("kr_stock", "035420.KS"),  # NAVER
+    ("kr_stock", "005380.KS"),  # 현대차
+    ("kr_stock", "051910.KS"),  # LG화학
+    ("kr_stock", "105560.KS"),  # KB금융
 ]
 
 # 종목 한글 이름·선정 이유 — 사이트/방송 표시용 단일 출처.
@@ -61,6 +76,42 @@ SYMBOL_INFO = {
     "kr_stock:005930.KS": {
         "name": "삼성전자",
         "why": "한국 시가총액 1위 대표주"},
+    "crypto:BNB/USDT": {
+        "name": "비앤비",
+        "why": "최대 거래소 생태계 코인 — 거래소 경기 민감 표본"},
+    "crypto:XRP/USDT": {
+        "name": "리플",
+        "why": "결제 특화 대형 알트 — BTC와 상관이 낮은 구간이 있는 표본"},
+    "us_stock:MSFT": {
+        "name": "마이크로소프트",
+        "why": "미국 초대형 기술주 — 낮은 변동성 대형주 표본"},
+    "us_stock:AAPL": {
+        "name": "애플",
+        "why": "세계 시총 최상위 — 소비자 기술주 대표"},
+    "us_stock:AMZN": {
+        "name": "아마존",
+        "why": "이커머스·클라우드 — 경기민감 성장주 표본"},
+    "us_stock:META": {
+        "name": "메타",
+        "why": "광고 경기 민감 기술주 — 변동성 중상 표본"},
+    "us_stock:TSLA": {
+        "name": "테슬라",
+        "why": "고변동 대형주 — 개별주 리스크 관리 검증용"},
+    "kr_stock:000660.KS": {
+        "name": "SK하이닉스",
+        "why": "메모리 반도체 — 엔비디아와 공급망으로 얽힌 사이클주"},
+    "kr_stock:035420.KS": {
+        "name": "NAVER",
+        "why": "한국 인터넷 플랫폼 대표 — 성장주 표본"},
+    "kr_stock:005380.KS": {
+        "name": "현대차",
+        "why": "수출 제조 대형주 — 환율 민감 표본"},
+    "kr_stock:051910.KS": {
+        "name": "LG화학",
+        "why": "배터리·화학 사이클주 — 원자재 민감 표본"},
+    "kr_stock:105560.KS": {
+        "name": "KB금융",
+        "why": "은행 대표주 — 금리 민감 저변동 표본"},
 }
 
 # 전략별 기본 파라미터 그리드 — validate(과최적화 검증)와 웹 최적화가 공유한다.

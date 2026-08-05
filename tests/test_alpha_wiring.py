@@ -194,3 +194,72 @@ def test_daily_record_carries_prob_and_drift(tmp_path):
     assert "prob_up" in rec and "drift_psi" in rec
     assert rec["prob_up"] is None              # ma_cross 챔피언은 확률이 없다
     assert rec["drift_psi"] is None or rec["drift_psi"] >= 0.0
+
+
+# ── 2차 배치: ERC 배분·킬스위치·유니버스 확장·아카이브 ─────────
+
+
+def test_erc_slices_derisk_high_vol_and_fallback():
+    from quant.live.daily import _erc_slices
+    rng = np.random.default_rng(0)
+    idx = pd.date_range("2026-01-01", periods=90, freq="D")
+    rets = {"crypto:BTC": pd.Series(rng.normal(0, 0.05, 90), index=idx),
+            "kr_stock:KB": pd.Series(rng.normal(0, 0.01, 90), index=idx)}
+    s = _erc_slices(rets, 2)
+    assert s["crypto:BTC"] < s["kr_stock:KB"]      # 위험 기여 균등 → 고변동 축소
+    # 표본 부족 → None(균등 폴백 신호)
+    short = {k: v.iloc[:10] for k, v in rets.items()}
+    assert _erc_slices(short, 2) is None
+
+
+def test_kill_switch_stages_and_hysteresis():
+    from quant.live.daily import _kill_switch_scale as ks
+    assert ks(1.0, -0.05) == 1.0                   # 평시
+    assert ks(1.0, -0.16) == 0.5                   # -15% 돌파 → 절반
+    assert ks(0.5, -0.26) == 0.0                   # -25% 돌파 → 관망
+    assert ks(0.0, -0.16) == 0.0                   # 회복 전 재진입 금지
+    assert ks(0.0, -0.12) == 0.5                   # 1단계 복귀
+    assert ks(0.5, -0.12) == 0.5                   # 유지
+    assert ks(0.5, -0.05) == 1.0                   # 완전 복귀
+
+
+def test_universe_expanded_with_info_coverage():
+    from quant.markets import AUTO_TARGETS, SYMBOL_INFO
+    assert len(AUTO_TARGETS) == 20
+    for market, symbol in AUTO_TARGETS:            # 전 종목 이름·이유 필수
+        info = SYMBOL_INFO.get(f"{market}:{symbol}")
+        assert info and info.get("name") and info.get("why"), (market, symbol)
+
+
+def test_portfolio_record_has_alloc_and_risk_scale(tmp_path):
+    from quant.live.daily import run_daily_portfolio, write_docs_status
+    from quant.live.retrain import save_champions
+    d = str(tmp_path)
+    save_champions({
+        "synthetic:DEMO": {"strategy": "ma_cross",
+                           "params": {"fast": 10, "slow": 30}, "promotions": 0},
+        "synthetic:DEMO2": {"strategy": "ma_cross",
+                            "params": {"fast": 5, "slow": 20}, "promotions": 0},
+    }, d)
+    rec = run_daily_portfolio([("synthetic", "DEMO"), ("synthetic", "DEMO2")],
+                              lookback=200, state_dir=d,
+                              require_real_data=False)
+    assert rec["risk_scale"] == 1.0                # 첫날은 낙폭 0
+    assert "alloc" in rec and len(rec["alloc"]) == 2
+    assert "drawdown_pct" in rec
+    # status.json에 탈락자 아카이브 데이터가 실린다
+    (tmp_path / "retrain_history.jsonl").write_text(
+        json.dumps({"asof": "2026-08-05", "market": "synthetic",
+                    "symbol": "DEMO", "promoted": False,
+                    "n_candidates": 15, "trials_total": 15}) + "\n",
+        encoding="utf-8")
+    st = write_docs_status(d, docs_path=str(tmp_path / "docs" / "status.json"))
+    assert st["retrain_recent"][0]["n_candidates"] == 15
+
+
+def test_site_has_wrong_note_archive_and_uptime_cards():
+    DOCS = Path(__file__).resolve().parent.parent / "docs"
+    paper = (DOCS / "paper.html").read_text(encoding="utf-8")
+    assert "오답 노트" in paper and "탈락자 아카이브" in paper
+    trust = (DOCS / "trust.html").read_text(encoding="utf-8")
+    assert "가동률" in trust and "20종목" in trust
