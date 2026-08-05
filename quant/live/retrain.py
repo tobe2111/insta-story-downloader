@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from typing import Callable
 
@@ -306,6 +307,145 @@ def _normalize_challengers(specs: list[dict], champion: dict) -> list[dict]:
     return out
 
 
+def build_challengers(current_spec: dict, seed: str,
+                      evolve: bool = True) -> list[dict]:
+    """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
+
+    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형.
+    래핑된 챔피언에는 '벗긴 원본'을 도전시켜 되돌아갈 길을 항상 열어 둔다.
+    """
+    challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
+    if not evolve:
+        return challengers
+    challengers += mutate_champion(current_spec, seed=seed)
+    if current_spec["strategy"] != "regime_wrap":
+        challengers.append({"strategy": "regime_wrap",
+                            "params": {"inner": current_spec,
+                                       "trend_window": 200}})
+    else:
+        challengers.append(current_spec["params"]["inner"])
+    if current_spec["strategy"] != "event_wrap":
+        challengers.append({"strategy": "event_wrap",
+                            "params": {"inner": current_spec,
+                                       "pad_days": 1, "factor": 0.0}})
+    else:
+        challengers.append(current_spec["params"]["inner"])
+    return challengers
+
+
+# ── 다중검정 문턱 — 롤링 윈도 + 상한 ────────────────────────────
+# 누적 시도 수가 단조 증가하면 문턱도 영원히 올라가 진화가 완전히 멈춘다.
+# 그래서 문턱 계산에는 '최근 1년 시도 수'만 쓰고 상한을 둔다(장부의 누적
+# 총계 trials_total은 투명성 표시용으로 계속 쌓는다).
+TRIALS_WINDOW_DAYS = 365
+CONFIRM_T_CAP = 1.35
+
+
+def confirm_threshold(trials_recent: int) -> float:
+    """결승전(홀드아웃) t-임계 — 최근 시도 수에 로그 비례, 상한 고정."""
+    return min(CONFIRM_T_CAP,
+               1.0 + 0.5 * math.log10(1 + max(0, trials_recent) / 1000))
+
+
+def recent_trials(market: str, symbol: str, asof: str,
+                  state_dir: str = STATE_DIR,
+                  window_days: int = TRIALS_WINDOW_DAYS) -> int:
+    """재학습 장부에서 이 종목의 최근 window_days일 도전자 수 합계."""
+    path = os.path.join(state_dir, HISTORY_FILE)
+    if not os.path.exists(path):
+        return 0
+    import datetime as _dt
+    try:
+        cutoff = (_dt.date.fromisoformat(asof)
+                  - _dt.timedelta(days=window_days)).isoformat()
+    except ValueError:
+        return 0
+    total = 0
+    with open(path, encoding="utf-8") as f:
+        for ln in f:
+            if not ln.strip():
+                continue
+            try:
+                r = json.loads(ln)
+            except ValueError:
+                continue
+            if (r.get("market") == market and r.get("symbol") == symbol
+                    and cutoff <= str(r.get("asof", "")) <= asof):
+                total += int(r.get("n_candidates") or 0)
+    return total
+
+
+def verify_retrain(asof: str, *, market: str | None = None,
+                   symbol: str | None = None,
+                   state_dir: str = STATE_DIR,
+                   confirm_window: int = 120) -> list[dict]:
+    """그날의 재학습 결정을 스냅샷·시드로 재실행해 기록과 대조한다.
+
+    '조작 불가'를 주장이 아니라 사실로 만드는 검증기: 누구나
+        python -m quant verify --date 2026-08-06
+    로 ① 데이터 해시 일치 ② 같은 링 재구성 ③ 같은 승격 결정을 확인할 수 있다.
+    반환: 종목별 {"key", "ok", "detail"} 목록.
+    """
+    from quant.backtest.costs import CostModel
+    from quant.utils.repro import data_sha256, env_fingerprint, load_snapshot
+
+    path = os.path.join(state_dir, HISTORY_FILE)
+    results: list[dict] = []
+    if not os.path.exists(path):
+        return [{"key": "-", "ok": False, "detail": "재학습 기록 파일 없음"}]
+    with open(path, encoding="utf-8") as f:
+        records = [json.loads(ln) for ln in f.read().splitlines() if ln.strip()]
+    todo = [r for r in records if r.get("asof") == asof
+            and (market is None or r.get("market") == market)
+            and (symbol is None or r.get("symbol") == symbol)]
+    if not todo:
+        return [{"key": "-", "ok": False,
+                 "detail": f"{asof} 기록 없음(--date 확인)"}]
+
+    for rec in todo:
+        key = f"{rec['market']}:{rec['symbol']}"
+        df = load_snapshot(state_dir, asof, rec["market"], rec["symbol"])
+        if df is None:
+            results.append({"key": key, "ok": False,
+                            "detail": "스냅샷 없음(해시 기록 이전 날짜)"})
+            continue
+        got_hash = data_sha256(df)
+        if rec.get("data_sha256") and got_hash != rec["data_sha256"]:
+            results.append({"key": key, "ok": False,
+                            "detail": "데이터 해시 불일치 — 스냅샷 변조 의심"})
+            continue
+        before = rec.get("champion_before")
+        if not before:
+            results.append({"key": key, "ok": False,
+                            "detail": "champion_before 없음(구버전 기록)"})
+            continue
+        challengers = build_challengers(before, seed=rec["mutation_seed"])
+        decision = nightly_retrain(
+            df, before, challengers, confirm_window=confirm_window,
+            select_t=float(rec.get("select_t", 2.0)),
+            confirm_t=float(rec.get("confirm_t", 1.0)),
+            cost_model=CostModel.for_market(rec["market"]))
+        same_promoted = bool(decision["promoted"]) == bool(rec["promoted"])
+        same_champion = True
+        if decision["promoted"] and rec["promoted"]:
+            got = decision["champion"]
+            same_champion = (got["strategy"] == rec["champion_strategy"]
+                             and got.get("params") == rec.get("champion"))
+        ok = same_promoted and same_champion
+        env_note = ""
+        if rec.get("env") and rec["env"] != env_fingerprint():
+            env_note = (" · 주의: 실행 환경이 기록과 다름"
+                        f"(기록 {rec['env']} vs 현재 {env_fingerprint()})"
+                        " — 불일치 시 조작이 아니라 라이브러리 버전 차이일 수 있음")
+        results.append({"key": key, "ok": ok,
+                        "detail": (("재현 일치 — 같은 데이터·같은 코드에서 "
+                                    "같은 결정" if ok else
+                                    f"결정 불일치: 기록 promoted={rec['promoted']}"
+                                    f" vs 재실행 {decision['promoted']}")
+                                   + env_note)})
+    return results
+
+
 def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,
@@ -334,43 +474,49 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         print(f"[{asof}] {market}/{symbol} — 오늘 이미 재학습함, 건너뜀")
         return {"skipped": True, "key": key, "champion": entry}
 
-    # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색) + 레짐 변형.
-    # 돌연변이 시드가 날짜라 매일 다른 주변을 탐색하고, 같은 날 재실행은
-    # 같은 후보를 만든다.
-    challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
-    if evolve:
-        challengers += mutate_champion(current_spec, seed=f"{asof}:{key}")
-        if current_spec["strategy"] != "regime_wrap":
-            # 현 챔피언에 레짐 필터를 씌운 변형 — 하락장이 오면 진화 루프가
-            # '관망할 줄 아는 챔피언'으로 스스로 갈아탈 수 있게 한다.
-            challengers.append({"strategy": "regime_wrap",
-                                "params": {"inner": current_spec,
-                                           "trend_window": 200}})
-        else:
-            # 챔피언이 이미 레짐 래핑이면 '벗긴 원본'을 도전시킨다 — 필터가
-            # 더는 도움이 안 되는 국면에서 되돌아갈 길을 항상 열어 둔다.
-            challengers.append(current_spec["params"]["inner"])
-        if current_spec["strategy"] != "event_wrap":
-            # FOMC 등 예고된 이벤트 창에서 관망하는 변형 — 이벤트 달력이
-            # 결정적이라 백테스트 검증이 가능하고, 관문을 통과할 때만 승격된다.
-            challengers.append({"strategy": "event_wrap",
-                                "params": {"inner": current_spec,
-                                           "pad_days": 1, "factor": 0.0}})
-        else:
-            # 이미 이벤트 래핑이면 '벗긴 원본'을 도전시킨다 — 필터가 더는
-            # 도움이 안 되면 되돌아갈 길을 열어 둔다.
-            challengers.append(current_spec["params"]["inner"])
+    # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색) + 레짐/이벤트 변형.
+    # 시드가 날짜+종목이라 결정적 — verify가 같은 링을 재구성할 수 있다.
+    challengers = build_challengers(current_spec, seed=f"{asof}:{key}",
+                                    evolve=evolve)
+
+    # ── 다중검정 보정 — 오디션을 반복할수록 '운 좋은 승자'가 나올 확률이
+    # 커진다. 누적 시도 횟수를 장부에 남기고, 그에 비례해 승격 관문을 높인다.
+    #   선발전: 그날 후보 수 N의 기대 최댓값 근사 sqrt(2·ln N) 이상을 요구
+    #   결승전: '최근 1년' 시도 수에 로그 비례 + 상한(진화가 영원히 멈추는
+    #   것을 방지) — DSR 정신의 보수적 근사. 누적 총계는 표시용으로만 쌓는다.
+    n_cand = len(challengers)
+    trials_total = int(entry.get("trials_total", 0)) + n_cand
+    entry["trials_total"] = trials_total
+    trials_recent = recent_trials(market, symbol, asof, state_dir) + n_cand
+    select_t_eff = max(2.0, math.sqrt(2 * math.log(max(2, n_cand))))
+    confirm_t_eff = confirm_threshold(trials_recent)
+    print(f"  🔬 다중검정 보정: 오늘 후보 {n_cand}개 · 최근 1년 "
+          f"{trials_recent:,}개 · 누적 검증 도전자 {trials_total:,}개 → "
+          f"선발 t≥{select_t_eff:.2f} · 결승 t≥{confirm_t_eff:.2f}"
+          f" (상한 {CONFIRM_T_CAP})")
 
     # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
     from quant.backtest.costs import CostModel
     decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
+                               select_t=select_t_eff,
+                               confirm_t=confirm_t_eff,
                                cost_model=CostModel.for_market(market))
 
+    # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
+    from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
+                                   save_snapshot)
+    try:
+        save_snapshot(df, state_dir, asof, market, symbol)
+    except Exception as exc:  # noqa: BLE001 — 스냅샷 실패가 재학습을 막으면 안 된다
+        log.warning("스냅샷 저장 실패 %s: %s", key, exc)
+
     if decision["promoted"]:
+        prev_trials = entry.get("trials_total")
         entry = {**decision["champion"],
                  "promoted_at": asof,
-                 "promotions": int(entry.get("promotions", 0)) + 1}
+                 "promotions": int(entry.get("promotions", 0)) + 1,
+                 "trials_total": prev_trials}
     entry["last_run_asof"] = asof              # 멱등 가드 기준(재시도 크론용)
     champions[key] = entry
     save_champions(champions, state_dir)
@@ -380,7 +526,14 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "promoted": decision["promoted"], "reason": decision["reason"],
         "champion": champions[key]["params"],
         "champion_strategy": champions[key]["strategy"],
+        "champion_before": current_spec,       # verify가 대결을 재구성할 출발점
         "n_candidates": len(decision.get("candidates", [])),
+        "trials_total": trials_total,
+        "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
+        "mutation_seed": f"{asof}:{key}",
+        "code_sha": code_sha(),
+        "data_sha256": data_sha256(df),
+        "env": env_fingerprint(),      # 라이브러리 버전 차이로 인한 불일치 판별용
     }, state_dir)
 
     label = "🔁 교체" if decision["promoted"] else "🏆 유지"

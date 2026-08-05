@@ -82,7 +82,11 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
-<p class="note">챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
+<p class="note">⚖️ <b>2026-08-05(v0.5.0)부로 회계 기준을 보수적으로 변경했습니다
+— 이전 숫자는 낙관적이었습니다.</b> 이후 기록은 주식을 다음 세션 시가로만
+체결(개장 갭 감수)하고 수수료·거래세·슬리피지를 뺀 값입니다. 과거 기록은
+재계산하지 않고 그대로 둡니다(<a href="trust.html">과거 불변 약속</a>).
+<br>챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
 재평가되며, 확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).
 날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.
 "그냥 보유"는 같은 돈으로 첫날 사서 들고만 있었을 때입니다 — 전략이 이 값을
@@ -285,6 +289,8 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <div><span class="lbl">원금 (매칭 입금 포함)</span><b>${won(p.principal)}</b></div>
         <div><span class="lbl">운용 손익</span><b class="${p.pnl>=0?"pos":"neg"}">${p.pnl>=0?"+":""}${won(Math.abs(p.pnl)).replace("원","")}원</b></div>
         <div><span class="lbl">실력 지표 (시간가중 TWR)</span><b class="${p.twr_pct>=0?"pos":"neg"}">${pct(p.twr_pct)}</b></div>
+        ${(hist[hist.length-1]||{}).random_pctile!=null?`<div><span class="lbl">무작위 전략 1,000개 대비</span><b>상위 ${(100-hist[hist.length-1].random_pctile).toFixed(0)}%</b></div>`:""}
+        ${shadow&&shadow.equity!=null?`<div><span class="lbl">진화 없이 고정 전략이었다면</span><b>${won(shadow.equity)}</b></div>`:""}
       </div>
       <div style="margin:10px 0 2px"><div style="height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden">
         <div style="height:100%;min-width:3px;width:${Math.max(0.3,ratio*100)}%;background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:99px"></div></div>
@@ -323,8 +329,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       ${weeklyTable(hist,p.start_cash||10000)}
     </div>`};
   // 통합 계좌는 큰 카드로, 개별 8종목은 증권사 시세표 스타일의 한 표로 압축
-  const pfKeys=keys.filter(k=>k.startsWith("portfolio"));
-  const rest=keys.filter(k=>!k.startsWith("portfolio"));
+  const pfKeys=keys.filter(k=>k.startsWith("portfolio:"));
+  const rest=keys.filter(k=>!k.startsWith("portfolio"));   // 섀도 계좌도 제외
+  const shadow=st.paper["portfolio_shadow:SHADOW"]||null;
   const mini=(hist)=>{
     const v=(hist||[]).slice(-30).map(r=>r.equity);
     if(v.length<2)return "";

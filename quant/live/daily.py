@@ -24,6 +24,39 @@ log = get_logger("daily_paper")
 
 START_CASH = 10_000.0
 
+# ── 체결 현실성 규칙 ────────────────────────────────────────────────
+# 새벽 판단 시점(KST 05:30)에 실제로 체결 가능한 첫 시점은 시장마다 다르다:
+#   코인: 24시간 시장 → 판단 직후 체결 가능(마지막 종가 근사)
+#   한국/미국 주식: 장 마감 후 판단 → 다음 세션 '시가'에 체결(개장 갭을
+#   그대로 감수한다 — 마감 종가로 즉시 체결 처리하면 실현 불가능한 가격이다)
+IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}
+
+
+def _fill_cost(market: str) -> float:
+    """편도 체결 비용(수수료+거래세+슬리피지) — 시장별 현실 프리셋."""
+    from quant.backtest.costs import CostModel
+    cm = CostModel.for_market(market)
+    return float(cm.fee + cm.slippage)
+
+
+def _first_bar_after(df, bar_ts: str):
+    """decided_bar 이후 첫 봉의 (타임스탬프, 시가). 없으면 (None, None)."""
+    for ix, r in df.iterrows():
+        if str(ix) > bar_ts:
+            return str(ix), float(r["open"])
+    return None, None
+
+
+# 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
+from quant.utils.repro import code_sha as _code_sha
+from quant.utils.repro import data_sha256 as _data_sha256
+from quant.utils.repro import env_fingerprint as _env_fingerprint
+
+# 회계 기준 버전 — v0.5.0부터 '다음 시가 체결 + 거래세·슬리피지' 기준.
+# 이전 기록(종가 즉시 체결)은 재계산하지 않고 그대로 둔다(과거 불변 약속).
+# 이 태그로 어느 기준으로 계산된 기록인지 영구히 구분할 수 있다.
+ACCOUNTING_VERSION = "next_open_v2"
+
 
 def _paper_path(market: str, symbol: str, state_dir: str) -> str:
     safe = re.sub(r"[^A-Za-z0-9._-]", "_", f"{market}_{symbol}")
@@ -78,12 +111,30 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     reason = explain_signal(champion_spec(market, symbol, state_dir), df,
                             weight, getattr(strategy, "_impl", None))
 
-    broker = PaperBroker(cash=float(st["cash"]))
+    broker = PaperBroker(cash=float(st["cash"]), fee=_fill_cost(market))
     if abs(float(st.get("quantity", 0.0))) > 0:
         broker._positions[symbol] = Position(       # 어제의 포지션 복원
             symbol, float(st["quantity"]), float(st.get("avg_price", 0.0)))
-    equity_before = broker.equity({symbol: price})
-    broker.target_weight(symbol, weight, price, equity_before)
+
+    fill = None
+    # ① 어제 결정의 대기 주문 체결 — 주식은 '다음 세션 시가'에서만 체결된다.
+    pending = st.get("pending")
+    if pending and pending.get("decided_bar"):
+        fbar, fopen = _first_bar_after(df, pending["decided_bar"])
+        if fopen is not None:
+            eq_open = broker.equity({symbol: fopen})
+            broker.target_weight(symbol, float(pending["weight"]), fopen, eq_open)
+            fill = {"price": round(fopen, 6), "bar": fbar,
+                    "weight": round(float(pending["weight"]), 4),
+                    "decided_bar": pending["decided_bar"]}
+            st["pending"] = None
+    # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열에 올린다
+    if market in IMMEDIATE_FILL_MARKETS:
+        eq_now = broker.equity({symbol: price})
+        broker.target_weight(symbol, weight, price, eq_now)
+    else:
+        st["pending"] = {"weight": round(weight, 4), "decided_bar": last_bar}
+
     pos = broker.get_position(symbol)
     equity = broker.equity({symbol: price})
 
@@ -95,6 +146,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "hit_rate": acc.get("hit_rate"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
         "reason": reason,
+        # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
+        "fill": fill,
+        "fill_cost": round(_fill_cost(market), 6),
+        # 재현성: 코드 커밋 + 입력 데이터 해시 — verify로 재검증 가능
+        "code_sha": _code_sha(),
+        "data_sha256": _data_sha256(df),
+        "env": _env_fingerprint(),
+        "accounting": ACCOUNTING_VERSION,
     }
     st.update({
         "market": market, "symbol": symbol, "start_cash": START_CASH,
@@ -187,9 +246,54 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     return round((twr - 1) * 100, 2)
 
 
+def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
+                               n: int = 1000, seed: str = "rand",
+                               cost: float = 0.002) -> float | None:
+    """무작위 '순열' 전략 n개의 수익률 분포에서 실제 TWR의 백분위(%)를 잰다.
+
+    조건을 맞춘 무작위(순열 검정): 각 무작위 전략은 실제 기록의 일별 비중
+    수열을 그대로 가져다 '순서만' 무작위로 섞어, 같은 지수(record.price) 위에서
+    같은 비용을 내며 거래한 것이다. 매매 빈도·포지션 크기 분포가 실제와
+    동일하므로, 백분위가 재는 것은 오직 '타이밍 실력'뿐이다 — 조건 없는
+    동전 던지기와 비교하면 빈도 차이가 실력처럼 보이는 왜곡이 생긴다.
+    반환 75.0 = "무작위 1,000개 중 상위 25%". 기록 2일 미만이면 None.
+    시드가 날짜 기반이라 같은 날 재실행 시 같은 값(재현 가능).
+    비중이 늘 일정했던 구간에서는 순열이 전부 같아져 백분위가 낮게(우위
+    없음으로) 나온다 — 타이밍을 쓰지 않았으니 그것이 정직한 값이다.
+    """
+    import random as _random
+
+    px, ws = [], []
+    for r in history:
+        if isinstance(r.get("price"), (int, float)):
+            px.append(float(r["price"]))
+            w = r.get("weight")
+            ws.append(float(w) if isinstance(w, (int, float)) else 0.0)
+    if len(px) < 3:
+        return None
+    rets = [px[i] / px[i - 1] - 1 for i in range(1, len(px))]
+    base = ws[:-1]                    # t일 비중이 t→t+1 수익률에 노출된다
+    rng = _random.Random(seed)
+    finals = []
+    for _ in range(n):
+        perm = base[:]
+        rng.shuffle(perm)
+        eq, prev_w = 1.0, 0.0
+        for w, r in zip(perm, rets):
+            eq *= 1 + w * r
+            eq -= eq * cost * abs(w - prev_w)      # 비중 변화분만 비용 지불
+            prev_w = w
+        finals.append(eq - 1.0)
+    actual = actual_twr_pct / 100.0
+    beaten = sum(1 for f in finals if f < actual)
+    return round(beaten / n * 100, 1)
+
+
 def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         lookback: int = 400, state_dir: str = STATE_DIR,
-                        require_real_data: bool = True) -> dict:
+                        require_real_data: bool = True,
+                        use_champions: bool = True,
+                        state_file: str = "portfolio_ALL.json") -> dict:
     """통합 8마일 계좌(8만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
 
     각 종목의 챔피언 전략 비중을 종목 수로 나눠(자본 균등 슬라이스) 한
@@ -207,19 +311,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     from quant.markets import AUTO_TARGETS
     targets = targets or AUTO_TARGETS
 
-    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    path = os.path.join(state_dir, "paper", state_file)
+    mkt_tag = "portfolio" if use_champions else "portfolio_shadow"
+    sym_tag = "ALL" if use_champions else "SHADOW"
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             st = json.load(f)
     else:
-        st = {"market": "portfolio", "symbol": "ALL",
+        st = {"market": mkt_tag, "symbol": sym_tag,
               "start_cash": PORTFOLIO_START_CASH,
               "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
 
     risk = RiskManager()
     prices, weights, skipped = {}, {}, []
+    opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
+    last_bars: dict = {}
     last_dates = []
+    pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
         try:
@@ -228,12 +337,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
-            signals = champion_strategy(market, symbol,
-                                        state_dir).generate_signals(df)
+            if use_champions:
+                strat = champion_strategy(market, symbol, state_dir)
+            else:
+                # 섀도 대조군 — 진화 없이 최초 기본 챔피언으로 고정
+                from quant.live.retrain import DEFAULT_CHAMPION, build_strategy
+                strat = build_strategy(DEFAULT_CHAMPION)
+            signals = strat.generate_signals(df)
             weights[key] = float(risk.size_positions(df, signals).iloc[-1])
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
+            last_bars[key] = str(df.index[-1])
             last_dates.append(str(df.index[-1])[:10])
+            pend = pending.get(key)
+            if pend and pend.get("decided_bar"):
+                opens_after[key] = _first_bar_after(df, pend["decided_bar"])
         except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
             skipped.append(key)
             log.warning("포트폴리오 %s 스킵: %s", key, exc)
@@ -250,11 +368,33 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if abs(float(pos.get("quantity", 0.0))) > 0:
             broker._positions[key] = Position(
                 key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
-    # 평가: 오늘 가격이 없는(스킵) 종목은 평단가로 보수 평가된다(equity 내부 동작)
-    equity = broker.equity(prices)
     n = len(targets)
+
+    # ① 대기 주문 체결 — 주식은 결정 다음 세션의 '시가'에서만 체결(개장 갭 감수).
+    #    평가 마크는 현재 종가 근사(스킵 종목은 평단가) — 체결가만 시가를 쓴다.
+    fills = []
+    for key, pend in list(pending.items()):
+        fbar, fopen = opens_after.get(key, (None, None))
+        if fopen is None:
+            continue
+        broker.fee = _fill_cost(key.split(":")[0])
+        eq_now = broker.equity({**prices, key: fopen})
+        broker.target_weight(key, float(pend["weight"]) / n, fopen, eq_now)
+        fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
+                      "weight": round(float(pend["weight"]), 4)})
+        pending.pop(key, None)
+
+    # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열로
+    equity = broker.equity(prices)
     for key, w in weights.items():
-        broker.target_weight(key, w / n, prices[key], equity)
+        market = key.split(":")[0]
+        if market in IMMEDIATE_FILL_MARKETS:
+            broker.fee = _fill_cost(market)
+            broker.target_weight(key, w / n, prices[key], equity)
+        else:
+            pending[key] = {"weight": round(w, 4),
+                            "decided_bar": last_bars[key]}
+    st["pending"] = pending
     equity = broker.equity(prices)
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -270,10 +410,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "principal": round(principal, 2),
               "pnl": round(equity - principal, 2),
               "hit_rate": None,
+              "fills": fills,                      # 체결 현실성: 시가 체결 내역
+              "code_sha": _code_sha(),
+              "env": _env_fingerprint(),
+              "accounting": ACCOUNTING_VERSION,
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
+    # 무작위 전략 1,000개 분포 대비 백분위 — 바이앤홀드보다 반박이 어려운 기준.
+    # 같은 기간·같은 지수·같은 비용으로 '동전 던지기 전략'들을 돌려 우리 TWR가
+    # 그 분포의 몇 %에 드는지 잰다(날짜 시드 → 재현 가능).
+    record["random_pctile"] = random_strategy_percentile(
+        st["history"] + [record], record["twr_pct"], seed=f"rand:{bar}")
     st["positions"] = {
         p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
         for p in broker._positions.values() if abs(p.quantity) > 0}
