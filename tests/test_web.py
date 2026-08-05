@@ -567,3 +567,46 @@ def test_docs_pages_ticker_and_colors():
         assert "전일 확정" in doc and "실시간" in doc, name
     paper = (root / "paper.html").read_text(encoding="utf-8")
     assert "시장 브리핑" in paper and "판단에 사용되지 않는" in paper
+
+
+# ── 전문 차트 엔진 (TradingView Lightweight Charts) ────────────────
+
+def test_lightweight_charts_bundled_and_wired():
+    """라이브러리 번들 + 사이트/방송 연동 + SVG 폴백 유지."""
+    root = Path(__file__).resolve().parent.parent
+    lib = root / "docs" / "assets" / "lightweight-charts.js"
+    assert lib.exists() and lib.stat().st_size > 100_000
+    assert "Apache License" in lib.read_text(encoding="utf-8")[:400]  # 고지 유지
+    paper = (root / "docs" / "paper.html").read_text(encoding="utf-8")
+    assert "assets/lightweight-charts.js" in paper
+    assert "addAreaSeries" in paper and "function spark(" in paper   # 폴백 보존
+    from quant.web.app import render_broadcast
+    doc = render_broadcast()
+    assert "lightweight-charts" in doc                              # CDN 로드
+    assert "addCandlestickSeries" in doc and "candleChart" in doc   # 폴백 보존
+    assert "MA20" in doc                                            # 분석 보조선
+
+
+def test_candles_json_has_epoch(tmp_path, monkeypatch):
+    """캔들 6번째 필드 epoch(초) — 차트 엔진용. 라벨 5필드는 하위호환 유지."""
+    import json as _json
+
+    import pandas as pd
+
+    import quant.data as qd
+    from quant.web import app as _app
+
+    idx = pd.date_range("2026-08-05 09:00", periods=30, freq="1min")
+    df = pd.DataFrame({"open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5,
+                       "volume": 1.0}, index=idx)
+
+    class _P:
+        def get_ohlcv(self, *a, **k):
+            return df
+
+    monkeypatch.setattr(qd, "get_provider", lambda m, **k: _P())
+    _app._CANDLE_CACHE.clear()
+    d = _json.loads(_app.candles_json("crypto:TEST/USDT", state_dir=str(tmp_path)))
+    row = d["candles"][0]
+    assert len(row) == 6
+    assert row[5] == int(idx[0].timestamp())
