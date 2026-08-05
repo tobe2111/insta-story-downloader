@@ -111,7 +111,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   // 종목별 주간 수익률 매트릭스
   let grid="";
   if(rest.length){
-    const head=rest.map(k=>`<th>${esc(k.split(":")[1]||k)}</th>`).join("");
+    const head=rest.map(k=>`<th>${esc(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)}</th>`).join("");
     const rows=[];
     for(let i=ws.length-1;i>=0;i--){
       const w=ws[i];

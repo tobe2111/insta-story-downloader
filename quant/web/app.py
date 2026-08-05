@@ -245,7 +245,7 @@ _TICKER_JS = """<script>
       var chg=(live!=null&&base)?((live/base-1)*100):null;
       var v=(chg!=null?chg:(a.return_pct||0));
       var cls=v>=0?'u':'d', arrow=v>=0?'▲':'▼';
-      return '<b>'+esc((a.key.split(':')[1]||a.key))+'</b>'
+      return '<b>'+esc(a.name||(a.key.split(':')[1]||a.key))+'</b>'
         +Number(px).toLocaleString()
         +' <span class="'+cls+'">'+arrow+' '+(v>=0?'+':'')+v.toFixed(2)+'%</span>'
         +'<span class="tag">'+(live!=null?'실시간':'확정')+'</span>';
@@ -1107,8 +1107,11 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             peak = max(peak, eq)
             if peak > 0:
                 mdd = min(mdd, eq / peak - 1)
+        from quant.markets import SYMBOL_INFO
+        key0 = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
         accounts.append({
-            "key": f"{st.get('market', '?')}:{st.get('symbol', '?')}",
+            "key": key0,
+            "name": SYMBOL_INFO.get(key0, {}).get("name"),
             "market": st.get("market"),
             "equity": hist[-1]["equity"],
             "return_pct": hist[-1].get("return_pct", 0.0),
@@ -1748,7 +1751,8 @@ function card(a){{
   const liveTag=a.live_equity!=null?"실시간 평가":"확정 "+esc(a.date||"");
   const cls=rp>=0?"pos":"neg";
   const news=a.news?`<div class="reason" style="opacity:.75">관련 뉴스 · ${{esc(a.news.title)}}${{a.news.source?" — "+esc(a.news.source):""}}</div>`:"";
-  return `<div class="card"><div class="k">${{esc(a.key)}} · ${{liveTag}}</div>
+  const label=a.name?`${{esc(a.name)}} <span style="opacity:.6">${{esc(a.key.split(":")[1]||a.key)}}</span>`:esc(a.key);
+  return `<div class="card"><div class="k">${{label}} · ${{liveTag}}</div>
     <div><span class="eq2 ${{cls}}">${{won(eq)}}</span>
     <span class="pct2 ${{cls}}">${{pct(rp)}}</span></div>
     <div class="reason">${{a.reason?esc(a.reason):"최대낙폭 "+a.mdd_pct+"%"}}</div>${{news}}
@@ -1819,6 +1823,7 @@ async function tick(first){{
       peakEquity=Math.max(prevPeak,eqNow);
     }}
     document.getElementById("grid").innerHTML=rest.map(card).join("");
+    rest.forEach(a=>{{if(a.name)nameByKey[a.key]=a.name}});
     cKeys=rest.filter(a=>a.market==="crypto").map(a=>a.key)
       .concat(rest.filter(a=>a.market!=="crypto").map(a=>a.key));
     // 티커 테이프 — 실시간가(가능 시) 또는 확정 기록
@@ -1829,7 +1834,7 @@ async function tick(first){{
       const px=lp??base;
       const c=(chg??a.return_pct)>=0?"var(--ok)":"var(--bad)";
       const arrow=(chg??a.return_pct)>=0?"▲":"▼";
-      return `<b>${{esc(a.key.split(":")[1]||a.key)}}</b>`+
+      return `<b>${{esc(a.name||a.key.split(":")[1]||a.key)}}</b>`+
         (px?`${{Number(px).toLocaleString()}} `:"")+
         `<span style="color:${{c}}">${{arrow}} ${{pct(chg??a.return_pct)}}</span>`}}).join("");
     document.getElementById("tape").innerHTML=items+items;   // 이음새 없는 루프
@@ -1837,6 +1842,7 @@ async function tick(first){{
   }}catch(e){{}}
 }}
 let cKeys=[],cIdx=0;
+const nameByKey={{}};   // 종목코드 → 한글 이름 (캔들 헤더 등 표시용)
 // 장면 자동 전환 — 90초 주기: 기본 → 종목 확대(18초) → 챌린지 게이지(10초).
 // 라이브가 한 화면에 머물지 않게 한다. 데이터가 없으면 조용히 건너뛴다.
 let lastHero=null;
@@ -1922,7 +1928,9 @@ async function candleTick(rotate){{
       if(!d.candles||d.candles.length<5)continue;   // 장 마감 등 → 다음 종목
       cIdx=(cIdx+n)%cKeys.length;
       const el=document.getElementById("candle");el.style.display="flex";
-      document.getElementById("c-sym").textContent=key.split(":")[1]||key;
+      const code=key.split(":")[1]||key;
+      document.getElementById("c-sym").textContent=
+        nameByKey[key]?nameByKey[key]+" · "+code:code;
       const last=d.candles[d.candles.length-1],prev=d.candles[0];
       const chg=(last[4]/prev[1]-1)*100,cls=chg>=0;
       const px=document.getElementById("c-px");

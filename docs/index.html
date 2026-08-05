@@ -513,7 +513,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
       var h=st.paper[k].history||[];
       if(!h.length||h[h.length-1].price==null)return;
       var px=h[h.length-1].price, prev=h.length>1?h[h.length-2].price:null;
-      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(k.split(":")[1]||k)};
+      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)};
     });
     draw(); pollCrypto(); setInterval(pollCrypto,15000);
   }).catch(function(){});

@@ -321,3 +321,40 @@ def test_live_cli_multi_symbols_paper(tmp_path):
     st = _json.loads(state.read_text(encoding="utf-8"))
     assert st["mode"] == "paper" and st["history"]
     assert "positions" in st
+
+
+def test_symbol_info_names_and_reasons():
+    """모든 자동 운용 종목에 한글 이름·선정 이유가 있다 (사이트·방송 표시용)."""
+    from quant.markets import AUTO_TARGETS, SYMBOL_INFO
+
+    for market, symbol in AUTO_TARGETS:
+        info = SYMBOL_INFO.get(f"{market}:{symbol}")
+        assert info and info["name"] and info["why"], f"{market}:{symbol}"
+    assert SYMBOL_INFO["kr_stock:005930.KS"]["name"] == "삼성전자"
+    assert SYMBOL_INFO["kr_stock:069500.KS"]["name"] == "KODEX 200"
+
+
+def test_names_in_status_and_broadcast(tmp_path):
+    import json as _json
+
+    from quant.live.daily import write_docs_status
+    from quant.web.app import broadcast_json
+
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    (paper / "kr_stock_005930.KS.json").write_text(_json.dumps({
+        "market": "kr_stock", "symbol": "005930.KS", "cash": 0, "quantity": 0,
+        "history": [{"date": "2026-08-05", "equity": 10000.0,
+                     "return_pct": 0.0, "price": 240000.0}]}), encoding="utf-8")
+    st = write_docs_status(str(tmp_path), docs_path=str(tmp_path / "s.json"))
+    assert st["symbols"]["kr_stock:005930.KS"]["name"] == "삼성전자"
+    d = _json.loads(broadcast_json(state_dir=str(tmp_path), with_live=False))
+    acc = [a for a in d["accounts"] if a["key"] == "kr_stock:005930.KS"][0]
+    assert acc["name"] == "삼성전자"
+
+
+def test_paper_page_has_names_and_reasons_section():
+    root = Path(__file__).resolve().parent.parent / "docs"
+    paper = (root / "paper.html").read_text(encoding="utf-8")
+    assert "왜 이 8종목인가" in paper
+    assert "st.symbols" in paper

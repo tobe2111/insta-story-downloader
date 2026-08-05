@@ -274,7 +274,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const ret=Number(p.return_pct||0);
     const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"–";
     const champ=(st.champions&&st.champions[k])?st.champions[k].strategy:"기본";
-    return `<tr><td><b>${esc(k.split(":")[1]||k)}</b><div style="font-size:11px;color:var(--muted)">${esc(k.split(":")[0])}</div></td>
+    const code=k.split(":")[1]||k;
+    const nm=((st.symbols||{})[k]||{}).name;
+    return `<tr><td><b>${esc(nm||code)}</b><div style="font-size:11px;color:var(--muted)">${esc(nm?code:k.split(":")[0])}</div></td>
       <td>${last.equity!=null?won(last.equity):(p.equity!=null?won(p.equity):"–")}</td>
       <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
       <td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>
@@ -286,7 +288,22 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     <div class="tablewrap"><table>
     <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
     ${rest.map(row).join("")}</table></div></div>`:"";
-  el.innerHTML=pfKeys.map(card).join("")+tbl;
+  // 왜 이 8종목인가 — 선정 원칙과 종목별 이유(status.json의 단일 출처)
+  let why="";
+  if(st.symbols&&rest.length){
+    const lis=rest.map(k=>{
+      const info=st.symbols[k]||{};
+      if(!info.why)return "";
+      return `<li style="margin:5px 0"><b>${esc(info.name||k)}</b> <span style="color:var(--muted);font-size:12px">${esc(k.split(":")[1]||k)}</span> — ${esc(info.why)}</li>`;
+    }).join("");
+    if(lis)why=`<div class="card"><h2>왜 이 8종목인가</h2>
+      <p class="sub" style="margin:6px 0 4px;font-size:13px">시장 3곳(코인·한국·미국)을
+      각각 <b>시장 전체(지수)</b>와 <b>대표 종목</b>으로 나눠 담고, 전부 유동성
+      최상위 자산만 골랐습니다 — 시세 데이터가 깨끗하고 실전 이전이 쉬운
+      종목들입니다. 소형주·테마주는 검증이 어려워 제외했습니다.</p>
+      <ul style="list-style:none;padding:0;margin:6px 0 0;font-size:13.5px">${lis}</ul></div>`;
+  }
+  el.innerHTML=pfKeys.map(card).join("")+tbl+why;
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>
@@ -329,7 +346,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       if(!h.length||h[h.length-1].price==null)continue;
       const px=h[h.length-1].price;
       const prev=h.length>1?h[h.length-2].price:null;
-      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(k.split(":")[1]||k)};
+      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)};
     }
     draw(); pollCrypto(); setInterval(pollCrypto,15000);
   }).catch(()=>{});
