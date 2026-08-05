@@ -50,8 +50,9 @@ def html_escape(s) -> str:
     return html.escape(str(s), quote=True)
 
 # 랜딩 페이지(docs/index.html)와 같은 디자인 토큰 — 절제된 다크 핀테크 톤.
-# Pretendard는 사용자 PC에 설치돼 있으면 쓰고, 없으면 시스템 한글 폰트로 폴백
-# (로컬 오프라인 도구라 웹폰트를 받지 않는다).
+# Pretendard는 CDN(무료·오픈소스 폰트)에서 받아 어디서나 같은 글꼴로 보이게
+# 한다. 오프라인이면 font-display:swap 덕에 시스템 한글 폰트로 조용히 폴백
+# — 화면이 깨지거나 기다리는 일은 없다.
 _STYLE = """
  :root{color-scheme:dark;
    --bg:#0a0b0e;--bg2:#0e1013;--bg3:#13161b;--fg:#f4f5f7;--muted:#8f96a3;--dim:#5c6370;
@@ -175,6 +176,12 @@ _STYLE = """
  }
 """
 
+# Pretendard 웹폰트 — jsDelivr는 CORS 허용이라 로컬 조종석에서도 로드된다.
+# 오프라인 환경에서는 시스템 폰트 폴백(스타일의 font-family 목록)이 그대로 동작.
+_FONT = ('<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/'
+         'pretendard@v1.3.9/dist/web/variable/'
+         'pretendardvariable-dynamic-subset.min.css">')
+
 # 브라우저 탭 아이콘 (외부 파일 없이 data URI) — 랜딩과 같은 심볼
 _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
             '%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E'
@@ -260,7 +267,7 @@ def _page(title: str, body: str, active: str = "") -> str:
     """공통 문서 골격 — 헤더·내비게이션·시세 바·로딩 오버레이·스타일을 한곳에서."""
     return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">\n'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-            f'<title>Quant · {html_escape(title)}</title>{_FAVICON}'
+            f'<title>Quant · {html_escape(title)}</title>{_FAVICON}{_FONT}'
             f'<style>{_STYLE}</style></head><body><div class="wrap">\n'
             f'{_nav(active)}\n'
             f'<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>\n'
@@ -1495,7 +1502,7 @@ def render_broadcast() -> str:
     """
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 방송 모드</title>{_FAVICON}<style>
+<title>Quant · 방송 모드</title>{_FAVICON}{_FONT}<style>
 :root{{color-scheme:dark;--bg:#07080b;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
   --dim:#5c6370;--line:#1e2128;--accent:#4c7dff;
   /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 (--ok=상승, --bad=하락) */
