@@ -536,3 +536,34 @@ def test_deposit_nav_present():
     from quant.web.app import render_form
 
     assert 'href="/deposit"' in render_form()
+
+
+# ── 증권사 스타일 테마 + 실시간 시세 바 ──────────────────────────────
+
+def test_cockpit_has_ticker_bar_and_korean_colors():
+    """모든 조종석 페이지에 얇은 시세 바 + 상승 빨강/하락 파랑 토큰이 있다."""
+    doc = render_form()
+    assert 'id="tickbar"' in doc and "/api/broadcast" in doc
+    assert "--up:#f04452" in doc and "--down:#3182f6" in doc
+
+
+def test_broadcast_korean_market_colors():
+    """방송 화면: 상승=빨강(--ok), 하락=파랑(--bad), LIVE 배지는 별도 빨강(--rec)."""
+    from quant.web.app import render_broadcast
+
+    doc = render_broadcast()
+    assert "--ok:#f04452" in doc and "--bad:#3182f6" in doc
+    assert "--rec:#e5484d" in doc and "var(--rec)" in doc
+    assert "rotateNews" in doc and "브리핑(참고용" in doc   # 브리핑 회전 배너
+
+
+def test_docs_pages_ticker_and_colors():
+    """사이트(index/paper): 시세 바 요소 + 증권사 색 + 실시간/확정 구분 표기."""
+    root = Path(__file__).resolve().parent.parent / "docs"
+    for name in ("index.html", "paper.html"):
+        doc = (root / name).read_text(encoding="utf-8")
+        assert 'id="tickbar"' in doc, name
+        assert "#f04452" in doc and "#3182f6" in doc, name
+        assert "전일 확정" in doc and "실시간" in doc, name
+    paper = (root / "paper.html").read_text(encoding="utf-8")
+    assert "시장 브리핑" in paper and "판단에 사용되지 않는" in paper

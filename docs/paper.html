@@ -8,7 +8,9 @@
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --fg:#f4f5f7; --muted:#8f96a3; --dim:#5c6370;
-  --line:rgba(255,255,255,.08); --accent:#4c7dff; --ok:#34d399; --bad:#f87171;
+  --line:rgba(255,255,255,.08); --accent:#4c7dff;
+  /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 (--ok=상승, --bad=하락) */
+  --ok:#f04452; --bad:#3182f6; --rec:#f87171;
 }
 @media (prefers-color-scheme: light){
   :root{ --bg:#fcfcfd; --bg2:#f4f5f8; --fg:#101318; --muted:#5a626e;
@@ -46,7 +48,16 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 .legend i{display:inline-block;width:14px;height:2px;vertical-align:middle;
           margin:0 4px 0 10px}
 .note{color:var(--muted);font-size:12.5px;margin:26px 0 40px}
-.err{color:var(--bad);padding:30px 0}
+.err{color:var(--rec);padding:30px 0}
+.tickbar{border-bottom:1px solid var(--line);background:var(--bg2);overflow:hidden;
+  white-space:nowrap;height:32px;line-height:32px;font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+.tickbar .tin{display:inline-block;animation:tick 45s linear infinite;will-change:transform}
+.tickbar:hover .tin{animation-play-state:paused}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tickbar b{margin:0 5px 0 22px;color:var(--fg);font-weight:650}
+.tickbar .u{color:var(--ok)}.tickbar .d{color:var(--bad)}
+.tickbar .tag{font-size:10px;color:var(--dim);margin-left:3px}
 </style>
 </head>
 <body>
@@ -54,10 +65,11 @@ th{color:var(--muted);font-weight:600;font-size:12px}
   <a class="logo" href="index.html">QUANT<em>.</em></a>
   <a href="trust.html" style="font-size:13.5px;color:var(--muted)">기록 검증</a>
   <a id="livebtn" href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
-    font-weight:700;color:#fff;background:var(--bad);padding:5px 13px;border-radius:99px">
+    font-weight:700;color:#fff;background:var(--rec);padding:5px 13px;border-radius:99px">
     ● 라이브 보는 중</a>
   <a href="index.html" style="font-size:13.5px;color:var(--muted);margin-left:auto">← 홈</a>
 </div></nav>
+<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
 <h1>만원 챌린지 — 매일 자동 페이퍼</h1>
 <p class="sub"><b>가상 자금 10,000원</b>으로 시작해, 클라우드가 매일 새벽(한국시간)
@@ -239,10 +251,67 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
       ${weeklyTable(hist)}
     </div>`}).join("");
+  // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
+  if(st.briefing&&(st.briefing.items||[]).length){
+    const rows=st.briefing.items.map(b=>
+      `<li style="margin:6px 0"><span style="font-size:11px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--muted);margin-right:7px">${esc(b.cat)}</span>`+
+      (b.link?`<a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a>`:esc(b.title))+
+      (b.source?` <span style="color:var(--muted);font-size:12px">— ${esc(b.source)}</span>`:"")+`</li>`).join("");
+    el.innerHTML+=`<div class="card"><h2>📰 오늘의 시장 브리핑 <span style="font-size:12px;color:var(--muted);font-weight:400">(${esc(st.briefing.date||"")})</span></h2>
+      <ul style="list-style:none;padding:0;margin:8px 0 4px">${rows}</ul>
+      <div class="sub" style="font-size:12px">⚠️ ${esc(st.briefing.note||"판단에 사용되지 않는 참고 정보입니다.")}</div></div>`;
+  }
   if(st.updated){document.querySelector(".sub").innerHTML+=` <b>마지막 갱신: ${esc(st.updated)}</b>`}
   if(st.live_url){const lb=document.getElementById("livebtn");lb.href=st.live_url;lb.style.display="inline-block"}
 }).catch(()=>{document.getElementById("content").innerHTML=
   '<p class="err">아직 기록이 없습니다 — 첫 자동 실행 이후에 나타납니다.</p>'});
+
+// 얇은 실시간 시세 바 — 코인은 거래소 공개 API(실시간), 주식은 전일 확정가로
+// 구분 표기한다(브라우저에서 실시간 주식 시세를 정직하게 받을 무료 경로가 없다).
+(function(){
+  const el=document.getElementById("tickbar"); if(!el)return;
+  const conf={};                     // key → {px,chg,sym} (status.json 확정 기록)
+  let live={};                       // key → {px,chg} (거래소 실시간)
+  function draw(){
+    const keys=Object.keys(conf);
+    if(!keys.length){el.parentElement.style.display="none";return}
+    const items=keys.map(k=>{
+      const lv=live[k], px=lv?lv.px:conf[k].px, chg=lv?lv.chg:conf[k].chg;
+      if(px==null)return "";
+      const v=Number(chg||0), cls=v>=0?"u":"d", arrow=v>=0?"▲":"▼";
+      return `<b>${esc(conf[k].sym)}</b>${Number(px).toLocaleString()} `+
+        `<span class="${cls}">${arrow} ${(v>=0?"+":"")+v.toFixed(2)}%</span>`+
+        `<span class="tag">${lv?"실시간":"전일 확정"}</span>`;
+    }).join("");
+    if(items)el.innerHTML=items+items;   // 이음새 없는 루프
+  }
+  fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
+    if(!st||!st.paper)return;
+    for(const k of Object.keys(st.paper)){
+      if(k.startsWith("portfolio"))continue;
+      const h=st.paper[k].history||[];
+      if(!h.length||h[h.length-1].price==null)continue;
+      const px=h[h.length-1].price;
+      const prev=h.length>1?h[h.length-2].price:null;
+      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(k.split(":")[1]||k)};
+    }
+    draw(); pollCrypto(); setInterval(pollCrypto,15000);
+  }).catch(()=>{});
+  function pollCrypto(){
+    const pairs=Object.keys(conf).filter(k=>k.startsWith("crypto:"))
+      .map(k=>({key:k,b:(k.split(":")[1]||"").replace("/","")}));
+    if(!pairs.length)return;
+    const q=encodeURIComponent(JSON.stringify(pairs.map(p=>p.b)));
+    fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+q)
+      .then(r=>r.ok?r.json():null).then(arr=>{
+        if(!Array.isArray(arr))return;
+        const by={}; arr.forEach(t=>by[t.symbol]=t);
+        pairs.forEach(p=>{const t=by[p.b]; if(t)live[p.key]=
+          {px:Number(t.lastPrice),chg:Number(t.priceChangePercent)}});
+        draw();
+      }).catch(()=>{});
+  }
+})();
 </script>
 </body>
 </html>

@@ -5,6 +5,7 @@ from quant.strategies.adx import ADXFilter
 from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
 from quant.strategies.ensemble import AdaptiveEnsemble, StrategyEnsemble
+from quant.strategies.event_guard import EventGuard
 from quant.strategies.keltner import KeltnerBreakout
 from quant.strategies.liquidity import LiquidityFilter
 from quant.strategies.multitimeframe import MultiTimeframeFilter
@@ -44,6 +45,7 @@ __all__ = [
     "StrategyEnsemble",
     "AdaptiveEnsemble",
     "RegimeFilter",
+    "EventGuard",
     "ADXFilter",
     "MultiTimeframeFilter",
     "LiquidityFilter",

@@ -129,12 +129,19 @@ def build_strategy(spec: dict):
     특수형 "regime_wrap": 다른 전략(inner)을 레짐 필터로 감싼다 — 약세장·
     고변동성 구간에서 자동 관망하는 변형. 수익을 올리는 장치가 아니라
     대낙폭을 피하는 장치다.
+    특수형 "event_wrap": FOMC 등 예고된 거시 이벤트 창(±pad_days)에서
+    비중을 줄이는(기본 관망) 변형 — 이벤트 달력이 결정적이라 재현·검증 가능.
     """
     if spec["strategy"] == "regime_wrap":
         from quant.strategies import RegimeFilter
         params = dict(spec.get("params", {}))
         inner = build_strategy(params.pop("inner"))
         return RegimeFilter(inner, **params)
+    if spec["strategy"] == "event_wrap":
+        from quant.strategies import EventGuard
+        params = dict(spec.get("params", {}))
+        inner = build_strategy(params.pop("inner"))
+        return EventGuard(inner, **params)
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -342,6 +349,16 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         else:
             # 챔피언이 이미 레짐 래핑이면 '벗긴 원본'을 도전시킨다 — 필터가
             # 더는 도움이 안 되는 국면에서 되돌아갈 길을 항상 열어 둔다.
+            challengers.append(current_spec["params"]["inner"])
+        if current_spec["strategy"] != "event_wrap":
+            # FOMC 등 예고된 이벤트 창에서 관망하는 변형 — 이벤트 달력이
+            # 결정적이라 백테스트 검증이 가능하고, 관문을 통과할 때만 승격된다.
+            challengers.append({"strategy": "event_wrap",
+                                "params": {"inner": current_spec,
+                                           "pad_days": 1, "factor": 0.0}})
+        else:
+            # 이미 이벤트 래핑이면 '벗긴 원본'을 도전시킨다 — 필터가 더는
+            # 도움이 안 되면 되돌아갈 길을 열어 둔다.
             challengers.append(current_spec["params"]["inner"])
 
     # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다

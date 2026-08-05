@@ -57,6 +57,8 @@ _STYLE = """
    --bg:#0a0b0e;--bg2:#0e1013;--bg3:#13161b;--fg:#f4f5f7;--muted:#8f96a3;--dim:#5c6370;
    --line:#1e2128;--line-strong:#2a2e37;--accent:#4c7dff;--accent-soft:rgba(76,125,255,.11);
    --ok:#3fb96f;--bad:#e5484d;--warn:#d9a13b;--radius:12px;
+   /* 시세 색 — 한국 증권사 관례(상승=빨강, 하락=파랑). 성공/오류(--ok/--bad)와 구분 */
+   --up:#f04452;--down:#3182f6;
    --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
    --shadow:0 1px 2px rgba(0,0,0,.25),0 8px 28px -12px rgba(0,0,0,.45)}
  @media(prefers-color-scheme:light){:root{color-scheme:light;
@@ -154,8 +156,20 @@ _STYLE = """
  @keyframes spin{to{transform:rotate(360deg)}}
  #busy p{margin:0;font-size:13.5px}
  #busy .sub{font-size:12px;color:var(--muted);margin-top:4px}
+ .pos{color:var(--up)}.neg{color:var(--down)}
+ /* 얇은 실시간 시세 바 — 증권사 상단 지수 바처럼 스르륵 흐른다 */
+ .tickbar{margin:0 -22px;border-bottom:1px solid var(--line);background:var(--bg2);
+   overflow:hidden;white-space:nowrap;height:30px;line-height:30px;font-size:12px;
+   font-variant-numeric:tabular-nums}
+ .tickbar .tin{display:inline-block;animation:tick 45s linear infinite;will-change:transform}
+ .tickbar:hover .tin{animation-play-state:paused}
+ @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+ .tickbar b{margin:0 5px 0 20px;color:var(--fg);font-weight:650}
+ .tickbar .u{color:var(--up)}.tickbar .d{color:var(--down)}
+ .tickbar .tag{font-size:10px;color:var(--dim);margin-left:3px}
  @media(max-width:560px){
    .wrap{padding:0 14px 48px}.topbar{margin:0 -14px 6px;padding:0 14px}
+   .tickbar{margin:0 -14px}
    .card,form.panel{padding:16px}
    .steps{flex-wrap:wrap}.steps a{flex:1 1 50%;border-bottom:1px solid var(--line)}
  }
@@ -206,13 +220,51 @@ _BUSY = ('<div id="busy"><div class="box"><div class="spin"></div>'
          '</div></div>')
 
 
+# 얇은 실시간 시세 바 — 페이퍼 계좌의 종목 시세를 증권사 지수 바처럼 흘려보낸다.
+# 첫 페인트는 확정 기록(nolive=1, 빠름), 이후 25초마다 실시간가로 갱신.
+# 기록이 하나도 없으면(신규 설치) 바를 조용히 숨긴다.
+_TICKER_JS = """<script>
+(function(){
+  var el=document.getElementById('tickbar'); if(!el)return;
+  function esc(s){var d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+  function render(d){
+    var accs=(d.accounts||[]).filter(function(a){return a.market!=='portfolio'});
+    if(!accs.length){el.parentElement.style.display='none';return}
+    var lp=d.live_prices||{};
+    var items=accs.map(function(a){
+      var base=(a.spark_price&&a.spark_price.length)?a.spark_price[a.spark_price.length-1]:null;
+      var live=lp[a.key], px=live!=null?live:base;
+      if(px==null)return '';
+      var chg=(live!=null&&base)?((live/base-1)*100):null;
+      var v=(chg!=null?chg:(a.return_pct||0));
+      var cls=v>=0?'u':'d', arrow=v>=0?'▲':'▼';
+      return '<b>'+esc((a.key.split(':')[1]||a.key))+'</b>'
+        +Number(px).toLocaleString()
+        +' <span class="'+cls+'">'+arrow+' '+(v>=0?'+':'')+v.toFixed(2)+'%</span>'
+        +'<span class="tag">'+(live!=null?'실시간':'확정')+'</span>';
+    }).join('');
+    if(!items){el.parentElement.style.display='none';return}
+    el.innerHTML=items+items;   /* 이음새 없는 루프 */
+  }
+  function tick(first){
+    fetch('/api/broadcast'+(first?'?nolive=1':''),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():null})
+      .then(function(d){if(d)render(d)}).catch(function(){});
+  }
+  tick(true); setInterval(function(){tick(false)},25000);
+})();
+</script>"""
+
+
 def _page(title: str, body: str, active: str = "") -> str:
-    """공통 문서 골격 — 헤더·내비게이션·로딩 오버레이·스타일을 한곳에서."""
+    """공통 문서 골격 — 헤더·내비게이션·시세 바·로딩 오버레이·스타일을 한곳에서."""
     return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">\n'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
             f'<title>Quant · {html_escape(title)}</title>{_FAVICON}'
             f'<style>{_STYLE}</style></head><body><div class="wrap">\n'
-            f'{_nav(active)}\n{body}\n</div>{_BUSY}{_UX_JS}</body></html>')
+            f'{_nav(active)}\n'
+            f'<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>\n'
+            f'{body}\n</div>{_BUSY}{_UX_JS}{_TICKER_JS}</body></html>')
 
 
 def _msg_html(message: str) -> str:
@@ -1012,6 +1064,16 @@ def _live_prices(keys, ttl: float = 45.0) -> dict:
     return prices
 
 
+def _briefing_payload(state_dir: str = "state") -> dict | None:
+    """방송용 브리핑 — 저장된 것이 있으면 헤드라인 목록을 돌려준다."""
+    try:
+        from quant.live.briefing import load_briefing
+        b = load_briefing(state_dir)
+        return b if b and b.get("items") else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
     """방송 화면 데이터(JSON) — 확정 기록 + (가능하면) 실시간 평가 자산.
 
@@ -1134,6 +1196,8 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         # 조종석에서 방금 접수된 입금 — 장부 반영 전 '반영 중' 배너용(숫자에는
         # 반영하지 않는다 — 정본은 git 장부).
         "pending": _pending_deposits(),
+        # 오늘의 시장 브리핑(표시 전용 — 판단에 사용되지 않음)
+        "briefing": _briefing_payload(state_dir),
         "disclaimer": ("본 방송의 계좌는 가상 자금 모의투자이며 실제 돈이 "
                        "아닙니다. 후원금 자체를 운용하지 않으며, 후원과 동일한 "
                        "금액만큼 '가상 원금'을 늘리는 매칭 이벤트입니다"
@@ -1433,7 +1497,9 @@ def render_broadcast() -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quant · 방송 모드</title>{_FAVICON}<style>
 :root{{color-scheme:dark;--bg:#07080b;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
-  --dim:#5c6370;--line:#1e2128;--accent:#4c7dff;--ok:#3fb96f;--bad:#e5484d}}
+  --dim:#5c6370;--line:#1e2128;--accent:#4c7dff;
+  /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 (--ok=상승, --bad=하락) */
+  --ok:#f04452;--bad:#3182f6;--rec:#e5484d}}
 *{{box-sizing:border-box;margin:0}}
 body{{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,
   "Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);
@@ -1442,9 +1508,9 @@ body{{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,
 header{{display:flex;align-items:center;gap:16px;padding:14px 30px 6px}}
 .logo{{font-weight:800;font-size:20px;letter-spacing:.14em}}
 .logo em{{font-style:normal;color:var(--accent)}}
-.live{{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--bad);
+.live{{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--rec);
   font-weight:700}}
-.live i{{width:8px;height:8px;border-radius:50%;background:var(--bad);
+.live i{{width:8px;height:8px;border-radius:50%;background:var(--rec);
   animation:blink 1.4s infinite}}
 @keyframes blink{{50%{{opacity:.25}}}}
 #news{{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;
@@ -1655,8 +1721,15 @@ async function tick(first){{
     const accs=d.accounts||[]; if(!accs.length)return;
     const pf=accs.find(a=>a.market==="portfolio");
     const rest=accs.filter(a=>a.market!=="portfolio");
-    if(d.news){{document.getElementById("news").textContent=d.news;
+    // 상단 배너 회전 풀 — 재학습 서사 + 시장 브리핑(표시 전용, 참고 명시)
+    newsPool=[];
+    if(d.news){{newsPool.push(d.news);
       if(d.news.includes("교체"))popEvent(d.news);}}
+    (d.briefing&&d.briefing.items||[]).slice(0,6).forEach(b=>newsPool.push(
+      `📰 브리핑(참고용·판단 미사용) [${{esc(b.cat)}}] ${{esc(b.title)}}`+
+      (b.source?` — ${{esc(b.source)}}`:"")));
+    if(newsPool.length&&!newsTimer){{rotateNews();
+      newsTimer=setInterval(rotateNews,12000);}}
     const hero=pf||rest[0];
     if(hero){{
       const eq=hero.live_equity??hero.equity;
@@ -1722,6 +1795,13 @@ async function tick(first){{
   }}catch(e){{}}
 }}
 let cKeys=[],cIdx=0;
+// 상단 배너 회전 — 재학습 소식과 브리핑 헤드라인을 번갈아 보여준다
+let newsPool=[],newsIdx=0,newsTimer=null;
+function rotateNews(){{
+  if(!newsPool.length)return;
+  const el=document.getElementById("news");
+  el.innerHTML=newsPool[newsIdx%newsPool.length];
+  newsIdx++;}}
 // 이벤트 배너 — 챔피언 교체·계좌 신고가 같은 '사건'을 몇 초간 크게
 const seenEvents=new Set();let peakEquity=0;
 function popEvent(text){{

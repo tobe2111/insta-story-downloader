@@ -58,6 +58,16 @@
  .navcta{font-size:13px;font-weight:650;color:var(--bg);background:var(--fg);
    padding:7px 16px;border-radius:8px;margin-left:8px;white-space:nowrap}
  .navcta:hover{text-decoration:none;opacity:.88}
+ /* 얇은 실시간 시세 바 — 증권사 상단 지수 바 (상승 빨강 · 하락 파랑) */
+ .tickbar{border-bottom:1px solid var(--line);background:var(--bg2);overflow:hidden;
+   white-space:nowrap;height:32px;line-height:32px;font-size:12.5px;
+   font-variant-numeric:tabular-nums}
+ .tickbar .tin{display:inline-block;animation:tick 45s linear infinite;will-change:transform}
+ .tickbar:hover .tin{animation-play-state:paused}
+ @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+ .tickbar b{margin:0 5px 0 22px;color:var(--fg);font-weight:650}
+ .tickbar .u{color:#f04452}.tickbar .d{color:#3182f6}
+ .tickbar .tag{font-size:10px;color:var(--dim);margin-left:3px}
  @media(max-width:720px){nav .lnk{display:none}}
 
  /* ---------- hero ---------- */
@@ -206,6 +216,7 @@
     ● LIVE</a>
   <a class="navcta" href="#download">다운로드</a>
 </div></nav>
+<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 
 <header class="hero wrap">
   <div>
@@ -435,7 +446,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
   var keys=Object.keys(st.paper); if(!keys.length) return;
   var parts=keys.map(function(k){
     var p=st.paper[k], ret=Number(p.return_pct||0);
-    var col=ret>=0?"#34d399":"#f87171";
+    var col=ret>=0?"#f04452":"#3182f6";   /* 증권사 관례: 상승 빨강 · 하락 파랑 */
     return esc(k)+' <b style="color:'+col+'">'+(ret>=0?"+":"")+ret.toFixed(2)+"%</b>";
   });
   var el=document.getElementById("paper-live");
@@ -446,6 +457,52 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
     if(lb){lb.href=st.live_url;lb.style.display="inline-block"}}
   function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
 }).catch(function(){});
+</script>
+<script>
+/* 얇은 실시간 시세 바 — 코인은 거래소 공개 API(실시간), 주식은 전일 확정가 */
+(function(){
+  var el=document.getElementById("tickbar"); if(!el)return;
+  function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+  var conf={}, live={};
+  function draw(){
+    var keys=Object.keys(conf);
+    if(!keys.length){el.parentElement.style.display="none";return}
+    var items=keys.map(function(k){
+      var lv=live[k], px=lv?lv.px:conf[k].px, chg=lv?lv.chg:conf[k].chg;
+      if(px==null)return "";
+      var v=Number(chg||0), cls=v>=0?"u":"d", arrow=v>=0?"▲":"▼";
+      return "<b>"+esc(conf[k].sym)+"</b>"+Number(px).toLocaleString()
+        +' <span class="'+cls+'">'+arrow+" "+(v>=0?"+":"")+v.toFixed(2)+"%</span>"
+        +'<span class="tag">'+(lv?"실시간":"전일 확정")+"</span>";
+    }).join("");
+    if(items)el.innerHTML=items+items;
+  }
+  fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(st){
+    if(!st||!st.paper){el.style.display="none";return}
+    Object.keys(st.paper).forEach(function(k){
+      if(k.indexOf("portfolio")===0)return;
+      var h=st.paper[k].history||[];
+      if(!h.length||h[h.length-1].price==null)return;
+      var px=h[h.length-1].price, prev=h.length>1?h[h.length-2].price:null;
+      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(k.split(":")[1]||k)};
+    });
+    draw(); pollCrypto(); setInterval(pollCrypto,15000);
+  }).catch(function(){});
+  function pollCrypto(){
+    var pairs=Object.keys(conf).filter(function(k){return k.indexOf("crypto:")===0})
+      .map(function(k){return {key:k,b:(k.split(":")[1]||"").replace("/","")}});
+    if(!pairs.length)return;
+    var q=encodeURIComponent(JSON.stringify(pairs.map(function(p){return p.b})));
+    fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+q)
+      .then(function(r){return r.ok?r.json():null}).then(function(arr){
+        if(!Array.isArray(arr))return;
+        var by={}; arr.forEach(function(t){by[t.symbol]=t});
+        pairs.forEach(function(p){var t=by[p.b]; if(t)live[p.key]=
+          {px:Number(t.lastPrice),chg:Number(t.priceChangePercent)}});
+        draw();
+      }).catch(function(){});
+  }
+})();
 </script>
 </body>
 </html>
