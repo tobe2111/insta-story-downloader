@@ -18,6 +18,7 @@ from quant.web.app import (
     broadcast_json,
     candles_json,
     render_broadcast,
+    render_deposit_form,
     render_form,
     render_monitor,
     render_optimize_form,
@@ -26,6 +27,7 @@ from quant.web.app import (
     render_sweep_form,
     render_validate_form,
     run_backtest_html,
+    run_deposit_html,
     run_optimize_html,
     run_portfolio_html,
     run_screener_html,
@@ -135,6 +137,14 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_validate_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_validate_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/deposit":
+            self._send(render_deposit_form())
+        elif parsed.path == "/deposit/run":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                self._send(run_deposit_html(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_deposit_form(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":

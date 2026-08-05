@@ -431,3 +431,108 @@ def test_docs_status_live_url_env(tmp_path, monkeypatch):
     monkeypatch.delenv("QUANT_LIVE_URL")
     st = write_docs_status(str(tmp_path), docs_path=str(out))
     assert st["live_url"] is None
+
+
+# ── 조종석 입금 화면 (만원 → 1억 매칭) ──────────────────────────────
+
+def test_render_deposit_form_without_token_shows_setup(monkeypatch):
+    """토큰이 없으면 설정 안내를 보여준다 — 사용자가 길을 잃지 않게."""
+    from quant.web.app import render_deposit_form
+
+    monkeypatch.delenv("QUANT_GH_TOKEN", raising=False)
+    doc = render_deposit_form()
+    assert 'action="/deposit/run"' in doc
+    assert "QUANT_GH_TOKEN" in doc and "Fine-grained" in doc
+    assert "후원금 자체를 운용하지 않습니다" in doc      # 법적 고지 유지
+
+
+def test_render_deposit_form_with_token_hides_setup(monkeypatch):
+    from quant.web.app import render_deposit_form
+
+    monkeypatch.setenv("QUANT_GH_TOKEN", "github_pat_x")
+    doc = render_deposit_form()
+    assert "Fine-grained" not in doc
+    assert 'name="amount"' in doc and 'name="memo"' in doc
+
+
+def test_run_deposit_html_validates_amount(monkeypatch):
+    from quant.web import app as _app
+
+    monkeypatch.setenv("QUANT_GH_TOKEN", "github_pat_x")
+    called = []
+    monkeypatch.setattr(_app, "dispatch_deposit", lambda a, m="": called.append(a))
+    assert "숫자가 아닙니다" in _app.run_deposit_html({"amount": "abc"})
+    assert "이하여야" in _app.run_deposit_html({"amount": "99999999"})
+    assert "이하여야" in _app.run_deposit_html({"amount": "0"})
+    assert called == []                                  # 검증 실패 시 디스패치 없음
+
+
+def test_run_deposit_html_dispatches_and_registers_pending(monkeypatch):
+    """접수 성공 → 디스패치 1회 + 방송 배너용 pending 등록(숫자 조작은 없음)."""
+    import json as _json
+
+    from quant.web import app as _app
+
+    monkeypatch.setenv("QUANT_GH_TOKEN", "github_pat_x")
+    calls = []
+    monkeypatch.setattr(_app, "dispatch_deposit",
+                        lambda a, m="": calls.append((a, m)))
+    _app._PENDING_DEPOSITS.clear()
+    doc = _app.run_deposit_html({"amount": "10000", "memo": "슈퍼챗 홍길동"})
+    assert calls == [(10000, "슈퍼챗 홍길동")]
+    assert "접수 완료" in doc and "10,000" in doc
+    d = _json.loads(_app.broadcast_json(state_dir="없는_디렉터리", with_live=False))
+    assert d["pending"] and d["pending"][0]["amount"] == 10000
+    assert d["pending"][0]["memo"] == "슈퍼챗 홍길동"
+    _app._PENDING_DEPOSITS.clear()
+
+
+def test_pending_deposits_expire(monkeypatch):
+    """TTL(15분)이 지난 접수는 배너 후보에서 사라진다."""
+    import time as _time
+
+    from quant.web import app as _app
+
+    _app._PENDING_DEPOSITS.clear()
+    _app._PENDING_DEPOSITS.append(
+        {"ts": _time.time() - 16 * 60, "time": "00:00:00",
+         "amount": 5000, "memo": ""})
+    assert _app._pending_deposits() == []
+    assert _app._PENDING_DEPOSITS == []                  # 목록 자체도 정리
+    _app._PENDING_DEPOSITS.clear()
+
+
+def test_dispatch_deposit_calls_github_api(monkeypatch):
+    """workflow_dispatch 엔드포인트·헤더·본문 형식 검증 (네트워크 없음)."""
+    import quant.utils.http as _http
+    from quant.web.app import dispatch_deposit
+
+    monkeypatch.setenv("QUANT_GH_TOKEN", "github_pat_secret")
+    monkeypatch.setenv("QUANT_GH_REPO", "owner/repo")
+    calls = []
+    monkeypatch.setattr(_http, "post_text",
+                        lambda url, headers=None, body=None:
+                        calls.append((url, headers, body)) or "")
+    dispatch_deposit(10000, "메모")
+    url, headers, body = calls[0]
+    assert url == ("https://api.github.com/repos/owner/repo"
+                   "/actions/workflows/deposit.yml/dispatches")
+    assert headers["Authorization"] == "Bearer github_pat_secret"
+    assert body == {"ref": "main", "inputs": {"amount": "10000", "memo": "메모"}}
+
+
+def test_dispatch_deposit_requires_token(monkeypatch):
+    import pytest
+
+    from quant.web.app import dispatch_deposit
+
+    monkeypatch.delenv("QUANT_GH_TOKEN", raising=False)
+    with pytest.raises(RuntimeError, match="QUANT_GH_TOKEN"):
+        dispatch_deposit(10000)
+
+
+def test_deposit_nav_present():
+    """조종석 내비게이션에 '입금' 항목이 있다."""
+    from quant.web.app import render_form
+
+    assert 'href="/deposit"' in render_form()

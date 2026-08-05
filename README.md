@@ -218,8 +218,10 @@ learn`)의 기본 전략이 `champion`이라, 야간 재학습이 챔피언을 �
 구조입니다. ⚠️ **후원금 자체를 운용하지 않습니다**(대가·지분 없음) — 이 구조를
 바꾸면(타인 자금 운용) 유사수신·무인가 집합투자 위험이 생깁니다.
 
-- 입금 등록(방송 중 폰에서): GitHub → Actions → **Deposit** → Run workflow →
-  금액·메모 입력. 사이트·방송 화면에 자동 반영되고 배너가 뜹니다.
+- 입금 등록(가장 쉬움): 웹 조종석 → **입금** 탭 → 금액·메모 입력. 최초 1회
+  GitHub 토큰 설정이 필요하며 화면에 안내가 나옵니다(`QUANT_GH_TOKEN`).
+- 폰에서: GitHub 앱/웹 → Actions → **Deposit** → Run workflow → 금액·메모 입력.
+  두 방법 모두 사이트·방송 화면에 자동 반영되고 배너가 뜹니다.
 - CLI: `python -m quant deposit --amount 10000 --memo "슈퍼챗 ○○님"`
 - 회계는 **원금과 운용 손익을 분리**합니다: 수익률은 원금 대비, 실력 지표는
   입금 효과를 제거한 시간가중 수익률(TWR). 차트에는 원금 계단선과 입금 ▲
@@ -356,7 +358,9 @@ python examples/run_multi.py --paper --market crypto \
 ```
 
 - **알림** — 환경변수 설정 시 자동 활성화 (미설정 시 콘솔만):
-  `TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHAT_ID`, 또는 `SLACK_WEBHOOK_URL`
+  `TELEGRAM_BOT_TOKEN`+`TELEGRAM_CHAT_ID`, `SLACK_WEBHOOK_URL`,
+  `DISCORD_WEBHOOK_URL` (디스코드: 채널 설정 → 연동 → 웹훅 만들기 → URL 복사.
+  클라우드 자동 운용 알림도 같은 이름의 GitHub Secret을 등록하면 디스코드로 옵니다)
 - **견고한 주문** — `RobustBroker`가 어떤 브로커든 감싸 지수 백오프 재시도 +
   최소수량/스텝 라운딩 + 실패 알림을 추가 (거래소 거절·레이트리밋 방어)
 

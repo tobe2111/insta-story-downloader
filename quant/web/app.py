@@ -171,7 +171,8 @@ _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
 
 _NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
               ("/screener", "종목선별"), ("/sweep", "민감도"),
-              ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시")]
+              ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시"),
+              ("/deposit", "입금")]
 
 
 def _nav(active: str = "") -> str:
@@ -1130,6 +1131,9 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         "swaps": swaps,
         "live_prices": live,
         "live_available": bool(live),
+        # 조종석에서 방금 접수된 입금 — 장부 반영 전 '반영 중' 배너용(숫자에는
+        # 반영하지 않는다 — 정본은 git 장부).
+        "pending": _pending_deposits(),
         "disclaimer": ("본 방송의 계좌는 가상 자금 모의투자이며 실제 돈이 "
                        "아닙니다. 후원금 자체를 운용하지 않으며, 후원과 동일한 "
                        "금액만큼 '가상 원금'을 늘리는 매칭 이벤트입니다"
@@ -1262,6 +1266,153 @@ def candles_json(key: str, tf: str = "1m", limit: int = 90,
     if candles:
         _CANDLE_CACHE[(key, tf)] = (now, out)
     return out
+
+
+# ── 조종석 입금 화면 ──────────────────────────────────────────────
+# 방송 중 GitHub 앱을 열 필요 없이 프로그램 안에서 바로 매칭 입금을 등록한다.
+# 정본 장부는 여전히 GitHub Actions(deposit.yml)가 쓰는 git 커밋이다 — 여기서는
+# 그 워크플로를 API로 '눌러줄' 뿐, 로컬에서 숫자를 직접 바꾸지 않는다(조작 불가
+# 구조 유지). 접수 직후에는 방송 화면에 '반영 중' 배너만 띄운다.
+_DEPOSIT_REPO_DEFAULT = "tobe2111/insta-story-downloader"
+
+# 접수됐지만 아직 git 장부에 안 실린 입금 — /api/broadcast가 배너용으로 읽는다.
+_PENDING_DEPOSITS: list[dict] = []
+_PENDING_TTL = 15 * 60          # 15분 지나면 배너 후보에서 제외(장부 반영 완료 가정)
+
+
+def _pending_deposits() -> list[dict]:
+    """TTL 안의 접수 목록을 반환하고 오래된 항목은 정리한다."""
+    import time
+    now = time.time()
+    _PENDING_DEPOSITS[:] = [p for p in _PENDING_DEPOSITS
+                            if now - p["ts"] < _PENDING_TTL]
+    return [{"time": p["time"], "amount": p["amount"], "memo": p["memo"]}
+            for p in _PENDING_DEPOSITS[-10:]]
+
+
+def dispatch_deposit(amount: int, memo: str = "") -> None:
+    """GitHub Actions deposit.yml을 API로 실행한다 (workflow_dispatch).
+
+    QUANT_GH_TOKEN: fine-grained PAT (해당 저장소 Actions read/write).
+    QUANT_GH_REPO:  owner/repo (기본값은 이 프로젝트 저장소).
+    """
+    import os as _os
+
+    from quant.utils.http import post_text
+    token = _os.environ.get("QUANT_GH_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("QUANT_GH_TOKEN이 설정되지 않았습니다.")
+    repo = _os.environ.get("QUANT_GH_REPO", _DEPOSIT_REPO_DEFAULT).strip()
+    url = (f"https://api.github.com/repos/{repo}"
+           "/actions/workflows/deposit.yml/dispatches")
+    post_text(url, {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "content-type": "application/json",
+    }, {"ref": "main", "inputs": {"amount": str(int(amount)), "memo": memo}})
+
+
+def _deposit_principal() -> float | None:
+    """현재 통합 계좌 원금(시작금 + 누적 매칭 입금) — 표시용, 실패 시 None."""
+    import json as _json
+    from pathlib import Path
+    fp = Path("state") / "paper" / "portfolio_ALL.json"
+    try:
+        st = _json.loads(fp.read_text(encoding="utf-8"))
+        from quant.live.daily import START_CASH
+        return (float(st.get("start_cash", START_CASH))
+                + sum(d["amount"] for d in st.get("deposits", [])))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_DEPOSIT_LEGAL = ('<div class="hint" style="margin-top:10px">⚠️ 법적 구조: '
+                  '후원금 자체를 운용하지 않습니다. 후원과 동일한 금액만큼 '
+                  "<b>가상 계좌의 원금</b>을 늘리는 매칭 이벤트이며(대가·지분 "
+                  '없음), 모든 입금은 git 커밋 장부로 공개됩니다. 수익률은 '
+                  '원금과 분리 계산(TWR)되어 입금이 실력처럼 보이지 않습니다.</div>')
+
+
+def render_deposit_form(message: str = "") -> str:
+    """매칭 입금 폼 — 금액·메모를 조종석에서 바로 입력한다 (pandas 불필요)."""
+    import os as _os
+    has_token = bool(_os.environ.get("QUANT_GH_TOKEN", "").strip())
+    principal = _deposit_principal()
+    principal_txt = (f'현재 원금 <b>{principal:,.0f}원</b> · 목표 1억원'
+                     if principal is not None else
+                     '아직 통합 계좌 기록이 없습니다 (매일 새벽 자동 생성)')
+    if has_token:
+        setup = ""
+    else:
+        setup = ("""<div class="errbox"><b>연결 설정이 필요합니다 (최초 1회).</b>
+입금 버튼이 GitHub의 입금 워크플로를 대신 눌러주려면 접근 토큰이 필요합니다.
+<details><summary>설정 방법 보기</summary><ol style="margin:8px 0 0 18px">
+<li>GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → Generate new token</li>
+<li>Repository access: <b>이 저장소만</b> 선택</li>
+<li>Permissions → Repository permissions → <b>Actions: Read and write</b></li>
+<li>발급된 토큰을 프로그램 폴더의 <code>.env</code> 파일에 한 줄 추가:
+<pre>QUANT_GH_TOKEN=github_pat_...</pre></li>
+<li>웹 조종석 재시작</li></ol>
+<p style="margin-top:8px">토큰 없이도 GitHub 앱/웹 → Actions →
+"Deposit (만원→1억 매칭 입금)" → Run workflow 로 직접 등록할 수 있습니다.</p>
+</details></div>""")
+    body = f"""<p class="kicker">Deposit</p>
+<h1>매칭 입금 (만원 → 1억)</h1>
+<p class="sub">방송 후원이 들어오면 같은 금액만큼 통합 계좌의 <b>가상 원금</b>을
+늘립니다. {principal_txt}</p>
+{_msg_html(message)}
+{setup}
+<form action="/deposit/run" method="get" class="panel">
+  <div class="row">
+    <div><label>입금액(원)</label>
+      <input name="amount" type="number" min="1" max="10000000" step="1"
+             value="10000" required>
+      <div class="hint">1회 최대 1,000만원 — 예: 10000</div></div>
+    <div><label>메모 (선택)</label>
+      <input name="memo" maxlength="80" placeholder="슈퍼챗 ○○님">
+      <div class="hint">장부와 방송 배너에 함께 표시됩니다</div></div>
+  </div>
+  <button type="submit">입금 등록</button>
+  {_DEPOSIT_LEGAL}
+</form>"""
+    return _page("매칭 입금", body, "/deposit")
+
+
+def run_deposit_html(params: dict) -> str:
+    """입금 접수 처리 — 검증 후 GitHub 워크플로 디스패치, 접수 확인 페이지 반환."""
+    import time
+
+    try:
+        amount = int(float(str(params.get("amount", "")).replace(",", "")))
+    except ValueError:
+        return render_deposit_form("입금액이 숫자가 아닙니다 — 예: 10000")
+    if not (0 < amount <= 10_000_000):
+        return render_deposit_form("입금액은 0원 초과 1,000만원 이하여야 합니다.")
+    memo = str(params.get("memo", ""))[:80]
+
+    try:
+        dispatch_deposit(amount, memo)
+    except RuntimeError as exc:
+        if "QUANT_GH_TOKEN" in str(exc):
+            return render_deposit_form("")   # 폼 안의 설정 안내가 이유를 설명한다
+        return render_deposit_form(f"실행 오류: 입금 등록 요청이 실패했습니다 — {exc}")
+
+    _PENDING_DEPOSITS.append({"ts": time.time(),
+                              "time": time.strftime("%H:%M:%S"),
+                              "amount": amount, "memo": memo})
+    body = f"""<p class="kicker">Deposit</p>
+<h1>입금 접수 완료</h1>
+<div class="panel">
+  <p style="font-size:1.15rem"><b>+{amount:,}원</b>{' · ' + html.escape(memo) if memo else ''}
+  — 접수되었습니다.</p>
+  <p class="sub" style="margin-top:8px">GitHub의 입금 워크플로가 방금 실행을
+  시작했습니다. 보통 <b>1~2분</b> 안에 장부(git 커밋)에 기록되고 사이트와 방송
+  화면 원금에 반영됩니다. 방송 화면에는 접수 배너가 먼저 표시됩니다.</p>
+  <p style="margin-top:12px"><a href="/deposit">← 입금 화면으로</a></p>
+  {_DEPOSIT_LEGAL}
+</div>"""
+    return _page("입금 접수 완료", body, "/deposit")
 
 
 # 방송 워터마크 QR — 사이트(만원 챌린지 기록 페이지)로 가는 다리.
@@ -1519,6 +1670,9 @@ async function tick(first){{
         const lastD=hero.deposits[hero.deposits.length-1];
         popEvent(`💝 후원 매칭 +${{won(lastD.amount)}} ${{lastD.memo?"("+esc(lastD.memo)+")":""}} — 원금 ${{won(hero.principal)}}`);
       }}
+      // 조종석 입금 접수 배너 — 장부 반영 전 '반영 중' 상태를 먼저 알린다
+      (d.pending||[]).forEach(p=>popEvent(
+        `💝 입금 접수 +${{won(p.amount)}} ${{p.memo?"("+esc(p.memo)+")":""}} — 장부 반영 중 (${{p.time}})`));
       let breakdown="", goal="";
       if(hero.principal!=null){{
         const pnl=hero.live_equity!=null?(hero.live_equity-hero.principal):hero.pnl;
