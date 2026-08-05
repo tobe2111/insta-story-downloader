@@ -81,17 +81,49 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: 공유 카드 이미지 생성 (오늘의 성적표 1200×630)
+        # 러너에 기본 설치된 Chrome 헤드리스로 today.html을 캡처한다.
+        # SNS 공유 미리보기(og:image)·쇼츠 썸네일용. 실패해도 운용은 계속.
+        run: |
+          (cd docs && python -m http.server 8777 >/dev/null 2>&1 &)
+          sleep 2
+          google-chrome --headless=new --disable-gpu --hide-scrollbars \
+            --window-size=1200,630 --virtual-time-budget=6000 \
+            --screenshot=docs/card.png \
+            "http://127.0.0.1:8777/today.html?card=1" \
+            && echo "카드 생성 완료" || echo "카드 생성 실패 — 건너뜀"
+
       - name: 상태·사이트 커밋 (state/ + docs/status.json)
         run: |
-          if [ -z "$(git status --porcelain state/ docs/status.json)" ]; then
+          if [ -z "$(git status --porcelain state/ docs/status.json docs/card.png)" ]; then
             echo "변경 없음 — 커밋 생략"; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state/ docs/status.json
+          git add docs/card.png 2>/dev/null || true
           git commit -m "매일 자동 페이퍼 기록: $(date -u +%F) [skip ci]"
           for i in 1 2 3 4; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((2**i))
           done
           echo "❌ 기록 푸시 실패"; exit 1
+      - name: 실패 경보 (디스코드/텔레그램)
+        # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.
+        # 파이썬 의존성 없이 curl만 사용(의존성 설치 전에 죽어도 동작).
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          MSG="🚨 [Quant] '${{ github.workflow }}' 실패 ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료 (설정된 채널 없으면 무시)"

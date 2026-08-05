@@ -358,3 +358,33 @@ def test_paper_page_has_names_and_reasons_section():
     paper = (root / "paper.html").read_text(encoding="utf-8")
     assert "왜 이 8종목인가" in paper
     assert "st.symbols" in paper
+
+
+# ── 운영 안정성 + 콘텐츠 지원 ────────────────────────────────────
+
+def test_workflows_have_failure_alerts():
+    """자동 운용 워크플로 4종에 실패 경보(if: failure) 스텝이 있다."""
+    root = Path(__file__).resolve().parent.parent / ".github" / "workflows"
+    for name in ("nightly-retrain.yml", "daily-paper.yml",
+                 "nightly-validate.yml", "deposit.yml"):
+        t = (root / name).read_text(encoding="utf-8")
+        assert "실패 경보" in t and "if: failure()" in t, name
+
+
+def test_today_page_markers():
+    """오늘의 판단 페이지: 촬영/카드 모드·핵심 요소가 존재한다."""
+    root = Path(__file__).resolve().parent.parent / "docs"
+    t = (root / "today.html").read_text(encoding="utf-8")
+    assert "오늘의 판단" in t and "?card=1" in t
+    assert "status.json" in t and "오늘의 자세" in t
+    assert "수익을 보장하지 않습니다" in t
+    paper = (root / "paper.html").read_text(encoding="utf-8")
+    assert 'href="today.html"' in paper
+
+
+def test_card_generation_step_and_og():
+    root = Path(__file__).resolve().parent.parent
+    dp = (root / ".github" / "workflows" / "daily-paper.yml").read_text(encoding="utf-8")
+    assert "공유 카드 이미지 생성" in dp and "card.png" in dp
+    idx = (root / "docs" / "index.html").read_text(encoding="utf-8")
+    assert "card.png" in idx                       # og:image가 매일 갱신 카드로

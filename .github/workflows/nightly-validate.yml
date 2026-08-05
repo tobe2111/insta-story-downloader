@@ -77,3 +77,22 @@ jobs:
             validate-crypto.txt
             validate-us-stock.txt
           if-no-files-found: ignore
+      - name: 실패 경보 (디스코드/텔레그램)
+        # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.
+        # 파이썬 의존성 없이 curl만 사용(의존성 설치 전에 죽어도 동작).
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          MSG="🚨 [Quant] '${{ github.workflow }}' 실패 ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료 (설정된 채널 없으면 무시)"
