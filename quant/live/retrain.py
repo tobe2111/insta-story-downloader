@@ -64,6 +64,15 @@ DEFAULT_CHALLENGERS = [
     # 강제 적용이 아니라 오디션(2단계 관문)을 통과할 때만 챔피언이 된다.
     {"model": "gb", "threshold": 0.55, "calibrate": "isotonic"},
     {"model": "logreg", "threshold": 0.55, "calibrate": "sigmoid"},
+    # 라벨 재설계 — '다음 봉 방향'(잡음 큼) 대신 트리플 배리어(±k·변동성
+    # 이익/손절 배리어 중 무엇을 먼저 치는가)를 학습하는 변형. 더 나은
+    # 라벨이라는 '가설'일 뿐이므로 강제 적용 없이 오디션으로만 승격된다.
+    {"model": "gb", "threshold": 0.55, "label": "triple"},
+    # 메타라벨링 — 방향은 추세 규칙(종가 vs MA50), ML은 '그 판단이 맞을
+    # 확률'만 추정해 크기를 정한다(방향·크기 분업, López de Prado).
+    {"model": "logreg", "threshold": 0.55, "label": "triple", "meta": True},
+    # 표본 시간감쇠 — 최근 표본에 학습 가중을 더 주는 변형(반감기 125봉).
+    {"model": "gb", "threshold": 0.55, "sample_weight": "decay"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]
@@ -103,7 +112,8 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
         p = dict(params)
         if spec["strategy"] == "ml":
             axis = rng.choice(["model", "threshold", "train_window",
-                               "retrain_every", "calibrate"])
+                               "retrain_every", "calibrate", "label",
+                               "sample_weight"])
             if axis == "model":
                 p["model"] = rng.choice(["logreg", "rf", "gb", "vote"])
             elif axis == "threshold":
@@ -114,6 +124,14 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
                 p["train_window"] = rng.choice([150, 250, 350, 500])
             elif axis == "retrain_every":
                 p["retrain_every"] = rng.choice([10, 20, 40])
+            elif axis == "label":
+                # 라벨 축 — 배리어 폭(k)·만기(horizon)도 함께 흔들어 탐색
+                p["label"] = rng.choice(["nextbar", "triple"])
+                if p["label"] == "triple":
+                    p["label_k"] = rng.choice([1.0, 1.5, 2.0])
+                    p["label_horizon"] = rng.choice([5, 10, 15])
+            elif axis == "sample_weight":
+                p["sample_weight"] = rng.choice([None, "decay"])
             else:
                 p["calibrate"] = rng.choice([None, "sigmoid"])
         else:
