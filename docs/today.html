@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quant · 오늘의 판단 — 8마일 챌린지</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/pretendard.css">
+<style>
+/* 촬영·공유용 한 장짜리 화면 — 다크 고정(방송 화질), 16:9에 맞는 밀도.
+   ?card=1 이면 1200×630(공유 카드) 컴팩트 레이아웃으로 전환된다. */
+:root{color-scheme:dark;--bg:#07080b;--bg2:#0e1013;--fg:#f4f5f7;--muted:#8f96a3;
+  --dim:#5c6370;--line:#1e2128;--accent:#4c7dff;
+  --ok:#f04452;--bad:#3182f6}     /* 증권사 관례: 상승 빨강 · 하락 파랑 */
+*{box-sizing:border-box;margin:0}
+body{font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,
+  "Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);
+  color:var(--fg);line-height:1.55;font-variant-numeric:tabular-nums;
+  min-height:100vh;display:flex;flex-direction:column}
+.wrap{max-width:1080px;margin:0 auto;padding:34px 28px 20px;width:100%;flex:1}
+.head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+.logo{font-weight:800;font-size:17px;letter-spacing:.14em}
+.logo em{font-style:normal;color:var(--accent)}
+.date{color:var(--muted);font-size:14px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:2px 0 16px}
+.hero{background:var(--bg2);border:1px solid var(--line);border-radius:16px;
+  padding:20px 24px 16px;margin-bottom:14px}
+.k{font-size:12.5px;color:var(--muted);font-weight:650}
+.eq{font-size:46px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.pos{color:var(--ok)}.neg{color:var(--bad)}
+.pct{font-size:19px;font-weight:700}
+.meta{font-size:13px;color:var(--muted);margin-top:4px}
+.bar{height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);
+  overflow:hidden;margin:12px 0 4px}
+.fill{height:100%;min-width:3px;background:linear-gradient(90deg,var(--accent),var(--ok));
+  border-radius:99px}
+.lbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+tr:last-child td{border-bottom:0}
+td.rsn{text-align:left;font-size:12px;color:var(--muted);max-width:420px}
+.news{background:var(--bg2);border:1px solid var(--line);border-radius:12px;
+  padding:10px 16px;font-size:13.5px;color:var(--muted);margin-bottom:12px}
+footer{font-size:12px;color:var(--dim);padding:10px 28px 18px;text-align:center}
+footer b{color:var(--muted)}
+/* 공유 카드 모드(1200×630) — 표를 줄이고 큰 숫자 중심 */
+body.card .wrap{max-width:1200px;padding:26px 40px 0}
+body.card h1{font-size:22px;margin-bottom:10px}
+body.card .eq{font-size:64px}
+body.card table{font-size:12.5px}
+body.card td.rsn,body.card .rsncol{display:none}
+body.card footer{padding-bottom:10px}
+.err{color:var(--muted);padding:40px 0;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="head"><span class="logo">QUANT<em>.</em></span>
+  <span class="date" id="date">—</span></div>
+<h1>오늘의 판단 — 8마일 챌린지</h1>
+<div id="content"><p class="err">불러오는 중…</p></div>
+</div>
+<footer id="foot">quant.jiwon-1a2.workers.dev · 가상 자금 모의투자 —
+<b>실제 돈이 아니며 수익을 보장하지 않습니다</b> · 판단은 매일 새벽 1회(일봉 기준)</footer>
+<script>
+if(new URLSearchParams(location.search).get("card"))document.body.classList.add("card");
+function esc(s){const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
+function pct(v){return (v>=0?"+":"")+Number(v).toFixed(2)+"%"}
+fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  const el=document.getElementById("content");
+  const keys=Object.keys(st.paper||{});
+  if(!keys.length){el.innerHTML='<p class="err">아직 기록이 없습니다.</p>';return}
+  if(st.updated)document.getElementById("date").textContent=st.updated+" 새벽 확정";
+  const pfk=keys.filter(k=>k.startsWith("portfolio"))[0];
+  const rest=keys.filter(k=>!k.startsWith("portfolio"));
+  let out="";
+  // 통합 계좌 히어로
+  if(pfk){
+    const p=st.paper[pfk],hist=p.history||[],last=hist[hist.length-1]||{};
+    const prev=hist[hist.length-2];
+    const eq=last.equity!=null?last.equity:p.equity;
+    const day=prev&&eq!=null?((eq/prev.equity-1)*100):null;
+    const base=p.principal!=null?p.principal:(p.start_cash||80000);
+    const ret=base?((eq/base-1)*100):0;
+    const cls=ret>=0?"pos":"neg";
+    const ratio=p.goal?Math.min(1,eq/p.goal):0;
+    out+=`<div class="hero"><div class="k">통합 계좌 (8종목 분산 · 시작 ${won(p.start_cash||80000)})</div>
+      <div><span class="eq ${cls}">${won(eq)}</span>
+        <span class="pct ${cls}" style="margin-left:10px">${pct(ret)}</span>
+        ${day!=null?`<span class="pct ${day>=0?"pos":"neg"}" style="margin-left:10px;font-size:15px">오늘 ${pct(day)}</span>`:""}</div>
+      <div class="meta">원금(매칭 포함) ${won(base)} ·
+        실력 지표(TWR) <b class="${(p.twr_pct||0)>=0?"pos":"neg"}">${pct(p.twr_pct||0)}</b> ·
+        최대낙폭 ${typeof p.mdd_pct==="number"?p.mdd_pct+"%":"–"}</div>
+      <div class="bar"><div class="fill" style="width:${Math.max(0.3,ratio*100)}%"></div></div>
+      <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span>
+        <span>${(ratio*100).toFixed(3)}%</span></div></div>`;
+  }
+  // 어젯밤 재학습 서사 — 오늘 교체가 있으면 크게
+  const today=st.updated;
+  const swaps=(st.swaps||[]).filter(s=>s.date===today);
+  out+=`<div class="news">${swaps.length
+    ?"🔁 어젯밤 재학습: 챔피언 교체 — "+swaps.map(s=>{
+        const nm=((st.symbols||{})[s.key]||{}).name||s.key;
+        return esc(nm)+" → "+esc(s.strategy)}).join(", ")
+    :"어젯밤 재학습: 전 종목 챔피언 유지 (확실히 나은 후보 없음 — 정상)"}</div>`;
+  // 종목별 오늘의 판단
+  const rows=rest.map(k=>{
+    const p=st.paper[k],hist=p.history||[],last=hist[hist.length-1]||{};
+    const prev=hist[hist.length-2];
+    const day=prev&&last.equity!=null?((last.equity/prev.equity-1)*100):null;
+    const nm=((st.symbols||{})[k]||{}).name||k.split(":")[1]||k;
+    const w=last.weight;
+    const stance=w==null?"–":(Math.abs(w)<0.005?"관망 (현금)":(w>0?"매수 ":"매도 ")+Math.round(Math.abs(w)*100)+"%");
+    return `<tr><td><b>${esc(nm)}</b></td>
+      <td>${stance}</td>
+      <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
+      <td class="rsn">${esc(String(last.reason||"").slice(0,80))}</td></tr>`;
+  }).join("");
+  out+=`<table><tr><th>종목</th><th>오늘의 자세</th><th>일간</th>
+    <th class="rsncol" style="text-align:left">판단 근거 (새벽 기준)</th></tr>${rows}</table>`;
+  el.innerHTML=out;
+}).catch(()=>{document.getElementById("content").innerHTML=
+  '<p class="err">기록을 불러오지 못했습니다.</p>'});
+</script>
+</body>
+</html>
