@@ -28,12 +28,59 @@ export default {
       const denied = adminGate(request, env);
       if (denied) return denied;
     }
+    if (url.pathname === "/api/admin/issue") {
+      return issueKey(url, env);        // adminGate 통과 후에만 도달
+    }
     if (url.pathname === "/api/quotes") {
       return quotes(url, ctx);
     }
     return env.ASSETS.fetch(request);
   },
 };
+
+/**
+ * 라이선스 키 발급(서버측) — 발급 비밀은 Cloudflare 시크릿 LICENSE_SECRET에만
+ * 존재한다(공개 저장소·브라우저에 없음). 어드민 로그인(adminGate) 뒤에서만
+ * 호출되므로, 로그인한 관리자는 이메일만 넣으면 키가 나온다.
+ * quant/licensing.py generate_key와 같은 알고리즘:
+ *   HMAC-SHA256(비밀, 소문자 이메일) 앞 15바이트 → base32 24자 → 6자 그룹.
+ */
+const B32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function b32(bytes) {
+  let out = "", bits = 0, val = 0;
+  for (const b of bytes) {
+    val = (val << 8) | b; bits += 8;
+    while (bits >= 5) { out += B32_ALPHABET[(val >>> (bits - 5)) & 31]; bits -= 5; }
+  }
+  if (bits > 0) out += B32_ALPHABET[(val << (5 - bits)) & 31];
+  return out;
+}
+
+async function issueKey(url, env) {
+  // 안전장치: 어드민 로그인(ADMIN_ID/PW)이 꺼져 있으면 발급도 잠근다 —
+  // 로그인 없는 상태에서 발급 API가 열리면 누구나 키를 찍을 수 있게 된다.
+  if (!env.ADMIN_ID || !env.ADMIN_PW) {
+    return json({ error: "어드민 로그인(ADMIN_ID/PW) 설정 후에만 발급 가능" },
+                403, { "Cache-Control": "no-store" });
+  }
+  if (!env.LICENSE_SECRET) {
+    return json({ error: "LICENSE_SECRET 미설정 — Cloudflare 시크릿에 추가하세요" },
+                501, { "Cache-Control": "no-store" });
+  }
+  const owner = (url.searchParams.get("owner") || "").trim().toLowerCase();
+  if (!owner || owner.indexOf("@") < 1) {
+    return json({ error: "owner(구매자 이메일) 필요" }, 400,
+                { "Cache-Control": "no-store" });
+  }
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey(
+    "raw", enc.encode(env.LICENSE_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(owner)));
+  const key = "QUANT-" + b32(sig.slice(0, 15)).replace(/(.{6})(?=.)/g, "$1-");
+  return json({ owner, key }, 200, { "Cache-Control": "no-store" });
+}
 
 function adminGate(request, env) {
   if (!env.ADMIN_ID || !env.ADMIN_PW) return null;   // 시크릿 미설정 → 보호 없음
