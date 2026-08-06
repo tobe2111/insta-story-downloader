@@ -95,6 +95,13 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
   </div>
 </div>
 
+<div class="card" id="sns-card">
+  <label style="display:block;cursor:default"><span class="t">오늘의 SNS 콘텐츠 (수동 게시용)
+    <span class="d">매일 아침 자동 생성됩니다. 캡션을 눌러 복사하고, 이미지를
+    저장해 스레드·인스타에 올리면 끝. 토큰을 등록하면 이 과정도 자동화됩니다.</span></span></label>
+  <div id="sns-body" style="margin-top:8px;color:var(--muted);font-size:13.5px">불러오는 중…</div>
+</div>
+
 <div class="card">
   <label style="display:block;cursor:default"><span class="t">라이선스 키 발급 (1인 1키)
     <span class="d">구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀은 이
@@ -213,6 +220,45 @@ $("lic-gen").onclick=function(){
     .catch(function(e){msg("lic-msg","발급 실패: "+e,false)});
 };
 if(localStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
+
+// ── 오늘의 SNS 콘텐츠 — social/latest.json을 읽어 복사·저장 UI로 ──
+fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
+  .then(function(d){
+    var el=$("sns-body");
+    if(!d){el.textContent="아직 생성된 콘텐츠가 없습니다(첫 자동 실행 전).";return}
+    function copyBlock(title,text){
+      var pre=document.createElement("pre");
+      pre.style.cssText="background:var(--bg);border:1px solid var(--line);"
+        +"border-radius:8px;padding:10px;font-size:12.5px;white-space:pre-wrap;"
+        +"cursor:copy;margin:6px 0";
+      pre.textContent=text;
+      pre.title="클릭하면 복사됩니다";
+      pre.onclick=function(){navigator.clipboard.writeText(text).then(function(){
+        pre.style.borderColor="var(--ok)";
+        setTimeout(function(){pre.style.borderColor="var(--line)"},700)})};
+      var h=document.createElement("div");
+      h.innerHTML="<b style='color:var(--fg);font-size:13px'>"+title
+        +"</b> <span style='font-size:12px'>(클릭=복사)</span>";
+      el.appendChild(h);el.appendChild(pre);
+    }
+    el.textContent="";
+    var imgs=document.createElement("div");
+    imgs.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px";
+    (d.images||[]).forEach(function(f){
+      var a=document.createElement("a");
+      a.href=d.path+"/"+f;a.download=d.date+"_"+f;a.target="_blank";
+      a.innerHTML="<img src='"+d.path+"/"+f+"' style='height:74px;border-radius:8px;"
+        +"border:1px solid var(--line)' title='클릭해서 원본 저장: "+f+"'>";
+      imgs.appendChild(a);
+    });
+    var dt=document.createElement("div");
+    dt.innerHTML="<b style='color:var(--fg)'>"+d.date+"</b> 콘텐츠";
+    el.appendChild(dt);el.appendChild(imgs);
+    if(d.captions){
+      copyBlock("인스타그램 캡션",d.captions.instagram||"");
+      copyBlock("스레드 캡션",d.captions.threads||"");
+    }
+  }).catch(function(){$("sns-body").textContent="콘텐츠 로딩 실패";});
 })();
 </script>
 </body>
