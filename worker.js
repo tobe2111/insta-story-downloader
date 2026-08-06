@@ -13,19 +13,44 @@
  * 가능한 데이터)만 쓴다. 여기 시세가 틀려도 장부는 오염되지 않는다.
  */
 
-const CACHE_TTL = 30;                 // 초 — 야후 부하와 실시간성의 절충
+const CACHE_TTL = 15;                 // 초 — 야후 부하와 실시간성의 절충
 const MAX_SYMBOLS = 25;
 const SYM_RE = /^[A-Za-z0-9.^=-]{1,12}$/;
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // 어드민 보호 — Cloudflare 대시보드에서 ADMIN_ID/ADMIN_PW 시크릿을
+    // 설정하면 브라우저 기본 로그인창(아이디/비밀번호)이 뜬다. 서버측
+    // 검증이라 페이지 소스를 읽어도 우회할 수 없다. 미설정이면 현행 유지
+    // (페이지는 열리지만 어차피 토큰 없이는 아무것도 못 바꾼다).
+    if (url.pathname === "/admin.html" || url.pathname.startsWith("/api/admin")) {
+      const denied = adminGate(request, env);
+      if (denied) return denied;
+    }
     if (url.pathname === "/api/quotes") {
       return quotes(url, ctx);
     }
     return env.ASSETS.fetch(request);
   },
 };
+
+function adminGate(request, env) {
+  if (!env.ADMIN_ID || !env.ADMIN_PW) return null;   // 시크릿 미설정 → 보호 없음
+  const h = request.headers.get("Authorization") || "";
+  if (h.startsWith("Basic ")) {
+    try {
+      const dec = atob(h.slice(6));
+      const i = dec.indexOf(":");
+      if (i > 0 && dec.slice(0, i) === env.ADMIN_ID
+          && dec.slice(i + 1) === env.ADMIN_PW) return null;
+    } catch (e) { /* 잘못된 인코딩 → 거부 */ }
+  }
+  return new Response("어드민 로그인이 필요합니다", {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="quant-admin", charset="UTF-8"' },
+  });
+}
 
 function json(obj, status = 200, extra = {}) {
   return new Response(JSON.stringify(obj), {

@@ -287,24 +287,95 @@ def is_licensed(secret: str | None = None, root: str | None = None) -> bool:
     return bool(owner and key and verify_key(owner, key, secret))
 
 
-def require_license(root: str | None = None) -> bool:
-    """QUANT_REQUIRE_LICENSE가 켜졌을 때만 라이선스를 강제한다.
+_ENV_CONTACT = "QUANT_CONTACT"
+DEFAULT_CONTACT = "urteam.corp@gmail.com"      # 키 구매·문의 연락처(기본값)
 
-    개발·CI·테스트에서는 기본 비활성(플래그 미설정)이라 아무 지장이 없다.
-    배포본에서만 이 플래그를 켜 정품 키를 요구한다. 통과 여부를 반환하고,
-    실패 시 구매자에게 보여줄 안내를 출력한다(예외를 던지지 않는다).
+
+def contact() -> str:
+    """구매·문의 연락처 — 환경변수로 바꿀 수 있고 기본값은 판매자 메일."""
+    return os.getenv(_ENV_CONTACT, "").strip() or DEFAULT_CONTACT
+
+
+def _has_baked_credentials() -> bool:
+    """배포본에 검증 자물쇠(HMAC 비밀 또는 Ed25519 공개키)가 포함됐는가.
+
+    빌드가 시크릿으로 quant/_license_key.py 또는 quant/_license_pub.py를 구워
+    넣으면 True — 이때는 플래그 없이도 자동으로 정품 키를 요구한다.
+    (공개 소스 체크아웃에는 이 파일들이 없어(깃 미포함) 강제되지 않는다.)
     """
-    if os.getenv(_ENV_ENFORCE, "").strip().lower() not in ("1", "true", "yes", "on"):
+    return _baked_secret_module() or _baked_pubkey_module()
+
+
+def _baked_secret_module() -> bool:
+    try:
+        from quant import _license_key  # type: ignore
+        return bool(getattr(_license_key, "SECRET", ""))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _baked_pubkey_module() -> bool:
+    try:
+        from quant import _license_pub  # type: ignore
+        return bool(getattr(_license_pub, "PUBLIC_KEY", ""))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def prompt_license(root: str | None = None, tries: int = 3) -> bool:
+    """터미널에서 키를 직접 입력받아 검증·저장한다(대화형 키 입력창).
+
+    성공하면 license.key 파일로 저장해 다음 실행부터 묻지 않는다.
+    비대화형(파이프·서비스)에서는 즉시 False — 조용히 멈추지 않게 한다.
+    """
+    if not sys.stdin.isatty():
+        return False
+    print(f"  (구매·문의: {contact()})\n")
+    for i in range(tries):
+        try:
+            owner = input("  구매 시 등록한 이메일: ").strip()
+            key = input("  라이선스 키(QUANT-…): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+        if owner and key and verify_key(owner, key):
+            base = Path(root or os.getcwd())
+            try:
+                (base / _LICENSE_FILE).write_text(
+                    f"owner: {owner}\nkey:   {key}\n", encoding="utf-8")
+                print(f"\n✅ 정품 확인 완료 — {base / _LICENSE_FILE} 에 저장했습니다. "
+                      "다음 실행부터 묻지 않습니다.\n")
+            except OSError:
+                print("\n✅ 정품 확인 완료 (파일 저장은 실패 — 환경변수로 설정하세요)\n")
+            return True
+        print(f"  ❌ 키가 올바르지 않습니다 ({i + 1}/{tries}) — 이메일과 키를 "
+              "구매 안내 메일 그대로 입력하세요.")
+    print(f"\n  키를 찾을 수 없나요? 문의: {contact()}\n")
+    return False
+
+
+def require_license(root: str | None = None) -> bool:
+    """배포본(자물쇠 포함) 또는 QUANT_REQUIRE_LICENSE 설정 시 정품 키를 강제한다.
+
+    · 강제 조건: 빌드에 검증 자물쇠가 구워져 있거나(자동), 플래그가 켜져 있을 때.
+      개발·CI·테스트(자물쇠 없음·플래그 없음)는 그대로 통과 — 지장 없다.
+    · 키가 없으면 터미널에서 직접 입력받는다(대화형 키 입력창, 문의 연락처 표시).
+      통과 여부를 반환하고 예외를 던지지 않는다.
+    """
+    enforce = (os.getenv(_ENV_ENFORCE, "").strip().lower()
+               in ("1", "true", "yes", "on")) or _has_baked_credentials()
+    if not enforce:
         return True
     if is_licensed(root=root):
         return True
     print(
-        "\n🔑 라이선스가 필요합니다(정품 확인).\n"
-        f"  프로그램 폴더에 '{_LICENSE_FILE}' 파일을 만들고 구매 시 받은 값을 넣으세요:\n"
+        "\n🔑 라이선스가 필요합니다(정품 확인 — 1인 1키).\n"
+        f"  프로그램 폴더에 '{_LICENSE_FILE}' 파일을 만들고 구매 시 받은 값을 넣거나,\n"
+        "  아래에 직접 입력하세요:\n"
         "      owner: 구매시_등록한_이메일\n"
         "      key:   QUANT-XXXXXX-XXXXXX-XXXXXX-XXXXXX\n"
-        "  (또는 환경변수 QUANT_LICENSE_OWNER / QUANT_LICENSE_KEY 로 설정)\n")
-    return False
+        f"  🛒 키 구매·분실 문의: {contact()}\n")
+    return prompt_license(root=root)
 
 
 def _cli(argv: list[str] | None = None) -> int:

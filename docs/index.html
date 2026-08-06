@@ -516,7 +516,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
       conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)};
     });
     draw(); pollCrypto(); setInterval(pollCrypto,15000);
-    pollStocks(); setInterval(pollStocks,60000);
+    pollStocks(); setInterval(pollStocks,30000);
   }).catch(function(){});
   function pollStocks(){
     // 주식 준실시간 — 워커의 /api/quotes 프록시(야후, 30초 엣지 캐시).
