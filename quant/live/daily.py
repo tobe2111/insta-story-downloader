@@ -545,6 +545,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
     n = len(targets)
 
+    # 운영 설정(어드민 대시보드) — 일시정지·노출 배수. 파일이 없으면 정상 운용.
+    from quant.utils.settings import load_settings
+    settings = load_settings()
+    paused = bool(settings["trading_paused"])
+    if paused:
+        # 신규 매매 중단: 보유 포지션은 유지하되 대기 주문은 폐기한다.
+        # 폐기 이유 — 며칠 뒤 재개 시 '결정 당시 다음 시가'는 이미 과거라,
+        # 그때 체결하면 옛 가격으로 사는 회계 왜곡(사실상 룩어헤드)이 된다.
+        log.warning("⏸ 어드민 일시정지 — 신규 매매 중단, 대기 주문 %d건 폐기",
+                    len(pending))
+        pending = {}
+
     # ① 대기 주문 체결 — 주식은 결정 다음 세션의 '시가'에서만 체결(개장 갭 감수).
     #    평가 마크는 현재 종가 근사(스킵 종목은 평단가) — 체결가만 시가를 쓴다.
     fills = []
@@ -575,6 +587,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if risk_scale < 1.0:
         log.warning("킬스위치: 낙폭 %.1f%% → 노출 %.0f%%로 제한",
                     drawdown * 100, risk_scale * 100)
+    # 어드민 노출 배수·일시정지 — 킬스위치와 곱으로 적용(더 보수적인 쪽).
+    # 기록되는 risk_scale(킬스위치 상태)은 유지하고 실효 노출만 줄인다.
+    eff_scale = risk_scale * float(settings["exposure_scale"])
+    if paused:
+        eff_scale = 0.0
 
     # ERC(위험기여 균등) 슬라이스 — 실패 시 자본 균등(1/n) 폴백
     slices = _erc_slices(rets_map, n) or {k: 1.0 / n for k in weights}
@@ -591,7 +608,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
-        eff = w * risk_scale                   # 킬스위치 반영된 전략 비중
+        eff = w * eff_scale                    # 킬스위치×어드민 배수 반영 비중
+        if paused:
+            continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
             # 밴드도 슬라이스 크기에 비례 — 종목 간 공평
@@ -606,7 +625,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
-    gross = sum(abs(w) * risk_scale * slices.get(k, 1.0 / n)
+    gross = sum(abs(w) * eff_scale * slices.get(k, 1.0 / n)
                 for k, w in weights.items())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
@@ -623,6 +642,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "accounting": ACCOUNTING_VERSION,
               # 킬스위치·배분의 흔적 — 그날 왜 노출이 줄었는지 장부로 남는다
               "risk_scale": risk_scale,
+              # 어드민 개입의 흔적 — 일시정지·노출 배수는 숨기지 않고 기록한다
+              "paused": paused,
+              "exposure_scale": float(settings["exposure_scale"]),
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적

@@ -1,21 +1,10 @@
-// Cloudflare 정적 사이트 배포 설정 (무료·영구).
-//
-// 이 저장소의 docs/ 폴더를 그대로 서빙한다. 빌드 단계·서버 코드가 전혀 없는
-// '정적 에셋 전용' Worker라, Cloudflare가 파일만 올려 무료로 호스팅한다.
-// (main 브랜치에 이 파일이 있어야 Cloudflare가 설정을 찾는다 — 이게 없어서
-//  기존 'Workers Builds'가 매번 즉시 실패했다.)
-//
-// 배포: Cloudflare 대시보드 → Workers & Pages → 이 저장소 연결 시 자동. 또는
-//       npx wrangler deploy (로컬). 커스텀 도메인은 대시보드에서 나중에 연결.
-//
-// ⚠️ Cloudflare 프로젝트 설정에서 'Build command'는 비워두세요(정적이라 빌드 없음).
-//    Deploy command만 'npx wrangler deploy'면 됩니다.
 {
   "name": "quant",
+  "main": "worker.js",
   "compatibility_date": "2026-07-05",
   "assets": {
     "directory": "./docs",
-    // 없는 경로 요청은 404.html을 보여준다(있으면). 홈으로 돌아가는 링크 포함.
+    "binding": "ASSETS",
     "not_found_handling": "404-page"
   }
 }

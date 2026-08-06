@@ -154,6 +154,12 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
     재시도 크론이 같은 날 두 번 올리는 사고를 막는다. 플랫폼 하나의 실패가
     다른 플랫폼 게시를 막지 않는다(독립 시도, 실패는 결과에 기록).
     """
+    # 어드민 대시보드 스위치 — 꺼져 있으면 게시하지 않는다(콘텐츠는 이미 생성됨)
+    from quant.utils.settings import load_settings
+    if not load_settings().get("social_post", True):
+        log.info("어드민 설정으로 SNS 게시 꺼짐 — 건너뜀")
+        return {"skipped": "disabled_by_admin"}
+
     marker = os.path.join(content_dir, "posted.json")
     if os.path.exists(marker):
         log.info("이미 게시된 폴더 — 건너뜀: %s", content_dir)
