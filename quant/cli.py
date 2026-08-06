@@ -349,6 +349,27 @@ def _cmd_briefing(args) -> None:
     print("⚠️ 브리핑은 표시 전용입니다 — 매매 판단에 사용되지 않습니다.")
 
 
+def _cmd_social_content(args) -> None:
+    from quant.reporting.social import prune_old, write_content
+
+    meta = write_content(docs_dir=args.docs_dir, site_url=args.site_url)
+    removed = prune_old(docs_dir=args.docs_dir, keep=args.keep)
+    print(meta["dir"])                    # 워크플로가 이 경로를 받아 캡처한다
+    if removed:
+        print(f"오래된 게시 폴더 {len(removed)}개 정리: {', '.join(removed)}")
+
+
+def _cmd_social_post(args) -> None:
+    import json as _json
+
+    from quant.reporting.social_post import run
+
+    results = run(args.dir, args.base_url)
+    print(_json.dumps(results, ensure_ascii=False, indent=2))
+    if results.get("threads_error") and results.get("instagram_error"):
+        raise SystemExit(1)               # 전 플랫폼 실패만 잡 실패로 처리
+
+
 def _cmd_weekly(args) -> None:
     from quant.live.daily import format_weekly, weekly_summary
 
@@ -831,6 +852,24 @@ def build_parser() -> argparse.ArgumentParser:
     wk.add_argument("--no-notify", action="store_true",
                     help="텔레그램 전송 없이 출력만")
     wk.set_defaults(func=_cmd_weekly)
+
+    sc = sub.add_parser(
+        "social-content",
+        help="SNS 게시 콘텐츠 생성 — 캡션(인스타/스레드)·메타를 docs/social/에 쓴다")
+    sc.add_argument("--docs-dir", default="docs", dest="docs_dir")
+    sc.add_argument("--site-url", dest="site_url",
+                    default="https://quant.jiwon-1a2.workers.dev")
+    sc.add_argument("--keep", type=int, default=14,
+                    help="보관할 날짜 폴더 수(오래된 것 정리)")
+    sc.set_defaults(func=_cmd_social_content)
+
+    sp = sub.add_parser(
+        "social-post",
+        help="SNS 게시 실행 — Threads/Instagram API (환경변수 미설정 시 건너뜀)")
+    sp.add_argument("--dir", required=True, help="콘텐츠 폴더(docs/social/<날짜>)")
+    sp.add_argument("--base-url", dest="base_url",
+                    default="https://quant.jiwon-1a2.workers.dev")
+    sp.set_defaults(func=_cmd_social_post)
 
     rt = sub.add_parser(
         "retrain",
