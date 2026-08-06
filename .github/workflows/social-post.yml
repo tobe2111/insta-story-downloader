@@ -1,0 +1,133 @@
+name: Social Post
+
+# 매일 SNS 자동 게시 — 스레드·인스타그램에 그날의 성적표를 올린다.
+# 매일 22:45 UTC(= 아침 7:45 KST, daily-paper 본실행·재시도가 모두 끝난 뒤):
+#   1. 캡션·메타 생성 (docs/social/<날짜>/)
+#   2. 헤드리스 크롬으로 카드·사이트 페이지 3장 캡처
+#   3. main에 커밋 → Cloudflare가 이미지를 공개 URL로 배포
+#   4. 배포 전파를 기다렸다가 Threads/Instagram Graph API로 캐러셀 게시
+#
+# 자격증명(GitHub Secrets)이 없으면 3까지만 하고 게시는 조용히 건너뛴다:
+#   THREADS_USER_ID · THREADS_ACCESS_TOKEN — 스레드
+#   IG_USER_ID · IG_ACCESS_TOKEN — 인스타(비즈니스/크리에이터 계정 필요)
+#
+# ⚠️ 캡션은 장부 숫자를 그대로 쓴다 — 마이너스인 날도 그대로 나간다.
+#    그것이 이 채널의 정체성이다(선택 편향 없는 공개 실험).
+
+on:
+  schedule:
+    - cron: "45 22 * * *"   # 아침 7:45 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write   # docs/social/ 커밋용
+
+jobs:
+  social:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # daily-paper가 방금 커밋한 최신 장부를 쓴다
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 캡션·메타 생성
+        id: content
+        env:
+          QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
+        run: |
+          URL="${QUANT_LIVE_URL:-https://quant.jiwon-1a2.workers.dev}"
+          DIR=$(python -m quant social-content --site-url "$URL" | head -1)
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "생성: $DIR"
+
+      - name: 이미지 캡처 (카드 + 사이트 페이지)
+        run: |
+          DIR="${{ steps.content.outputs.dir }}"
+          (cd docs && python -m http.server 8777 >/dev/null 2>&1 &)
+          sleep 2
+          capture() {  # $1=출력파일 $2=상대경로
+            google-chrome --headless=new --disable-gpu --hide-scrollbars \
+              --window-size=1200,630 --virtual-time-budget=8000 \
+              --screenshot="$DIR/$1" "http://127.0.0.1:8777/$2" \
+              && echo "캡처 완료: $1" || echo "캡처 실패: $1 — 건너뜀"
+          }
+          capture 01_card.png  "today.html?card=1"
+          capture 02_paper.png "paper.html"
+          capture 03_trust.png "trust.html"
+          ls -la "$DIR"
+
+      - name: 콘텐츠 커밋 (공개 URL 확보)
+        run: |
+          if [ -z "$(git status --porcelain docs/social)" ]; then
+            echo "변경 없음 — 커밋 생략"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs/social
+          git commit -m "SNS 게시 콘텐츠: $(date -u +%F) [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "❌ 콘텐츠 푸시 실패"; exit 1
+
+      - name: SNS 게시 (배포 전파 대기 포함)
+        env:
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          python -m quant social-post \
+            --dir "${{ steps.content.outputs.dir }}" \
+            --base-url "${{ steps.content.outputs.url }}" | tee social.txt
+
+      - name: 게시 마커 커밋 (멱등 — 재실행 중복 게시 방지)
+        run: |
+          if [ -z "$(git status --porcelain docs/social)" ]; then
+            echo "마커 없음(게시 안 됨) — 커밋 생략"; exit 0
+          fi
+          git add -A docs/social
+          git commit -m "SNS 게시 완료 마커: $(date -u +%F) [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "⚠️ 마커 푸시 실패 — 다음 실행에서 중복 게시 위험(수동 확인 필요)"
+
+      - name: 결과 요약 (Actions Summary)
+        if: always()
+        run: |
+          {
+            echo "## 📣 SNS 자동 게시 결과"
+            echo '```'
+            cat social.txt 2>/dev/null || echo "게시 단계 미도달"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 실패 경보 (디스코드/텔레그램)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          MSG="🚨 [Quant] '${{ github.workflow }}' 실패 ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료"
