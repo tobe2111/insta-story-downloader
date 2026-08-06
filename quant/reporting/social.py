@@ -65,9 +65,37 @@ def _today_numbers(status: dict) -> dict:
     }
 
 
+def _hook(x: dict) -> str:
+    """첫 줄(훅) — 그날 실제로 일어난 일에서 나온다. 과장 금지, 데이터 결정적.
+
+    잘 쓴 훅은 감탄사가 아니라 '숨기지 않는 태도'다: 손실이 나면 손실이
+    첫 줄이다. 그게 이 계정을 다른 수익 인증 계정과 다르게 만든다.
+    """
+    r = x["return_pct"]
+    if x["risk_scale"] < 1.0:
+        return ("킬스위치가 작동 중입니다. 손실이 한도를 넘으면 시스템이 "
+                "스스로 물러나는 게 규칙이고, 오늘이 그 날입니다.")
+    if r is None:
+        return "오늘의 장부를 공개합니다."
+    if r <= -1.0:
+        return (f"오늘 {r:+.2f}%. 아픈 날도 그대로 올립니다 — "
+                "그게 이 계정의 규칙입니다.")
+    if r < 0:
+        return f"오늘 {r:+.2f}%. 이 마이너스도 기록의 일부입니다."
+    if r == 0:
+        return "오늘은 거의 움직이지 않았습니다. 지루한 날도 기록입니다."
+    if r < 1.0:
+        return f"오늘 {r:+.2f}%. 작지만, 하루하루가 쌓여야 복리입니다."
+    return (f"오늘 {r:+.2f}%. 좋은 날이지만 하루로는 아무것도 "
+            "증명되지 않습니다 — 분포가 증명합니다.")
+
+
 def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     """장부 숫자로 인스타/스레드 캡션을 만든다. 반환: {"instagram", "threads", "date"}.
 
+    구조(수동 게시에도 그대로 쓸 수 있는 완성 원고):
+        훅(그날의 사건) → 실험 소개 한 줄 → 숫자 블록 → 오늘 AI가 한 일 →
+        정직 고지 → 링크·태그.
     스레드는 500자 제한이 있어 짧은 판을 따로 만든다(자르다 만 문장 금지).
     """
     x = _today_numbers(status)
@@ -75,46 +103,62 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     day = f"D+{x['day_no']}" if x["day_no"] else ""
     eq = _fmt_won(x["equity"]) if x["equity"] is not None else "—"
     ret = (f"{x['return_pct']:+.2f}%" if x["return_pct"] is not None else "—")
+    twr = (f"{x['twr_pct']:+.2f}%" if x.get("twr_pct") is not None else None)
     gross = (f"{x['gross'] * 100:.0f}%" if x["gross"] is not None else "—")
-    tops = " · ".join(x["top_names"]) if x["top_names"] else "관망"
-    swaps = (f"교체 {x['retrain_swaps']} / 유지 "
-             f"{x['retrain_total'] - x['retrain_swaps']}"
-             if x["retrain_total"] else "기록 없음")
+    tops = " · ".join(x["top_names"]) if x["top_names"] else "전 종목 관망"
     kill = ("" if x["risk_scale"] >= 1.0 else
-            f"\n🛑 킬스위치 작동 중 — 노출 {x['risk_scale']:.0%}로 제한")
+            f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
 
+    # "오늘 AI가 한 일" — 교체가 있으면 교체가 뉴스, 없으면 유지가 뉴스다
+    if not x["retrain_total"]:
+        work = "오늘 새벽 재학습 기록이 없습니다(휴장 또는 지연)."
+    elif x["retrain_swaps"]:
+        work = (f"오늘 새벽 {x['retrain_total']}개 종목을 재학습해 "
+                f"{x['retrain_swaps']}개 종목의 전략이 교체됐습니다. "
+                "교체는 2단계 검증(선발전+결승전)을 통과했을 때만 일어납니다.")
+    else:
+        work = (f"오늘 새벽 {x['retrain_total']}개 종목을 재학습했지만 "
+                "챔피언을 이긴 후보가 없어 전부 유지 — 교체가 없는 날이 "
+                "정상입니다. 확실히 나은 것만 바꾸는 게 규칙이니까요.")
+
+    twr_line = f" · 실력지표(TWR) {twr}" if twr else ""
     ig = (
-        f"📊 AI 퀀트 8마일 챌린지 {day} — {date}\n"
+        f"{_hook(x)}\n"
         f"\n"
-        f"가짜 돈 8만원으로 시작해, 매일 새벽 AI가 스스로 재학습하고 매매하는 "
-        f"공개 실험입니다. 오늘의 장부 그대로:\n"
+        f"📊 8마일 챌린지 {day} — {date}\n"
+        f"가짜 돈 8만원으로 시작해 매일 새벽 AI가 스스로 재학습·매매하는 "
+        f"공개 실험. 목표는 1억이 아니라, '이 과정 전체를 숨김없이 "
+        f"보여주는 것'입니다.\n"
         f"\n"
-        f"💰 자산 {eq} ({ret})\n"
-        f"📈 총노출 {gross} · 20종목 분산\n"
-        f"🤖 오늘 새벽 재학습: 챔피언 {swaps}\n"
-        f"🎯 배분 상위: {tops}{kill}\n"
+        f"💰 자산 {eq} ({ret}){twr_line}\n"
+        f"📈 총노출 {gross} · 20종목 분산(코인·한국·미국)\n"
+        f"🎯 오늘 배분 상위: {tops}{kill}\n"
+        f"\n"
+        f"🤖 {work}\n"
         f"\n"
         f"⚠️ 모의투자(페이퍼)입니다. 수익을 보장하지 않으며, 방향 적중률의 "
         f"현실적 상한은 52~55%입니다. 잘된 날만 골라 올리지 않습니다 — "
-        f"매일, 그날 숫자가 그대로 나갑니다. 모든 판단·장부·검증 코드는 "
-        f"사이트에 공개돼 있습니다.\n"
+        f"매일, 그날 숫자가 그대로 나갑니다. 판단·장부·코드 전부가 "
+        f"공개돼 있어 누구든 검증할 수 있습니다.\n"
         f"\n"
         f"🔗 {site_url}\n"
         f"{HASHTAGS}"
     )
 
     th = (
-        f"📊 AI 퀀트 8마일 챌린지 {day} — {date}\n"
+        f"{_hook(x)}\n"
+        f"\n"
+        f"📊 8마일 챌린지 {day} · {date}\n"
         f"💰 {eq} ({ret}) · 노출 {gross}\n"
-        f"🤖 재학습: {swaps} · 배분 상위: {tops}{kill}\n"
-        f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자를 그대로 공개합니다.\n"
+        f"🎯 배분 상위: {tops}{kill}\n"
+        f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
     )
     if len(th) > THREADS_TEXT_LIMIT:      # 링크·고지는 지키고 하이라이트를 줄인다
         th = (
-            f"📊 AI 퀀트 8마일 챌린지 {day} — {date}\n"
+            f"📊 8마일 챌린지 {day} · {date}\n"
             f"💰 {eq} ({ret})\n"
-            f"⚠️ 모의투자 — 수익 보장 없음.\n"
+            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"
         )
     return {"instagram": ig, "threads": th, "date": date}
@@ -145,6 +189,14 @@ def write_content(docs_dir: str = "docs",
             f.write(text)
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
+    # latest.json — 어드민의 '오늘의 SNS 콘텐츠' 카드가 읽는 포인터.
+    # 수동 게시 흐름: 어드민 열기 → 캡션 복사 → 이미지 저장 → 업로드 끝.
+    latest = {**meta, "path": f"social/{date}",
+              "captions": {"instagram": caps["instagram"],
+                           "threads": caps["threads"]}}
+    with open(os.path.join(docs_dir, "social", "latest.json"), "w",
+              encoding="utf-8") as f:
+        json.dump(latest, f, ensure_ascii=False, indent=2)
     return {**meta, "dir": out_dir}
 
 

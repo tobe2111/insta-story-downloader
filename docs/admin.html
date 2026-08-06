@@ -95,13 +95,21 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
   </div>
 </div>
 
+<div class="card" id="sns-card">
+  <label style="display:block;cursor:default"><span class="t">오늘의 SNS 콘텐츠 (수동 게시용)
+    <span class="d">매일 아침 자동 생성됩니다. 캡션을 눌러 복사하고, 이미지를
+    저장해 스레드·인스타에 올리면 끝. 토큰을 등록하면 이 과정도 자동화됩니다.</span></span></label>
+  <div id="sns-body" style="margin-top:8px;color:var(--muted);font-size:13.5px">불러오는 중…</div>
+</div>
+
 <div class="card">
   <label style="display:block;cursor:default"><span class="t">라이선스 키 발급 (1인 1키)
-    <span class="d">구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀은 이
-    브라우저에만 저장되며, GitHub Secrets의 <b>QUANT_LICENSE_SECRET</b>과 같은
-    값이어야 배포 프로그램이 이 키를 인정합니다.</span></span></label>
+    <span class="d">구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀이
+    Cloudflare 시크릿(<b>LICENSE_SECRET</b>)에 있으면 이메일만 넣으면 됩니다
+    (입력 불필요 — 서버가 발급). GitHub Secrets의 <b>QUANT_LICENSE_SECRET</b>과
+    같은 값이어야 배포 프로그램이 이 키를 인정합니다.</span></span></label>
   <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-    <input type="password" id="lic-secret" placeholder="발급 비밀(길고 무작위하게)" style="flex:2;min-width:200px">
+    <input type="password" id="lic-secret" placeholder="발급 비밀(서버 미설정 시에만)" style="flex:2;min-width:200px;display:none">
     <input type="text" id="lic-owner" placeholder="구매자 이메일" style="flex:2;min-width:200px">
     <button id="lic-gen">키 발급</button>
   </div>
@@ -188,31 +196,86 @@ function b32(bytes){
   if(bits>0)out+=B32[(val<<(5-bits))&31];
   return out;
 }
-$("lic-gen").onclick=function(){
+function showKey(owner,key,how){
+  $("lic-out").style.display="";
+  $("lic-out").textContent=
+    "구매자에게 아래 내용을 그대로 보내세요:\n\n"
+    +"프로그램 폴더에 license.key 파일을 만들고 이 두 줄을 넣으세요.\n"
+    +"owner: "+owner+"\n"
+    +"key:   "+key+"\n\n"
+    +"(프로그램 실행 시 입력창에 직접 입력해도 됩니다)";
+  msg("lic-msg","발급 완료("+how+") — 같은 이메일이면 언제나 같은 키(재발급 안전).",true);
+}
+function localIssue(owner){
+  // 폴백 — 서버에 LICENSE_SECRET이 없을 때만: 브라우저에서 직접 서명
+  $("lic-secret").style.display="";
   var raw=$("lic-secret").value.trim();
   var sec=(raw&&raw!=="••••••••")?raw:(localStorage.getItem("lic_secret")||"");
-  var owner=($("lic-owner").value||"").trim().toLowerCase();
-  if(!sec){msg("lic-msg","발급 비밀을 입력하세요",false);return}
-  if(!owner||owner.indexOf("@")<1){msg("lic-msg","구매자 이메일을 입력하세요",false);return}
+  if(!sec){msg("lic-msg","서버에 발급 비밀이 없습니다 — 발급 비밀을 입력하거나 "
+    +"Cloudflare 시크릿 LICENSE_SECRET을 추가하세요",false);return}
   localStorage.setItem("lic_secret",sec);
   var enc=new TextEncoder();
   crypto.subtle.importKey("raw",enc.encode(sec),{name:"HMAC",hash:"SHA-256"},false,["sign"])
     .then(function(k){return crypto.subtle.sign("HMAC",k,enc.encode(owner))})
     .then(function(sig){
       var body=b32(new Uint8Array(sig).slice(0,15));
-      var key="QUANT-"+body.replace(/(.{6})(?=.)/g,"$1-");
-      $("lic-out").style.display="";
-      $("lic-out").textContent=
-        "구매자에게 아래 내용을 그대로 보내세요:\n\n"
-        +"프로그램 폴더에 license.key 파일을 만들고 이 두 줄을 넣으세요.\n"
-        +"owner: "+owner+"\n"
-        +"key:   "+key+"\n\n"
-        +"(프로그램 실행 시 입력창에 직접 입력해도 됩니다)";
-      msg("lic-msg","발급 완료 — 같은 이메일이면 언제나 같은 키가 나옵니다(재발급 안전).",true);
+      showKey(owner,"QUANT-"+body.replace(/(.{6})(?=.)/g,"$1-"),"브라우저");
     })
     .catch(function(e){msg("lic-msg","발급 실패: "+e,false)});
+}
+$("lic-gen").onclick=function(){
+  var owner=($("lic-owner").value||"").trim().toLowerCase();
+  if(!owner||owner.indexOf("@")<1){msg("lic-msg","구매자 이메일을 입력하세요",false);return}
+  // 1순위: 서버 발급(비밀 입력 불필요 — 어드민 로그인 뒤 Cloudflare 시크릿 사용)
+  fetch("/api/admin/issue?owner="+encodeURIComponent(owner))
+    .then(function(r){
+      if(r.ok)return r.json().then(function(d){showKey(d.owner,d.key,"서버")});
+      if(r.status===501)return localIssue(owner);   // 서버에 비밀 없음 → 폴백
+      if(r.status===403)msg("lic-msg","어드민 로그인(ADMIN_ID/PW) 설정 후 발급 가능합니다",false);
+      else msg("lic-msg","서버 발급 실패 HTTP "+r.status,false);
+    })
+    .catch(function(){localIssue(owner)});          // 로컬 파일로 열었을 때 등
 };
 if(localStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
+
+// ── 오늘의 SNS 콘텐츠 — social/latest.json을 읽어 복사·저장 UI로 ──
+fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
+  .then(function(d){
+    var el=$("sns-body");
+    if(!d){el.textContent="아직 생성된 콘텐츠가 없습니다(첫 자동 실행 전).";return}
+    function copyBlock(title,text){
+      var pre=document.createElement("pre");
+      pre.style.cssText="background:var(--bg);border:1px solid var(--line);"
+        +"border-radius:8px;padding:10px;font-size:12.5px;white-space:pre-wrap;"
+        +"cursor:copy;margin:6px 0";
+      pre.textContent=text;
+      pre.title="클릭하면 복사됩니다";
+      pre.onclick=function(){navigator.clipboard.writeText(text).then(function(){
+        pre.style.borderColor="var(--ok)";
+        setTimeout(function(){pre.style.borderColor="var(--line)"},700)})};
+      var h=document.createElement("div");
+      h.innerHTML="<b style='color:var(--fg);font-size:13px'>"+title
+        +"</b> <span style='font-size:12px'>(클릭=복사)</span>";
+      el.appendChild(h);el.appendChild(pre);
+    }
+    el.textContent="";
+    var imgs=document.createElement("div");
+    imgs.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px";
+    (d.images||[]).forEach(function(f){
+      var a=document.createElement("a");
+      a.href=d.path+"/"+f;a.download=d.date+"_"+f;a.target="_blank";
+      a.innerHTML="<img src='"+d.path+"/"+f+"' style='height:74px;border-radius:8px;"
+        +"border:1px solid var(--line)' title='클릭해서 원본 저장: "+f+"'>";
+      imgs.appendChild(a);
+    });
+    var dt=document.createElement("div");
+    dt.innerHTML="<b style='color:var(--fg)'>"+d.date+"</b> 콘텐츠";
+    el.appendChild(dt);el.appendChild(imgs);
+    if(d.captions){
+      copyBlock("인스타그램 캡션",d.captions.instagram||"");
+      copyBlock("스레드 캡션",d.captions.threads||"");
+    }
+  }).catch(function(){$("sns-body").textContent="콘텐츠 로딩 실패";});
 })();
 </script>
 </body>

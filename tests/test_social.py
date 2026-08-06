@@ -57,7 +57,9 @@ def test_captions_honest_and_complete():
         assert "보장" in text                         # '보장 없음' 계열 문구
     assert caps["date"] == "2026-08-05"
     assert "비트코인" in caps["instagram"]            # 배분 상위 하이라이트
-    assert "교체 1 / 유지 1" in caps["instagram"]     # 그날 재학습만 집계
+    # 그날 재학습만 집계(2개 중 1개 교체) — 서사 문장에 반영된다
+    assert "2개 종목을 재학습" in caps["instagram"]
+    assert "1개 종목의 전략이 교체" in caps["instagram"]
 
 
 def test_caption_kill_switch_disclosed():
