@@ -502,7 +502,7 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
       var v=Number(chg||0), cls=v>=0?"u":"d", arrow=v>=0?"▲":"▼";
       return "<b>"+esc(conf[k].sym)+"</b>"+Number(px).toLocaleString()
         +' <span class="'+cls+'">'+arrow+" "+(v>=0?"+":"")+v.toFixed(2)+"%</span>"
-        +'<span class="tag">'+(lv?"실시간":"전일 확정")+"</span>";
+        +'<span class="tag">'+(lv?(lv.tag||"실시간"):"전일 확정")+"</span>";
     }).join("");
     if(items)el.innerHTML=items+items;
   }
@@ -516,7 +516,25 @@ fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(
       conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)};
     });
     draw(); pollCrypto(); setInterval(pollCrypto,15000);
+    pollStocks(); setInterval(pollStocks,60000);
   }).catch(function(){});
+  function pollStocks(){
+    // 주식 준실시간 — 워커의 /api/quotes 프록시(야후, 30초 엣지 캐시).
+    // 로컬 파일로 열었거나 프록시 장애면 조용히 '전일 확정'으로 남는다.
+    var stocks=Object.keys(conf).filter(function(k){return k.indexOf("crypto:")!==0})
+      .map(function(k){return {key:k,y:k.split(":")[1]||""}})
+      .filter(function(p){return p.y});
+    if(!stocks.length)return;
+    fetch("/api/quotes?symbols="+encodeURIComponent(
+        stocks.map(function(p){return p.y}).join(",")))
+      .then(function(r){return r.ok?r.json():null}).then(function(d){
+        if(!d||!d.quotes)return;
+        stocks.forEach(function(p){var q=d.quotes[p.y];
+          if(q&&q.price!=null)live[p.key]={px:Number(q.price),
+            chg:Number(q.change_pct||0),tag:"준실시간"}});
+        draw();
+      }).catch(function(){});
+  }
   function pollCrypto(){
     var pairs=Object.keys(conf).filter(function(k){return k.indexOf("crypto:")===0})
       .map(function(k){return {key:k,b:(k.split(":")[1]||"").replace("/","")}});
