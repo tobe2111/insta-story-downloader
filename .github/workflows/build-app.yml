@@ -70,6 +70,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy pyyaml scikit-learn yfinance ccxt pyinstaller
 
+      - name: 라이선스 자물쇠 포함 (시크릿 설정 시 — 1인 1키 강제)
+        # QUANT_LICENSE_SECRET(HMAC) 또는 QUANT_LICENSE_PUBKEY(Ed25519 공개키)가
+        # GitHub Secrets에 있으면 배포본에 구워 넣는다 → 실행 시 정품 키를
+        # 요구한다(어드민 대시보드의 키 발급과 같은 비밀을 써야 검증이 맞는다).
+        # 미설정이면 지금처럼 누구나 실행 가능한 빌드가 나온다.
+        shell: bash
+        env:
+          LIC_SECRET: ${{ secrets.QUANT_LICENSE_SECRET }}
+          LIC_PUBKEY: ${{ secrets.QUANT_LICENSE_PUBKEY }}
+        run: |
+          if [ -n "$LIC_SECRET" ]; then
+            printf 'SECRET = "%s"\n' "$LIC_SECRET" > quant/_license_key.py
+            echo "🔒 HMAC 자물쇠 포함 — 이 빌드는 라이선스 키를 요구합니다"
+          fi
+          if [ -n "$LIC_PUBKEY" ]; then
+            printf 'PUBLIC_KEY = "%s"\n' "$LIC_PUBKEY" > quant/_license_pub.py
+            echo "🔒 Ed25519 공개키 포함 — 이 빌드는 라이선스 키를 요구합니다"
+          fi
+          if [ -z "$LIC_SECRET$LIC_PUBKEY" ]; then
+            echo "🔓 라이선스 시크릿 미설정 — 자물쇠 없이 빌드(누구나 실행 가능)"
+          fi
+
       - name: Build standalone executable
         run: >
           pyinstaller --onefile --noconfirm --name quant-cockpit

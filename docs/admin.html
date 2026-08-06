@@ -95,9 +95,27 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
   </div>
 </div>
 
-<div class="warn">⚠️ 이 페이지는 공개돼 있지만 <b>토큰 없이는 아무것도 바꿀 수
-없습니다</b>. 저장 권한은 전적으로 GitHub 저장소 권한을 따릅니다. 토큰은
-최소 권한(이 저장소의 Contents Read/Write만)으로 발급하세요.</div>
+<div class="card">
+  <label style="display:block;cursor:default"><span class="t">라이선스 키 발급 (1인 1키)
+    <span class="d">구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀은 이
+    브라우저에만 저장되며, GitHub Secrets의 <b>QUANT_LICENSE_SECRET</b>과 같은
+    값이어야 배포 프로그램이 이 키를 인정합니다.</span></span></label>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+    <input type="password" id="lic-secret" placeholder="발급 비밀(길고 무작위하게)" style="flex:2;min-width:200px">
+    <input type="text" id="lic-owner" placeholder="구매자 이메일" style="flex:2;min-width:200px">
+    <button id="lic-gen">키 발급</button>
+  </div>
+  <div class="msg" id="lic-msg"></div>
+  <pre id="lic-out" style="display:none;background:var(--bg);border:1px solid var(--line);
+    border-radius:8px;padding:12px;font-size:13px;white-space:pre-wrap;
+    user-select:all;cursor:copy" title="클릭해서 전체 선택 → 복사"></pre>
+</div>
+
+<div class="warn">⚠️ 이 페이지는 공개돼 있지만 <b>토큰·비밀 없이는 아무것도 할
+수 없습니다</b>. 설정 저장 권한은 GitHub 저장소 권한을, 키 발급은 발급 비밀을
+따릅니다. 접속 자체를 잠그려면 Cloudflare 대시보드 → Workers → quant →
+Settings → Variables에 <b>ADMIN_ID / ADMIN_PW</b> 시크릿을 추가하세요 —
+그 순간부터 이 페이지는 아이디/비밀번호 로그인창을 요구합니다(서버측 검증).</div>
 
 <script>
 (function(){
@@ -157,6 +175,44 @@ $("save").onclick=function(){
   .finally(function(){$("save").disabled=false});
 };
 if(localStorage.getItem("gh_token")){$("token").value="••••••••";load()}
+
+// ── 라이선스 키 발급 — quant/licensing.py의 HMAC 키와 같은 알고리즘 ──
+// HMAC-SHA256(비밀, 소문자 이메일) 앞 15바이트 → base32(24자) → 6자 그룹.
+var B32="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+function b32(bytes){
+  var out="",bits=0,val=0;
+  for(var i=0;i<bytes.length;i++){
+    val=(val<<8)|bytes[i];bits+=8;
+    while(bits>=5){out+=B32[(val>>>(bits-5))&31];bits-=5}
+  }
+  if(bits>0)out+=B32[(val<<(5-bits))&31];
+  return out;
+}
+$("lic-gen").onclick=function(){
+  var raw=$("lic-secret").value.trim();
+  var sec=(raw&&raw!=="••••••••")?raw:(localStorage.getItem("lic_secret")||"");
+  var owner=($("lic-owner").value||"").trim().toLowerCase();
+  if(!sec){msg("lic-msg","발급 비밀을 입력하세요",false);return}
+  if(!owner||owner.indexOf("@")<1){msg("lic-msg","구매자 이메일을 입력하세요",false);return}
+  localStorage.setItem("lic_secret",sec);
+  var enc=new TextEncoder();
+  crypto.subtle.importKey("raw",enc.encode(sec),{name:"HMAC",hash:"SHA-256"},false,["sign"])
+    .then(function(k){return crypto.subtle.sign("HMAC",k,enc.encode(owner))})
+    .then(function(sig){
+      var body=b32(new Uint8Array(sig).slice(0,15));
+      var key="QUANT-"+body.replace(/(.{6})(?=.)/g,"$1-");
+      $("lic-out").style.display="";
+      $("lic-out").textContent=
+        "구매자에게 아래 내용을 그대로 보내세요:\n\n"
+        +"프로그램 폴더에 license.key 파일을 만들고 이 두 줄을 넣으세요.\n"
+        +"owner: "+owner+"\n"
+        +"key:   "+key+"\n\n"
+        +"(프로그램 실행 시 입력창에 직접 입력해도 됩니다)";
+      msg("lic-msg","발급 완료 — 같은 이메일이면 언제나 같은 키가 나옵니다(재발급 안전).",true);
+    })
+    .catch(function(e){msg("lic-msg","발급 실패: "+e,false)});
+};
+if(localStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
 })();
 </script>
 </body>
