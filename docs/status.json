@@ -177,8 +177,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-06",
-      "trials_total": 57,
+      "last_run_asof": "2026-08-07",
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -369,7 +369,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 57,
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -382,7 +382,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-06"
+      "last_run_asof": "2026-08-07"
     },
     "kr_stock:035420.KS": {
       "strategy": "ml",
@@ -393,7 +393,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 57,
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -406,7 +406,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-06"
+      "last_run_asof": "2026-08-07"
     },
     "kr_stock:005380.KS": {
       "strategy": "ml",
@@ -417,7 +417,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 57,
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -430,7 +430,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-06"
+      "last_run_asof": "2026-08-07"
     },
     "kr_stock:051910.KS": {
       "strategy": "ml",
@@ -441,7 +441,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 57,
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -454,7 +454,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-06"
+      "last_run_asof": "2026-08-07"
     },
     "kr_stock:105560.KS": {
       "strategy": "ml",
@@ -465,7 +465,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 57,
+      "trials_total": 77,
       "parliament": [
         {
           "strategy": "ml",
@@ -478,7 +478,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-06"
+      "last_run_asof": "2026-08-07"
     }
   },
   "paper": {
@@ -876,6 +876,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.646103214077976,
           "drift_psi": 0.5767
+        },
+        {
+          "date": "2026-08-07",
+          "price": 1422000.0,
+          "weight": 0.0577,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5555555555555556,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +6% — 로지스틱회귀 모델이 내일 상승확률을 약 74%로 추정(기준 55% 초과) · 주요 판단 재료: gk_vol, 10일 수익률, 변동성(20일)",
+          "fill": {
+            "price": 1521000.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0282,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "1972a4014cadea3cb55d4144320cbd586818c5534d1320088e58bc381305f06b",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.740871480681231,
+          "drift_psi": 0.6291
         }
       ]
     },
@@ -958,6 +986,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.2593675197041891,
           "drift_psi": 0.9611
+        },
+        {
+          "date": "2026-08-07",
+          "price": 395500.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.42857142857142855,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일선 이격, 20일 모멘텀, 평균 진폭(ATR)",
+          "fill": {
+            "price": 401000.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "65f77b204bb9a084cf993c3f102e9ebb637f5a545cba22c3dae138c9ba1dd10c",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.2776252510828935,
+          "drift_psi": 0.9786
         }
       ]
     },
@@ -1070,6 +1126,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.5950938436693316,
           "drift_psi": 0.7317
+        },
+        {
+          "date": "2026-08-07",
+          "price": 231000.0,
+          "weight": 0.012,
+          "equity": 10000.84,
+          "return_pct": 0.01,
+          "hit_rate": 0.5294117647058824,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "소액 매수 +1.2% — 로지스틱회귀 모델이 내일 상승확률을 약 58%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 주요 판단 재료: 평균 진폭(ATR), gk_vol, 10일 수익률",
+          "fill": {
+            "price": 235000.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0162,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "7f768d46b6fe17639e04241d00496f7b617d7cfab5fc230591151635ac73dd49",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.583021909826573,
+          "drift_psi": 0.7243
         }
       ]
     },
@@ -1152,6 +1236,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.29169316247466676,
           "drift_psi": 0.6684
+        },
+        {
+          "date": "2026-08-07",
+          "price": 210000.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 50일선 이격, 볼린저 위치, 변동성 레짐(단/장기)",
+          "fill": {
+            "price": 219500.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "911d43fc9dfc0a4b5409cc5911a476b8f76c4a860c14471266d86de2702de332",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.3260647475400355,
+          "drift_psi": 0.6401
         }
       ]
     },
@@ -1234,6 +1346,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.493374277217311,
           "drift_psi": 0.4588
+        },
+        {
+          "date": "2026-08-07",
+          "price": 276000.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.45454545454545453,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일 모멘텀, 60일 모멘텀, RSI(7)",
+          "fill": {
+            "price": 264500.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "830c3ee2a275c516d077f5ceed5ba5a5dc39bd2bae8db3cf5ac5ab507b0b8946",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.43105910100774236,
+          "drift_psi": 0.4421
         }
       ]
     },
@@ -1313,9 +1453,9 @@
     },
     "kr_stock:105560.KS": {
       "start_cash": 10000.0,
-      "equity": 9995.89,
-      "return_pct": -0.04,
-      "mdd_pct": -0.09,
+      "equity": 9981.81,
+      "return_pct": -0.18,
+      "mdd_pct": -0.23,
       "history": [
         {
           "date": "2026-08-05",
@@ -1390,6 +1530,34 @@
           "accounting": "next_open_v2",
           "prob_up": 0.5401635215621663,
           "drift_psi": 0.3595
+        },
+        {
+          "date": "2026-08-07",
+          "price": 175800.0,
+          "weight": 0.0,
+          "equity": 9981.81,
+          "return_pct": -0.18,
+          "hit_rate": 0.6111111111111112,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 50일선 이격, gk_vol, 변동성(20일)",
+          "fill": {
+            "price": 169200.0,
+            "bar": "2026-08-07 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-06 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "ae50c3f91fc9",
+          "data_sha256": "b785fc177e40280c58a7ae350628cfddcdba513fc50c79a24d414ed94cb0e2c8",
+          "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.4548374753489978,
+          "drift_psi": 0.4263
         }
       ]
     },
@@ -3005,6 +3173,48 @@
       "promoted": false,
       "n_candidates": 19,
       "trials_total": 57
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:005930.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:000660.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:035420.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:005380.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:051910.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
+    },
+    {
+      "asof": "2026-08-07",
+      "key": "kr_stock:105560.KS",
+      "promoted": false,
+      "n_candidates": 19,
+      "trials_total": 77
     }
   ],
   "live_url": null,
@@ -3013,8 +3223,8 @@
     "items": [
       {
         "cat": "증시",
-        "title": "[뉴욕증시] 고용 쇼크에 금리 부담 덜었다…강세 마감 - 연합인포맥스",
-        "source": "연합인포맥스",
+        "title": "[뉴욕증시] 고용 쇼크에 금리 부담 덜었다…강세 마감 - news.einfomax.co.kr",
+        "source": "news.einfomax.co.kr",
         "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBpaWF6S0RnOU85elllbG5nRDBSZWhCeEtvWjJSNTJ3QjdmZGFZR0ZQSkRSeU9vdmZnbUxjQ0tOZXBzbVRoSjhwQVpTZ01pQkhPZWlaM2h3ZzZCTGJwenRLQ0Z1U2NwcU13d1JJVEFra1Y?oc=5",
         "time": "Fri, 07 Aug 2026 20:55:58 GMT"
       },
@@ -3048,22 +3258,22 @@
       },
       {
         "cat": "금리·환율",
-        "title": "하나은행, 변동금리 주택담보대출 신규 취급 중단 - 연합뉴스TV",
-        "source": "연합뉴스TV",
-        "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9WWXpEQkpCbFhNT1RxbTVkTUpIVjNmeWhUYmM1eDlnVzFyaFNiVWw3QU9fTWFUTC1CX3FRUlVPdldzX0p6cnNQSU9PbkQtUGd1VThsY2ppZEdWakEzZThrUThiUlh3TUE?oc=5",
-        "time": "Fri, 07 Aug 2026 11:14:00 GMT"
-      },
-      {
-        "cat": "금리·환율",
         "title": "美 금리 인상? 인하론 대두되는 이유…오늘 밤 고용지표 주목[오미주] - 머니투데이 - 머니투데이",
         "source": "머니투데이",
         "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE94WHU5cnBTT25KUmlmMC1mYWlNX0FJR1Z0SFFOT1FUWDU3b25LbWJPVUZjcHB3d1FVWUtJeWdPQV9jbzZuNmItY0ktMEt3d3U3UXdiQTFka25XZlZaaUx2aU5BNmZvZjUt0gFuQVVfeXFMUFJsaFhNZjlQbkk0UUV3aGYxLU8zMTdGWWhnbW5TM05jUkJ1Uy1ETXZ0NC1LOFlveU9VaUxaWmJXMmxmY09xS0JJLTRTTU5QZU9yMGxlVlZGV1M5OEhZTV9JUk5rd0x4NEJfSVZ1NEE?oc=5",
         "time": "Fri, 07 Aug 2026 07:05:00 GMT"
       },
       {
+        "cat": "금리·환율",
+        "title": "환율 이틀째 1,410원대…수급 개선 영향 - 연합뉴스TV",
+        "source": "연합뉴스TV",
+        "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9QTUNHNTdWdWk2V1JEMkZqY0M2QVpERFYxUDdoSHN1bW52dUJwWWUxM2lFUG9JMEdaSXhDeDNIeTFYQ0ZFN3pDUzFidXUyaExZSjhlbmc5NEVuaFVsakxyRjBWM19MNGM?oc=5",
+        "time": "Fri, 07 Aug 2026 07:52:00 GMT"
+      },
+      {
         "cat": "코인",
-        "title": "[넥스블록][인기 검색 코인 톱15] Heima 176%·DODO 56% 급등…대형주 속 고변동 알트 부각 - etoday.co.kr",
-        "source": "etoday.co.kr",
+        "title": "[넥스블록][인기 검색 코인 톱15] Heima 176%·DODO 56% 급등…대형주 속 고변동 알트 부각 - 이투데이",
+        "source": "이투데이",
         "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE12X21wdlN5QVVmbE02SnFMVGJkOVBMTzdUbzloRTNWVkJESGxUVFJ2RG4wcU9ET0stbnRWczBUUVZDRU9jVGxSSXcxbDFqY3hYb0lBTA?oc=5",
         "time": "Thu, 06 Aug 2026 07:49:00 GMT"
       },
@@ -3091,18 +3301,18 @@
       },
       {
         "cat": "종목",
-        "title": "비트코인 ‘빙하기’… 수익률, 14년만에 S&P500보다 뒤졌다 - 문화일보",
-        "source": "문화일보",
-        "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE9LbXFQdDJKTFR4SjZTYk9fQS1QSjJxY250UmtrYlZ0R0FNcHBSNkR1M1NPRUd1VDA1dFA1dlhoeGRaZENHYjRBMk8yRmxYemtB?oc=5",
-        "time": "Fri, 07 Aug 2026 02:51:59 GMT",
+        "title": "비트코인, 클래리티법 지연에 6만4000달러대 횡보 - 조선비즈 - Chosunbiz",
+        "source": "Chosunbiz",
+        "link": "https://news.google.com/rss/articles/CBMigAFBVV95cUxPaHdWVlpleHFiM0xmLVJzRmNZUE8zOVF1OXBUS3B2aDNzSjU1clJ4NEpFcE5mYlB1dllYbDd5aTRFdW45S2FUSWVLbERjbUNoc0xtMzI1ZG1LU0QxZlRzQnFBNWNiQ0FqQWtFNHpnLWM1Ti1xa1ZPUHNidlB4bnlwNtIBlAFBVV95cUxQTkM2eDV4VXZUUURaRHJiaXplWG5TWlcyVTBJeVNVanlsMGpOR2VGVFpMUjlsRFZKelE2b1p1WS10SnpxcVVER2dSOFNVMnZ6RkNuR1VTdVlOMFp0aHlITVRtZXRibG9CLVlTWHktbmU4UU9hbFBVamlOQ2owQ0RTTC1maWpGNHdRUzdVcWJwbm5oaXZN?oc=5",
+        "time": "Fri, 07 Aug 2026 06:03:00 GMT",
         "sym": "crypto:BTC/USDT"
       },
       {
         "cat": "종목",
-        "title": "美 암호화폐 수도 만든다더니…비트코인 울고 트럼프 밈코인은 망했다 - v.daum.net",
-        "source": "v.daum.net",
-        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFA0VnNmNldUck1wMnhzZjhObXZDZ2FMZm0xc1pxWVZtWWhyZ1NGbkhwUm04WUk4MUQ0UXhYZ3lmSGI2eF9Qb0EyWTY4QXYzQW8?oc=5",
-        "time": "Fri, 07 Aug 2026 02:33:31 GMT",
+        "title": "트럼프 취임날 금·비트코인·트럼프코인에 1000달러씩 넣었다면? - 마켓인",
+        "source": "마켓인",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1uU1ctWkVmaF91U1ZmcjBxcTBZVUhXV0FfdlFHY3dhN0s3NmF6R283eE1nOGdhMGszbDA2LVZpQXlfQTZ4WDhST0V1dEJiX2YtbDhUcERuNi1QWEQ5Q1VyMU1ydlRwQXdKYzFuRXNwMklOY1k?oc=5",
+        "time": "Thu, 06 Aug 2026 05:54:17 GMT",
         "sym": "crypto:BTC/USDT"
       },
       {
@@ -3115,18 +3325,18 @@
       },
       {
         "cat": "종목",
-        "title": "수수료 계산식 바꾸는 솔라나 SIMD-0553…복잡한 트랜잭션, 더 많이 낸다 - Yellow.com",
-        "source": "Yellow.com",
-        "link": "https://news.google.com/rss/articles/CBMi6wJBVV95cUxQSHI3WWtRcFhITDBkbEFmemFFQ1FlYm1aS1hQc3M1YVZUYms4QkdDZzNNLThwaGo1NjlWZ0xyYlNLb2ZFd2hKVmJ6YjVVVHh4SUpybDhPSHhSdVBXR3c1emNocW01WTk5Wm9JQWRKVjdSMndrSmMtTEpLMU5wbnBpQURlOTlrMUpXMzdaTzh0MjdhRHNLUTktVzR0S1J6Szdsclp4WDJjREE4YnpRT01WbEFXTTA3bnI2cTctODRLNjFUaXpoenA0bkFvWmsyVS03RmI3LVAwdzBlQ2x6T1VadzVJRTVEYlZLSDhhSFJVbWNpcWtRV3p3a09HanEya1VMOWM2d0VDSzlTRHdocWNfYWJGdXl2S0JRczBPZ0I4Y3BBcG9yWlhyc0ZjUVBBNi1LSUc3NC1YaDRGZ0N4VW9zaERNU3pQSWgzRElrTm9JYXFhN19VV3J",
-        "time": "Thu, 06 Aug 2026 04:36:22 GMT",
+        "title": "추세선 깨지고 ETF 유입 뚝...솔라나(SOL), 68달러 지지선 재시험 받나 - 코인리더스",
+        "source": "코인리더스",
+        "link": "https://news.google.com/rss/articles/CBMiSkFVX3lxTE1mYW1rSW5XMlFRSkMxZDVCZzN5OEV5TUxDSk5aUEROSEV2Z0taclJkRFFPcnk0UWJybFgwM0l0WjliTThtZUFwVkJR?oc=5",
+        "time": "Fri, 07 Aug 2026 22:00:00 GMT",
         "sym": "crypto:SOL/USDT"
       },
       {
         "cat": "종목",
-        "title": "인베스코 갤럭시 솔라나 ETF, 2분기 순손실 56만 달러 기록 - 데이터투자",
-        "source": "데이터투자",
-        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE41bkdvQVNfUnhTM1VFMWh4djY1TFRoeEpyLVl3XzZlcG5TU2lOc1pMZW9zdDlTV0RSeU5QRWNQTUxVd05oeHdvOGtEMnl5dU9DSmNtRUlrWkhWYWZ5Rlgxb1hiaHBLYTZSSy1KcFRqTXNTN1E?oc=5",
-        "time": "Fri, 07 Aug 2026 10:20:03 GMT",
+        "title": "수수료 계산식 바꾸는 솔라나 SIMD-0553…복잡한 트랜잭션, 더 많이 낸다 - Yellow.com",
+        "source": "Yellow.com",
+        "link": "https://news.google.com/rss/articles/CBMi6wJBVV95cUxQSHI3WWtRcFhITDBkbEFmemFFQ1FlYm1aS1hQc3M1YVZUYms4QkdDZzNNLThwaGo1NjlWZ0xyYlNLb2ZFd2hKVmJ6YjVVVHh4SUpybDhPSHhSdVBXR3c1emNocW01WTk5Wm9JQWRKVjdSMndrSmMtTEpLMU5wbnBpQURlOTlrMUpXMzdaTzh0MjdhRHNLUTktVzR0S1J6Szdsclp4WDJjREE4YnpRT01WbEFXTTA3bnI2cTctODRLNjFUaXpoenA0bkFvWmsyVS03RmI3LVAwdzBlQ2x6T1VadzVJRTVEYlZLSDhhSFJVbWNpcWtRV3p3a09HanEya1VMOWM2d0VDSzlTRHdocWNfYWJGdXl2S0JRczBPZ0I4Y3BBcG9yWlhyc0ZjUVBBNi1LSUc3NC1YaDRGZ0N4VW9zaERNU3pQSWgzRElrTm9JYXFhN19VV3J",
+        "time": "Thu, 06 Aug 2026 04:36:22 GMT",
         "sym": "crypto:SOL/USDT"
       },
       {
@@ -3155,10 +3365,10 @@
       },
       {
         "cat": "종목",
-        "title": "코스피 5%대 급락에 6300선 붕괴...매도 사이드카 발동 - 머니투데이",
-        "source": "머니투데이",
-        "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTFBFX3dwdHlJanVteHQxaDN1TDFpUTZSNi1zUjhpS1NVWjg0dkRmQno4UjlvRk4zMXRxbExYdWRZRjJiZVBjZ1pNclptZkIyOExxUXNsN1NrSUw1cUJrTmJnWlVmUEJaTWdO?oc=5",
-        "time": "Thu, 06 Aug 2026 01:35:39 GMT",
+        "title": "[단독] 코스피200 레버리지로 옮겨간 개미들…삼전닉스 '몰빵' 막으려다 증시 전체 흔들릴 판 - 한국경제",
+        "source": "한국경제",
+        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5IczJtamlJMjlpcVE3LWRSVEpFekZIQWRyaUdYanhxV2dPTER1Z2pFSTlfel9CbUhIWFQycmp6c285ZG1wb0JETllCRkN1ZDMwUVRudXRFZnJqZw?oc=5",
+        "time": "Wed, 05 Aug 2026 08:09:49 GMT",
         "sym": "kr_stock:069500.KS"
       },
       {
@@ -3179,18 +3389,18 @@
       },
       {
         "cat": "종목",
-        "title": "뉴욕증시, 호르무즈 재개방 기대속 혼조 마감…나스닥 0.8%↓(종합) - 연합뉴스",
-        "source": "연합뉴스",
-        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTFB6NzQxeXFIamswRmxDMFJmQmNwOFpkNHhoVHk5a2FZSXloOXhNeFpRU0M3LS15VGVqRHI3RHZ1R2tnWVIxN01Ta3dnQWtUZ2F3dlpqMnpsZkU4UWvSAWBBVV95cUxPRWdBc21GWGlEa2xlNGExU19DYXhuRG9yQWE1cm8wb1lSNXFINlUycThaemV2ZFhSdzVSQ2NjeTRWLTd2Tzdjdk94OU9xSVhQVVNMT3BWUjhKNjN6QXBPdUQ?oc=5",
-        "time": "Wed, 05 Aug 2026 21:19:47 GMT",
-        "sym": "us_stock:QQQ"
-      },
-      {
-        "cat": "종목",
         "title": "뉴욕증시, 4거래일 랠리 마치고 ’숨고르기’…나스닥 0.8%↓ - 연합뉴스TV",
         "source": "연합뉴스TV",
         "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE9KM1VRN0ZLSjR4UFN1QXlla3dvTUNyTGxLemoxS3dnTy1QOTJfdHRIVW9hWjJfZTk0VnZjemQwOEZqMzdSX0Y5Y1BDTU41a1J3WF9LQkhQcXJxWHl6UmI5WXFQWERWM3c?oc=5",
         "time": "Wed, 05 Aug 2026 21:28:00 GMT",
+        "sym": "us_stock:QQQ"
+      },
+      {
+        "cat": "종목",
+        "title": "‘나스닥 잔류 총력전’ KWM, 캐피털마켓 이전에 주식도 병합 - 조선비즈 - Chosunbiz",
+        "source": "Chosunbiz",
+        "link": "https://news.google.com/rss/articles/CBMikAFBVV95cUxPZHJ4YlFBY28wZVlhMFJrLURKQjdIWEI1aTdTTkVzZHNfcWVCWWl4SDBDTTdJelIyREJEM0ViMDFDdVZHYllUTEpxVlF1cEJyTVhYai1yc0I4Ymh4ZU11RGJKVzRNNHV1UGlfTFV6UG5TZzJpX2haQWhTaGNvT25sMHpQYWl1b3J1bjZiVFk1LXnSAaQBQVVfeXFMUEVWUEpRMm1JUDZYWkY3X1NwTW9ZdndYWGc4MHB0aFFVV2RBdHNTRTYtMDdUMnZvejRzUzE2b1lrbTZXVC11S2lfczFIMms0TnM1U1ZCSzdQN1dCaU4zQldCTExoTlFiOG9LbVRCaXE4U2NfZDZVNnZYd0s3TzdtYXVQcEtIeWVHLWZrRmE2V1VBOWU3bjFLTFFMb1pWVWR2YnlMaDc?oc=5",
+        "time": "Fri, 07 Aug 2026 21:00:00 GMT",
         "sym": "us_stock:QQQ"
       },
       {
@@ -3203,10 +3413,10 @@
       },
       {
         "cat": "종목",
-        "title": "금리보다 수익률… 코스피 급락에도 원화가 강해진 이유는 - 조선비즈 - Chosunbiz",
-        "source": "Chosunbiz",
-        "link": "https://news.google.com/rss/articles/CBMihgFBVV95cUxNZE1BdzlodFBNWXZReldkRmtMZS1NaENER0NIN1F4WEE5VWlpVFFKLWNtWVZwUHFJMHozRlpZUWtUazRmbHZKdkJzd3VheS1Qc1Nkem12M29DZ0Y4SC1ZdTZRbmlyWS1kSnc3TkVkTll2U3l1a016a3JZN0NoZWVuRzduY0VJd9IBmgFBVV95cUxOeEJFTnA0RHpkcWpIRTRTRzVWU1R1Qlk4MWNDUEplMDJRdGhQeUM0ZzFRa0VfMjIxWG85a1Y4OXU5akh5XzBkc1YzRFh1U1g3Z3M1ZkpyUDFZNktIajl5RzZnUHdOZmJaN1ZuWjFCVGZKRXBMM0U0MGdEZmcwM0Z3YlJmVjJZWUZpcnpvUlZLcm0wQ2R6WkQxanNR?oc=5",
-        "time": "Fri, 07 Aug 2026 21:03:47 GMT",
+        "title": "‘빅쇼트’ 버리의 경고…\"미국 증시? 1987년 대폭락 재현될 수도\" - JTBC",
+        "source": "JTBC",
+        "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE1SNHFISEczM0NIUFdvUFNhM2p5a2l2T0tUaGR4T3d2R0pMUFBScTNOMWxnTDlfQUl1NUFNWTFjX2NzZUJ1YWlqRjFYRzhTMGFKYm51ZQ?oc=5",
+        "time": "Thu, 06 Aug 2026 02:20:00 GMT",
         "sym": "us_stock:SPY"
       }
     ],

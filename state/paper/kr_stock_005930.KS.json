@@ -2,7 +2,7 @@
   "cash": 10000.836816877236,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-06 00:00:00",
+  "last_bar": "2026-08-07 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -107,13 +107,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.5950938436693316,
       "drift_psi": 0.7317
+    },
+    {
+      "date": "2026-08-07",
+      "price": 231000.0,
+      "weight": 0.012,
+      "equity": 10000.84,
+      "return_pct": 0.01,
+      "hit_rate": 0.5294117647058824,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +1.2% — 로지스틱회귀 모델이 내일 상승확률을 약 58%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 주요 판단 재료: 평균 진폭(ATR), gk_vol, 10일 수익률",
+      "fill": {
+        "price": 235000.0,
+        "bar": "2026-08-07 00:00:00",
+        "weight": 0.0162,
+        "decided_bar": "2026-08-06 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "ae50c3f91fc9",
+      "data_sha256": "7f768d46b6fe17639e04241d00496f7b617d7cfab5fc230591151635ac73dd49",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.583021909826573,
+      "drift_psi": 0.7243
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0162,
-    "decided_bar": "2026-08-06 00:00:00"
+    "weight": 0.012,
+    "decided_bar": "2026-08-07 00:00:00"
   }
 }
