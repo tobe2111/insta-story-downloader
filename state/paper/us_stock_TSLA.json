@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-06 00:00:00",
+  "last_bar": "2026-08-07 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -54,11 +54,39 @@
       "accounting": "next_open_v2",
       "prob_up": 0.20413479488901404,
       "drift_psi": 0.0886
+    },
+    {
+      "date": "2026-08-07",
+      "price": 328.5799865722656,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.4838709677419355,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 변동성(20일), gk_vol, 20일선 이격",
+      "fill": {
+        "price": 322.334991,
+        "bar": "2026-08-07 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-06 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "90277869865c",
+      "data_sha256": "1554df8e540a2ed14a33b878c71d81bbd3b97d287c16791da818c2841aa3e0f2",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.1978871663627672,
+      "drift_psi": 0.0604
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-06 00:00:00"
+    "decided_bar": "2026-08-07 00:00:00"
   },
   "market": "us_stock",
   "symbol": "TSLA",

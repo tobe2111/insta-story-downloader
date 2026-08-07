@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-07 00:00:00",
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -54,11 +54,34 @@
       "accounting": "next_open_v2",
       "prob_up": 0.43197477158614,
       "drift_psi": 0.4209
+    },
+    {
+      "date": "2026-08-06",
+      "price": 261000.0,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.45454545454545453,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일 모멘텀, 60일 모멘텀, RSI(7)",
+      "fill": null,
+      "fill_cost": 0.0014,
+      "code_sha": "90277869865c",
+      "data_sha256": "33e4fd55b5290d21093ed0783bfebe3b5e6c88a5a73183af5a4bdeaf6fbe9a05",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.493374277217311,
+      "drift_psi": 0.4588
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-07 00:00:00"
+    "decided_bar": "2026-08-06 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "051910.KS",
