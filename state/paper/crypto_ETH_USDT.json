@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-05 00:00:00",
+  "cash": 8271.564695018487,
+  "quantity": 0.906608182881518,
+  "avg_price": 1903.63,
+  "last_bar": "2026-08-07 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -41,6 +41,29 @@
       "accounting": "next_open_v2",
       "prob_up": 0.571458903773964,
       "drift_psi": 0.7552
+    },
+    {
+      "date": "2026-08-07",
+      "price": 1903.63,
+      "weight": 0.1728,
+      "equity": 9997.41,
+      "return_pct": -0.03,
+      "hit_rate": 0.46153846153846156,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +17% — 로지스틱회귀 모델이 내일 상승확률을 약 71%로 추정(기준 55% 초과) · 주요 판단 재료: rv_5_60, 20일선 이격, 볼린저 위치",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "47ad37eb5357c05daf4cfa8f9e079ba8b0b65294d904ef81dd06e7570509bf79",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7081012576384996,
+      "drift_psi": 0.7683
     }
   ],
   "market": "crypto",

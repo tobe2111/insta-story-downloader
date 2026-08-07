@@ -2,7 +2,7 @@
   "cash": 9140.749004248768,
   "quantity": 0.008555692247065518,
   "avg_price": 100330.0,
-  "last_bar": "2026-08-05 00:00:00",
+  "last_bar": "2026-08-07 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -41,13 +41,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.6885393336954191,
       "drift_psi": 1.1151
+    },
+    {
+      "date": "2026-08-07",
+      "price": 99015.0,
+      "weight": 0.0849,
+      "equity": 9987.89,
+      "return_pct": -0.12,
+      "hit_rate": 0.6170212765957447,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +8% — 로지스틱회귀 모델이 내일 상승확률을 약 76%로 추정(기준 55% 초과) · 주요 판단 재료: 10일 수익률, gk_vol, 평균 진폭(ATR)",
+      "fill": {
+        "price": 102060.0,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.0564,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "61deea95ce6fac0145b7b3d6a41e56d282ff6a3fa6afde7afcc0ee4f129d358d",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7553308885752732,
+      "drift_psi": 1.0146
     }
   ],
   "market": "kr_stock",
   "symbol": "069500.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0564,
-    "decided_bar": "2026-08-05 00:00:00"
+    "weight": 0.0849,
+    "decided_bar": "2026-08-07 00:00:00"
   }
 }

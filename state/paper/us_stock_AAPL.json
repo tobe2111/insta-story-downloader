@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-05 00:00:00",
+  "cash": 6368.0,
+  "quantity": 11.5474395527898,
+  "avg_price": 314.3399963378906,
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -26,11 +26,39 @@
       "accounting": "next_open_v2",
       "prob_up": 0.881524075267599,
       "drift_psi": 0.212
+    },
+    {
+      "date": "2026-08-06",
+      "price": 312.4100036621094,
+      "weight": 0.3699,
+      "equity": 9975.54,
+      "return_pct": -0.24,
+      "hit_rate": 0.4666666666666667,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +37% — 로지스틱회귀 모델이 내일 상승확률을 약 89%로 추정(기준 55% 초과) · 주요 판단 재료: 변동성(20일), 볼린저 위치, 50일선 이격",
+      "fill": {
+        "price": 314.339996,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.3632,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "0b32b59db8241272a3fcfb661b3839e404c3ba8fb6e1cb803378686f16c32cb5",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.8873272778801908,
+      "drift_psi": 0.2401
     }
   ],
   "pending": {
-    "weight": 0.3632,
-    "decided_bar": "2026-08-05 00:00:00"
+    "weight": 0.3699,
+    "decided_bar": "2026-08-06 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",

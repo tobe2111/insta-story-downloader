@@ -1,8 +1,8 @@
 {
-  "cash": 8518.76770582154,
-  "quantity": 2.0442807094646978,
-  "avg_price": 723.8499755859375,
-  "last_bar": "2026-08-05 00:00:00",
+  "cash": 7840.670044638439,
+  "quantity": 2.997754508277095,
+  "avg_price": 719.6865461248003,
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -41,13 +41,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.6735537188701812,
       "drift_psi": 0.4428
+    },
+    {
+      "date": "2026-08-06",
+      "price": 714.6500244140625,
+      "weight": 0.051,
+      "equity": 9983.02,
+      "return_pct": -0.17,
+      "hit_rate": 0.5283018867924528,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +5% — 로지스틱회귀 모델이 내일 상승확률을 약 58%로 추정(기준 55% 초과) · 주요 판단 재료: MACD 히스토그램, 60일 모멘텀, 10일 수익률",
+      "fill": {
+        "price": 710.76001,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.2138,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "1d2f3b62b9697f02379ab453230d3366e13d71e16e4c250ffcfdc505c81d5d4f",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5794781680644496,
+      "drift_psi": 0.4502
     }
   ],
   "market": "us_stock",
   "symbol": "QQQ",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.2138,
-    "decided_bar": "2026-08-05 00:00:00"
+    "weight": 0.051,
+    "decided_bar": "2026-08-06 00:00:00"
   }
 }

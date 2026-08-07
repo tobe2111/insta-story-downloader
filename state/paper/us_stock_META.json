@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-05 00:00:00",
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -26,11 +26,39 @@
       "accounting": "next_open_v2",
       "prob_up": 0.4571676873532347,
       "drift_psi": 0.3191
+    },
+    {
+      "date": "2026-08-06",
+      "price": 589.9000244140625,
+      "weight": 0.1038,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5384615384615384,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +10% — 로지스틱회귀 모델이 내일 상승확률을 약 68%로 추정(기준 55% 초과) · 주요 판단 재료: 변동성(20일), 평균 진폭(ATR), 20일 모멘텀",
+      "fill": {
+        "price": 586.335022,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "55f9c49a53c5fbba86c74189a72b037632b39ea740d9d5966f45e74ceeca3533",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6791549508202346,
+      "drift_psi": 0.4433
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-05 00:00:00"
+    "weight": 0.1038,
+    "decided_bar": "2026-08-06 00:00:00"
   },
   "market": "us_stock",
   "symbol": "META",

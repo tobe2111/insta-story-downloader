@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-05 00:00:00",
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -26,11 +26,39 @@
       "accounting": "next_open_v2",
       "prob_up": 0.23182222446754286,
       "drift_psi": 0.6866
+    },
+    {
+      "date": "2026-08-06",
+      "price": 499.8599853515625,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.45588235294117646,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일선 이격, 20일 모멘텀, RSI(7)",
+      "fill": {
+        "price": 488.890015,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "3ed43f99eacf5e107c5795c1af0ba2ba56bae21dc80f3c6493769eeb26d0b2dd",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.2384315293856837,
+      "drift_psi": 0.7215
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-05 00:00:00"
+    "decided_bar": "2026-08-06 00:00:00"
   },
   "market": "us_stock",
   "symbol": "MSFT",

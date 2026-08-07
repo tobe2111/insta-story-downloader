@@ -1,8 +1,8 @@
 {
-  "cash": 6297.823788180848,
-  "quantity": 4.794935568615725,
+  "cash": 9287.772799914439,
+  "quantity": 0.9106131463937204,
   "avg_price": 771.3300170898438,
-  "last_bar": "2026-08-05 00:00:00",
+  "last_bar": "2026-08-06 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -41,13 +41,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.5711292376858375,
       "drift_psi": 0.1268
+    },
+    {
+      "date": "2026-08-06",
+      "price": 768.5599975585938,
+      "weight": 0.0,
+      "equity": 9987.63,
+      "return_pct": -0.12,
+      "hit_rate": 0.48717948717948717,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 50일선 이격, 60일 모멘텀, RSI(14)",
+      "fill": {
+        "price": 770.210022,
+        "bar": "2026-08-06 00:00:00",
+        "weight": 0.0702,
+        "decided_bar": "2026-08-05 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50e3f6d26f64",
+      "data_sha256": "682e96c9eb77b9e717769c989e4adb21808133c82e45e3150440bf28235ef267",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4913957040686254,
+      "drift_psi": 0.1542
     }
   ],
   "market": "us_stock",
   "symbol": "SPY",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0702,
-    "decided_bar": "2026-08-05 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-06 00:00:00"
   }
 }
