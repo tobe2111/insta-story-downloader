@@ -353,6 +353,31 @@ cd insta-story-downloader
     </div>
   </section>
 
+  <section id="sponsors" style="display:none">
+    <p class="kicker">Sponsors</p>
+    <h2>후원 랭킹</h2>
+    <p class="sub">이 공개 실험을 응원해 주신 분들입니다. 후원금은 챌린지 계좌
+    원금과 분리 기록됩니다(회계 분리 — 수익률에 섞이지 않습니다).</p>
+    <div id="sponsor-list" class="reveal" style="max-width:560px"></div>
+  </section>
+  <script>
+  fetch("sponsors.json").then(r=>r.ok?r.json():null).then(d=>{
+    var list=(d&&d.sponsors)||[];
+    if(!list.length)return;                    // 후원이 없으면 섹션 숨김 유지
+    var tot={};
+    list.forEach(s=>{var n=String(s.name||"익명").slice(0,20);
+      tot[n]=(tot[n]||0)+(Number(s.amount)||0)});
+    var rank=Object.entries(tot).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    var medal=["🥇","🥈","🥉"];
+    document.getElementById("sponsor-list").innerHTML=rank.map((e,i)=>
+      '<div style="display:flex;justify-content:space-between;align-items:center;'
+      +'padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin:6px 0">'
+      +'<span><b>'+(medal[i]||(i+1)+"위")+" "+e[0].replace(/[<>&]/g,"")+'</b></span>'
+      +'<span style="color:var(--muted)">'+e[1].toLocaleString()+"원</span></div>").join("");
+    document.getElementById("sponsors").style.display="";
+  }).catch(function(){});
+  </script>
+
   <section id="faq">
     <p class="kicker">FAQ</p>
     <h2>자주 묻는 질문</h2>

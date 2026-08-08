@@ -103,6 +103,20 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
 </div>
 
 <div class="card">
+  <label style="display:block;cursor:default"><span class="t">후원 기록 추가
+    <span class="d">홈페이지 후원 랭킹에 표시됩니다(누적 합산). ⚠️ 표시용
+    장부입니다 — 실제 돈을 계좌 원금에 넣을 때는 기존 매칭입금 절차를
+    쓰세요(회계 분리). 이름은 닉네임으로.</span></span></label>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+    <input type="text" id="sp-name" placeholder="닉네임" style="flex:1;min-width:120px">
+    <input type="number" id="sp-amount" placeholder="금액(원)" style="flex:1;min-width:110px;text-align:right">
+    <input type="text" id="sp-note" placeholder="메모(선택)" style="flex:2;min-width:140px">
+    <button id="sp-add">기록</button>
+  </div>
+  <div class="msg" id="sp-msg"></div>
+</div>
+
+<div class="card">
   <label style="display:block;cursor:default"><span class="t">라이선스 키 발급 (1인 1키)
     <span class="d">구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀이
     Cloudflare 시크릿(<b>LICENSE_SECRET</b>)에 있으면 이메일만 넣으면 됩니다
@@ -237,6 +251,35 @@ $("lic-gen").onclick=function(){
     .catch(function(){localIssue(owner)});          // 로컬 파일로 열었을 때 등
 };
 if(localStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
+
+// ── 후원 기록 — docs/sponsors.json에 항목 추가(깃허브 커밋) ──
+var SP_API="https://api.github.com/repos/tobe2111/insta-story-downloader/contents/docs/sponsors.json";
+$("sp-add").onclick=function(){
+  var name=($("sp-name").value||"").trim().slice(0,20);
+  var amount=Math.round(Number($("sp-amount").value)||0);
+  var note=($("sp-note").value||"").trim().slice(0,100);
+  if(!name){msg("sp-msg","닉네임을 입력하세요",false);return}
+  if(amount<=0){msg("sp-msg","금액(원)을 입력하세요",false);return}
+  if(!localStorage.getItem("gh_token")){msg("sp-msg","위에서 GitHub 토큰을 먼저 연결하세요",false);return}
+  $("sp-add").disabled=true;
+  fetch(SP_API,{headers:headers()}).then(function(r){
+    if(!r.ok)throw new Error("sponsors.json 읽기 실패 HTTP "+r.status);
+    return r.json();
+  }).then(function(d){
+    var data=JSON.parse(b64d(d.content));
+    (data.sponsors=data.sponsors||[]).push({
+      name:name,amount:amount,note:note,
+      date:new Date().toISOString().slice(0,10)});
+    return fetch(SP_API,{method:"PUT",headers:headers(),body:JSON.stringify({
+      message:"후원 기록: "+name+" "+amount.toLocaleString()+"원 [skip ci]",
+      content:b64e(JSON.stringify(data,null,2)+"\n"),sha:d.sha})});
+  }).then(function(r){
+    if(!r.ok)throw new Error("저장 실패 HTTP "+r.status);
+    msg("sp-msg","기록됨 — 사이트 배포(1~2분) 후 랭킹에 반영됩니다.",true);
+    $("sp-name").value="";$("sp-amount").value="";$("sp-note").value="";
+  }).catch(function(e){msg("sp-msg",e.message,false)})
+  .finally(function(){$("sp-add").disabled=false});
+};
 
 // ── 오늘의 SNS 콘텐츠 — social/latest.json을 읽어 복사·저장 UI로 ──
 fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
