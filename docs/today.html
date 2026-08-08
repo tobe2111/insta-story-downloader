@@ -122,7 +122,11 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <td class="rsn">${esc(String(last.reason||""))}</td></tr>`;
   }).join("");
   out+=`<table><tr><th>종목</th><th>오늘의 자세</th><th>일간</th>
-    <th class="rsncol" style="text-align:left">판단 근거 (새벽 기준)</th></tr>${rows}</table>`;
+    <th class="rsncol" style="text-align:left">판단 근거 (새벽 기준)</th></tr>${rows}</table>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">※ '일간'은 그 종목
+    계좌 자산의 어제 대비 변화입니다. '오늘의 자세'는 새벽의 결정이라, 관망이어도
+    어제 보유분의 손익·체결 시차(주식은 다음 시가 체결)·수수료가 일간에 남을 수
+    있습니다. 어제도 완전 현금이었던 종목만 정확히 0.00%입니다.</p>`;
   el.innerHTML=out;
 }).catch(()=>{document.getElementById("content").innerHTML=
   '<p class="err">기록을 불러오지 못했습니다.</p>'});
