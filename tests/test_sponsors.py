@@ -41,3 +41,10 @@ def test_admin_sponsor_card_with_separation_warning():
 def test_today_daily_column_footnote():
     t = (ROOT / "docs" / "today.html").read_text(encoding="utf-8")
     assert "어제 보유분" in t and "다음 시가 체결" in t
+
+
+def test_reliability_table_has_wilson_ci_and_flag():
+    """사이트 신뢰도 곡선 — 신뢰구간 열과 보정 어긋남 플래그가 있다."""
+    p = (ROOT / "docs" / "paper.html").read_text(encoding="utf-8")
+    assert "95% 신뢰구간" in p and "wilson" in p
+    assert "보정 어긋남" in p

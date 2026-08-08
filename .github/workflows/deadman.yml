@@ -1,0 +1,82 @@
+name: Dead Man's Switch
+
+# 조용한 실패 감시 — 가장 위험한 실패는 '실행되지 않은 실패'다.
+# 배치 잡이 죽으면 자체 실패 경보가 울리지만, 크론이 아예 안 돌면(러너 장애·
+# 스케줄 누락·저장소 설정 변경) 어떤 경보도 없다 — 장부가 조용히 멈춘다.
+# 그래서 독립된 감시 잡이 매일 아침(08:30 KST, 모든 배치·재시도가 끝난 뒤)
+# "지난 26시간 안에 야간 재학습·매일 페이퍼 기록 커밋이 실제로 존재하는가"를
+# 결과물로 확인한다. 실행 여부가 아니라 기록의 존재를 보는 이유: 우리가 지키
+# 려는 것은 잡의 가동이 아니라 장부의 연속성이다.
+#
+# 한계(정직): 이 감시 잡 자체도 GitHub Actions 위에 있다 — GitHub 전체 장애
+# 는 못 잡는다(그날은 배치도 같이 멈추므로 다음 실행에서 26시간 창에 걸린다).
+
+on:
+  schedule:
+    - cron: "30 23 * * *"   # 08:30 KST — 본실행(05:00~) + 재시도(07:00~) 종료 후
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 300   # 26시간 창의 커밋을 충분히 담는 깊이
+
+      - name: 장부 연속성 확인 (지난 26시간)
+        id: probe
+        env:
+          QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
+        run: |
+          MISSING=""
+          if ! git log --since="26 hours ago" --pretty=%s | grep -q "야간 재학습 기록"; then
+            MISSING="야간재학습"
+          fi
+          if ! git log --since="26 hours ago" --pretty=%s | grep -q "매일 자동 페이퍼 기록"; then
+            MISSING="$MISSING 매일페이퍼"
+          fi
+          if ! git log --since="26 hours ago" --pretty=%s | grep -q "SNS 게시 콘텐츠"; then
+            MISSING="$MISSING SNS콘텐츠"
+          fi
+          # 사이트 반영 신선도 — 커밋은 됐는데 배포가 죽은 경우를 잡는다.
+          # 배포된 status.json의 updated가 최근 2일 안이어야 정상.
+          URL="${QUANT_LIVE_URL:-https://quant.jiwon-1a2.workers.dev}"
+          TODAY="$(date -u +%F)"; YDAY="$(date -u -d '1 day ago' +%F)"
+          if ! curl -sf --max-time 30 "$URL/status.json" | grep -q -e "$TODAY" -e "$YDAY"; then
+            MISSING="$MISSING 사이트반영"
+          fi
+          MISSING="$(echo "$MISSING" | xargs)"
+          echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
+          if [ -n "$MISSING" ]; then
+            echo "🚨 누락: $MISSING"
+            exit 1
+          fi
+          echo "✅ 배치 기록·사이트 반영 모두 확인 — 장부 연속성 정상"
+
+      - name: 🚨 dead man's switch 경보 (디스코드/텔레그램)
+        # 파이썬 의존성 없이 curl만 사용 — 경보 경로는 최대한 단순해야 한다.
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MISSING: ${{ steps.probe.outputs.missing }}
+        run: |
+          MSG="🚨 [Quant] dead man's switch — 지난 26시간 내 [${MISSING:-확인 불가}] 기록 커밋 없음. 새벽 배치가 실행되지 않았거나 푸시에 실패했습니다. 확인: https://github.com/${{ github.repository }}/actions"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료 (웹훅 미설정이면 로그만 남음)"
