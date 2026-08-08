@@ -54,7 +54,7 @@ class StockDataProvider(DataProvider):
                 df = fetch(symbol, timeframe, start, end, limit)
                 if df is None or df.empty:
                     raise ValueError("빈 결과")
-                out = self._validate(df)
+                out = self._drop_unclosed(self._validate(df))
                 out.attrs["source"] = name
                 if name != "yfinance":
                     log.info("%s: 보조 소스(%s)로 시세 수신 (%d봉)",
@@ -72,6 +72,39 @@ class StockDataProvider(DataProvider):
         # 폴백 표식 — 캐시가 더미 데이터를 실제 시세로 저장·재사용하지 않게.
         fb.attrs["synthetic_fallback"] = True
         return fb
+
+    def _drop_unclosed(self, df: pd.DataFrame, now=None) -> pd.DataFrame:
+        """미완결·유령 일봉 제거 — 장 마감 전의 '오늘' 봉과 미래 날짜 봉을 버린다.
+
+        야후는 거래소 현지 날짜가 바뀌면(예: KST 자정 직후) 아직 열리지도 않은
+        세션의 봉을 미리 내놓는다. 이 봉은 값이 계속 변해서
+            · asof(마지막 봉 날짜)가 하루 앞서 이동 → 멱등 가드 무력화
+              (같은 날 재시도 크론이 두 번째 학습·기록을 남긴다 — 2026-08-07
+              한국 주식 6종목 중복 기록의 실제 원인)
+            · 재현성 해시가 실행 시각마다 달라짐
+            · 미완결 봉을 라벨·피처로 학습
+        을 일으킨다. 규칙: 일봉에서 봉 날짜가 거래소 현지 '오늘'인데 아직
+        정규장 마감 전이거나, 미래 날짜면 그 봉을 버린다. 마감 후에는 그날
+        봉을 인정한다(미국 20:30 UTC 실행 = 마감 후라 영향 없음).
+        """
+        from quant.live.market_hours import SCHEDULES, _market_now
+        sched = SCHEDULES.get(self.market)
+        if sched is None or df.empty:
+            return df
+        # 일봉 판정: 인덱스 간격이 아니라 호출 맥락이 아닌 데이터로 — 마지막
+        # 두 봉의 간격이 1일 미만이면 인트라데이로 보고 건드리지 않는다.
+        if len(df) >= 2 and (df.index[-1] - df.index[-2]) < pd.Timedelta(days=1):
+            return df
+        tzname, _open_t, close_t = sched
+        local = _market_now(tzname, now)
+        while len(df):
+            bar_date = pd.Timestamp(df.index[-1]).date()
+            if bar_date > local.date() or (
+                    bar_date == local.date() and local.time() < close_t):
+                df = df.iloc[:-1]
+            else:
+                break
+        return df
 
     # ── 소스별 구현 ────────────────────────────────────────────────────
 
