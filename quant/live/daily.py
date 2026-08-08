@@ -163,10 +163,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     weight = float(_risk_for(market).size_positions(df, signals).iloc[-1])
     price = float(df["close"].iloc[-1])
 
-    # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시
+    # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시.
+    # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률)를 함께 넘겨
+    # 사이징 사슬·신뢰도 참고까지 붙은 상세 해설을 만든다.
     from quant.live.explain import explain_signal
     reason = explain_signal(champion_spec(market, symbol, state_dir), df,
-                            weight, getattr(strategy, "_impl", None))
+                            weight, getattr(strategy, "_impl", None),
+                            raw_weight=float(signals.iloc[-1]),
+                            history=st.get("history") or [])
     # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
     try:
         from quant.live.parliament import parliament_summary
