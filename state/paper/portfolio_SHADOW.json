@@ -2,19 +2,27 @@
   "market": "portfolio_shadow",
   "symbol": "SHADOW",
   "start_cash": 80000.0,
-  "cash": 74102.39535195634,
+  "cash": 75157.33497840089,
   "positions": {
     "us_stock:AAPL": {
-      "quantity": 4.6328327485792675,
+      "quantity": 0.11685405920827385,
       "avg_price": 314.3399963378906
     },
     "us_stock:AMZN": {
-      "quantity": 14.643787824747292,
+      "quantity": 13.658028936976496,
       "avg_price": 272.7650146484375
     },
     "kr_stock:069500.KS": {
       "quantity": 0.004341723465626924,
       "avg_price": 102060.0
+    },
+    "us_stock:QQQ": {
+      "quantity": 0.2836570968106787,
+      "avg_price": 720.1500244140625
+    },
+    "us_stock:META": {
+      "quantity": 0.708444685969292,
+      "avg_price": 585.6400146484375
     }
   },
   "base_prices": {
@@ -39,7 +47,7 @@
     "kr_stock:051910.KS": 255500.0,
     "kr_stock:105560.KS": 169545.0
   },
-  "last_bar": "2026-08-07",
+  "last_bar": "2026-08-08",
   "history": [
     {
       "date": "2026-08-05",
@@ -243,63 +251,140 @@
       },
       "twr_pct": -0.04,
       "random_pctile": null
+    },
+    {
+      "date": "2026-08-08",
+      "price": 99.38,
+      "weight": 0.0526,
+      "equity": 79993.25,
+      "return_pct": -0.01,
+      "principal": 80000.0,
+      "pnl": -6.75,
+      "hit_rate": null,
+      "fills": [
+        {
+          "key": "us_stock:SPY",
+          "price": 771.02002,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.0
+        },
+        {
+          "key": "us_stock:QQQ",
+          "price": 720.150024,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.0511
+        },
+        {
+          "key": "us_stock:NVDA",
+          "price": 221.539993,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.0
+        },
+        {
+          "key": "us_stock:MSFT",
+          "price": 499.209991,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.0
+        },
+        {
+          "key": "us_stock:AAPL",
+          "price": 311.450012,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.3699
+        },
+        {
+          "key": "us_stock:AMZN",
+          "price": 272.869995,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.3107
+        },
+        {
+          "key": "us_stock:META",
+          "price": 585.640015,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.1038
+        },
+        {
+          "key": "us_stock:TSLA",
+          "price": 322.339996,
+          "bar": "2026-08-07 00:00:00",
+          "weight": 0.0
+        }
+      ],
+      "code_sha": "82d5786465bb",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "risk_scale": 1.0,
+      "paused": false,
+      "exposure_scale": 1.0,
+      "drawdown_pct": -0.01,
+      "alloc": {
+        "crypto:BTC/USDT": 0.0058,
+        "crypto:ETH/USDT": 0.0,
+        "crypto:SOL/USDT": 0.0,
+        "crypto:BNB/USDT": 0.0,
+        "crypto:XRP/USDT": 0.0,
+        "us_stock:SPY": 0.0,
+        "us_stock:QQQ": 0.0,
+        "us_stock:NVDA": 0.0,
+        "us_stock:MSFT": 0.0,
+        "us_stock:AAPL": 0.0069,
+        "us_stock:AMZN": 0.15,
+        "us_stock:META": 0.0,
+        "us_stock:TSLA": 0.0,
+        "kr_stock:069500.KS": 0.1033,
+        "kr_stock:005930.KS": 0.0714,
+        "kr_stock:000660.KS": 0.071,
+        "kr_stock:035420.KS": 0.15,
+        "kr_stock:005380.KS": 0.15,
+        "kr_stock:051910.KS": 0.0,
+        "kr_stock:105560.KS": 0.0
+      },
+      "xsec_tilt": {
+        "crypto:BTC/USDT": 1.0,
+        "crypto:ETH/USDT": 1.1,
+        "crypto:SOL/USDT": 1.0,
+        "crypto:BNB/USDT": 1.15,
+        "crypto:XRP/USDT": 1.05,
+        "us_stock:SPY": 1.0,
+        "us_stock:QQQ": 0.8,
+        "us_stock:NVDA": 1.0,
+        "us_stock:MSFT": 1.0,
+        "us_stock:AAPL": 1.25,
+        "us_stock:AMZN": 1.2,
+        "us_stock:META": 0.9,
+        "us_stock:TSLA": 1.0,
+        "kr_stock:069500.KS": 0.95,
+        "kr_stock:005930.KS": 0.75,
+        "kr_stock:000660.KS": 0.85,
+        "kr_stock:035420.KS": 1.0,
+        "kr_stock:005380.KS": 1.0,
+        "kr_stock:051910.KS": 1.0,
+        "kr_stock:105560.KS": 1.0
+      },
+      "champion": {
+        "symbols": 20,
+        "skipped": []
+      },
+      "twr_pct": -0.01,
+      "random_pctile": 100.0
     }
   ],
   "risk_scale": 1.0,
   "pending": {
-    "us_stock:SPY": {
-      "weight": 0.0,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:QQQ": {
-      "weight": 0.0511,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:NVDA": {
-      "weight": 0.0,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:MSFT": {
-      "weight": 0.0,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:AAPL": {
-      "weight": 0.3699,
-      "slice": 0.00123,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:AMZN": {
-      "weight": 0.3107,
-      "slice": 0.15,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:META": {
-      "weight": 0.1038,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
-    "us_stock:TSLA": {
-      "weight": 0.0,
-      "slice": 0.0,
-      "decided_bar": "2026-08-06 00:00:00"
-    },
     "kr_stock:069500.KS": {
-      "weight": 0.0862,
-      "slice": 0.09498,
+      "weight": 0.1097,
+      "slice": 0.10333,
       "decided_bar": "2026-08-07 00:00:00"
     },
     "kr_stock:005930.KS": {
-      "weight": 0.0,
-      "slice": 0.09637,
+      "weight": 0.012,
+      "slice": 0.07138,
       "decided_bar": "2026-08-07 00:00:00"
     },
     "kr_stock:000660.KS": {
-      "weight": 0.0069,
-      "slice": 0.06383,
+      "weight": 0.0577,
+      "slice": 0.07101,
       "decided_bar": "2026-08-07 00:00:00"
     },
     "kr_stock:035420.KS": {
@@ -318,6 +403,46 @@
       "decided_bar": "2026-08-07 00:00:00"
     },
     "kr_stock:105560.KS": {
+      "weight": 0.0,
+      "slice": 1e-05,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:SPY": {
+      "weight": 0.0,
+      "slice": 1e-05,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:QQQ": {
+      "weight": 0.0135,
+      "slice": 1e-05,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:NVDA": {
+      "weight": 0.0,
+      "slice": 1e-05,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:MSFT": {
+      "weight": 0.0,
+      "slice": 1e-05,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:AAPL": {
+      "weight": 0.3661,
+      "slice": 0.00686,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:AMZN": {
+      "weight": 0.2255,
+      "slice": 0.15,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:META": {
+      "weight": 0.1009,
+      "slice": 0.0,
+      "decided_bar": "2026-08-07 00:00:00"
+    },
+    "us_stock:TSLA": {
       "weight": 0.0,
       "slice": 0.0,
       "decided_bar": "2026-08-07 00:00:00"

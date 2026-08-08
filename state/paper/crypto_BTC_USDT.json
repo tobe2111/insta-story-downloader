@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-07 00:00:00",
+  "last_bar": "2026-08-08 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -64,6 +64,29 @@
       "accounting": "next_open_v2",
       "prob_up": 0.544305036333677,
       "drift_psi": 0.3468
+    },
+    {
+      "date": "2026-08-08",
+      "price": 65081.6,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.3333333333333333,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 평균 진폭(ATR) 일 2.1% / 50일선 이격 +2.7%(선 위) / 실현변동성 비율(5/60일) 0.40(변동성 수축 국면)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "82d5786465bb",
+      "data_sha256": "ec36a8e4a2bcf26fb6d5486ef0c2891b8384f5cdefea3fc30fb1a73861c767db",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5327509250929128,
+      "drift_psi": 0.3886
     }
   ],
   "market": "crypto",
