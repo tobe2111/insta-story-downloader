@@ -78,16 +78,31 @@ def test_sizing_chain_shown_when_risk_reduces_weight():
 # ── ③ 확률대 과거 적중률 ───────────────────────────────────────
 
 
-def test_band_accuracy_needs_min_samples_and_matches():
-    hist = [{"prob_up": 0.7, "price": 100 + i + (i % 2)}  # 절반 상승
-            for i in range(8)]
-    out = _band_accuracy(hist, 0.72)
-    assert "실제 상승 비율" in out and "표본 적음" in out
-    assert _band_accuracy(hist[:4], 0.72) != ""      # 4기록 = 3짝 → 표시
-    assert _band_accuracy(hist[:3], 0.72) == ""      # 3기록 = 2짝 → 숨김
-    assert _band_accuracy([], 0.7) == ""
-    # 확률대가 멀면(±10%p 밖) 집계되지 않는다
-    assert _band_accuracy(hist, 0.45) == ""
+def test_band_accuracy_min_25_samples_and_wilson_ci():
+    def hist(n):                                     # 절반쯤 상승하는 장부
+        return [{"prob_up": 0.7, "price": 100 + i + (i % 2)} for i in range(n)]
+    # 25짝 미만: 숫자 대신 '표본 축적 중 (n=X)' — 잡음이 확신처럼 안 보이게
+    out = _band_accuracy(hist(9), 0.72)              # 8짝
+    assert "표본 축적 중" in out and "종목 n=8" in out
+    assert "실제 상승 비율" not in out
+    assert "종목 n=0" in _band_accuracy([], 0.7)
+    # 확률대가 멀면(±10%p 밖) 표본에 안 잡힌다 → n=0 축적 중
+    assert "종목 n=0" in _band_accuracy(hist(9), 0.45)
+    # 25짝 이상: 비율 + 윌슨 95% 신뢰구간 병기
+    out = _band_accuracy(hist(30), 0.72)             # 29짝
+    assert "실제 상승 비율" in out and "95% 신뢰구간" in out
+    assert "표본 축적 중" not in out
+
+
+def test_wilson_ci_bounded_and_sane():
+    from quant.live.explain import _wilson_ci
+    lo, hi = _wilson_ci(0.5, 25)
+    assert 0.0 <= lo < 0.5 < hi <= 1.0
+    assert hi - lo < 0.45                            # n=25에서 폭이 유한
+    lo0, hi0 = _wilson_ci(0.0, 25)                   # 극단 비율도 [0,1] 안
+    assert lo0 == 0.0 and hi0 > 0.0
+    lo1, hi1 = _wilson_ci(1.0, 25)
+    assert hi1 == 1.0 and lo1 < 1.0
 
 
 # ── ④ 실패 안전 ────────────────────────────────────────────────
@@ -96,3 +111,23 @@ def test_band_accuracy_needs_min_samples_and_matches():
 def test_explain_never_raises_on_garbage():
     txt = explain_signal({"strategy": "ml", "params": {}}, None, 0.3, None)
     assert "—" in txt                                # 폴백 문장이라도 나온다
+
+
+def test_band_accuracy_pooled_fallback():
+    """종목 표본 미달 + 합산 25건 이상 → '전 종목 합산' 통계로 폴백."""
+    own = [{"prob_up": 0.7, "price": 100 + i} for i in range(5)]      # 4짝
+    pool = [[{"prob_up": 0.7, "price": 100 + i + (i % 2)} for i in range(16)]
+            for _ in range(2)]                                        # 30짝
+    out = _band_accuracy(own, 0.72, pooled_history=pool)
+    assert "전 종목 합산" in out and "95% 신뢰구간" in out
+    assert "단독 표본은 4건" in out
+    # 합산도 미달이면 양쪽 카운트를 밝힌 축적 중 문구
+    out2 = _band_accuracy(own, 0.72, pooled_history=pool[:1][:1])
+    assert "표본 축적 중" in out2 and "종목 n=4" in out2
+
+
+def test_daily_passes_pooled_history():
+    """daily가 합산 장부를 해설에 전달한다(연결 계약)."""
+    src = (Path(__file__).resolve().parent.parent
+           / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert "pooled_history=_all_paper_histories" in src

@@ -401,19 +401,30 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       }
     }
     const total=agg.reduce((a,b)=>a+b.n,0);
+    // 윌슨 95% 신뢰구간 — 소표본의 비율이 확신처럼 읽히지 않게 폭을 함께 보인다
+    const wilson=(p,n)=>{const z=1.96,d=1+z*z/n,c=(p+z*z/(2*n))/d,
+      h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;
+      return [Math.max(0,c-h),Math.min(1,c+h)]};
     if(total>0){
       const rowsC=buckets.map((b,i)=>{
         const a=agg[i];
-        const real=a.n?`${(a.up/a.n*100).toFixed(0)}%`:"–";
-        return `<tr><td>${b[2]}</td><td>${a.n}일</td><td>${real}</td></tr>`;
+        if(!a.n)return `<tr><td>${b[2]}</td><td>0일</td><td>–</td><td>–</td></tr>`;
+        const p=a.up/a.n, [lo,hi]=wilson(p,a.n);
+        const ci=`${(lo*100).toFixed(0)}~${(hi*100).toFixed(0)}%`;
+        // 보정 어긋남 플래그 — 표본 30일 이상인데 신뢰구간이 예측 구간을
+        // 완전히 벗어나면(통계적으로 비양립) 숨기지 않고 표시한다.
+        const off=a.n>=30&&(hi<b[0]||lo>Math.min(b[1],1));
+        const real=`${(p*100).toFixed(0)}%`+(off?' <span style="color:var(--bad)">⚠️ 보정 어긋남</span>':"");
+        return `<tr><td>${b[2]}</td><td>${a.n}일</td><td>${real}</td><td style="color:var(--muted)">${ci}</td></tr>`;
       }).join("");
       calib=`<div class="card"><h2>AI 확률의 정직성 검증 <span style="font-size:12px;color:var(--muted);font-weight:400">신뢰도 곡선${total<30?` · 수집 중(${total}일) — 표본이 쌓일수록 의미가 생깁니다`:` · 표본 ${total}일`}</span></h2>
         <p class="sub" style="margin:6px 0 4px;font-size:13px">모델이 말한 상승확률
         구간별로, 실제로 오른 날의 비율입니다. "60%라고 한 날들"이 실제로 약
         60% 오르면 확률이 <b>보정</b>된 것이고, 크게 어긋나면 그 사실이 그대로
-        여기 보입니다. 예측은 새벽에 먼저 기록되고 결과는 다음 날 붙습니다.</p>
+        여기 보입니다. 예측은 새벽에 먼저 기록되고 결과는 다음 날 붙습니다.
+        신뢰구간(95%)이 좁아질 때까지는 비율보다 구간을 믿으세요.</p>
         <div class="tablewrap"><table>
-        <tr><th style="text-align:left">예측 확률</th><th>일수</th><th>실제 상승 비율</th></tr>
+        <tr><th style="text-align:left">예측 확률</th><th>일수</th><th>실제 상승 비율</th><th>95% 신뢰구간</th></tr>
         ${rowsC}</table></div></div>`;
     }
   }

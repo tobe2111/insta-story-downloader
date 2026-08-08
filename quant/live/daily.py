@@ -117,6 +117,29 @@ def _paper_path(market: str, symbol: str, state_dir: str) -> str:
     return os.path.join(state_dir, "paper", f"{safe}.json")
 
 
+def _all_paper_histories(state_dir: str) -> list:
+    """전 종목 페이퍼 장부의 history 목록 — 확률대 적중률의 합산 표본 재료.
+
+    종목별 25건 축적에는 한 달 이상 걸리므로, 그때까지는 전 종목 합산으로
+    표본을 조기 확보한다(이질성 트레이드오프는 해설 문구에 명시). 포트폴리오
+    통합 계좌 파일은 종목 확률이 없으므로 제외. 실패는 빈 목록(해설 재료일
+    뿐 — 실패가 기록을 막으면 안 된다).
+    """
+    import glob as _glob
+    out = []
+    for pth in sorted(_glob.glob(os.path.join(state_dir, "paper", "*.json"))):
+        if "portfolio" in os.path.basename(pth).lower():
+            continue
+        try:
+            with open(pth, encoding="utf-8") as f:
+                h = json.load(f).get("history")
+            if isinstance(h, list) and h:
+                out.append(h)
+        except (OSError, ValueError):
+            continue
+    return out
+
+
 def _load_paper(path: str) -> dict:
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
@@ -164,13 +187,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     price = float(df["close"].iloc[-1])
 
     # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시.
-    # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률)를 함께 넘겨
-    # 사이징 사슬·신뢰도 참고까지 붙은 상세 해설을 만든다.
+    # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률), 전 종목 합산
+    # 장부(종목 표본 25건 미달 시 폴백)를 함께 넘겨 상세 해설을 만든다.
     from quant.live.explain import explain_signal
     reason = explain_signal(champion_spec(market, symbol, state_dir), df,
                             weight, getattr(strategy, "_impl", None),
                             raw_weight=float(signals.iloc[-1]),
-                            history=st.get("history") or [])
+                            history=st.get("history") or [],
+                            pooled_history=_all_paper_histories(state_dir))
     # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
     try:
         from quant.live.parliament import parliament_summary

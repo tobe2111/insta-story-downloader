@@ -108,6 +108,22 @@ jobs:
             sleep $((2**i))
           done
           echo "❌ 기록 푸시 실패"; exit 1
+      - name: 외부 하트비트 핑 (HEARTBEAT_URL 설정 시)
+        # dead man's switch의 2중화 — 감시 잡도 GitHub Actions 위에 있어
+        # GitHub 전체 장애는 못 잡는다. healthchecks.io류 외부 서비스에 성공
+        # 핑을 보내면, 핑이 끊겼을 때 '외부에서' 경보가 온다. 시크릿
+        # HEARTBEAT_URL 미설정이면 조용히 건너뛴다.
+        if: success()
+        env:
+          HEARTBEAT_URL: ${{ secrets.HEARTBEAT_URL }}
+        run: |
+          if [ -n "$HEARTBEAT_URL" ]; then
+            curl -fsS --max-time 20 --retry 3 "$HEARTBEAT_URL" >/dev/null \
+              && echo "💓 하트비트 전송" || echo "하트비트 전송 실패 — 무시"
+          else
+            echo "HEARTBEAT_URL 미설정 — 건너뜀"
+          fi
+
       - name: 실패 경보 (디스코드/텔레그램)
         # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.
         # 파이썬 의존성 없이 curl만 사용(의존성 설치 전에 죽어도 동작).

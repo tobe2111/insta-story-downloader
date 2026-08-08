@@ -66,13 +66,23 @@ def _feature_note(name: str, value: float) -> str:
     return f"{ko} {v:+.2f}"
 
 
-def _band_accuracy(history: list, prob: float, band: float = 0.10) -> str:
-    """이 종목 장부에서 '오늘과 비슷한 확률대'의 과거 실제 적중률을 찾는다.
+# 확률대 적중률을 숫자로 표시하기 위한 최소 표본 — 25건 미만의 비율은
+# 통계가 아니라 잡음이다(n=8이면 ±35%p씩 흔들린다). 미달이면 숫자 대신
+# '축적 중'만 표시해, 작은 표본이 확신처럼 읽히는 것을 막는다.
+MIN_BAND_SAMPLES = 25
 
-    새벽에 기록된 prob_up(t)과 다음 기록의 가격 방향(t+1)을 짝지어, 오늘
-    확률 ±band 구간의 실제 상승 비율을 계산한다 — 신뢰도 곡선의 종목판.
-    표본이 3일 미만이면 빈 문자열(숫자 놀음 방지).
-    """
+
+def _wilson_ci(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
+    """윌슨 신뢰구간(95%) — 소표본·극단 비율에서도 [0,1]을 벗어나지 않는다."""
+    import math
+    denom = 1.0 + z * z / n
+    center = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return max(0.0, center - half), min(1.0, center + half)
+
+
+def _band_pairs(history: list, prob: float, band: float) -> list:
+    """장부에서 (새벽 확률, 다음 날 방향) 짝 중 오늘 확률대에 드는 것만 모은다."""
     pairs = []
     for a, b in zip(history, history[1:]):
         p = a.get("prob_up")
@@ -81,17 +91,46 @@ def _band_accuracy(history: list, prob: float, band: float = 0.10) -> str:
             continue
         if abs(float(p) - prob) <= band:
             pairs.append(1.0 if float(pb) > float(pa) else 0.0)
-    if len(pairs) < 3:
-        return ""
-    acc = sum(pairs) / len(pairs)
-    caveat = " — 표본 적음" if len(pairs) < 10 else ""
-    return (f" · 참고: 이 종목에서 모델이 {prob:.0%}±10%p라 말한 최근 "
-            f"{len(pairs)}일의 실제 상승 비율 {acc:.0%}{caveat}")
+    return pairs
+
+
+def _band_accuracy(history: list, prob: float, band: float = 0.10,
+                   pooled_history: list | None = None) -> str:
+    """오늘과 비슷한 확률대의 과거 실제 적중률 — 신뢰도 곡선의 문장판.
+
+    새벽에 기록된 prob_up(t)과 다음 기록의 가격 방향(t+1)을 짝짓는다.
+    우선순위: ① 이 종목 표본이 25건 이상이면 종목 통계(가장 정확)
+             ② 미달이면 전 종목 합산(이질성은 있지만 표본이 빨리 모임)
+             ③ 둘 다 미달이면 숫자 없이 '표본 축적 중 (n=X)'
+    25건 이상일 때만 비율을 표시하고 윌슨 95% 신뢰구간을 병기한다 —
+    작은 표본의 비율이 확신처럼 읽히는 것을 막는 규칙.
+    """
+    own = _band_pairs(history, prob, band)
+    if len(own) >= MIN_BAND_SAMPLES:
+        acc = sum(own) / len(own)
+        lo, hi = _wilson_ci(acc, len(own))
+        return (f" · 참고: 이 종목에서 모델이 {prob:.0%}±10%p라 말한 최근 "
+                f"{len(own)}일의 실제 상승 비율 {acc:.0%} "
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%})")
+    pooled = []
+    for h in (pooled_history or []):
+        pooled.extend(_band_pairs(h, prob, band))
+    if len(pooled) >= MIN_BAND_SAMPLES:
+        acc = sum(pooled) / len(pooled)
+        lo, hi = _wilson_ci(acc, len(pooled))
+        return (f" · 참고: 전 종목 합산으로 모델이 {prob:.0%}±10%p라 말한 "
+                f"{len(pooled)}건의 실제 상승 비율 {acc:.0%} "
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%} · 이 종목 단독 표본은 "
+                f"{len(own)}건으로 축적 중)")
+    return (f" · 참고: 이 확률대({prob:.0%}±10%p)의 과거 성적은 "
+            f"표본 축적 중 (종목 n={len(own)} · 합산 n={len(pooled)}, "
+            f"{MIN_BAND_SAMPLES}건부터 표시)")
 
 
 def explain_signal(spec: dict, df, weight: float, strategy=None,
                    raw_weight: float | None = None,
-                   history: list | None = None) -> str:
+                   history: list | None = None,
+                   pooled_history: list | None = None) -> str:
     """전략 스펙 + 데이터 + 산출 비중으로 한국어 근거 문장을 만든다.
 
     strategy 인스턴스를 주면(직전에 generate_signals를 돌린 것) ML 피처
@@ -102,14 +141,16 @@ def explain_signal(spec: dict, df, weight: float, strategy=None,
     """
     try:
         return _explain(spec, df, weight, strategy,
-                        raw_weight=raw_weight, history=history)
+                        raw_weight=raw_weight, history=history,
+                        pooled_history=pooled_history)
     except Exception:  # noqa: BLE001
         return f"{_direction(weight)} — 챔피언 전략 신호에 따름"
 
 
 def _explain(spec: dict, df, weight: float, strategy,
              raw_weight: float | None = None,
-             history: list | None = None) -> str:
+             history: list | None = None,
+             pooled_history: list | None = None) -> str:
     name = spec.get("strategy")
     p = spec.get("params", {})
     close = df["close"]
@@ -124,7 +165,8 @@ def _explain(spec: dict, df, weight: float, strategy,
                     "손실 회피를 위해 매매를 멈추고 관망")
         inner = _explain(p.get("inner", {}), df, weight,
                          getattr(strategy, "base", None),
-                         raw_weight=raw_weight, history=history)
+                         raw_weight=raw_weight, history=history,
+                         pooled_history=pooled_history)
         return f"{inner} · 레짐 필터: {tw}일선 위(매매 허용)"
 
     if name == "event_wrap":
@@ -139,7 +181,8 @@ def _explain(spec: dict, df, weight: float, strategy,
                     f"(±{pad}일) → 변동성 위험을 피해 비중 축소/관망")
         inner = _explain(p.get("inner", {}), df, weight,
                          getattr(strategy, "base", None),
-                         raw_weight=raw_weight, history=history)
+                         raw_weight=raw_weight, history=history,
+                         pooled_history=pooled_history)
         return f"{inner} · 이벤트 가드: 오늘은 주요 이벤트 없음(매매 허용)"
 
     if name == "ml":
@@ -184,7 +227,9 @@ def _explain(spec: dict, df, weight: float, strategy,
 
         # 확률대 과거 적중률 — 오늘과 비슷한 확률을 말했던 날들의 실제 성적.
         # 검증이 확률 서술 바로 옆에 붙어야 과신도 불신도 데이터로 말한다.
-        band = _band_accuracy(history or [], prob) if prob is not None else ""
+        band = (_band_accuracy(history or [], prob,
+                               pooled_history=pooled_history)
+                if prob is not None else "")
 
         if prob is not None:
             body = (f"{model_ko} 모델이 내일 상승확률을 약 "
