@@ -175,6 +175,11 @@ def build_strategy(spec: dict):
         params = dict(spec.get("params", {}))
         inner = build_strategy(params.pop("inner"))
         return EventGuard(inner, **params)
+    if spec["strategy"] == "stop_wrap":
+        from quant.strategies import TrailingStopGuard
+        params = dict(spec.get("params", {}))
+        inner = build_strategy(params.pop("inner"))
+        return TrailingStopGuard(inner, **params)
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -390,6 +395,13 @@ def build_challengers(current_spec: dict, seed: str,
         challengers.append({"strategy": "event_wrap",
                             "params": {"inner": current_spec, "pad_days": 0,
                                        "factor": 0.5, "include_minor": True}})
+    else:
+        challengers.append(current_spec["params"]["inner"])
+    if current_spec["strategy"] != "stop_wrap":
+        # 트레일링 스톱 변형 — 고점 대비 -10% 되돌림 청산. 스톱은 이익 장치가
+        # 아니라(추세장에서는 수익을 깎기도 한다) 오디션으로만 채택된다.
+        challengers.append({"strategy": "stop_wrap",
+                            "params": {"inner": current_spec, "trail": 0.10}})
     else:
         challengers.append(current_spec["params"]["inner"])
     return challengers

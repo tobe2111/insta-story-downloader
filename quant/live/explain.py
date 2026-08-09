@@ -216,6 +216,15 @@ def _explain(spec: dict, df, weight: float, strategy,
                          pooled_history=pooled_history)
         return f"{inner} · 이벤트 가드: 오늘은 주요 이벤트 없음(매매 허용)"
 
+    if name == "stop_wrap":
+        trail = float(p.get("trail", 0.10))
+        inner = _explain(p.get("inner", {}), df, weight,
+                         getattr(strategy, "base", None),
+                         raw_weight=raw_weight, history=history,
+                         pooled_history=pooled_history)
+        return (f"{inner} · 트레일링 스톱: 보유 고점 대비 -{trail:.0%} "
+                "되돌림 시 청산")
+
     if name == "ml":
         thr = float(p.get("threshold", 0.55))
         model = p.get("model", "logreg")

@@ -209,6 +209,12 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
             weight = float(weight * ef)
             earnings_guard = {"date": edate, "factor": ef}
 
+    # 부분 켈리 상한 — 이 종목의 OOS(페이퍼) 통계가 30일 이상 쌓이면
+    # ½켈리로 최대 비중을 제한한다(과대 베팅의 복리 벌칙 방어).
+    kelly_cap = _kelly_cap_from_history(st.get("history") or [])
+    if kelly_cap < 1.0:
+        weight = float(np.clip(weight, -kelly_cap, kelly_cap))
+
     # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시.
     # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률), 전 종목 합산
     # 장부(종목 표본 25건 미달 시 폴백)를 함께 넘겨 상세 해설을 만든다.
@@ -284,6 +290,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "drift_psi": _drift_psi(df),
         # 실적 가드 발동 흔적(발동 없으면 None) — 왜 비중이 절반인지의 답
         "earnings_guard": earnings_guard,
+        # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적
+        "kelly_cap": round(kelly_cap, 4) if kelly_cap < 1.0 else None,
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -427,6 +435,39 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     actual = actual_twr_pct / 100.0
     beaten = sum(1 for f in finals if f < actual)
     return round(beaten / n * 100, 1)
+
+
+def _kelly_cap_from_history(history: list, fraction: float = 0.5,
+                            floor: float = 0.25, min_days: int = 30) -> float:
+    """페이퍼 장부(OOS)의 보유일 수익 통계로 부분 켈리 '상한'을 만든다.
+
+    보유일(그날 비중≠0)의 다음날 자산 수익으로 승률·평균손익을 추정해
+    ½켈리를 계산하고 [floor, 1.0]로 클립한다. 표본 min_days 미만이면
+    1.0(비개입) — 잡음 통계 위의 켈리는 수학의 탈을 쓴 도박이다.
+    인샘플 백테스트가 아니라 실제 페이퍼 기록이라 켈리의 전제(OOS)에 맞다.
+    엣지 추정이 음수여도 floor 밑으로는 안 내린다 — '걸지 마라'의 판정은
+    켈리가 아니라 오디션·킬스위치의 몫이다(역할 분리).
+    """
+    try:
+        rets = []
+        for a, b in zip(history, history[1:]):
+            if abs(float(a.get("weight") or 0.0)) > 0:
+                ea = float(a.get("equity") or 0.0)
+                eb = float(b.get("equity") or 0.0)
+                if ea > 0 and eb > 0:
+                    rets.append(eb / ea - 1.0)
+        if len(rets) < min_days:
+            return 1.0
+        wins = [r for r in rets if r > 0]
+        losses = [r for r in rets if r < 0]
+        if not wins or not losses:
+            return 1.0
+        from quant.risk import kelly_fraction
+        k = kelly_fraction(len(wins) / len(rets),
+                           sum(wins) / len(wins), sum(losses) / len(losses))
+        return float(max(floor, min(1.0, fraction * k)))
+    except Exception:  # noqa: BLE001 — 상한 계산 실패 = 비개입(1.0)
+        return 1.0
 
 
 def _regime_breakdown(history: list, window: int = 20) -> dict | None:
@@ -667,6 +708,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 if edate and ef < 1.0:
                     weights[key] = float(weights[key] * ef)
                     earnings_guards[key] = edate
+            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용
+            kcap = _kelly_cap_from_history(
+                _load_paper(_paper_path(market, symbol, state_dir))
+                .get("history") or [])
+            if kcap < 1.0:
+                weights[key] = float(np.clip(weights[key], -kcap, kcap))
             rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
