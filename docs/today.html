@@ -127,7 +127,79 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     계좌 자산의 어제 대비 변화입니다. '오늘의 자세'는 새벽의 결정이라, 관망이어도
     어제 보유분의 손익·체결 시차(주식은 다음 시가 체결)·수수료가 일간에 남을 수
     있습니다. 어제도 완전 현금이었던 종목만 정확히 0.00%입니다.</p>`;
+
+  // 오늘의 체결·예약 — "언제, 얼마에 사고팔았나 / 내일 뭘 살 예정인가"
+  {
+    const pf=st.paper["portfolio:ALL"]||{};
+    const rec=(pf.history||[])[(pf.history||[]).length-1]||{};
+    const nm=k=>((st.symbols||{})[k]||{}).name||String(k).split(":")[1]||k;
+    const fills=rec.fills||[];
+    const pend=rec.pending_next_open||{};
+    let ftab="";
+    if(fills.length){
+      ftab=`<table><tr><th style="text-align:left">종목</th><th>체결 방식</th>
+        <th>체결가</th><th>체결 시점</th></tr>`+fills.map(f=>{
+        const t=f.type||"시가";
+        const when=t==="즉시"?"새벽 결정 직후":(String(f.bar||"").slice(0,10)+" 개장 시가");
+        return `<tr><td style="text-align:left"><b>${esc(nm(f.key))}</b>${
+          f.side?` <span style="color:var(--muted);font-size:12px">${f.side==="buy"?"매수":"매도"}</span>`:""}</td>
+          <td>${t==="즉시"?"즉시(코인)":"다음 시가(주식)"}</td>
+          <td>${Number(f.price).toLocaleString()}</td><td>${when}</td></tr>`}).join("")+`</table>`;
+    }else ftab=`<p style="color:var(--muted);font-size:13px">오늘 체결된 주문이 없습니다.</p>`;
+    let ptab="";
+    const pkeys=Object.keys(pend).filter(k=>Math.abs(pend[k])>0.0005);
+    if(pkeys.length){
+      ptab=`<table><tr><th style="text-align:left">종목</th><th>목표 계좌 비중</th>
+        <th>체결 예정</th></tr>`+pkeys.sort((a,b)=>pend[b]-pend[a]).map(k=>
+        `<tr><td style="text-align:left"><b>${esc(nm(k))}</b></td>
+         <td>${(pend[k]*100).toFixed(2)}%</td>
+         <td>다음 장 시가</td></tr>`).join("")+`</table>`;
+    }else ptab=`<p style="color:var(--muted);font-size:13px">예약된 주문이 없습니다(전 종목 관망 또는 이미 체결).</p>`;
+    out+=`<h2 style="font-size:16px;margin:26px 0 6px">오늘의 체결 <span style="font-size:12px;color:var(--muted);font-weight:400">진입 시점·가격 — 장부 그대로</span></h2>${ftab}
+      <h2 style="font-size:16px;margin:20px 0 6px">예약 주문 <span style="font-size:12px;color:var(--muted);font-weight:400">오늘 새벽 결정 → 다음 장 시가 체결</span></h2>${ptab}
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">※ 주식은 "결정한 날 종가에 산 척"하지 않고
+      실제로 가능한 체결(다음 세션 개장 시가, 갭 감수)만 인정합니다 — 백테스트 눈속임 방지 규칙.</p>`;
+  }
+
+  // 실시간 차트(TradingView) — 표시 전용. 매매 판단은 새벽 데이터만 쓴다.
+  if(!location.search.includes("card=1")){
+    const tvMap=k=>{
+      const [m,s]=String(k).split(":");
+      if(m==="crypto")return "BINANCE:"+s.replace("/","");
+      if(m==="kr_stock")return "KRX:"+s.replace(".KS","");
+      if(m==="us_stock")return (s==="SPY"?"AMEX:":"NASDAQ:")+s;
+      return null};
+    const opts=rest.map(k=>{const tv=tvMap(k);
+      return tv?`<option value="${tv}">${esc(((st.symbols||{})[k]||{}).name||k)}</option>`:""}).join("");
+    out+=`<h2 style="font-size:16px;margin:26px 0 6px">실시간 차트
+      <span style="font-size:12px;color:var(--muted);font-weight:400">TradingView · 표시 전용(판단은 새벽 데이터)</span>
+      <select id="tvsel" style="float:right;background:var(--bg2,#12141a);color:inherit;
+        border:1px solid rgba(128,128,128,.3);border-radius:8px;padding:4px 8px;font-size:13px">${opts}</select></h2>
+      <div id="tvchart" style="height:440px;border:1px solid rgba(128,128,128,.2);border-radius:12px;overflow:hidden"></div>`;
+  }
   el.innerHTML=out;
+  // TradingView 위젯 로드 — 셀렉터로 종목 전환(위젯 재생성)
+  const tvBox=document.getElementById("tvchart");
+  if(tvBox){
+    const load=sym=>{
+      tvBox.innerHTML="";
+      const wrap=document.createElement("div");
+      wrap.className="tradingview-widget-container";
+      wrap.style.height="100%";
+      const s=document.createElement("script");
+      s.src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+      s.async=true;
+      s.textContent=JSON.stringify({autosize:true,symbol:sym,interval:"D",
+        timezone:"Asia/Seoul",theme:matchMedia("(prefers-color-scheme: light)").matches?"light":"dark",
+        style:"1",locale:"kr",hide_top_toolbar:false,allow_symbol_change:false,
+        save_image:false});
+      wrap.appendChild(s);
+      tvBox.appendChild(wrap);
+    };
+    const sel=document.getElementById("tvsel");
+    load(sel.value);
+    sel.onchange=()=>load(sel.value);
+  }
 }).catch(()=>{document.getElementById("content").innerHTML=
   '<p class="err">기록을 불러오지 못했습니다.</p>'});
 </script>

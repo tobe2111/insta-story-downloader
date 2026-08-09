@@ -39,7 +39,9 @@ FEATURE_NAMES = [
 # 재학습 장부에 함께 남겨, 성과 변화가 어느 피처 배치 이후인지 추적 가능하다.
 #   fs1: 기본 15개 (가격 유도 지표)
 #   fs2: +변동성 구조(gk_vol, rv_5_60) +코인 펀딩비(x_funding, 컬럼 있을 때)
-FEATURE_SET = "fs2:+volstruct+funding"
+#   fs3: +크로스에셋(x_btc_ret5·x_spy_ret5·x_tnx_chg5·x_usdkrw_ret5, 컬럼
+#        있을 때) +펀딩 변화(x_funding_chg — 수급 모멘텀)
+FEATURE_SET = "fs3:+crossasset+fundingchg"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:
@@ -118,7 +120,16 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
     # 받는 이유는 재현성 때문이다: 입력 스냅샷(csv.gz)에 함께 보존돼
     # verify가 같은 피처로 그날의 결정을 재현할 수 있다.
     if "funding" in df.columns:
-        out["x_funding"] = pd.to_numeric(df["funding"], errors="coerce").ffill()
+        fnd = pd.to_numeric(df["funding"], errors="coerce").ffill()
+        out["x_funding"] = fnd
+        # 펀딩비 '변화'(5봉) — 수준(과열도)과 다른 정보: 과열이 쌓이는 중인가
+        # 풀리는 중인가(수급 모멘텀). 같은 재료의 1차 차분이라 추가 조회 없음.
+        out["x_funding_chg"] = fnd.diff(5)
+    # 크로스에셋 컬럼(데이터 로더가 부착, x_ 접두) — 스냅샷·해시에 함께
+    # 보존되는 재현 가능한 외부 맥락. funding과 같은 원리로 자동 포함한다.
+    for col in df.columns:
+        if str(col).startswith("x_") and col not in out.columns:
+            out[col] = pd.to_numeric(df[col], errors="coerce")
     # 외부(거시) 피처 병합 — 예: 공포탐욕지수, 펀딩비, 금리. 날짜로 정렬 후
     # 전진충전(ffill)한다. 해당 봉 시점까지 알려진 값만 쓰므로 룩어헤드 없음.
     if extra is not None and len(extra.columns):

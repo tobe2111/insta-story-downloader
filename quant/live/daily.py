@@ -173,6 +173,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 펀딩비 컬럼 — ML의 x_funding 피처 재료(실패 시 조용히 생략)
         from quant.data.funding import attach_funding
         df = attach_funding(df, symbol)
+    from quant.data.crossasset import attach_cross_asset
+    df = attach_cross_asset(df, market, symbol)
 
     path = _paper_path(market, symbol, state_dir)
     st = _load_paper(path)
@@ -538,6 +540,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
+            from quant.data.crossasset import attach_cross_asset
+            df = attach_cross_asset(df, market, symbol)
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -598,7 +602,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         broker.target_weight(key, float(pend["weight"]) * sl, fopen, eq_now,
                              rebalance_band=REBALANCE_BAND / n)
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
-                      "weight": round(float(pend["weight"]), 4)})
+                      "weight": round(float(pend["weight"]), 4),
+                      "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 
     # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열로
@@ -633,6 +638,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if budget > 0 and tot > 0:
         cap = 3.0 / n
         slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}
+    n_orders_before = len(getattr(broker, "order_log", []))
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
@@ -648,6 +654,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             pending[key] = {"weight": round(eff, 4), "slice": round(sl, 5),
                             "decided_bar": last_bars[key]}
     st["pending"] = pending
+    # 코인 즉시 체결 내역 — "오늘 얼마에 사고팔았나"를 사이트가 보여줄 재료.
+    # 주식 시가 체결(fills 위쪽)과 함께 그날 기록에 남는다.
+    for o in getattr(broker, "order_log", [])[n_orders_before:]:
+        fills.append({"key": o.symbol, "price": round(float(o.price), 6),
+                      "bar": last_bars.get(o.symbol, ""),
+                      "side": o.side, "type": "즉시"})
     equity = broker.equity(prices)
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -664,7 +676,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "principal": round(principal, 2),
               "pnl": round(equity - principal, 2),
               "hit_rate": None,
-              "fills": fills,                      # 체결 현실성: 시가 체결 내역
+              "fills": fills,                      # 체결 현실성: 시가·즉시 체결 내역
+              # 예약 주문 — 오늘 새벽 결정됐고 '다음 장 시가'에 체결될 것들.
+              # 사이트가 "내일 뭘 얼마나 살 예정인가"를 보여줄 재료.
+              "pending_next_open": {k: round(float(p["weight"])
+                                             * float(p.get("slice") or 1.0 / n), 4)
+                                    for k, p in pending.items()},
               "code_sha": _code_sha(),
               "env": _env_fingerprint(),
               "accounting": ACCOUNTING_VERSION,

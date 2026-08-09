@@ -19,7 +19,10 @@ FEATURE_KO = {
     "macd_hist": "MACD 히스토그램", "bb_pctb": "볼린저 위치",
     "atr": "평균 진폭(ATR)", "vol_z": "거래량 이상치",
     "gk_vol": "GK 변동성(고저가 기반)", "rv_5_60": "실현변동성 비율(5/60일)",
-    "x_funding": "펀딩비(포지셔닝 과열도)",
+    "x_funding": "펀딩비(포지셔닝 과열도)", "x_funding_chg": "펀딩비 변화(수급 모멘텀)",
+    "x_btc_ret5": "비트코인 5일 흐름", "x_spy_ret5": "미국 S&P500 5일 흐름",
+    "x_tnx_chg5": "미 10년물 금리 5일 변화", "x_usdkrw_ret5": "원/달러 5일 변화",
+    "x_fng": "공포탐욕지수(시장 심리)",
 }
 
 
@@ -45,7 +48,8 @@ def _feature_note(name: str, value: float) -> str:
         return f"{ko} {r:.0f}({state})"
     if name in ("ma_dist20", "ma_dist50"):
         return f"{ko} {v:+.1%}({'선 위' if v > 0 else '선 아래'})"
-    if name in ("mom20", "mom60", "ret1", "ret5", "ret10"):
+    if name in ("mom20", "mom60", "ret1", "ret5", "ret10",
+                "x_btc_ret5", "x_spy_ret5", "x_usdkrw_ret5"):
         return f"{ko} {v:+.1%}"
     if name in ("vol", "atr", "gk_vol"):
         return f"{ko} 일 {v:.1%}"
@@ -61,6 +65,11 @@ def _feature_note(name: str, value: float) -> str:
     if name == "vol_z":
         state = "거래량 급증" if v > 2 else "거래량 급감" if v < -2 else "평소 수준"
         return f"{ko} {v:+.1f}({state})"
+    if name == "x_fng":
+        f = v * 100
+        state = "극단적 공포" if f < 25 else "공포" if f < 45 else \
+            "극단적 탐욕" if f > 75 else "탐욕" if f > 55 else "중립"
+        return f"{ko} {f:.0f}({state})"
     if name.startswith("x_funding"):
         return f"펀딩비 {v:+.3%}({'롱 과열' if v > 0.0005 else '숏 과열' if v < -0.0005 else '중립'})"
     return f"{ko} {v:+.2f}"
