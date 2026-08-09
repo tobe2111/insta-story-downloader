@@ -1,0 +1,96 @@
+name: KR Live (실거래 집행)
+
+# 국내주식 실거래 집행 — 페이퍼와 같은 결정을 KIS 계좌로 보낸다.
+#
+# ⚠️ 기본은 '모의투자'다. 이 워크플로는 스케줄이 없다(수동 실행 전용).
+#    자동 매일 실행으로 바꾸려면 페이퍼 검증(TWR vs 벤치마크 90일+)을 확인한
+#    뒤 아래 schedule 주석을 해제한다 — 그 전의 자동 실전은 도박이다.
+#
+# 필요한 Secrets (Settings → Secrets → Actions):
+#    KIS_APP_KEY / KIS_APP_SECRET / KIS_CANO  (KIS Developers에서 발급)
+#    KIS_ACNT_PRDT_CD                         (보통 01 — 없으면 기본값)
+# 실전(real) 실행 조건 2중 잠금:
+#    ① 수동 실행 입력 real=true  ② vars.QUANT_LIVE_REAL == '1'
+#    (Settings → Variables → Actions 에 QUANT_LIVE_REAL=1 등록해야 실탄)
+
+on:
+  workflow_dispatch:
+    inputs:
+      real:
+        description: "실전 계좌 사용 (기본 false = 모의투자)"
+        type: boolean
+        default: false
+  # schedule:                    # 실전 자동화 결정 후 주석 해제 (KST 08:50 = 23:50 UTC)
+  #   - cron: "50 23 * * 0-4"    # 한국 개장 전 — 일~목 UTC = 월~금 KST
+
+permissions:
+  contents: write   # state/live/ 집행 기록 커밋용
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy pyyaml scikit-learn yfinance ccxt pykrx
+
+      - name: 준비 진단 (키·토큰·잔고 — 주문 없음)
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          KIS_CANO: ${{ secrets.KIS_CANO }}
+          KIS_ACNT_PRDT_CD: ${{ secrets.KIS_ACNT_PRDT_CD }}
+        run: |
+          python -m quant live-check ${{ inputs.real && '--real' || '' }}
+
+      - name: 실거래 집행 (기본 모의투자)
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          KIS_CANO: ${{ secrets.KIS_CANO }}
+          KIS_ACNT_PRDT_CD: ${{ secrets.KIS_ACNT_PRDT_CD }}
+          QUANT_LIVE_REAL: ${{ vars.QUANT_LIVE_REAL }}
+        run: |
+          if [ "${{ inputs.real }}" = "true" ]; then
+            echo "⚠️ 실전 모드 요청 — QUANT_LIVE_REAL 변수까지 있어야 실행됩니다"
+            python -m quant live-daily --real | tee live.txt
+          else
+            echo "🧪 모의투자 리허설"
+            python -m quant live-daily | tee live.txt
+          fi
+
+      - name: 집행 기록 커밋 (state/live/)
+        run: |
+          if [ -z "$(git status --porcelain state/live/ 2>/dev/null)" ]; then
+            echo "변경 없음 — 커밋 생략"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/live/
+          git commit -m "실거래 집행 기록: $(date -u +%F) [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep $((2**i))
+          done
+          echo "❌ 기록 푸시 실패"; exit 1
+
+      - name: 결과 요약
+        if: always()
+        run: |
+          {
+            echo "## 🏦 실거래 집행 결과"
+            echo '```'
+            cat live.txt 2>/dev/null || echo "실행 로그 없음"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
