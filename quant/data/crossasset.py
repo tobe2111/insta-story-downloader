@@ -4,10 +4,14 @@
 컬럼으로 부착해 ML 피처(x_*)로 쓴다:
 
     코인(BTC 제외)  : x_btc_ret5     — 비트코인 5일 수익률(코인 시장 전체 조류)
+    코인(전체)      : x_kimchi       — 김치 프리미엄(업비트 vs 바이낸스 가격차,
+                                       국내 수급 과열/이탈의 고유 신호)
     미국 주식       : x_spy_ret5     — S&P500 5일 수익률(시장 베타 맥락)
                       x_tnx_chg5     — 미 10년물 금리 5일 변화(할인율 압력)
+                      x_vix          — VIX 변동성지수/100(옵션시장의 공포 가격)
     한국 주식       : x_spy_ret5     — 미국 전일 흐름(개장 전 알 수 있는 정보)
                       x_usdkrw_ret5  — 원/달러 5일 변화(수출주·외인 수급 맥락)
+                      x_vix          — VIX(글로벌 위험선호는 한국 개장 전 정보)
 
 컬럼으로 붙이는 이유(펀딩비와 동일): 입력 스냅샷(csv.gz)·데이터 해시에 함께
 보존되어 verify가 같은 피처로 그날의 결정을 재현할 수 있다(재현성).
@@ -31,6 +35,21 @@ log = get_logger("data.crossasset")
 _MEMO: dict = {}
 
 
+def _upbit_ohlcv(symbol: str, limit: int) -> pd.DataFrame:
+    """업비트 일봉 — 김치 프리미엄의 원화 가격 다리. ccxt 직접 사용.
+
+    업비트는 국내 데이터 프로바이더 경로가 없어 여기서만 쓴다.
+    (업비트 공개 API는 1회 최대 200봉 — 프리미엄은 최근 구간이면 충분하다.)
+    """
+    import ccxt
+    client = ccxt.upbit({"enableRateLimit": True})
+    raw = client.fetch_ohlcv(symbol, "1d", limit=min(int(limit), 200))
+    df = pd.DataFrame(raw, columns=["ts", "open", "high", "low", "close",
+                                    "volume"])
+    df.index = pd.to_datetime(df["ts"], unit="ms")
+    return df.drop(columns=["ts"])
+
+
 def _bench_close(market: str, symbol: str, limit: int = 800,
                  fetch=None) -> pd.Series | None:
     """벤치마크 종가 시계열(날짜 정규화·중복 제거). 실패 시 None."""
@@ -38,11 +57,13 @@ def _bench_close(market: str, symbol: str, limit: int = 800,
     if key in _MEMO:
         return _MEMO[key]
     try:
-        if fetch is None:
+        if fetch is not None:
+            df = fetch(market, symbol, limit)
+        elif market == "upbit":               # 원화 코인 시세(김프 계산용)
+            df = _upbit_ohlcv(symbol, limit)
+        else:
             from quant.data import get_provider
             df = get_provider(market).get_ohlcv(symbol, "1d", limit=limit)
-        else:
-            df = fetch(market, symbol, limit)
         if df is None or df.empty or df.attrs.get("synthetic_fallback"):
             _MEMO[key] = None              # 합성 폴백은 벤치로 쓰지 않는다
             return None
@@ -71,6 +92,34 @@ def _fng_series(fetch=None) -> pd.Series | None:
         _MEMO[key] = s if len(s) else None
     except Exception as exc:  # noqa: BLE001
         log.warning("공포탐욕지수 조회 실패: %s", exc)
+        _MEMO[key] = None
+    return _MEMO[key]
+
+
+def _kimchi_series(fetch=None) -> pd.Series | None:
+    """김치 프리미엄 이력(날짜 → 프리미엄 비율). 실패 시 None. 실행 내 메모.
+
+    업비트 BTC/KRW ÷ (바이낸스 BTC/USDT × 원/달러) − 1. 국내 매수 과열이면
+    양수(+), 국내 이탈이면 음수(역프리미엄). 셋 다 공개 시세라 스냅샷·해시에
+    남아 재현 가능하다 — 뉴스 원문 없이 '국내 수급'을 숫자로 읽는 방법.
+    """
+    key = ("_kimchi",)
+    if key in _MEMO:
+        return _MEMO[key]
+    try:
+        krw = _bench_close("upbit", "BTC/KRW", limit=200, fetch=fetch)
+        usd = _bench_close("crypto", "BTC/USDT", fetch=fetch)
+        fx = _bench_close("us_stock", "KRW=X", fetch=fetch)
+        if krw is None or usd is None or fx is None:
+            _MEMO[key] = None
+            return None
+        idx = krw.index.intersection(usd.index)
+        # 환율은 주말 결측(주식 달력) — ffill로 '마지막으로 알려진 환율' 사용
+        fx_al = fx.reindex(idx.union(fx.index)).sort_index().ffill().reindex(idx)
+        prem = (krw.reindex(idx) / (usd.reindex(idx) * fx_al) - 1.0).dropna()
+        _MEMO[key] = prem if len(prem) else None
+    except Exception as exc:  # noqa: BLE001
+        log.warning("김치 프리미엄 계산 실패: %s", exc)
         _MEMO[key] = None
     return _MEMO[key]
 
@@ -127,6 +176,10 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             fng = _fng_series(fetch=fetch)
             if fng is not None:
                 out["x_fng"] = _align(fng / 100.0, out.index)
+            # 김치 프리미엄 — 국내 수급의 고유 신호(모든 코인에 시장 공통)
+            kim = _kimchi_series(fetch=fetch)
+            if kim is not None:
+                out["x_kimchi"] = _align(kim, out.index)
         elif market == "us_stock":
             t10 = _fred_t10y2y()
             if t10 is not None:
@@ -138,6 +191,11 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             tnx = _bench_close("us_stock", "^TNX", fetch=fetch)
             if tnx is not None:
                 out["x_tnx_chg5"] = _align(tnx.diff(5), out.index)
+            # VIX/100 — 옵션시장이 가격에 매긴 '공포'. 수준 자체가 정보라
+            # 변화율이 아닌 수준을 쓴다(0.1~0.8 스케일).
+            vix = _bench_close("us_stock", "^VIX", fetch=fetch)
+            if vix is not None:
+                out["x_vix"] = _align(vix / 100.0, out.index)
         elif market == "kr_stock":
             t10 = _fred_t10y2y()
             if t10 is not None:
@@ -148,6 +206,9 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             fx = _bench_close("us_stock", "KRW=X", fetch=fetch)
             if fx is not None:
                 out["x_usdkrw_ret5"] = _align(fx.pct_change(5), out.index)
+            vix = _bench_close("us_stock", "^VIX", fetch=fetch)
+            if vix is not None:
+                out["x_vix"] = _align(vix / 100.0, out.index)
     except Exception as exc:  # noqa: BLE001
         log.warning("크로스에셋 부착 실패 %s/%s: %s", market, symbol, exc)
         return df
