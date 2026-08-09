@@ -36,21 +36,27 @@ jobs:
         env:
           QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
         run: |
+          # ⚠️ 파이프 금지 — git log 출력을 곧장 grep -q로 파이프하면
+          # pipefail 아래에서 grep이 매치를 찾는 순간 상류가 SIGPIPE로 죽어
+          # 파이프라인이 '실패'가 된다("찾았기 때문에 못 찾았다"는 오탐 —
+          # 2026-08-09 첫 실행의 실제 사고). 변수로 받아 히어스트링으로 검사.
+          LOG="$(git log --since="26 hours ago" --pretty=%s)"
           MISSING=""
-          if ! git log --since="26 hours ago" --pretty=%s | grep -q "야간 재학습 기록"; then
+          if ! grep -q "야간 재학습 기록" <<< "$LOG"; then
             MISSING="야간재학습"
           fi
-          if ! git log --since="26 hours ago" --pretty=%s | grep -q "매일 자동 페이퍼 기록"; then
+          if ! grep -q "매일 자동 페이퍼 기록" <<< "$LOG"; then
             MISSING="$MISSING 매일페이퍼"
           fi
-          if ! git log --since="26 hours ago" --pretty=%s | grep -q "SNS 게시 콘텐츠"; then
+          if ! grep -q "SNS 게시 콘텐츠" <<< "$LOG"; then
             MISSING="$MISSING SNS콘텐츠"
           fi
           # 사이트 반영 신선도 — 커밋은 됐는데 배포가 죽은 경우를 잡는다.
           # 배포된 status.json의 updated가 최근 2일 안이어야 정상.
           URL="${QUANT_LIVE_URL:-https://quant.jiwon-1a2.workers.dev}"
           TODAY="$(date -u +%F)"; YDAY="$(date -u -d '1 day ago' +%F)"
-          if ! curl -sf --max-time 30 "$URL/status.json" | grep -q -e "$TODAY" -e "$YDAY"; then
+          SITE="$(curl -sf --max-time 30 "$URL/status.json" || true)"
+          if ! grep -q -e "$TODAY" -e "$YDAY" <<< "$SITE"; then
             MISSING="$MISSING 사이트반영"
           fi
           MISSING="$(echo "$MISSING" | xargs)"
