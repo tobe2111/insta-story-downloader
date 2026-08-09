@@ -39,8 +39,10 @@ def _fetch(market, symbol, limit):
 
 
 def setup_function(_):
+    import os
     crossasset._MEMO.clear()
     _fetch.calls = []
+    os.environ.pop("FRED_API_KEY", None)   # 테스트는 FRED 네트워크 미사용
 
 
 # ── ① 시장별 컬럼 구성 ─────────────────────────────────────────
@@ -116,7 +118,7 @@ def test_fetch_failure_leaves_df_unchanged():
 
 def test_ml_includes_x_columns_and_funding_change():
     from quant.strategies.ml import FEATURE_SET, _features
-    assert FEATURE_SET.startswith("fs3")
+    assert FEATURE_SET.startswith("fs4")
     df = _df(120)
     df["x_spy_ret5"] = 0.01
     df["funding"] = 0.0001
@@ -171,3 +173,46 @@ def test_fng_wired_for_crypto_and_named():
     assert "x_fng" in FEATURE_KO
     assert "탐욕" in _feature_note("x_fng", 0.8)
     assert "공포" in _feature_note("x_fng", 0.2)
+
+
+# ── ⑦ 수급 2축(OI) + FRED 장단기 금리차 ────────────────────────
+
+
+def test_oi_attach_and_ml_derives_change():
+    """OI 수준 컬럼 부착 → ML이 x_oi_chg5 파생. 실패 시 원본 유지."""
+    from quant.data.openinterest import attach_open_interest
+    from quant.strategies.ml import _features
+    df = _df(40)
+    oi = pd.Series(1000.0 + np.arange(35) * 10,
+                   index=pd.date_range("2026-06-01", periods=35, freq="D"))
+    out = attach_open_interest(df, "BTC/USDT", fetch=lambda s: oi)
+    assert "oi" in out.columns
+    feats = _features(out)
+    assert "x_oi_chg5" in feats.columns
+    # 실패 폴백
+    bad = attach_open_interest(df, "BTC/USDT",
+                               fetch=lambda s: (_ for _ in ()).throw(RuntimeError()))
+    assert "oi" not in bad.columns
+
+
+def test_oi_wired_next_to_funding():
+    rt = (ROOT / "quant" / "live" / "retrain.py").read_text(encoding="utf-8")
+    dl = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert rt.count("attach_open_interest") >= 2
+    assert dl.count("attach_open_interest") >= 4     # 개별·통합 두 경로
+
+
+def test_fred_t10y2y_gated_by_key_and_wired(monkeypatch):
+    """FRED 피처는 키가 있을 때만 붙는다(없으면 조용히 생략)."""
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    crossasset._MEMO.clear()
+    out = attach_cross_asset(_df(), "us_stock", "AAPL", fetch=_fetch)
+    assert "x_t10y2y" not in out.columns             # 키 없음 → 생략
+    ca = (ROOT / "quant" / "data" / "crossasset.py").read_text(encoding="utf-8")
+    assert "T10Y2Y" in ca and "FRED_API_KEY" in ca
+    # 워크플로가 시크릿을 전달한다
+    for wf in ("nightly-retrain.yml", "daily-paper.yml"):
+        y = (ROOT / ".github" / "workflows" / wf).read_text(encoding="utf-8")
+        assert "FRED_API_KEY" in y
+    from quant.live.explain import FEATURE_KO
+    assert "x_oi_chg5" in FEATURE_KO and "x_t10y2y" in FEATURE_KO
