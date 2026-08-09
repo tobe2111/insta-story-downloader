@@ -60,9 +60,9 @@ jobs:
               --screenshot="$DIR/$1" "http://127.0.0.1:8777/$2" \
               && echo "촬영 완료: $1" || echo "촬영 실패: $1 — 건너뜀"
           }
-          capture 01_cover.png    "sns_card.html?n=1"
-          capture 02_judgment.png "sns_card.html?n=2"
-          capture 03_trust.png    "sns_card.html?n=3"
+          for i in 1 2 3 4 5 6 7 8; do
+            capture "0${i}_card.png" "sns_card.html?n=${i}"
+          done
           ls -la "$DIR"
 
       - name: 콘텐츠 커밋 (공개 URL 확보)

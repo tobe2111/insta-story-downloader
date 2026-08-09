@@ -161,11 +161,12 @@ def test_run_posts_carousel_in_order_and_marks(tmp_path, monkeypatch):
               http_get=fake.get, sleep=lambda s: None, wait_public=False)
     assert "threads" in out and "instagram" in out
     urls = [u for u, _ in fake.posts]
-    # 스레드: 아이템 3 + 캐러셀 1 + publish 1 = 5회, 그 다음 인스타 5회
+    # 플랫폼당 호출 수 = 아이템 N + 캐러셀 1 + publish 1 (N=카드 수)
+    n_items = len(CAPTURE_PLAN)
     th = [u for u in urls if "graph.threads.net" in u]
     ig = [u for u in urls if "graph.facebook.com" in u]
-    assert len(th) == 5 and th[-1].endswith("/threads_publish")
-    assert len(ig) == 5 and ig[-1].endswith("/media_publish")
+    assert len(th) == n_items + 2 and th[-1].endswith("/threads_publish")
+    assert len(ig) == n_items + 2 and ig[-1].endswith("/media_publish")
     # 캐러셀 본문에 children 3개가 담긴다
     car_bodies = [b for u, b in fake.posts if "CAROUSEL" in b]
     assert len(car_bodies) == 2
@@ -220,7 +221,8 @@ def test_capture_plan_is_instagram_cardnews():
     assert all(p.startswith("sns_card.html?n=") for _, p in CAPTURE_PLAN)
     yml = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
            / "social-post.yml").read_text(encoding="utf-8")
-    assert "--window-size=1080,1350" in yml and "sns_card.html?n=1" in yml
+    assert "--window-size=1080,1350" in yml and "sns_card.html?n=${i}" in yml
+    assert len(CAPTURE_PLAN) == 8                    # 8장 스토리
     card = (Path(__file__).resolve().parent.parent / "docs"
             / "sns_card.html").read_text(encoding="utf-8")
     assert "1080px" in card and "1350px" in card

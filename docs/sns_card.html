@@ -66,6 +66,7 @@ h1{font-size:68px;line-height:1.26;letter-spacing:-.02em;font-weight:800;
 <script>
 (function(){
 var n=Number(new URLSearchParams(location.search).get("n")||"1");
+var TOTAL=8;
 var esc=function(s){return String(s).replace(/[<>&]/g,function(c){
   return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]})};
 fetch("status.json").then(function(r){return r.json()}).then(function(st){
@@ -76,80 +77,133 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   var eq=last.equity!=null?Math.round(last.equity).toLocaleString()+"원":"—";
   var ret=last.return_pct!=null?last.return_pct:null;
   var retTxt=ret!=null?((ret>0?"+":"")+ret.toFixed(2)+"%"):"—";
+  var twr=last.twr_pct!=null?((last.twr_pct>0?"+":"")+last.twr_pct.toFixed(2)+"%"):null;
   var cls=ret==null||Math.abs(ret)<0.005?"flat":(ret>0?"up":"down");
   var alloc=last.alloc||{};var names=st.symbols||{};
   var rs=last.risk_scale!=null?last.risk_scale:1;
   var recent=(st.retrain_recent||[]).filter(function(r){return r.asof===date});
   var swaps=recent.filter(function(r){return r.promoted}).length;
+  var nCand=recent.reduce(function(a,r){return a+(r.n_candidates||0)},0);
 
-  // 훅 — 캡션과 같은 철학: 그날 실제로 일어난 일이 첫 줄이다
+  // 훅 — 그날 실제로 일어난 일이 첫 줄이다 (선택 편향 없는 계정의 정체성)
   var hook;
-  if(rs<1)hook="킬스위치가 작동 중입니다.<br>물러나는 것도 시스템의 일입니다.";
+  if(rs<1)hook="킬스위치가<br>작동 중입니다.";
   else if(ret==null)hook="오늘의 장부를<br>공개합니다.";
   else if(ret<=-1)hook="아픈 날도<br>그대로 올립니다.";
   else if(ret<0)hook="이 마이너스도<br>기록의 일부입니다.";
   else if(Math.abs(ret)<0.005)hook="지루한 날도<br>기록입니다.";
   else if(ret<1)hook="작은 플러스가<br>쌓여야 복리입니다.";
-  else hook="좋은 날이지만, 하루로는<br>아무것도 증명되지 않습니다.";
+  else hook="좋은 날이지만,<br>하루로는 증명이 아닙니다.";
 
   var top=Object.entries(alloc).filter(function(e){return e[1]>0})
     .sort(function(a,b){return b[1]-a[1]}).slice(0,5)
     .map(function(e){var k=e[0];
-      return {name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
+      return {key:k,name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
   var nCash=Object.values(alloc).filter(function(v){return !(v>0)}).length;
 
-  var html="";
+  // 대표 종목의 새벽 판단 근거 — 배분 1위 종목 페이퍼 장부의 reason
+  var lead=top[0]||null, leadReason=[];
+  if(lead){
+    var ph=((st.paper||{})[lead.key]||{}).history||[];
+    var rec=ph[ph.length-1]||{};
+    leadReason=String(rec.reason||"").split(" · ").slice(0,3);
+  }
+
+  // 신뢰도 미니 표 — paper.html과 같은 집계(전 종목 prob_up vs 다음날 방향)
+  var buckets=[[0,0.45,"45% 미만"],[0.45,0.55,"45~55%"],[0.55,0.60,"55~60%"],
+    [0.60,0.70,"60~70%"],[0.70,1.01,"70% 이상"]];
+  var agg=buckets.map(function(){return {n:0,up:0}});
+  Object.keys(st.paper||{}).forEach(function(k){
+    if(k.indexOf("portfolio")===0)return;
+    var h=(st.paper[k]||{}).history||[];
+    for(var i=0;i+1<h.length;i++){
+      var p=h[i].prob_up;
+      if(typeof p!=="number"||typeof h[i].price!=="number"||typeof h[i+1].price!=="number")continue;
+      for(var bi=0;bi<buckets.length;bi++){
+        if(p>=buckets[bi][0]&&p<buckets[bi][1]){
+          agg[bi].n++;if(h[i+1].price>h[i].price)agg[bi].up++;break}}
+    }});
+  var calTotal=agg.reduce(function(a,b){return a+b.n},0);
+
   var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
     +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'
     +'<span class="date">'+esc(date)+'</span></div>';
   var footer='<div class="footer"><span>⚠️ <b>모의투자</b> — 수익 보장 없음 · '
-    +'매일 그날 숫자 그대로</span><span class="swipe">'
-    +(n+' / 3')+(n<3?" · 밀어서 →":"")+'</span></div>';
+    +'매일 그날 숫자 그대로</span><span class="swipe">'+n+' / '+TOTAL
+    +(n<TOTAL?" · 밀어서 →":"")+'</span></div>';
+  function page(kicker,body){return head+'<div class="kicker">'+kicker+'</div>'
+    +body+'<div class="spacer"></div>'+footer}
 
+  var html="";
   if(n===1){
-    html=head
-      +'<div class="kicker">AI 퀀트 공개 실험 — 오늘의 성적표</div>'
-      +'<h1>'+hook+'</h1>'
-      +'<div class="big">'+esc(eq)+'</div>'
-      +'<div class="chg '+cls+'">'+esc(retTxt)+' <small style="color:var(--muted);font-size:36px">'
-      +'(시작 8만원 · 목표는 과정 전체의 공개)</small></div>'
-      +'<div class="sub">매일 새벽, AI가 스스로 재학습하고 20종목에 분산 투자합니다.<br>'
-      +'사람의 개입 없이 — 기록은 조작 불가능한 공개 장부에 남습니다.</div>'
-      +'<div class="spacer"></div>'+footer;
+    html=page("AI 퀀트 공개 실험 — 오늘의 성적표",
+      '<h1 style="font-size:92px;margin-top:40px">'+hook+'</h1>'
+      +'<div class="sub" style="margin-top:60px">가짜 돈 8만원으로 시작한 공개 실험, '
+      +esc(day)+'일째.<br>매일 새벽 AI가 스스로 배우고, 결정하고, 기록합니다.<br>'
+      +'사람의 개입은 없습니다.</div>');
   }else if(n===2){
+    html=page("오늘의 숫자",
+      '<div class="big" style="margin-top:80px">'+esc(eq)+'</div>'
+      +'<div class="chg '+cls+'">오늘 '+esc(retTxt)
+      +(twr?' <small style="font-size:34px;color:var(--muted)">· 실력지표(TWR) '+esc(twr)+'</small>':"")+'</div>'
+      +'<div class="sub" style="margin-top:48px">시작 8만원 · 20종목 분산(코인·한국·미국)<br>'
+      +'수수료·거래세 차감 후 · 주식은 다음 시가 체결 기준</div>'
+      +(rs<1?'<div class="note">🛑 킬스위치 작동 중 — 낙폭 한도 초과로 노출 '
+        +(rs*100).toFixed(0)+'% 제한. 물러나는 것도 시스템의 일입니다.</div>':""));
+  }else if(n===3){
+    var vt=recent.length?("후보 "+nCand+"명이<br>도전했습니다"):"오늘은 오디션이<br>없었습니다";
+    var res=recent.length?(swaps
+      ?("이 중 <b>"+swaps+"개 전략이 2단계 검증을 통과</b>해 교체됐습니다. 통과 못 한 나머지는 전부 탈락 — 기준을 넘은 것만 살아남습니다.")
+      :("<b>전원 탈락 — 전략 유지가 오늘의 결론.</b> 우연히 좋아 보이는 후보를 걸러내는 게 이 오디션의 일입니다. 교체가 없는 날이 정상입니다."))
+      :"휴장 등으로 재학습 기록이 없는 날입니다.";
+    html=page("오늘 새벽 4시의 오디션",
+      '<h1 style="font-size:80px;margin-top:30px">'+vt+'</h1>'
+      +'<div class="sub" style="margin-top:44px">매일 밤 변형 전략 후보들이 현재 챔피언에게 도전합니다.<br>선발전과 결승전, 두 번의 통계 검증을 모두 이겨야 승격.</div>'
+      +'<div class="note">'+res+'</div>');
+  }else if(n===4){
     var rows=top.map(function(t){
       return '<div class="row"><b>'+esc(t.name)+'</b>'
         +'<span class="w">매수 '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
     if(!top.length)rows='<div class="row"><b>전 종목</b><span class="cash">관망 (현금 100%)</span></div>';
     else if(nCash>0)rows+='<div class="row"><b>나머지 '+nCash+'종목</b><span class="cash">관망 (현금)</span></div>';
-    html=head
-      +'<div class="kicker">오늘 새벽 AI의 판단</div>'
-      +'<h1 style="font-size:62px">배분 상위 종목</h1>'
-      +'<div class="rows">'+rows+'</div>'
-      +'<div class="note">🤖 오늘 재학습: '+(recent.length
-        ?(swaps?('전략 <b>'+swaps+'개 교체</b> — 2단계 검증 통과')
-               :('후보 전원 탈락 — <b>전략 유지</b>가 오늘의 결론'))
-        :"기록 없음(휴장)")
-      +(rs<1?'<br>🛑 킬스위치 — 노출 '+(rs*100).toFixed(0)+'%로 제한 중':"")
-      +'</div>'
-      +'<div class="spacer"></div>'+footer;
-  }else{
-    html=head
-      +'<div class="kicker">왜 믿을 수 있나</div>'
-      +'<h1 style="font-size:62px">잘된 날만 골라<br>올리지 않습니다</h1>'
-      +'<div class="checks">'
+    html=page("오늘 새벽 AI의 배분",
+      '<h1 style="font-size:62px">돈이 간 곳</h1><div class="rows">'+rows+'</div>');
+  }else if(n===5){
+    var rb=leadReason.length?leadReason.map(function(t){
+      return '<div class="check"><span class="ic">·</span><div style="font-size:34px">'+esc(t)+'</div></div>'}).join("")
+      :'<div class="sub">오늘은 활성 포지션이 없어 근거 카드를 쉽니다.</div>';
+    html=page("판단의 속을 보여드립니다",
+      '<h1 style="font-size:58px">'+(lead?esc(lead.name)+", 왜 샀나":"오늘의 판단 근거")+'</h1>'
+      +'<div class="checks" style="margin-top:44px">'+rb+'</div>'
+      +'<div class="note">모든 종목의 판단 근거가 매일 새벽 <b>결정 시점에</b> 기록됩니다 — 사후에 꾸밀 수 없는 구조.</div>');
+  }else if(n===6){
+    var rows6=agg.map(function(a,i){
+      if(!a.n)return "";
+      return '<div class="row" style="font-size:33px"><b>'+buckets[i][2]+'라 말한 날 '+a.n+'일</b>'
+        +'<span class="w">실제 상승 '+(a.up/a.n*100).toFixed(0)+'%</span></div>'}).join("");
+    html=page("AI가 말한 확률, 실제로 맞나",
+      '<h1 style="font-size:58px">예측은 새벽에,<br>채점은 다음 날</h1>'
+      +'<div class="rows" style="margin-top:40px">'+(rows6||'<div class="sub">표본 수집 중입니다.</div>')+'</div>'
+      +'<div class="note">표본 '+calTotal+'일 — 말한 확률과 실제 빈도가 맞는지(보정)를 매일 공개 채점합니다. 어긋나면 어긋난 대로 보입니다.</div>');
+  }else if(n===7){
+    html=page("왜 믿을 수 있나",
+      '<h1 style="font-size:58px">잘된 날만 골라<br>올리지 않습니다</h1>'
+      +'<div class="checks" style="margin-top:44px">'
       +'<div class="check"><span class="ic">✓</span><div>모든 판단·장부가 공개 저장소에 커밋'
       +'<div class="d">과거를 몰래 고치면 흔적이 남는 구조(git)</div></div></div>'
       +'<div class="check"><span class="ic">✓</span><div>제3자 재현 검증 가능'
       +'<div class="d">데이터 해시·시드·코드 버전으로 그날 결정을 재실행</div></div></div>'
       +'<div class="check"><span class="ic">✓</span><div>무작위 1,000개 전략과 성과 대조'
-      +'<div class="d">운인지 실력인지 분포로 판정 — 예측 확률의 보정도 상시 공개</div></div></div>'
-      +'</div>'
-      +'<div class="note">전체 장부·검증 방법은 사이트에서<div class="url">quant.jiwon-1a2.workers.dev</div></div>'
-      +'<div class="spacer"></div>'+footer;
+      +'<div class="d">운인지 실력인지는 분포가 판정합니다</div></div></div></div>');
+  }else{
+    html=page("내일 새벽에 계속",
+      '<h1 style="font-size:70px;margin-top:40px">내일 새벽,<br>다음 판단이 올라옵니다</h1>'
+      +'<div class="sub" style="margin-top:52px">팔로우하면 매일의 성적표를 받아봅니다.<br>'
+      +'8만원이 어디까지 가는지 — 과정 전체를 함께 보세요.</div>'
+      +'<div class="note">전체 장부·실시간 현황·검증 방법<div class="url">quant.jiwon-1a2.workers.dev</div></div>');
   }
   document.getElementById("root").outerHTML=html;
-  document.title="ready";           // 캡처 완료 신호
+  document.title="ready";
 }).catch(function(e){
   document.getElementById("root").textContent="status.json 로딩 실패: "+e;
 });
