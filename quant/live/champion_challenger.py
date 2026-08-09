@@ -41,12 +41,19 @@ class ChampionChallenger:
         self.t_threshold = t_threshold
         self.cost_model = cost_model
 
-    def evaluate(self, df: pd.DataFrame, tail: int | None = None) -> dict:
+    def evaluate(self, df: pd.DataFrame, tail: int | None = None,
+                 folds: int = 0) -> dict:
         """두 전략을 같은 데이터에 백테스트해 성과를 비교한다.
 
         tail이 주어지면 백테스트는 전체 구간으로 하되(워크포워드 워밍업 확보)
         '마지막 tail봉'의 수익만 비교한다 — 재학습 파이프라인의 확인(홀드아웃)
         단계처럼 최근 구간만으로 공정하게 판정할 때 쓴다.
+
+        folds ≥ 2면 수익 차이 시계열을 연속 구간 folds개로 나눠 각 구간의
+        평균 차이가 양수인 구간 수(fold_wins)를 함께 반환한다 — 전체 t-통계
+        하나는 한 구간의 대박이 만든 착시일 수 있어, '기간 전반에 걸쳐
+        이겼는가'를 따로 본다(CPCV의 경량판). 판정(swap)은 바꾸지 않고
+        정보만 제공한다 — 게이트 적용은 호출자(재학습 선발전)의 몫.
         """
         from quant.backtest import Backtester
 
@@ -78,6 +85,13 @@ class ChampionChallenger:
             "t_stat": t_stat,
             "swap": swap,
         }
+        if folds >= 2 and n >= folds:
+            # 연속 등분 — 각 폴드에서 평균 차이 > 0이면 그 폴드 승리
+            chunks = [diff.iloc[len(diff) * k // folds:
+                                len(diff) * (k + 1) // folds] for k in range(folds)]
+            result["n_folds"] = folds
+            result["fold_wins"] = int(sum(
+                1 for c in chunks if len(c) and float(c.mean()) > 0))
         log_event(log, "champion_challenger_eval", level="info",
                   strategy_champion=getattr(self.champion, "name", "?"),
                   strategy_challenger=getattr(self.challenger, "name", "?"),

@@ -196,6 +196,12 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             vix = _bench_close("us_stock", "^VIX", fetch=fetch)
             if vix is not None:
                 out["x_vix"] = _align(vix / 100.0, out.index)
+                # 기간구조(단기/3개월) — 1 초과 = 백워데이션(당장의 공포가
+                # 미래보다 비쌈, 스트레스 급성기). 수준(x_vix)과 다른 정보.
+                v3m = _bench_close("us_stock", "^VIX3M", fetch=fetch)
+                if v3m is not None:
+                    out["x_vix_ts"] = _align(vix / v3m.reindex(vix.index)
+                                             .ffill(), out.index)
         elif market == "kr_stock":
             t10 = _fred_t10y2y()
             if t10 is not None:
@@ -209,6 +215,10 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             vix = _bench_close("us_stock", "^VIX", fetch=fetch)
             if vix is not None:
                 out["x_vix"] = _align(vix / 100.0, out.index)
+                v3m = _bench_close("us_stock", "^VIX3M", fetch=fetch)
+                if v3m is not None:
+                    out["x_vix_ts"] = _align(vix / v3m.reindex(vix.index)
+                                             .ffill(), out.index)
     except Exception as exc:  # noqa: BLE001
         log.warning("크로스에셋 부착 실패 %s/%s: %s", market, symbol, exc)
         return df

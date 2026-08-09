@@ -17,6 +17,7 @@ from quant.strategies.moving_average import MovingAverageCross
 from quant.strategies.regime import RegimeFilter
 from quant.strategies.rsi import RSIReversion
 from quant.strategies.stochastic import Stochastic
+from quant.strategies.stop_guard import TrailingStopGuard
 
 # 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐/ADX는 다른 전략을 인자로 받아 별도 취급)
 _REGISTRY = {
@@ -46,6 +47,7 @@ __all__ = [
     "AdaptiveEnsemble",
     "RegimeFilter",
     "EventGuard",
+    "TrailingStopGuard",
     "ADXFilter",
     "MultiTimeframeFilter",
     "LiquidityFilter",

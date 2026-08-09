@@ -73,6 +73,9 @@ DEFAULT_CHALLENGERS = [
     {"model": "logreg", "threshold": 0.55, "label": "triple", "meta": True},
     # 표본 시간감쇠 — 최근 표본에 학습 가중을 더 주는 변형(반감기 125봉).
     {"model": "gb", "threshold": 0.55, "sample_weight": "decay"},
+    # 피처 가지치기 — 중요도 상위 10개만 남기고 재학습. 피처가 fs7까지 늘어
+    # 중복·잡음이 과적합 재료가 되는 것의 반대 레버(추가가 아니라 축소).
+    {"model": "gb", "threshold": 0.55, "top_features": 10},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]
@@ -172,6 +175,11 @@ def build_strategy(spec: dict):
         params = dict(spec.get("params", {}))
         inner = build_strategy(params.pop("inner"))
         return EventGuard(inner, **params)
+    if spec["strategy"] == "stop_wrap":
+        from quant.strategies import TrailingStopGuard
+        params = dict(spec.get("params", {}))
+        inner = build_strategy(params.pop("inner"))
+        return TrailingStopGuard(inner, **params)
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -208,11 +216,17 @@ def nightly_retrain(
     min_obs: int = 60,
     edge: float = 0.0,
     cost_model=None,
+    select_folds: int = 3,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
     반환 dict의 promoted가 True면 champion(새 스펙)이 함께 담긴다.
     데이터(df)를 인자로 받는 순수 함수라 어떤 전략/데이터로도 테스트 가능하다.
+
+    select_folds ≥ 2면 선발전에 '폴드 일관성 게이트'가 추가된다: 수익 차이를
+    연속 등분한 폴드 중 과반에서 이겨야 통과 — 전체 t-통계 하나는 한 구간의
+    대박이 만든 착시일 수 있다(CPCV 경량판). 0이면 기존 동작(verify가 옛
+    기록을 재현할 때 사용).
     """
     from quant.live.champion_challenger import ChampionChallenger
 
@@ -238,13 +252,20 @@ def nightly_retrain(
                 build(champion_spec), build(full_spec),
                 min_obs=min_obs, edge=edge, t_threshold=select_t,
                 cost_model=cost_model)
-            r = cc.evaluate(select_df)
+            r = cc.evaluate(select_df, folds=select_folds)
         except Exception as exc:  # noqa: BLE001 — 후보 하나의 실패로 전체를 죽이지 않는다
             log.warning("챌린저 평가 실패 %s: %s", spec, exc)
             continue
         candidates.append({"spec": full_spec, **r})
 
-    passed = [c for c in candidates if c["swap"]]
+    def _consistent(c: dict) -> bool:
+        # 폴드 일관성 게이트 — 과반 폴드에서 이겨야 한다. 폴드 정보가 없으면
+        # (select_folds=0 또는 표본 부족) 게이트 없이 통과(기존 동작).
+        if "fold_wins" not in c:
+            return True
+        return c["fold_wins"] >= c["n_folds"] // 2 + 1
+
+    passed = [c for c in candidates if c["swap"] and _consistent(c)]
     if not passed:
         return {"promoted": False, "reason": (
             f"선발전에서 챔피언을 통계적으로 이긴 후보 없음"
@@ -376,6 +397,13 @@ def build_challengers(current_spec: dict, seed: str,
                                        "factor": 0.5, "include_minor": True}})
     else:
         challengers.append(current_spec["params"]["inner"])
+    if current_spec["strategy"] != "stop_wrap":
+        # 트레일링 스톱 변형 — 고점 대비 -10% 되돌림 청산. 스톱은 이익 장치가
+        # 아니라(추세장에서는 수익을 깎기도 한다) 오디션으로만 채택된다.
+        challengers.append({"strategy": "stop_wrap",
+                            "params": {"inner": current_spec, "trail": 0.10}})
+    else:
+        challengers.append(current_spec["params"]["inner"])
     return challengers
 
 
@@ -470,6 +498,9 @@ def verify_retrain(asof: str, *, market: str | None = None,
             df, before, challengers, confirm_window=confirm_window,
             select_t=float(rec.get("select_t", 2.0)),
             confirm_t=float(rec.get("confirm_t", 1.0)),
+            # 옛 기록(폴드 게이트 이전)은 0으로 재현 — 알고리즘 진화가
+            # 과거 결정의 재현 검증을 깨뜨리지 않게 장부 값을 따른다.
+            select_folds=int(rec.get("select_folds", 0)),
             cost_model=CostModel.for_market(rec["market"]))
         same_promoted = bool(decision["promoted"]) == bool(rec["promoted"])
         same_champion = True
@@ -514,6 +545,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "kr_stock":
+        # 외국인·기관 수급(z-점수) — 한국 주식 고유의 수급 피처(실패 시 생략)
+        from quant.data.krx import attach_krx_flows
+        df = attach_krx_flows(df, symbol)
     # 크로스에셋 컬럼(x_*) — 시장 바깥의 맥락(BTC/SPY/금리/환율). 펀딩과 같은
     # 원리로 스냅샷·해시에 보존된다(실패 시 조용히 생략 — 선택적 피처).
     from quant.data.crossasset import attach_cross_asset
@@ -605,6 +640,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "n_candidates": len(decision.get("candidates", [])),
         "trials_total": trials_total,
         "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
+        "select_folds": 3,             # 폴드 일관성 게이트 — verify 재현용
+
         "mutation_seed": f"{asof}:{key}",
         "code_sha": code_sha(),
         "data_sha256": data_sha256(df),

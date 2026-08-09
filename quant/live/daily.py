@@ -73,7 +73,9 @@ def _risk_for(market: str):
     from quant.risk import RiskManager
     from quant.risk.manager import RiskConfig
     ppy = 365 if market in ("crypto", "synthetic") else 252
-    return RiskManager(RiskConfig(periods_per_year=ppy))
+    # vol_model="har": 후행 변동성 대신 HAR-RV 예측(50/50 수축)으로 사이징 —
+    # 변동성 군집의 초입에서 먼저 비중을 줄인다(수익 장치가 아니라 복리 방어).
+    return RiskManager(RiskConfig(periods_per_year=ppy, vol_model="har"))
 
 
 def _last_proba(strategy) -> float | None:
@@ -175,6 +177,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "kr_stock":
+        from quant.data.krx import attach_krx_flows
+        df = attach_krx_flows(df, symbol)
     from quant.data.crossasset import attach_cross_asset
     df = attach_cross_asset(df, market, symbol)
 
@@ -190,6 +195,26 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     weight = float(_risk_for(market).size_positions(df, signals).iloc[-1])
     price = float(df["close"].iloc[-1])
 
+    # 실적 가드 — 발표 ±1일 창에서는 비중 절반(미국 주식만). 발표일 갭 위험은
+    # 하루짜리 방향 모델의 엣지가 가장 약한 지점이다. 쓴 캘린더는 state에
+    # 캐시되고 발동 내역은 기록에 남는다(재현성·투명성).
+    earnings_guard = None
+    if market == "us_stock" and abs(weight) > 0:
+        from datetime import date as _edate
+        from quant.data.earnings import earnings_guard_factor
+        ef, edate = earnings_guard_factor(
+            symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+            state_dir=state_dir)
+        if edate and ef < 1.0:
+            weight = float(weight * ef)
+            earnings_guard = {"date": edate, "factor": ef}
+
+    # 부분 켈리 상한 — 이 종목의 OOS(페이퍼) 통계가 30일 이상 쌓이면
+    # ½켈리로 최대 비중을 제한한다(과대 베팅의 복리 벌칙 방어).
+    kelly_cap = _kelly_cap_from_history(st.get("history") or [])
+    if kelly_cap < 1.0:
+        weight = float(np.clip(weight, -kelly_cap, kelly_cap))
+
     # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시.
     # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률), 전 종목 합산
     # 장부(종목 표본 25건 미달 시 폴백)를 함께 넘겨 상세 해설을 만든다.
@@ -199,6 +224,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
                             raw_weight=float(signals.iloc[-1]),
                             history=st.get("history") or [],
                             pooled_history=_all_paper_histories(state_dir))
+    if earnings_guard:
+        reason += (f" · 🛡 실적 가드: 발표({earnings_guard['date']}) 임박 → "
+                   "비중 절반")
     # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
     try:
         from quant.live.parliament import parliament_summary
@@ -260,6 +288,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "prob_up": _last_proba(strategy),
         # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
         "drift_psi": _drift_psi(df),
+        # 실적 가드 발동 흔적(발동 없으면 None) — 왜 비중이 절반인지의 답
+        "earnings_guard": earnings_guard,
+        # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적
+        "kelly_cap": round(kelly_cap, 4) if kelly_cap < 1.0 else None,
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -405,6 +437,102 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     return round(beaten / n * 100, 1)
 
 
+def _kelly_cap_from_history(history: list, fraction: float = 0.5,
+                            floor: float = 0.25, min_days: int = 30) -> float:
+    """페이퍼 장부(OOS)의 보유일 수익 통계로 부분 켈리 '상한'을 만든다.
+
+    보유일(그날 비중≠0)의 다음날 자산 수익으로 승률·평균손익을 추정해
+    ½켈리를 계산하고 [floor, 1.0]로 클립한다. 표본 min_days 미만이면
+    1.0(비개입) — 잡음 통계 위의 켈리는 수학의 탈을 쓴 도박이다.
+    인샘플 백테스트가 아니라 실제 페이퍼 기록이라 켈리의 전제(OOS)에 맞다.
+    엣지 추정이 음수여도 floor 밑으로는 안 내린다 — '걸지 마라'의 판정은
+    켈리가 아니라 오디션·킬스위치의 몫이다(역할 분리).
+    """
+    try:
+        rets = []
+        for a, b in zip(history, history[1:]):
+            if abs(float(a.get("weight") or 0.0)) > 0:
+                ea = float(a.get("equity") or 0.0)
+                eb = float(b.get("equity") or 0.0)
+                if ea > 0 and eb > 0:
+                    rets.append(eb / ea - 1.0)
+        if len(rets) < min_days:
+            return 1.0
+        wins = [r for r in rets if r > 0]
+        losses = [r for r in rets if r < 0]
+        if not wins or not losses:
+            return 1.0
+        from quant.risk import kelly_fraction
+        k = kelly_fraction(len(wins) / len(rets),
+                           sum(wins) / len(wins), sum(losses) / len(losses))
+        return float(max(floor, min(1.0, fraction * k)))
+    except Exception:  # noqa: BLE001 — 상한 계산 실패 = 비개입(1.0)
+        return 1.0
+
+
+def _regime_breakdown(history: list, window: int = 20) -> dict | None:
+    """레짐별 성과 분해 — 챔피언이 '어떤 장'에서 벌고 잃었는지의 정직한 답.
+
+    레짐 정의: 장부의 균등가중 지수(price)가 최근 window일 이동평균 위(상승
+    국면)/아래(하락 국면). 각 국면에서의 우리 일별 수익을 복리로 합산한다.
+    상승장에서만 벌었다면 그건 시장 베타지 엣지가 아닐 수 있다 — 그 구분을
+    데이터로 보여주는 게 목적이다. 표본 부족(window+5일 미만)이면 None.
+    """
+    try:
+        rows = [(str(r.get("date")), float(r.get("price") or 0),
+                 float(r.get("equity") or 0)) for r in history
+                if r.get("price") and r.get("equity")]
+        if len(rows) < window + 5:
+            return None
+        out = {"up": {"days": 0, "ret_pct": 1.0},
+               "down": {"days": 0, "ret_pct": 1.0}}
+        prices = [p for _, p, _ in rows]
+        for i in range(window, len(rows)):
+            ma = sum(prices[i - window:i]) / window
+            regime = "up" if prices[i] >= ma else "down"
+            prev_eq, eq = rows[i - 1][2], rows[i][2]
+            if prev_eq > 0:
+                out[regime]["days"] += 1
+                out[regime]["ret_pct"] *= eq / prev_eq
+        for v in out.values():
+            v["ret_pct"] = round((v["ret_pct"] - 1) * 100, 2)
+        out["window"] = window
+        return out
+    except Exception:  # noqa: BLE001 — 표시 재료일 뿐(실패가 기록을 막으면 안 된다)
+        return None
+
+
+def _hrp_slices(rets_map: dict, n_total: int) -> dict | None:
+    """HRP(계층적 리스크 패리티) 슬라이스 — ERC의 상위 호환(추정 오차에 강함).
+
+    데이터 준비 규약은 ERC와 동일(40일 이상 공통 표본, 2종목 이상). 가용
+    종목들의 총 예산(k/n_total)을 HRP 비율로 나누고 과집중 상한(3/n_total)을
+    적용한다. 퇴화 시 None — 호출자는 ERC → 균등 순으로 폴백한다.
+    """
+    import pandas as pd
+    try:
+        cols = {}
+        for key, s in rets_map.items():
+            s = s.dropna()
+            if len(s) >= 40:
+                s.index = pd.DatetimeIndex(s.index).normalize()
+                cols[key] = s[~s.index.duplicated()]
+        if len(cols) < 2:
+            return None
+        R = pd.DataFrame(cols).dropna()
+        if len(R) < 40:
+            return None
+        from quant.live.hrp import hrp_weights
+        w = hrp_weights(R)
+        if not w:
+            return None
+        budget = len(R.columns) / n_total
+        cap = 3.0 / n_total
+        return {c: min(float(budget * wi), cap) for c, wi in w.items()}
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
     """공분산 기반 위험기여도 균등(ERC) 슬라이스 — 자본 균등(1/n)의 상위 호환.
 
@@ -539,7 +667,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
     last_dates = []
-    rets_map: dict = {}             # key → 최근 90일 수익률 — ERC 배분 재료
+    rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
+    earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -554,6 +683,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 df = attach_funding(df, symbol)
                 from quant.data.openinterest import attach_open_interest
                 df = attach_open_interest(df, symbol)
+            if market == "kr_stock":
+                from quant.data.krx import attach_krx_flows
+                df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
             if use_champions:
@@ -565,6 +697,23 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df)
             weights[key] = float(
                 _risk_for(market).size_positions(df, signals).iloc[-1])
+            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록
+            if market == "us_stock" and abs(weights[key]) > 0:
+                from datetime import date as _edate
+
+                from quant.data.earnings import earnings_guard_factor
+                ef, edate = earnings_guard_factor(
+                    symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+                    state_dir=state_dir)
+                if edate and ef < 1.0:
+                    weights[key] = float(weights[key] * ef)
+                    earnings_guards[key] = edate
+            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용
+            kcap = _kelly_cap_from_history(
+                _load_paper(_paper_path(market, symbol, state_dir))
+                .get("history") or [])
+            if kcap < 1.0:
+                weights[key] = float(np.clip(weights[key], -kcap, kcap))
             rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
@@ -640,8 +789,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if paused:
         eff_scale = 0.0
 
-    # ERC(위험기여 균등) 슬라이스 — 실패 시 자본 균등(1/n) 폴백
-    slices = _erc_slices(rets_map, n) or {k: 1.0 / n for k in weights}
+    # 위험 배분 슬라이스 — HRP(상관 추정 오차에 강함) → ERC → 균등 폴백 사다리
+    hrp = _hrp_slices(rets_map, n)
+    erc = None if hrp else _erc_slices(rets_map, n)
+    slices = hrp or erc or {k: 1.0 / n for k in weights}
+    alloc_method = "hrp" if hrp else ("erc" if erc else "equal")
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
     # 자본을 고확신 종목으로 기울인다. 총예산 보존 재정규화 후 과집중 상한
     # (3/n)을 다시 적용한다(상한 초과분은 재분배하지 않고 버림 — 보수적).
@@ -706,6 +858,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "exposure_scale": float(settings["exposure_scale"]),
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
+              "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
+              # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
+              "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               "champion": {"symbols": n, "skipped": skipped}}
@@ -936,6 +1091,9 @@ def write_docs_status(state_dir: str = STATE_DIR,
                                                     start_cash=sc),
                     "deposits": deposits[-30:],
                 })
+                rb = _regime_breakdown(hist)
+                if rb:                             # 레짐별 성과 분해(투명성)
+                    status["paper"][key]["regime_breakdown"] = rb
             if hist:
                 status["updated"] = max(status["updated"] or "", hist[-1]["date"])
 

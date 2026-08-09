@@ -279,7 +279,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const cls=ret>=0?"pos":"neg";
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
     const champ=k.startsWith("portfolio")
-      ?rest.length+"종목 위험균등(ERC) 분산 (각 종목의 챔피언 전략 추종)"
+      ?rest.length+"종목 위험 분산(HRP·계층적 리스크 패리티) (각 종목의 챔피언 전략 추종)"
       :(st.champions&&st.champions[k])
         ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
     // 8마일 챌린지(통합 계좌, 8만원 → 1억): 원금·손익 분해 + 목표 게이지
@@ -292,6 +292,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <div><span class="lbl">실력 지표 (시간가중 TWR)</span><b class="${p.twr_pct>=0?"pos":"neg"}">${pct(p.twr_pct)}</b></div>
         ${(hist[hist.length-1]||{}).random_pctile!=null?`<div><span class="lbl">무작위 전략 1,000개 대비</span><b>상위 ${(100-hist[hist.length-1].random_pctile).toFixed(0)}%</b></div>`:""}
         ${shadow&&shadow.equity!=null?`<div><span class="lbl">진화 없이 고정 전략이었다면</span><b>${won(shadow.equity)}</b></div>`:""}
+        ${p.regime_breakdown?`<div><span class="lbl">레짐별 성과 (상승 국면 ${p.regime_breakdown.up.days}일 / 하락 국면 ${p.regime_breakdown.down.days}일)</span><b><span class="${p.regime_breakdown.up.ret_pct>=0?"pos":"neg"}">${pct(p.regime_breakdown.up.ret_pct)}</span> / <span class="${p.regime_breakdown.down.ret_pct>=0?"pos":"neg"}">${pct(p.regime_breakdown.down.ret_pct)}</span></b></div>`:""}
       </div>
       <div style="margin:10px 0 2px"><div style="height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden">
         <div style="height:100%;min-width:3px;width:${Math.max(0.3,ratio*100)}%;background:linear-gradient(90deg,var(--accent),var(--ok));border-radius:99px"></div></div>

@@ -25,6 +25,8 @@ FEATURE_KO = {
     "x_fng": "공포탐욕지수(시장 심리)",
     "x_oi_chg5": "미결제약정 5일 변화(수급)", "x_t10y2y": "장단기 금리차(경기 신호)",
     "x_vix": "VIX 변동성지수(옵션시장 공포)", "x_kimchi": "김치 프리미엄(국내 수급)",
+    "x_vix_ts": "VIX 기간구조(공포의 급성도)",
+    "x_frgn5": "외국인 5일 순매수(z)", "x_inst5": "기관 5일 순매수(z)",
 }
 
 
@@ -67,6 +69,15 @@ def _feature_note(name: str, value: float) -> str:
     if name == "vol_z":
         state = "거래량 급증" if v > 2 else "거래량 급감" if v < -2 else "평소 수준"
         return f"{ko} {v:+.1f}({state})"
+    if name in ("x_frgn5", "x_inst5"):
+        who = "외국인" if name == "x_frgn5" else "기관"
+        state = ("강한 순매수" if v > 1.0 else "강한 순매도" if v < -1.0
+                 else "중립 수급")
+        return f"{who} 수급 z={v:+.1f}({state})"
+    if name == "x_vix_ts":
+        state = ("백워데이션(스트레스 급성기)" if v > 1.0
+                 else "깊은 콘탱고(안정)" if v < 0.85 else "보통(콘탱고)")
+        return f"{ko} {v:.2f}({state})"
     if name == "x_vix":
         lvl = v * 100                            # 0~1 스케일 → 지수 원값
         state = ("공포 구간" if lvl > 30
@@ -204,6 +215,15 @@ def _explain(spec: dict, df, weight: float, strategy,
                          raw_weight=raw_weight, history=history,
                          pooled_history=pooled_history)
         return f"{inner} · 이벤트 가드: 오늘은 주요 이벤트 없음(매매 허용)"
+
+    if name == "stop_wrap":
+        trail = float(p.get("trail", 0.10))
+        inner = _explain(p.get("inner", {}), df, weight,
+                         getattr(strategy, "base", None),
+                         raw_weight=raw_weight, history=history,
+                         pooled_history=pooled_history)
+        return (f"{inner} · 트레일링 스톱: 보유 고점 대비 -{trail:.0%} "
+                "되돌림 시 청산")
 
     if name == "ml":
         thr = float(p.get("threshold", 0.55))
