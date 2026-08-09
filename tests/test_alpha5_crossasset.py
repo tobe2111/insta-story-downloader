@@ -118,7 +118,7 @@ def test_fetch_failure_leaves_df_unchanged():
 
 def test_ml_includes_x_columns_and_funding_change():
     from quant.strategies.ml import FEATURE_SET, _features
-    assert FEATURE_SET.startswith("fs4")
+    assert FEATURE_SET.startswith("fs5")
     df = _df(120)
     df["x_spy_ret5"] = 0.01
     df["funding"] = 0.0001

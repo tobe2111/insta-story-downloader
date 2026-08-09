@@ -42,7 +42,8 @@ FEATURE_NAMES = [
 #   fs3: +크로스에셋(x_btc_ret5·x_spy_ret5·x_tnx_chg5·x_usdkrw_ret5, 컬럼
 #        있을 때) +펀딩 변화(x_funding_chg — 수급 모멘텀)
 #   fs4: +미결제약정 변화(x_oi_chg5) +FRED 장단기 금리차(x_t10y2y, 키 있을 때)
-FEATURE_SET = "fs4:+oi+fred"
+#   fs5: +VIX 수준(x_vix, 미국·한국 주식) +김치 프리미엄(x_kimchi, 코인)
+FEATURE_SET = "fs5:+vix+kimchi"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:

@@ -261,6 +261,16 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
         "drift_psi": _drift_psi(df),
     }
+    # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
+    # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
+    try:
+        from quant.live.calibration_guard import recalibrated_prob
+        adj, active = recalibrated_prob(
+            record["prob_up"], _all_paper_histories(state_dir))
+        if active:
+            record["prob_up_cal"] = round(float(adj), 4)
+    except Exception:  # noqa: BLE001 — 보정 준비 실패가 기록을 막으면 안 된다
+        pass
     st.update({
         "market": market, "symbol": symbol, "start_cash": START_CASH,
         "cash": broker.get_cash(), "quantity": pos.quantity,
