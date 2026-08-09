@@ -27,6 +27,8 @@ FEATURE_KO = {
     "x_vix": "VIX 변동성지수(옵션시장 공포)", "x_kimchi": "김치 프리미엄(국내 수급)",
     "x_vix_ts": "VIX 기간구조(공포의 급성도)",
     "x_frgn5": "외국인 5일 순매수(z)", "x_inst5": "기관 5일 순매수(z)",
+    "x_hy_spread": "하이일드 스프레드(신용 스트레스)",
+    "x_usd_chg5": "달러인덱스 5일 변화", "x_t10yie_chg5": "기대인플레 5일 변화",
 }
 
 
@@ -69,6 +71,18 @@ def _feature_note(name: str, value: float) -> str:
     if name == "vol_z":
         state = "거래량 급증" if v > 2 else "거래량 급감" if v < -2 else "평소 수준"
         return f"{ko} {v:+.1f}({state})"
+    if name == "x_hy_spread":
+        state = ("신용 경색 경보" if v > 5.0
+                 else "신용시장 안정" if v < 3.5 else "보통 수준")
+        return f"{ko} {v:.2f}%p({state})"
+    if name == "x_usd_chg5":
+        state = ("달러 강세(위험자산 역풍)" if v > 0.005
+                 else "달러 약세(위험자산 순풍)" if v < -0.005 else "보합")
+        return f"{ko} {v:+.1%}({state})"
+    if name == "x_t10yie_chg5":
+        state = ("인플레 기대 상승" if v > 0.05
+                 else "인플레 기대 하락" if v < -0.05 else "안정")
+        return f"{ko} {v:+.2f}%p({state})"
     if name in ("x_frgn5", "x_inst5"):
         who = "외국인" if name == "x_frgn5" else "기관"
         state = ("강한 순매수" if v > 1.0 else "강한 순매도" if v < -1.0

@@ -80,6 +80,11 @@ jobs:
           LIC_SECRET: ${{ secrets.QUANT_LICENSE_SECRET }}
           LIC_PUBKEY: ${{ secrets.QUANT_LICENSE_PUBKEY }}
         run: |
+          # 배포판 표식 — 실거래 명령을 소스 설치 전용으로 잠근다.
+          # 판매·배포되는 실행파일에 실계좌 경로가 있으면 안 된다(규제 리스크):
+          # 배포판은 백테스트·검증·페이퍼(모의)·조회 전용이다.
+          printf 'DISTRIBUTION = True\n' > quant/_dist_build.py
+          echo "🚫 배포판 표식 포함 — 실거래 명령은 소스 설치에서만 동작합니다"
           if [ -n "$LIC_SECRET" ]; then
             printf 'SECRET = "%s"\n' "$LIC_SECRET" > quant/_license_key.py
             echo "🔒 HMAC 자물쇠 포함 — 이 빌드는 라이선스 키를 요구합니다"

@@ -494,6 +494,24 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     }
   }
   el.innerHTML=pfKeys.map(card).join("")+tbl+calib+wrong+ring+why;
+  // 판정 시계 — 구조가 바뀌면 통계의 시계도 0으로 리셋된다는 사실을 명시
+  if(st.generation){
+    const g=st.generation, pct=Math.min(100,g.days/g.target_days*100);
+    el.innerHTML+=`<div class="card"><h2>판정 시계 <span style="font-size:12px;color:var(--muted);font-weight:400">구조가 바뀌면 0일부터 다시 셉니다</span></h2>
+      <div class="sub" style="font-size:13px">현재 구조(<b>${esc(g.feature_set)}</b>) 관찰 <b>${g.days}일차</b> / 판정 기준 ${g.target_days}일 (${esc(g.since)}~)
+      — 엣지 유무는 이 시계가 다 돌기 전엔 판정하지 않습니다. 그 전의 수익률은 통계가 아니라 소음일 수 있습니다.</div>
+      <div style="height:8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin-top:8px">
+      <div style="height:100%;min-width:2px;width:${Math.max(1,pct)}%;background:var(--accent);border-radius:99px"></div></div></div>`;
+  }
+  // 오늘의 거시(FRED) — 판단 피처와 같은 원천이지만 이 카드는 표시 전용
+  if(st.macro&&(st.macro.items||[]).length){
+    const mrows=st.macro.items.map(m=>
+      `<div><span class="lbl">${esc(m.name)}</span><b>${m.value}${esc(m.unit||"")}`+
+      (m.chg5_pct!=null?` <span style="font-size:12px" class="${m.chg5_pct>=0?"pos":"neg"}">(5일 ${m.chg5_pct>=0?"+":""}${m.chg5_pct}%)</span>`:"")+`</b></div>`).join("");
+    el.innerHTML+=`<div class="card"><h2>오늘의 거시 <span style="font-size:12px;color:var(--muted);font-weight:400">FRED · 발표 시차 보정</span></h2>
+      <div class="vs">${mrows}</div>
+      ${st.macro.note?`<div class="sub" style="font-size:12.5px;margin-top:8px">${esc(st.macro.note)}</div>`:""}</div>`;
+  }
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>

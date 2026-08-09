@@ -378,6 +378,32 @@ cd insta-story-downloader
   }).catch(function(){});
   </script>
 
+  <section id="referrals" style="display:none">
+    <p class="kicker">Support</p>
+    <h2>거래소 가입으로 챌린지 응원하기</h2>
+    <p class="sub">아래 링크로 가입하면 <b>거래 수수료 할인</b>을 받고, 수수료의
+    일부가 이 공개 실험 운영에 지급됩니다. <span style="color:var(--muted)">
+    (투명 고지: 아래는 리베이트 제휴 링크입니다 — 가입 여부는 투자 판단과
+    무관하며, 이 시스템은 수익을 보장하지 않습니다.)</span></p>
+    <div id="referral-list" class="reveal" style="max-width:560px"></div>
+  </section>
+  <script>
+  fetch("referrals.json").then(r=>r.ok?r.json():null).then(d=>{
+    var links=(d&&d.links)||[];
+    if(!links.length)return;                   // 링크가 없으면 섹션 숨김 유지
+    function esc(s){return String(s||"").replace(/[<>&"]/g,"")}
+    document.getElementById("referral-list").innerHTML=links.map(l=>
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;'
+      +'padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin:6px 0">'
+      +'<span><b>'+esc(l.name)+'</b>'
+      +(l.benefit?' <span style="color:var(--muted);font-size:13px">— '+esc(l.benefit)+'</span>':'')
+      +'</span><a href="'+encodeURI(l.url)+'" target="_blank" rel="noopener nofollow sponsored" '
+      +'style="white-space:nowrap;border:1px solid var(--accent);border-radius:8px;'
+      +'padding:6px 14px;font-size:13.5px">가입하기 →</a></div>').join("");
+    document.getElementById("referrals").style.display="";
+  }).catch(function(){});
+  </script>
+
   <section id="faq">
     <p class="kicker">FAQ</p>
     <h2>자주 묻는 질문</h2>

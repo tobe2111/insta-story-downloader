@@ -124,14 +124,18 @@ def _kimchi_series(fetch=None) -> pd.Series | None:
     return _MEMO[key]
 
 
-def _fred_t10y2y() -> pd.Series | None:
-    """FRED 장단기 금리차(T10Y2Y) — 경기침체 선행지표. 키 없으면 None.
+def _fred(series: str) -> pd.Series | None:
+    """FRED 시리즈 하나 — 키(FRED_API_KEY) 없으면 None. 실행 내 메모.
 
     macro 모듈이 발표 시차를 인덱스에 반영해 주므로(룩어헤드 방지) 여기서는
-    그대로 ffill 정렬만 하면 된다. 실행 내 메모.
+    그대로 ffill 정렬만 하면 된다. 사용 시리즈:
+        T10Y2Y       장단기 금리차 — 경기침체 선행지표
+        BAMLH0A0HYM2 하이일드 스프레드 — 신용시장 스트레스(위험의 가격)
+        DTWEXBGS     달러인덱스(광의) — 글로벌 유동성·위험선호
+        T10YIE       10년 기대인플레이션(BEI) — 연준 정책 기대
     """
     import os
-    key = ("_t10y2y",)
+    key = ("_fred", series)
     if key in _MEMO:
         return _MEMO[key]
     if not os.getenv("FRED_API_KEY"):
@@ -139,12 +143,17 @@ def _fred_t10y2y() -> pd.Series | None:
         return None
     try:
         from quant.data.macro import fred_series
-        s = fred_series("T10Y2Y")
+        s = fred_series(series)
         _MEMO[key] = s if s is not None and len(s) else None
     except Exception as exc:  # noqa: BLE001
-        log.warning("FRED T10Y2Y 조회 실패: %s", exc)
+        log.warning("FRED %s 조회 실패: %s", series, exc)
         _MEMO[key] = None
     return _MEMO[key]
+
+
+def _fred_t10y2y() -> pd.Series | None:
+    """FRED 장단기 금리차(T10Y2Y) — 기존 호출 경로 호환용 별칭."""
+    return _fred("T10Y2Y")
 
 
 def _align(feature: pd.Series, index: pd.Index) -> pd.Series:
@@ -180,10 +189,27 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             kim = _kimchi_series(fetch=fetch)
             if kim is not None:
                 out["x_kimchi"] = _align(kim, out.index)
+            # 달러·신용(FRED) — 코인은 '달러 유동성 자산'이라 달러 강세와
+            # 신용 경색이 공통 역풍이다(키 없으면 조용히 생략)
+            usd = _fred("DTWEXBGS")
+            if usd is not None:
+                out["x_usd_chg5"] = _align(usd.pct_change(5), out.index)
+            hy = _fred("BAMLH0A0HYM2")
+            if hy is not None:
+                out["x_hy_spread"] = _align(hy, out.index)
         elif market == "us_stock":
             t10 = _fred_t10y2y()
             if t10 is not None:
                 out["x_t10y2y"] = _align(t10, out.index)
+            hy = _fred("BAMLH0A0HYM2")           # 신용 스트레스(위험의 가격)
+            if hy is not None:
+                out["x_hy_spread"] = _align(hy, out.index)
+            usd = _fred("DTWEXBGS")              # 달러 강세 = 대형주 실적 역풍
+            if usd is not None:
+                out["x_usd_chg5"] = _align(usd.pct_change(5), out.index)
+            bei = _fred("T10YIE")                # 기대인플레 변화 = 연준 기대
+            if bei is not None:
+                out["x_t10yie_chg5"] = _align(bei.diff(5), out.index)
             if symbol != "SPY":
                 spy = _bench_close("us_stock", "SPY", fetch=fetch)
                 if spy is not None:
@@ -206,6 +232,12 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             t10 = _fred_t10y2y()
             if t10 is not None:
                 out["x_t10y2y"] = _align(t10, out.index)
+            hy = _fred("BAMLH0A0HYM2")           # 글로벌 신용 경색 = 외인 이탈
+            if hy is not None:
+                out["x_hy_spread"] = _align(hy, out.index)
+            usd = _fred("DTWEXBGS")              # 달러 강세 = 원화·수출주 압박
+            if usd is not None:
+                out["x_usd_chg5"] = _align(usd.pct_change(5), out.index)
             spy = _bench_close("us_stock", "SPY", fetch=fetch)
             if spy is not None:
                 out["x_spy_ret5"] = _align(spy.pct_change(5), out.index)

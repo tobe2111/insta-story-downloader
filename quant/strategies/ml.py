@@ -45,7 +45,9 @@ FEATURE_NAMES = [
 #   fs5: +VIX 수준(x_vix, 미국·한국 주식) +김치 프리미엄(x_kimchi, 코인)
 #   fs6: +VIX 기간구조(x_vix_ts = VIX/VIX3M — 백워데이션은 스트레스 급성기)
 #   fs7: +KRX 수급(x_frgn5·x_inst5 — 외국인·기관 5일 순매수 z, 한국 주식)
-FEATURE_SET = "fs7:+krxflow"
+#   fs8: +FRED 거시 3종(x_hy_spread 신용 스트레스 · x_usd_chg5 달러 유동성 ·
+#        x_t10yie_chg5 기대인플레 변화) — 키 있을 때만
+FEATURE_SET = "fs8:+fredmacro"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:

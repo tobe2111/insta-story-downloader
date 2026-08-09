@@ -49,6 +49,9 @@ SERIES = {
 # 필요하면 ALFRED realtime API를 써야 한다.)
 PUBLICATION_LAG_DAYS = {
     "DGS10": 1, "DGS2": 1, "T10Y2Y": 1,     # 일별 금리: 다음 영업일 발표
+    "BAMLH0A0HYM2": 1,                       # 일별 하이일드 스프레드
+    "DTWEXBGS": 1,                           # 일별 달러인덱스(광의)
+    "T10YIE": 1,                             # 일별 10년 기대인플레이션
     "CPIAUCSL": 45,                          # 월별 CPI: 익월 중순
     "UNRATE": 40,                            # 월별 실업률: 익월 초 발표
     "M2SL": 30,                              # 월별 통화량

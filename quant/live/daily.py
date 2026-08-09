@@ -437,6 +437,40 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     return round(beaten / n * 100, 1)
 
 
+def _generation_info(state_dir: str) -> dict | None:
+    """현재 구조 세대(피처셋 태그)의 관찰 일수 — 90일 시계를 숨기지 않는다.
+
+    구조(피처·모델·사이징)가 바뀔 때마다 성과 통계의 시계는 사실상 0으로
+    리셋된다. 이 사실을 사이트에 명시해, 과거 세대의 기록이 현재 구조의
+    실적처럼 읽히는 착시를 막는다. since = 재학습 장부에서 현재 피처셋
+    태그가 처음 등장한 날(기록 전이면 오늘 = 0일차).
+    """
+    try:
+        import datetime as _dt
+        from quant.strategies.ml import FEATURE_SET
+        path = os.path.join(state_dir, "retrain_history.jsonl")
+        since = None
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                for ln in f:
+                    try:
+                        r = json.loads(ln)
+                    except ValueError:
+                        continue
+                    if r.get("feature_set") == FEATURE_SET:
+                        a = str(r.get("asof", ""))[:10]
+                        if len(a) == 10 and (since is None or a < since):
+                            since = a
+        today = _dt.date.today()
+        if since is None:
+            since = today.isoformat()
+        days = (today - _dt.date.fromisoformat(since)).days
+        return {"feature_set": FEATURE_SET, "since": since,
+                "days": max(0, days), "target_days": 90}
+    except Exception:  # noqa: BLE001 — 표시 재료일 뿐
+        return None
+
+
 def _kelly_cap_from_history(history: list, fraction: float = 0.5,
                             floor: float = 0.25, min_days: int = 30) -> float:
     """페이퍼 장부(OOS)의 보유일 수익 통계로 부분 켈리 '상한'을 만든다.
@@ -1102,6 +1136,20 @@ def write_docs_status(state_dir: str = STATE_DIR,
     briefing = load_briefing(state_dir)
     if briefing and briefing.get("items"):
         status["briefing"] = briefing
+
+    # 오늘의 거시(FRED, 표시 전용) — 키 없으면 조용히 생략
+    try:
+        from quant.live.macro_brief import macro_summary
+        m = macro_summary()
+        if m:
+            status["macro"] = m
+    except Exception:  # noqa: BLE001 — 브리핑 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
+    # 판정 시계 — 현재 구조 세대의 관찰 일수(구조가 바뀌면 0일부터 다시)
+    gen = _generation_info(state_dir)
+    if gen:
+        status["generation"] = gen
 
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO
