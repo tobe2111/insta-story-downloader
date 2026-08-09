@@ -407,6 +407,69 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     return round(beaten / n * 100, 1)
 
 
+def _regime_breakdown(history: list, window: int = 20) -> dict | None:
+    """레짐별 성과 분해 — 챔피언이 '어떤 장'에서 벌고 잃었는지의 정직한 답.
+
+    레짐 정의: 장부의 균등가중 지수(price)가 최근 window일 이동평균 위(상승
+    국면)/아래(하락 국면). 각 국면에서의 우리 일별 수익을 복리로 합산한다.
+    상승장에서만 벌었다면 그건 시장 베타지 엣지가 아닐 수 있다 — 그 구분을
+    데이터로 보여주는 게 목적이다. 표본 부족(window+5일 미만)이면 None.
+    """
+    try:
+        rows = [(str(r.get("date")), float(r.get("price") or 0),
+                 float(r.get("equity") or 0)) for r in history
+                if r.get("price") and r.get("equity")]
+        if len(rows) < window + 5:
+            return None
+        out = {"up": {"days": 0, "ret_pct": 1.0},
+               "down": {"days": 0, "ret_pct": 1.0}}
+        prices = [p for _, p, _ in rows]
+        for i in range(window, len(rows)):
+            ma = sum(prices[i - window:i]) / window
+            regime = "up" if prices[i] >= ma else "down"
+            prev_eq, eq = rows[i - 1][2], rows[i][2]
+            if prev_eq > 0:
+                out[regime]["days"] += 1
+                out[regime]["ret_pct"] *= eq / prev_eq
+        for v in out.values():
+            v["ret_pct"] = round((v["ret_pct"] - 1) * 100, 2)
+        out["window"] = window
+        return out
+    except Exception:  # noqa: BLE001 — 표시 재료일 뿐(실패가 기록을 막으면 안 된다)
+        return None
+
+
+def _hrp_slices(rets_map: dict, n_total: int) -> dict | None:
+    """HRP(계층적 리스크 패리티) 슬라이스 — ERC의 상위 호환(추정 오차에 강함).
+
+    데이터 준비 규약은 ERC와 동일(40일 이상 공통 표본, 2종목 이상). 가용
+    종목들의 총 예산(k/n_total)을 HRP 비율로 나누고 과집중 상한(3/n_total)을
+    적용한다. 퇴화 시 None — 호출자는 ERC → 균등 순으로 폴백한다.
+    """
+    import pandas as pd
+    try:
+        cols = {}
+        for key, s in rets_map.items():
+            s = s.dropna()
+            if len(s) >= 40:
+                s.index = pd.DatetimeIndex(s.index).normalize()
+                cols[key] = s[~s.index.duplicated()]
+        if len(cols) < 2:
+            return None
+        R = pd.DataFrame(cols).dropna()
+        if len(R) < 40:
+            return None
+        from quant.live.hrp import hrp_weights
+        w = hrp_weights(R)
+        if not w:
+            return None
+        budget = len(R.columns) / n_total
+        cap = 3.0 / n_total
+        return {c: min(float(budget * wi), cap) for c, wi in w.items()}
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
     """공분산 기반 위험기여도 균등(ERC) 슬라이스 — 자본 균등(1/n)의 상위 호환.
 
@@ -642,8 +705,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if paused:
         eff_scale = 0.0
 
-    # ERC(위험기여 균등) 슬라이스 — 실패 시 자본 균등(1/n) 폴백
-    slices = _erc_slices(rets_map, n) or {k: 1.0 / n for k in weights}
+    # 위험 배분 슬라이스 — HRP(상관 추정 오차에 강함) → ERC → 균등 폴백 사다리
+    hrp = _hrp_slices(rets_map, n)
+    erc = None if hrp else _erc_slices(rets_map, n)
+    slices = hrp or erc or {k: 1.0 / n for k in weights}
+    alloc_method = "hrp" if hrp else ("erc" if erc else "equal")
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
     # 자본을 고확신 종목으로 기울인다. 총예산 보존 재정규화 후 과집중 상한
     # (3/n)을 다시 적용한다(상한 초과분은 재분배하지 않고 버림 — 보수적).
@@ -708,6 +774,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "exposure_scale": float(settings["exposure_scale"]),
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
+              "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               "champion": {"symbols": n, "skipped": skipped}}
@@ -938,6 +1005,9 @@ def write_docs_status(state_dir: str = STATE_DIR,
                                                     start_cash=sc),
                     "deposits": deposits[-30:],
                 })
+                rb = _regime_breakdown(hist)
+                if rb:                             # 레짐별 성과 분해(투명성)
+                    status["paper"][key]["regime_breakdown"] = rb
             if hist:
                 status["updated"] = max(status["updated"] or "", hist[-1]["date"])
 
