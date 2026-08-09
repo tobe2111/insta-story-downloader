@@ -230,6 +230,8 @@ def _explain(spec: dict, df, weight: float, strategy,
         model = p.get("model", "logreg")
         model_ko = {"logreg": "로지스틱회귀", "rf": "랜덤포레스트",
                     "gb": "그라디언트부스팅", "vote": "앙상블"}.get(model, model)
+        if p.get("pool"):
+            model_ko += "·풀링(전 종목 합산 학습)"
         # 확률은 모델의 실제 출력(last_proba_)을 우선 사용한다 — 서술과 기록
         # 숫자(prob_up)가 같은 원천에서 나와야 사후 대조가 성립한다.
         # 없을 때만 비중 → 상승확률 역산(proba 사이징 공식의 역)으로 근사.
