@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>SNS 카드뉴스</title>
+<link rel="stylesheet" href="assets/pretendard.css">
+<style>
+/* 인스타그램 카드뉴스 캔버스 — 4:5 (1080×1350) 고정. 캡처 전용 페이지라
+   반응형이 아니라 '정확한 픽셀'이 목표다. ?n=1(표지) 2(판단) 3(검증) */
+*{box-sizing:border-box;margin:0}
+:root{--bg:#0a0b0e;--bg2:#12141a;--fg:#f4f5f7;--muted:#8f96a3;
+  --line:rgba(255,255,255,.09);--accent:#4c7dff;--up:#f04452;--down:#3182f6}
+html,body{width:1080px;height:1350px;overflow:hidden}
+body{padding:64px 76px 90px;font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
+  background:var(--bg);color:var(--fg);display:flex;flex-direction:column;
+  position:relative}
+/* 은은한 배경 그라데이션 — 밋밋한 검정 방지 */
+body::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(900px 500px at 85% -10%,rgba(76,125,255,.16),transparent),
+             radial-gradient(700px 420px at -10% 110%,rgba(76,125,255,.08),transparent)}
+.logo{font-weight:800;letter-spacing:.16em;font-size:34px}
+.logo em{color:var(--accent);font-style:normal}
+.badge{display:inline-block;border:1.5px solid var(--line);border-radius:99px;
+  padding:6px 22px;font-size:26px;color:var(--muted);margin-left:16px;vertical-align:6px}
+.head{display:flex;align-items:center;justify-content:space-between}
+.date{font-size:28px;color:var(--muted)}
+.kicker{font-size:30px;color:var(--accent);font-weight:700;letter-spacing:.06em;
+  margin:52px 0 16px}
+h1{font-size:68px;line-height:1.26;letter-spacing:-.02em;font-weight:800;
+  word-break:keep-all}
+.big{font-size:128px;font-weight:800;letter-spacing:-.03em;margin-top:56px}
+.big small{font-size:56px;color:var(--muted);font-weight:600}
+.chg{font-size:54px;font-weight:700;margin-top:8px}
+.up{color:var(--up)}.down{color:var(--down)}.flat{color:var(--muted)}
+.sub{font-size:32px;color:var(--muted);line-height:1.6;margin-top:26px;word-break:keep-all}
+.rows{margin-top:64px;display:flex;flex-direction:column;gap:20px}
+.row{display:flex;justify-content:space-between;align-items:center;
+  background:var(--bg2);border:1.5px solid var(--line);border-radius:22px;
+  padding:30px 36px;font-size:37px}
+.row b{font-weight:700}
+.row .w{color:var(--accent);font-weight:800}
+.row .cash{color:var(--muted)}
+.note{background:var(--bg2);border:1.5px solid var(--line);border-radius:22px;
+  padding:34px 38px;font-size:33px;line-height:1.6;color:var(--muted);
+  margin-top:44px;word-break:keep-all}
+.note b{color:var(--fg)}
+.checks{margin-top:60px;display:flex;flex-direction:column;gap:34px}
+.check{display:flex;gap:24px;font-size:38px;line-height:1.5;word-break:keep-all}
+.check .ic{flex:none;width:56px;height:56px;border-radius:16px;background:rgba(76,125,255,.15);
+  color:var(--accent);display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:800}
+.check .d{color:var(--muted);font-size:30px;margin-top:6px}
+.spacer{flex:1}
+.footer{position:absolute;left:76px;right:76px;bottom:90px;
+  border-top:1.5px solid var(--line);padding-top:34px;display:flex;
+  justify-content:space-between;align-items:center;font-size:26px;color:var(--muted)}
+.footer b{color:var(--fg)}
+.url{font-size:40px;font-weight:800;color:var(--accent);margin-top:14px;
+  letter-spacing:-.01em}
+.swipe{font-size:30px;color:var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+var n=Number(new URLSearchParams(location.search).get("n")||"1");
+var esc=function(s){return String(s).replace(/[<>&]/g,function(c){
+  return {"<":"&lt;",">":"&gt;","&":"&amp;"}[c]})};
+fetch("status.json").then(function(r){return r.json()}).then(function(st){
+  var port=(st.paper||{})["portfolio:ALL"]||{};
+  var hist=port.history||[];var last=hist[hist.length-1]||{};
+  var date=last.date||(st.updated||"").slice(0,10);
+  var day=hist.length?("D+"+hist.length):"";
+  var eq=last.equity!=null?Math.round(last.equity).toLocaleString()+"원":"—";
+  var ret=last.return_pct!=null?last.return_pct:null;
+  var retTxt=ret!=null?((ret>0?"+":"")+ret.toFixed(2)+"%"):"—";
+  var cls=ret==null||Math.abs(ret)<0.005?"flat":(ret>0?"up":"down");
+  var alloc=last.alloc||{};var names=st.symbols||{};
+  var rs=last.risk_scale!=null?last.risk_scale:1;
+  var recent=(st.retrain_recent||[]).filter(function(r){return r.asof===date});
+  var swaps=recent.filter(function(r){return r.promoted}).length;
+
+  // 훅 — 캡션과 같은 철학: 그날 실제로 일어난 일이 첫 줄이다
+  var hook;
+  if(rs<1)hook="킬스위치가 작동 중입니다.<br>물러나는 것도 시스템의 일입니다.";
+  else if(ret==null)hook="오늘의 장부를<br>공개합니다.";
+  else if(ret<=-1)hook="아픈 날도<br>그대로 올립니다.";
+  else if(ret<0)hook="이 마이너스도<br>기록의 일부입니다.";
+  else if(Math.abs(ret)<0.005)hook="지루한 날도<br>기록입니다.";
+  else if(ret<1)hook="작은 플러스가<br>쌓여야 복리입니다.";
+  else hook="좋은 날이지만, 하루로는<br>아무것도 증명되지 않습니다.";
+
+  var top=Object.entries(alloc).filter(function(e){return e[1]>0})
+    .sort(function(a,b){return b[1]-a[1]}).slice(0,5)
+    .map(function(e){var k=e[0];
+      return {name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
+  var nCash=Object.values(alloc).filter(function(v){return !(v>0)}).length;
+
+  var html="";
+  var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
+    +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'
+    +'<span class="date">'+esc(date)+'</span></div>';
+  var footer='<div class="footer"><span>⚠️ <b>모의투자</b> — 수익 보장 없음 · '
+    +'매일 그날 숫자 그대로</span><span class="swipe">'
+    +(n+' / 3')+(n<3?" · 밀어서 →":"")+'</span></div>';
+
+  if(n===1){
+    html=head
+      +'<div class="kicker">AI 퀀트 공개 실험 — 오늘의 성적표</div>'
+      +'<h1>'+hook+'</h1>'
+      +'<div class="big">'+esc(eq)+'</div>'
+      +'<div class="chg '+cls+'">'+esc(retTxt)+' <small style="color:var(--muted);font-size:36px">'
+      +'(시작 8만원 · 목표는 과정 전체의 공개)</small></div>'
+      +'<div class="sub">매일 새벽, AI가 스스로 재학습하고 20종목에 분산 투자합니다.<br>'
+      +'사람의 개입 없이 — 기록은 조작 불가능한 공개 장부에 남습니다.</div>'
+      +'<div class="spacer"></div>'+footer;
+  }else if(n===2){
+    var rows=top.map(function(t){
+      return '<div class="row"><b>'+esc(t.name)+'</b>'
+        +'<span class="w">매수 '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
+    if(!top.length)rows='<div class="row"><b>전 종목</b><span class="cash">관망 (현금 100%)</span></div>';
+    else if(nCash>0)rows+='<div class="row"><b>나머지 '+nCash+'종목</b><span class="cash">관망 (현금)</span></div>';
+    html=head
+      +'<div class="kicker">오늘 새벽 AI의 판단</div>'
+      +'<h1 style="font-size:62px">배분 상위 종목</h1>'
+      +'<div class="rows">'+rows+'</div>'
+      +'<div class="note">🤖 오늘 재학습: '+(recent.length
+        ?(swaps?('전략 <b>'+swaps+'개 교체</b> — 2단계 검증 통과')
+               :('후보 전원 탈락 — <b>전략 유지</b>가 오늘의 결론'))
+        :"기록 없음(휴장)")
+      +(rs<1?'<br>🛑 킬스위치 — 노출 '+(rs*100).toFixed(0)+'%로 제한 중':"")
+      +'</div>'
+      +'<div class="spacer"></div>'+footer;
+  }else{
+    html=head
+      +'<div class="kicker">왜 믿을 수 있나</div>'
+      +'<h1 style="font-size:62px">잘된 날만 골라<br>올리지 않습니다</h1>'
+      +'<div class="checks">'
+      +'<div class="check"><span class="ic">✓</span><div>모든 판단·장부가 공개 저장소에 커밋'
+      +'<div class="d">과거를 몰래 고치면 흔적이 남는 구조(git)</div></div></div>'
+      +'<div class="check"><span class="ic">✓</span><div>제3자 재현 검증 가능'
+      +'<div class="d">데이터 해시·시드·코드 버전으로 그날 결정을 재실행</div></div></div>'
+      +'<div class="check"><span class="ic">✓</span><div>무작위 1,000개 전략과 성과 대조'
+      +'<div class="d">운인지 실력인지 분포로 판정 — 예측 확률의 보정도 상시 공개</div></div></div>'
+      +'</div>'
+      +'<div class="note">전체 장부·검증 방법은 사이트에서<div class="url">quant.jiwon-1a2.workers.dev</div></div>'
+      +'<div class="spacer"></div>'+footer;
+  }
+  document.getElementById("root").outerHTML=html;
+  document.title="ready";           // 캡처 완료 신호
+}).catch(function(e){
+  document.getElementById("root").textContent="status.json 로딩 실패: "+e;
+});
+})();
+</script>
+</body>
+</html>

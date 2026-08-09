@@ -211,3 +211,17 @@ def test_run_no_images_skips(tmp_path, monkeypatch):
               env={"THREADS_USER_ID": "u", "THREADS_ACCESS_TOKEN": "t"},
               wait_public=False)
     assert out["skipped"] == "no_images"
+
+
+def test_capture_plan_is_instagram_cardnews():
+    """캡처 계획이 사이트 캡처가 아니라 4:5 카드뉴스 전용 템플릿이다."""
+    from quant.reporting.social import CARD_SIZE
+    assert CARD_SIZE == (1080, 1350)                 # 인스타 4:5
+    assert all(p.startswith("sns_card.html?n=") for _, p in CAPTURE_PLAN)
+    yml = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+           / "social-post.yml").read_text(encoding="utf-8")
+    assert "--window-size=1080,1350" in yml and "sns_card.html?n=1" in yml
+    card = (Path(__file__).resolve().parent.parent / "docs"
+            / "sns_card.html").read_text(encoding="utf-8")
+    assert "1080px" in card and "1350px" in card
+    assert "모의투자" in card                         # 카드에도 고지 필수

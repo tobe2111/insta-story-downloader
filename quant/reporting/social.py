@@ -16,13 +16,17 @@ import json
 import os
 
 # 게시 이미지 계획 — (파일명, 사이트 상대경로). 워크플로가 이 순서대로 캡처한다.
-# 첫 장이 썸네일(피드 대표 이미지)이 된다. 1200×630(1.9:1)은 인스타 허용 비율
-# (4:5 ~ 1.91:1) 안이고 스레드도 문제없다.
+# 사이트 화면 캡처가 아니라 인스타그램 카드뉴스 비율(4:5, 1080×1350)로
+# 디자인된 전용 템플릿(sns_card.html)을 촬영한다. 3장 구성:
+#   표지(훅+수익률) → 오늘의 판단(배분 상위) → 검증·CTA(왜 믿을 수 있나)
 CAPTURE_PLAN = [
-    ("01_card.png", "today.html?card=1"),     # 오늘의 성적표 카드(썸네일)
-    ("02_paper.png", "paper.html"),           # 페이퍼 성적표(자산곡선·신뢰도)
-    ("03_trust.png", "trust.html"),           # 검증 페이지(가동률·재현성)
+    ("01_cover.png", "sns_card.html?n=1"),
+    ("02_judgment.png", "sns_card.html?n=2"),
+    ("03_trust.png", "sns_card.html?n=3"),
 ]
+
+# 카드뉴스 캔버스 크기 — 인스타 피드 최적(4:5). 워크플로 캡처 창 크기와 일치.
+CARD_SIZE = (1080, 1350)
 
 DEFAULT_SITE_URL = "https://quant.jiwon-1a2.workers.dev"
 THREADS_TEXT_LIMIT = 500
