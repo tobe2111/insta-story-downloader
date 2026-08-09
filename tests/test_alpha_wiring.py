@@ -100,7 +100,7 @@ def test_ml_exposes_last_proba_and_explain_uses_it():
 
 def test_features_include_vol_structure_and_funding():
     assert "gk_vol" in FEATURE_NAMES and "rv_5_60" in FEATURE_NAMES
-    assert FEATURE_SET.startswith("fs2")
+    assert FEATURE_SET.startswith("fs3")       # fs3: +크로스에셋+펀딩변화
     df = _df(120)
     f = _features(df)
     assert f["gk_vol"].iloc[-1] > 0            # GK 변동성은 양수

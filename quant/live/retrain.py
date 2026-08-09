@@ -512,6 +512,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # verify가 같은 피처로 그날의 대결을 재현할 수 있다(실패 시 생략).
         from quant.data.funding import attach_funding
         df = attach_funding(df, symbol)
+    # 크로스에셋 컬럼(x_*) — 시장 바깥의 맥락(BTC/SPY/금리/환율). 펀딩과 같은
+    # 원리로 스냅샷·해시에 보존된다(실패 시 조용히 생략 — 선택적 피처).
+    from quant.data.crossasset import attach_cross_asset
+    df = attach_cross_asset(df, market, symbol)
 
     champions = load_champions(state_dir)
     key = _key(market, symbol)
