@@ -223,6 +223,9 @@ def _cmd_deposit(args) -> None:
 
 def _cmd_live_daily(args) -> None:
     """하루 1회 실거래 집행 — 기본 모의투자, 실전은 이중 안전장치."""
+    if args.real:
+        from quant.utils.dist import block_live_in_distribution
+        block_live_in_distribution()     # 배포판: 실거래 금지(소스 설치 전용)
     from quant.live.daily_live import run_daily_live
     run_daily_live(paper=not args.real, state_dir=args.state_dir,
                    broker_name=args.broker)
@@ -290,6 +293,8 @@ def _cmd_live(args) -> None:
                                   max_position=args.max_weight))
 
     if args.real:
+        from quant.utils.dist import block_live_in_distribution
+        block_live_in_distribution()     # 배포판: 실거래 금지(소스 설치 전용)
         if args.market not in LIVE_BROKER_FOR_MARKET:
             raise SystemExit(f"'{args.market}' 시장은 실거래를 지원하지 않습니다. "
                              f"지원: {sorted(LIVE_BROKER_FOR_MARKET)}")
@@ -614,6 +619,8 @@ def _cmd_webhook(args) -> None:
     from quant.markets import LIVE_BROKER_FOR_MARKET as _live_mode, SCHEDULED_MARKETS
     is_stock = args.market in SCHEDULED_MARKETS
     if args.live:
+        from quant.utils.dist import block_live_in_distribution
+        block_live_in_distribution()     # 배포판: 실거래 금지(소스 설치 전용)
         if args.market not in _live_mode:
             print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
             return
