@@ -157,3 +157,17 @@ def test_portfolio_record_carries_pending_and_typed_fills():
     dl = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "pending_next_open" in dl
     assert '"type": "시가"' in dl and '"type": "즉시"' in dl
+
+
+def test_fng_wired_for_crypto_and_named():
+    """공포탐욕지수(x_fng)가 코인 경로에 연결되고 한글 해석이 있다.
+
+    뉴스 '원문'은 재현 검증이 불가능해 판단에 쓰지 않는다 — 숫자로 정제·
+    보관되는 심리 지표만 쓴다는 원칙의 구현.
+    """
+    ca = (ROOT / "quant" / "data" / "crossasset.py").read_text(encoding="utf-8")
+    assert "x_fng" in ca and "fear_greed_history" in ca
+    from quant.live.explain import FEATURE_KO, _feature_note
+    assert "x_fng" in FEATURE_KO
+    assert "탐욕" in _feature_note("x_fng", 0.8)
+    assert "공포" in _feature_note("x_fng", 0.2)
