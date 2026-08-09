@@ -1,8 +1,8 @@
 {
-  "cash": 7812.485740626804,
-  "quantity": 2083.7064390264336,
+  "cash": 9212.081607690672,
+  "quantity": 738.2481795851813,
   "avg_price": 1.0482464619824061,
-  "last_bar": "2026-08-08 00:00:00",
+  "last_bar": "2026-08-09 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -72,6 +72,31 @@
       "accounting": "next_open_v2",
       "prob_up": 0.6925445255686161,
       "drift_psi": 0.1835
+    },
+    {
+      "date": "2026-08-09",
+      "price": 1.0418,
+      "weight": 0.077,
+      "equity": 9981.19,
+      "return_pct": -0.19,
+      "hit_rate": 0.4642857142857143,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +8% — 로지스틱회귀 모델이 내일 상승확률을 약 62%로 추정(기준 55% 초과) · 판단 재료: 50일선 이격 -4.2%(선 아래) / GK 변동성(고저가 기반) 일 1.7% / 평균 진폭(ATR) 일 2.7% · 사이징: 신호 원비중 16% → 변동성 타깃 조절 후 8% · 참고: 이 확률대(62%±10%p)의 과거 성적은 표본 축적 중 (종목 n=2 · 합산 n=20, 25건부터 표시)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "5b80ac88c88e",
+      "data_sha256": "adf2f2aaf4463739bf555614df515889683a56ca3708cf474dd8c749b3b52b63",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6217128751894467,
+      "drift_psi": 0.2771,
+      "earnings_guard": null,
+      "kelly_cap": null
     }
   ],
   "market": "crypto",

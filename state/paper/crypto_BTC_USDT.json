@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-08 00:00:00",
+  "cash": 9443.696200257675,
+  "quantity": 0.008527400330852215,
+  "avg_price": 65139.5,
+  "last_bar": "2026-08-09 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -87,6 +87,31 @@
       "accounting": "next_open_v2",
       "prob_up": 0.5327509250929128,
       "drift_psi": 0.3886
+    },
+    {
+      "date": "2026-08-09",
+      "price": 65139.5,
+      "weight": 0.0556,
+      "equity": 9999.17,
+      "return_pct": -0.01,
+      "hit_rate": 0.3888888888888889,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +6% — 로지스틱회귀 모델이 내일 상승확률을 약 59%로 추정(기준 55% 초과) · 판단 재료: 공포탐욕지수(시장 심리) 31(공포) / 평균 진폭(ATR) 일 2.0% / 50일선 이격 +2.8%(선 위) · 사이징: 신호 원비중 9% → 변동성 타깃 조절 후 6% · 참고: 이 확률대(59%±10%p)의 과거 성적은 표본 축적 중 (종목 n=2 · 합산 n=16, 25건부터 표시)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "5b80ac88c88e",
+      "data_sha256": "33b9a59d7924acb56cd06708aa0b4d9f56c9200d51bad11de6f83074ae39ef64",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5900143248360862,
+      "drift_psi": 0.3886,
+      "earnings_guard": null,
+      "kelly_cap": null
     }
   ],
   "market": "crypto",
