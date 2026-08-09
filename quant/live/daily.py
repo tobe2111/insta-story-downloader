@@ -73,7 +73,9 @@ def _risk_for(market: str):
     from quant.risk import RiskManager
     from quant.risk.manager import RiskConfig
     ppy = 365 if market in ("crypto", "synthetic") else 252
-    return RiskManager(RiskConfig(periods_per_year=ppy))
+    # vol_model="har": 후행 변동성 대신 HAR-RV 예측(50/50 수축)으로 사이징 —
+    # 변동성 군집의 초입에서 먼저 비중을 줄인다(수익 장치가 아니라 복리 방어).
+    return RiskManager(RiskConfig(periods_per_year=ppy, vol_model="har"))
 
 
 def _last_proba(strategy) -> float | None:

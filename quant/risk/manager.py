@@ -35,6 +35,10 @@ class RiskConfig:
     vol_window: int = 30
     # 연율화 계수 (일봉=365 for crypto, 252 for stock 권장)
     periods_per_year: int = 365
+    # 변동성 추정기: 'realized'(후행 rolling std, 기존) | 'har'(HAR-RV 예측과
+    # 실현변동성의 50/50 수축 — 변동성 군집의 초입에서 먼저 비중을 줄인다).
+    # 예측이 불가능한 구간은 자동으로 실현변동성 폴백.
+    vol_model: str = "realized"
 
 
 class RiskManager:
@@ -61,7 +65,14 @@ class RiskManager:
             # 최대 레버리지(3배)로 만들어, 변동성 폭발 직전에 최대 노출이 되는
             # 정반대 결과가 난다. 0은 NaN으로 바꿔 노출 0으로 처리한다.
             realized = realized.replace(0.0, np.nan)
-            # 목표변동성 / 실현변동성 = 레버리지 배수 (과도한 값은 캡)
+            if cfg.vol_model == "har":
+                # HAR-RV 예측과 실현변동성의 50/50 수축 — 예측의 이점(선행성)은
+                # 취하되 회귀 추정 오차에는 실현변동성이 닻이 되어 준다.
+                from quant.risk.volforecast import har_forecast_vol
+                har = har_forecast_vol(returns) * np.sqrt(cfg.periods_per_year)
+                blended = 0.5 * har + 0.5 * realized
+                realized = blended.where(blended.notna(), realized)
+            # 목표변동성 / 변동성 추정치 = 레버리지 배수 (과도한 값은 캡)
             scale = (cfg.target_vol / realized).clip(upper=3.0).fillna(0.0)
         else:
             raise ValueError(f"알 수 없는 sizing: {cfg.sizing}")
