@@ -101,3 +101,33 @@ def load_snapshot(state_dir: str, asof: str, market: str, symbol: str):
         return None
     with gzip.open(path, "rt", encoding="utf-8") as f:
         return pd.read_csv(f, index_col=0, parse_dates=True)
+
+
+def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
+    """cutoff(YYYY-MM-DD)보다 '이전' 날짜 중 최신 스냅샷 폴더의 전 종목 df 목록.
+
+    풀링(패널) 학습의 재현 가능한 데이터 소스: 스냅샷은 날짜 폴더로 불변
+    보존되므로, '엄격히 이전 날짜의 최신 폴더'라는 규칙은 언제 다시 실행해도
+    같은 답을 준다. 당일 폴더를 제외하는 이유 — 야간 재학습이 종목을 순회하며
+    당일 스냅샷을 하나씩 채우는 중이라, 당일 폴더는 실행 시점마다 내용물이
+    달라 verify 재현이 깨진다(하루 지연은 학습 풀에 무해).
+    """
+    import pandas as pd
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return []
+    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])
+    if not days:
+        return []
+    day_dir = os.path.join(base, days[-1])
+    out = []
+    for name in sorted(os.listdir(day_dir)):
+        if not name.endswith(".csv.gz"):
+            continue
+        try:
+            with gzip.open(os.path.join(day_dir, name), "rt",
+                           encoding="utf-8") as f:
+                out.append(pd.read_csv(f, index_col=0, parse_dates=True))
+        except Exception:  # noqa: BLE001 — 파일 하나의 손상이 풀을 막으면 안 된다
+            continue
+    return out

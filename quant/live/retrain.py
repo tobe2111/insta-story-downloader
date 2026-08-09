@@ -76,6 +76,11 @@ DEFAULT_CHALLENGERS = [
     # 피처 가지치기 — 중요도 상위 10개만 남기고 재학습. 피처가 fs7까지 늘어
     # 중복·잡음이 과적합 재료가 되는 것의 반대 레버(추가가 아니라 축소).
     {"model": "gb", "threshold": 0.55, "top_features": 10},
+    # 풀링(패널) 학습 — 전 종목 스냅샷을 학습 표본에 합쳐 표본을 ~20배로.
+    # 종목당 800봉은 ML 기준 극소 표본이라 이것이 남은 가장 큰 지렛대다.
+    # 시장 공통 패턴만 남고 종목 고유 잡음은 씻긴다(패널 모델 — 실무 표준).
+    {"model": "gb", "threshold": 0.55, "pool": "peers"},
+    {"model": "logreg", "threshold": 0.55, "pool": "peers"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]

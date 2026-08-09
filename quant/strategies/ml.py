@@ -272,7 +272,8 @@ class MLStrategy(Strategy):
                  label_k: float = 1.5, meta: bool = False,
                  sample_weight: str | None = None,
                  weight_halflife: int = 125,
-                 top_features: int = 0):
+                 top_features: int = 0,
+                 pool: object | None = None):
         if calibrate not in (None, "sigmoid", "isotonic"):
             raise ValueError(
                 f"calibrate는 None·'sigmoid'·'isotonic' 중 하나여야 합니다: {calibrate!r}")
@@ -282,6 +283,13 @@ class MLStrategy(Strategy):
         if sample_weight not in (None, "decay"):
             raise ValueError(
                 f"sample_weight는 None·'decay' 중 하나여야 합니다: {sample_weight!r}")
+        if pool is not None and not (pool == "peers" or isinstance(pool, list)):
+            raise ValueError(
+                f"pool은 None·'peers'·DataFrame 목록 중 하나여야 합니다: {pool!r}")
+        if pool is not None and meta:
+            raise ValueError(
+                "pool과 meta는 함께 쓸 수 없습니다 — 메타 라벨은 종목별 1차 "
+                "방향에 종속이라 종목 간 합산이 정의되지 않습니다.")
         self.model_kind = model
         self.train_window = train_window
         self.retrain_every = max(1, retrain_every)
@@ -310,6 +318,13 @@ class MLStrategy(Strategy):
         # 옛 국면을 창에서 자르는 롤링 창의 연속화 버전이다.
         self.sample_weight = sample_weight
         self.weight_halflife = max(5, int(weight_halflife))
+        # 풀링(패널) 학습 — 다른 종목들의 (피처, 라벨)을 학습 표본에 합친다.
+        # 종목당 일봉 ~800개는 ML 기준 극소 표본이라, 전 종목 합산으로 표본을
+        # ~20배 키우는 것이 남은 가장 큰 지렛대다(시장 공통 패턴만 남고 종목
+        # 고유 잡음은 씻긴다). "peers"면 스냅샷(전일까지, 불변 보존)에서
+        # 로드해 verify가 같은 풀을 재구성할 수 있다. 리스트 주입은 테스트용.
+        # 룩어헤드 차단: 각 재학습 블록의 학습 상한 날짜 '이전' 풀 행만 쓴다.
+        self.pool = pool
         # 피처 가지치기 — 블록마다 전체 피처로 1차 학습해 중요도 상위 K개만
         # 남기고 재학습한다(0=끔). 피처가 세대를 거듭해 늘면(fs6+) 중복·잡음
         # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
@@ -354,6 +369,66 @@ class MLStrategy(Strategy):
             # 가장 가까운 격자점으로 반올림 → 오차는 step/2 이내, 경계는 유지.
             w = np.clip(np.round(w / self.weight_step) * self.weight_step, -1.0, 1.0)
         return w
+
+    def _build_pool(self, cols, span: int, last_bar) -> tuple | None:
+        """풀 표본 (날짜i8, X, y)를 만든다 — 타깃 피처 열 순서에 정렬.
+
+        각 풀 프레임에 타깃과 같은 피처·라벨 규칙을 적용하고, 타깃에 없는
+        컬럼은 버리고 없는 값은 0(정보 없음)으로 채운다. 실패는 조용히
+        건너뛴다(풀은 보너스 표본 — 실패가 학습을 막으면 안 된다).
+        """
+        try:
+            if isinstance(self.pool, list):
+                frames = self.pool
+            else:
+                from quant.utils.repro import load_snapshot_pool
+                frames = load_snapshot_pool("state", str(last_bar)[:10])
+            dates, xs, ys = [], [], []
+            for pdf in frames:
+                if pdf is None or len(pdf) < 80 or "close" not in pdf:
+                    continue
+                pf = _features(pdf)
+                if self.label == "triple":
+                    py = _triple_barrier_labels(pdf, self.label_horizon,
+                                                self.label_k)
+                else:
+                    lab = (pdf["close"].shift(-1) > pdf["close"]).astype(float)
+                    lab[pdf["close"].shift(-1).isna()] = np.nan
+                    py = lab.to_numpy()
+                base_cols = [c for c in pf.columns if c in FEATURE_NAMES]
+                ok = pf[base_cols].notna().all(axis=1).to_numpy()
+                ok &= np.isfinite(py) if py.dtype.kind == "f" else True
+                ok &= ~np.isnan(py)
+                if not ok.any():
+                    continue
+                pX = pf.reindex(columns=cols).fillna(0.0).to_numpy()
+                idx = pd.DatetimeIndex(pdf.index).normalize().asi8
+                dates.append(idx[ok])
+                xs.append(pX[ok])
+                ys.append(py[ok])
+            if not xs:
+                return None
+            return (np.concatenate(dates), np.vstack(xs), np.concatenate(ys))
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _merge_pool(self, X_tr, y_tr, sw_tr, pool_rows, cutoff):
+        """학습 상한(cutoff) '이전' 풀 행을 학습 표본 뒤에 붙인다."""
+        dates, Xp, yp = pool_rows
+        cut = pd.Timestamp(cutoff).normalize().value
+        sel = dates < cut
+        if not sel.any():
+            return X_tr, y_tr, sw_tr
+        X2 = np.vstack([X_tr, Xp[sel]])
+        y2 = np.concatenate([y_tr, yp[sel].astype(int)])
+        if sw_tr is not None:
+            # 풀 행의 시간감쇠는 달력일 기준(일봉이라 봉 나이와 사실상 동일)
+            days = (cut - dates[sel]) / 86_400_000_000_000
+            sw2 = np.concatenate([
+                sw_tr, np.power(0.5, days / self.weight_halflife)])
+        else:
+            sw2 = None
+        return X2, y2, sw2
 
     def _record_importances(self, model) -> None:
         """가능하면 피처 중요도/계수를 기록한다(해석용, 실패해도 무시)."""
@@ -426,6 +501,8 @@ class MLStrategy(Strategy):
         probs = np.full(n, np.nan)     # 봉별 예측확률 — 신뢰도 곡선(보정 검증)용
         model = None
         active_cols = None             # 가지치기 시 이 블록 모델이 쓰는 피처 열
+        pool_rows = (self._build_pool(feats.columns, span, df.index[-1])
+                     if self.pool is not None else None)
 
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
         i = self.train_window
@@ -451,13 +528,18 @@ class MLStrategy(Strategy):
                             m = CalibratedClassifierCV(
                                 m, method=self.calibrate, cv=3)
                         return m
-                    model = _wrapped()
                     sw = None
                     if self.sample_weight == "decay":
                         # 시간감쇠: 창의 최신 표본 가중 1.0, 반감기마다 절반.
                         age = (hi - 1) - np.arange(lo, hi)[mask]
                         sw = np.power(0.5, age / self.weight_halflife)
-                    _fit(model, X[lo:hi][mask], yt, sw)
+                    X_tr, y_tr, sw_tr = X[lo:hi][mask], yt, sw
+                    if pool_rows is not None:
+                        # 풀링: 학습 상한 날짜 이전의 타 종목 표본을 합친다
+                        X_tr, y_tr, sw_tr = self._merge_pool(
+                            X_tr, y_tr, sw_tr, pool_rows, df.index[hi])
+                    model = _wrapped()
+                    _fit(model, X_tr, y_tr, sw_tr)
                     self._record_importances(model)
                     # 가지치기: 전체 피처 1차 학습의 중요도로 상위 K개를 골라
                     # 그 열만으로 재학습한다 — 이 블록의 예측도 같은 열만 쓴다.
@@ -474,7 +556,7 @@ class MLStrategy(Strategy):
                             [j for j, nm in enumerate(self.feature_names_)
                              if nm in keep])
                         model = _wrapped()
-                        _fit(model, X[lo:hi][mask][:, active_cols], yt, sw)
+                        _fit(model, X_tr[:, active_cols], y_tr, sw_tr)
 
             block_end = min(i + self.retrain_every, n)
             if model is not None:
