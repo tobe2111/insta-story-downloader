@@ -46,3 +46,15 @@ def test_daily_paper_sends_external_heartbeat():
     y = (ROOT / ".github" / "workflows" / "daily-paper.yml").read_text(
         encoding="utf-8")
     assert "HEARTBEAT_URL" in y and "if: success()" in y
+
+
+def test_no_pipe_into_grep_under_pipefail():
+    """회귀 방지 — pipefail 아래 `| grep -q`는 매치 순간 SIGPIPE 오탐을 낸다.
+
+    2026-08-09 첫 실행 사고: 4개 검사가 전부 '찾았기 때문에 실패' 판정.
+    출력을 변수로 받아 히어스트링(<<<)으로 검사해야 한다.
+    """
+    yml = (ROOT / ".github" / "workflows" / "deadman.yml").read_text(
+        encoding="utf-8")
+    assert "| grep -q" not in yml
+    assert "<<<" in yml                     # 히어스트링 검사 방식 사용
