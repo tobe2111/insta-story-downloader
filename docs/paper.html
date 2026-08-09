@@ -494,6 +494,15 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     }
   }
   el.innerHTML=pfKeys.map(card).join("")+tbl+calib+wrong+ring+why;
+  // 오늘의 거시(FRED) — 판단 피처와 같은 원천이지만 이 카드는 표시 전용
+  if(st.macro&&(st.macro.items||[]).length){
+    const mrows=st.macro.items.map(m=>
+      `<div><span class="lbl">${esc(m.name)}</span><b>${m.value}${esc(m.unit||"")}`+
+      (m.chg5_pct!=null?` <span style="font-size:12px" class="${m.chg5_pct>=0?"pos":"neg"}">(5일 ${m.chg5_pct>=0?"+":""}${m.chg5_pct}%)</span>`:"")+`</b></div>`).join("");
+    el.innerHTML+=`<div class="card"><h2>오늘의 거시 <span style="font-size:12px;color:var(--muted);font-weight:400">FRED · 발표 시차 보정</span></h2>
+      <div class="vs">${mrows}</div>
+      ${st.macro.note?`<div class="sub" style="font-size:12.5px;margin-top:8px">${esc(st.macro.note)}</div>`:""}</div>`;
+  }
   // 오늘의 시장 브리핑 — 표시 전용(판단에 사용되지 않음을 명시)
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>

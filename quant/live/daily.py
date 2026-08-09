@@ -1103,6 +1103,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
     if briefing and briefing.get("items"):
         status["briefing"] = briefing
 
+    # 오늘의 거시(FRED, 표시 전용) — 키 없으면 조용히 생략
+    try:
+        from quant.live.macro_brief import macro_summary
+        m = macro_summary()
+        if m:
+            status["macro"] = m
+    except Exception:  # noqa: BLE001 — 브리핑 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO
     status["symbols"] = SYMBOL_INFO
