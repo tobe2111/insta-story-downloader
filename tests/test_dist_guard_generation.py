@@ -54,6 +54,38 @@ def test_build_workflow_bakes_marker_and_cli_gates():
     assert c.count("block_live_in_distribution()") >= 3   # 실거래 경로 3곳
 
 
+def test_build_workflow_has_e2e_smoke_steps():
+    """빌드 로그 echo가 아니라 '실행'으로 잠금을 검증하는 스모크 2단계."""
+    y = (ROOT / ".github" / "workflows" / "build-app.yml").read_text("utf-8")
+    # ① 소스+표식: 실거래 경로 3곳을 진짜 실행해 비정상 종료를 요구
+    assert "expect_block python -m quant live-daily --real" in y
+    assert "expect_block python -m quant live --real" in y
+    assert "expect_block python -m quant webhook --live" in y
+    # ② 빌드 산출물: 실행파일을 QUANT_SMOKE 모드로 돌려 표식·잠금 확인
+    assert "QUANT_SMOKE" in y
+    assert "dist_marker=1" in y and "live_block=1" in y
+    s = (ROOT / "start.py").read_text("utf-8")
+    assert "QUANT_SMOKE" in s and "_smoke_check" in s
+
+
+def test_e2e_marker_blocks_cli_subprocess():
+    """임시 표식을 굽고 실제 CLI 서브프로세스가 죽는지 — 로컬판 E2E."""
+    import subprocess
+    marker = ROOT / "quant" / "_dist_build.py"
+    assert not marker.exists()      # 소스 설치가 오염돼 있으면 그 자체가 사고
+    try:
+        marker.write_text("DISTRIBUTION = True\n", "utf-8")
+        r = subprocess.run(
+            [sys.executable, "-m", "quant", "live-daily", "--real"],
+            capture_output=True, text=True, cwd=ROOT, timeout=120)
+        assert r.returncode != 0
+        assert "실거래 기능이 없습니다" in (r.stdout + r.stderr)
+    finally:
+        marker.unlink(missing_ok=True)
+        for pyc in (ROOT / "quant" / "__pycache__").glob("_dist_build*"):
+            pyc.unlink(missing_ok=True)
+
+
 # ── ③ 판정 시계 ────────────────────────────────────────────────
 
 
@@ -79,9 +111,40 @@ def test_generation_info_empty_ledger_is_day_zero(tmp_path):
     assert g is not None and g["days"] == 0
 
 
+def test_generation_archive_splits_prev_and_current():
+    """세대 경계로 기록을 갈라 구간별 일수·TWR을 분리한다(착시 제거)."""
+    from quant.live.daily import _generation_archive
+    state = {
+        "start_cash": 100.0,
+        "deposits": [{"date": "2026-08-02", "amount": 50.0},
+                     {"date": "2026-08-06", "amount": 30.0}],
+        "history": [
+            {"date": "2026-08-01", "equity": 100.0},
+            {"date": "2026-08-02", "equity": 160.0},   # +50 입금 → 운용 +10%
+            {"date": "2026-08-04", "equity": 160.0},   # 이전 세대 끝
+            {"date": "2026-08-05", "equity": 168.0},   # 현 세대 시작 +5%
+            {"date": "2026-08-06", "equity": 198.0},   # +30 입금 → 운용 0%
+        ],
+    }
+    a = _generation_archive(state, "2026-08-05")
+    assert a["prev_days"] == 3 and a["cur_days"] == 2
+    assert a["prev_twr_pct"] == pytest.approx(10.0, abs=0.1)
+    assert a["cur_twr_pct"] == pytest.approx(5.0, abs=0.1)
+
+
+def test_generation_archive_none_when_all_current():
+    from quant.live.daily import _generation_archive
+    state = {"start_cash": 100.0, "deposits": [],
+             "history": [{"date": "2026-08-05", "equity": 101.0}]}
+    assert _generation_archive(state, "2026-08-01") is None
+
+
 def test_wired_into_status_and_site():
     dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
     assert "_generation_info" in dl and '"generation"' in dl
+    assert "_generation_archive" in dl and '"archive"' in dl
     p = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "판정 시계" in p and "st.generation" in p
     assert "0일부터 다시" in p                  # 리셋 사실의 명시(착시 방지)
+    assert "이전 구조" in p and "g.archive" in p  # 세대별 아카이브 분리 표시
+    assert "구조 교체" in p                     # 차트의 세대 경계 마커

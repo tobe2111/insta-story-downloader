@@ -97,12 +97,50 @@ jobs:
             echo "🔓 라이선스 시크릿 미설정 — 자물쇠 없이 빌드(누구나 실행 가능)"
           fi
 
+      # E2E ①: 표식이 구워진 소스에서 실거래 경로 3곳이 정말 죽는지 실행으로 확인.
+      # 빌드 로그의 echo 문자열만 믿는 검증은 회귀를 못 잡는다 — 명령을 진짜 돌린다.
+      - name: 실거래 잠금 스모크 (소스+표식)
+        shell: bash
+        env:
+          QUANT_WEBHOOK_SECRET: smoke-test-dummy
+        run: |
+          set -e
+          expect_block () {
+            # 잠금이 SystemExit(비정상 종료) + 안내 문구를 내야 통과
+            if out=$("$@" 2>&1); then
+              echo "❌ 차단 실패(정상 종료): $*"; echo "$out"; exit 1
+            fi
+            case "$out" in *"실거래 기능이 없습니다"*) ;; *)
+              echo "❌ 잠금 문구 없음: $*"; echo "$out"; exit 1 ;; esac
+            echo "✅ 차단 확인: $*"
+          }
+          expect_block python -m quant live-daily --real
+          expect_block python -m quant live --real --market crypto
+          expect_block python -m quant webhook --live --market crypto
+
       - name: Build standalone executable
         run: >
           pyinstaller --onefile --noconfirm --name quant-cockpit
           --collect-submodules quant
           --console
           start.py
+
+      # E2E ②: '실제로 빌드된 실행파일'이 표식을 품고 잠금이 사는지 확인.
+      - name: 실거래 잠금 스모크 (빌드 산출물)
+        shell: bash
+        env:
+          QUANT_SMOKE: "1"
+        run: |
+          set -e
+          bin="dist/quant-cockpit"
+          [ -f "$bin" ] || bin="dist/quant-cockpit.exe"
+          out=$("$bin")
+          echo "$out"
+          case "$out" in *"dist_marker=1"*) ;; *)
+            echo "❌ 빌드 산출물에 배포판 표식이 없습니다"; exit 1 ;; esac
+          case "$out" in *"live_block=1"*) ;; *)
+            echo "❌ 빌드 산출물에서 실거래 잠금이 동작하지 않습니다"; exit 1 ;; esac
+          echo "✅ 빌드 산출물 잠금 확인"
 
       # OS별 단일 zip으로 묶는다 — Release 자산 이름이 항상 같아야
       # 'releases/latest/download/<이름>.zip' 고정 주소가 성립한다.

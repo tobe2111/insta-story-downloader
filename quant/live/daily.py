@@ -471,6 +471,42 @@ def _generation_info(state_dir: str) -> dict | None:
         return None
 
 
+def _generation_archive(state: dict, since: str) -> dict | None:
+    """통합 계좌 기록을 '이전 구조 / 현재 구조'로 갈라 각각의 TWR을 낸다.
+
+    판정 시계의 짝: 세대 시작일(since) 이전 기록은 다른 구조의 실적이다.
+    합산 수익률 하나로 보여주면 이전 세대의 성과가 현 구조의 실적처럼
+    읽힌다 — 구간별 일수·TWR을 분리해 그 착시를 마저 없앤다.
+    입금(매칭)은 날짜로 해당 구간에 귀속시켜 TWR 왜곡을 막는다.
+    """
+    try:
+        hist = state.get("history") or []
+        if not hist:
+            return None
+        i0 = next((i for i, r in enumerate(hist)
+                   if str(r.get("date", "")) >= since), len(hist))
+        prev_hist, cur_hist = hist[:i0], hist[i0:]
+        if not prev_hist:
+            return None                    # 전 기록이 현 세대 — 분리할 게 없다
+        deposits = state.get("deposits") or []
+        sc = float(state.get("start_cash", PORTFOLIO_START_CASH))
+        prev_dep = [d for d in deposits if str(d.get("date", "")) < since]
+        cur_dep = [d for d in deposits if str(d.get("date", "")) >= since]
+        cur_start = float(prev_hist[-1].get("equity") or sc)
+        out = {
+            "prev_days": len(prev_hist),
+            "prev_twr_pct": time_weighted_return(prev_hist, prev_dep,
+                                                 start_cash=sc),
+            "cur_days": len(cur_hist),
+            "cur_twr_pct": (time_weighted_return(cur_hist, cur_dep,
+                                                 start_cash=cur_start)
+                            if cur_hist else 0.0),
+        }
+        return out
+    except Exception:  # noqa: BLE001 — 표시 재료일 뿐
+        return None
+
+
 def _kelly_cap_from_history(history: list, fraction: float = 0.5,
                             floor: float = 0.25, min_days: int = 30) -> float:
     """페이퍼 장부(OOS)의 보유일 수익 통계로 부분 켈리 '상한'을 만든다.
@@ -1090,12 +1126,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
             status["champions"] = json.load(f)
 
     paper_dir = os.path.join(state_dir, "paper")
+    pf_state = None                       # 통합 계좌 원본(세대별 분해 재료)
     if os.path.isdir(paper_dir):
         for name in sorted(os.listdir(paper_dir)):
             if not name.endswith(".json"):
                 continue
             with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
                 st = json.load(f)
+            if st.get("market") == "portfolio":
+                pf_state = st
             hist = st.get("history", [])
             key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
             # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다
@@ -1149,7 +1188,22 @@ def write_docs_status(state_dir: str = STATE_DIR,
     # 판정 시계 — 현재 구조 세대의 관찰 일수(구조가 바뀌면 0일부터 다시)
     gen = _generation_info(state_dir)
     if gen:
+        # 세대별 기록 아카이브 — 이전 구조 기록을 현 구조 실적과 분리(착시 제거)
+        if pf_state:
+            arch = _generation_archive(pf_state, gen["since"])
+            if arch:
+                gen["archive"] = arch
         status["generation"] = gen
+
+    # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
+    # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.
+    try:
+        from quant.reporting.fill_gap import fill_gap_report
+        fg = fill_gap_report(state_dir)
+        if fg:
+            status["fill_check"] = fg
+    except Exception:  # noqa: BLE001 — 검증 실패가 사이트 갱신을 막으면 안 된다
+        pass
 
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO

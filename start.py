@@ -83,10 +83,29 @@ def _pause_before_exit() -> None:
         pass
 
 
+def _smoke_check() -> None:
+    """빌드 검증 전용(QUANT_SMOKE=1) — 배포판 표식·실거래 잠금을 기계로 확인.
+
+    릴리스 워크플로가 '실제로 빌드된 실행파일'을 이 모드로 실행해
+    표식이 구워졌는지, 잠금이 진짜 SystemExit을 던지는지 확인한다.
+    빌드 로그의 echo 문자열만 믿는 검증은 회귀를 못 잡는다.
+    """
+    from quant.utils.dist import block_live_in_distribution, is_distribution_build
+    print(f"SMOKE dist_marker={int(is_distribution_build())}")
+    try:
+        block_live_in_distribution()
+        print("SMOKE live_block=0")
+    except SystemExit:
+        print("SMOKE live_block=1")
+
+
 def main() -> None:
-    print("⏳ 퀀트 조종석을 준비하는 중입니다...")
     os.chdir(_ROOT)
     sys.path.insert(0, _ROOT)
+    if os.environ.get("QUANT_SMOKE") == "1":
+        _smoke_check()
+        return
+    print("⏳ 퀀트 조종석을 준비하는 중입니다...")
     _ensure_deps()
 
     # 정품 확인(배포본에서 QUANT_REQUIRE_LICENSE=1 일 때만 강제. 개발/CI는 통과).
