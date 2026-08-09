@@ -49,20 +49,20 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "생성: $DIR"
 
-      - name: 이미지 캡처 (카드 + 사이트 페이지)
+      - name: 카드뉴스 촬영 (인스타 4:5 · 1080×1350 전용 템플릿)
         run: |
           DIR="${{ steps.content.outputs.dir }}"
           (cd docs && python -m http.server 8777 >/dev/null 2>&1 &)
           sleep 2
           capture() {  # $1=출력파일 $2=상대경로
             google-chrome --headless=new --disable-gpu --hide-scrollbars \
-              --window-size=1200,630 --virtual-time-budget=8000 \
+              --window-size=1080,1350 --virtual-time-budget=8000 \
               --screenshot="$DIR/$1" "http://127.0.0.1:8777/$2" \
-              && echo "캡처 완료: $1" || echo "캡처 실패: $1 — 건너뜀"
+              && echo "촬영 완료: $1" || echo "촬영 실패: $1 — 건너뜀"
           }
-          capture 01_card.png  "today.html?card=1"
-          capture 02_paper.png "paper.html"
-          capture 03_trust.png "trust.html"
+          for i in 1 2 3 4 5 6 7 8; do
+            capture "0${i}_card.png" "sns_card.html?n=${i}"
+          done
           ls -la "$DIR"
 
       - name: 콘텐츠 커밋 (공개 URL 확보)
