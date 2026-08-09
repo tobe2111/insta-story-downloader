@@ -224,16 +224,18 @@ def _cmd_deposit(args) -> None:
 def _cmd_live_daily(args) -> None:
     """하루 1회 실거래 집행 — 기본 모의투자, 실전은 이중 안전장치."""
     from quant.live.daily_live import run_daily_live
-    run_daily_live(paper=not args.real, state_dir=args.state_dir)
+    run_daily_live(paper=not args.real, state_dir=args.state_dir,
+                   broker_name=args.broker)
 
 
 def _cmd_live_check(args) -> None:
-    """실거래 준비 진단 — 주문 없이 키·토큰·잔고 확인."""
+    """실거래 준비 진단 — 주문 없이 키·인증·잔고 확인."""
     from quant.live.daily_live import check_readiness
     print("\n🔍 실거래 전환 준비 진단"
           + (" (실전 도메인)" if args.real else " (모의투자 도메인)"))
     ok_all = True
-    for name, ok, note in check_readiness(paper=not args.real):
+    for name, ok, note in check_readiness(paper=not args.real,
+                                          broker_name=args.broker):
         print(f"  {'✅' if ok else '❌'} {name}: {note}")
         ok_all = ok_all and ok
     print("\n" + ("✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
@@ -819,13 +821,17 @@ def build_parser() -> argparse.ArgumentParser:
              "(기본 모의투자, 실전은 --real + QUANT_LIVE_REAL=1)")
     ld.add_argument("--real", action="store_true",
                     help="실전 계좌 사용(환경변수 QUANT_LIVE_REAL=1 필요)")
+    ld.add_argument("--broker", default=None, choices=["kis", "kiwoom"],
+                    help="증권사 선택(기본: QUANT_KR_BROKER 환경변수 → kis)")
     ld.add_argument("--state-dir", default="state", dest="state_dir")
     ld.set_defaults(func=_cmd_live_daily)
 
     lc = sub.add_parser(
         "live-check",
-        help="실거래 전환 준비 진단 — 키·토큰·잔고를 주문 없이 확인")
+        help="실거래 전환 준비 진단 — 키·인증·잔고를 주문 없이 확인")
     lc.add_argument("--real", action="store_true", help="실전 도메인으로 진단")
+    lc.add_argument("--broker", default=None, choices=["kis", "kiwoom"],
+                    help="증권사 선택(기본: QUANT_KR_BROKER 환경변수 → kis)")
     lc.set_defaults(func=_cmd_live_check)
 
     dp = sub.add_parser(

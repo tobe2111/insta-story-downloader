@@ -114,11 +114,34 @@ def test_decision_places_long_only_sliced_order(monkeypatch, tmp_path):
 
 
 def test_readiness_reports_missing_keys(monkeypatch):
-    for k in ("KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO"):
+    for k in ("KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO",
+              "KIWOOM_APP_KEY", "KIWOOM_SECRET", "KIWOOM_ACCOUNT"):
         monkeypatch.delenv(k, raising=False)
-    rows = check_readiness()
+    rows = check_readiness()                   # 기본 = kis
     assert rows[0][1] is False and "누락" in rows[0][2]
     assert all(not ok for _, ok, _ in rows)    # 네트워크 호출 없이 실패 보고
+    rows_kw = check_readiness(broker_name="kiwoom")
+    assert "키움" in rows_kw[0][0] and "KIWOOM_APP_KEY" in rows_kw[0][2]
+    rows_bad = check_readiness(broker_name="toss")
+    assert rows_bad[0][1] is False and "미지원" in rows_bad[0][2]
+
+
+def test_broker_factory_selects_and_rejects(monkeypatch):
+    from quant.live.daily_live import make_kr_broker
+    # 키가 없으면 어댑터 생성 자체가 명확한 한국어 오류 — 어느 키인지 알려준다
+    for k in ("KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO",
+              "KIWOOM_APP_KEY", "KIWOOM_SECRET", "KIWOOM_ACCOUNT"):
+        monkeypatch.delenv(k, raising=False)
+    with pytest.raises(RuntimeError, match="KIS_APP_KEY"):
+        make_kr_broker("kis")
+    with pytest.raises(RuntimeError, match="KIWOOM"):
+        make_kr_broker("kiwoom")
+    with pytest.raises(RuntimeError, match="지원하지 않는 증권사"):
+        make_kr_broker("toss")
+    # 환경변수로도 선택된다
+    monkeypatch.setenv("QUANT_KR_BROKER", "kiwoom")
+    with pytest.raises(RuntimeError, match="KIWOOM"):
+        make_kr_broker(None)
 
 
 # ── ⑤ 워크플로·CLI 배선 ────────────────────────────────────────

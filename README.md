@@ -300,11 +300,16 @@ python -m quant live --real           # ③ 실전 — 소액으로!
 새벽 페이퍼 결정과 **같은 결정**(챔피언·HAR 사이징·켈리 상한·어드민 설정)을
 KIS 계좌로 보내는 `live-daily`가 준비되어 있습니다. 남은 것은 키 발급뿐:
 
-1. **KIS Developers 앱 등록** (apiportal.koreainvestment.com) — 모의투자
-   신청 포함. 앱키·시크릿·계좌번호(앞 8자리)를 받는다.
+**증권사 선택**: 한국투자(KIS)와 키움(kiwoom) 중 고른다 — `--broker kis|kiwoom`
+또는 환경변수 `QUANT_KR_BROKER`(Actions는 워크플로 실행 시 드롭다운). 두 어댑터가
+같은 인터페이스라 집행 코드는 동일하고 키만 다르다.
+
+1. **증권사 앱 등록** — 한국투자: apiportal.koreainvestment.com /
+   키움: apiportal.kiwoom.com (모의투자 신청 포함).
 2. **키 등록** — 로컬은 `python -m quant setup`, GitHub Actions는 Secrets에
-   `KIS_APP_KEY` `KIS_APP_SECRET` `KIS_CANO` (+`KIS_ACNT_PRDT_CD`, 보통 01).
-3. **진단** — `python -m quant live-check` (키→토큰→잔고, 주문 없음).
+   KIS는 `KIS_APP_KEY` `KIS_APP_SECRET` `KIS_CANO`(+`KIS_ACNT_PRDT_CD`, 보통 01),
+   키움은 `KIWOOM_APP_KEY` `KIWOOM_SECRET` `KIWOOM_ACCOUNT`.
+3. **진단** — `python -m quant live-check --broker kis` (키→인증→잔고, 주문 없음).
    Actions에서는 `KR Live` 워크플로 수동 실행이 진단+모의투자 리허설까지 수행.
 4. **모의투자 리허설** — `python -m quant live-daily` (기본이 모의투자).
    페이퍼 장부와 나란히 쌓여 슬리피지 차이가 데이터로 남는다.

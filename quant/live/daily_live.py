@@ -28,9 +28,35 @@ log = get_logger("daily_live")
 
 REBALANCE_BAND = 0.05
 
+# 지원 증권사 — 어댑터는 quant/broker/에 이미 있고 여기서는 선택만 한다.
+# 이름: (필수 환경변수, 생성자). 기본은 환경변수 QUANT_KR_BROKER, 없으면 kis.
+KR_BROKER_KEYS = {
+    "kis": ["KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO"],
+    "kiwoom": ["KIWOOM_APP_KEY", "KIWOOM_SECRET", "KIWOOM_ACCOUNT"],
+}
+
+
+def make_kr_broker(name: str | None = None, paper: bool = True):
+    """증권사 이름(kis | kiwoom)으로 국내주식 브로커를 만든다.
+
+    두 어댑터는 같은 Broker 인터페이스를 구현하므로 집행 코드는 증권사를
+    모른다 — 키만 바꾸면 갈아탈 수 있다(증권사 종속 방지).
+    """
+    name = (name or os.getenv("QUANT_KR_BROKER") or "kis").strip().lower()
+    if name == "kis":
+        from quant.broker.kr_live import KISBroker
+        return KISBroker(paper=paper)
+    if name == "kiwoom":
+        from quant.broker.kiwoom_live import KiwoomBroker
+        return KiwoomBroker(paper=paper)
+    raise RuntimeError(
+        f"지원하지 않는 증권사: {name!r} — 'kis'(한국투자) 또는 "
+        "'kiwoom'(키움) 중 선택하세요 (--broker 또는 QUANT_KR_BROKER).")
+
 
 def run_daily_live(targets=None, *, paper: bool = True,
-                   state_dir: str = STATE_DIR, broker=None) -> dict:
+                   state_dir: str = STATE_DIR, broker=None,
+                   broker_name: str | None = None) -> dict:
     """국내주식 대상 하루 1회 실거래 사이클. 반환: 집행 요약 dict.
 
     broker 주입은 테스트용(미주입 시 KISBroker). 시장이 열려 있는지는
@@ -58,8 +84,7 @@ def run_daily_live(targets=None, *, paper: bool = True,
     exposure = float(settings["exposure_scale"])
 
     if broker is None:
-        from quant.broker.kr_live import KISBroker
-        broker = KISBroker(paper=paper)
+        broker = make_kr_broker(broker_name, paper=paper)
 
     from quant.data import get_provider
     n = len(targets)
@@ -103,6 +128,7 @@ def run_daily_live(targets=None, *, paper: bool = True,
             log.warning("실거래 %s 스킵: %s", symbol, exc)
 
     summary = {"mode": "모의투자" if paper else "실전",
+               "broker": type(broker).__name__,
                "decisions": decisions, "orders": orders, "skipped": skipped,
                "exposure_scale": exposure}
     try:
@@ -123,24 +149,28 @@ def run_daily_live(targets=None, *, paper: bool = True,
     return summary
 
 
-def check_readiness(paper: bool = True) -> list[tuple[str, bool, str]]:
+def check_readiness(paper: bool = True,
+                    broker_name: str | None = None) -> list[tuple[str, bool, str]]:
     """실거래 전환 준비 진단 — 주문 없이 (항목, 통과, 설명) 목록을 반환한다."""
+    name = (broker_name or os.getenv("QUANT_KR_BROKER") or "kis").strip().lower()
     out: list[tuple[str, bool, str]] = []
-    keys = ["KIS_APP_KEY", "KIS_APP_SECRET", "KIS_CANO"]
+    keys = KR_BROKER_KEYS.get(name)
+    if keys is None:
+        out.append(("증권사 선택", False,
+                    f"{name!r} 미지원 — kis(한국투자) | kiwoom(키움)"))
+        return out
+    label = {"kis": "한국투자(KIS)", "kiwoom": "키움"}[name]
     missing = [k for k in keys if not os.getenv(k)]
-    out.append(("KIS 키 3종(환경변수)", not missing,
+    out.append((f"{label} 키 {len(keys)}종(환경변수)", not missing,
                 "설정됨" if not missing else f"누락: {', '.join(missing)}"))
     if missing:
-        out.append(("토큰 발급", False, "키 등록 후 재시도"))
+        out.append(("인증·잔고", False, "키 등록 후 재시도"))
         return out
     try:
-        from quant.broker.kr_live import KISBroker
-        b = KISBroker(paper=paper)
-        b._get_token()
-        out.append(("토큰 발급", True, "성공"))
-        cash = b.get_cash()
-        out.append(("잔고 조회", True, f"예수금 {cash:,.0f}원"
+        b = make_kr_broker(name, paper=paper)
+        cash = b.get_cash()                    # 인증(토큰)→잔고까지 한 번에 검증
+        out.append(("인증·잔고 조회", True, f"예수금 {cash:,.0f}원"
                     + (" (모의투자 계좌)" if paper else " (⚠️ 실전 계좌)")))
     except Exception as exc:  # noqa: BLE001
-        out.append(("KIS 연결", False, str(exc)))
+        out.append((f"{label} 연결", False, str(exc)))
     return out

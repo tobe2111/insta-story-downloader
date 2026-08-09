@@ -20,6 +20,11 @@ on:
         description: "실전 계좌 사용 (기본 false = 모의투자)"
         type: boolean
         default: false
+      broker:
+        description: "증권사 선택"
+        type: choice
+        options: [kis, kiwoom]
+        default: kis
   # schedule:                    # 실전 자동화 결정 후 주석 해제 (KST 08:50 = 23:50 UTC)
   #   - cron: "50 23 * * 0-4"    # 한국 개장 전 — 일~목 UTC = 월~금 KST
 
@@ -51,8 +56,12 @@ jobs:
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
           KIS_CANO: ${{ secrets.KIS_CANO }}
           KIS_ACNT_PRDT_CD: ${{ secrets.KIS_ACNT_PRDT_CD }}
+          KIWOOM_APP_KEY: ${{ secrets.KIWOOM_APP_KEY }}
+          KIWOOM_SECRET: ${{ secrets.KIWOOM_SECRET }}
+          KIWOOM_ACCOUNT: ${{ secrets.KIWOOM_ACCOUNT }}
+          QUANT_KR_BROKER: ${{ inputs.broker }}
         run: |
-          python -m quant live-check ${{ inputs.real && '--real' || '' }}
+          python -m quant live-check --broker "${{ inputs.broker }}" ${{ inputs.real && '--real' || '' }}
 
       - name: 실거래 집행 (기본 모의투자)
         env:
@@ -60,14 +69,18 @@ jobs:
           KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
           KIS_CANO: ${{ secrets.KIS_CANO }}
           KIS_ACNT_PRDT_CD: ${{ secrets.KIS_ACNT_PRDT_CD }}
+          KIWOOM_APP_KEY: ${{ secrets.KIWOOM_APP_KEY }}
+          KIWOOM_SECRET: ${{ secrets.KIWOOM_SECRET }}
+          KIWOOM_ACCOUNT: ${{ secrets.KIWOOM_ACCOUNT }}
+          QUANT_KR_BROKER: ${{ inputs.broker }}
           QUANT_LIVE_REAL: ${{ vars.QUANT_LIVE_REAL }}
         run: |
           if [ "${{ inputs.real }}" = "true" ]; then
             echo "⚠️ 실전 모드 요청 — QUANT_LIVE_REAL 변수까지 있어야 실행됩니다"
-            python -m quant live-daily --real | tee live.txt
+            python -m quant live-daily --real --broker "${{ inputs.broker }}" | tee live.txt
           else
             echo "🧪 모의투자 리허설"
-            python -m quant live-daily | tee live.txt
+            python -m quant live-daily --broker "${{ inputs.broker }}" | tee live.txt
           fi
 
       - name: 집행 기록 커밋 (state/live/)
