@@ -25,6 +25,7 @@ FEATURE_KO = {
     "x_fng": "공포탐욕지수(시장 심리)",
     "x_oi_chg5": "미결제약정 5일 변화(수급)", "x_t10y2y": "장단기 금리차(경기 신호)",
     "x_vix": "VIX 변동성지수(옵션시장 공포)", "x_kimchi": "김치 프리미엄(국내 수급)",
+    "x_vix_ts": "VIX 기간구조(공포의 급성도)",
 }
 
 
@@ -67,6 +68,10 @@ def _feature_note(name: str, value: float) -> str:
     if name == "vol_z":
         state = "거래량 급증" if v > 2 else "거래량 급감" if v < -2 else "평소 수준"
         return f"{ko} {v:+.1f}({state})"
+    if name == "x_vix_ts":
+        state = ("백워데이션(스트레스 급성기)" if v > 1.0
+                 else "깊은 콘탱고(안정)" if v < 0.85 else "보통(콘탱고)")
+        return f"{ko} {v:.2f}({state})"
     if name == "x_vix":
         lvl = v * 100                            # 0~1 스케일 → 지수 원값
         state = ("공포 구간" if lvl > 30

@@ -99,7 +99,7 @@ def test_kimchi_skipped_when_any_leg_fails():
 def test_ml_and_explain_cover_new_features():
     from quant.live.explain import FEATURE_KO, _feature_note
     from quant.strategies.ml import FEATURE_SET, _features
-    assert FEATURE_SET.startswith("fs5")
+    assert int(FEATURE_SET.split(":")[0][2:]) >= 5   # 피처셋 세대(하위 호환 검사)
     df = _df(120)
     df["x_vix"] = 0.22
     df["x_kimchi"] = 0.05

@@ -43,7 +43,8 @@ FEATURE_NAMES = [
 #        있을 때) +펀딩 변화(x_funding_chg — 수급 모멘텀)
 #   fs4: +미결제약정 변화(x_oi_chg5) +FRED 장단기 금리차(x_t10y2y, 키 있을 때)
 #   fs5: +VIX 수준(x_vix, 미국·한국 주식) +김치 프리미엄(x_kimchi, 코인)
-FEATURE_SET = "fs5:+vix+kimchi"
+#   fs6: +VIX 기간구조(x_vix_ts = VIX/VIX3M — 백워데이션은 스트레스 급성기)
+FEATURE_SET = "fs6:+vixts"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:

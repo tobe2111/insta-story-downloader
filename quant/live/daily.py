@@ -192,6 +192,20 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     weight = float(_risk_for(market).size_positions(df, signals).iloc[-1])
     price = float(df["close"].iloc[-1])
 
+    # 실적 가드 — 발표 ±1일 창에서는 비중 절반(미국 주식만). 발표일 갭 위험은
+    # 하루짜리 방향 모델의 엣지가 가장 약한 지점이다. 쓴 캘린더는 state에
+    # 캐시되고 발동 내역은 기록에 남는다(재현성·투명성).
+    earnings_guard = None
+    if market == "us_stock" and abs(weight) > 0:
+        from datetime import date as _edate
+        from quant.data.earnings import earnings_guard_factor
+        ef, edate = earnings_guard_factor(
+            symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+            state_dir=state_dir)
+        if edate and ef < 1.0:
+            weight = float(weight * ef)
+            earnings_guard = {"date": edate, "factor": ef}
+
     # 오늘 판단의 근거를 사람 말로 — 방송·사이트에 "새벽 판단 기준"으로 표시.
     # 원비중(위험 조절 전)과 이 종목 장부(확률대 과거 적중률), 전 종목 합산
     # 장부(종목 표본 25건 미달 시 폴백)를 함께 넘겨 상세 해설을 만든다.
@@ -201,6 +215,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
                             raw_weight=float(signals.iloc[-1]),
                             history=st.get("history") or [],
                             pooled_history=_all_paper_histories(state_dir))
+    if earnings_guard:
+        reason += (f" · 🛡 실적 가드: 발표({earnings_guard['date']}) 임박 → "
+                   "비중 절반")
     # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
     try:
         from quant.live.parliament import parliament_summary
@@ -262,6 +279,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "prob_up": _last_proba(strategy),
         # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
         "drift_psi": _drift_psi(df),
+        # 실적 가드 발동 흔적(발동 없으면 None) — 왜 비중이 절반인지의 답
+        "earnings_guard": earnings_guard,
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -604,7 +623,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
     last_dates = []
-    rets_map: dict = {}             # key → 최근 90일 수익률 — ERC 배분 재료
+    rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
+    earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -630,6 +650,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df)
             weights[key] = float(
                 _risk_for(market).size_positions(df, signals).iloc[-1])
+            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록
+            if market == "us_stock" and abs(weights[key]) > 0:
+                from datetime import date as _edate
+
+                from quant.data.earnings import earnings_guard_factor
+                ef, edate = earnings_guard_factor(
+                    symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+                    state_dir=state_dir)
+                if edate and ef < 1.0:
+                    weights[key] = float(weights[key] * ef)
+                    earnings_guards[key] = edate
             rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
@@ -775,6 +806,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
+              # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
+              "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               "champion": {"symbols": n, "skipped": skipped}}
