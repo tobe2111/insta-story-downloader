@@ -75,6 +75,29 @@ def _fng_series(fetch=None) -> pd.Series | None:
     return _MEMO[key]
 
 
+def _fred_t10y2y() -> pd.Series | None:
+    """FRED 장단기 금리차(T10Y2Y) — 경기침체 선행지표. 키 없으면 None.
+
+    macro 모듈이 발표 시차를 인덱스에 반영해 주므로(룩어헤드 방지) 여기서는
+    그대로 ffill 정렬만 하면 된다. 실행 내 메모.
+    """
+    import os
+    key = ("_t10y2y",)
+    if key in _MEMO:
+        return _MEMO[key]
+    if not os.getenv("FRED_API_KEY"):
+        _MEMO[key] = None
+        return None
+    try:
+        from quant.data.macro import fred_series
+        s = fred_series("T10Y2Y")
+        _MEMO[key] = s if s is not None and len(s) else None
+    except Exception as exc:  # noqa: BLE001
+        log.warning("FRED T10Y2Y 조회 실패: %s", exc)
+        _MEMO[key] = None
+    return _MEMO[key]
+
+
 def _align(feature: pd.Series, index: pd.Index) -> pd.Series:
     """날짜 정규화 + 전진충전 정렬 — 미래 값이 과거 봉에 붙을 수 없다."""
     target = pd.DatetimeIndex(index).normalize()
@@ -105,6 +128,9 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             if fng is not None:
                 out["x_fng"] = _align(fng / 100.0, out.index)
         elif market == "us_stock":
+            t10 = _fred_t10y2y()
+            if t10 is not None:
+                out["x_t10y2y"] = _align(t10, out.index)
             if symbol != "SPY":
                 spy = _bench_close("us_stock", "SPY", fetch=fetch)
                 if spy is not None:
@@ -113,6 +139,9 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             if tnx is not None:
                 out["x_tnx_chg5"] = _align(tnx.diff(5), out.index)
         elif market == "kr_stock":
+            t10 = _fred_t10y2y()
+            if t10 is not None:
+                out["x_t10y2y"] = _align(t10, out.index)
             spy = _bench_close("us_stock", "SPY", fetch=fetch)
             if spy is not None:
                 out["x_spy_ret5"] = _align(spy.pct_change(5), out.index)

@@ -173,6 +173,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 펀딩비 컬럼 — ML의 x_funding 피처 재료(실패 시 조용히 생략)
         from quant.data.funding import attach_funding
         df = attach_funding(df, symbol)
+        from quant.data.openinterest import attach_open_interest
+        df = attach_open_interest(df, symbol)
     from quant.data.crossasset import attach_cross_asset
     df = attach_cross_asset(df, market, symbol)
 
@@ -540,6 +542,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
+                from quant.data.openinterest import attach_open_interest
+                df = attach_open_interest(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
             if use_champions:

@@ -41,7 +41,8 @@ FEATURE_NAMES = [
 #   fs2: +변동성 구조(gk_vol, rv_5_60) +코인 펀딩비(x_funding, 컬럼 있을 때)
 #   fs3: +크로스에셋(x_btc_ret5·x_spy_ret5·x_tnx_chg5·x_usdkrw_ret5, 컬럼
 #        있을 때) +펀딩 변화(x_funding_chg — 수급 모멘텀)
-FEATURE_SET = "fs3:+crossasset+fundingchg"
+#   fs4: +미결제약정 변화(x_oi_chg5) +FRED 장단기 금리차(x_t10y2y, 키 있을 때)
+FEATURE_SET = "fs4:+oi+fred"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:
@@ -125,6 +126,12 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
         # 펀딩비 '변화'(5봉) — 수준(과열도)과 다른 정보: 과열이 쌓이는 중인가
         # 풀리는 중인가(수급 모멘텀). 같은 재료의 1차 차분이라 추가 조회 없음.
         out["x_funding_chg"] = fnd.diff(5)
+    # 미결제약정(수급의 두 번째 축) — 포지션이 쌓이나 풀리나. 수준은 비정상
+    # 시계열이라 5봉 변화율만 피처로 쓴다. 이력이 ~30일뿐이라(거래소 보관
+    # 한계) 초기 구간 NaN — valid는 기본 피처만 보므로 무해.
+    if "oi" in df.columns:
+        oi = pd.to_numeric(df["oi"], errors="coerce").ffill()
+        out["x_oi_chg5"] = oi.pct_change(5)
     # 크로스에셋 컬럼(데이터 로더가 부착, x_ 접두) — 스냅샷·해시에 함께
     # 보존되는 재현 가능한 외부 맥락. funding과 같은 원리로 자동 포함한다.
     for col in df.columns:

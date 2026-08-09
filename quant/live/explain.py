@@ -23,6 +23,7 @@ FEATURE_KO = {
     "x_btc_ret5": "비트코인 5일 흐름", "x_spy_ret5": "미국 S&P500 5일 흐름",
     "x_tnx_chg5": "미 10년물 금리 5일 변화", "x_usdkrw_ret5": "원/달러 5일 변화",
     "x_fng": "공포탐욕지수(시장 심리)",
+    "x_oi_chg5": "미결제약정 5일 변화(수급)", "x_t10y2y": "장단기 금리차(경기 신호)",
 }
 
 
@@ -49,7 +50,7 @@ def _feature_note(name: str, value: float) -> str:
     if name in ("ma_dist20", "ma_dist50"):
         return f"{ko} {v:+.1%}({'선 위' if v > 0 else '선 아래'})"
     if name in ("mom20", "mom60", "ret1", "ret5", "ret10",
-                "x_btc_ret5", "x_spy_ret5", "x_usdkrw_ret5"):
+                "x_btc_ret5", "x_spy_ret5", "x_usdkrw_ret5", "x_oi_chg5"):
         return f"{ko} {v:+.1%}"
     if name in ("vol", "atr", "gk_vol"):
         return f"{ko} 일 {v:.1%}"
