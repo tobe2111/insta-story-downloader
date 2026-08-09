@@ -44,7 +44,8 @@ FEATURE_NAMES = [
 #   fs4: +미결제약정 변화(x_oi_chg5) +FRED 장단기 금리차(x_t10y2y, 키 있을 때)
 #   fs5: +VIX 수준(x_vix, 미국·한국 주식) +김치 프리미엄(x_kimchi, 코인)
 #   fs6: +VIX 기간구조(x_vix_ts = VIX/VIX3M — 백워데이션은 스트레스 급성기)
-FEATURE_SET = "fs6:+vixts"
+#   fs7: +KRX 수급(x_frgn5·x_inst5 — 외국인·기관 5일 순매수 z, 한국 주식)
+FEATURE_SET = "fs7:+krxflow"
 
 
 def _ema(s: pd.Series, span: int) -> pd.Series:
@@ -270,7 +271,8 @@ class MLStrategy(Strategy):
                  label: str = "nextbar", label_horizon: int = 10,
                  label_k: float = 1.5, meta: bool = False,
                  sample_weight: str | None = None,
-                 weight_halflife: int = 125):
+                 weight_halflife: int = 125,
+                 top_features: int = 0):
         if calibrate not in (None, "sigmoid", "isotonic"):
             raise ValueError(
                 f"calibrate는 None·'sigmoid'·'isotonic' 중 하나여야 합니다: {calibrate!r}")
@@ -308,6 +310,11 @@ class MLStrategy(Strategy):
         # 옛 국면을 창에서 자르는 롤링 창의 연속화 버전이다.
         self.sample_weight = sample_weight
         self.weight_halflife = max(5, int(weight_halflife))
+        # 피처 가지치기 — 블록마다 전체 피처로 1차 학습해 중요도 상위 K개만
+        # 남기고 재학습한다(0=끔). 피처가 세대를 거듭해 늘면(fs6+) 중복·잡음
+        # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
+        # 결정한다(챌린저로만 참전, 강제 적용 없음).
+        self.top_features = max(0, int(top_features))
         # 외부(거시) 피처: DataFrame 또는 callable(df)->DataFrame. 예: 공포탐욕지수.
         self.extra_features = extra_features
         # 최근 학습에 쓰인 피처 이름(기본 15개 + 외부 피처)
@@ -418,6 +425,7 @@ class MLStrategy(Strategy):
         out = np.zeros(n)
         probs = np.full(n, np.nan)     # 봉별 예측확률 — 신뢰도 곡선(보정 검증)용
         model = None
+        active_cols = None             # 가지치기 시 이 블록 모델이 쓰는 피처 열
 
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
         i = self.train_window
@@ -432,14 +440,18 @@ class MLStrategy(Strategy):
             if mask.sum() >= self.min_train:
                 yt = y[lo:hi][mask].astype(int)
                 if len(np.unique(yt)) > 1:      # 두 클래스 모두 있어야 학습 가능
-                    model = _build_model(self.model_kind)
                     # 확률 보정: 학습창 '내부'의 3-겹 CV로만 적합 → 룩어헤드 없음.
                     # 소수 클래스 표본이 3 미만이면 3-겹 층화 CV가 불가능하므로
                     # 그 블록만 비보정 모델로 학습한다(조용한 실패 대신 명시적 규칙).
-                    if self.calibrate is not None and np.bincount(yt).min() >= 3:
-                        from sklearn.calibration import CalibratedClassifierCV
-                        model = CalibratedClassifierCV(
-                            model, method=self.calibrate, cv=3)
+                    def _wrapped():
+                        m = _build_model(self.model_kind)
+                        if (self.calibrate is not None
+                                and np.bincount(yt).min() >= 3):
+                            from sklearn.calibration import CalibratedClassifierCV
+                            m = CalibratedClassifierCV(
+                                m, method=self.calibrate, cv=3)
+                        return m
+                    model = _wrapped()
                     sw = None
                     if self.sample_weight == "decay":
                         # 시간감쇠: 창의 최신 표본 가중 1.0, 반감기마다 절반.
@@ -447,6 +459,22 @@ class MLStrategy(Strategy):
                         sw = np.power(0.5, age / self.weight_halflife)
                     _fit(model, X[lo:hi][mask], yt, sw)
                     self._record_importances(model)
+                    # 가지치기: 전체 피처 1차 학습의 중요도로 상위 K개를 골라
+                    # 그 열만으로 재학습한다 — 이 블록의 예측도 같은 열만 쓴다.
+                    # 중요도를 못 뽑는 조합(보정 래퍼 등)은 가지치기 생략.
+                    active_cols = None
+                    if (self.top_features
+                            and self.top_features < X.shape[1]
+                            and self.last_importances_):
+                        ranked = sorted(self.last_importances_,
+                                        key=lambda k: -abs(
+                                            self.last_importances_[k]))
+                        keep = set(ranked[:self.top_features])
+                        active_cols = np.array(
+                            [j for j, nm in enumerate(self.feature_names_)
+                             if nm in keep])
+                        model = _wrapped()
+                        _fit(model, X[lo:hi][mask][:, active_cols], yt, sw)
 
             block_end = min(i + self.retrain_every, n)
             if model is not None:
@@ -455,7 +483,8 @@ class MLStrategy(Strategy):
                 if self.meta:                   # 1차 방향이 없는 봉은 관망
                     rows = rows[side[rows] != 0]
                 if len(rows):
-                    p = model.predict_proba(X[rows])[:, 1]
+                    Xp = X[rows] if active_cols is None else X[rows][:, active_cols]
+                    p = model.predict_proba(Xp)[:, 1]
                     if self.meta:
                         # p = '1차 방향 판단이 이익이 될 확률' → 크기만 정하고
                         # 방향은 1차 규칙(side)이 정한다. 기록용 상승확률은

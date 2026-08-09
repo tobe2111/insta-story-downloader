@@ -177,6 +177,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "kr_stock":
+        from quant.data.krx import attach_krx_flows
+        df = attach_krx_flows(df, symbol)
     from quant.data.crossasset import attach_cross_asset
     df = attach_cross_asset(df, market, symbol)
 
@@ -639,6 +642,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 df = attach_funding(df, symbol)
                 from quant.data.openinterest import attach_open_interest
                 df = attach_open_interest(df, symbol)
+            if market == "kr_stock":
+                from quant.data.krx import attach_krx_flows
+                df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
             if use_champions:

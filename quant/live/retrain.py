@@ -73,6 +73,9 @@ DEFAULT_CHALLENGERS = [
     {"model": "logreg", "threshold": 0.55, "label": "triple", "meta": True},
     # 표본 시간감쇠 — 최근 표본에 학습 가중을 더 주는 변형(반감기 125봉).
     {"model": "gb", "threshold": 0.55, "sample_weight": "decay"},
+    # 피처 가지치기 — 중요도 상위 10개만 남기고 재학습. 피처가 fs7까지 늘어
+    # 중복·잡음이 과적합 재료가 되는 것의 반대 레버(추가가 아니라 축소).
+    {"model": "gb", "threshold": 0.55, "top_features": 10},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]
@@ -530,6 +533,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "kr_stock":
+        # 외국인·기관 수급(z-점수) — 한국 주식 고유의 수급 피처(실패 시 생략)
+        from quant.data.krx import attach_krx_flows
+        df = attach_krx_flows(df, symbol)
     # 크로스에셋 컬럼(x_*) — 시장 바깥의 맥락(BTC/SPY/금리/환율). 펀딩과 같은
     # 원리로 스냅샷·해시에 보존된다(실패 시 조용히 생략 — 선택적 피처).
     from quant.data.crossasset import attach_cross_asset
