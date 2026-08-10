@@ -216,15 +216,17 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   function bigChart(k,p,hist){
     const swaps=(st.swaps||[]).filter(x=>x.key===k).map(x=>x.date);
     const deps=(p.deposits||[]).map(x=>x.date);
+    // 구조(피처셋 세대) 교체 경계 — 이 선 왼쪽은 다른 구조의 기록이다
+    const gens=(st.generation&&st.generation.archive)?[st.generation.since]:[];
     const baseSeries=p.deposits&&p.deposits.length
       ?hist.map(r=>(p.start_cash||10000)+p.deposits.filter(dd=>dd.date<=r.date)
         .reduce((a,b)=>a+b.amount,0)):null;
     const base0=p.start_cash||10000;
     if(window.LightweightCharts&&hist.length>=2){
       const id="lwc-"+pendingLwc.length;
-      pendingLwc.push({id,hist,swaps,deps,baseSeries,base0});
+      pendingLwc.push({id,hist,swaps,deps,gens,baseSeries,base0});
       return `<div id="${id}" style="height:235px;margin-top:12px"></div>
-        <div class="legend">─ 계좌 자산 · ┄ 원금 · ⋯ 그냥 보유 · ● 챔피언 교체 · ▲ 매칭 입금</div>`;
+        <div class="legend">─ 계좌 자산 · ┄ 원금 · ⋯ 그냥 보유 · ● 챔피언 교체 · ▲ 매칭 입금 · <span style="color:#f59e0b">■</span> 구조 교체(이후 0일부터 다시)</div>`;
     }
     return spark(hist,swaps,deps,baseSeries,base0);   // 오프라인 폴백(SVG)
   }
@@ -269,6 +271,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         color:"#4c7dff",shape:"circle",text:"교체"}));
       s.deps.filter(has).forEach(d=>ms.push({time:d,position:"belowBar",
         color:"#f04452",shape:"arrowUp",text:"입금"}));
+      // 구조 교체 경계 — 표시 위치는 경계일 이후 첫 기록일(주말·휴장 보정)
+      (s.gens||[]).forEach(d=>{const r=s.hist.find(x=>x.date>=d);
+        if(r)ms.push({time:r.date,position:"aboveBar",color:"#f59e0b",
+          shape:"square",text:"구조"})});
       if(ms.length)area.setMarkers(ms.sort((a,b)=>a.time<b.time?-1:1));
       chart.timeScale().fitContent();
     }
@@ -497,11 +503,48 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   // 판정 시계 — 구조가 바뀌면 통계의 시계도 0으로 리셋된다는 사실을 명시
   if(st.generation){
     const g=st.generation, pct=Math.min(100,g.days/g.target_days*100);
+    // 세대별 기록 아카이브 — 이전 구조의 기록은 현 구조의 실적이 아니다.
+    // 구간별 일수·TWR을 분리 표기해, 누적 수익률 하나가 만드는 착시를 없앤다.
+    let arch="";
+    if(g.archive){
+      const pct2=v=>(v>=0?"+":"")+Number(v).toFixed(2)+"%";
+      const a=g.archive, c=v=>`<b class="${v>=0?"pos":"neg"}">${pct2(v)}</b>`;
+      arch=`<div class="tablewrap"><table style="margin-top:10px">
+        <tr><th style="text-align:left">구간</th><th>일수</th><th>TWR(시간가중)</th></tr>
+        <tr><td>이전 구조 누적 (아카이브 — 현 구조의 실적 아님)</td><td>${a.prev_days}일</td><td>${c(a.prev_twr_pct)}</td></tr>
+        <tr><td>현재 구조 (${esc(g.feature_set)}, ${esc(g.since)}~)</td><td>${a.cur_days}일</td><td>${c(a.cur_twr_pct)}</td></tr>
+        </table></div>`;
+    }
     el.innerHTML+=`<div class="card"><h2>판정 시계 <span style="font-size:12px;color:var(--muted);font-weight:400">구조가 바뀌면 0일부터 다시 셉니다</span></h2>
       <div class="sub" style="font-size:13px">현재 구조(<b>${esc(g.feature_set)}</b>) 관찰 <b>${g.days}일차</b> / 판정 기준 ${g.target_days}일 (${esc(g.since)}~)
       — 엣지 유무는 이 시계가 다 돌기 전엔 판정하지 않습니다. 그 전의 수익률은 통계가 아니라 소음일 수 있습니다.</div>
       <div style="height:8px;border-radius:99px;background:var(--bg);border:1px solid var(--line);overflow:hidden;margin-top:8px">
-      <div style="height:100%;min-width:2px;width:${Math.max(1,pct)}%;background:var(--accent);border-radius:99px"></div></div></div>`;
+      <div style="height:100%;min-width:2px;width:${Math.max(1,pct)}%;background:var(--accent);border-radius:99px"></div></div>
+      ${arch}</div>`;
+  }
+  // 체결 가정 검증 — 실측 개장 갭 vs 백테스트 슬리피지 가정.
+  // 실측이 가정보다 불리하면 "백테스트가 낙관적"이라는 자기 고발을 그대로 표시.
+  if(st.fill_check&&st.fill_check.markets){
+    const fc=st.fill_check;
+    const nm={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"};
+    const bp=v=>(v>=0?"+":"")+Number(v).toFixed(1)+"bp";
+    const rowsF=Object.keys(fc.markets).map(m=>{
+      const r=fc.markets[m];
+      return `<tr><td>${esc(nm[m]||m)}</td><td>${r.n}건</td>
+        <td>${Number(r.mean_abs_gap_bp).toFixed(1)}bp</td>
+        <td class="${r.mean_adverse_bp>0?"neg":"pos"}">${bp(r.mean_adverse_bp)}</td>
+        <td>${Number(r.assumed_bp).toFixed(1)}bp</td>
+        <td>${r.optimistic?'<b class="neg">⚠️ 가정 초과 — 백테스트 낙관 의심</b>':'<span class="pos">가정 안</span>'}</td></tr>`;
+    }).join("");
+    el.innerHTML+=`<div class="card"><h2>체결 가정 검증 <span style="font-size:12px;color:var(--muted);font-weight:400">실측 개장 갭 vs 백테스트 가정 · 최근 ${fc.window}일 · ${fc.total_fills}건</span></h2>
+      <p class="sub" style="margin:6px 0 4px;font-size:13px">백테스트는 결정 종가
+      체결 + 고정 슬리피지 가정이지만, 페이퍼는 다음 세션 <b>시가</b>에만
+      체결합니다. 결정→체결 사이 실제로 겪은 개장 갭(불리한 방향이 +)이
+      가정을 넘으면 백테스트가 낙관적이라는 뜻 — 그 판정도 여기 그대로
+      표시됩니다.</p>
+      <div class="tablewrap"><table>
+      <tr><th style="text-align:left">시장</th><th>체결</th><th>평균 |갭|</th><th>불리 방향 평균</th><th>가정(수수료+슬리피지)</th><th>판정</th></tr>
+      ${rowsF}</table></div></div>`;
   }
   // 오늘의 거시(FRED) — 판단 피처와 같은 원천이지만 이 카드는 표시 전용
   if(st.macro&&(st.macro.items||[]).length){
