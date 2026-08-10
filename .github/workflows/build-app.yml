@@ -87,6 +87,10 @@ jobs:
         shell: bash
         env:
           QUANT_WEBHOOK_SECRET: smoke-test-dummy
+          # Windows 콘솔(cp1252)에서 한국어 잠금 문구가 \uXXXX로 이스케이프돼
+          # 문구 매칭이 실패한다(v0.13.1에서 재현) — UTF-8 출력을 강제한다.
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: utf-8
         run: |
           set -e
           expect_block () {
