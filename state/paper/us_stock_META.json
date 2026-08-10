@@ -2,7 +2,7 @@
   "cash": 8962.0,
   "quantity": 1.7713570581044895,
   "avg_price": 585.6400146484375,
-  "last_bar": "2026-08-07 00:00:00",
+  "last_bar": "2026-08-10 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -82,11 +82,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.6740556476712188,
       "drift_psi": 0.5028
+    },
+    {
+      "date": "2026-08-10",
+      "price": 594.9199829101562,
+      "weight": 0.1011,
+      "equity": 10015.82,
+      "return_pct": 0.16,
+      "hit_rate": 0.45161290322580644,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +10% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 판단 재료: 변동성(20일) 일 2.8% / VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) / 평균 진폭(ATR) 일 3.8% · 사이징: 신호 원비중 22% → 변동성 타깃 조절 후 10% · 참고: 전 종목 합산으로 모델이 65%±10%p라 말한 26건의 실제 상승 비율 42% (95% 신뢰구간 26%~61% · 이 종목 단독 표본은 1건으로 축적 중)",
+      "fill": {
+        "price": 599.01001,
+        "bar": "2026-08-10 00:00:00",
+        "weight": 0.101,
+        "decided_bar": "2026-08-07 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "15ab29417b44",
+      "data_sha256": "5f5111e50f515a1fc5e2bb90c16641017e35477e5d72f3c1223ef7610687a504",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6483883647410588,
+      "drift_psi": 0.4215,
+      "earnings_guard": null,
+      "kelly_cap": null
     }
   ],
   "pending": {
-    "weight": 0.101,
-    "decided_bar": "2026-08-07 00:00:00"
+    "weight": 0.1011,
+    "decided_bar": "2026-08-10 00:00:00"
   },
   "market": "us_stock",
   "symbol": "META",

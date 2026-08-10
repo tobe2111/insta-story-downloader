@@ -1,8 +1,8 @@
 {
-  "cash": 6669.0,
-  "quantity": 12.204653894971223,
+  "cash": 7756.364522888903,
+  "quantity": 8.2366842200925,
   "avg_price": 272.7650146484375,
-  "last_bar": "2026-08-07 00:00:00",
+  "last_bar": "2026-08-10 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -82,11 +82,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.8227246658482391,
       "drift_psi": 0.3058
+    },
+    {
+      "date": "2026-08-10",
+      "price": 278.0899963378906,
+      "weight": 0.178,
+      "equity": 10046.9,
+      "return_pct": 0.47,
+      "hit_rate": 0.5373134328358209,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +18% — 로지스틱회귀 모델이 내일 상승확률을 약 72%로 추정(기준 55% 초과) · 판단 재료: 변동성(20일) 일 4.1% / RSI(14) 66(과열권) / VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) · 사이징: 신호 원비중 38% → 변동성 타깃 조절 후 18% · 참고: 이 확률대(72%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=19, 25건부터 표시)",
+      "fill": {
+        "price": 274.200012,
+        "bar": "2026-08-10 00:00:00",
+        "weight": 0.2255,
+        "decided_bar": "2026-08-07 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "15ab29417b44",
+      "data_sha256": "f9ee0339015ad9600a73cf460f1617785cf52e809cbbc66bc036390b3364bc5d",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7211661005986989,
+      "drift_psi": 0.9222,
+      "earnings_guard": null,
+      "kelly_cap": null
     }
   ],
   "pending": {
-    "weight": 0.2255,
-    "decided_bar": "2026-08-07 00:00:00"
+    "weight": 0.178,
+    "decided_bar": "2026-08-10 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AMZN",

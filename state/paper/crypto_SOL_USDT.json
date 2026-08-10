@@ -2,7 +2,7 @@
   "cash": 8740.077814341208,
   "quantity": 17.150162329147843,
   "avg_price": 74.13503318436354,
-  "last_bar": "2026-08-09 00:00:00",
+  "last_bar": "2026-08-10 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -110,6 +110,31 @@
       "accounting": "next_open_v2",
       "prob_up": 0.6888914583134428,
       "drift_psi": 0.7458,
+      "earnings_guard": null,
+      "kelly_cap": null
+    },
+    {
+      "date": "2026-08-10",
+      "price": 76.38,
+      "weight": 0.103,
+      "equity": 10050.01,
+      "return_pct": 0.5,
+      "hit_rate": 0.7,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +10% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 판단 재료: 볼린저 위치 0.80(상단 접근) / 10일 수익률 +4.8% / 5일 수익률 +3.2% · 사이징: 신호 원비중 21% → 변동성 타깃 조절 후 10% · 참고: 이 확률대(65%±10%p)의 과거 성적은 표본 축적 중 (종목 n=3 · 합산 n=22, 25건부터 표시)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "15ab29417b44",
+      "data_sha256": "dc205e434c017550c8ee9dac62a26022b170fea7a3428e14a8779611abd343d1",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6452161573019959,
+      "drift_psi": 0.7829,
       "earnings_guard": null,
       "kelly_cap": null
     }

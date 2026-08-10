@@ -2,7 +2,7 @@
   "cash": 6368.0,
   "quantity": 11.5474395527898,
   "avg_price": 314.3399963378906,
-  "last_bar": "2026-08-07 00:00:00",
+  "last_bar": "2026-08-10 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -82,11 +82,41 @@
       "accounting": "next_open_v2",
       "prob_up": 0.8447041911431392,
       "drift_psi": 0.2052
+    },
+    {
+      "date": "2026-08-10",
+      "price": 308.260009765625,
+      "weight": 0.1235,
+      "equity": 9927.61,
+      "return_pct": -0.72,
+      "hit_rate": 0.5,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +12% — 로지스틱회귀 모델이 내일 상승확률을 약 63%로 추정(기준 55% 초과) · 판단 재료: 미국 S&P500 5일 흐름 +2.0% / 60일 모멘텀 +3.1% / VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) · 사이징: 신호 원비중 17% → 변동성 타깃 조절 후 12% · 참고: 전 종목 합산으로 모델이 63%±10%p라 말한 27건의 실제 상승 비율 41% (95% 신뢰구간 25%~59% · 이 종목 단독 표본은 0건으로 축적 중)",
+      "fill": {
+        "price": 306.829987,
+        "bar": "2026-08-10 00:00:00",
+        "weight": 0.3662,
+        "decided_bar": "2026-08-07 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "15ab29417b44",
+      "data_sha256": "3b73a96a17244eb6ed1ef499fb0a78584f8385a20a4e7d5e6e9c374508ef68f5",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6276882896153918,
+      "drift_psi": 0.2079,
+      "earnings_guard": null,
+      "kelly_cap": null
     }
   ],
   "pending": {
-    "weight": 0.3662,
-    "decided_bar": "2026-08-07 00:00:00"
+    "weight": 0.1235,
+    "decided_bar": "2026-08-10 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",
