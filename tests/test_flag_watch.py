@@ -74,6 +74,49 @@ def test_generation_done_flag(tmp_path, monkeypatch):
     assert any("판정 시계 만료" in m for m in spy.sent)
 
 
+def test_killswitch_flag_and_escalation(tmp_path, monkeypatch):
+    st = json.loads(json.dumps(STATUS))
+    st["paper"] = {"portfolio:ALL": {"history": [
+        {"date": "2026-08-09", "risk_scale": 0.75, "drawdown_pct": -8.2}]}}
+    new, spy = _run(tmp_path, monkeypatch, st)
+    assert "killswitch:portfolio:ALL:0.75" in new
+    assert any("킬스위치 발동" in m and "75%" in m for m in spy.sent)
+    # 단계 하강(0.75→0.5) → 키가 바뀌어 재알림
+    st["paper"]["portfolio:ALL"]["history"][0]["risk_scale"] = 0.5
+    new2, spy2 = _run(tmp_path, monkeypatch, st)
+    assert "killswitch:portfolio:ALL:0.5" in new2
+    # 복귀(1.0) → 조용히 꺼짐
+    st["paper"]["portfolio:ALL"]["history"][0]["risk_scale"] = 1.0
+    new3, spy3 = _run(tmp_path, monkeypatch, st)
+    assert not any(k.startswith("killswitch") for k in new3)
+    assert spy3.sent == []
+
+
+def test_weekly_health_section(tmp_path):
+    """주간 요약이 판정 시계·오디션·킬스위치를 담는다(건강 보고서)."""
+    from quant.live.daily import format_weekly, weekly_summary
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    (paper / "pf.json").write_text(json.dumps({
+        "market": "portfolio", "symbol": "ALL", "start_cash": 80000,
+        "history": [
+            {"date": "2026-08-08", "equity": 80000.0, "return_pct": 0.0},
+            {"date": "2026-08-09", "equity": 79000.0, "return_pct": -1.2,
+             "risk_scale": 0.75, "drawdown_pct": -6.0},
+        ]}), "utf-8")
+    (tmp_path / "retrain_history.jsonl").write_text(json.dumps(
+        {"asof": "2026-08-09", "market": "crypto", "symbol": "BTC/USDT",
+         "promoted": False, "n_candidates": 12}) + "\n", "utf-8")
+    s = weekly_summary(str(tmp_path))
+    h = s["health"]
+    assert h["auditions"] == {"runs": 1, "candidates": 12, "promoted": 0}
+    assert h["killswitch"]["risk_scale"] == 0.75
+    assert h["generation"]["target_days"] == 90
+    text = format_weekly(s)
+    assert "판정 시계" in text and "오디션" in text and "킬스위치 발동 중" in text
+
+
 def test_wired_into_write_docs_status():
     dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
     assert "check_and_notify_flags" in dl
+    assert "killswitch" in (ROOT / "quant" / "live" / "flag_watch.py").read_text("utf-8")

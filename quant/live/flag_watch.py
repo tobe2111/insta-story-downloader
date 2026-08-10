@@ -45,7 +45,24 @@ def _current_flags(status: dict) -> dict[str, str]:
     except Exception:  # noqa: BLE001 — 보정표 실패가 다른 플래그를 막으면 안 된다
         pass
 
-    # ③ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ③ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
+    #    사건이다. 단계가 더 내려가면(0.75→0.5) 키가 바뀌어 다시 알리고,
+    #    1.0 복귀는 조용히 플래그만 끈다(복귀 후 재발동 시 재알림).
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        last = hist[-1] if hist else {}
+        rs = last.get("risk_scale")
+        if rs is not None and float(rs) < 1.0:
+            dd = last.get("drawdown_pct")
+            dd_txt = f" (낙폭 {dd}%)" if dd is not None else ""
+            flags[f"killswitch:{key}:{rs}"] = (
+                f"🛡 킬스위치 발동: 통합 계좌 노출을 {float(rs) * 100:.0f}%로 "
+                f"축소{dd_txt} — 낙폭 단계별 자동 브레이크입니다. 회복 시 "
+                f"단계적으로 복귀합니다(수동 개입 불필요).")
+
+    # ④ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]
