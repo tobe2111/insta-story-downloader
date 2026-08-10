@@ -70,35 +70,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy pyyaml scikit-learn yfinance ccxt pyinstaller
 
-      - name: 라이선스 자물쇠 포함 (시크릿 설정 시 — 1인 1키 강제)
-        # QUANT_LICENSE_SECRET(HMAC) 또는 QUANT_LICENSE_PUBKEY(Ed25519 공개키)가
-        # GitHub Secrets에 있으면 배포본에 구워 넣는다 → 실행 시 정품 키를
-        # 요구한다(어드민 대시보드의 키 발급과 같은 비밀을 써야 검증이 맞는다).
-        # 미설정이면 지금처럼 누구나 실행 가능한 빌드가 나온다.
+      - name: 배포판 표식 포함 (실거래 잠금)
+        # 배포판 표식 — 실거래 명령을 소스 설치 전용으로 잠근다.
+        # 판매·배포되는 실행파일에 실계좌 경로가 있으면 안 된다(규제 리스크):
+        # 배포판은 백테스트·검증·페이퍼(모의)·조회 전용이다.
         shell: bash
-        env:
-          LIC_SECRET: ${{ secrets.QUANT_LICENSE_SECRET }}
-          LIC_PUBKEY: ${{ secrets.QUANT_LICENSE_PUBKEY }}
         run: |
-          # 배포판 표식 — 실거래 명령을 소스 설치 전용으로 잠근다.
-          # 판매·배포되는 실행파일에 실계좌 경로가 있으면 안 된다(규제 리스크):
-          # 배포판은 백테스트·검증·페이퍼(모의)·조회 전용이다.
           printf 'DISTRIBUTION = True\n' > quant/_dist_build.py
           echo "🚫 배포판 표식 포함 — 실거래 명령은 소스 설치에서만 동작합니다"
-          if [ -n "$LIC_SECRET" ]; then
-            printf 'SECRET = "%s"\n' "$LIC_SECRET" > quant/_license_key.py
-            echo "🔒 HMAC 자물쇠 포함 — 이 빌드는 라이선스 키를 요구합니다"
-          fi
-          if [ -n "$LIC_PUBKEY" ]; then
-            printf 'PUBLIC_KEY = "%s"\n' "$LIC_PUBKEY" > quant/_license_pub.py
-            echo "🔒 Ed25519 공개키 포함 — 이 빌드는 라이선스 키를 요구합니다"
-          fi
-          if [ -z "$LIC_SECRET$LIC_PUBKEY" ]; then
-            echo "🔓 라이선스 시크릿 미설정 — 자물쇠 없이 빌드(누구나 실행 가능)"
-          fi
 
       # E2E ①: 표식이 구워진 소스에서 실거래 경로 3곳이 정말 죽는지 실행으로 확인.
       # 빌드 로그의 echo 문자열만 믿는 검증은 회귀를 못 잡는다 — 명령을 진짜 돌린다.
+      # ⚠️ 반드시 라이선스 자물쇠를 굽기 '전'에 돌려야 한다 — 자물쇠가 먼저
+      # 구워지면 CLI가 잠금 문구 대신 라이선스 요구로 종료해 오판정된다.
       - name: 실거래 잠금 스모크 (소스+표식)
         shell: bash
         env:
@@ -117,6 +101,28 @@ jobs:
           expect_block python -m quant live-daily --real
           expect_block python -m quant live --real --market crypto
           expect_block python -m quant webhook --live --market crypto
+
+      - name: 라이선스 자물쇠 포함 (시크릿 설정 시 — 1인 1키 강제)
+        # QUANT_LICENSE_SECRET(HMAC) 또는 QUANT_LICENSE_PUBKEY(Ed25519 공개키)가
+        # GitHub Secrets에 있으면 배포본에 구워 넣는다 → 실행 시 정품 키를
+        # 요구한다(어드민 대시보드의 키 발급과 같은 비밀을 써야 검증이 맞는다).
+        # 미설정이면 지금처럼 누구나 실행 가능한 빌드가 나온다.
+        shell: bash
+        env:
+          LIC_SECRET: ${{ secrets.QUANT_LICENSE_SECRET }}
+          LIC_PUBKEY: ${{ secrets.QUANT_LICENSE_PUBKEY }}
+        run: |
+          if [ -n "$LIC_SECRET" ]; then
+            printf 'SECRET = "%s"\n' "$LIC_SECRET" > quant/_license_key.py
+            echo "🔒 HMAC 자물쇠 포함 — 이 빌드는 라이선스 키를 요구합니다"
+          fi
+          if [ -n "$LIC_PUBKEY" ]; then
+            printf 'PUBLIC_KEY = "%s"\n' "$LIC_PUBKEY" > quant/_license_pub.py
+            echo "🔒 Ed25519 공개키 포함 — 이 빌드는 라이선스 키를 요구합니다"
+          fi
+          if [ -z "$LIC_SECRET$LIC_PUBKEY" ]; then
+            echo "🔓 라이선스 시크릿 미설정 — 자물쇠 없이 빌드(누구나 실행 가능)"
+          fi
 
       - name: Build standalone executable
         run: >
