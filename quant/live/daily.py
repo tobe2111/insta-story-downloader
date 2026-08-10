@@ -1211,4 +1211,14 @@ def write_docs_status(state_dir: str = STATE_DIR,
 
     atomic_write_json(docs_path, status)
     print(f"🌐 사이트 상태 갱신: {docs_path} (마지막 기록 {status['updated']})")
+
+    # 플래그 파수꾼 — 새로 켜진 자기 고발 플래그(낙관 의심·보정 어긋남·
+    # 판정 시계)를 알림 채널(디스코드 등)로도 발송한다. 이미 켜진 건 조용.
+    try:
+        from quant.live.flag_watch import check_and_notify_flags
+        new_flags = check_and_notify_flags(status, state_dir)
+        if new_flags:
+            print(f"🚩 새 플래그 알림 발송: {', '.join(new_flags)}")
+    except Exception:  # noqa: BLE001 — 알림 실패가 사이트 갱신을 막으면 안 된다
+        pass
     return status
