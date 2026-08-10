@@ -1035,6 +1035,7 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         }
 
     swaps = []
+    auditions = {"runs": 0, "candidates": 0, "promoted": 0}
     hist_file = os.path.join(state_dir, "retrain_history.jsonl")
     if os.path.exists(hist_file):
         with open(hist_file, encoding="utf-8") as f:
@@ -1043,16 +1044,48 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
                     rec = json.loads(line)
                 except ValueError:
                     continue
-                if (rec.get("promoted")
-                        and rec.get("asof")
-                        and date.fromisoformat(rec["asof"]) >= start):
+                if not rec.get("asof"):
+                    continue
+                try:
+                    in_window = date.fromisoformat(rec["asof"]) >= start
+                except ValueError:
+                    continue
+                if not in_window:
+                    continue
+                # 이번 주 오디션 통계 — 몇 명이 도전해 몇 명이 승격했나
+                auditions["runs"] += 1
+                auditions["candidates"] += int(rec.get("n_candidates") or 0)
+                if rec.get("promoted"):
+                    auditions["promoted"] += 1
                     swaps.append({"asof": rec["asof"],
                                   "market": rec.get("market"),
                                   "symbol": rec.get("symbol"),
                                   "champion": rec.get("champion"),
                                   "strategy": rec.get("champion_strategy")})
+
+    # 시스템 건강 — 수익률 밖의 상태(판정 시계·체결 가정·킬스위치)를 함께.
+    # 주간 요약은 "이번 주 시스템 건강 보고서"다 — 숫자 자랑이 아니라.
+    health: dict = {"auditions": auditions}
+    gen = _generation_info(state_dir)
+    if gen:
+        health["generation"] = gen
+    try:
+        from quant.reporting.fill_gap import fill_gap_report
+        fg = fill_gap_report(state_dir)
+        if fg:
+            health["fill_check"] = fg
+    except Exception:  # noqa: BLE001 — 건강 항목 실패가 요약을 막으면 안 된다
+        pass
+    for st in states:
+        if st.get("market") == "portfolio" and st.get("history"):
+            last = st["history"][-1]
+            rs = last.get("risk_scale")
+            if rs is not None and float(rs) < 1.0:
+                health["killswitch"] = {
+                    "risk_scale": float(rs),
+                    "drawdown_pct": last.get("drawdown_pct")}
     return {"period": [str(start), str(anchor)], "markets": markets,
-            "swaps": swaps}
+            "swaps": swaps, "health": health}
 
 
 def format_weekly(summary: dict) -> str:
@@ -1074,6 +1107,30 @@ def format_weekly(summary: dict) -> str:
                          f"{s.get('strategy', '')} {s['champion']} ({s['asof']})")
     else:
         lines.append("🏆 챔피언 교체 없음 — 확실히 나은 후보가 없었다는 뜻(정상)")
+
+    # 시스템 건강 보고 — 수익률 밖의 상태를 사이트 안 열어도 알 수 있게
+    h = summary.get("health") or {}
+    g = h.get("generation")
+    if g:
+        lines.append(f"🕰 판정 시계: 구조 {g['feature_set']} 관찰 "
+                     f"{g['days']}일차/{g['target_days']}일 — 시계가 다 돌기 "
+                     f"전의 수익률은 판정 근거가 아닙니다")
+    a = h.get("auditions")
+    if a and a["runs"]:
+        lines.append(f"🎭 오디션: 이번 주 {a['runs']}회 · 후보 "
+                     f"{a['candidates']}명 중 승격 {a['promoted']}회")
+    fc = h.get("fill_check")
+    if fc:
+        for mk, r in (fc.get("markets") or {}).items():
+            mark = " ⚠️ 가정 초과(백테스트 낙관 의심)" if r["optimistic"] else ""
+            lines.append(f"🧾 체결 검증 {mk}: 불리 갭 평균 "
+                         f"{r['mean_adverse_bp']:+.1f}bp vs 가정 "
+                         f"{r['assumed_bp']:.1f}bp (표본 {r['n']}건){mark}")
+    ks = h.get("killswitch")
+    if ks:
+        lines.append(f"🛡 킬스위치 발동 중: 노출 {ks['risk_scale'] * 100:.0f}%"
+                     + (f" (낙폭 {ks['drawdown_pct']}%)"
+                        if ks.get("drawdown_pct") is not None else ""))
     lines.append("⚠️ 페이퍼(모의) 운용 — 실제 돈이 아니며 수익 보장이 아닙니다.")
     return "\n".join(lines)
 
