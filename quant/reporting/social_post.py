@@ -150,9 +150,14 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
         wait_public: bool = True) -> dict:
     """콘텐츠 폴더를 읽어 설정된 플랫폼에 게시한다. 반환: 플랫폼별 결과.
 
-    멱등: 같은 폴더에 posted.json이 있으면(이미 게시됨) 통째로 건너뛴다 —
-    재시도 크론이 같은 날 두 번 올리는 사고를 막는다. 플랫폼 하나의 실패가
-    다른 플랫폼 게시를 막지 않는다(독립 시도, 실패는 결과에 기록).
+    멱등: 같은 폴더에 posted.json이 있으면 **그 안에 성공으로 적힌 플랫폼만**
+    건너뛴다. 재시도 크론이 같은 날 두 번 올리는 사고를 막으면서, 실패한
+    쪽은 다시 시도하게 하기 위함이다.
+
+    ⚠️ 예전에는 '한 곳이라도 성공하면' 마커를 남기고, 마커가 있으면 폴더를
+       통째로 건너뛰었다(감사 54). 스레드는 성공하고 인스타는 실패한 날,
+       마커가 남아 재시도가 폴더를 건너뛰므로 **인스타는 그날 영원히 안
+       올라간다** — 게시 실패가 '이미 게시됨'으로 둔갑하는 자리였다.
     """
     # 어드민 대시보드 스위치 — 꺼져 있으면 게시하지 않는다(콘텐츠는 이미 생성됨)
     from quant.utils.settings import load_settings
@@ -161,9 +166,21 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
         return {"skipped": "disabled_by_admin"}
 
     marker = os.path.join(content_dir, "posted.json")
+    done: set[str] = set()
     if os.path.exists(marker):
-        log.info("이미 게시된 폴더 — 건너뜀: %s", content_dir)
-        return {"skipped": "already_posted"}
+        try:
+            with open(marker, encoding="utf-8") as f:
+                prev = json.load(f)
+        except (OSError, ValueError):
+            prev = {}
+        plats = prev.get("posted_platforms")
+        if plats is None:
+            # 옛 마커(플랫폼 기록 없음) = 예전 동작 그대로 전부 게시된 것으로 본다.
+            # 모르는 상태에서 다시 올리면 중복 게시가 되고, 그건 되돌릴 수 없다.
+            done = {"threads", "instagram"}
+        else:
+            done = {str(p) for p in plats}
+        log.info("이미 게시된 플랫폼 — 건너뜀: %s", sorted(done) or "(없음)")
 
     with open(os.path.join(content_dir, "meta.json"), encoding="utf-8") as f:
         meta = json.load(f)
@@ -185,36 +202,49 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
         log.info("SNS 자격증명 미설정 — 게시 건너뜀(콘텐츠 생성은 완료됨)")
         return {**results, "skipped": "no_credentials"}
 
+    todo = [p for p in ("threads", "instagram") if p not in done
+            and (th_id and th_tok if p == "threads" else ig_id and ig_tok)]
+    if not todo:
+        return {**results, "skipped": "already_posted"}
+
     if wait_public:
         _wait_public(urls, sleep=sleep)
 
-    if th_id and th_tok:
+    posted = set(done)
+    if "threads" in todo:
         try:
             results["threads"] = post_threads(
                 urls, _read("caption_threads.txt"), user_id=th_id,
                 token=th_tok, http=http, http_get=http_get, sleep=sleep)
+            posted.add("threads")
             log.info("스레드 게시 완료: %s", results["threads"])
         except Exception as exc:  # noqa: BLE001 — 한 플랫폼 실패가 다른 쪽을 안 막는다
             results["threads_error"] = str(exc)
             log.error("스레드 게시 실패: %s", exc)
+    elif "threads" in done:
+        results["threads"] = "skipped(이미 게시됨)"
     else:
         results["threads"] = "skipped(미설정)"
 
-    if ig_id and ig_tok:
+    if "instagram" in todo:
         try:
             results["instagram"] = post_instagram(
                 urls, _read("caption_instagram.txt"), user_id=ig_id,
                 token=ig_tok, http=http, http_get=http_get, sleep=sleep)
+            posted.add("instagram")
             log.info("인스타그램 게시 완료: %s", results["instagram"])
         except Exception as exc:  # noqa: BLE001
             results["instagram_error"] = str(exc)
             log.error("인스타그램 게시 실패: %s", exc)
+    elif "instagram" in done:
+        results["instagram"] = "skipped(이미 게시됨)"
     else:
         results["instagram"] = "skipped(미설정)"
 
-    # 성공한 게시가 하나라도 있으면 멱등 마커를 남긴다(재실행 중복 방지).
-    if any(k in results and "skipped" not in str(results[k])
-           for k in ("threads", "instagram")):
+    # 멱등 마커 — **성공한 플랫폼만** 적는다. 실패한 쪽은 적히지 않으므로
+    # 다음 재시도가 그 플랫폼만 다시 올린다(중복 없이, 누락도 없이).
+    results["posted_platforms"] = sorted(posted)
+    if posted:
         from quant.utils.jsonio import atomic_write_json
         atomic_write_json(marker, results)
     return results

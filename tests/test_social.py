@@ -179,7 +179,7 @@ def test_run_posts_carousel_in_order_and_marks(tmp_path, monkeypatch):
     n_before = len(fake.posts)
     out2 = run(d, "https://example.com", env=env, http=fake.post,
                http_get=fake.get, sleep=lambda s: None, wait_public=False)
-    assert out2 == {"skipped": "already_posted"}
+    assert out2["skipped"] == "already_posted"
     assert len(fake.posts) == n_before
 
 
@@ -203,6 +203,71 @@ def test_run_one_platform_failure_does_not_block_other(tmp_path, monkeypatch):
     assert "threads_error" in out                    # 스레드는 실패 기록
     assert out.get("instagram")                      # 인스타는 성공
     assert os.path.exists(os.path.join(d, "posted.json"))
+    # 마커에는 성공한 플랫폼만 적힌다 — 실패한 스레드는 재시도 대상으로 남는다
+    assert out["posted_platforms"] == ["instagram"]
+
+
+def test_retry_reposts_only_the_failed_platform(tmp_path, monkeypatch):
+    """부분 실패한 날의 재시도가 실패한 쪽만 다시 올린다 (감사 54).
+
+    예전에는 '한 곳이라도 성공하면' posted.json을 남기고, 마커가 있으면
+    폴더를 통째로 건너뛰었다. 스레드는 성공하고 인스타가 실패한 날,
+    재시도 크론이 폴더를 건너뛰므로 **인스타는 그날 영원히 안 올라간다.**
+    게시 실패가 '이미 게시됨'으로 둔갑하는 자리였다.
+    """
+    monkeypatch.chdir(tmp_path)
+    d = _content_dir(tmp_path)
+    env = {"THREADS_USER_ID": "u1", "THREADS_ACCESS_TOKEN": "tok1",
+           "IG_USER_ID": "u2", "IG_ACCESS_TOKEN": "tok2"}
+
+    n = {"i": 0}
+    broken_ig = {"on": True}
+
+    def post(url, headers=None, body=None):
+        n["i"] += 1
+        if broken_ig["on"] and "graph.facebook.com" in url:
+            raise RuntimeError("HTTP 400 인스타 토큰 만료")
+        return {"id": f"C{n['i']}"}
+
+    fake = _FakeHTTP()
+    kw = dict(http=post, http_get=fake.get, sleep=lambda s: None,
+              wait_public=False)
+    out1 = run(d, "https://example.com", env=env, **kw)
+    assert out1["posted_platforms"] == ["threads"]
+    assert "instagram_error" in out1
+
+    # 토큰을 고친 뒤 재시도 — 인스타만 올라가고 스레드는 다시 안 올린다
+    broken_ig["on"] = False
+    calls_before = n["i"]
+    out2 = run(d, "https://example.com", env=env, **kw)
+    assert out2.get("instagram") and "instagram_error" not in out2
+    assert out2["threads"] == "skipped(이미 게시됨)"
+    assert out2["posted_platforms"] == ["instagram", "threads"]
+    # 새 호출은 전부 인스타 쪽이어야 한다(스레드 중복 게시 없음)
+    assert n["i"] > calls_before
+
+    # 3회차 — 둘 다 끝났으니 아무것도 안 한다
+    calls_before = n["i"]
+    out3 = run(d, "https://example.com", env=env, **kw)
+    assert out3["skipped"] == "already_posted"
+    assert n["i"] == calls_before
+
+
+def test_legacy_marker_without_platforms_is_treated_as_fully_posted(
+        tmp_path, monkeypatch):
+    """플랫폼 기록이 없는 옛 마커는 '전부 게시됨'으로 본다(중복 게시 금지)."""
+    monkeypatch.chdir(tmp_path)
+    d = _content_dir(tmp_path)
+    with open(os.path.join(d, "posted.json"), "w", encoding="utf-8") as f:
+        json.dump({"threads": "T1", "instagram": "I1"}, f)
+    fake = _FakeHTTP()
+    out = run(d, "https://example.com",
+              env={"THREADS_USER_ID": "u1", "THREADS_ACCESS_TOKEN": "t",
+                   "IG_USER_ID": "u2", "IG_ACCESS_TOKEN": "t"},
+              http=fake.post, http_get=fake.get, sleep=lambda s: None,
+              wait_public=False)
+    assert out["skipped"] == "already_posted"
+    assert not fake.posts
 
 
 def test_run_no_images_skips(tmp_path, monkeypatch):
