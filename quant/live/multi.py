@@ -48,6 +48,9 @@ class MultiTrader:
         # 겪은 문제). 두 밴드 중 더 큰 문턱이 적용된다(2026-08-11 통일).
         rebalance_band_rel: float = 0.15,
         market: str | None = None,
+        # 합성 폴백 시세로는 매매하지 않는다(감사 85). 일부러 고른 합성
+        # 시장에는 표식이 붙지 않으므로 기본 True로 둬도 안전하다.
+        require_real_data: bool = True,
     ):
         self.data = data
         self.strategy = strategy
@@ -58,6 +61,7 @@ class MultiTrader:
         self.lookback = lookback
         # 장 시간 가드 — 지정 시 정규장이 아니면 그 사이클을 건너뛴다(코인=항상 통과).
         self.market = market
+        self.require_real_data = require_real_data
         self.allocation = allocation
         self.max_gross = max_gross
         self.vol_window = vol_window
@@ -94,16 +98,28 @@ class MultiTrader:
         # 이번 사이클에 거부된 주문(감사 81). 한 종목 실패가 나머지를
         # 막지 않되, 실패했다는 사실은 장부에 남는다.
         self._failed_orders: list[str] = []
+        # 데이터 때문에 제외된 종목과 그 이유(감사 85)
+        self._skipped_data: dict[str, str] = {}
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
 
     def _target_weights(self) -> tuple[dict[str, float], dict[str, float]]:
         """각 종목의 목표비중과 현재가를 계산한다."""
+        from quant.data.guard import unusable_reason
+
         closes, sigs, prices = {}, {}, {}
+        self._skipped_data: dict[str, str] = {}
         for s in self.symbols:
             df = self.data.get_ohlcv(s, self.timeframe, limit=self.lookback)
-            if df.empty:
+            # 매매해도 되는 데이터인가 — 종목별로 거른다(감사 85). 예전에는
+            # df.empty만 봤다. 거래소 조회가 전부 실패하면 GBM 난수 걷기가
+            # 오는데 그걸로 실주문을 내면 존재하지 않는 시장에 매매하는 셈이다.
+            # 한 종목이 나쁘다고 나머지까지 멈추지는 않는다.
+            why = unusable_reason(df, require_real_data=self.require_real_data)
+            if why:
+                log.warning("%s 제외 — %s", s, why)
+                self._skipped_data[s] = why
                 continue
             closes[s] = df["close"]
             sigs[s] = self._strategy_for(s).generate_signals(df)
@@ -320,6 +336,9 @@ class MultiTrader:
             # 이번 사이클에 거부된 주문(감사 81) — 목표 비중과 실제
             # 보유가 왜 다른지에 답할 수 있어야 한다.
             "failed_orders": list(self._failed_orders) or None,
+            # 데이터 때문에 빠진 종목(감사 85) — 조용히 건너뛴 사이클은
+            # 나중에 "왜 이 종목이 없었나"에 답할 수 없다.
+            "skipped_data": dict(self._skipped_data) or None,
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:
