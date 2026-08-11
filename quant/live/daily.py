@@ -234,14 +234,20 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     if earnings_guard:
         reason += (f" · 🛡 실적 가드: 발표({earnings_guard['date']}) 임박 → "
                    "비중 절반")
-    # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
+    # 의회(혼합) 운용 중이면 구성을 함께.
+    # ⚠️ 위 설명은 **의석 1위 의원**의 논리다. 의원이 둘 이상이면 오늘의 비중은
+    #    의원 신호의 의석 가중합이라 리더 하나로 설명되지 않는다 — 그 사실을
+    #    문장으로 밝힌다(2026-08-11 감사). 지금은 전 종목이 의원 1명이라
+    #    설명이 곧 실제지만, 승격이 쌓이면 어긋나기 시작한다.
     try:
         from quant.live.parliament import parliament_summary
         from quant.live.retrain import _key, load_champions
         entry = load_champions(state_dir).get(_key(market, symbol))
         ps = parliament_summary(entry) if entry else None
         if ps:
-            reason += f" · 🏛 의회 운용: {ps}"
+            reason += (f" · 🏛 의회 운용: {ps} — 위 설명은 의석 1위 의원의 "
+                       f"논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 "
+                       f"가중 평균한 값입니다")
     except Exception:  # noqa: BLE001 — 표기 실패가 기록을 막으면 안 된다
         pass
 

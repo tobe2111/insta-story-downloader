@@ -71,3 +71,19 @@ def test_structure_epoch_describes_todays_changes():
     """구조 세대 설명이 실제 구조를 기술하는가(장부의 자기 기술)."""
     from quant.live.daily import STRUCTURE_WHY
     assert "안전장치 복구" in STRUCTURE_WHY
+
+
+def test_parliament_explanation_discloses_the_mixture():
+    """의원이 둘 이상이면 '리더 논리'가 곧 오늘의 비중이 아니다."""
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert "의석 1위 의원의" in src and "가중 평균한 값" in src
+
+
+def test_parliament_summary_is_silent_for_single_member():
+    from quant.live.parliament import parliament_summary
+    assert parliament_summary({"parliament": [{"strategy": "ml",
+                                               "weight": 1.0}]}) is None
+    two = parliament_summary({"parliament": [
+        {"strategy": "ml", "weight": 0.6},
+        {"strategy": "ma_cross", "weight": 0.4}]})
+    assert two and "60%" in two and "40%" in two
