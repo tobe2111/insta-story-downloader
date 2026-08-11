@@ -1,3 +1,5 @@
+import pytest
+
 
 
 # ── 발표 '이후' 창 — 문서가 약속한 보호의 나머지 절반 ─────────
@@ -101,3 +103,66 @@ def test_guard_is_wired_after_the_scaler():
     src = (root / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "guard_damp[key] = ef" in src
     assert "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)" in src
+
+
+def test_per_symbol_path_actually_halves_the_recorded_weight(monkeypatch,
+                                                             tmp_path):
+    """종목별 페이퍼 경로에서 가드가 실제로 비중을 깎는가 (감사 63).
+
+    커버리지로 보니 이 블록(daily.py의 `weight = float(weight * ef)`)이
+    어떤 테스트에서도 실행된 적이 없었다. 통합 계좌 쪽은 오늘 아침
+    '스케일러가 되돌려 키운다'는 결함을 고치며 계약 검사를 붙였는데,
+    종목별 경로는 구조가 달라(사이징이 이미 끝난 뒤에 곱한다) 그 검사에
+    걸리지 않았고 자기 검사도 없었다.
+    """
+    import datetime as dt
+    import json
+
+    import numpy as np
+    import pandas as pd
+
+    from quant.data import earnings as eg
+    from quant.live import daily as dl
+
+    rng = np.random.default_rng(6)
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0004, 0.02, 300)))
+    idx = pd.date_range("2025-01-01", periods=300, freq="D")
+    bars = pd.DataFrame({"open": close, "high": close * 1.01,
+                         "low": close * 0.99, "close": close,
+                         "volume": 1e6}, index=idx)
+    last_day = dt.date.fromisoformat(str(bars.index[-1])[:10])
+
+    class _P:
+        def get_ohlcv(self, *a, **k):
+            return bars.copy()
+
+    class _S:
+        name = "fixed"
+        allow_short = False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    def _run(state_dir, guard_on):
+        monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
+        monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _S())
+        monkeypatch.setattr(dl, "champion_spec",
+                            lambda *a, **k: {"strategy": "fixed", "params": {}})
+        monkeypatch.setattr(
+            eg, "nearest_earnings_date",
+            lambda sym, asof, sd, fetch=None: last_day if guard_on else None)
+        dl.run_daily_paper("us_stock", "SPY", state_dir=str(state_dir),
+                           require_real_data=False)
+        st = json.loads((state_dir / "paper" / "us_stock_SPY.json")
+                        .read_text(encoding="utf-8"))
+        return st["history"][-1]
+
+    off = _run(tmp_path / "off", guard_on=False)
+    on = _run(tmp_path / "on", guard_on=True)
+
+    assert off["earnings_guard"] is None
+    assert on["earnings_guard"], "발표일인데 가드 흔적이 없다"
+    assert on["earnings_guard"]["factor"] == eg.GUARD_FACTOR
+    assert on["weight"] == pytest.approx(off["weight"] * eg.GUARD_FACTOR,
+                                         abs=1e-4), (
+        f"가드가 비중을 안 깎았다: {off['weight']} → {on['weight']}")

@@ -241,3 +241,98 @@ def test_every_live_entrypoint_calls_the_lock():
         "잠금을 안 건 경로가 있는지 확인하라")
     start = (ROOT / "start.py").read_text(encoding="utf-8")
     assert "block_live_in_distribution()" in start
+
+
+# ── Ed25519 서명 라이선스 (감사 63) ───────────────────────────
+#
+# 커버리지로 보니 Ed25519 경로에 테스트가 **하나도** 없었다. 이건 실제로
+# 팔 때 쓰는 방식이다 — 배포본에는 공개키만 들어가므로, 구매자가 실행
+# 파일을 뜯어봐도 새 키를 만들 수 없다(HMAC은 비밀이 배포본에 구워지므로
+# 뜯으면 무한 발급이 가능하다). 그 성질이 깨져 있어도 아무도 몰랐다.
+
+
+def _keypair():
+    import pytest
+
+    from quant import licensing as L
+    if not L.HAS_ED25519:
+        pytest.skip("cryptography 미설치")
+    return L.gen_keypair()
+
+
+def test_ed25519_roundtrip(monkeypatch):
+    from quant import licensing as L
+
+    priv, pub = _keypair()
+    key = L.generate_key_ed25519("구매자A", private_key=priv)
+    assert key.startswith(f"{L._PREFIX}-{L._ED_MARK}-")
+    assert L.verify_key("구매자A", key, public_key=pub) is True
+
+
+def test_ed25519_key_is_bound_to_the_buyer():
+    from quant import licensing as L
+
+    priv, pub = _keypair()
+    key = L.generate_key_ed25519("구매자A", private_key=priv)
+    assert L.verify_key("구매자B", key, public_key=pub) is False
+
+
+def test_ed25519_rejects_a_forged_or_corrupted_key():
+    from quant import licensing as L
+
+    priv, pub = _keypair()
+    key = L.generate_key_ed25519("구매자A", private_key=priv)
+    # ⚠️ 마지막 글자는 건드리지 않는다. Ed25519 서명 64바이트=512비트를
+    #    base32(5비트/글자)로 담으면 마지막 글자에 무의미한 3비트가 남아,
+    #    그 글자만 바꾼 문자열은 **같은 서명의 다른 표기**가 된다(위조가
+    #    아니라 별칭). 실제로 처음엔 그걸 결함으로 착각했다.
+    mid = len(key) // 2
+    flip = key[:mid] + ("A" if key[mid] != "A" else "B") + key[mid + 1:]
+    body = key.rsplit("-", 1)[0]
+    for bad in (flip,                                            # 가운데 변조
+                body + "-AAAAAAAA",                              # 꼬리 교체
+                f"{L._PREFIX}-{L._ED_MARK}-XXXXXXXX",            # 형식만 흉내
+                ""):
+        assert L.verify_key("구매자A", bad, public_key=pub) is False, bad
+
+
+def test_a_different_public_key_does_not_accept_the_key():
+    from quant import licensing as L
+
+    priv, _ = _keypair()
+    _, other_pub = _keypair()
+    key = L.generate_key_ed25519("구매자A", private_key=priv)
+    assert L.verify_key("구매자A", key, public_key=other_pub) is False
+
+
+def test_the_distribution_cannot_mint_keys_with_only_the_public_key(monkeypatch):
+    """Ed25519를 쓰는 이유 그 자체 — 공개키만으로는 발급이 불가능하다.
+
+    이 성질이 깨지면 배포본을 받은 사람이 스스로 라이선스를 찍어낼 수 있고,
+    그러면 판매라는 개념이 성립하지 않는다.
+    """
+    import pytest
+
+    from quant import licensing as L
+
+    priv, pub = _keypair()
+    # 배포본이 가진 것: 공개키뿐. 개인키는 어디에도 없다.
+    monkeypatch.delenv(L._ENV_PRIVKEY, raising=False)
+    monkeypatch.setenv(L._ENV_PUBKEY, pub)
+    monkeypatch.setattr(L, "_resolve_private_key", lambda private_key=None: None)
+    with pytest.raises(RuntimeError, match="개인키"):
+        L.generate_key_ed25519("무단발급", private_key=None)
+    del priv
+
+
+def test_ed25519_is_preferred_over_hmac_when_a_public_key_exists(monkeypatch):
+    """공개키가 설정돼 있으면 Ed25519 키가 HMAC 비밀 없이도 통과한다."""
+    from quant import licensing as L
+
+    priv, pub = _keypair()
+    key = L.generate_key_ed25519("구매자A", private_key=priv)
+    monkeypatch.delenv("QUANT_LICENSE_SECRET", raising=False)
+    monkeypatch.setattr(L, "_resolve_secret", lambda secret=None: None)
+    assert L.verify_key("구매자A", key, public_key=pub) is True
+    # 반대로 HMAC 키는 비밀이 없으면 검증할 수 없다(조용히 통과하면 안 된다)
+    assert L.verify_key("구매자A", "QUANT-AAAA-BBBB-CCCC", public_key=pub) is False

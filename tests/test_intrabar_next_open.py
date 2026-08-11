@@ -232,6 +232,13 @@ def test_pending_stock_order_fills_at_the_next_session_open(monkeypatch,
 
     # 체결됐으니 포지션이 잡힌다
     assert st2.get("positions"), "체결됐는데 포지션이 없다"
+    # ⚠️ 기록된 체결가만 보면 부족하다. 장부에는 '시가'라 적고 실제로는
+    #    종가로 체결해도 fills만 보는 검사는 통과한다(변이 시험에서 실제로
+    #    그랬다 — 감사 63). 브로커가 잡은 평균단가로 '실제 체결가'를 본다.
+    pos = st2["positions"]["us_stock:SPY"]
+    assert float(pos["avg_price"]) == _pt.approx(nxt_open, rel=1e-6), (
+        f"장부는 시가 {nxt_open:.4f} 체결이라는데 실제 평균단가는 "
+        f"{pos['avg_price']:.4f} — 기록과 체결이 다른 가격을 가리킨다")
     # 어제 결정분은 소비됐다 — 남아 있는 대기열은 '오늘' 결정분이어야 한다
     # (같은 결정이 두 번 체결되면 노출이 두 배가 된다)
     still = (st2.get("pending") or {}).get("us_stock:SPY") or {}

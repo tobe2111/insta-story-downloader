@@ -233,6 +233,18 @@ MUTATIONS = [
     #    동작을 바꾸는지부터 확인해야 한다. 대신 '증거 없이 보정값을
     #    표시한다'를 변이한다: active 판정을 무시하면 표본이 없는
     #    확률대에도 경험 보정값이 붙어, 근거 없는 숫자가 화면에 나간다.
+    ("종목별 경로의 실적 가드를 무력화한다",
+     "quant/live/daily.py",
+     "            weight = float(weight * ef)",
+     "            pass",
+     "tests/test_earnings_guard.py"),
+
+    ("주식 대기 주문의 시가 체결을 종가 체결로 바꾼다",
+     "quant/live/daily.py",
+     '            key, float(pend["weight"]) * sl, fopen, eq_now,',
+     '            key, float(pend["weight"]) * sl, prices.get(key, fopen), eq_now,',
+     "tests/test_intrabar_next_open.py"),
+
     ("증거 없이도 확률 보정값을 표시한다",
      "quant/live/daily.py",
      "        if active:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
