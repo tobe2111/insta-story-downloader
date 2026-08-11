@@ -131,3 +131,36 @@ def test_site_reads_only_fields_that_exist():
         # 이 테스트가 실제로 잡아낸 것: 사이트가 st.vol_target(최상위)을 읽었지만
         # vol_target은 일별 기록 안에만 있어 카드가 영원히 비어 있었다.
         assert not unknown, f"{page.name}: 없는 필드를 읽는다 {sorted(unknown)}"
+
+
+# ── ④ 사이트가 직접 계산하지 말고 장부를 읽는가 ────────────────
+#
+# 2026-08-11 감사: index·paper·today·weekly 네 페이지가 브라우저에서
+# `(오늘자산/어제자산 - 1)`로 하루치를 다시 계산하고 있었다. 입금을 빼지
+# 않으므로 매칭입금이 들어온 날은 그 입금이 '수익'으로 표시된다 — 파이썬
+# 쪽에서 같은 결함을 고쳤는데(day_return_pct) 화면은 옛 방식이었다.
+# 같은 숫자를 두 곳에서 따로 계산하면 반드시 갈라진다.
+
+_DAY_PAGES = ("index.html", "paper.html", "today.html", "weekly.html")
+
+
+def test_pages_prefer_ledger_day_pct():
+    for page in _DAY_PAGES:
+        html = _read(page)
+        assert "day_pct" in html, f"{page}: 장부의 하루치를 읽지 않는다"
+
+
+def test_pages_only_recompute_as_fallback():
+    """자체 계산은 옛 기록용 폴백으로만 남아야 한다(삼항의 뒷항)."""
+    for page in _DAY_PAGES:
+        html = _read(page)
+        for m in re.finditer(r"\(\s*\w+\.equity\s*/\s*prev\.equity\s*-\s*1\s*\)",
+                             html):
+            head = html[max(0, m.start() - 220):m.start()]
+            assert "day_pct" in head, (
+                f"{page}: 장부 값 없이 자산 비율로 하루치를 계산한다")
+
+
+def test_day_pct_is_actually_produced():
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert 'record["day_pct"]' in src

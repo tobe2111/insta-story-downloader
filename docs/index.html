@@ -485,7 +485,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const rows=rest.map(k=>{
     const p=paper[k], h=p.history||[], last=h[h.length-1]||{},
       prev=h[h.length-2];
-    const day=prev&&last.equity?((last.equity/prev.equity-1)*100):null;
+    // 하루치는 장부의 day_pct(입금 효과 제거)를 우선한다 — 자산 비율로
+    // 다시 계산하면 매칭입금이 수익으로 보인다(2026-08-11 감사).
+    const day=last.day_pct!=null?last.day_pct
+      :(prev&&last.equity?((last.equity/prev.equity-1)*100):null);
     return {k,name:(syms[k]||{}).name||k.split(":")[1]||k,
       code:k.split(":")[1]||k, px:last.price, day,
       w:last.weight||0, reason:last.reason||""};

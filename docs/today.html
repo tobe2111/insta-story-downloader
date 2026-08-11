@@ -82,7 +82,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const p=st.paper[pfk],hist=p.history||[],last=hist[hist.length-1]||{};
     const prev=hist[hist.length-2];
     const eq=last.equity!=null?last.equity:p.equity;
-    const day=prev&&eq!=null?((eq/prev.equity-1)*100):null;
+    // 장부의 day_pct 우선 — 입금이 수익으로 보이지 않게
+    const day=(last&&last.day_pct!=null)?last.day_pct
+      :(prev&&eq!=null?((eq/prev.equity-1)*100):null);
     const base=p.principal!=null?p.principal:(p.start_cash||80000);
     const ret=base?((eq/base-1)*100):0;
     const cls=ret>=0?"pos":"neg";
@@ -110,7 +112,8 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const rows=rest.map(k=>{
     const p=st.paper[k],hist=p.history||[],last=hist[hist.length-1]||{};
     const prev=hist[hist.length-2];
-    const day=prev&&last.equity!=null?((last.equity/prev.equity-1)*100):null;
+    const day=last.day_pct!=null?last.day_pct
+      :(prev&&last.equity!=null?((last.equity/prev.equity-1)*100):null);
     const nm=((st.symbols||{})[k]||{}).name||k.split(":")[1]||k;
     const w=last.weight;
     const stance=w==null?"–":(Math.abs(w)<0.005?"관망 (현금)":(w>0?"매수 ":"매도 ")+Math.round(Math.abs(w)*100)+"%");

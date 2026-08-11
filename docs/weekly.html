@@ -95,7 +95,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       if(!cur)continue;
       const prevW=ws.slice(0,i).reverse().find(x=>weekly[pfk][x]);
       const prev=prevW?weekly[pfk][prevW]:null;
-      const ret=prev?((cur.equity/prev.equity-1)*100):null;
+      // 장부의 day_pct 우선 — 입금이 수익으로 보이지 않게
+      const ret=cur.day_pct!=null?cur.day_pct
+        :(prev?((cur.equity/prev.equity-1)*100):null);
       const dep=deposits.filter(d=>mondayOf(d.date)===w)
                         .reduce((a,b)=>a+b.amount,0);
       rows.push(`<tr><td>${esc(w)} 주</td>
@@ -121,7 +123,8 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         const prevW=ws.slice(0,i).reverse().find(x=>weekly[k][x]);
         const prev=prevW?weekly[k][prevW]:null;
         if(!prev)return "<td>–</td>";
-        const ret=(cur.equity/prev.equity-1)*100;
+        const ret=cur.day_pct!=null?cur.day_pct
+          :((cur.equity/prev.equity-1)*100);
         return `<td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>`;
       }).join("");
       if(cells.replace(/<td>–<\/td>/g,""))rows.push(`<tr><td>${esc(w)} 주</td>${cells}</tr>`);
