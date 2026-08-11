@@ -326,6 +326,19 @@ MUTATIONS = [
      "            val = (getpass.getpass(prompt) if secret else input(prompt)).strip()",
      "            val = input(prompt).strip()",
      "tests/test_cli_setup.py"),
+
+    # 감사 74 — 밴드가 가정→실측으로 갈아타며 2.67배 뛰는데 흔적이 없던 자리.
+    ("재조정 밴드 근거를 장부에서 뺀다(왜 오늘 매매가 멎었는지 알 수 없게)",
+     "quant/live/daily.py",
+     "              \"rebalance_band\": {m: rebalance_band_basis(m, state_dir)",
+     "              \"rebalance_band\": None and {m: rebalance_band_basis(m, state_dir)",
+     "tests/test_rebalance_band_basis.py"),
+
+    ("실측 표본이 얇아도 실측 비용으로 밴드를 넓힌다(소표본 과잉반응)",
+     "quant/live/daily.py",
+     "        if not row or row.get(\"n\", 0) < MEASURED_COST_MIN_SAMPLES:",
+     "        if not row:",
+     "tests/test_rebalance_band_basis.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

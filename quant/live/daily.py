@@ -481,16 +481,46 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
                      participation_cap=base.participation_cap)
 
 
+def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
+    """밴드와 **그 밴드가 나온 근거**를 함께 돌려준다.
+
+    ⚠️ 왜 근거까지 남기나(2026-08-11 감사 74): 이 밴드는 표본이 문턱
+    (MEASURED_COST_MIN_SAMPLES)을 넘는 순간 가정에서 실측으로 갈아탄다.
+    한국주식은 그 전환에서 **0.150 → 0.400(2.67배)** 로 뛴다 — 하한 클립에서
+    곧장 상한 클립까지다. 즉 어느 날 아침 갑자기 회전율이 크게 줄어드는데,
+    예전에는 이 값이 계산되어 쓰이고 **아무 데도 기록되지 않았다.** 사장님이
+    보시기엔 이유 없이 매매가 멎은 날이 된다.
+
+    설계 자체는 옳다(비싼 시장에서 덜 매매한다). 고칠 것은 **말없이
+    바뀐다**는 점이므로, 로직이 아니라 흔적을 추가한다 — 오늘 내내 나온
+    "판단한 쪽이 결과를 남기고, 보여주는 쪽은 읽기만 한다"와 같은 처방이다.
+    """
+    measured = _measured_roundtrip_cost(market, state_dir)
+    cost = measured if measured is not None else 2.0 * _fill_cost(market)
+    band = max(REBALANCE_BAND_REL_MIN,
+               min(REBALANCE_BAND_REL_MAX, REBALANCE_BAND_REL_K * cost))
+    n = 0
+    try:
+        from quant.reporting.fill_gap import fill_gap_report
+        row = (((fill_gap_report(state_dir) or {}).get("markets") or {})
+               .get(market)) or {}
+        n = int(row.get("n", 0) or 0)
+    except Exception:  # noqa: BLE001 — 근거 표시 실패가 매매를 막으면 안 된다
+        pass
+    return {"band": round(band, 4),
+            "source": "실측" if measured is not None else "가정",
+            "roundtrip_bp": round(cost * 1e4, 1),
+            "n": n, "min_samples": MEASURED_COST_MIN_SAMPLES,
+            "clipped": ("하한" if band <= REBALANCE_BAND_REL_MIN
+                        else "상한" if band >= REBALANCE_BAND_REL_MAX else None)}
+
+
 def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
     """시장별 상대 리밸런스 밴드 — 왕복 비용에 비례(하한·상한 클립).
 
     비용은 실측이 있으면 실측, 없으면 CostModel 가정을 쓴다.
     """
-    cost = _measured_roundtrip_cost(market, state_dir)
-    if cost is None:
-        cost = 2.0 * _fill_cost(market)        # 가정: 편도 × 2
-    raw = REBALANCE_BAND_REL_K * cost
-    return max(REBALANCE_BAND_REL_MIN, min(REBALANCE_BAND_REL_MAX, raw))
+    return rebalance_band_basis(market, state_dir)["band"]
 
 
 # 최소 주문금액(원) — 이보다 작은 매매는 비용만 남기므로 주문하지 않는다.
@@ -1515,7 +1545,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 주식과 달리 그 봉을 버리는 장치가 없다. 그 봉의 종가·고저는
               # 확정값이 아니므로, 어느 종목이 몇 % 만들어진 봉으로 판단됐는지
               # 남긴다 — 공개 차트와 대조하려는 사람이 오해하지 않도록.
-              "bar_partial": partial_bars or None}
+              "bar_partial": partial_bars or None,
+              # 오늘 쓴 재조정 밴드와 그 근거(감사 74). 이 값은 실측 표본이
+              # 문턱을 넘는 순간 가정→실측으로 갈아타며 한국주식 기준
+              # 0.150→0.400(2.67배)까지 뛴다 — 그날 회전율이 크게 줄지만
+              # 예전에는 장부에 아무 흔적이 없어 '이유 없이 매매가 멎은 날'로
+              # 보였다. 판단한 쪽이 근거를 남긴다.
+              "rebalance_band": {m: rebalance_band_basis(m, state_dir)
+                                 for m in sorted({k.split(":")[0]
+                                                  for k in weights})} or None}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
