@@ -1434,6 +1434,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
+              # 부분 켈리 상한이 실제로 비중을 깎은 종목(있을 때만).
+              # 장부는 "왜 오늘 노출이 이만큼인가"에 답할 수 있어야 하는데,
+              # 위험 장치 중 이것만 흔적이 없었다 — 상한이 총노출을 41%에서
+              # 1%로 깎아도 장부에는 아무 이유가 안 남았다(감사 59).
+              "kelly_caps": ({k: round(v, 4) for k, v in kelly_caps.items()}
+                             or None),
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               # 오늘 실제로 몇 종목으로 굴렸는가. 20종목 중 15개가 빠진 날은
@@ -1445,7 +1451,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   k: sum(q.get(k, 0) for q in data_quality.values())
                   for k in ("gaps", "spikes", "zero_volume")
               } if data_quality else None),
-              "champion": {"symbols": n, "skipped": skipped,
+              # ⚠️ symbols는 '오늘 실제로 판단한 종목 수'다 — 계획(planned)이
+              #    아니다. 예전에는 여기가 n(=len(targets), 즉 계획 수)이라
+              #    20종목 중 15개가 데이터 실패로 빠진 날에도 "20종목 분산"이
+              #    그대로 기록됐다. SNS 캡션이 이 값을 읽어 방송하므로, 계획을
+              #    실적으로 말하는 셈이었다(감사 59). 오늘 아침 planned·skipped를
+              #    추가하면서 정작 남들이 읽는 이 필드를 고치지 않았다.
+              "champion": {"symbols": len(prices), "skipped": skipped,
                            "planned": len(targets),
                            "skipped_why": skipped_why or None},
               # 결정에 쓴 마지막 봉이 아직 만들어지는 중이던 종목들(감사 56).

@@ -103,3 +103,58 @@ def test_guards_run_before_anything_else():
     i_csrf = body.index("_same_site_ok")
     i_auth = body.index("_authorized")
     assert i_host < i_auth and i_csrf < i_auth
+
+
+# ── ④ 가드가 '호출되는지'까지 확인한다 (감사 58) ───────────────
+#
+# 위 검사들은 _host_ok()·_same_site_ok()를 직접 불러 판정만 본다. 그래서
+# do_GET에서 그 호출을 통째로 무력화해도(`if False and not ...`) 전부
+# 통과한다 — 변이 시험에서 실제로 그랬다. 함수가 옳은 것과 그 함수가
+# 실제로 요청 경로에 꽂혀 있는 것은 다른 문제다. 여기서는 소켓 없이
+# do_GET을 끝까지 돌려 응답 상태코드로 확인한다.
+
+
+class _Wire(ws.QuantHandler):
+    """소켓 없이 do_GET을 돌리는 스텁 — _send를 가로채 상태만 기록한다."""
+
+    def __init__(self, path, headers):  # noqa: D107
+        self.path = path
+        self.headers = headers
+        self.sent = []
+
+    def _send(self, body, status=200, content_type="text/html; charset=utf-8"):
+        self.sent.append((status, str(body)[:200]))
+
+    # 인증은 이 검사의 관심사가 아니다 — 토큰 미설정 시의 기본 동작을 쓴다.
+
+
+def _get(path, **headers):
+    h = {"Host": "127.0.0.1:8000", **headers}
+    w = _Wire(path, h)
+    w.do_GET()
+    return w.sent[0] if w.sent else (200, "")
+
+
+def test_cross_site_deposit_actually_gets_403():
+    status, body = _get("/deposit/run?amount=10000000",
+                        **{"Sec-Fetch-Site": "cross-site"})
+    assert status == 403, "교차출처 입금 요청이 막히지 않았다"
+    assert "CSRF" in body or "교차 출처" in body
+
+
+def test_foreign_host_actually_gets_403():
+    status, body = _get("/api/state", Host="evil.example.com:8000")
+    assert status == 403, "DNS 리바인딩 요청이 막히지 않았다"
+    assert "Host" in body
+
+
+def test_evil_origin_deposit_actually_gets_403():
+    status, _ = _get("/deposit/run?amount=1",
+                     Origin="http://evil.example.com")
+    assert status == 403
+
+
+def test_readonly_cross_site_is_not_403():
+    """조회 경로는 교차출처여도 CSRF로 막지 않는다(과잉 차단 방지)."""
+    status, _ = _get("/health", **{"Sec-Fetch-Site": "cross-site"})
+    assert status != 403
