@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant — 주식·코인 퀀트 백테스트 &amp; 자동 페이퍼 트레이딩</title>
-<meta name="description" content="설치 없이 더블클릭으로 시작하는 퀀트 도구 — 백테스트·과최적화 검증(워크포워드/PBO/CPCV)·페이퍼 트레이딩·리스크 관리. 수익을 보장하지 않습니다.">
+<title>Quant — 8만원으로 시작한 자동매매, 매일 공개됩니다</title>
+<meta name="description" content="설치 없이 더블클릭으로 시작하는 퀀트 도구 — 백테스트·과최적화 검증(워크포워드/PBO/CPCV)·페이퍼 트레이딩·리스크 관리. 매일의 운용 기록을 그대로 공개합니다. 수익을 보장하지 않습니다.">
 <meta property="og:title" content="Quant — 주식·코인 퀀트 조종석">
 <meta property="og:description" content="설치 없이 더블클릭 — 백테스트·과최적화 검증·페이퍼 트레이딩·리스크 관리. 수익을 보장하지 않습니다.">
 <meta property="og:type" content="website">
@@ -14,594 +14,730 @@
 <meta name="theme-color" content="#fcfcfd" media="(prefers-color-scheme: light)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/pretendard.css">
+<script src="assets/lightweight-charts.js"></script>
 <style>
- :root{
-   --bg:#0a0b0e; --bg2:#0e1013; --fg:#f4f5f7; --muted:#8f96a3; --dim:#5c6370;
-   --line:#1e2128; --line-strong:#2a2e37;
-   --accent:#4c7dff; --accent-soft:rgba(76,125,255,.12);
-   --amber:#d9a13b; --green:#3fb96f;
-   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
- }
- @media(prefers-color-scheme:light){
-   :root{
-     --bg:#fcfcfd; --bg2:#f4f5f8; --fg:#101318; --muted:#5a626e; --dim:#8a919d;
-     --line:#e7e9ee; --line-strong:#d8dbe2;
-     --accent:#2f5fe0; --accent-soft:rgba(47,95,224,.08);
-   }
- }
- *{box-sizing:border-box;margin:0;min-width:0}
- img{max-width:100%}
- html{scroll-behavior:smooth;overflow-x:clip}
- body{
-   font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
-     "Apple SD Gothic Neo","Malgun Gothic",sans-serif;
-   background:var(--bg);color:var(--fg);line-height:1.7;font-size:15px;
-   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-   font-feature-settings:"ss05";overflow-x:hidden}
- .wrap{max-width:1120px;margin:0 auto;padding:0 28px}
- a{color:var(--accent);text-decoration:none}
- a:hover{text-decoration:underline;text-underline-offset:3px}
- ::selection{background:var(--accent);color:#fff}
+:root{
+  --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
+  --muted:#8f96a3; --dim:#5c6370;
+  --line:#1e2128; --line-strong:#2a2e37;
+  --accent:#4c7dff; --accent-soft:rgba(76,125,255,.12);
+  --amber:#d9a13b; --green:#3fb96f;
+  /* 한국 증권사 색 관례: 상승=빨강, 하락=파랑 */
+  --up:#f04452; --down:#3182f6;
+  --sidebar:340px; --navh:56px; --striph:66px; --tickh:34px;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media(prefers-color-scheme:light){
+  :root{
+    --bg:#fcfcfd; --bg2:#f4f5f8; --bg3:#eef0f5; --fg:#101318;
+    --muted:#5a626e; --dim:#8a919d;
+    --line:#e7e9ee; --line-strong:#d8dbe2;
+    --accent:#2f5fe0; --accent-soft:rgba(47,95,224,.08);
+  }
+}
+*{box-sizing:border-box;margin:0;min-width:0}
+img{max-width:100%}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Segoe UI",
+    "Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  background:var(--bg);color:var(--fg);line-height:1.65;font-size:14px;
+  -webkit-font-smoothing:antialiased;font-feature-settings:"ss05";
+  padding-bottom:var(--tickh)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+::selection{background:var(--accent);color:#fff}
+.num{font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)}
 
- /* ---------- nav ---------- */
- nav{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);
-   background:color-mix(in srgb,var(--bg) 86%,transparent);
-   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
- nav .wrap{display:flex;align-items:center;height:58px;gap:6px}
- .logo{font-weight:800;font-size:15px;letter-spacing:.14em;color:var(--fg);
-   margin-right:auto;text-decoration:none}
- .logo:hover{text-decoration:none}
- .logo em{font-style:normal;color:var(--accent)}
- nav .lnk{color:var(--muted);font-size:13.5px;font-weight:500;padding:6px 11px;
-   border-radius:7px}
- nav .lnk:hover{color:var(--fg);text-decoration:none}
- .navcta{font-size:13px;font-weight:650;color:var(--bg);background:var(--fg);
-   padding:7px 16px;border-radius:8px;margin-left:8px;white-space:nowrap}
- .navcta:hover{text-decoration:none;opacity:.88}
- /* 얇은 실시간 시세 바 — 증권사 상단 지수 바 (상승 빨강 · 하락 파랑) */
- .tickbar{border-bottom:1px solid var(--line);background:var(--bg2);overflow:hidden;
-   white-space:nowrap;height:32px;line-height:32px;font-size:12.5px;
-   font-variant-numeric:tabular-nums}
- .tickbar .tin{display:inline-block;animation:tick 45s linear infinite;will-change:transform}
- .tickbar:hover .tin{animation-play-state:paused}
- @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
- .tickbar b{margin:0 5px 0 22px;color:var(--fg);font-weight:650}
- .tickbar .u{color:#f04452}.tickbar .d{color:#3182f6}
- .tickbar .tag{font-size:10px;color:var(--dim);margin-left:3px}
- @media(max-width:720px){nav .lnk{display:none}}
+/* ============ 상단 nav (풀와이드 고정) ============ */
+nav{position:sticky;top:0;z-index:40;height:var(--navh);
+  border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.navin{height:100%;display:flex;align-items:center;gap:4px;padding:0 22px}
+.logo{font-weight:800;font-size:15px;letter-spacing:.14em;color:var(--fg);
+  margin-right:18px}
+.logo:hover{text-decoration:none}
+.logo em{font-style:normal;color:var(--accent)}
+nav .lnk{color:var(--muted);font-size:13.5px;font-weight:500;padding:6px 12px;
+  border-radius:7px;white-space:nowrap}
+nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
+.navsp{margin-left:auto}
+.navcta{display:inline-flex;align-items:center;gap:7px;font-size:13px;
+  font-weight:700;color:#fff;background:var(--accent);
+  padding:8px 16px;border-radius:9px;white-space:nowrap}
+.navcta:hover{text-decoration:none;filter:brightness(1.08)}
+.navver{font-size:11px;color:var(--dim);margin-left:9px;white-space:nowrap}
 
- /* ---------- hero ---------- */
- .hero{padding:88px 0 72px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);
-   gap:56px;align-items:center}
- @media(max-width:920px){.hero{grid-template-columns:1fr;padding:56px 0 48px;gap:40px}}
- .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
-   color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;
-   padding:5px 13px;margin-bottom:26px}
- .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--green);flex:none}
- h1{font-size:clamp(32px,4.6vw,46px);line-height:1.22;font-weight:800;
-   letter-spacing:-.035em;margin-bottom:18px;word-break:keep-all}
- h1 .a{color:var(--accent)}
- .lead{color:var(--muted);font-size:16.5px;max-width:46ch;margin-bottom:34px;word-break:keep-all}
- .lead b{color:var(--fg);font-weight:600}
- .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
- .btn{display:inline-flex;align-items:center;gap:10px;padding:13px 24px;border-radius:10px;
-   background:var(--fg);color:var(--bg);font-size:15px;font-weight:700;line-height:1.2;
-   transition:opacity .15s,transform .1s}
- .btn:hover{opacity:.88;text-decoration:none}
- .btn:active{transform:translateY(1px)}
- .btn small{display:block;font-size:11px;font-weight:500;opacity:.65;margin-top:2px}
- .btn svg{flex:none}
- .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line-strong);
-   font-weight:600;font-size:13.5px;padding:12px 18px}
- .btn.ghost:hover{border-color:var(--dim);opacity:1}
- .meta{margin-top:22px;font-size:13px;color:var(--dim)}
- .meta .ok{color:var(--green);font-weight:600}
- .meta a{color:var(--muted)}
+/* ============ 시장 현황 띠 ============ */
+.strip{border-bottom:1px solid var(--line);background:var(--bg2);
+  overflow-x:auto;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.stripin{display:flex;align-items:stretch;padding:0;min-height:var(--striph)}
+.si{flex:1 1 0;display:flex;flex-direction:column;justify-content:center;gap:2px;
+  padding:10px 18px;border-right:1px solid var(--line);white-space:nowrap;
+  min-width:132px}
+.si:last-child{border-right:0}
+.si:first-child{background:var(--bg3)}
+.si .k{font-size:11.5px;color:var(--muted);font-weight:600}
+.si .v{font-size:15px;font-weight:750;letter-spacing:-.01em}
+.si .d{font-size:11.5px;font-weight:650}
 
- /* hero shot */
- .shotwrap{position:relative;min-width:0}
- .shotwrap::before{content:"";position:absolute;inset:-10% -6%;z-index:-1;
-   background:radial-gradient(closest-side,var(--accent-soft),transparent 75%)}
- .shot{border:1px solid var(--line-strong);border-radius:12px;overflow:hidden;
-   background:var(--bg2);box-shadow:0 30px 80px -30px rgba(0,0,0,.6)}
- .shot .tbar{display:flex;align-items:center;gap:6px;height:34px;padding:0 13px;
-   border-bottom:1px solid var(--line)}
- .shot .tbar i{width:9px;height:9px;border-radius:50%;background:var(--line-strong)}
- .shot .tbar span{margin-left:8px;font-size:11px;color:var(--dim);font-family:var(--mono)}
- .shot img{display:block;width:100%;height:auto}
+/* ============ 본문 그리드 (풀와이드 + 우측 사이드바) ============ */
+/* 풀블리드 — max-width 없음. 화면 끝까지 쓴다. */
+.shell{display:grid;grid-template-columns:minmax(0,1fr) var(--sidebar);
+  gap:0;align-items:start}
+/* 본문은 12열 모자이크 — 카드가 세로로 한 줄 쌓이지 않고 가로로 채운다 */
+.main{padding:14px;min-width:0;display:grid;gap:14px;
+  grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-flow:row dense;
+  align-content:start}
+.main>*{grid-column:span 12}
+.c8{grid-column:span 8} .c6{grid-column:span 6}
+.c5{grid-column:span 5} .c4{grid-column:span 4} .c3{grid-column:span 3}
+.stackcol{display:flex;flex-direction:column;gap:14px}
+@media(max-width:1500px){
+  .c8{grid-column:span 7} .c4{grid-column:span 5}
+}
+@media(max-width:1180px){
+  .c8,.c6,.c5,.c4,.c3{grid-column:span 12}
+}
+.side{position:sticky;top:calc(var(--navh) + 0px);
+  border-left:1px solid var(--line);background:var(--bg2);
+  height:calc(100vh - var(--navh) - var(--tickh));overflow-y:auto;
+  scrollbar-width:thin}
+.side::-webkit-scrollbar{width:6px}
+.side::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:3px}
 
- /* ---------- stat strip ---------- */
- .strip{display:flex;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
- .strip>div{flex:1;padding:22px 8px;text-align:center}
- .strip>div+div{border-left:1px solid var(--line)}
- .strip .n{font-size:19px;font-weight:750;letter-spacing:-.02em}
- .strip .l{font-size:12px;color:var(--dim);margin-top:3px}
- @media(max-width:640px){.strip{flex-wrap:wrap}.strip>div{flex:1 1 50%}
-   .strip>div:nth-child(3){border-left:none;border-top:1px solid var(--line)}
-   .strip>div:nth-child(4){border-top:1px solid var(--line)}}
+/* ============ 카드 공통 ============ */
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px}
+.card h2{font-size:15px;font-weight:750;letter-spacing:-.01em;
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.card h2 .tag{font-size:11.5px;color:var(--muted);font-weight:500}
+.sub{color:var(--muted);font-size:12.5px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 
- /* ---------- honesty ---------- */
- .honest{display:flex;gap:16px;margin:56px 0 0;padding:20px 22px;
-   border:1px solid var(--line-strong);border-radius:12px;background:var(--bg2)}
- .honest svg{flex:none;margin-top:3px;color:var(--amber)}
- .honest p{font-size:13.5px;color:var(--muted);word-break:keep-all}
- .honest b{color:var(--fg);font-weight:650}
+/* ============ 다운로드 히어로 ============ */
+.hero{position:relative;overflow:hidden;border-radius:16px;
+  border:1px solid var(--line-strong);
+  background:
+    radial-gradient(1200px 460px at 10% -20%,var(--accent-soft),transparent 62%),
+    linear-gradient(180deg,var(--bg3),var(--bg2));
+  padding:30px 32px 26px;
+  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
+  gap:34px;align-items:center}
+.heroL{min-width:0}
+.heroR{min-width:0;border-left:1px solid var(--line);padding-left:32px}
+@media(max-width:1180px){
+  .hero{grid-template-columns:minmax(0,1fr);gap:20px}
+  .heroR{border-left:0;border-top:1px solid var(--line);
+    padding-left:0;padding-top:18px}
+}
+.hero .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;
+  font-weight:650;color:var(--accent);background:var(--accent-soft);
+  border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);
+  padding:5px 12px;border-radius:99px}
+.hero h1{font-size:38px;line-height:1.24;letter-spacing:-.032em;font-weight:820;
+  margin:14px 0 10px;max-width:22ch}
+.hero h1 .hl{color:var(--accent)}
+.hero .lede{font-size:14.5px;color:var(--muted);max-width:56ch;line-height:1.72}
+.dlrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:22px}
+.btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;
+  font-size:15px;color:#fff;background:var(--accent);
+  padding:14px 24px;border-radius:12px;line-height:1.25;
+  box-shadow:0 6px 22px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
+.btn:hover{text-decoration:none;filter:brightness(1.08)}
+.btn small{display:block;font-size:11px;font-weight:500;opacity:.82;
+  margin-top:2px}
+.btn.ghost{background:transparent;color:var(--fg);box-shadow:none;
+  border:1px solid var(--line-strong);font-size:13.5px;padding:13px 18px}
+.btn.ghost:hover{background:var(--bg3);filter:none}
+.hero .fine{margin-top:14px;font-size:12px;color:var(--dim)}
+.proof{display:flex;flex-direction:column;gap:14px}
+.proof .p{display:flex;flex-direction:column;gap:2px;
+  padding-bottom:13px;border-bottom:1px solid var(--line)}
+.proof .p:last-child{border-bottom:0;padding-bottom:0}
+.proof .pk{font-size:11.5px;color:var(--muted);font-weight:600}
+.proof .pv{font-size:26px;font-weight:820;letter-spacing:-.025em;line-height:1.2}
+.proof .pd{font-size:11.5px;color:var(--dim)}
 
- /* ---------- sections ---------- */
- section{padding:96px 0 0}
- .kicker{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.1em;
-   text-transform:uppercase;margin-bottom:12px}
- h2{font-size:clamp(24px,3.2vw,32px);font-weight:750;letter-spacing:-.03em;
-   margin-bottom:14px;word-break:keep-all}
- .sub{color:var(--muted);font-size:15px;max-width:56ch;margin-bottom:44px;word-break:keep-all}
+/* ============ 사이드바 ============ */
+.sh{position:sticky;top:0;z-index:2;background:var(--bg2);
+  padding:14px 16px 10px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:8px}
+.sh b{font-size:13.5px;font-weight:750}
+.sh .cnt{font-size:11px;color:var(--muted);margin-left:auto}
+.srow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;
+  padding:9px 16px;border-bottom:1px solid var(--line);cursor:default}
+.srow:hover{background:var(--bg3)}
+.srow .nm{font-size:12.5px;font-weight:650;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.srow .cd{font-size:10.5px;color:var(--dim);margin-top:1px}
+.srow .px{font-size:12.5px;font-weight:700;text-align:right}
+.srow .ch{font-size:11px;font-weight:650;text-align:right}
+.wbar{height:3px;border-radius:2px;background:var(--line);margin-top:5px;
+  overflow:hidden}
+.wbar i{display:block;height:100%;background:var(--accent);border-radius:2px}
+.sblk{padding:14px 16px;border-bottom:1px solid var(--line)}
+.sblk .t{font-size:12px;font-weight:700;margin-bottom:8px;
+  display:flex;align-items:center;gap:6px}
+.gauge{height:7px;border-radius:99px;background:var(--bg3);
+  border:1px solid var(--line);overflow:hidden}
+.gauge i{display:block;height:100%;background:var(--accent)}
+.flag{font-size:11.5px;color:var(--muted);line-height:1.55;
+  padding:8px 10px;border-radius:9px;background:var(--bg3);
+  border:1px solid var(--line);margin-bottom:7px}
+.flag b{color:var(--up)}
 
- /* features: hairline grid */
- .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
-   border:1px solid var(--line);border-radius:12px;overflow:hidden}
- @media(max-width:880px){.feat{grid-template-columns:repeat(2,1fr)}}
- @media(max-width:560px){.feat{grid-template-columns:1fr}}
- .feat>div{background:var(--bg);padding:26px 24px;transition:background .15s}
- .feat>div:hover{background:var(--bg2)}
- .feat svg{color:var(--accent);margin-bottom:16px}
- .feat h3{font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
- .feat p{font-size:13px;color:var(--muted);line-height:1.75;word-break:keep-all}
+/* ============ 표 ============ */
+.tw{overflow-x:auto;margin-top:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;
+  white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11.5px;
+  position:sticky;top:0;background:var(--bg2)}
+tbody tr:hover{background:var(--bg3)}
 
- /* screens */
- .screens{display:grid;grid-template-columns:1fr 1fr;gap:18px}
- @media(max-width:720px){.screens{grid-template-columns:1fr}}
- .screens figure .shot{box-shadow:none}
- .screens figcaption{font-size:12.5px;color:var(--dim);padding:12px 4px 0}
+/* ============ 하단 다운로드 밴드 ============ */
+.band{border-radius:18px;border:1px solid var(--line-strong);
+  background:linear-gradient(120deg,var(--bg3),var(--bg2));
+  padding:30px 34px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.band h2{font-size:22px;letter-spacing:-.02em;font-weight:800}
+.band .sub{margin-top:6px;max-width:52ch}
 
- /* quick start */
- .qs{display:grid;grid-template-columns:1fr 1fr;gap:18px}
- @media(max-width:720px){.qs{grid-template-columns:1fr}}
- .qs>div{border:1px solid var(--line);border-radius:12px;padding:24px}
- .qs h3{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:10px}
- .qs h3 .no{font-family:var(--mono);font-size:11px;color:var(--accent);
-   border:1px solid var(--line-strong);border-radius:6px;padding:2px 8px}
- pre{font-family:var(--mono);font-size:12.5px;line-height:1.9;color:var(--muted);
-   background:var(--bg2);border:1px solid var(--line);border-radius:9px;
-   padding:16px 18px;overflow-x:auto;max-width:100%}
- pre b{color:var(--fg);font-weight:600}
- .qs .note{font-size:12.5px;color:var(--dim);margin-top:12px;word-break:keep-all}
- .qs .note b{color:var(--muted)}
- code{font-family:var(--mono);font-size:.88em;background:var(--bg2);
-   border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+/* ============ 하단 티커 ============ */
+.tick{position:fixed;left:0;right:0;bottom:0;z-index:35;height:var(--tickh);
+  border-top:1px solid var(--line);background:var(--bg2);overflow:hidden;
+  white-space:nowrap;line-height:calc(var(--tickh) - 1px);font-size:12px;
+  font-variant-numeric:tabular-nums}
+.tick .tin{display:inline-block;animation:tk 52s linear infinite;
+  will-change:transform}
+.tick:hover .tin{animation-play-state:paused}
+@keyframes tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tick b{margin:0 6px 0 24px;font-weight:650}
+.tick .tg{font-size:10px;color:var(--dim);margin-left:4px}
 
- /* faq */
- .faq{border-top:1px solid var(--line)}
- .faq details{border-bottom:1px solid var(--line)}
- .faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;
-   align-items:center;gap:16px;padding:19px 4px;font-size:15px;font-weight:600}
- .faq summary::-webkit-details-marker{display:none}
- .faq summary svg{flex:none;color:var(--dim);transition:transform .2s}
- .faq details[open] summary svg{transform:rotate(45deg)}
- .faq details p{padding:0 4px 20px;font-size:14px;color:var(--muted);max-width:70ch;word-break:keep-all}
- .faq details p b{color:var(--fg)}
+footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
+  border-top:1px solid var(--line);line-height:1.7}
 
- /* download band */
- .band{margin-top:96px;border:1px solid var(--line-strong);border-radius:14px;
-   padding:52px 28px;text-align:center;background:
-   radial-gradient(60% 120% at 50% 0%,var(--accent-soft),transparent 70%),var(--bg2)}
- .band h2{margin-bottom:8px}
- .band .sub{margin:0 auto 30px}
- .band .btns{justify-content:center}
-
- footer{margin-top:88px;border-top:1px solid var(--line);padding:34px 0 48px;
-   font-size:12.5px;color:var(--dim)}
- footer .row{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
- footer p{max-width:62ch;word-break:keep-all}
- footer .links{display:flex;gap:18px;flex:none}
- footer a{color:var(--muted)}
-
- .reveal{opacity:1}
- .js .reveal{opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s ease}
- .js .reveal.in{opacity:1;transform:none}
- @media(prefers-reduced-motion:reduce){.js .reveal{opacity:1;transform:none;transition:none}html{scroll-behavior:auto}}
+/* ============ 반응형 ============ */
+@media(max-width:1180px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;height:auto;border-left:0;
+    border-top:1px solid var(--line)}
+  .hero h1{font-size:32px}
+}
+@media(max-width:820px){
+  .grid3,.grid2{grid-template-columns:minmax(0,1fr)}
+  .hero{padding:26px 20px 22px}
+  .hero h1{font-size:27px}
+  .proof{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .proof .pv{font-size:17px}
+  .main{padding:14px}
+  nav .lnk{display:none}
+}
 </style>
-<script>document.documentElement.className+=" js";</script>
 </head>
 <body>
 
-<nav><div class="wrap">
-  <a class="logo" href="#">QUANT<em>.</em></a>
-  <a class="lnk" href="#features">기능</a>
-  <a class="lnk" href="#screens">화면</a>
-  <a class="lnk" href="#start">시작하기</a>
-  <a class="lnk" href="#faq">FAQ</a>
-  <a class="lnk" href="paper.html">자동 페이퍼 현황</a>
+<nav><div class="navin">
+  <a class="logo" href="index.html">QUANT<em>.</em></a>
+  <a class="lnk" href="paper.html">실시간 현황</a>
+  <a class="lnk" href="today.html">오늘의 판단</a>
   <a class="lnk" href="trust.html">기록 검증</a>
-  <a class="lnk" href="admin.html" title="운영 설정·키 발급 (관리자 전용)">⚙ 어드민</a>
-  <a id="livebtn" href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
-    font-weight:700;color:#fff;background:#e5484d;padding:6px 14px;border-radius:99px">
-    ● LIVE</a>
-  <a class="navcta" href="#download">다운로드</a>
+  <a class="lnk" href="weekly.html">주간 아카이브</a>
+  <span class="navsp"></span>
+  <a class="navcta" id="navdl"
+     href="https://github.com/tobe2111/insta-story-downloader/releases/latest">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+    무료 다운로드</a>
+  <span class="navver" id="navver">v0.14.1</span>
 </div></nav>
-<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 
-<header class="hero wrap">
-  <div>
-    <span class="eyebrow"><i></i>설치 없음 · 회원가입 없음 · 데이터는 내 PC에만</span>
-    <h1>전략을 <span class="a">검증</span>하고<br>자동으로 굴리는<br>퀀트 조종석</h1>
-    <p class="lead">백테스트 · <b>과최적화 검증(워크포워드 · PBO · CPCV)</b> · 자동
-    페이퍼 트레이딩 · 리스크 관리. 받자마자 더블클릭하면 브라우저에 조종석이 열립니다.</p>
-    <div class="btns" id="download">
-      <a class="btn" id="btn-windows"
-         href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-windows.exe">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-        <span>Windows 다운로드<small>.exe — 압축 해제 불필요</small></span></a>
-      <a class="btn ghost" id="btn-macos"
-         href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-macos.zip">macOS</a>
-      <a class="btn ghost" id="btn-linux"
-         href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-linux.zip">Linux</a>
+<div class="strip"><div class="stripin" id="strip">
+  <div class="si"><span class="k">불러오는 중…</span></div>
+</div></div>
+
+<div class="shell">
+  <main class="main">
+
+    <!-- ★ 다운로드 히어로 — 화면의 정점 -->
+    <section class="hero">
+      <div class="heroL">
+        <span class="eyebrow">● 매일 새벽 자동 운용 · 기록 전체 공개</span>
+        <h1>8만원으로 시작한 자동매매,<br><span class="hl">매일 그대로 공개</span>됩니다.</h1>
+        <p class="lede">백테스트부터 과최적화 검증(워크포워드·PBO·CPCV), 페이퍼 트레이딩까지
+          한 프로그램에. 설치 없이 더블클릭하면 5분 안에 첫 백테스트가 돌아갑니다.
+          <b>여기 보이는 기록은 우리가 실제로 돌리는 계좌</b>이고, 틀린 날도 지우지 않습니다.</p>
+        <div class="dlrow">
+          <a class="btn" id="dlmain"
+             href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-windows.exe">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+            <span>Windows 다운로드<small>.exe — 압축 해제 불필요</small></span></a>
+          <a class="btn ghost"
+             href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-macos.zip">macOS</a>
+          <a class="btn ghost"
+             href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-linux.zip">Linux</a>
+        </div>
+        <p class="fine">무설치 · 무료 · 회원가입 없음 &nbsp;·&nbsp; 서명되지 않은 개인 빌드라
+          "알 수 없는 개발자" 경고가 뜰 수 있습니다 &nbsp;·&nbsp;
+          <b>수익을 보장하지 않습니다 — 백테스트·페이퍼 검증 후 사용하세요.</b></p>
+      </div>
+      <div class="heroR">
+        <div class="proof" id="proof">
+          <div class="p"><span class="pk">8마일 챌린지 · 통합 실기록</span>
+            <span class="pv" id="pv-eq">—</span>
+            <span class="pd" id="pd-eq">기록 불러오는 중</span></div>
+          <div class="p"><span class="pk">판정 시계</span><span class="pv" id="pv-gen">—</span>
+            <span class="pd" id="pd-gen">구조가 바뀌면 0일부터</span></div>
+          <div class="p"><span class="pk">검증한 도전자</span><span class="pv" id="pv-tri">—</span>
+            <span class="pd" id="pd-tri">대부분 탈락시켰습니다</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 성과 차트 (넓게) -->
+    <section class="card c8">
+      <h2>통합 계좌 <span class="tag" id="chart-tag">전략 vs 그냥 보유 · 매일 새벽 확정</span></h2>
+      <div id="mainchart" style="height:300px;margin-top:12px"></div>
+      <div class="sub" style="margin-top:8px">─ 계좌 자산 · ┄ 원금 · ⋯ 그냥 보유했다면
+        · <span style="color:var(--accent)">●</span> 챔피언 교체</div>
+    </section>
+
+    <!-- 차트 옆 신뢰 카드 2개 (세로 스택) -->
+    <div class="c4 stackcol">
+      <section class="card"><h2>🕰 판정 시계</h2>
+        <div id="c-gen" class="sub" style="margin-top:8px">불러오는 중…</div></section>
+      <section class="card"><h2>🎯 리스크 설정</h2>
+        <div id="c-vol" class="sub" style="margin-top:8px">불러오는 중…</div></section>
     </div>
-    <p class="meta"><span class="ok">✓</span> 백테스트·검증·페이퍼 트레이딩은 API 키 없이 바로
-    · <a href="https://github.com/tobe2111/insta-story-downloader">소스코드</a>
-    · <a href="https://github.com/tobe2111/insta-story-downloader/releases">전체 버전</a></p>
-    <p class="meta" id="paper-live" style="display:none"></p>
-  </div>
-  <div class="shotwrap">
-    <figure class="shot">
-      <div class="tbar"><i></i><i></i><i></i><span>localhost — 감시 탭</span></div>
-      <img src="assets/monitor.png" alt="퀀트 라이브 모니터 — 자본 추이, 포지션, 최근 주문" fetchpriority="high">
-    </figure>
-  </div>
-</header>
 
-<div class="wrap">
-  <div class="strip reveal">
-    <div><div class="n">3종</div><div class="l">과최적화 검증</div></div>
-    <div><div class="n">12+</div><div class="l">내장 전략</div></div>
-    <div><div class="n">0</div><div class="l">외부 서버 전송</div></div>
-    <div><div class="n">3 OS</div><div class="l">무설치 실행파일</div></div>
-  </div>
+    <!-- 종목별 현황 (넓게) -->
+    <section class="card c8">
+      <h2>종목별 현황 <span class="tag">매일 새벽 확정 기록 · 20종목</span></h2>
+      <div class="tw"><table id="symtable">
+        <thead><tr><th>종목</th><th>현재가</th><th>일간</th><th>누적</th>
+          <th>비중</th><th>적중률</th><th style="text-align:left">새벽 판단</th></tr></thead>
+        <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
+      </table></div>
+    </section>
 
-  <div class="honest reveal">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-    <p><b>이 프로그램은 수익을 보장하지 않습니다.</b> 방향 예측 정확도의 현실적 상한은
-    대개 52~55%이며, 백테스트 성과는 미래 수익과 무관할 수 있습니다. 이 도구의 목적은
-    '그럴듯한 거짓말을 걸러내는 정직한 검증'입니다. 투자 손실의 책임은 전적으로
-    사용자 본인에게 있습니다.</p>
-  </div>
-
-  <section id="features">
-    <p class="kicker">Features</p>
-    <h2>화려한 예측이 아니라, 정직한 검증</h2>
-    <p class="sub">수익을 약속하는 기능은 하나도 없습니다. 대신 전략이 운인지 실력인지
-    가려내고, 실패해도 살아남게 하는 장치를 담았습니다.</p>
-    <div class="feat reveal">
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v7.5L4.7 18a2 2 0 0 0 1.8 3h11a2 2 0 0 0 1.8-3L14 9.5V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg>
-        <h3>과최적화 검증 3종</h3>
-        <p>워크포워드+DSR, PBO(과적합 확률), CPCV(다중 OOS 경로). "이 전략을 믿어도
-        되는가"를 클릭 한 번으로 — 통과 못 한 전략은 실전에 못 올라가게 설계했습니다.</p>
-      </div>
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-4 4 4 5-6"/></svg>
-        <h3>현실적인 백테스트</h3>
-        <p>봉 내 손절 체결, 시장충격, 펀딩비, 한국주식 거래세 프리셋까지 반영.
-        '백테스트에서만 좋은' 전략의 환상을 걷어냅니다.</p>
-      </div>
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
-        <h3>리스크 관리</h3>
-        <p>변동성 타겟팅, 손절/트레일링, 일일 최대손실 킬스위치, 서킷브레이커,
-        포트폴리오 VaR/CVaR. '돈을 잃지 않는 것'이 복리의 핵심입니다.</p>
-      </div>
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2.1l4 4-4 4"/><path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8"/><path d="M7 21.9l-4-4 4-4"/><path d="M21 11.8v2a4 4 0 0 1-4 4H4.2"/></svg>
-        <h3>자동 페이퍼 트레이딩</h3>
-        <p>가상 자금으로 전략을 실데이터에 돌리며 정확도를 추적합니다. 실거래 전
-        필수 관문 — 실제 주문은 검증을 마친 뒤 본인 판단으로.</p>
-      </div>
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M6 2v2M18 2v2M6 20v2M18 20v2" stroke-width="1.4"/></svg>
-        <h3>ML + 앙상블</h3>
-        <p>12개 전략 + ML(확률 보정·드리프트 감지) + 상관 인지(HRP) 앙상블.
-        중복 전략 과대 가중 같은 흔한 함정을 구조적으로 회피합니다.</p>
-      </div>
-      <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        <h3>웹 조종석</h3>
-        <p>브라우저에서 클릭으로 백테스트·검증·감시. 자본곡선·포지션·주문이 실시간
-        갱신되고, 전부 내 PC에서 돌아갑니다 — 데이터는 밖으로 나가지 않습니다.</p>
-      </div>
+    <!-- 표 옆 카드 2개 -->
+    <div class="c4 stackcol">
+      <section class="card"><h2>🧾 체결 가정 검증</h2>
+        <div id="c-fill" class="sub" style="margin-top:8px">불러오는 중…</div></section>
+      <section class="card"><h2>오답 노트 <span class="tag">상시 공개</span></h2>
+        <div id="c-wrong" class="sub" style="margin-top:8px">불러오는 중…</div></section>
     </div>
-  </section>
 
-  <section id="screens">
-    <p class="kicker">Screens</p>
-    <h2>실제 화면</h2>
-    <p class="sub">화면의 수치는 데모용 합성 데이터입니다.</p>
-    <div class="screens reveal">
-      <figure>
-        <div class="shot"><div class="tbar"><i></i><i></i><i></i><span>백테스트</span></div>
-        <img src="assets/backtest.png" alt="백테스트 실행 폼" loading="lazy"></div>
-        <figcaption>백테스트 — 시장·전략을 고르고 실행</figcaption>
-      </figure>
-      <figure>
-        <div class="shot"><div class="tbar"><i></i><i></i><i></i><span>검증</span></div>
-        <img src="assets/validate.png" alt="과최적화 검증 폼" loading="lazy"></div>
-        <figcaption>검증 — 워크포워드·PBO·CPCV 한 번에</figcaption>
-      </figure>
-    </div>
-  </section>
+    <!-- 탈락자 아카이브 -->
+    <section class="card c4"><h2>탈락자 아카이브 <span class="tag">다중검정 정직성</span></h2>
+      <div id="c-ring" class="sub" style="margin-top:8px">불러오는 중…</div></section>
 
-  <section id="start">
-    <p class="kicker">Get started</p>
-    <h2>시작하기</h2>
-    <p class="sub">두 가지 방법 중 편한 쪽으로.</p>
-    <div class="qs reveal">
-      <div>
-        <h3><span class="no">01</span>일반 사용자 — 실행파일</h3>
-        <pre><b>1.</b> 위에서 본인 OS용 파일 받기
-   Windows → .exe  <b>(받자마자 실행)</b>
-   mac / Linux → zip (압축 해제)
-<b>2.</b> quant-cockpit 더블클릭
-<b>3.</b> 브라우저에 조종석 자동 오픈</pre>
-        <p class="note">Windows "PC 보호" 경고는 서명 없는 개인 빌드라 뜨는 정상 경고입니다
-        — <b>[추가 정보] → [실행]</b>으로 진행하세요.</p>
+    <!-- 후원 랭킹 (기본 숨김 — 후원이 있을 때만 표시) -->
+    <section class="card c4" id="sponsors" style="display:none">
+      <h2>후원 랭킹 <span class="tag">매칭 입금 — 챌린지 계좌 원금과 회계 분리</span></h2>
+      <div id="c-sponsors" class="sub" style="margin-top:8px"></div>
+    </section>
+
+    <!-- 제휴(리베이트) 링크 — 공시와 함께 -->
+    <section class="card c4" id="referrals" style="display:none">
+      <h2>거래소 가입으로 챌린지 응원하기</h2>
+      <div id="c-referrals" style="margin-top:8px"></div>
+      <p class="sub" style="margin-top:10px;font-size:11.5px">
+        ⚠️ <b>투명 고지</b>: 아래 링크로 가입하시면 운영자가 거래소로부터 수수료
+        일부를 <b>리베이트</b>로 받습니다(가입자 추가 부담 없음). 특정 거래소를
+        추천·보증하지 않으며, 투자 판단과 책임은 본인에게 있습니다.</p>
+    </section>
+
+    <!-- 하단 다운로드 밴드 -->
+    <section class="band c8">
+      <div style="flex:1 1 380px">
+        <h2>지금 받아서 5분 안에 첫 백테스트</h2>
+        <p class="sub">받은 프로그램은 백테스트·검증·모의투자·조회 전용입니다.
+          실거래 기능은 배포판에 넣지 않았습니다 — 구매자 손에서 실계좌가 도는 일을
+          기술적으로 막아뒀습니다.</p>
       </div>
-      <div>
-        <h3><span class="no">02</span>개발자 — 파이썬</h3>
-        <pre>git clone https://github.com/tobe2111/insta-story-downloader
-cd insta-story-downloader
-./start.sh   <b># 윈도우: start.bat</b></pre>
-        <p class="note">필요 라이브러리 자동 설치 + 조종석 자동 실행.
-        업데이트는 <code>git pull</code> 한 줄이면 됩니다.</p>
+      <div class="dlrow" style="margin:0">
+        <a class="btn" id="dlfoot"
+           href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-windows.exe">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+          <span>Windows 다운로드<small>.exe — 압축 해제 불필요</small></span></a>
+        <a class="btn ghost"
+           href="https://github.com/tobe2111/insta-story-downloader/releases/latest">다른 OS / 이전 버전</a>
       </div>
+    </section>
+
+    <footer>
+      ⚠️ 이 사이트의 모든 기록은 <b>페이퍼(모의) 운용</b>입니다 — 실제 돈이 오가지 않으며,
+      좋은 결과도 미래 수익을 보장하지 않습니다. 투자 판단과 책임은 본인에게 있습니다.
+      기록 원본은 저장소 <code>state/</code> 폴더에 그대로 있습니다 —
+      <a href="trust.html">조작이 불가능한 이유 →</a>
+    </footer>
+  </main>
+
+  <!-- ============ 우측 사이드바 ============ -->
+  <aside class="side">
+    <!-- 판정 시계·경고를 먼저 — 20종목 아래로 밀리면 아무도 못 본다 -->
+    <div class="sblk" id="side-gen"></div>
+    <div class="sblk" id="side-flags"></div>
+    <div class="sh"><b>운용 종목</b><span class="cnt" id="sidecnt"></span></div>
+    <div id="sidelist">
+      <div class="sblk sub">불러오는 중…</div>
     </div>
-  </section>
-
-  <section id="sponsors" style="display:none">
-    <p class="kicker">Sponsors</p>
-    <h2>후원 랭킹</h2>
-    <p class="sub">이 공개 실험을 응원해 주신 분들입니다. 후원금은 챌린지 계좌
-    원금과 분리 기록됩니다(회계 분리 — 수익률에 섞이지 않습니다).</p>
-    <div id="sponsor-list" class="reveal" style="max-width:560px"></div>
-  </section>
-  <script>
-  fetch("sponsors.json").then(r=>r.ok?r.json():null).then(d=>{
-    var list=(d&&d.sponsors)||[];
-    if(!list.length)return;                    // 후원이 없으면 섹션 숨김 유지
-    var tot={};
-    list.forEach(s=>{var n=String(s.name||"익명").slice(0,20);
-      tot[n]=(tot[n]||0)+(Number(s.amount)||0)});
-    var rank=Object.entries(tot).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    var medal=["🥇","🥈","🥉"];
-    document.getElementById("sponsor-list").innerHTML=rank.map((e,i)=>
-      '<div style="display:flex;justify-content:space-between;align-items:center;'
-      +'padding:10px 14px;border:1px solid var(--line);border-radius:10px;margin:6px 0">'
-      +'<span><b>'+(medal[i]||(i+1)+"위")+" "+e[0].replace(/[<>&]/g,"")+'</b></span>'
-      +'<span style="color:var(--muted)">'+e[1].toLocaleString()+"원</span></div>").join("");
-    document.getElementById("sponsors").style.display="";
-  }).catch(function(){});
-  </script>
-
-  <section id="referrals" style="display:none">
-    <p class="kicker">Support</p>
-    <h2>거래소 가입으로 챌린지 응원하기</h2>
-    <p class="sub">아래 링크로 가입하면 <b>거래 수수료 할인</b>을 받고, 수수료의
-    일부가 이 공개 실험 운영에 지급됩니다. <span style="color:var(--muted)">
-    (투명 고지: 아래는 리베이트 제휴 링크입니다 — 가입 여부는 투자 판단과
-    무관하며, 이 시스템은 수익을 보장하지 않습니다.)</span></p>
-    <div id="referral-list" class="reveal" style="max-width:560px"></div>
-  </section>
-  <script>
-  fetch("referrals.json").then(r=>r.ok?r.json():null).then(d=>{
-    var links=(d&&d.links)||[];
-    if(!links.length)return;                   // 링크가 없으면 섹션 숨김 유지
-    function esc(s){return String(s||"").replace(/[<>&"]/g,"")}
-    document.getElementById("referral-list").innerHTML=links.map(l=>
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;'
-      +'padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin:6px 0">'
-      +'<span><b>'+esc(l.name)+'</b>'
-      +(l.benefit?' <span style="color:var(--muted);font-size:13px">— '+esc(l.benefit)+'</span>':'')
-      +'</span><a href="'+encodeURI(l.url)+'" target="_blank" rel="noopener nofollow sponsored" '
-      +'style="white-space:nowrap;border:1px solid var(--accent);border-radius:8px;'
-      +'padding:6px 14px;font-size:13.5px">가입하기 →</a></div>').join("");
-    document.getElementById("referrals").style.display="";
-  }).catch(function(){});
-  </script>
-
-  <section id="faq">
-    <p class="kicker">FAQ</p>
-    <h2>자주 묻는 질문</h2>
-    <p class="sub"></p>
-    <div class="faq reveal">
-      <details><summary>수익이 나나요?
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
-        <p>모릅니다 — 그리고 "무조건 수익"이라 말하는 도구는 전부 거르세요. 이 도구가
-        하는 일은 전략이 <b>과최적화(운)인지 아닌지</b>를 워크포워드·PBO·CPCV로 검증하고,
-        손실을 제한하는 리스크 장치를 제공하는 것까지입니다. 방향 예측 정확도의
-        현실적 상한은 52~55%입니다.</p></details>
-      <details><summary>API 키나 회원가입이 필요한가요?
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
-        <p>백테스트·검증·페이퍼 트레이딩에는 <b>아무것도 필요 없습니다</b>(공개 시세 사용).
-        실거래 주문·텔레그램 알림을 쓸 때만 해당 서비스의 키가 필요하고, 내장 설정
-        마법사(<code>python -m quant setup</code>)가 저장·연결 확인까지 해줍니다.</p></details>
-      <details><summary>내 데이터가 서버로 전송되나요?
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
-        <p>아니요. 모든 계산·상태 저장은 <b>내 PC 안에서만</b> 이뤄집니다. 외부 통신은
-        시세 수신(거래소·야후 공개 API)과 본인이 설정한 알림 발송뿐입니다.</p></details>
-      <details><summary>업데이트는 어떻게 하나요?
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
-        <p>실행파일 사용자는 이 페이지에서 새 버전을 다시 받으면 됩니다(버튼은 항상
-        최신을 가리킵니다). 개발자는 <code>git pull</code> 또는 동봉된 update 스크립트.</p></details>
-      <details><summary>실거래로 바로 써도 되나요?
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></summary>
-        <p>권장하지 않습니다. 내장 검증 3종을 통과한 전략만, 최소 2~4주 페이퍼
-        트레이딩으로 확인한 뒤, 잃어도 되는 소액부터 시작하세요. 거래소 API 키는
-        반드시 <b>출금 권한을 끄고</b> 발급하세요.</p></details>
-    </div>
-  </section>
-
-  <div class="band reveal">
-    <h2>지금 받아서 5분 안에 첫 백테스트</h2>
-    <p class="sub">설치도, 회원가입도, API 키도 필요 없습니다.</p>
-    <div class="btns">
-      <a class="btn" href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-windows.exe">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-        <span>Windows 다운로드<small>.exe — 압축 해제 불필요</small></span></a>
-      <a class="btn ghost" href="https://github.com/tobe2111/insta-story-downloader/releases/latest">다른 OS / 이전 버전</a>
-    </div>
-  </div>
+    <div class="sblk" id="side-swaps"></div>
+  </aside>
 </div>
 
-<footer><div class="wrap">
-  <div class="row">
-    <p><b>면책 고지</b> — 본 소프트웨어는 교육·연구용 도구이며 투자자문·일임이 아닙니다.
-    과거 성과는 미래 수익을 보장하지 않으며, 사용으로 인한 손실의 책임은 사용자
-    본인에게 있습니다.</p>
-    <div class="links">
-      <a href="https://github.com/tobe2111/insta-story-downloader">GitHub</a>
-      <a href="https://github.com/tobe2111/insta-story-downloader/releases">Releases</a>
-      <a href="https://github.com/tobe2111/insta-story-downloader/issues">문의</a>
-    </div>
-  </div>
-</div></footer>
+<div class="tick"><div class="tin" id="tickbar">&nbsp;</div></div>
 
 <script>
-// 방문자 OS에 맞는 다운로드 버튼 강조 (실패해도 무해)
-try {
-  var p = navigator.platform + " " + navigator.userAgent;
-  var main = /Mac/i.test(p) ? "macos" : /Linux|X11/i.test(p) ? "linux" : "windows";
-  if (main !== "windows") {
-    var btn = document.getElementById("btn-" + main);
-    var win = document.getElementById("btn-windows");
-    var name = main === "macos" ? "macOS" : "Linux";
-    btn.className = "btn";
-    btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span>' + name + ' 다운로드<small>zip — 압축 해제 후 실행</small></span>';
-    win.className = "btn ghost"; win.textContent = "Windows";
-    win.parentNode.insertBefore(btn, win);
-  }
-} catch (e) {}
+function esc(s){const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
+function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
+function pct(v,d){return (v>=0?"+":"")+Number(v).toFixed(d==null?2:d)+"%"}
+function cls(v){return v>0.004?"up":v<-0.004?"down":""}
+function zp(v){return Math.abs(v)<0.005?"0.00%":pct(v)}
+function num(v){return Number(v).toLocaleString("ko-KR")}
 
-// 스크롤 리빌 — IO 미지원/오류 시 전부 표시, 안전장치로 일정 시간 뒤 무조건 표시
+/* 방문자 OS에 맞춰 다운로드 버튼 강조 */
 (function(){
-  var els = document.querySelectorAll(".reveal");
-  function showAll(){ els.forEach(function(el){ el.classList.add("in"); }); }
-  if (!("IntersectionObserver" in window)) { showAll(); return; }
-  try {
-    var io = new IntersectionObserver(function(es){
-      es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
-    }, {threshold:.1, rootMargin:"0px 0px -6% 0px"});
-    els.forEach(function(el){ io.observe(el); });
-    setTimeout(showAll, 2500);
-  } catch (e) { showAll(); }
+  const p=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||"";
+  let os=null;
+  if(/Mac/i.test(p))os={n:"macOS",f:"quant-cockpit-macos.zip",s:"zip — 압축 해제 후 실행"};
+  else if(/Linux/i.test(p)&&!/Android/i.test(p))os={n:"Linux",f:"quant-cockpit-linux.zip",s:"zip — 압축 해제 후 실행"};
+  if(!os)return;
+  const base="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/";
+  ["dlmain","dlfoot"].forEach(id=>{
+    const b=document.getElementById(id); if(!b)return;
+    b.href=base+os.f;
+    b.querySelector("span").innerHTML=os.n+" 다운로드<small>"+os.s+"</small>";
+  });
 })();
-</script>
-<script>
-/* 8마일 챌린지 실계좌 카드 — 히어로에 '실제로 돌아가는 서비스'의 숫자를 크게 보여준다 */
-fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(st){
-  if(!st||!st.paper) return;
-  function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
-  function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
-  var keys=Object.keys(st.paper); if(!keys.length) return;
-  var pfk=keys.filter(function(k){return k.indexOf("portfolio:")===0})[0];
-  var up="#f04452", down="#3182f6";      /* 증권사 관례: 상승 빨강 · 하락 파랑 */
-  var el=document.getElementById("paper-live");
-  if(pfk){
-    var p=st.paper[pfk], hist=p.history||[];
-    var base=p.principal!=null?p.principal:10000;
-    var ret=base?((p.equity/base-1)*100):0;
-    var col=ret>=0?up:down, arrow=ret>=0?"▲":"▼";
-    var spark="";
-    var v=hist.slice(-60).map(function(r){return r.equity});
-    if(v.length>1){
-      var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v),sp=(mx-mn)||1;
-      var pts=v.map(function(x,i){return (i/(v.length-1)*220).toFixed(1)+","
-        +(34-((x-mn)/sp)*30).toFixed(1)}).join(" ");
-      spark='<svg width="220" height="38" viewBox="0 0 220 38" style="display:block;margin-top:6px">'
-        +'<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="2"/></svg>';
+
+/* ============ status.json 렌더링 ============ */
+fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
+  if(!st)return;
+  const paper=st.paper||{}, syms=st.symbols||{};
+  const pfKey=Object.keys(paper).find(k=>k.startsWith("portfolio:"));
+  const pf=pfKey?paper[pfKey]:null;
+  const rest=Object.keys(paper).filter(k=>!k.startsWith("portfolio"));
+
+  /* --- 히어로 증거 3칸 --- */
+  if(pf){
+    const ret=pf.principal!=null?((pf.equity/pf.principal-1)*100):(pf.return_pct||0);
+    document.getElementById("pv-eq").innerHTML=
+      won(pf.equity)+' <span style="font-size:14px" class="'+cls(ret)+'">'+zp(ret)+'</span>';
+    document.getElementById("pd-eq").textContent=
+      "8만원으로 시작 · 마지막 기록 "+(st.updated||"—");
+  }
+  if(st.generation){
+    const g=st.generation;
+    document.getElementById("pv-gen").textContent=g.days+"일차";
+    document.getElementById("pd-gen").textContent=
+      "현재 구조 "+g.feature_set+" · 판정 기준 "+g.target_days+"일";
+  }
+  const trials=Object.values(st.champions||{}).reduce((a,c)=>a+(c.trials_total||0),0);
+  document.getElementById("pv-tri").textContent=num(trials)+"개";
+  const rr=st.retrain_recent||[];
+  document.getElementById("pd-tri").textContent=
+    "최근 오디션 "+rr.length+"회 · 승격 "+rr.filter(r=>r.promoted).length+"회";
+
+  /* --- 시장 현황 띠 (우리 운용 자산 + 계좌) --- */
+  const stripItems=[];
+  if(pf){
+    const ret=pf.principal!=null?((pf.equity/pf.principal-1)*100):(pf.return_pct||0);
+    stripItems.push({k:"통합 계좌",v:won(pf.equity),d:zp(ret),c:cls(ret)});
+  }
+  ["kr_stock:069500.KS","us_stock:SPY","us_stock:QQQ","crypto:BTC/USDT",
+   "crypto:ETH/USDT","us_stock:NVDA"].forEach(k=>{
+    const p=paper[k]; if(!p)return;
+    const h=p.history||[]; if(h.length<2)return;
+    const cur=h[h.length-1].price, prv=h[h.length-2].price;
+    if(cur==null||prv==null)return;
+    const ch=(cur/prv-1)*100;
+    stripItems.push({k:(syms[k]||{}).name||k.split(":")[1],
+      v:num(Math.round(cur*100)/100),d:zp(ch),c:cls(ch)});
+  });
+  if(st.macro&&(st.macro.items||[]).length){
+    st.macro.items.slice(0,3).forEach(m=>stripItems.push(
+      {k:m.name,v:m.value+(m.unit||""),
+       d:m.chg5_pct!=null?("5일 "+pct(m.chg5_pct,1)):"",c:cls(m.chg5_pct||0)}));
+  }
+  document.getElementById("strip").innerHTML=stripItems.map(i=>
+    '<div class="si"><span class="k">'+esc(i.k)+'</span>'+
+    '<span class="v num">'+esc(i.v)+'</span>'+
+    '<span class="d num '+i.c+'">'+esc(i.d)+'</span></div>').join("")
+    ||'<div class="si"><span class="k">기록 대기 중</span></div>';
+
+  /* --- 우측 사이드바: 운용 종목 --- */
+  const rows=rest.map(k=>{
+    const p=paper[k], h=p.history||[], last=h[h.length-1]||{},
+      prev=h[h.length-2];
+    const day=prev&&last.equity?((last.equity/prev.equity-1)*100):null;
+    return {k,name:(syms[k]||{}).name||k.split(":")[1]||k,
+      code:k.split(":")[1]||k, px:last.price, day,
+      w:last.weight||0, reason:last.reason||""};
+  }).sort((a,b)=>(b.w||0)-(a.w||0));
+  document.getElementById("sidecnt").textContent=rows.length+"종목";
+  document.getElementById("sidelist").innerHTML=rows.map(r=>{
+    const wpc=Math.min(100,(r.w||0)*100/0.25*100/100*4);
+    return '<div class="srow" title="'+esc(r.reason).slice(0,180)+'">'+
+      '<div><div class="nm">'+esc(r.name)+'</div>'+
+      '<div class="cd">'+esc(r.code)+'</div>'+
+      '<div class="wbar"><i style="width:'+Math.max(2,Math.min(100,(r.w||0)*400))+'%"></i></div></div>'+
+      '<div><div class="px num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</div>'+
+      '<div class="ch num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</div>'+
+      '<div class="cd" style="text-align:right">비중 '+((r.w||0)*100).toFixed(1)+'%</div></div></div>';
+  }).join("");
+
+  /* --- 사이드바: 판정 시계 --- */
+  if(st.generation){
+    const g=st.generation, p=Math.min(100,g.days/g.target_days*100);
+    document.getElementById("side-gen").innerHTML=
+      '<div class="t">🕰 판정 시계</div>'+
+      '<div class="sub" style="margin-bottom:7px">구조 <b>'+esc(g.feature_set)+
+      '</b> 관찰 <b>'+g.days+'일차</b> / '+g.target_days+'일</div>'+
+      '<div class="gauge"><i style="width:'+Math.max(1.5,p)+'%"></i></div>'+
+      '<div class="sub" style="margin-top:6px;font-size:11px">엣지 판정은 시계가 다 돌기 전엔 하지 않습니다.</div>';
+  }
+
+  /* --- 사이드바: 지금 켜진 경고 --- */
+  const flags=[];
+  if(st.fill_check&&st.fill_check.markets){
+    Object.entries(st.fill_check.markets).forEach(([m,r])=>{
+      if(r.optimistic)flags.push("<b>체결 낙관 의심</b> — "+esc(m)+
+        " 실측 불리 갭 "+r.mean_adverse_bp+"bp가 가정 "+r.assumed_bp+"bp 초과 (표본 "+r.n+"건)");
+    });
+  }
+  const vt=(pf&&pf.vol_target)||st.vol_target;
+  if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
+    (vt.target*100).toFixed(1)+"%로 제한 중");
+  document.getElementById("side-flags").innerHTML=
+    '<div class="t">🚩 지금 켜진 경고</div>'+
+    (flags.length?flags.map(f=>'<div class="flag">'+f+'</div>').join("")
+      :'<div class="sub" style="font-size:11.5px">켜진 경고 없음</div>');
+
+  /* --- 사이드바: 최근 챔피언 교체 --- */
+  const sw=(st.swaps||[]).slice(-6).reverse();
+  document.getElementById("side-swaps").innerHTML=
+    '<div class="t">🏆 최근 챔피언 교체</div>'+
+    (sw.length?sw.map(s=>'<div class="sub" style="font-size:11.5px;margin:3px 0">'+
+      esc(s.date)+' · '+esc((syms[s.key]||{}).name||s.key)+' → '+esc(s.strategy||"")+
+      '</div>').join("")
+      :'<div class="sub" style="font-size:11.5px">최근 교체 없음 — 확실히 나은 후보가 없었다는 뜻(정상)</div>');
+
+  /* --- 3열 카드 --- */
+  if(st.generation){
+    const g=st.generation;
+    let ar="";
+    if(g.archive){
+      const a=g.archive,f=v=>'<b class="'+cls(v)+'">'+pct(v)+'</b>';
+      ar='<div class="tw"><table><tr><th style="text-align:left">구간</th><th>일수</th><th>TWR</th></tr>'+
+        '<tr><td>이전 구조(아카이브)</td><td>'+a.prev_days+'일</td><td>'+f(a.prev_twr_pct)+'</td></tr>'+
+        '<tr><td>현재 구조</td><td>'+a.cur_days+'일</td><td>'+f(a.cur_twr_pct)+'</td></tr></table></div>';
     }
-    el.innerHTML='<span style="display:inline-block;background:var(--bg2);border:1px solid var(--line);'
-      +'border-radius:14px;padding:14px 18px;margin-top:6px;text-align:left">'
-      +'<span style="font-size:12px;color:var(--muted);font-weight:650">8마일 챌린지 · 통합 실기록'
-      +(st.updated?' · '+esc(st.updated):'')+'</span><br>'
-      +'<span style="font-size:30px;font-weight:800;letter-spacing:-.02em">'+won(p.equity)+'</span> '
-      +'<b style="color:'+col+';font-size:16px">'+arrow+' '+(ret>=0?"+":"")+ret.toFixed(2)+'%</b>'
-      +(p.principal!=null?' <span style="font-size:12px;color:var(--muted)">원금 '+won(p.principal)+' 대비</span>':'')
-      +spark
-      +'<span style="font-size:12.5px"><a href="paper.html">매일 기록 보기 →</a> · '
-      +'<a href="weekly.html">주간 아카이브</a></span></span>';
+    document.getElementById("c-gen").innerHTML=
+      '현재 구조 <b>'+esc(g.feature_set)+'</b> 관찰 <b>'+g.days+'일차</b> / 판정 기준 '+
+      g.target_days+'일 ('+esc(g.since)+'~). 구조가 바뀌면 통계의 시계도 0일부터 다시 셉니다.'+ar;
+  }
+  if(st.fill_check&&st.fill_check.markets){
+    const fc=st.fill_check,nm={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"};
+    document.getElementById("c-fill").innerHTML=
+      '<div class="tw"><table><tr><th style="text-align:left">시장</th><th>실측 불리</th>'+
+      '<th>가정</th><th>판정</th></tr>'+
+      Object.entries(fc.markets).map(([m,r])=>'<tr><td>'+esc(nm[m]||m)+'</td>'+
+      '<td class="'+(r.mean_adverse_bp>0?"down":"up")+'">'+pct(r.mean_adverse_bp,1).replace("%","bp")+'</td>'+
+      '<td>'+r.assumed_bp.toFixed(1)+'bp</td>'+
+      '<td>'+(r.optimistic?'<b class="down">가정 초과</b>':'<span class="up">가정 안</span>')+'</td></tr>').join("")+
+      '</table></div><div class="sub" style="margin-top:8px;font-size:11.5px">'+
+      '백테스트 가정보다 실제 체결이 불리하면 그 사실을 그대로 표시합니다 (최근 '+
+      fc.window+'일 · '+fc.total_fills+'건).</div>';
+  }
+  if(vt){
+    document.getElementById("c-vol").innerHTML=
+      '목표 변동성 <b>연 '+(vt.target*100).toFixed(2)+'%</b>'+
+      (vt.ex_ante!=null?' · 사전 추정 '+(vt.ex_ante*100).toFixed(2)+'%':'')+
+      ' · 배수 '+(vt.scale!=null?vt.scale.toFixed(2):"—")+'배'+
+      '<div class="sub" style="margin-top:8px;font-size:11.5px">'+
+      (vt.proven?'✅ 엣지 입증 — 목표를 상향했습니다.':'🔒 엣지 미입증 — 검증 목표로 잠금 중.')+
+      ' '+esc(vt.reason||"")+'</div>';
   }else{
-    var parts=keys.map(function(k){
-      var p=st.paper[k], ret=Number(p.return_pct||0);
-      var col=ret>=0?up:down;
-      return esc(k)+' <b style="color:'+col+'">'+(ret>=0?"+":"")+ret.toFixed(2)+"%</b>";
-    });
-    el.innerHTML="8마일 챌린지(자동 페이퍼): "+parts.join(" · ")
-      +' · <a href="paper.html">매일 기록 보기 →</a>';
+    document.getElementById("c-vol").innerHTML=
+      '<span class="sub">다음 새벽 기록부터 표시됩니다 — 포트폴리오 목표 변동성을 '+
+      '명시적으로 정하고, 엣지가 입증되기 전까지는 게이트가 낮은 목표로 잠급니다.</span>';
   }
-  el.style.display="";
-  if(st.live_url){var lb=document.getElementById("livebtn");
-    if(lb){lb.href=st.live_url;lb.style.display="inline-block"}}
-}).catch(function(){});
-</script>
-<script>
-/* 얇은 실시간 시세 바 — 코인은 거래소 공개 API(실시간), 주식은 전일 확정가 */
-(function(){
-  var el=document.getElementById("tickbar"); if(!el)return;
-  function esc(s){var d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
-  var conf={}, live={};
-  function draw(){
-    var keys=Object.keys(conf);
-    if(!keys.length){el.parentElement.style.display="none";return}
-    var items=keys.map(function(k){
-      var lv=live[k], px=lv?lv.px:conf[k].px, chg=lv?lv.chg:conf[k].chg;
+
+  /* --- 종목별 표 --- */
+  document.getElementById("symtable").querySelector("tbody").innerHTML=
+    rows.map(r=>{
+      const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};
+      const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"—";
+      return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
+        '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
+        '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
+        '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
+        '<td class="num">'+((r.w||0)*100).toFixed(1)+'%</td>'+
+        '<td class="num">'+hr+'</td>'+
+        '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
+        'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
+    }).join("")||'<tr><td colspan="7" class="sub">기록 대기 중</td></tr>';
+
+  /* --- 오답 노트 --- */
+  if(pf){
+    const h=pf.history||[],days=[];
+    for(let i=1;i<h.length;i++){
+      if(typeof h[i].equity!=="number"||typeof h[i-1].equity!=="number")continue;
+      days.push({date:h[i].date,ret:(h[i].equity/h[i-1].equity-1)*100,eq:h[i].equity});
+    }
+    const worst=days.filter(d=>d.ret<0).sort((a,b)=>a.ret-b.ret).slice(0,3);
+    document.getElementById("c-wrong").innerHTML=worst.length
+      ?'<div class="tw"><table><tr><th style="text-align:left">날짜</th><th>일간</th><th>자산</th></tr>'+
+       worst.map(d=>'<tr><td>'+esc(d.date)+'</td><td class="down">'+pct(d.ret)+'</td>'+
+       '<td class="num">'+won(d.eq)+'</td></tr>').join("")+'</table></div>'+
+       '<div class="sub" style="margin-top:8px;font-size:11.5px">사후에 지우거나 꾸밀 수 없는 구조(git 장부)입니다.</div>'
+      :'<span class="sub">아직 하락한 날이 없습니다 — 표본이 쌓이면 여기에 그대로 공개됩니다.</span>';
+  }
+
+  /* --- 탈락자 아카이브 --- */
+  if(rr.length){
+    const cand=rr.reduce((a,b)=>a+(b.n_candidates||0),0);
+    document.getElementById("c-ring").innerHTML=
+      '누적 <b>'+num(trials)+'개</b>의 도전자를 검증해 대부분을 떨어뜨렸습니다. '+
+      '최근 오디션 '+rr.length+'회 · 후보 '+cand+'명 중 승격 '+
+      rr.filter(r=>r.promoted).length+'회.'+
+      '<div class="sub" style="margin-top:8px;font-size:11.5px">'+
+      '시도가 쌓일수록 승격 문턱이 자동으로 올라갑니다(다중검정 보정) — '+
+      '탈락시킨 수를 공개하는 것이 "운 좋은 승자"가 아니라는 증거입니다.</div>';
+  }
+
+  /* --- 메인 차트 --- */
+  if(pf&&window.LightweightCharts&&(pf.history||[]).length>=2){
+    const box=document.getElementById("mainchart");
+    const dark=!window.matchMedia("(prefers-color-scheme: light)").matches;
+    const chart=LightweightCharts.createChart(box,{autoSize:true,
+      layout:{background:{type:"solid",color:"transparent"},
+        textColor:dark?"#8f96a3":"#5a626e",
+        fontFamily:"Pretendard Variable,Pretendard,sans-serif",fontSize:11},
+      grid:{vertLines:{color:"rgba(140,150,165,.08)"},
+        horzLines:{color:"rgba(140,150,165,.08)"}},
+      rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},
+      handleScroll:false,handleScale:false,
+      localization:{locale:"ko-KR",priceFormatter:p=>Math.round(p).toLocaleString("ko-KR")}});
+    const h=pf.history,base=pf.start_cash||80000;
+    const v=h.map(r=>({time:r.date,value:r.equity}));
+    const up=v[v.length-1].value>=base;
+    const area=chart.addAreaSeries({lineColor:up?"#f04452":"#3182f6",lineWidth:2,
+      topColor:up?"rgba(240,68,82,.22)":"rgba(49,130,246,.22)",
+      bottomColor:"rgba(0,0,0,0)",priceLineVisible:false});
+    area.setData(v);
+    area.createPriceLine({price:base,color:"#5c6370",lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:false,title:"원금"});
+    const p0=h[0].price;
+    if(p0)chart.addLineSeries({color:"#5c6370",lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dotted,priceLineVisible:false,
+      lastValueVisible:false}).setData(h.map(r=>({time:r.date,value:base*r.price/p0})));
+    const has=d=>h.some(r=>r.date===d);
+    const ms=(st.swaps||[]).filter(s=>s.key===pfKey&&has(s.date))
+      .map(s=>({time:s.date,position:"aboveBar",color:"#4c7dff",shape:"circle",text:"교체"}));
+    if(ms.length)area.setMarkers(ms.sort((a,b)=>a.time<b.time?-1:1));
+    chart.timeScale().fitContent();
+  }
+
+  /* --- 하단 티커 (전일 확정 → 준실시간으로 갱신) --- */
+  const conf={};
+  rows.forEach(r=>{if(r.px!=null)conf[r.k]={px:r.px,chg:r.day||0,sym:r.name}});
+  let live={};
+  function drawTick(){
+    const items=Object.keys(conf).map(k=>{
+      const lv=live[k],px=lv?lv.px:conf[k].px,chg=lv?lv.chg:conf[k].chg;
       if(px==null)return "";
-      var v=Number(chg||0), cls=v>=0?"u":"d", arrow=v>=0?"▲":"▼";
-      return "<b>"+esc(conf[k].sym)+"</b>"+Number(px).toLocaleString()
-        +' <span class="'+cls+'">'+arrow+" "+(v>=0?"+":"")+v.toFixed(2)+"%</span>"
-        +'<span class="tag">'+(lv?(lv.tag||"실시간"):"전일 확정")+"</span>";
+      const v=Number(chg||0);
+      return '<b>'+esc(conf[k].sym)+'</b><span class="num">'+
+        num(Math.round(px*100)/100)+'</span> <span class="num '+cls(v)+'">'+
+        (v>=0?"▲":"▼")+' '+zp(v)+'</span>'+
+        '<span class="tg">'+(lv?"준실시간":"전일 확정")+'</span>';
     }).join("");
-    if(items)el.innerHTML=items+items;
+    if(items)document.getElementById("tickbar").innerHTML=items+items;
   }
-  fetch("status.json").then(function(r){return r.ok?r.json():null}).then(function(st){
-    if(!st||!st.paper){el.style.display="none";return}
-    Object.keys(st.paper).forEach(function(k){
-      if(k.indexOf("portfolio")===0)return;
-      var h=st.paper[k].history||[];
-      if(!h.length||h[h.length-1].price==null)return;
-      var px=h[h.length-1].price, prev=h.length>1?h[h.length-2].price:null;
-      conf[k]={px:px,chg:prev?((px/prev-1)*100):0,sym:(((st.symbols||{})[k]||{}).name||k.split(":")[1]||k)};
-    });
-    draw(); pollCrypto(); setInterval(pollCrypto,15000);
-    pollStocks(); setInterval(pollStocks,30000);
-  }).catch(function(){});
-  function pollStocks(){
-    // 주식 준실시간 — 워커의 /api/quotes 프록시(야후, 30초 엣지 캐시).
-    // 로컬 파일로 열었거나 프록시 장애면 조용히 '전일 확정'으로 남는다.
-    var stocks=Object.keys(conf).filter(function(k){return k.indexOf("crypto:")!==0})
-      .map(function(k){return {key:k,y:k.split(":")[1]||""}})
-      .filter(function(p){return p.y});
-    if(!stocks.length)return;
-    fetch("/api/quotes?symbols="+encodeURIComponent(
-        stocks.map(function(p){return p.y}).join(",")))
-      .then(function(r){return r.ok?r.json():null}).then(function(d){
-        if(!d||!d.quotes)return;
-        stocks.forEach(function(p){var q=d.quotes[p.y];
-          if(q&&q.price!=null)live[p.key]={px:Number(q.price),
-            chg:Number(q.change_pct||0),tag:"준실시간"}});
-        draw();
-      }).catch(function(){});
-  }
+  drawTick();
+  /* 코인은 거래소 공개 API(실시간), 주식은 워커 프록시(/api/quotes)로
+     준실시간 시세를 받는다 — 무료 경로의 한계를 라벨로 정직하게 표기한다. */
   function pollCrypto(){
-    var pairs=Object.keys(conf).filter(function(k){return k.indexOf("crypto:")===0})
-      .map(function(k){return {key:k,b:(k.split(":")[1]||"").replace("/","")}});
+    const pairs=Object.keys(conf).filter(k=>k.startsWith("crypto:"))
+      .map(k=>({key:k,b:(k.split(":")[1]||"").replace("/","")}));
     if(!pairs.length)return;
-    var q=encodeURIComponent(JSON.stringify(pairs.map(function(p){return p.b})));
-    fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+q)
-      .then(function(r){return r.ok?r.json():null}).then(function(arr){
+    fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+
+      encodeURIComponent(JSON.stringify(pairs.map(p=>p.b))))
+      .then(r=>r.ok?r.json():null).then(arr=>{
         if(!Array.isArray(arr))return;
-        var by={}; arr.forEach(function(t){by[t.symbol]=t});
-        pairs.forEach(function(p){var t=by[p.b]; if(t)live[p.key]=
+        const by={};arr.forEach(t=>by[t.symbol]=t);
+        pairs.forEach(p=>{const t=by[p.b];if(t)live[p.key]=
           {px:Number(t.lastPrice),chg:Number(t.priceChangePercent)}});
-        draw();
-      }).catch(function(){});
+        drawTick();
+      }).catch(()=>{});
   }
-})();
+  function pollStocks(){
+    const ks=Object.keys(conf).filter(k=>!k.startsWith("crypto:"));
+    if(!ks.length)return;
+    fetch("/api/quotes?symbols="+encodeURIComponent(ks.join(",")))
+      .then(r=>r.ok?r.json():null).then(j=>{
+        if(!j||!j.quotes)return;
+        Object.entries(j.quotes).forEach(([k,q])=>{
+          if(q&&q.price!=null)live[k]={px:Number(q.price),chg:Number(q.change_pct||0)};
+        });
+        drawTick();
+      }).catch(()=>{});
+  }
+  pollCrypto();setInterval(pollCrypto,15000);
+  pollStocks();setInterval(pollStocks,60000);
+
+}).catch(()=>{});
+
+/* --- 후원 랭킹 — sponsors.json에 기록이 있을 때만 노출 --- */
+fetch("sponsors.json").then(r=>r.ok?r.json():null).then(j=>{
+  const list=(j&&j.sponsors)||[];
+  if(!list.length)return;
+  const by={};
+  list.forEach(s=>{const m=(s.name||"익명").trim()||"익명";
+    by[m]=(by[m]||0)+Number(s.amount||0)});
+  const rank=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById("sponsors").style.display="";
+  document.getElementById("c-sponsors").innerHTML=
+    '<div class="tw"><table><tr><th style="text-align:left">후원자</th>'+
+    '<th>매칭 금액</th></tr>'+rank.map(([m,a])=>
+    '<tr><td>'+esc(m)+'</td><td class="num">'+won(a)+'</td></tr>').join("")+
+    '</table></div><div class="sub" style="margin-top:8px;font-size:11.5px">'+
+    esc(j.note||"")+'</div>';
+}).catch(()=>{});
+
+/* --- 제휴(리베이트) 링크 — 등록된 링크가 있을 때만 노출 --- */
+fetch("referrals.json").then(r=>r.ok?r.json():null).then(j=>{
+  const list=(j&&j.links)||[];
+  if(!list.length)return;
+  document.getElementById("referrals").style.display="";
+  document.getElementById("c-referrals").innerHTML=list.map(it=>
+    '<a class="btn ghost" style="display:flex;margin-bottom:8px"'+
+    ' rel="nofollow sponsored noopener" target="_blank" href="'+esc(it.url)+'">'+
+    esc(it.name)+' 가입하기'+
+    (it.note?' <span class="sub" style="margin-left:6px">'+esc(it.note)+'</span>':'')+
+    '</a>').join("");
+}).catch(()=>{});
+
+/* 최신 릴리스 버전 표시 (실패해도 무해) */
+fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/latest")
+  .then(r=>r.ok?r.json():null).then(j=>{
+    if(j&&j.tag_name)document.getElementById("navver").textContent=j.tag_name;
+  }).catch(()=>{});
 </script>
 </body>
 </html>
