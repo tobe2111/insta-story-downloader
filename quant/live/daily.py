@@ -520,6 +520,32 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     return round((twr - 1) * 100, 2)
 
 
+def day_return_pct(history: list[dict], deposits: list[dict],
+                   start_cash: float = START_CASH) -> float | None:
+    """마지막 기록일의 **하루치** 수익률(%) — 입금 효과 제거(TWR과 같은 식).
+
+    왜 따로 두는가(2026-08-11 감사에서 발견): 기록의 return_pct는 원금 대비
+    **누적** 수익률인데, SNS 캡션이 그것을 "오늘 X%"라고 읽고 있었다. 지금은
+    누적이 -0.06%라 차이가 안 보이지만, 누적이 +40%가 되면 매일 "오늘 +40%"를
+    방송하게 된다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 거짓말이다.
+    숫자는 산문이 아니라 장부에서 나와야 하므로, 하루치도 장부에 남긴다.
+    """
+    if not history:
+        return None
+    flows: dict[str, float] = {}
+    dates = [r["date"] for r in history]
+    for d in deposits or []:
+        target = next((dt for dt in dates if dt >= d["date"]), None)
+        if target is not None:
+            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    prev = float(history[-2]["equity"]) if len(history) >= 2 else float(start_cash)
+    if prev <= 0:
+        return None
+    last = history[-1]
+    eq = float(last["equity"]) - flows.get(last["date"], 0.0)
+    return round((eq / prev - 1) * 100, 2)
+
+
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
                                n: int = 1000, seed: str = "rand",
                                cost: float = 0.002) -> float | None:
@@ -1247,6 +1273,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               "champion": {"symbols": n, "skipped": skipped}}
     record["twr_pct"] = time_weighted_return(
+        st["history"] + [record], st.get("deposits", []),
+        start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
+    # 하루치 수익률 — 누적(return_pct)과 절대 섞이면 안 되는 별개의 숫자.
+    record["day_pct"] = day_return_pct(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
     # 무작위 전략 1,000개 분포 대비 백분위 — 바이앤홀드보다 반박이 어려운 기준.

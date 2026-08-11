@@ -97,6 +97,16 @@ def _smoke_check() -> None:
         print("SMOKE live_block=0")
     except SystemExit:
         print("SMOKE live_block=1")
+    # 라이선스 자물쇠가 '실제로 물렸는가' + 발급한 키가 '이 배포본에서
+    # 통과하는가'(왕복 확인). 빌드는 시크릿을 파일로 구워 넣고 "🔒 자물쇠
+    # 포함"이라 로그를 찍었지만, 비밀에 따옴표 하나만 들어가도 모듈이 깨져
+    # 자물쇠 없는 배포본이 나가면서 로그는 성공을 말했다(2026-08-11 발견).
+    from quant import licensing
+    print(f"SMOKE license_required={int(licensing._has_baked_credentials())}")
+    print(f"SMOKE lock_fp={licensing.lock_fingerprint() or '-'}")
+    owner, key = licensing.load_license(root=_ROOT)
+    ok = bool(owner and key and licensing.verify_key(owner, key))
+    print(f"SMOKE license_ok={int(ok)}")
 
 
 def main() -> None:

@@ -434,8 +434,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     const ret=pf.principal!=null?((pf.equity/pf.principal-1)*100):(pf.return_pct||0);
     document.getElementById("pv-eq").innerHTML=
       won(pf.equity)+' <span style="font-size:14px" class="'+cls(ret)+'">'+zp(ret)+'</span>';
+    // 누적과 하루치는 다른 숫자다 — 위 큰 숫자는 누적, 여기는 그날 하루.
+    // (SNS 캡션이 누적을 "오늘"이라 부르던 것을 2026-08-11에 바로잡았다)
+    const hh=pf.history||[],dp=(hh[hh.length-1]||{}).day_pct;
     document.getElementById("pd-eq").textContent=
-      "8만원으로 시작 · 마지막 기록 "+(st.updated||"—");
+      "8만원으로 시작 · 누적 기준"
+      +(dp!=null?" · 오늘 "+zp(dp):"")
+      +" · 마지막 기록 "+(st.updated||"—");
   }
   if(st.generation){
     const g=st.generation;
