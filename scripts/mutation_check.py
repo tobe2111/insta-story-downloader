@@ -564,6 +564,13 @@ MUTATIONS = [
      "    if not rows:",
      "    if False:",
      "tests/test_live_check_gates.py"),
+
+    # 감사 88 — 실거래 집행 단계의 파이프가 실패를 가리던 자리.
+    ("실거래 집행 단계에서 pipefail을 없앤다(실패해도 잡이 초록)",
+     ".github/workflows/kr-live.yml",
+     "        shell: bash\n        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
+     "        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
+     "tests/test_workflow_timeouts.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

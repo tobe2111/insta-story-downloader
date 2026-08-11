@@ -83,6 +83,14 @@ jobs:
           QUANT_KR_BROKER: ${{ inputs.broker }}
           IN_REAL: ${{ inputs.real }}
           QUANT_LIVE_REAL: ${{ vars.QUANT_LIVE_REAL }}
+        # ⚠️ shell을 명시해야 pipefail이 켜진다(2026-08-11 감사 88).
+        #    GitHub의 기본 셸은 `bash -e {0}`라 pipefail이 없다. 그러면
+        #    `python ... | tee live.txt`의 종료코드는 **tee의 것**이 되어
+        #    항상 0이다 — 실거래 집행이 실패해도 단계가 초록으로 끝난다.
+        #    `shell: bash`를 쓰면 GitHub이 `-e -o pipefail`로 돌린다.
+        #    이 저장소의 다른 tee 단계 8곳은 이미 그렇게 돼 있었고,
+        #    하필 실거래 단계 하나만 빠져 있었다.
+        shell: bash
         run: |
           if [ "$IN_REAL" = "true" ]; then
             echo "⚠️ 실전 모드 요청 — QUANT_LIVE_REAL 변수까지 있어야 실행됩니다"
