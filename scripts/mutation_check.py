@@ -450,6 +450,25 @@ MUTATIONS = [
      "            except Exception:\n"
      "                raise",
      "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 82 — 어드민 전역 스위치가 웹훅 주문 경로를 덮지 않던 자리.
+    ("어드민 '일시정지' 중에도 웹훅 알림으로 주문을 낸다",
+     "quant/live/webhook.py",
+     "        if bool(settings.get(\"trading_paused\")):",
+     "        if False:",
+     "tests/test_webhook_owner_switches.py"),
+
+    ("총노출 배수를 웹훅 주문에는 적용하지 않는다",
+     "quant/live/webhook.py",
+     "            weight *= float(settings.get(\"exposure_scale\", 1.0))",
+     "            pass",
+     "tests/test_webhook_owner_switches.py"),
+
+    ("웹훅에서도 닫힌 시장에 주문을 낸다",
+     "quant/live/webhook.py",
+     "            if not is_market_open(self.market):",
+     "            if False:",
+     "tests/test_webhook_owner_switches.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
