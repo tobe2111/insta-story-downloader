@@ -43,6 +43,11 @@ class LiveTrader:
         mode: str = "paper",
         daily_max_loss: float | None = None,
         rebalance_band: float = 0.02,
+        # 상대 밴드 — 목표 대비 비율. 절대 밴드만 쓰면 포지션이 커질수록
+        # 밴드가 상대적으로 촘촘해져 회전율이 폭증한다(통합 계좌 실측).
+        # 네 실행 경로(통합·실거래·연속 다종목·단일 종목)를 같은 규칙으로
+        # 통일한다 — 규칙을 복사하면 반드시 한 곳이 뒤처진다(2026-08-11).
+        rebalance_band_rel: float = 0.15,
         market: str | None = None,
     ):
         self.data = data
@@ -59,6 +64,7 @@ class LiveTrader:
         # vol targeting 등이 만드는 매 봉 잔조정은 기대수익 0에 왕복비용만
         # 확정 지불한다(비용 수학). 청산은 항상 실행. 0이면 비활성.
         self.rebalance_band = max(0.0, rebalance_band)
+        self.rebalance_band_rel = max(0.0, rebalance_band_rel)
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
@@ -136,8 +142,10 @@ class LiveTrader:
 
         log.info("%s 목표비중=%.2f 가격=%.2f 자산=%.2f",
                  self.symbol, weight, price, equity)
-        order = self.broker.target_weight(self.symbol, weight, price, equity,
-                                          rebalance_band=self.rebalance_band)
+        order = self.broker.target_weight(
+            self.symbol, weight, price, equity,
+            rebalance_band=self.rebalance_band,
+            rebalance_band_rel=self.rebalance_band_rel)
         if order is None:
             log.info("포지션 조정 불필요")
         elif self.notifier is not None:

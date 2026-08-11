@@ -705,6 +705,14 @@ def _cmd_webhook(args) -> None:
           f'{(symbols or ["BTC/USDT"])[0]}","price":{{{{close}}}}}}')
     if not allow_ips:
         print("   ⚠️ IP 허용목록 미설정 — --tradingview-ips 권장(공식 IP만 허용).")
+    if not args.max_age:
+        # 재전송 차단은 5분 창이라, 그보다 오래된 캡처 신호는 통과한다.
+        # 신선도 검사를 켜면 그 구멍이 닫힌다 — 다만 페이로드에 timestamp가
+        # 있어야 하므로 기본값으로 켜면 기존 알림이 전부 400이 된다.
+        # 그래서 켜지 않되 **꺼져 있다는 사실은 말한다**(2026-08-11 감사).
+        print("   ⚠️ 신선도 검사 꺼짐 — 5분 지난 캡처 신호도 통과합니다. "
+              "알림 JSON에 \"timestamp\": {{timenow}} 를 넣고 --max-age 300 "
+              "을 주면 막힙니다.")
     print("   ⚠️ 이 포트를 인터넷에 열 때는 HTTPS(리버스 프록시) 뒤에 두세요.")
     run_webhook_server(executor, host=args.host, port=args.port, secret=secret,
                        allow_ips=allow_ips, replay=True,

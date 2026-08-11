@@ -97,8 +97,13 @@ def test_continuous_engine_also_uses_relative_band():
     assert "rebalance_band_rel: float = 0.15" in src
 
 
-def test_all_three_execution_paths_pass_a_relative_band():
-    """통합 계좌·실거래·연속 엔진 — 셋 다 상대 밴드를 넘긴다."""
-    for mod in ("daily.py", "daily_live.py", "multi.py"):
+def test_all_execution_paths_pass_a_relative_band():
+    """통합·실거래·연속 다종목·단일 종목 — 넷 다 상대 밴드를 넘긴다.
+
+    2026-08-11: 회전율 통제를 통합 계좌에서 만든 뒤 실거래 → 연속 다종목 →
+    단일 종목 순으로 뒤늦게 하나씩 발견했다. 규칙을 네 곳에 복사해 두면
+    세 곳만 고치게 된다 — 이 테스트가 네 번째를 지킨다.
+    """
+    for mod in ("daily.py", "daily_live.py", "multi.py", "engine.py"):
         src = (ROOT / "quant" / "live" / mod).read_text("utf-8")
         assert "rebalance_band_rel" in src, mod
