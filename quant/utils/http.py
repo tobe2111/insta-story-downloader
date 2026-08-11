@@ -32,6 +32,23 @@ def _redact_url(url: str) -> str:
     return _SECRET_QS.sub(r"\1***", url)
 
 
+class HttpError(RuntimeError):
+    """HTTP 상태코드를 들고 다니는 오류. RuntimeError라 기존 except와 호환된다.
+
+    왜 필요한가(감사 55): 호출부가 '404 = 자원 없음'과 '401/500/타임아웃 =
+    모르겠음'을 구분해야 하는데, 예전에는 둘 다 그냥 RuntimeError였다.
+    us_live.get_position이 그 구분 없이 모든 실패를 '포지션 없음(0주)'으로
+    처리하고 있었다 — 토큰이 만료된 실거래 계좌에서 보유를 0으로 읽으면
+    목표 비중만큼 **다시 사서** 포지션이 두 배가 된다.
+
+    status는 HTTP 응답 코드, 네트워크 오류(DNS·연결거부·타임아웃)는 None.
+    """
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
 class _SafeRedirect(urllib.request.HTTPRedirectHandler):
     """교차 호스트 리다이렉트 시 인증 헤더를 제거한다.
 
@@ -79,11 +96,13 @@ def _request(
             return raw.decode()
     except urllib.error.HTTPError as exc:  # 서버가 반환한 오류 본문도 파싱해 전달
         detail = exc.read().decode(errors="replace")[:2000]
-        raise RuntimeError(f"HTTP {exc.code} {_redact_url(url)}: {detail}") from exc
+        raise HttpError(f"HTTP {exc.code} {_redact_url(url)}: {detail}",
+                        status=exc.code) from exc
     except urllib.error.URLError as exc:  # DNS·연결거부·타임아웃 등 네트워크 오류
         # HTTPError가 아닌 URLError를 그대로 흘리면 호출측(대개 RuntimeError만
         # 처리)이 놓쳐 예기치 못하게 죽는다. 일관되게 RuntimeError로 감싼다.
-        raise RuntimeError(f"네트워크 오류 {_redact_url(url)}: {exc.reason}") from exc
+        # status=None = '서버 응답을 못 받았다' — 404(없음)와 구분된다.
+        raise HttpError(f"네트워크 오류 {_redact_url(url)}: {exc.reason}") from exc
 
 
 def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:

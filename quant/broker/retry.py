@@ -164,7 +164,14 @@ class RobustBroker(Broker):
         ⚠️ 시장가 주문은 멱등하지 않다. 응답이 타임아웃돼도 거래소에는 이미 체결됐을
         수 있으므로, 무턱대고 재주문하면 이중 체결(2배 노출)이 된다. 재시도 전에
         잔고를 조회해 '주문이 이미 반영됐는지' 확인하고, 반영됐으면 재주문하지 않고
-        체결로 간주한다. (잔고 조회조차 실패하면 확인 불가 → 기존처럼 재시도)
+        체결로 간주한다.
+
+        ⚠️ 잔고 조회조차 실패해 **확인이 불가능하면 재주문하지 않는다**(감사 55).
+           예전에는 이 경우 '기존처럼 재시도'했다. 그 재시도는 정확히 이 함수가
+           막으려던 도박이다 — 확인할 수 없는 상태에서 비멱등 주문을 다시 내는
+           것. 두 결과의 무게가 다르다: 재주문을 안 해서 놓친 진입은 다음 봉에
+           다시 잡을 수 있지만, 실거래에서 2배가 된 포지션은 되돌릴 수 없다.
+           대신 최종 실패로 크게 알린다 — 사장님이 계좌를 직접 확인해야 한다.
         """
         # 제출 전 기준 포지션(중복 감지용). 조회 실패 시 None → 확인 불가.
         try:
@@ -175,6 +182,7 @@ class RobustBroker(Broker):
         last_exc: Exception | None = None
         remaining = qty
         landed_before = 0.0        # 실패한 시도들이 이미 체결시킨 누계
+        unverified = False         # 잔고 확인 불가로 재주문을 포기했는가
         for attempt in range(1, self.retries + 1):
             try:
                 order = self.inner.market_order(symbol, side, remaining, price)
@@ -198,6 +206,14 @@ class RobustBroker(Broker):
                 #    이중 체결을 막으려고 만든 장치가 부분 체결에서는 오히려
                 #    초과 체결을 만드는 구조였다. 이제 '남은 수량'만 재주문한다.
                 landed = self._landed_qty(symbol, side, base_qty)
+                if landed is None:
+                    # 체결 여부를 확인할 수 없다. 여기서 재주문하는 것이 바로
+                    # 이 장치가 막으려던 도박이다 — 확인 불가 상태에서 비멱등
+                    # 주문을 다시 내는 것. 멈추고 크게 알린다.
+                    log.error("[ROBUST] 잔고 조회 불가 — 주문이 체결됐는지 확인할 수 "
+                              "없어 재주문하지 않습니다. 계좌를 직접 확인하세요.")
+                    unverified = True
+                    break
                 if landed >= qty * (1 - 1e-3):
                     log.warning("[ROBUST] 응답은 실패했으나 잔고상 전량 체결 확인 → "
                                 "재주문 생략(이중 체결 방지)")
@@ -219,16 +235,23 @@ class RobustBroker(Broker):
                 self._sleep(wait)
 
         msg = f"❌ 주문 최종 실패: {side} {symbol} {qty} — {last_exc}"
+        if unverified:
+            msg += ("\n⚠️ 잔고를 조회할 수 없어 이 주문이 체결됐는지 확인하지 "
+                    "못했습니다. 이중 체결을 피하려고 재주문하지 않았습니다 — "
+                    "거래소 계좌에서 실제 보유를 직접 확인해 주세요.")
         log.error(msg)
         if self.notifier is not None:
             self.notifier.send(msg, level="error")
         raise RuntimeError(msg) from last_exc
 
     def _landed_qty(self, symbol: str, side: str,
-                    base_qty: float | None) -> float:
+                    base_qty: float | None) -> float | None:
         """직전 실패 주문이 실제로 얼마나 체결됐는지 잔고 변화로 잰다.
 
-        base_qty(제출 전 수량)를 알 수 없으면(조회 실패) 판정 불가 → 0.0.
+        base_qty(제출 전 수량)를 알 수 없거나 지금 잔고를 못 읽으면 **None**
+        (판정 불가)을 돌려준다. 0.0(= '아무것도 체결 안 됐음을 확인')과 반드시
+        구분해야 한다 — 예전에는 둘 다 0.0이라, 확인 실패가 '미체결 확인'으로
+        읽혀 전량 재주문으로 이어졌다(감사 55).
         조회 시점상: 타임아웃 실패는 대체로 수십 초가 걸려, 그 사이 브로커의
         잔고 캐시(짧은 TTL)도 만료돼 최신 잔고를 받는다.
 
@@ -236,11 +259,11 @@ class RobustBroker(Broker):
         재주문하면 초과 체결이 된다(2026-08-11 감사에서 발견).
         """
         if base_qty is None:
-            return 0.0
+            return None
         try:
             now_qty = self.inner.get_position(symbol).quantity
         except Exception:  # noqa: BLE001
-            return 0.0
+            return None
         delta = now_qty - base_qty
         signed = delta if side == "buy" else -delta   # 매수는 증가, 매도는 감소가 정상
         return max(0.0, signed)

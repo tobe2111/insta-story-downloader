@@ -11,7 +11,7 @@
   ① 전량 체결 확인 시 재주문하지 않는다(기존 동작 유지)
   ② 부분 체결이면 **남은 수량만** 재주문한다
   ③ 잔여가 무시할 만큼 작으면 체결로 마감한다
-  ④ 잔고 조회 실패로 판정 불가면 기존처럼 재시도한다
+  ④ 잔고 조회 실패로 판정 불가면 **재주문하지 않고** 크게 실패한다
 """
 from __future__ import annotations
 
@@ -94,11 +94,29 @@ def test_sell_side_uses_decrease_as_landed():
     assert out.status == "filled"
 
 
-def test_unknown_balance_falls_back_to_plain_retry():
+def test_unverifiable_fill_is_never_reordered():
+    """잔고를 못 읽으면 재주문하지 않고 크게 실패한다 (감사 55).
+
+    예전 계약은 '판정 불가면 기존처럼 재시도'였다. 그런데 그 재시도가
+    정확히 이 장치가 막으려던 도박이다 — 확인할 수 없는 상태에서 비멱등
+    시장가 주문을 다시 내는 것. 첫 주문이 실제로 체결됐다면 실거래 포지션이
+    2배가 되고, 그건 되돌릴 수 없다. 놓친 진입은 다음 봉에 다시 잡을 수
+    있으니 두 결과의 무게가 다르다.
+    """
     inner = _Flaky(fail_times=1, landed_after_fail=0.0, pos_raises=True)
-    out = _robust(inner).market_order("X", "buy", 100.0, 10.0)
-    assert inner.submitted == [100.0, 100.0]   # 판정 불가 → 기존대로 재시도
-    assert out.status == "filled"
+    with pytest.raises(RuntimeError) as err:
+        _robust(inner).market_order("X", "buy", 100.0, 10.0)
+    assert inner.submitted == [100.0]              # 재주문 없음
+    assert "직접 확인" in str(err.value)            # 사장님이 계좌를 봐야 한다
+
+
+def test_landed_qty_distinguishes_zero_from_unknown():
+    """0.0('아무것도 안 됐음을 확인')과 None('확인 불가')은 다른 값이다."""
+    ok = _robust(_Flaky(fail_times=0))
+    assert ok._landed_qty("X", "buy", 0.0) == 0.0        # 확인됨: 변화 없음
+    assert ok._landed_qty("X", "buy", None) is None      # 제출 전 잔고 미상
+    blind = _robust(_Flaky(fail_times=0, pos_raises=True))
+    assert blind._landed_qty("X", "buy", 0.0) is None    # 지금 잔고 못 읽음
 
 
 def test_final_failure_still_raises():
