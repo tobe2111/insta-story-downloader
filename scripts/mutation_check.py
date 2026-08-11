@@ -305,6 +305,27 @@ MUTATIONS = [
      "    missing = [f for f in required if f not in have]",
      "    missing = []",
      "tests/test_publish_release.py"),
+
+    # `quant setup` — 구매자가 처음 치는 명령. 커버리지 0이었던 53줄.
+    ("지키지 못한 파일 권한 약속을 지켰다고 말한다(결함 ㊾ 재발)",
+     "quant/cli.py",
+     "    if private:\n"
+     "        print(\"   파일 권한: 600 (본인만 읽기) — 확인됨\")",
+     "    if True:\n"
+     "        print(\"   파일 권한: 600 (본인만 읽기) — 확인됨\")",
+     "tests/test_cli_setup.py"),
+
+    ("합성 폴백을 '거래소 연결 정상'으로 보고한다",
+     "quant/cli.py",
+     "            fb = bool(df.attrs.get(\"synthetic_fallback\"))",
+     "            fb = False",
+     "tests/test_cli_setup.py"),
+
+    ("API 시크릿을 화면에 그대로 보이는 input으로 받는다",
+     "quant/cli.py",
+     "            val = (getpass.getpass(prompt) if secret else input(prompt)).strip()",
+     "            val = input(prompt).strip()",
+     "tests/test_cli_setup.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
