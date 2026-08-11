@@ -104,7 +104,24 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"{float(dsr):.2f} — 다중검정 보정 후 '운이 아니다'라고 말할 "
                 f"신뢰도(0.95)에 못 미칩니다.")
 
-    # ⑥ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑥ 피처 유실 — 외부 소스(야후·바이낸스·FRED·KRX)가 죽으면 피처가
+    #    조용히 줄어드는데 장부에는 같은 fs8로 기록된다. 그러면 판정 시계가
+    #    매일 다른 구조를 재게 된다(2026-08-11 발견). 어느 소스가 통째로
+    #    빠졌는지 알린다 — 한 종목만 빠진 것은 시장 차이라 경보하지 않는다.
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        fh = (hist[-1].get("feature_health") if hist else None) or {}
+        gone = fh.get("missing_everywhere") or []
+        if gone:
+            flags["features_missing:" + ",".join(sorted(gone))] = (
+                f"⚠️ 피처 유실: {len(gone)}개가 전 종목에서 빠졌습니다 "
+                f"({', '.join(gone)}). 외부 데이터 소스 장애일 가능성이 큽니다 — "
+                f"장부에는 같은 구조 태그로 기록되지만 모델은 다른 피처로 "
+                f"학습·판단합니다.")
+
+    # ⑦ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

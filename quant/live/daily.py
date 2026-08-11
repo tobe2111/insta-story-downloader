@@ -947,6 +947,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     last_bars: dict = {}
     last_dates = []
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
+    opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     pending = st.get("pending") or {}
     for market, symbol in targets:
@@ -967,6 +968,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
+            # 오늘 이 종목에 실제로 붙은 선택 피처 — 외부 소스가 죽으면
+            # 조용히 줄어드는 것을 장부에 남긴다(같은 fs8 태그로 기록되므로
+            # 개수를 함께 남기지 않으면 아무도 모른다)
+            from quant.strategies.ml import optional_features_from_df
+            opt_present[key] = optional_features_from_df(df)
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -1164,6 +1170,26 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                  len(skipped_cool), ", ".join(skipped_cool))
     equity = broker.equity(prices)
 
+    # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
+    # 펀딩비, 한국주식만 KRX 수급) '가능한 최대치 대비 몇 개가 실제로
+    # 붙었는가'를 종목별 최대값 기준으로 잰다. 소스가 죽은 날을 잡아내는 것이
+    # 목적이지, 시장별 차이를 결함으로 보는 것이 아니다.
+    feat_health = None
+    if opt_present:
+        from quant.strategies.ml import OPTIONAL_FEATURES
+        best = max((len(v) for v in opt_present.values()), default=0)
+        worst_key = min(opt_present, key=lambda k: len(opt_present[k]))
+        union = sorted({c for v in opt_present.values() for c in v})
+        feat_health = {
+            "optional_max": best,
+            "optional_possible": len(OPTIONAL_FEATURES),
+            "union": len(union),
+            "missing_everywhere": [c for c in OPTIONAL_FEATURES
+                                   if c not in set(union)],
+            "thinnest": {"key": worst_key,
+                         "n": len(opt_present[worst_key])},
+        }
+
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
@@ -1212,6 +1238,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
               "turnover": {"filled": len(fills), "universe": n,
                            "ratio": round(len(fills) / n, 4) if n else None},
+              # 피처 건강 — 외부 소스가 죽으면 피처가 조용히 줄어드는데
+              # 장부에는 같은 fs8로 남는다. 실제 개수를 함께 남긴다.
+              "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
