@@ -83,3 +83,38 @@ def test_detector_catches_a_known_bad_pattern():
     hits = [m for b in _run_blocks(sample)
             for m in _USER_CONTROLLED.finditer(b)]
     assert hits
+
+
+# ── 최소 권한 ─────────────────────────────────────────────────
+#
+# 2026-08-11 감사: ci·report·nightly-validate·weekly-report 네 워크플로가
+# permissions를 선언하지 않아 저장소 기본값을 물려받고 있었다. 조직 설정에
+# 따라 그 기본값은 write-all일 수 있다 — 테스트만 돌리는 잡이 저장소를
+# 쓸 권한을 들고 있을 이유가 없다.
+
+
+def test_every_workflow_declares_permissions():
+    import yaml
+    missing = []
+    for path in sorted(WF.glob("*.yml")):
+        d = yaml.safe_load(path.read_text("utf-8"))
+        if "permissions" not in d:
+            missing.append(path.name)
+    assert not missing, f"권한 미선언(저장소 기본값 상속): {missing}"
+
+
+def test_read_only_workflows_stay_read_only():
+    import yaml
+    for name in ("ci.yml", "report.yml", "weekly-report.yml", "deadman.yml"):
+        d = yaml.safe_load((WF / name).read_text("utf-8"))
+        assert d["permissions"] == {"contents": "read"}, name
+
+
+def test_no_workflow_prints_a_secret():
+    import re
+    bad = []
+    for path in sorted(WF.glob("*.yml")):
+        for i, ln in enumerate(path.read_text("utf-8").splitlines(), 1):
+            if re.search(r"(echo|print|cat|tee)[^\n]*\$\{\{\s*secrets\.", ln):
+                bad.append(f"{path.name}:{i}")
+    assert not bad, f"시크릿을 로그로 출력한다: {bad}"

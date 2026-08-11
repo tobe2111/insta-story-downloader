@@ -16,6 +16,12 @@ on:
     - cron: "0 19 * * *"
   workflow_dispatch:
 
+# 최소 권한 명시 — 미지정이면 저장소 기본값(조직 설정에 따라
+# write-all일 수 있다)을 물려받는다. 워크플로가 필요한 만큼만 갖게 한다.
+# state/validation.json을 커밋한다.
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest

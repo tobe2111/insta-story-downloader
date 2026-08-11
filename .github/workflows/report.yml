@@ -5,6 +5,12 @@ on:
     branches: ["claude/quick-report"]
   workflow_dispatch:
 
+# 최소 권한 명시 — 미지정이면 저장소 기본값(조직 설정에 따라
+# write-all일 수 있다)을 물려받는다. 워크플로가 필요한 만큼만 갖게 한다.
+# 리포트 출력만 한다 — 쓰기 권한이 필요 없다.
+permissions:
+  contents: read
+
 jobs:
   report:
     runs-on: ubuntu-latest
