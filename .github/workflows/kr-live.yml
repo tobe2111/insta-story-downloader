@@ -60,8 +60,13 @@ jobs:
           KIWOOM_SECRET: ${{ secrets.KIWOOM_SECRET }}
           KIWOOM_ACCOUNT: ${{ secrets.KIWOOM_ACCOUNT }}
           QUANT_KR_BROKER: ${{ inputs.broker }}
+          IN_REAL: ${{ inputs.real }}
         run: |
-          python -m quant live-check --broker "${{ inputs.broker }}" ${{ inputs.real && '--real' || '' }}
+          if [ "$IN_REAL" = "true" ]; then
+            python -m quant live-check --broker "$QUANT_KR_BROKER" --real
+          else
+            python -m quant live-check --broker "$QUANT_KR_BROKER"
+          fi
 
       - name: 실거래 집행 (기본 모의투자)
         env:
@@ -73,14 +78,15 @@ jobs:
           KIWOOM_SECRET: ${{ secrets.KIWOOM_SECRET }}
           KIWOOM_ACCOUNT: ${{ secrets.KIWOOM_ACCOUNT }}
           QUANT_KR_BROKER: ${{ inputs.broker }}
+          IN_REAL: ${{ inputs.real }}
           QUANT_LIVE_REAL: ${{ vars.QUANT_LIVE_REAL }}
         run: |
-          if [ "${{ inputs.real }}" = "true" ]; then
+          if [ "$IN_REAL" = "true" ]; then
             echo "⚠️ 실전 모드 요청 — QUANT_LIVE_REAL 변수까지 있어야 실행됩니다"
-            python -m quant live-daily --real --broker "${{ inputs.broker }}" | tee live.txt
+            python -m quant live-daily --real --broker "$QUANT_KR_BROKER" | tee live.txt
           else
             echo "🧪 모의투자 리허설"
-            python -m quant live-daily --broker "${{ inputs.broker }}" | tee live.txt
+            python -m quant live-daily --broker "$QUANT_KR_BROKER" | tee live.txt
           fi
 
       - name: 집행 기록 커밋 (state/live/)

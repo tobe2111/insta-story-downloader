@@ -63,9 +63,14 @@ class QuantHandler(BaseHTTPRequestHandler):
         supplied = q["token"][0] if q.get("token") else self.headers.get("X-Auth-Token", "")
         return hmac.compare_digest(supplied, token)
 
-    # 상태를 바꾸는(= 바깥 세상에 영향을 주는) 경로. 여기만 교차출처를 막는다 —
-    # 조회 경로까지 막으면 로컬 도구의 사용성이 떨어지고, 실익도 작다.
-    _MUTATING = ("/deposit/run",)
+    # 교차출처에서 유발되면 안 되는 경로.
+    #   · /deposit/run — 바깥 세상을 바꾼다(입금 워크플로 디스패치)
+    #   · 나머지 /run  — 수 초~수 분짜리 연산이라 교차출처에서 반복 호출되면
+    #     사장님 PC의 자원을 태운다. 다른 사이트가 이걸 부를 이유는 없다.
+    # 조회 경로(/api/state·/monitor 등)는 막지 않는다 — 로컬 도구의 사용성.
+    _MUTATING = ("/deposit/run", "/optimize/run", "/sweep/run",
+                 "/portfolio/run", "/screener/run", "/validate/run",
+                 "/backtest")
 
     def _host_ok(self) -> bool:
         """Host 헤더가 루프백인가 — DNS 리바인딩 차단.

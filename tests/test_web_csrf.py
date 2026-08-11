@@ -71,8 +71,28 @@ def test_non_browser_requests_still_work():
 
 
 def test_read_only_paths_are_not_restricted():
-    p = urlparse("/api/state")
-    assert _mk(**{"Sec-Fetch-Site": "cross-site"})._same_site_ok(p)
+    for path in ("/api/state", "/monitor", "/broadcast", "/health", "/"):
+        assert _mk(**{"Sec-Fetch-Site": "cross-site"})._same_site_ok(
+            urlparse(path)), path
+
+
+def test_expensive_compute_paths_are_also_protected():
+    """수 분짜리 연산을 교차출처에서 반복 호출하면 PC 자원이 탄다."""
+    for path in ("/optimize/run", "/sweep/run", "/portfolio/run",
+                 "/screener/run", "/validate/run", "/backtest"):
+        assert not _mk(**{"Sec-Fetch-Site": "cross-site"})._same_site_ok(
+            urlparse(path)), path
+
+
+def test_every_run_route_is_covered():
+    """새 /run 경로가 생기면 보호 목록에도 들어가야 한다."""
+    src = (Path(__file__).resolve().parent.parent
+           / "quant" / "web" / "server.py").read_text("utf-8")
+    import re
+    routes = set(re.findall(r'parsed\.path == "(/[^"]*)"', src))
+    runs = {r for r in routes if r.endswith("/run")}
+    assert runs <= set(ws.QuantHandler._MUTATING), (
+        f"보호되지 않은 실행 경로: {sorted(runs - set(ws.QuantHandler._MUTATING))}")
 
 
 def test_guards_run_before_anything_else():
