@@ -64,7 +64,16 @@
    동안 git status를 보면 변조된 상태가 잡히므로, **커밋과 동시에 돌리지
    말 것.** 중단되면 해당 파일이 변조된 채로 남을 수 있다(그때는
    `git checkout <파일>`로 되돌린다).
+
+⚠️ 세 번째 자기 결함(감사 72): 복원 후에도 **변조된 .pyc가 재사용**됐다.
+   파이썬은 .pyc 유효성을 (원본 mtime, 원본 크기)로 판단하는데, 변조와
+   복원이 같은 초 안에 일어나고 바뀐 글자 수가 같으면(`gate` → `None`,
+   둘 다 4글자) 복원본이 '변경 없음'으로 보인다. 그 결과 이후 테스트가
+   디스크에 없는 코드로 돌아 멀쩡한 검사 두 개가 실패했다 — 도구가 남긴
+   오염이 진짜 결함처럼 보였다. 이제 변조·복원 양쪽에서 해당 모듈의 .pyc를
+   지우고, 하위 프로세스는 PYTHONDONTWRITEBYTECODE=1로 돌린다.
 """
+import os
 import pathlib, subprocess, sys
 
 MUTATIONS = [
@@ -251,10 +260,16 @@ MUTATIONS = [
      "        self.last_gate_ = None",
      "tests/test_filter_wrappers.py"),
 
-    ("이벤트 가드가 판단 근거를 안 남기게 한다(설명이 재계산으로 되돌아감)",
-     "quant/strategies/event_guard.py",
-     "                self.last_gate_ = {\n                    \"open\": False, \"date\": str(last),",
-     "                self.last_gate_ = None or {\n                    \"open\": True, \"date\": str(last),",
+    # ⚠️ 처음에는 event_guard가 last_gate_를 안 남기게 변이했는데 안 잡혔다.
+    #    확인해 보니 **결함이 아니었다** — 설명문의 폴백이 마이너 달력과
+    #    factor를 모두 정확히 다루므로, 기록이 없어도 옳은 말을 한다.
+    #    (레짐 쪽은 폴백이 변동성 필터를 모르니 기록이 사라지면 틀린다.)
+    #    그래서 실제 결함이었던 것을 그대로 되살린다: 설명이 주요 이벤트만
+    #    보는 is_event_day로 되돌아가면 옵션만기 날 "매매 허용"이라 말한다.
+    ("이벤트 설명을 주요 이벤트만 보던 옛 방식으로 되돌린다",
+     "quant/live/explain.py",
+     "        gate = getattr(strategy, \"last_gate_\", None)\n        if gate is None:                       # 실행 전 미리보기 폴백\n            from quant.events import event_dates",
+     "        gate = None\n        if gate is None:\n            from quant.events import event_dates as _unused_ed\n            from quant.events import is_event_day\n            _d0 = df.index[-1]\n            _dd = _d0.date() if hasattr(_d0, \"date\") else _date.today()\n            gate = ({\"open\": False, \"reason\": \"이벤트 창\"} if is_event_day(_dd, pad)\n                    else {\"open\": True, \"reason\": \"오늘은 주요 이벤트 없음(매매 허용)\"})\n        if False:\n            from quant.events import event_dates",
      "tests/test_filter_wrappers.py"),
 
     ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
@@ -270,9 +285,35 @@ MUTATIONS = [
      "tests/test_drift_calibration.py"),
 ]
 
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """변조/복원한 모듈의 .pyc 캐시를 지운다.
+
+    ⚠️ 왜 필요한가(2026-08-11 감사 72 — 이 도구 자신의 결함): 파이썬은
+    .pyc의 유효성을 (원본 mtime, 원본 크기)로 판단한다. 변조와 복원이 같은
+    초 안에 일어나고 **바뀐 글자 수가 같으면**(예: `gate` → `None`, 둘 다
+    4글자) 복원 후에도 파이썬이 변조된 .pyc를 그대로 재사용한다.
+
+    실제로 그 일이 일어났다: 복원이 끝났는데도 이후 테스트가 변조된
+    바이트코드로 돌아 두 개가 실패했고, 디스어셈블해 보니 디스크에는
+    `self.last_gate_ = gate`인데 실행되는 코드는 `= None`이었다. 도구가
+    남긴 오염이 '진짜 결함'처럼 보인 것이다 — 오늘 내내 경계한 바로 그
+    형태를 도구 자신이 만들고 있었다.
+    """
+    pyc_dir = path.parent / "__pycache__"
+    if not pyc_dir.is_dir():
+        return
+    for f in pyc_dir.glob(path.stem + ".*.pyc"):
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
 def run(test):
+    # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"],
-                       capture_output=True, text=True, timeout=900)
+                       capture_output=True, text=True, timeout=900, env=env)
     return r.returncode
 
 
@@ -305,10 +346,12 @@ for desc, path, old, new, test in MUTATIONS:
         broken += 1
         continue
     p.write_text(src.replace(old, new), encoding="utf-8")
+    _purge_bytecode(p)
     try:
         rc = run(test)
     finally:
         p.write_text(src, encoding="utf-8")
+        _purge_bytecode(p)          # 복원본이 반드시 다시 컴파일되게
     if rc != 0:
         print(f"✅   {desc[:58]:60s} {test.split('/')[-1]}")
         caught += 1
