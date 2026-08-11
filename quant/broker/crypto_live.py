@@ -6,6 +6,11 @@ ccxt의 통일 인터페이스를 쓰므로 거래소만 바꾸면 대부분의 
 ⚠️ 실제 자금이 오가는 코드입니다. API 키에는 반드시 '출금 권한을 제외'하고,
    소액으로 충분히 검증한 뒤 사용하세요. 키는 환경변수로만 주입하세요.
 
+⚠️ **이 봇 전용 계정(서브계정)에서만 쓰세요.** 포지션을 거래소 현물 잔고로
+   읽기 때문에, 사장님이 따로 보유하던 코인도 봇의 포지션으로 간주돼 매도
+   대상이 됩니다(get_position 주석 참고). 국내 거래소는 서브계정이 없으므로
+   별도 계정을 쓰거나, 실거래를 켜지 마세요.
+
 환경변수:
     EXCHANGE_API_KEY, EXCHANGE_SECRET            (필수)
     EXCHANGE_PASSWORD                            (OKX·KuCoin·Coinbase·Bitget 등 패스프레이즈 필요 거래소)
@@ -78,6 +83,15 @@ class CryptoLiveBroker(Broker):
         return safe_amount(bal.get("free", {}).get(self.quote, 0.0))
 
     def get_position(self, symbol: str) -> Position:
+        """이 거래소 계정의 해당 코인 **전체 잔고**를 포지션으로 본다.
+
+        ⚠️ 반드시 알아야 할 한계(2026-08-11 감사에서 명시): 봇이 산 몫과
+        사장님이 원래 들고 있던 몫을 구분하지 않는다. 이미 BTC를 보유한
+        계정에 이 봇을 붙이면, 목표 비중을 맞추는 과정에서 **기존 보유분까지
+        매도 대상**이 된다. 거래소 현물 잔고에는 '누가 왜 샀는가'가 없기
+        때문이며, 이를 구분하려면 별도의 내부 장부가 필요하다.
+        그래서 실거래는 **이 봇 전용 계정(서브계정)** 에서만 쓸 것.
+        """
         base = symbol.split("/")[0]
         bal = self.client.fetch_balance()
         qty = safe_amount(bal.get("total", {}).get(base, 0.0), allow_negative=True)

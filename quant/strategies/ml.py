@@ -49,6 +49,58 @@ FEATURE_NAMES = [
 #        x_t10yie_chg5 기대인플레 변화) — 키 있을 때만
 FEATURE_SET = "fs8:+fredmacro"
 
+# 선택 피처 — 외부 소스(야후·바이낸스·FRED·KRX)가 살아 있을 때만 붙는다.
+# 소스가 죽으면 컬럼이 조용히 사라지는데, 장부에는 여전히 fs8로 기록된다.
+# 그러면 판정 시계가 매일 다른 구조를 재게 된다(2026-08-11 발견) — 그래서
+# '오늘 실제로 몇 개가 붙었는가'를 측정해 기록·경보한다.
+OPTIONAL_FEATURES = [
+    "x_funding", "x_funding_chg",          # 코인 펀딩비
+    "x_oi_chg5",                           # 미결제약정
+    "x_btc", "x_spy", "x_tnx", "x_usdkrw",  # 크로스에셋
+    "x_vixts",                             # VIX 기간구조
+    "x_fred_dgs10", "x_fred_t10y2y", "x_fred_bamlh0a0hym2",  # FRED 거시
+]
+
+
+def optional_features_from_df(df) -> list[str]:
+    """이 원본 df로 만들어질 선택 피처 목록 — 피처 행렬을 다시 계산하지 않는다.
+
+    _features()의 조건과 같은 규칙을 쓴다: funding 컬럼이 있으면 x_funding·
+    x_funding_chg가, oi가 있으면 x_oi_chg5가, x_로 시작하는 컬럼은 그대로
+    통과한다. 매일 20종목마다 피처 행렬을 다시 만드는 비용을 피하려는 것이라,
+    _features()가 바뀌면 여기도 함께 바뀌어야 한다(테스트가 일치를 강제한다).
+    """
+    cols = set(getattr(df, "columns", []))
+    out = []
+    if "funding" in cols:
+        out += ["x_funding", "x_funding_chg"]
+    if "oi" in cols:
+        out += ["x_oi_chg5"]
+    out += [c for c in cols if str(c).startswith("x_")]
+    return [c for c in OPTIONAL_FEATURES if c in set(out)]
+
+
+def feature_health(feats) -> dict:
+    """오늘 실제로 만들어진 피처의 건강 상태 — (총계, 필수, 선택, 누락).
+
+    필수 피처(FEATURE_NAMES)는 가격에서 유도되므로 항상 있어야 한다. 하나라도
+    없으면 데이터 자체가 망가진 것이다. 선택 피처는 외부 소스에 달려 있어
+    빠질 수 있고, 빠진 사실이 기록되지 않으면 아무도 모른다.
+    """
+    cols = set(getattr(feats, "columns", []))
+    missing_req = [c for c in FEATURE_NAMES if c not in cols]
+    present_opt = [c for c in OPTIONAL_FEATURES if c in cols]
+    missing_opt = [c for c in OPTIONAL_FEATURES if c not in cols]
+    return {
+        "total": len(cols),
+        "required": len(FEATURE_NAMES) - len(missing_req),
+        "required_expected": len(FEATURE_NAMES),
+        "optional": len(present_opt),
+        "optional_expected": len(OPTIONAL_FEATURES),
+        "missing_required": missing_req,
+        "missing_optional": missing_opt,
+    }
+
 
 def _ema(s: pd.Series, span: int) -> pd.Series:
     return s.ewm(span=span, adjust=False).mean()

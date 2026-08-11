@@ -243,6 +243,49 @@ def verify_key(owner: str, key: str, secret: str | None = None,
     return hmac.compare_digest(_canon(expected), _canon(key))
 
 
+# ── 자물쇠 지문 — '발급하는 비밀'과 '검증하는 비밀'이 같은지 확인하는 장치 ──
+#
+# 배경(2026-08-11 감사에서 발견): 키를 발급하는 곳(Cloudflare 시크릿
+# LICENSE_SECRET)과 검증하는 곳(빌드에 구워지는 GitHub Secrets
+# QUANT_LICENSE_SECRET)은 서로 다른 시스템의 다른 값이다. 둘이 어긋나면
+# **발급한 키가 구매자 컴퓨터에서 전부 무효**가 되는데, 그 사실을 알려주는
+# 장치가 어디에도 없었다 — 환불 요청이 와야 아는 구조였다.
+#
+# 지문은 비밀 자체를 노출하지 않으면서 '같은 비밀인가'만 대조하게 해준다.
+# 비밀을 역산할 수 없고(HMAC 단방향), 짧게 잘라도 대조 목적에는 충분하다.
+_FP_MESSAGE = b"quant-license-fingerprint"
+_FP_CHARS = 12
+
+
+def _fp(material: bytes) -> str:
+    return hmac.new(material, _FP_MESSAGE, hashlib.sha256).hexdigest()[:_FP_CHARS]
+
+
+def secret_fingerprint(secret: str | None = None) -> str | None:
+    """HMAC 발급 비밀의 지문(비밀 노출 없음). 비밀이 없으면 None."""
+    sec = _resolve_secret(secret)
+    return _fp(sec) if sec else None
+
+
+def pubkey_fingerprint(public_key: str | None = None) -> str | None:
+    """Ed25519 공개키의 지문. 공개키가 없으면 None."""
+    pub = _resolve_public_key(public_key)
+    return _fp(pub.encode()) if pub else None
+
+
+def lock_fingerprint() -> str | None:
+    """지금 이 실행본이 '무엇으로 검증하는가'의 지문 — 없으면 None(자물쇠 없음).
+
+    발급 쪽(어드민 화면)이 보여주는 지문과 이 값이 다르면, 발급한 키는
+    이 배포본에서 통과하지 못한다. 판매 전에 반드시 대조할 것.
+    """
+    pub = pubkey_fingerprint()
+    if pub:
+        return f"ed25519:{pub}"
+    sec = secret_fingerprint()
+    return f"hmac:{sec}" if sec else None
+
+
 def _read_license_file(path: Path) -> tuple[str, str]:
     owner = key = ""
     try:
@@ -434,9 +477,20 @@ def _cli(argv: list[str] | None = None) -> int:
         print(f"owner={owner or '(없음)'} → {'✅ 유효' if ok else '❌ 무효/없음'}")
         return 0 if ok else 1
 
+    if cmd in ("fingerprint", "fp"):
+        fp = lock_fingerprint()
+        if not fp:
+            print("자물쇠 없음 — 이 실행본은 라이선스를 요구하지 않습니다.")
+            return 1
+        print(f"lock_fingerprint: {fp}\n"
+              "  어드민 키 발급 화면에 표시된 지문과 같아야 합니다.\n"
+              "  다르면 발급한 키는 이 배포본에서 통과하지 못합니다.")
+        return 0
+
     print("명령: gen --owner <이메일>   (키 발급, 판매자용 — 개인키 있으면 Ed25519)\n"
           "      gen-keypair            (Ed25519 키쌍 생성, cryptography 필요)\n"
-          "      check                  (현재 라이선스 검증)")
+          "      check                  (현재 라이선스 검증)\n"
+          "      fingerprint            (이 실행본의 자물쇠 지문 — 발급 쪽과 대조)")
     return 0
 
 

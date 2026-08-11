@@ -234,14 +234,20 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     if earnings_guard:
         reason += (f" · 🛡 실적 가드: 발표({earnings_guard['date']}) 임박 → "
                    "비중 절반")
-    # 의회(혼합) 운용 중이면 구성을 함께 — 리더 설명 + 의석 비중
+    # 의회(혼합) 운용 중이면 구성을 함께.
+    # ⚠️ 위 설명은 **의석 1위 의원**의 논리다. 의원이 둘 이상이면 오늘의 비중은
+    #    의원 신호의 의석 가중합이라 리더 하나로 설명되지 않는다 — 그 사실을
+    #    문장으로 밝힌다(2026-08-11 감사). 지금은 전 종목이 의원 1명이라
+    #    설명이 곧 실제지만, 승격이 쌓이면 어긋나기 시작한다.
     try:
         from quant.live.parliament import parliament_summary
         from quant.live.retrain import _key, load_champions
         entry = load_champions(state_dir).get(_key(market, symbol))
         ps = parliament_summary(entry) if entry else None
         if ps:
-            reason += f" · 🏛 의회 운용: {ps}"
+            reason += (f" · 🏛 의회 운용: {ps} — 위 설명은 의석 1위 의원의 "
+                       f"논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 "
+                       f"가중 평균한 값입니다")
     except Exception:  # noqa: BLE001 — 표기 실패가 기록을 막으면 안 된다
         pass
 
@@ -315,7 +321,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "cash": broker.get_cash(), "quantity": pos.quantity,
         "avg_price": pos.avg_price, "last_bar": last_bar,
     })
-    st["history"] = cap_history(st["history"] + [record])
+    st["history"] = cap_history(chrono(st["history"] + [record]))
     atomic_write_json(path, st)
 
     hr = record["hit_rate"]
@@ -348,7 +354,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
 STRUCTURE_TAG = "sz2"
 STRUCTURE_EPOCH = "2026-08-11"
 STRUCTURE_WHY = ("포트폴리오 변동성 타깃(총노출 6.8%→100%) + 회전율 통제"
-                 "(비용 비례 밴드·신호 평활·재조정 쿨다운)")
+                 "(비용 비례 밴드·신호 평활·재조정 쿨다운) + 안전장치 복구"
+                 "(킬스위치·어드민 노출 배수·실적 가드·켈리 상한이 변동성"
+                 " 스케일러에 지워지던 것을 스케일 뒤 적용으로 교정, "
+                 "낙폭 기준을 입금 제거 성장 지수로)")
 
 # 신호 평활 계수 — 오늘 목표에 얼마나 무게를 둘 것인가(1.0=평활 없음).
 # 0.5는 2일 지수평활 — 확률의 하루짜리 떨림은 절반으로 줄이되, 진짜 추세
@@ -382,12 +391,17 @@ REBALANCE_BAND_REL_MAX = 0.40
 
 
 def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
-    """페이퍼 장부에서 실측한 왕복 비용(비율) — 없으면 None.
+    """페이퍼 장부에서 실측한 **왕복** 체결 마찰(비율) — 없으면 None.
 
-    가정(CostModel)은 한국주식 왕복 28bp라고 말하지만, 실측 개장 갭은 그보다
-    훨씬 컸다(불리 갭 평균 79bp). 밴드를 가정이 아니라 **실측**에 연결하면,
-    체결이 실제로 비싼 시장에서 자동으로 덜 매매하게 된다 — 측정이 관찰로
-    끝나지 않고 행동으로 이어지는 고리다. 표본이 얇으면 가정으로 돌아간다.
+    가정(CostModel)은 한국주식 편도 14bp(왕복 28bp)라고 말하지만, 실측
+    개장 갭은 그보다 훨씬 컸다(불리 갭 평균 99bp/편도). 밴드를 가정이 아니라
+    **실측**에 연결하면, 체결이 실제로 비싼 시장에서 자동으로 덜 매매하게
+    된다 — 측정이 관찰로 끝나지 않고 행동으로 이어지는 고리다. 표본이 얇으면
+    가정으로 돌아간다.
+
+    ⚠️ 단위(2026-08-11 감사에서 잡은 버그): fill_gap_report의 assumed_bp와
+    mean_adverse_bp는 **둘 다 편도**다. 예전 구현은 그 편도 합을 '왕복'이라
+    부르고 호출부가 다시 2로 나눠, 실제 마찰을 절반으로 축소해 쓰고 있었다.
     """
     try:
         from quant.reporting.fill_gap import fill_gap_report
@@ -395,10 +409,51 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         row = ((rep or {}).get("markets") or {}).get(market)
         if not row or row.get("n", 0) < 10:
             return None                        # 표본 부족 — 가정을 쓴다
-        # 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
-        return (row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])) / 1e4
+        # 편도 = 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
+        one_way_bp = row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])
+        return 2.0 * one_way_bp / 1e4          # 왕복
     except Exception:  # noqa: BLE001 — 실측 실패는 가정으로 폴백
         return None
+
+
+def measured_cost_model(market: str, state_dir: str = STATE_DIR,
+                        models_gap: bool = True):
+    """오디션이 물어야 할 체결 비용 모델.
+
+    ⚠️ 이중 계상 주의(2026-08-11 감사에서 제가 만든 결함을 되잡은 것):
+    개장 갭을 반영하는 방법은 두 가지이고, **동시에 쓰면 두 번 물린다.**
+        (a) 가격으로: 백테스트가 다음 봉 '시가'에 체결(next_open_fill)
+        (b) 비용으로: 실측 불리 갭을 슬리피지에 더한다
+    (b)는 (a)가 없던 시절의 대체물이었다. 지금 오디션은 갭이 존재하는 시장
+    (한국·미국 주식)에서 항상 (a)를 쓰므로, 거기에 (b)까지 더하면 한국주식
+    기준 갭을 두 번 — 실제보다 2배 비싸게 — 물게 된다. 그러면 이번엔 반대
+    방향으로 고회전 전략이 부당하게 불리해진다.
+
+    (a)를 남기는 이유: 평균 한 숫자가 아니라 **갭의 분포 전체**를 그대로
+    겪는다. 평균으로 눌러 담는 것보다 충실하다.
+
+    models_gap=False(백테스트가 종가 체결로 갭을 모델링하지 않을 때)일 때만
+    실측 갭을 비용으로 얹는다. 표본이 얇으면 가정 그대로 — 소표본으로 선발
+    기준을 흔드는 것이 더 위험하다.
+    """
+    from quant.backtest.costs import CostModel
+    base = CostModel.for_market(market)
+    if models_gap:
+        return base                             # 갭은 이미 가격에 있다
+    measured = _measured_roundtrip_cost(market, state_dir)
+    if measured is None:
+        return base
+    one_way = max(0.0, measured / 2.0)          # 왕복 → 편도
+    assumed_one_way = float(base.fee + base.slippage)
+    if one_way <= assumed_one_way:
+        return base                             # 실측이 더 싸면 가정 유지(보수적)
+    # 초과분은 슬리피지로 붙인다 — 수수료는 계약이고 갭은 체결 미끄러짐이다
+    return CostModel(fee=base.fee,
+                     slippage=base.slippage + (one_way - assumed_one_way),
+                     impact_coef=base.impact_coef,
+                     short_borrow=base.short_borrow, funding=base.funding,
+                     market_impact_coef=base.market_impact_coef,
+                     participation_cap=base.participation_cap)
 
 
 def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
@@ -467,30 +522,104 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
 
 
-def time_weighted_return(history: list[dict], deposits: list[dict],
-                         start_cash: float = START_CASH) -> float:
-    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력.
+def chrono(history: list[dict]) -> list[dict]:
+    """기록을 날짜 오름차순으로 — 파생 수치는 시간순을 전제한다.
 
-    일별 구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
-    입금 날짜가 기록일 사이면 '그 이후 첫 기록일'에 귀속시킨다(보수적).
+    ⚠️ 왜 필요한가(2026-08-11 장부 무결성 검사에서 발견): 한국주식 6종목의
+    기록 배열이 08-05 → **08-07 → 08-06** → 08-10 순으로 어긋나 있었다.
+    원인은 데이터 소스가 한때 아직 닫히지도 않은 08-07 봉을 먼저 내보낸 것
+    (그래서 _drop_unclosed를 추가했다). 값 자체는 그날의 진짜 기록이지만
+    **배열 순서**가 뒤집혀 있어, 하루치 수익률·낙폭·최고·최악일처럼 '직전
+    날'을 참조하는 계산이 엉뚱한 날을 전날로 잡는다.
+
+    저장된 기록은 건드리지 않는다 — "과거를 고치지 않는다"는 약속이 먼저다.
+    대신 읽는 쪽에서 시간순으로 정렬해 계산한다. 값은 그대로고 순서만 바로잡는
+    것이라 재계산이 아니며, 어긋난 배열은 장부에 증거로 남는다.
     """
+    return sorted(history or [], key=lambda r: str(r.get("date", "")))
+
+
+def twr_index(history: list[dict], deposits: list[dict],
+              start_cash: float = START_CASH) -> list[float]:
+    """입금 효과를 제거한 누적 성장 지수(시작 1.0) 시계열.
+
+    구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
+    입금 날짜가 기록일 사이면 '그 이후 첫 기록일'에 귀속시킨다(보수적).
+
+    수익률뿐 아니라 **낙폭**도 이 지수 위에서 재야 한다(2026-08-11 감사).
+    자산(equity) 고점 대비로 재면 입금이 고점을 끌어올려, 손실이 그대로인데
+    낙폭이 0으로 보인다 — 그러면 킬스위치가 입금 때문에 풀린다.
+    """
+    history = chrono(history)
     if not history:
-        return 0.0
+        return []
     flows: dict[str, float] = {}
     dates = [r["date"] for r in history]
     for d in deposits or []:
         target = next((dt for dt in dates if dt >= d["date"]), None)
         if target is not None:
             flows[target] = flows.get(target, 0.0) + float(d["amount"])
-    twr = 1.0
-    prev = start_cash
+    out: list[float] = []
+    idx, prev = 1.0, float(start_cash)
     for r in history:
         eq = float(r["equity"])
-        flow = flows.get(r["date"], 0.0)
         if prev > 0:
-            twr *= max(0.0, (eq - flow) / prev)
+            idx *= max(0.0, (eq - flows.get(r["date"], 0.0)) / prev)
         prev = eq
-    return round((twr - 1) * 100, 2)
+        out.append(idx)
+    return out
+
+
+def drawdown_from_index(index: list[float]) -> float:
+    """성장 지수 시계열의 현재 낙폭(비율, 0 이하)."""
+    if not index:
+        return 0.0
+    peak = max(index)
+    return (index[-1] / peak - 1) if peak > 0 else 0.0
+
+
+def max_drawdown_from_index(index: list[float]) -> float:
+    """성장 지수 시계열의 최대낙폭(비율, 0 이하)."""
+    peak, mdd = 0.0, 0.0
+    for v in index:
+        peak = max(peak, v)
+        if peak > 0:
+            mdd = min(mdd, v / peak - 1)
+    return mdd
+
+
+def time_weighted_return(history: list[dict], deposits: list[dict],
+                         start_cash: float = START_CASH) -> float:
+    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력."""
+    idx = twr_index(history, deposits, start_cash)
+    return round((idx[-1] - 1) * 100, 2) if idx else 0.0
+
+
+def day_return_pct(history: list[dict], deposits: list[dict],
+                   start_cash: float = START_CASH) -> float | None:
+    """마지막 기록일의 **하루치** 수익률(%) — 입금 효과 제거(TWR과 같은 식).
+
+    왜 따로 두는가(2026-08-11 감사에서 발견): 기록의 return_pct는 원금 대비
+    **누적** 수익률인데, SNS 캡션이 그것을 "오늘 X%"라고 읽고 있었다. 지금은
+    누적이 -0.06%라 차이가 안 보이지만, 누적이 +40%가 되면 매일 "오늘 +40%"를
+    방송하게 된다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 거짓말이다.
+    숫자는 산문이 아니라 장부에서 나와야 하므로, 하루치도 장부에 남긴다.
+    """
+    history = chrono(history)
+    if not history:
+        return None
+    flows: dict[str, float] = {}
+    dates = [r["date"] for r in history]
+    for d in deposits or []:
+        target = next((dt for dt in dates if dt >= d["date"]), None)
+        if target is not None:
+            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    prev = float(history[-2]["equity"]) if len(history) >= 2 else float(start_cash)
+    if prev <= 0:
+        return None
+    last = history[-1]
+    eq = float(last["equity"]) - flows.get(last["date"], 0.0)
+    return round((eq / prev - 1) * 100, 2)
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
@@ -593,7 +722,7 @@ def _generation_archive(state: dict, since: str) -> dict | None:
     입금(매칭)은 날짜로 해당 구간에 귀속시켜 TWR 왜곡을 막는다.
     """
     try:
-        hist = state.get("history") or []
+        hist = chrono(state.get("history") or [])   # 구간 분할도 시간순 전제
         if not hist:
             return None
         i0 = next((i for i, r in enumerate(hist)
@@ -663,7 +792,7 @@ def _regime_breakdown(history: list, window: int = 20) -> dict | None:
     """
     try:
         rows = [(str(r.get("date")), float(r.get("price") or 0),
-                 float(r.get("equity") or 0)) for r in history
+                 float(r.get("equity") or 0)) for r in chrono(history)
                 if r.get("price") and r.get("equity")]
         if len(rows) < window + 5:
             return None
@@ -920,7 +1049,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     last_bars: dict = {}
     last_dates = []
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
+    opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
+    skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
+    guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
+    kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -940,6 +1073,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
+            # 오늘 이 종목에 실제로 붙은 선택 피처 — 외부 소스가 죽으면
+            # 조용히 줄어드는 것을 장부에 남긴다(같은 fs8 태그로 기록되므로
+            # 개수를 함께 남기지 않으면 아무도 모른다)
+            from quant.strategies.ml import optional_features_from_df
+            opt_present[key] = optional_features_from_df(df)
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -949,7 +1087,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df)
             weights[key] = float(
                 _risk_for(market).size_positions(df, signals).iloc[-1])
-            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록
+            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
+            # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
+            #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
+            #    보고 전체를 그만큼 되돌려 키워 가드가 사라진다 — 킬스위치가
+            #    무력화됐던 것과 정확히 같은 구조다. 게다가 공분산은 실적
+            #    발표를 모르므로, 하필 위험한 날에 목표보다 더 실리게 된다.
             if market == "us_stock" and abs(weights[key]) > 0:
                 from datetime import date as _edate
 
@@ -958,14 +1101,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                     symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
                     state_dir=state_dir)
                 if edate and ef < 1.0:
-                    weights[key] = float(weights[key] * ef)
+                    guard_damp[key] = ef
                     earnings_guards[key] = edate
-            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용
+            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용.
+            # 상한은 '자본 대비 최종 비중'에 걸어야 의미가 있다. 스케일 전
+            # 비중에 걸면 스케일러가 상한 위로 다시 올려 놓는다(같은 결함).
             kcap = _kelly_cap_from_history(
                 _load_paper(_paper_path(market, symbol, state_dir))
                 .get("history") or [])
             if kcap < 1.0:
-                weights[key] = float(np.clip(weights[key], -kcap, kcap))
+                kelly_caps[key] = kcap
             rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
@@ -976,6 +1121,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 opens_after[key] = _first_bar_after(df, pend["decided_bar"])
         except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
             skipped.append(key)
+            # 왜 빠졌는지도 남긴다 — 키만 있으면 '데이터 장애'인지 '거래소
+            # 휴장'인지 구분할 수 없고, 구분 못 하면 대응도 못 한다.
+            skipped_why[key] = str(exc)[:200]
             log.warning("포트폴리오 %s 스킵: %s", key, exc)
     if not prices:
         raise RuntimeError("포트폴리오: 전 종목 데이터 실패 — 기록하지 않음")
@@ -1029,11 +1177,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     equity = broker.equity(prices)
 
     # 자동 킬스위치 — 계좌 낙폭 단계별 노출 축소·단계 복귀(히스테리시스).
-    # 낙폭은 자산 고점 대비라 매칭 입금이 있으면 약간 보수적으로(빨리 회복한
-    # 것처럼) 왜곡되지만, 입금은 드물고 방향은 안전한 쪽이다.
-    peak_eq = max([float(r.get("equity", 0.0)) for r in st["history"]]
-                  + [equity, 1e-9])
-    drawdown = equity / peak_eq - 1
+    #
+    # ⚠️ 낙폭은 자산(equity)이 아니라 **입금 효과를 제거한 성장 지수** 위에서
+    #    잰다. 예전에는 자산 고점 대비로 쟀는데, 그러면 매칭 입금이 고점을
+    #    끌어올려 손실이 그대로인데도 낙폭이 0으로 보인다 — 즉 **입금이
+    #    킬스위치를 풀어버린다**(2026-08-11 감사). 하필 브레이크가 필요한
+    #    상황에서 돈을 더 넣는 순간 브레이크가 풀리는 구조였다.
+    #    (지금은 입금이 없어 두 방식의 값이 같다 — 첫 입금 날 발동할 결함이다.)
+    _series = twr_index(
+        st["history"] + [{"date": bar, "equity": equity}],
+        st.get("deposits") or [],
+        start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
+    drawdown = drawdown_from_index(_series)
     risk_scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), drawdown)
     st["risk_scale"] = risk_scale
     if risk_scale < 1.0:
@@ -1070,13 +1225,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 입증되기 전에는 게이트가 검증 목표(연 1%)를 상한으로 강제한다.
     from quant.risk.portfolio_vol import target_vol_now, vol_scale
     tgt_vol, vol_proven, vol_why = target_vol_now(state_dir)
-    pre_w = {k: w * eff_scale * slices.get(k, 1.0 / n)
-             for k, w in weights.items()}
-    vscale, ex_ante = vol_scale(pre_w, rets_map, tgt_vol)
-    log.info("변동성 타깃: 목표 연 %.2f%% · 사전추정 %s · 배수 %.2f (%s)",
+    # ⚠️ 변동성 스케일은 **감쇠 전** 비중으로 계산한다(2026-08-11 감사).
+    #    킬스위치가 걸린 비중(eff_scale 곱한 값)을 넣으면, 스케일러가 "위험이
+    #    작다"고 판단해 그만큼 되돌려 키운다 — 무레버리지 상한도 감쇠된
+    #    총노출 기준으로 계산되므로 **최종 노출이 감쇠 전과 똑같아진다.**
+    #    실측: eff_scale 0.25(75% 축소)를 걸어도 최종 총노출 100%.
+    #    즉 낙폭 브레이크와 어드민 노출 배수가 둘 다 죽어 있었다.
+    #    순서가 곧 의미다: 변동성 타깃이 '위험 예산'을 정하고, 킬스위치는
+    #    그 예산을 잘라낸다. 예산 계산에 이미 잘린 값을 넣으면 안 된다.
+    base_w = {k: w * slices.get(k, 1.0 / n) for k, w in weights.items()}
+    vscale, ex_ante = vol_scale(base_w, rets_map, tgt_vol)
+    log.info("변동성 타깃: 목표 연 %.2f%% · 사전추정 %s · 배수 %.2f · "
+             "감쇠 %.2f (%s)",
              tgt_vol * 100,
              f"{ex_ante * 100:.2f}%" if ex_ante else "추정불가",
-             vscale, vol_why)
+             vscale, eff_scale, vol_why)
 
     n_orders_before = len(getattr(broker, "order_log", []))
     skipped_dust = []
@@ -1085,8 +1248,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
-        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중
-        eff = w * eff_scale * vscale
+        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중.
+        # 이벤트 감쇠(실적 가드)와 켈리 상한은 **스케일 뒤에** 적용한다 —
+        # 앞에 두면 스케일러가 되돌려 키워 둘 다 무효가 된다.
+        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
+        kcap = kelly_caps.get(key)
+        if kcap is not None:
+            eff = float(np.clip(eff, -kcap, kcap))
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
@@ -1137,11 +1305,38 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                  len(skipped_cool), ", ".join(skipped_cool))
     equity = broker.equity(prices)
 
+    # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
+    # 펀딩비, 한국주식만 KRX 수급) '가능한 최대치 대비 몇 개가 실제로
+    # 붙었는가'를 종목별 최대값 기준으로 잰다. 소스가 죽은 날을 잡아내는 것이
+    # 목적이지, 시장별 차이를 결함으로 보는 것이 아니다.
+    feat_health = None
+    if opt_present:
+        from quant.strategies.ml import OPTIONAL_FEATURES
+        best = max((len(v) for v in opt_present.values()), default=0)
+        worst_key = min(opt_present, key=lambda k: len(opt_present[k]))
+        union = sorted({c for v in opt_present.values() for c in v})
+        feat_health = {
+            "optional_max": best,
+            "optional_possible": len(OPTIONAL_FEATURES),
+            "union": len(union),
+            "missing_everywhere": [c for c in OPTIONAL_FEATURES
+                                   if c not in set(union)],
+            "thinnest": {"key": worst_key,
+                         "n": len(opt_present[worst_key])},
+        }
+
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
-    gross = sum(abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
-                for k, w in weights.items())
+    # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
+    # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
+    def _applied(k: str, w: float) -> float:
+        v = (abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
+             * guard_damp.get(k, 1.0))
+        cap = kelly_caps.get(k)
+        return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
+
+    gross = sum(_applied(k, w) for k, w in weights.items())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))
@@ -1174,6 +1369,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   "target": round(tgt_vol, 5),
                   "ex_ante": round(ex_ante, 5) if ex_ante else None,
                   "scale": round(vscale, 4),
+                  # 감쇠(킬스위치×어드민)까지 반영한 실제 적용 배수 —
+                  # 예산(scale)과 브레이크(damp)를 따로 남겨야 "왜 오늘
+                  # 노출이 이만큼인가"를 장부만으로 답할 수 있다.
+                  "damp": round(eff_scale, 4),
+                  "applied": round(vscale * eff_scale, 4),
                   "proven": vol_proven,
                   "reason": vol_why,
               },
@@ -1185,12 +1385,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
               "turnover": {"filled": len(fills), "universe": n,
                            "ratio": round(len(fills) / n, 4) if n else None},
+              # 피처 건강 — 외부 소스가 죽으면 피처가 조용히 줄어드는데
+              # 장부에는 같은 fs8로 남는다. 실제 개수를 함께 남긴다.
+              "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
-              "champion": {"symbols": n, "skipped": skipped}}
+              # 오늘 실제로 몇 종목으로 굴렸는가. 20종목 중 15개가 빠진 날은
+              # '20종목 분산'이 아니라 5종목 집중이다 — 그 사실이 장부에
+              # 남아야 사이트도 경보도 진실을 말할 수 있다(2026-08-11).
+              "champion": {"symbols": n, "skipped": skipped,
+                           "planned": len(targets),
+                           "skipped_why": skipped_why or None}}
     record["twr_pct"] = time_weighted_return(
+        st["history"] + [record], st.get("deposits", []),
+        start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
+    # 하루치 수익률 — 누적(return_pct)과 절대 섞이면 안 되는 별개의 숫자.
+    record["day_pct"] = day_return_pct(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
     # 무작위 전략 1,000개 분포 대비 백분위 — 바이앤홀드보다 반박이 어려운 기준.
@@ -1202,7 +1414,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
         for p in broker._positions.values() if abs(p.quantity) > 0}
     st.update({"cash": broker.get_cash(), "last_bar": bar})
-    st["history"] = cap_history(st["history"] + [record])
+    st["history"] = cap_history(chrono(st["history"] + [record]))
     atomic_write_json(path, st)
 
     print(f"[{bar}] 포트폴리오({n}종목 분산) — 자산 {equity:,.2f} "
@@ -1231,9 +1443,40 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
             print(f"⚠️ {key}: 페이퍼 실패 — {exc}")
     print(f"\n요약: 성공 {len(ok)} · 실패 {len(failed)}"
           + (f" ({', '.join(failed)})" if failed else ""))
+    # 부분 실패를 장부에 남긴다 — 예전에는 20종목 중 19개가 실패해도 잡이
+    # 초록이고 콘솔에만 남았다(2026-08-11 감사). 전부 실패해야 예외였다.
+    # 사이트·경보가 읽을 수 있게 기록해야 '조용한 절반 마비'가 보인다.
+    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
+                      "paper", ok, failed)
     if targets and not ok:
         raise RuntimeError(f"전 종목 페이퍼 실패: {failed}")
     return {"ok": ok, "failed": failed, "records": records}
+
+
+def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:
+    """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
+
+    '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
+    종목은 그날 판단·기록이 통째로 없는데도 아무 흔적이 남지 않았다.
+    """
+    from datetime import date as _date
+
+    from quant.utils.jsonio import atomic_write_json
+
+    path = os.path.join(state_dir, "run_health.json")
+    cur: dict = {}
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                cur = json.load(f)
+        except (OSError, ValueError):
+            cur = {}
+    cur[kind] = {"date": _date.today().isoformat(),
+                 "ok": len(ok), "failed": len(failed),
+                 "failed_keys": sorted(failed)[:20],
+                 "errors": {k: str(v)[:200] for k, v in
+                            list(failed.items())[:5]}}
+    atomic_write_json(path, cur)
 
 
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
@@ -1265,20 +1508,33 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
 
     for st in states:
         key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
-        hist = st["history"]
+        hist = chrono(st["history"])          # 시간순 전제 — 배열 순서를 믿지 않는다
         window = [r for r in hist if date.fromisoformat(r["date"]) >= start]
         if not window:
             continue
         # 주간 수익 기준점: 창 직전 마지막 기록(없으면 창 첫 기록의 자산)
         idx0 = hist.index(window[0])
         base = hist[idx0 - 1]["equity"] if idx0 > 0 else window[0]["equity"]
-        week_ret = (window[-1]["equity"] / base - 1) * 100 if base else 0.0
+        # 입금은 수익이 아니다 — 자산 비율만 쓰면 매칭입금이 주간 수익으로
+        # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
+        # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
+        # '그 이후 첫 기록일'에 귀속시킨다.
+        flows: dict[str, float] = {}
+        for d in st.get("deposits") or []:
+            target = next((r["date"] for r in window if r["date"] >= d["date"]),
+                          None)
+            if target is not None:
+                flows[target] = flows.get(target, 0.0) + float(d["amount"])
         days_chg = []
+        chain = 1.0
         prev = base
         for r in window:
             if prev:
-                days_chg.append((r["date"], (r["equity"] / prev - 1) * 100))
-            prev = r["equity"]
+                r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
+                chain *= 1.0 + r_t
+                days_chg.append((r["date"], r_t * 100))
+            prev = float(r["equity"])
+        week_ret = (chain - 1) * 100 if base else 0.0
         best = max(days_chg, key=lambda x: x[1]) if days_chg else None
         worst = min(days_chg, key=lambda x: x[1]) if days_chg else None
         markets[key] = {
@@ -1448,15 +1704,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 st = json.load(f)
             if st.get("market") == "portfolio":
                 pf_state = st
-            hist = st.get("history", [])
+            hist = chrono(st.get("history", []))   # 사이트 차트도 시간순으로
             key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
-            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다
-            peak, mdd = 0.0, 0.0
-            for r in hist:
-                eq = float(r.get("equity", 0.0))
-                peak = max(peak, eq)
-                if peak > 0:
-                    mdd = min(mdd, eq / peak - 1)
+            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다.
+            # 킬스위치와 같은 기준(입금 효과 제거)으로 잰다 — 화면과 브레이크가
+            # 다른 숫자를 보면 사장님이 보는 낙폭과 시스템이 반응하는 낙폭이
+            # 어긋난다(2026-08-11).
+            mdd = max_drawdown_from_index(twr_index(
+                hist, st.get("deposits") or [],
+                start_cash=float(st.get("start_cash", START_CASH))))
             status["paper"][key] = {
                 "start_cash": st.get("start_cash", START_CASH),
                 "equity": (hist[-1]["equity"] if hist else st.get("cash")),
@@ -1508,6 +1764,16 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 gen["archive"] = arch
         status["generation"] = gen
 
+    # 새벽 배치의 부분 실패 — '전부 실패'만 예외로 올리던 탓에 절반이 마비된
+    # 날도 초록으로 보였다. 실패는 숨길 이유가 없다(2026-08-11 감사).
+    rh_path = os.path.join(state_dir, "run_health.json")
+    if os.path.exists(rh_path):
+        try:
+            with open(rh_path, encoding="utf-8") as f:
+                status["run_health"] = json.load(f)
+        except (OSError, ValueError):
+            pass
+
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.
     try:
@@ -1517,6 +1783,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
             status["fill_check"] = fg
     except Exception:  # noqa: BLE001 — 검증 실패가 사이트 갱신을 막으면 안 된다
         pass
+
+    # 야간 검증(PBO·DSR) 장부 — 과최적화 감시가 사이트·경보로 이어지게
+    vpath = os.path.join(state_dir, "validation.json")
+    if os.path.exists(vpath):
+        try:
+            with open(vpath, encoding="utf-8") as f:
+                status["validation"] = json.load(f)
+        except (OSError, ValueError):
+            pass
 
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO

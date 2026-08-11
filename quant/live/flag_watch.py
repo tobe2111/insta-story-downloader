@@ -86,7 +86,81 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"축소{dd_txt} — 낙폭 단계별 자동 브레이크입니다. 회복 시 "
                 f"단계적으로 복귀합니다(수동 개입 불필요).")
 
-    # ⑤ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑤ 과최적화 감시 — 야간 검증(PBO·DSR)이 콘솔에만 찍히고 사라지던 것을
+    #    장부에 남겨 여기서 읽는다. PBO는 'IS 1등이 OOS에서 동전던지기일 확률'
+    #    이라 0.5를 넘으면 백테스트 우위가 과적합일 가능성이 높다는 뜻이다.
+    #    (예전에는 아무도 안 쓰는 ma_cross를 검증하고 있었다 — 2026-08-11 수정)
+    for key, r in (status.get("validation") or {}).items():
+        pbo = r.get("pbo")
+        if pbo is not None and float(pbo) > 0.5:
+            flags[f"overfit:{key}"] = (
+                f"⚠️ 과최적화 의심: {key}({r.get('strategy')}) PBO "
+                f"{float(pbo) * 100:.0f}% — 백테스트 1등이 실전에서 동전던지기일 "
+                f"확률입니다. 파라미터 탐색을 줄이거나 표본을 늘려야 합니다.")
+        dsr = r.get("dsr")
+        if dsr is not None and float(dsr) < 0.95:
+            flags[f"dsr_low:{key}"] = (
+                f"⚠️ 실력 미확인: {key}({r.get('strategy')}) DSR "
+                f"{float(dsr):.2f} — 다중검정 보정 후 '운이 아니다'라고 말할 "
+                f"신뢰도(0.95)에 못 미칩니다.")
+
+    # ⑥ 피처 유실 — 외부 소스(야후·바이낸스·FRED·KRX)가 죽으면 피처가
+    #    조용히 줄어드는데 장부에는 같은 fs8로 기록된다. 그러면 판정 시계가
+    #    매일 다른 구조를 재게 된다(2026-08-11 발견). 어느 소스가 통째로
+    #    빠졌는지 알린다 — 한 종목만 빠진 것은 시장 차이라 경보하지 않는다.
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        fh = (hist[-1].get("feature_health") if hist else None) or {}
+        gone = fh.get("missing_everywhere") or []
+        if gone:
+            flags["features_missing:" + ",".join(sorted(gone))] = (
+                f"⚠️ 피처 유실: {len(gone)}개가 전 종목에서 빠졌습니다 "
+                f"({', '.join(gone)}). 외부 데이터 소스 장애일 가능성이 큽니다 — "
+                f"장부에는 같은 구조 태그로 기록되지만 모델은 다른 피처로 "
+                f"학습·판단합니다.")
+
+    # ⑦ 새벽 배치 부분 실패 — '전 종목 실패'만 예외로 올리던 탓에 20종목 중
+    #    19개가 실패한 날도 잡은 초록이었다(2026-08-11 발견). 실패한 종목은
+    #    그날 판단·기록이 통째로 없고 옛 챔피언을 그대로 쓴다.
+    for kind, r in (status.get("run_health") or {}).items():
+        n = int(r.get("failed") or 0)
+        if not n:
+            continue
+        keys = ", ".join((r.get("failed_keys") or [])[:5])
+        more = "…" if len(r.get("failed_keys") or []) > 5 else ""
+        err = next(iter((r.get("errors") or {}).values()), "")
+        label = {"paper": "페이퍼", "retrain": "재학습"}.get(kind, kind)
+        flags[f"run_failed:{kind}:{r.get('date')}:{n}"] = (
+            f"⚠️ {label} 부분 실패: {r.get('date')} {n}종목 실패 "
+            f"(성공 {r.get('ok')}) — {keys}{more}. "
+            f"실패 종목은 그날 기록이 없고 이전 판단을 그대로 씁니다."
+            + (f"\n첫 오류: {err}" if err else ""))
+
+    # ⑧ 종목 스킵 — 데이터 장애로 빠진 종목은 그날 관망(포지션 유지)이라
+    #    조용히 지나간다. 하지만 20종목 중 다섯만 남은 날은 '20종목 분산'이
+    #    아니라 5종목 집중이고, 그건 완전히 다른 위험이다(2026-08-11).
+    #    소수 스킵(휴장·상장폐지 등)은 정상이라 1/4 이상일 때만 알린다.
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        ch = (hist[-1].get("champion") if hist else None) or {}
+        gone = ch.get("skipped") or []
+        planned = int(ch.get("planned") or 0) or (len(gone) + int(ch.get("symbols") or 0))
+        if not gone or not planned or len(gone) * 4 < planned:
+            continue
+        why = ch.get("skipped_why") or {}
+        first = next(iter(why.values()), "")
+        flags[f"symbols_skipped:{hist[-1].get('date')}:{len(gone)}"] = (
+            f"⚠️ 종목 스킵 과다: {planned}종목 중 {len(gone)}개가 빠져 "
+            f"{int(ch.get('symbols') or 0)}종목으로 운용했습니다 "
+            f"({', '.join(gone[:5])}{'…' if len(gone) > 5 else ''}). "
+            f"분산이 계획보다 얕아진 날입니다 — 데이터 소스 장애일 수 있습니다."
+            + (f"\n첫 사유: {first}" if first else ""))
+
+    # ⑨ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]
@@ -115,10 +189,16 @@ def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
             prev = set()
     cur = _current_flags(status)
     new = [k for k in cur if k not in prev]
+    # 전송에 실패한 경보는 '보냈다'로 적지 않는다 — 적으면 다음 실행부터
+    # '이미 켜져 있던 플래그'로 분류돼 **영원히 다시 오지 않는다**. 웹훅이
+    # 한 번 죽은 날 하필 킬스위치가 발동하면 그 사실을 끝내 모르게 된다
+    # (2026-08-11 감사에서 발견). 실패분은 빼 두고 다음 실행에 다시 시도한다.
+    failed: set[str] = set()
     if new:
         from quant.live.notifications import get_notifier
         notifier = get_notifier()
         for k in new:
-            notifier.send(cur[k])
-    atomic_write_json(path, {"flags": sorted(cur)})
-    return new
+            if notifier.send(cur[k]) is False:   # None(구식 구현)은 성공 취급
+                failed.add(k)
+    atomic_write_json(path, {"flags": sorted(set(cur) - failed)})
+    return [k for k in new if k not in failed]

@@ -26,7 +26,6 @@ from quant.utils.logging import get_logger
 
 log = get_logger("daily_live")
 
-REBALANCE_BAND = 0.05
 
 # 지원 증권사 — 어댑터는 quant/broker/에 이미 있고 여기서는 선택만 한다.
 # 이름: (필수 환경변수, 생성자). 기본은 환경변수 QUANT_KR_BROKER, 없으면 kis.
@@ -64,6 +63,7 @@ def run_daily_live(targets=None, *, paper: bool = True,
     다음 장 개시가로 체결되는 KIS 규칙을 그대로 따른다.
     """
     from quant.live.daily import (_kelly_cap_from_history, _load_paper,
+                                  _rebalance_band_rel,
                                   _paper_path, _risk_for)
     from quant.markets import AUTO_TARGETS
     from quant.utils.settings import load_settings
@@ -115,9 +115,16 @@ def run_daily_live(targets=None, *, paper: bool = True,
             price = float(df["close"].iloc[-1])
             pos = broker.get_position(code)
             equity = broker.get_cash() + pos.quantity * price
-            # 종목 예산 = 총자산의 균등 1/n 슬라이스(무행동 밴드도 비례 축소)
-            order = broker.target_weight(code, weight / n, price, equity,
-                                         rebalance_band=REBALANCE_BAND / n)
+            # 종목 예산 = 총자산의 균등 1/n 슬라이스.
+            # ⚠️ 밴드를 종목 수로 나누던 것이 페이퍼에서 일 37% 회전의 원인이었다
+            #    (0.05/20 = 0.25% → 사실상 밴드 없음). 페이퍼는 상대 밴드로
+            #    고쳤는데 **실거래 경로만 옛 코드로 남아 있었다**(2026-08-11
+            #    감사). 실제 수수료를 내는 쪽이 더 오래 방치돼 있던 셈이다.
+            #    상대 밴드는 목표 대비 비율이라 슬라이스로 나눠도 촘촘해지지
+            #    않고, 실측 체결 비용에 비례해 자동으로 넓어진다.
+            order = broker.target_weight(
+                code, weight / n, price, equity,
+                rebalance_band_rel=_rebalance_band_rel(market, state_dir))
             if order is not None:
                 orders.append({"symbol": symbol, "side": order.side,
                                "qty": order.quantity, "price": order.price,

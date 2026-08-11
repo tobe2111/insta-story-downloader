@@ -79,7 +79,24 @@ async function issueKey(url, env) {
     { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(owner)));
   const key = "QUANT-" + b32(sig.slice(0, 15)).replace(/(.{6})(?=.)/g, "$1-");
-  return json({ owner, key }, 200, { "Cache-Control": "no-store" });
+  // 지문 — '발급하는 비밀'과 '배포본이 검증하는 비밀'이 같은지 대조하는 값.
+  // 둘이 어긋나면 발급한 키가 구매자 컴퓨터에서 전부 무효인데, 예전에는
+  // 그걸 알려주는 장치가 없어 환불 요청으로만 알 수 있었다(2026-08-11).
+  // 배포본에서 `quant fingerprint`(또는 릴리스 빌드 로그)와 대조할 것.
+  // 비밀 자체는 노출되지 않는다(HMAC 단방향 + 12자 절단).
+  const fp = await fingerprint(env.LICENSE_SECRET);
+  return json({ owner, key, fingerprint: "hmac:" + fp }, 200,
+              { "Cache-Control": "no-store" });
+}
+
+/** quant/licensing.secret_fingerprint와 동일: HMAC(비밀, 고정문구) 앞 12자. */
+async function fingerprint(secret) {
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey(
+    "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = new Uint8Array(await crypto.subtle.sign(
+    "HMAC", k, enc.encode("quant-license-fingerprint")));
+  return [...sig].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 12);
 }
 
 function adminGate(request, env) {
@@ -99,12 +116,18 @@ function adminGate(request, env) {
   });
 }
 
-function json(obj, status = 200, extra = {}) {
+/**
+ * JSON 응답. 교차출처 허용(*)은 '공개 시세'에만 붙인다 — 예전에는 모든
+ * 응답에 붙어 라이선스 발급 응답까지 열려 있었다. 브라우저가 교차출처에
+ * 기본 인증을 실어 보내지 않아 실제 유출 경로는 아니었지만, 어드민 API에
+ * 와일드카드를 달아둘 이유가 없다(2026-08-11 감사).
+ */
+function json(obj, status = 200, extra = {}, cors = false) {
   return new Response(JSON.stringify(obj), {
     status,
     headers: {
       "Content-Type": "application/json;charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
+      ...(cors ? { "Access-Control-Allow-Origin": "*" } : {}),
       ...extra,
     },
   });
@@ -114,7 +137,7 @@ async function quotes(url, ctx) {
   const raw = (url.searchParams.get("symbols") || "").slice(0, 400);
   const syms = [...new Set(raw.split(",").map((s) => s.trim())
     .filter((s) => SYM_RE.test(s)))].slice(0, MAX_SYMBOLS);
-  if (!syms.length) return json({ error: "symbols 필요" }, 400);
+  if (!syms.length) return json({ error: "symbols 필요" }, 400, {}, true);
 
   // 심볼 순서와 무관하게 같은 캐시를 치도록 정렬 키 사용
   const cacheKey = new Request(
@@ -148,7 +171,7 @@ async function quotes(url, ctx) {
 
   const resp = json(
     { quotes: out, cached_at: new Date().toISOString(), ttl: CACHE_TTL },
-    200, { "Cache-Control": "public, max-age=" + CACHE_TTL });
+    200, { "Cache-Control": "public, max-age=" + CACHE_TTL }, true);
   ctx.waitUntil(cache.put(cacheKey, resp.clone()));
   return resp;
 }

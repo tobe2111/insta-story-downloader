@@ -173,17 +173,44 @@ class RobustBroker(Broker):
             base_qty = None
 
         last_exc: Exception | None = None
+        remaining = qty
+        landed_before = 0.0        # 실패한 시도들이 이미 체결시킨 누계
         for attempt in range(1, self.retries + 1):
             try:
-                return self.inner.market_order(symbol, side, qty, price)
+                order = self.inner.market_order(symbol, side, remaining, price)
+                if landed_before <= 0:
+                    return order
+                # 이미 일부가 체결된 상태에서 잔량만 재주문했다 — 상위
+                # 부분체결 루프가 잔량만 체결된 줄 알고 또 주문하지 않도록
+                # **누계**로 보고한다(이 합산을 빠뜨리면 초과 체결이 된다).
+                got = self._filled_of(order, remaining)
+                total = min(qty, landed_before + got)
+                return Order(symbol, side, qty, price,
+                             status=getattr(order, "status", "filled"),
+                             filled_quantity=total,
+                             order_id=getattr(order, "order_id", ""))
             except Exception as exc:  # noqa: BLE001
                 last_exc = exc
-                # 재시도 전, 주문이 이미 체결됐는지 잔고로 확인 → 중복 주문 방지
-                if self._order_already_landed(symbol, side, qty, base_qty):
-                    log.warning("[ROBUST] 응답은 실패했으나 잔고상 체결 확인 → "
+                # 재시도 전, 주문이 이미 (부분이라도) 체결됐는지 잔고로 확인.
+                # ⚠️ 예전에는 '전량 체결됐는가'만 보고 아니면 **원래 수량 전부**를
+                #    재주문했다. 60%만 체결된 채 응답이 끊긴 경우 나머지 40%가
+                #    아니라 100%를 다시 사서 총 160%가 된다(2026-08-11 감사).
+                #    이중 체결을 막으려고 만든 장치가 부분 체결에서는 오히려
+                #    초과 체결을 만드는 구조였다. 이제 '남은 수량'만 재주문한다.
+                landed = self._landed_qty(symbol, side, base_qty)
+                if landed >= qty * (1 - 1e-3):
+                    log.warning("[ROBUST] 응답은 실패했으나 잔고상 전량 체결 확인 → "
                                 "재주문 생략(이중 체결 방지)")
                     return Order(symbol, side, qty, price,
                                  status="filled", filled_quantity=qty)
+                if landed > 0:
+                    landed_before = landed
+                    remaining = max(0.0, qty - landed)
+                    log.warning("[ROBUST] 부분 체결 감지(%.6f/%.6f) → 남은 %.6f만 "
+                                "재주문", landed, qty, remaining)
+                    if remaining <= qty * 1e-3:
+                        return Order(symbol, side, landed, price,
+                                     status="filled", filled_quantity=landed)
                 if attempt >= self.retries:
                     break
                 wait = self.backoff * (2 ** (attempt - 1))
@@ -197,20 +224,23 @@ class RobustBroker(Broker):
             self.notifier.send(msg, level="error")
         raise RuntimeError(msg) from last_exc
 
-    def _order_already_landed(self, symbol: str, side: str, qty: float,
-                              base_qty: float | None) -> bool:
-        """직전 실패 주문이 실제로는 체결됐는지 잔고 변화로 판정한다.
+    def _landed_qty(self, symbol: str, side: str,
+                    base_qty: float | None) -> float:
+        """직전 실패 주문이 실제로 얼마나 체결됐는지 잔고 변화로 잰다.
 
-        base_qty(제출 전 수량)를 알 수 없으면(조회 실패) 판정 불가 → False.
+        base_qty(제출 전 수량)를 알 수 없으면(조회 실패) 판정 불가 → 0.0.
         조회 시점상: 타임아웃 실패는 대체로 수십 초가 걸려, 그 사이 브로커의
         잔고 캐시(짧은 TTL)도 만료돼 최신 잔고를 받는다.
+
+        '전량인가'가 아니라 '얼마인가'를 재는 이유: 부분 체결 뒤 전량을
+        재주문하면 초과 체결이 된다(2026-08-11 감사에서 발견).
         """
         if base_qty is None:
-            return False
+            return 0.0
         try:
             now_qty = self.inner.get_position(symbol).quantity
         except Exception:  # noqa: BLE001
-            return False
+            return 0.0
         delta = now_qty - base_qty
         signed = delta if side == "buy" else -delta   # 매수는 증가, 매도는 감소가 정상
-        return signed >= qty * (1 - 1e-3)
+        return max(0.0, signed)

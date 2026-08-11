@@ -98,6 +98,7 @@ class Backtester:
         stop_cooldown: int = 0,
         dd_band: float = 0.0,
         intrabar_stops: bool = False,
+        next_open_fill: bool = False,
     ):
         from quant.backtest.costs import CostModel
 
@@ -133,6 +134,19 @@ class Backtester:
         #   된다. MA×(1-band) 하회 시 축소, MA×(1+band) 상회 시 복귀, 사이에서는
         #   직전 상태를 유지한다. 0이면 기존(즉시 전환) 동작.
         self.dd_band = max(0.0, dd_band)
+        # next_open_fill: 종가에 결정한 비중 변화를 '다음 봉 시가'에 체결한다.
+        #
+        #   실제 페이퍼·실거래는 주식을 다음 세션 시가에만 체결한다(v0.5.0 회계).
+        #   그런데 백테스트는 종가 체결이라, 종가→다음 시가의 개장 갭을 공짜로
+        #   건너뛴다. 실측된 그 갭은 한국주식 기준 불리 방향 평균 79bp였다 —
+        #   가정 수수료(14bp)의 5배가 넘는데 오디션은 이를 전혀 물지 않았다.
+        #   그 결과 '챔피언을 뽑는 세계'가 '돈이 도는 세계'보다 낙관적이었고,
+        #   특히 고회전 전략이 부당하게 유리하게 평가됐다(2026-08-11 발견).
+        #
+        #   구현: 직전 봉에서 결정된 변화분만 시가 기준으로 수익을 계산하고,
+        #   기존 보유분은 그대로 종가 기준을 쓴다. 새로 산 몫만 갭을 겪는 것이
+        #   현실과 같다. open 컬럼이 없으면 조용히 기존(종가) 동작으로 폴백한다.
+        self.next_open_fill = bool(next_open_fill)
         # intrabar_stops: 손절/익절을 봉 '안'의 고저가로 판정하고 스톱 가격에
         #   체결한다(기본 False=기존 종가 판정). 종가 판정은 봉 중간에 스톱선을
         #   관통했다가 종가가 회복하면 스톱을 놓쳐 손실을 과소평가한다 — 실전
@@ -189,8 +203,10 @@ class Backtester:
             if "volume" in df.columns else None
         )
         bar_ts = df.index  # 봉 타임스탬프(펀딩 실데이터 조회용)
+        # 시가 배열은 봉내 스톱과 '다음 시가 체결' 양쪽이 쓴다
+        open_ = df["open"].to_numpy() if "open" in df.columns else None
+        use_next_open = self.next_open_fill and open_ is not None
         if self.intrabar_stops:
-            open_ = df["open"].to_numpy()
             high = df["high"].to_numpy()
             low = df["low"].to_numpy()
 
@@ -205,6 +221,7 @@ class Backtester:
         eq_hist: list[float] = []   # 자산곡선 트레이딩용 실현 자산 이력
         throttled = False           # dd_throttle 히스테리시스 상태(축소 국면 여부)
         cooldown = 0                # 스톱 발동 후 남은 재진입 금지 봉 수
+        pending_delta = 0.0         # 직전 봉 결정분 — 이번 봉 시가에 체결된다
 
         for i in range(n):
             price = close[i]
@@ -215,7 +232,21 @@ class Backtester:
             if self.intrabar_stops and pos != 0.0 and entry > 0.0 and i > 0:
                 fill = self._intrabar_stop_fill(pos, entry, open_[i], high[i], low[i])
                 if fill is not None and fill > 0.0:
-                    cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
+                    # 시가 체결 모델과 함께 쓸 때: 이 봉 시가에 체결된 몫
+                    # (pending_delta)은 종가가 아니라 **시가**가 출발점이다.
+                    # 예전에는 전량을 close[i-1] 기준으로 계산하고 pending을
+                    # 지우지 않아, 아래 1)에서 이미 청산된 포지션에 손익이
+                    # 한 번 더 붙었다(2026-08-11 감사에서 발견한 잠재 결함 —
+                    # intrabar_stops는 수동 백테스트에서만 켜져 실전 경로에는
+                    # 닿지 않았지만, 켜는 순간 숫자가 틀린다).
+                    if (use_next_open and abs(pending_delta) > 1e-12
+                            and open_[i] > 0):
+                        held_before = pos - pending_delta
+                        cash_equity *= 1.0 + (
+                            held_before * (fill / close[i - 1] - 1.0)
+                            + pending_delta * (fill / open_[i] - 1.0))
+                    else:
+                        cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
                     exit_cost = cm.turnover_cost(abs(pos), vol[i])
                     if dollar_vol is not None:
                         exit_cost += cm.market_impact_cost(
@@ -225,12 +256,22 @@ class Backtester:
                     entry = 0.0
                     extreme = 0.0
                     intrabar_exit = True
+                    pending_delta = 0.0     # 이미 체결·청산됐다 — 재계상 금지
 
             # 1) 이전 봉에서 설정한 pos로 이번 봉 수익 실현
             #    (봉 내 청산 시 pos=0이라 자연히 건너뜀 — 부분 수익은 이미 반영)
             if i > 0:
-                bar_ret = price / close[i - 1] - 1.0
-                cash_equity *= 1.0 + pos * bar_ret
+                if (use_next_open and abs(pending_delta) > 1e-12
+                        and open_[i] > 0):
+                    # 다음 시가 체결: 직전부터 들고 있던 몫은 종가→종가,
+                    # 어제 결정해 오늘 시가에 체결된 몫은 시가→종가.
+                    held_before = pos - pending_delta
+                    cash_equity *= 1.0 + (
+                        held_before * (price / close[i - 1] - 1.0)
+                        + pending_delta * (price / open_[i] - 1.0))
+                else:
+                    bar_ret = price / close[i - 1] - 1.0
+                    cash_equity *= 1.0 + pos * bar_ret
 
             # 1-b) 봉당 보유 비용(펀딩·숏 차입) 차감 (음수면 펀딩 수취로 가산)
             if pos != 0.0:
@@ -305,6 +346,8 @@ class Backtester:
                     entry = price      # 신규 진입 또는 방향 전환
                     extreme = price    # 극값도 진입가로 초기화
 
+            # 이번 봉에서 결정된 변화분은 다음 봉 시가에 체결된다(모델링용)
+            pending_delta = new_pos - pos
             pos = new_pos
             equity[i] = cash_equity
             held[i] = pos

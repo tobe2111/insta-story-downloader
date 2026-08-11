@@ -49,7 +49,9 @@ def members_of(entry: dict) -> list[dict]:
 
 def update_parliament(entry: dict, df, *, build, cost_model=None,
                       confirm_window: int = 120,
-                      promoted_spec: dict | None = None) -> list[dict]:
+                      promoted_spec: dict | None = None,
+                      next_open_fill: bool = False,
+                      rebalance_band: float = 0.0) -> list[dict]:
     """의회 명단·비중을 갱신해 반환한다 (순수 계산 — 저장은 호출자 몫).
 
     1) 오디션을 통과한 promoted_spec이 있으면 신입 의석(ENTRY_WEIGHT) 부여
@@ -73,8 +75,11 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
     try:
         rets, scores = {}, {}
         for i, m in enumerate(members):
-            res = Backtester(build(_spec_of(m)),
-                             cost_model=cost_model).run(df)
+            # 의석 채점도 오디션과 같은 체결 규칙으로 — 여기만 종가 체결·
+            # 밴드 0으로 매기면 '싸게 평가된 고회전 의원'이 의석을 더 가져간다
+            res = Backtester(build(_spec_of(m)), cost_model=cost_model,
+                             next_open_fill=next_open_fill,
+                             rebalance_band=rebalance_band).run(df)
             r = res.returns.iloc[-confirm_window:]
             rets[i] = r
             scores[i] = float((1 + r).prod() - 1)

@@ -117,8 +117,11 @@ def test_contact_shown_and_overridable(tmp_path, monkeypatch, capsys):
 def test_build_workflow_bakes_lock_from_secrets():
     y = (ROOT / ".github" / "workflows" / "build-app.yml").read_text(
         encoding="utf-8")
-    assert "QUANT_LICENSE_SECRET" in y and "_license_key.py" in y
-    assert "QUANT_LICENSE_PUBKEY" in y and "_license_pub.py" in y
+    assert "QUANT_LICENSE_SECRET" in y and "_license_key" in y
+    assert "QUANT_LICENSE_PUBKEY" in y and "_license_pub" in y
+    # 굽는 것만으로는 부족하다 — 물렸는지 확인해야 한다(2026-08-11).
+    # 자세한 계약은 tests/test_license_path.py 참조.
+    assert "_has_baked_credentials()" in y
 
 
 def test_worker_admin_gate_and_admin_issues_same_key_format():

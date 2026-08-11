@@ -317,7 +317,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     }
     const rows=hist.slice(-14).reverse().map(r=>{
       const prev=hist[hist.indexOf(r)-1];
-      const day=prev?((r.equity/prev.equity-1)*100):null;
+      // 장부의 day_pct 우선 — 입금이 수익으로 보이지 않게
+      const day=r.day_pct!=null?r.day_pct
+        :(prev?((r.equity/prev.equity-1)*100):null);
       const hr=(typeof r.hit_rate==="number")?(r.hit_rate*100).toFixed(1)+"%":"–";
       return `<tr><td>${esc(r.date)}</td>
         <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
@@ -350,7 +352,8 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const row=(k)=>{
     const p=st.paper[k],hist=p.history||[],last=hist[hist.length-1]||{};
     const prev=hist[hist.length-2];
-    const day=prev&&last.equity?((last.equity/prev.equity-1)*100):null;
+    const day=last.day_pct!=null?last.day_pct
+      :(prev&&last.equity?((last.equity/prev.equity-1)*100):null);
     const ret=Number(p.return_pct||0);
     const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"–";
     const champ=(st.champions&&st.champions[k])?st.champions[k].strategy:"기본";

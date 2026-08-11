@@ -120,6 +120,13 @@ class KISBroker(Broker):
         return 0.0
 
     def get_position(self, symbol: str) -> Position:
+        """계좌의 해당 종목 보유수량을 포지션으로 본다.
+
+        ⚠️ 크립토와 같은 한계(2026-08-11 감사에서 명시): 봇이 산 몫과 사장님이
+        원래 들고 있던 몫을 구분하지 않는다. 이미 보유 중인 종목이 운용
+        유니버스(AUTO_TARGETS)에 있으면 그 물량도 목표 비중 맞추기의 대상이
+        된다. 실거래는 **이 봇 전용 계좌**에서만 쓸 것.
+        """
         data = self._balance()
         for item in data.get("output1", []):
             if item.get("pdno") == symbol:

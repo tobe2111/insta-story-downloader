@@ -85,6 +85,16 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
   <label><span class="t">SNS 자동 게시
     <span class="d">끄면 스레드·인스타 게시를 건너뜁니다(콘텐츠 생성도 중단).</span></span>
     <input type="checkbox" id="social_post"></label>
+  <label><span class="t">목표 변동성 (연율)
+    <span class="d">통합 계좌가 감수할 위험의 크기. 비워두면 코드 기본값
+    (엣지 미입증 12% / 입증 후 20%)을 따릅니다. 참고: 20종목 무레버리지
+    전액투자의 예상 변동성이 약 8.8%입니다.</span></span>
+    <input type="number" id="portfolio_target_vol" min="0.01" max="0.6" step="0.01"
+      placeholder="비워두면 자동"></label>
+  <label><span class="t">미입증 상향 승인
+    <span class="d">엣지가 통계로 입증되기 전에는 위 목표가 12%로 잘립니다.
+    이걸 켜야 그 잠금이 풀립니다 — 실수로 켜지지 않게 분리된 스위치입니다.</span></span>
+    <input type="checkbox" id="risk_override_ack"></label>
   <label style="display:block;cursor:default"><span class="t">메모
     <span class="d">이 설정을 왜 바꿨는지 — 커밋 메시지에도 들어갑니다.</span></span>
     <input type="text" id="note" style="margin-top:6px" placeholder="예: 휴가 중 일시정지"></label>
@@ -178,6 +188,8 @@ function load(){
     $("trading_paused").checked=!!s.trading_paused;
     $("exposure_scale").value=(s.exposure_scale!=null?s.exposure_scale:1.0);
     $("social_post").checked=(s.social_post!==false);
+    $("portfolio_target_vol").value=(s.portfolio_target_vol!=null?s.portfolio_target_vol:"");
+    $("risk_override_ack").checked=!!s.risk_override_ack;
     $("note").value=s.note||"";
     $("settings-card").style.display="";
     msg("auth-msg","연결됨 — 현재 설정을 불러왔습니다.",true);
@@ -196,9 +208,13 @@ $("forget").onclick=function(){localStorage.removeItem("gh_token");
 $("reload").onclick=load;
 $("save").onclick=function(){
   var scale=Math.min(1,Math.max(0,parseFloat($("exposure_scale").value)||1));
+  var tvRaw=($("portfolio_target_vol").value||"").trim();
+  var tv=tvRaw===""?null:Math.min(0.6,Math.max(0.01,parseFloat(tvRaw)||0.12));
   var s={trading_paused:$("trading_paused").checked,
          exposure_scale:scale,
          social_post:$("social_post").checked,
+         portfolio_target_vol:tv,
+         risk_override_ack:$("risk_override_ack").checked,
          note:($("note").value||"").slice(0,500)};
   $("save").disabled=true;
   fetch(API,{method:"PUT",headers:headers(),body:JSON.stringify({
@@ -224,30 +240,44 @@ function b32(bytes){
   if(bits>0)out+=B32[(val<<(5-bits))&31];
   return out;
 }
-function showKey(owner,key,how){
+function showKey(owner,key,how,fp){
   $("lic-out").style.display="";
   $("lic-out").textContent=
     "구매자에게 아래 내용을 그대로 보내세요:\n\n"
     +"프로그램 폴더에 license.key 파일을 만들고 이 두 줄을 넣으세요.\n"
     +"owner: "+owner+"\n"
     +"key:   "+key+"\n\n"
-    +"(프로그램 실행 시 입력창에 직접 입력해도 됩니다)";
+    +"(프로그램 실행 시 입력창에 직접 입력해도 됩니다)"
+    +(fp?"\n\n─────────────\n발급 비밀 지문: "+fp
+        +"\n판매 전 확인: 배포본에서 이 지문과 같은 값이 나와야 합니다.\n"
+        +"(릴리스 빌드 로그의 lock_fingerprint 또는 프로그램의 fingerprint 명령)\n"
+        +"다르면 이 키는 구매자 컴퓨터에서 전부 무효입니다.":"");
   msg("lic-msg","발급 완료("+how+") — 같은 이메일이면 언제나 같은 키(재발급 안전).",true);
 }
 function localIssue(owner){
   // 폴백 — 서버에 LICENSE_SECRET이 없을 때만: 브라우저에서 직접 서명
   $("lic-secret").style.display="";
   var raw=$("lic-secret").value.trim();
-  var sec=(raw&&raw!=="••••••••")?raw:(localStorage.getItem("lic_secret")||"");
+  var sec=(raw&&raw!=="••••••••")?raw:(sessionStorage.getItem("lic_secret")||"");
   if(!sec){msg("lic-msg","서버에 발급 비밀이 없습니다 — 발급 비밀을 입력하거나 "
     +"Cloudflare 시크릿 LICENSE_SECRET을 추가하세요",false);return}
-  localStorage.setItem("lic_secret",sec);
+  // 세션 저장 — 발급 비밀은 키를 무제한 위조할 수 있는 마스터 값이라
+  // 공개 사이트와 같은 출처의 영구 저장소(localStorage)에 두지 않는다.
+  sessionStorage.setItem("lic_secret",sec);
   var enc=new TextEncoder();
   crypto.subtle.importKey("raw",enc.encode(sec),{name:"HMAC",hash:"SHA-256"},false,["sign"])
     .then(function(k){return crypto.subtle.sign("HMAC",k,enc.encode(owner))})
     .then(function(sig){
       var body=b32(new Uint8Array(sig).slice(0,15));
-      showKey(owner,"QUANT-"+body.replace(/(.{6})(?=.)/g,"$1-"),"브라우저");
+      var key="QUANT-"+body.replace(/(.{6})(?=.)/g,"$1-");
+      // 지문도 같이 — 배포본이 검증하는 비밀과 같은지 대조해야 한다
+      return crypto.subtle.importKey("raw",enc.encode(sec),{name:"HMAC",hash:"SHA-256"},false,["sign"])
+        .then(function(k2){return crypto.subtle.sign("HMAC",k2,enc.encode("quant-license-fingerprint"))})
+        .then(function(f){
+          var hex=Array.prototype.map.call(new Uint8Array(f),function(b){
+            return ("0"+b.toString(16)).slice(-2)}).join("").slice(0,12);
+          showKey(owner,key,"브라우저","hmac:"+hex);
+        });
     })
     .catch(function(e){msg("lic-msg","발급 실패: "+e,false)});
 }
@@ -257,14 +287,14 @@ $("lic-gen").onclick=function(){
   // 1순위: 서버 발급(비밀 입력 불필요 — 어드민 로그인 뒤 Cloudflare 시크릿 사용)
   fetch("/api/admin/issue?owner="+encodeURIComponent(owner))
     .then(function(r){
-      if(r.ok)return r.json().then(function(d){showKey(d.owner,d.key,"서버")});
+      if(r.ok)return r.json().then(function(d){showKey(d.owner,d.key,"서버",d.fingerprint)});
       if(r.status===501)return localIssue(owner);   // 서버에 비밀 없음 → 폴백
       if(r.status===403)msg("lic-msg","어드민 로그인(ADMIN_ID/PW) 설정 후 발급 가능합니다",false);
       else msg("lic-msg","서버 발급 실패 HTTP "+r.status,false);
     })
     .catch(function(){localIssue(owner)});          // 로컬 파일로 열었을 때 등
 };
-if(localStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
+if(sessionStorage.getItem("lic_secret"))$("lic-secret").value="••••••••";
 
 // ── 후원 기록 — docs/sponsors.json에 항목 추가(깃허브 커밋) ──
 var SP_API="https://api.github.com/repos/tobe2111/insta-story-downloader/contents/docs/sponsors.json";

@@ -434,8 +434,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     const ret=pf.principal!=null?((pf.equity/pf.principal-1)*100):(pf.return_pct||0);
     document.getElementById("pv-eq").innerHTML=
       won(pf.equity)+' <span style="font-size:14px" class="'+cls(ret)+'">'+zp(ret)+'</span>';
+    // 누적과 하루치는 다른 숫자다 — 위 큰 숫자는 누적, 여기는 그날 하루.
+    // (SNS 캡션이 누적을 "오늘"이라 부르던 것을 2026-08-11에 바로잡았다)
+    const hh=pf.history||[],dp=(hh[hh.length-1]||{}).day_pct;
     document.getElementById("pd-eq").textContent=
-      "8만원으로 시작 · 마지막 기록 "+(st.updated||"—");
+      "8만원으로 시작 · 누적 기준"
+      +(dp!=null?" · 오늘 "+zp(dp):"")
+      +" · 마지막 기록 "+(st.updated||"—");
   }
   if(st.generation){
     const g=st.generation;
@@ -480,7 +485,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const rows=rest.map(k=>{
     const p=paper[k], h=p.history||[], last=h[h.length-1]||{},
       prev=h[h.length-2];
-    const day=prev&&last.equity?((last.equity/prev.equity-1)*100):null;
+    // 하루치는 장부의 day_pct(입금 효과 제거)를 우선한다 — 자산 비율로
+    // 다시 계산하면 매칭입금이 수익으로 보인다(2026-08-11 감사).
+    const day=last.day_pct!=null?last.day_pct
+      :(prev&&last.equity?((last.equity/prev.equity-1)*100):null);
     return {k,name:(syms[k]||{}).name||k.split(":")[1]||k,
       code:k.split(":")[1]||k, px:last.price, day,
       w:last.weight||0, reason:last.reason||""};
@@ -518,7 +526,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   }
   /* vol_target은 일별 기록 안에 있다 — 계좌 요약(pf) 최상위가 아니다 */
   const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
-  const vt=pfLast.vol_target||st.vol_target;
+  const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
   document.getElementById("side-flags").innerHTML=

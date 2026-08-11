@@ -43,10 +43,9 @@ def _fetch_dates(symbol: str) -> list[str]:
     return sorted(set(out))
 
 
-def next_earnings_date(symbol: str, today: _dt.date,
-                       state_dir: str = "state",
-                       fetch=_fetch_dates) -> _dt.date | None:
-    """오늘 이후(오늘 포함) 가장 가까운 실적 발표일. 모르면 None.
+def _known_dates(symbol: str, today: _dt.date, state_dir: str,
+                 fetch) -> list[_dt.date]:
+    """캐시(필요 시 갱신)에 있는 실적 발표일 전체 — 과거·미래 모두.
 
     state/earnings.json에 심볼별 {dates, fetched}로 캐시하고 REFRESH_DAYS마다
     갱신한다 — 하루 20종목 순회가 야후를 반복 호출하지 않게, 그리고 그날
@@ -81,14 +80,37 @@ def next_earnings_date(symbol: str, today: _dt.date,
             atomic_write_json(path, cache)
         except Exception:  # noqa: BLE001 — 캐시 실패가 판단을 막으면 안 된다
             pass
+    out: list[_dt.date] = []
     for iso in entry.get("dates", []):
         try:
-            d = _dt.date.fromisoformat(iso)
+            out.append(_dt.date.fromisoformat(iso))
         except ValueError:
             continue
+    return sorted(out)
+
+
+def next_earnings_date(symbol: str, today: _dt.date,
+                       state_dir: str = "state",
+                       fetch=_fetch_dates) -> _dt.date | None:
+    """오늘 이후(오늘 포함) 가장 가까운 실적 발표일. 모르면 None."""
+    for d in _known_dates(symbol, today, state_dir, fetch):
         if d >= today:
             return d
     return None
+
+
+def nearest_earnings_date(symbol: str, today: _dt.date,
+                          state_dir: str = "state",
+                          fetch=_fetch_dates) -> _dt.date | None:
+    """오늘과 가장 가까운 실적 발표일 — **과거도 포함**한다.
+
+    ⚠️ 왜 따로 필요한가(2026-08-11 감사): 가드는 "발표 ±N일"이라고 문서에도
+    사이트에도 적혀 있는데, 미래 날짜만 찾다 보니 실제로는 **발표 전만**
+    작동했다. 발표 다음 날은 갭과 변동성이 가장 큰 구간인데 가드가 이미
+    꺼진 상태였다 — 문서가 약속한 보호의 절반이 없었다.
+    """
+    dates = _known_dates(symbol, today, state_dir, fetch)
+    return min(dates, key=lambda d: abs((d - today).days)) if dates else None
 
 
 def earnings_guard_factor(symbol: str, asof: _dt.date,
@@ -97,7 +119,8 @@ def earnings_guard_factor(symbol: str, asof: _dt.date,
                           fetch=_fetch_dates) -> tuple[float, str | None]:
     """(비중 배수, 발동 사유 날짜) — 발표 ±pad_days 창이면 (0.5, 날짜)."""
     try:
-        d = next_earnings_date(symbol, asof, state_dir, fetch=fetch)
+        # 가장 가까운 발표일(과거 포함) — 발표 '다음 날'도 창 안이다
+        d = nearest_earnings_date(symbol, asof, state_dir, fetch=fetch)
     except Exception as exc:  # noqa: BLE001
         log.warning("실적 가드 판단 실패 %s: %s", symbol, exc)
         return 1.0, None

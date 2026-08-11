@@ -192,9 +192,12 @@ def _cmd_paper_daily(args) -> None:
                              f"({srec['return_pct']:+.2f}%)")
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ 섀도 대조군 실패 — {exc}")
-        if lines:
+        # 실패 알림은 lines가 비어도 나가야 한다 — 전 종목이 휴장·스킵이면
+        # lines가 비는데, 예전에는 그때 실패 목록까지 함께 삼켜졌다.
+        if lines or out["failed"]:
             _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
-                          + (f"\n⚠️ 실패: {', '.join(out['failed'])}"
+                          + (f"\n⚠️ 실패 {len(out['failed'])}종목: "
+                             f"{', '.join(out['failed'])}"
                              if out["failed"] else ""))
     else:
         print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
@@ -359,7 +362,8 @@ def _cmd_verify(args) -> None:
     print(f"🔍 재현성 검증: {args.date} · {scope}")
     out = verify_retrain(args.date, market=args.market or None,
                          symbol=args.symbol or None,
-                         state_dir=args.state_dir)
+                         state_dir=args.state_dir,
+                         sample=int(getattr(args, "sample", 0) or 0))
     for r in out:
         print(f"  {'✔' if r['ok'] else '✘'} {r['key']}: {r['detail']}")
     if all(r["ok"] for r in out):
@@ -463,6 +467,7 @@ def _cmd_validate(args) -> None:
 
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
     print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
+    dsr_value = None
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
@@ -470,6 +475,7 @@ def _cmd_validate(args) -> None:
         m = wf["oos_metrics"]
         print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
+        dsr_value = float(wf["dsr"])
         print(f"  DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
               f"{'— 실력 가능성' if wf['dsr'] >= 0.95 else '— 운일 수 있음(0.95 미만)'}")
     except ValueError as exc:
@@ -477,11 +483,14 @@ def _cmd_validate(args) -> None:
 
     # 2) PBO — IS 1등이 OOS에서 동전던지기인지
     print("\n[2/3] PBO (백테스트 과적합 확률)")
+    pbo_value = None
     try:
         mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
-        print("  " + pbo_report(pbo(mat, n_blocks=args.pbo_blocks))
-              .replace("\n", "\n  "))
-    except ValueError as exc:
+        pbo_res = pbo(mat, n_blocks=args.pbo_blocks)
+        pbo_value = float(pbo_res.get("pbo")) if isinstance(pbo_res, dict) \
+            else float(getattr(pbo_res, "pbo", None) or 0.0)
+        print("  " + pbo_report(pbo_res).replace("\n", "\n  "))
+    except (ValueError, TypeError, AttributeError) as exc:
         print(f"  건너뜀: {exc}")
 
     # 3) CPCV — 여러 OOS 경로의 분포
@@ -492,6 +501,26 @@ def _cmd_validate(args) -> None:
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
     except ValueError as exc:
         print(f"  건너뜀: {exc}")
+
+    # 검증 결과를 장부에 남긴다 — 과최적화 감시가 콘솔에만 찍히고 사라지면
+    # 아무것도 막지 못한다. 저장된 값은 flag_watch가 매일 읽어 경보한다.
+    if getattr(args, "save", None):
+        import os as _os
+
+        from quant.utils.jsonio import atomic_write_json
+        path, prev = args.save, {}
+        if _os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    prev = _json.load(f)
+            except (OSError, ValueError):
+                prev = {}
+        prev[f"{args.market}:{args.symbol}"] = {
+            "strategy": args.strategy, "bars": len(df),
+            "dsr": dsr_value, "pbo": pbo_value,
+        }
+        atomic_write_json(path, prev)
+        print(f"\n💾 검증 결과 저장: {path}")
 
     if getattr(args, "report", None):
         from quant.reporting import render_validation_report
@@ -801,6 +830,9 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--oos-window", type=int, default=125, dest="oos_window")
     va.add_argument("--embargo", type=int, default=5)
     va.add_argument("--pbo-blocks", type=int, default=10, dest="pbo_blocks")
+    va.add_argument("--save", default=None,
+                    help="검증 결과(DSR·PBO)를 JSON 장부에 누적 저장 "
+                         "(예: state/validation.json) — flag_watch가 읽어 경보한다")
     va.add_argument("--cpcv-groups", type=int, default=6, dest="cpcv_groups")
     va.add_argument("--report", default=None,
                     help="검증 결과를 그래프 HTML 리포트로 저장(예: results/validate.html)")
@@ -886,6 +918,9 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--market", default="", help="비우면 전체")
     vf.add_argument("--symbol", default="", help="비우면 전체")
     vf.add_argument("--state-dir", default="state", dest="state_dir")
+    vf.add_argument("--sample", type=int, default=0,
+                    help="종목 표본 수(0=전체). 날짜 시드로 결정적 선택 — "
+                         "매일 다른 표본이라 한 주면 전 종목을 훑는다")
     vf.set_defaults(func=_cmd_verify)
 
     bf = sub.add_parser(

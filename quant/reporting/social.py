@@ -55,7 +55,11 @@ def _today_numbers(status: dict) -> dict:
     return {
         "date": date,
         "equity": last.get("equity"),
+        # 누적(원금 대비)과 하루치는 절대 섞으면 안 된다 — 훅은 하루치를 쓴다.
+        # 옛 기록에는 day_pct가 없어 그때는 history로 직접 계산한다.
         "return_pct": last.get("return_pct"),
+        "day_pct": (last.get("day_pct") if last.get("day_pct") is not None
+                    else _day_pct_from_history(hist, port)),
         "twr_pct": last.get("twr_pct"),
         "gross": last.get("weight"),
         "risk_scale": last.get("risk_scale", 1.0),
@@ -67,13 +71,27 @@ def _today_numbers(status: dict) -> dict:
     }
 
 
+def _day_pct_from_history(hist: list, port: dict) -> float | None:
+    """장부에 day_pct가 없던 시절 기록의 폴백 — 같은 식으로 다시 계산한다."""
+    if not hist:
+        return None
+    try:
+        from quant.live.daily import day_return_pct
+        return day_return_pct(hist, port.get("deposits") or [],
+                              start_cash=float(port.get("start_cash")
+                                               or hist[0].get("principal")
+                                               or 80_000))
+    except Exception:  # noqa: BLE001 — 숫자 하나 때문에 게시가 죽으면 안 된다
+        return None
+
+
 def _hook(x: dict) -> str:
     """첫 줄(훅) — 그날 실제로 일어난 일에서 나온다. 과장 금지, 데이터 결정적.
 
     잘 쓴 훅은 감탄사가 아니라 '숨기지 않는 태도'다: 손실이 나면 손실이
     첫 줄이다. 그게 이 계정을 다른 수익 인증 계정과 다르게 만든다.
     """
-    r = x["return_pct"]
+    r = x.get("day_pct")
     if x["risk_scale"] < 1.0:
         return ("킬스위치가 작동 중입니다. 손실이 한도를 넘으면 시스템이 "
                 "스스로 물러나는 게 규칙이고, 오늘이 그 날입니다.")
@@ -104,10 +122,20 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     date = x["date"] or "오늘"
     day = f"D+{x['day_no']}" if x["day_no"] else ""
     eq = _fmt_won(x["equity"]) if x["equity"] is not None else "—"
+    # 누적(원금 대비)과 하루치를 분리해서 쓴다 — 예전에는 누적을 "오늘"이라
+    # 불렀고, 누적이 커질수록 매일 같은 큰 숫자를 방송하게 되는 구조였다.
     ret = (f"{x['return_pct']:+.2f}%" if x["return_pct"] is not None else "—")
+    dp = (f"{x['day_pct']:+.2f}%" if x.get("day_pct") is not None else None)
+    day_line = f" · 오늘 {dp}" if dp else ""
     twr = (f"{x['twr_pct']:+.2f}%" if x.get("twr_pct") is not None else None)
     gross = (f"{x['gross'] * 100:.0f}%" if x["gross"] is not None else "—")
     tops = " · ".join(x["top_names"]) if x["top_names"] else "전 종목 관망"
+    # 종목 수와 시작금은 산문에 박지 않는다 — 설정이 바뀌면 SNS만 조용히
+    # 거짓말을 하게 된다(사이트에 같은 결함이 있어 이미 계약 검사로 막았다).
+    from quant.live.daily import PORTFOLIO_START_CASH
+    from quant.markets import AUTO_TARGETS
+    n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
+    start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
     kill = ("" if x["risk_scale"] >= 1.0 else
             f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
 
@@ -128,12 +156,12 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"{_hook(x)}\n"
         f"\n"
         f"📊 8마일 챌린지 {day} — {date}\n"
-        f"가짜 돈 8만원으로 시작해 매일 새벽 AI가 스스로 재학습·매매하는 "
+        f"가짜 돈 {start_won}으로 시작해 매일 새벽 AI가 스스로 재학습·매매하는 "
         f"공개 실험. 목표는 1억이 아니라, '이 과정 전체를 숨김없이 "
         f"보여주는 것'입니다.\n"
         f"\n"
-        f"💰 자산 {eq} ({ret}){twr_line}\n"
-        f"📈 총노출 {gross} · 20종목 분산(코인·한국·미국)\n"
+        f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
+        f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\n"
         f"🎯 오늘 배분 상위: {tops}{kill}\n"
         f"\n"
         f"🤖 {work}\n"
@@ -151,7 +179,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"{_hook(x)}\n"
         f"\n"
         f"📊 8마일 챌린지 {day} · {date}\n"
-        f"💰 {eq} ({ret}) · 노출 {gross}\n"
+        f"💰 {eq} (누적 {ret}{day_line}) · 노출 {gross}\n"
         f"🎯 배분 상위: {tops}{kill}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
@@ -159,7 +187,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     if len(th) > THREADS_TEXT_LIMIT:      # 링크·고지는 지키고 하이라이트를 줄인다
         th = (
             f"📊 8마일 챌린지 {day} · {date}\n"
-            f"💰 {eq} ({ret})\n"
+            f"💰 {eq} (누적 {ret})\n"
             f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"
         )

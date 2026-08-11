@@ -17,6 +17,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import quant.risk.portfolio_vol as pv  # noqa: E402
 from quant.risk.portfolio_vol import (  # noqa: E402
     MAX_GROSS_EXPOSURE,
     VERIFY_TARGET_VOL,
@@ -123,3 +124,52 @@ def test_dust_order_blocked_but_liquidation_allowed():
     # 이미 보유 중인데 목표 0 → 청산은 잔돈이어도 허용
     assert not _is_dust_order(_B(q=0.04), "kr_stock:A", 0.0, 1000.0, eq)
     assert MIN_ORDER_KRW > 0
+
+
+# ── 실제 관측값 회귀 — 6.8% 마비가 100%로 교정되는가 ───────────
+#
+# 2026-08-10 실측: 통합 계좌 총노출 6.8%, 실현 변동성 연 0.6%. 8만원 중
+# 5천원만 굴린 셈이고, 그 기록은 "실제로 굴리면 어떻게 되는가"에 답하지
+# 못한다. 아래는 그날의 배분과 현실적인 변동성 구조로 교정 사슬 전체가
+# 의도대로 도는지 고정한다 — 상수 하나만 잘못 바꿔도 여기서 깨진다.
+
+
+def _market_like_returns(keys, n=90, seed=11):
+    """공통 시장 요인 + 시장별 개별 변동성(코인 60%·미국 22%·한국 25%)."""
+    import math
+    import random
+    rng = random.Random(seed)
+    sd = {"crypto": 0.60, "us_stock": 0.22, "kr_stock": 0.25}
+    mkt = [rng.gauss(0, 0.008) for _ in range(n)]
+    return {k: [0.6 * mkt[i]
+                + rng.gauss(0, sd.get(k.split(":")[0], 0.25) / math.sqrt(252))
+                for i in range(n)] for k in keys}
+
+
+def test_observed_paralysis_is_corrected_to_full_exposure():
+    keys = [f"crypto:C{i}" for i in range(5)] \
+        + [f"us_stock:U{i}" for i in range(9)] \
+        + [f"kr_stock:K{i}" for i in range(6)]
+    pre_w = {k: 0.068 / len(keys) for k in keys}      # 실측 총노출 6.8%
+    rets = _market_like_returns(keys)
+
+    ex = pv.ex_ante_vol(pre_w, rets)
+    assert ex is not None and ex < 0.02, "6.8% 노출인데 변동성이 2%를 넘을 리 없다"
+
+    scale, _ = pv.vol_scale(pre_w, rets, pv.VERIFY_TARGET_VOL)
+    gross = sum(abs(w) for w in pre_w.values()) * scale
+    assert abs(gross - pv.MAX_GROSS_EXPOSURE) < 1e-9, "교정 후 전액 투자여야 한다"
+
+    # 한도는 배수가 아니라 노출이어야 한다 — 배수 상한이 먼저 걸리면
+    # 목표에 영원히 못 닿는다(초기 구현에서 실제로 겪은 결함).
+    assert pv.VERIFY_TARGET_VOL / ex < pv.MAX_VOL_SCALE
+
+
+def test_ex_ante_vol_needs_enough_common_history():
+    """표본이 얇으면 추정하지 않는다 — 모르면 건드리지 않는다."""
+    keys = ["a:1", "a:2"]
+    short = {k: [0.01, -0.01, 0.005] for k in keys}
+    assert pv.ex_ante_vol({k: 0.5 for k in keys}, short) is None
+    # 그때 배수는 1.0(무개입)이라 노출이 갑자기 커지지 않는다
+    scale, ex = pv.vol_scale({k: 0.5 for k in keys}, short, 0.12)
+    assert scale == 1.0 and ex is None
