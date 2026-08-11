@@ -190,6 +190,16 @@ class MultiTrader:
         #    나가고, 그 사이클 기록조차 장부에 남지 않았다** — 매매는 일부
         #    일어났는데 장부에는 그날이 없는 상태다. 실패는 삼키지 않고
         #    장부·알림에 남긴다.
+        # 사장님의 전역 스위치(감사 83) — 킬스위치·서킷브레이커 **뒤**에 둔다.
+        # 일시정지는 "신규 매매 중단, 보유 유지"이지 "위험 통제를 끈다"가 아니다.
+        from quant.utils.settings import owner_gate
+        paused, exposure = owner_gate()
+        if paused:
+            log.info("⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)")
+            return
+        if exposure != 1.0:
+            weights = {k: v * exposure for k, v in weights.items()}
+
         failed: list[str] = []
         for s, w in weights.items():
             price = prices.get(s)

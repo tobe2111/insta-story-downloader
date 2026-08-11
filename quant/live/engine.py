@@ -143,6 +143,16 @@ class LiveTrader:
                 self._persist()
                 return
 
+        # 사장님의 전역 스위치(감사 83) — 킬스위치·서킷브레이커 **뒤**에 둔다.
+        # 일시정지는 "신규 매매 중단, 보유 유지"이지 "위험 통제를 끈다"가
+        # 아니므로, 청산은 위에서 이미 끝난 상태여야 한다.
+        from quant.utils.settings import owner_gate
+        paused, exposure = owner_gate()
+        if paused:
+            log.info("⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)")
+            return
+        weight *= exposure
+
         log.info("%s 목표비중=%.2f 가격=%.2f 자산=%.2f",
                  self.symbol, weight, price, equity)
         order = self.broker.target_weight(

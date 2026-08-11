@@ -213,3 +213,46 @@ def test_empty_data_places_no_order():
                    risk=_Risk(), symbol="BTC/USDT")
     t.step()
     assert b.orders == [], "데이터가 없는데 주문을 냈다"
+
+
+# ── 사장님의 전역 스위치 (감사 83) ──────────────────────────────
+#
+# 문자열 검사(test_owner_gate_covers_all_paths)는 '읽는다'만 본다. 실제로
+# 주문이 멈추는지는 여기서 돌려 본다.
+
+def _paused(monkeypatch, paused=True, scale=1.0):
+    import quant.utils.settings as st
+    monkeypatch.setattr(st, "owner_gate", lambda *_a, **_k: (paused, scale))
+
+
+def test_admin_pause_stops_new_orders(monkeypatch):
+    """'일시정지' 중에는 연속 실행 루프도 신규 주문을 내지 않는다."""
+    _paused(monkeypatch, True)
+    b = _Broker()
+    _trader(b).step()
+    assert b.orders == [], "일시정지 중인데 quant live가 주문을 냈다"
+
+
+def test_exposure_scale_shrinks_the_order(monkeypatch):
+    _paused(monkeypatch, False, 0.25)
+    b = _Broker()
+    _trader(b).step()
+    assert b.orders, "주문이 아예 안 나갔다"
+    _sym, w = b.orders[-1]
+    assert abs(w) <= 0.26, f"총노출 배수가 적용되지 않았다: {w}"
+
+
+def test_pause_does_not_disable_the_killswitch(monkeypatch):
+    """일시정지는 '신규 매매 중단'이지 '위험 통제 해제'가 아니다.
+
+    멈춰 둔 사이에 손실이 커졌는데 청산까지 막히면 정반대 결과가 된다.
+    """
+    b = _Broker(equity=10_000.0)
+    t = _trader(b, daily_max_loss=0.05)
+    t.step()                                   # 기준선(정상)
+    _paused(monkeypatch, True)
+    b.orders.clear()
+    b._equity = 8_000.0
+    t.step()
+    assert b.orders == [("BTC/USDT", 0.0)], (
+        f"일시정지가 킬스위치 청산까지 막았다: {b.orders}")

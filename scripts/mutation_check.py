@@ -469,6 +469,34 @@ MUTATIONS = [
      "            if not is_market_open(self.market):",
      "            if False:",
      "tests/test_webhook_owner_switches.py"),
+
+    # 감사 83 — 어드민 전역 스위치가 연속 실행 루프(quant live --real)를
+    # 덮지 않던 자리. 규칙이 경로마다 따로 적혀 있어 세 곳이 뒤처져 있었다.
+    ("quant live(단일 종목)가 어드민 일시정지를 무시한다",
+     "quant/live/engine.py",
+     "        if paused:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "        if False:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "tests/test_engine_step_guards.py"),
+
+    ("quant live가 총노출 배수를 무시한다",
+     "quant/live/engine.py",
+     "        weight *= exposure",
+     "        pass",
+     "tests/test_engine_step_guards.py"),
+
+    ("다종목 루프가 어드민 일시정지를 무시한다",
+     "quant/live/multi.py",
+     "        if paused:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "        if False:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "tests/test_multi_killswitch_liquidation.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

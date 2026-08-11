@@ -76,6 +76,10 @@ class _Broker:
         self._equity = equity
         self.flattened: list[str] = []
         self.order_log: list = []
+        # ⚠️ 청산(비중 0)만 기록하면 '주문이 안 나갔다'를 검사할 수 없다.
+        #    실제로 그렇게 만들었다가 변이 시험이 잡아냈다 — 일시정지가
+        #    동작하든 말든 통과하는 장식 검사였다. 모든 주문을 남긴다.
+        self.orders: list[tuple[str, float]] = []
 
     def equity(self, _prices):
         return self._equity
@@ -87,6 +91,7 @@ class _Broker:
         return _Pos(s, self.held.get(s, 0.0))
 
     def target_weight(self, symbol, weight, *_a, **_k):
+        self.orders.append((symbol, float(weight)))
         if float(weight) == 0.0:
             self.flattened.append(symbol)
             self.held[symbol] = 0.0
@@ -294,3 +299,47 @@ def test_halt_still_holds_after_a_partial_liquidation(setup):
     t.step()
     assert broker.order_log == [] and not broker.flattened, \
         "부분 청산 후 매매를 재개했다"
+
+
+def test_admin_pause_stops_new_orders_in_the_multi_loop(setup, monkeypatch):
+    """다종목 루프도 '일시정지'를 지킨다 (감사 83).
+
+    이 규칙이 경로마다 따로 적혀 있어 세 곳이 뒤처져 있었다 — 이제 판정은
+    quant.utils.settings.owner_gate() 한 곳뿐이다.
+    """
+    _data, broker, _n, t = setup
+    import quant.utils.settings as st
+    monkeypatch.setattr(st, "owner_gate", lambda *_a, **_k: (True, 1.0))
+    t.step()
+    assert broker.orders == [], (
+        f"일시정지 중인데 다종목 루프가 주문을 냈다: {broker.orders}")
+
+
+def test_the_multi_loop_does_place_orders_when_not_paused(setup):
+    """기준선 — 평시에는 주문이 나가야 위 검사가 의미를 갖는다."""
+    _data, broker, _n, t = setup
+    t.step()
+    assert broker.orders, "평시에도 주문이 없다 — 일시정지 검사가 무의미해진다"
+
+
+def test_exposure_scale_shrinks_the_multi_weights(setup, monkeypatch):
+    _data, broker, _n, t = setup
+    import quant.utils.settings as st
+    monkeypatch.setattr(st, "owner_gate", lambda *_a, **_k: (False, 0.2))
+    t.step()
+    assert broker.orders, "주문이 아예 안 나갔다"
+    gross = sum(abs(w) for _s, w in broker.orders)
+    assert gross <= 0.21, f"총노출 배수가 다종목 루프에 적용되지 않았다: {gross}"
+
+
+def test_pause_does_not_disable_the_multi_killswitch(setup, monkeypatch):
+    """일시정지가 킬스위치 청산까지 막으면 안 된다."""
+    _data, broker, _n, t = setup
+    t.step()                                    # 기준선(정상)
+    import quant.utils.settings as st
+    monkeypatch.setattr(st, "owner_gate", lambda *_a, **_k: (True, 1.0))
+    broker.flattened.clear()
+    broker._equity = 8_000.0
+    t.step()
+    assert set(broker.flattened) == set(SYMS), (
+        f"일시정지가 킬스위치 청산을 막았다: {broker.flattened}")
