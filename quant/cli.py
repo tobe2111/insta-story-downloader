@@ -161,12 +161,22 @@ def _cmd_paper_daily(args) -> None:
         out = run_daily_paper_all(**common)
         lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
                  for k, r in out["records"].items() if not r.get("skipped")]
-        drifted = [k for k, r in out["records"].items()
-                   if isinstance(r.get("drift_psi"), (int, float))
-                   and r["drift_psi"] >= 0.25]
+        # ⚠️ 문턱 0.25는 대표본 관행이라 최근 60거래일 기준에는 맞지 않는다
+        #    (감사 99). 드리프트가 없어도 29%가 넘긴다 — 그러면 경보가 매일
+        #    울려서 진짜 신호와 구별되지 않는다. 같은 표본 크기의 귀무분포와
+        #    견줘 등급을 매기고, 잣대도 함께 찍는다.
+        from quant.live.daily import drift_grade, drift_reference
+        drifted = [(k, r["drift_psi"], g)
+                   for k, r in out["records"].items()
+                   if (g := drift_grade(r.get("drift_psi")))
+                   and "드리프트" in g]
         if drifted:
-            lines.append("  ⚠️ 드리프트 경보(PSI≥0.25): " + ", ".join(drifted)
-                         + " — 시장 분포가 학습 시점과 달라짐, 판단 신뢰도 주의")
+            ref = drift_reference()
+            lines.append(
+                f"  ⚠️ 드리프트 경보(표본 {ref['n_new']}일 기준 상위 5% = "
+                f"PSI≥{ref['p95']}): "
+                + ", ".join(f"{k} {v:.2f}({g})" for k, v, g in drifted)
+                + " — 시장 분포가 학습 시점과 달라짐, 판단 신뢰도 주의")
         try:                                     # 통합 분산 계좌(실전과 가장 유사)
             prec = run_daily_portfolio(**common)
             if prec and not prec.get("skipped"):

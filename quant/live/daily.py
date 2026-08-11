@@ -103,10 +103,18 @@ def _last_proba(strategy) -> float | None:
     return None
 
 
+# 드리프트 측정 창 — 기준(과거)과 비교(최근)의 길이. 문턱을 외우지 않고
+# **이 크기의 귀무분포**와 견주기 위해 상수로 뽑아 둔다(감사 99).
+DRIFT_N_REF, DRIFT_N_NEW = 250, 60
+
+
 def _drift_psi(df) -> float | None:
     """최근 60일 수익률 분포의 PSI(기준: 그 이전 ~250일) — 레짐 이탈 감지.
 
-    0.25 이상이면 '학습 시점과 시장이 달라졌다'는 경고 신호로 기록·알림한다.
+    ⚠️ 예전 주석은 "0.25 이상이면 경고"라고 적혀 있었다. 그 문턱은 신용평가
+       업계의 **대표본** 관행이라 여기(최근 60거래일)에는 맞지 않는다.
+       드리프트가 전혀 없어도 이 크기에서는 중앙값 0.19가 나오고, 29%가
+       0.25를 넘는다(감사 99). 판단은 `drift_grade()`에 맡긴다.
     표본 부족이면 None(계산불가를 0으로 위장하지 않는다).
     """
     try:
@@ -114,12 +122,29 @@ def _drift_psi(df) -> float | None:
         rets = df["close"].pct_change().dropna()
         if len(rets) < 130:
             return None
-        recent = rets.iloc[-60:]
-        ref = rets.iloc[-310:-60]
+        recent = rets.iloc[-DRIFT_N_NEW:]
+        ref = rets.iloc[-(DRIFT_N_REF + DRIFT_N_NEW):-DRIFT_N_NEW]
         v = psi(list(ref), list(recent))
         return round(float(v), 4) if v == v else None
     except Exception:  # noqa: BLE001 — 감시 실패가 본류를 막으면 안 된다
         return None
+
+
+def drift_grade(value) -> str | None:
+    """PSI 값을 **이 저장소가 쓰는 표본 크기 기준으로** 등급화한다."""
+    if not isinstance(value, (int, float)) or value != value:
+        return None
+    from quant.robustness import interpret_psi
+    return interpret_psi(float(value),
+                         n_ref=DRIFT_N_REF, n_new=DRIFT_N_NEW)
+
+
+def drift_reference() -> dict:
+    """같은 표본 크기에서 '아무 일도 없을 때' 나오는 PSI 분포(잣대)."""
+    from quant.robustness.drift import psi_null
+    ref = dict(psi_null(DRIFT_N_REF, DRIFT_N_NEW))
+    ref["n_ref"], ref["n_new"] = DRIFT_N_REF, DRIFT_N_NEW
+    return ref
 
 
 def _paper_path(market: str, symbol: str, state_dir: str) -> str:
@@ -294,6 +319,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     equity = broker.equity({symbol: price})
 
     acc = directional_accuracy(df_sig, signals, window=60)
+    psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
         "equity": round(equity, 2),
@@ -312,8 +338,13 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 예측확률(ML 챔피언일 때) — 신뢰도 곡선("60%라고 한 날 실제 적중률")과
         # 설명 문장 대조의 원천 숫자. 서술은 이 숫자에서 기계 생성된다.
         "prob_up": _last_proba(strategy),
-        # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
-        "drift_psi": _drift_psi(df),
+        # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도.
+        # 숫자만 남기면 읽는 사람이 대표본 문턱(0.25)으로 읽는다. 그래서
+        # **잣대와 등급을 같이** 남긴다 — 장부만 보고도 "이게 잡음인가"에
+        # 답할 수 있어야 한다(감사 99).
+        "drift_psi": psi_v,
+        "drift_grade": drift_grade(psi_v),
+        "drift_ref": drift_reference() if psi_v is not None else None,
         # 실적 가드 발동 흔적(발동 없으면 None) — 왜 비중이 절반인지의 답
         "earnings_guard": earnings_guard,
         # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적

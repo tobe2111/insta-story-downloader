@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("드리프트 등급을 대표본 관행 문턱으로 되돌린다",
+     "quant/robustness/drift.py",
+     '    if n_ref and n_new:\n        ref = psi_null(int(n_ref), int(n_new), bins)',
+     '    if False:\n        ref = psi_null(int(n_ref), int(n_new), bins)',
+     "tests/test_drift_alarm_is_calibrated.py"),
+
     ("사이트가 배분 방식을 다시 산문에 박는다(폴백 은폐)",
      "docs/paper.html",
      '?rest.length+"종목 위험 분산("+(AMN[am]||"방식 기록 없음")+") (각 종목의 챔피언 전략 추종)"',
