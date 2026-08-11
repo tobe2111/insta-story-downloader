@@ -194,18 +194,61 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     return {"instagram": ig, "threads": th, "date": date}
 
 
+class PublishedContentChanged(RuntimeError):
+    """이미 공개된 날의 글을 다시 쓰려 했다 — 과거는 고치지 않는다."""
+
+
 def write_content(docs_dir: str = "docs",
-                  site_url: str = DEFAULT_SITE_URL) -> dict:
+                  site_url: str = DEFAULT_SITE_URL,
+                  *, force: bool = False) -> dict:
     """docs/social/<날짜>/ 에 캡션·메타를 쓴다. 반환: meta(dict).
 
     이미지 파일은 워크플로의 헤드리스 크롬이 CAPTURE_PLAN대로 같은 폴더에
     찍는다. 폴더가 날짜별이라 URL이 매일 달라 CDN 캐시 문제도 없다.
+
+    ⚠️ 이미 있는 날의 캡션이 **달라지면 거부한다**(2026-08-11 감사 86).
+    그 폴더는 '그날 세상에 내보낸 글'의 기록이다. 예전에는 아무 경고 없이
+    덮어썼는데, 캡션 코드가 바뀐 뒤 이 명령을 한 번 돌리면 **과거 게시물이
+    조용히 다른 글로 바뀐다.** 실제로 그렇게 만들어 봤다:
+
+        (그날 실제로 나간 글)  오늘 -0.06%  ← 누적을 '오늘'이라 부르던 결함
+        (재생성한 글)          오늘 -0.05%  ← 오늘 고친 뒤의 올바른 값
+
+    후자로 덮으면 아카이브가 **하지 않은 말을 했다고** 기록한다. 정직성이
+    유일한 자산인 채널에서 그건 숫자 하나가 틀린 것보다 나쁘다. 고칠 것이
+    있으면 과거를 고치는 게 아니라 docs/trust.html에 공시한다.
+
+    내용이 **같으면** 조용히 지나간다(같은 날 재실행은 정상 흐름).
+    정말 바꿔야 하면 force=True — 다만 그건 의도적인 행위여야 한다.
     """
     with open(os.path.join(docs_dir, "status.json"), encoding="utf-8") as f:
         status = json.load(f)
     caps = build_captions(status, site_url)
     date = caps["date"]
     out_dir = os.path.join(docs_dir, "social", date)
+
+    if not force:
+        changed = []
+        for name, text in (("caption_instagram.txt", caps["instagram"]),
+                           ("caption_threads.txt", caps["threads"])):
+            fp = os.path.join(out_dir, name)
+            if not os.path.exists(fp):
+                continue
+            try:
+                with open(fp, encoding="utf-8") as f:
+                    old = f.read()
+            except OSError:
+                continue
+            if old != text:
+                changed.append(name)
+        if changed:
+            raise PublishedContentChanged(
+                f"{date} 의 캡션이 이미 있고 내용이 달라집니다({', '.join(changed)}).\n"
+                "그 폴더는 '그날 세상에 내보낸 글'의 기록입니다 — 덮어쓰면 "
+                "아카이브가 하지 않은 말을 했다고 기록합니다.\n"
+                "고칠 것이 있으면 과거를 고치지 말고 docs/trust.html에 "
+                "공시하세요. 정말 다시 쓰려면 --force 를 주세요.")
+
     os.makedirs(out_dir, exist_ok=True)
     meta = {
         "date": date,

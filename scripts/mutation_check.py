@@ -542,6 +542,13 @@ MUTATIONS = [
      "    if unusable_reason(df, check_quality=False):\n        return 0.0",
      "    if False:\n        return 0.0",
      "tests/test_synthetic_fallback_never_trades.py"),
+
+    # 감사 86 — 공개한 글의 아카이브를 조용히 덮어쓰던 자리.
+    ("이미 공개한 날의 SNS 캡션을 경고 없이 덮어쓴다(과거를 고친다)",
+     "quant/reporting/social.py",
+     "        if changed:",
+     "        if False:",
+     "tests/test_social_archive_immutable.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
