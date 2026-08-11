@@ -177,8 +177,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-10",
-      "trials_total": 101,
+      "last_run_asof": "2026-08-11",
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -370,7 +370,7 @@
       },
       "promoted_at": "2026-08-10",
       "promotions": 1,
-      "trials_total": 101,
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -383,7 +383,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-10"
+      "last_run_asof": "2026-08-11"
     },
     "kr_stock:035420.KS": {
       "strategy": "ml",
@@ -394,7 +394,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 101,
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -407,7 +407,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-10"
+      "last_run_asof": "2026-08-11"
     },
     "kr_stock:005380.KS": {
       "strategy": "ml",
@@ -418,7 +418,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 101,
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -431,7 +431,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-10"
+      "last_run_asof": "2026-08-11"
     },
     "kr_stock:051910.KS": {
       "strategy": "ml",
@@ -442,7 +442,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 101,
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -455,7 +455,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-10"
+      "last_run_asof": "2026-08-11"
     },
     "kr_stock:105560.KS": {
       "strategy": "ml",
@@ -466,7 +466,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 101,
+      "trials_total": 125,
       "parliament": [
         {
           "strategy": "ml",
@@ -479,7 +479,7 @@
           "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-10"
+      "last_run_asof": "2026-08-11"
     }
   },
   "paper": {
@@ -1315,8 +1315,8 @@
     },
     "kr_stock:000660.KS": {
       "start_cash": 10000.0,
-      "equity": 9990.01,
-      "return_pct": -0.1,
+      "equity": 9992.01,
+      "return_pct": -0.08,
       "mdd_pct": -0.1,
       "history": [
         {
@@ -1422,6 +1422,37 @@
           "drift_psi": 0.6048,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 1425000.0,
+          "weight": 0.0,
+          "equity": 9992.01,
+          "return_pct": -0.08,
+          "hit_rate": 0.5888888888888889,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.52,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(52%)에 못 미쳐 관망 · 판단 재료: GK 변동성(고저가 기반) 일 6.3% / 50일선 이격 -31.8%(선 아래) / 변동성(20일) 일 9.8%",
+          "fill": {
+            "price": 1405000.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.0945,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "6b151e5093cac77ca9c76de046489dda0e4e9422d783ec727e2dd40c3dfcb77e",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.5148262428508935,
+          "drift_psi": 0.5941,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
@@ -1534,6 +1565,37 @@
           "drift_psi": 0.973,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 403000.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.4722222222222222,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 20일선 이격 +0.9%(선 위) / 장단기 금리차(경기 신호) +0.47 / 20일 모멘텀 -9.2%",
+          "fill": {
+            "price": 406000.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "848863a5a2e6ddc2b8e45a1d73c04f3a54dc4018892a2daab8ec12f3988003ea",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.1811446296828139,
+          "drift_psi": 1.0704,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
@@ -1676,6 +1738,37 @@
           "drift_psi": 0.7543,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 239500.0,
+          "weight": 0.0,
+          "equity": 10000.84,
+          "return_pct": 0.01,
+          "hit_rate": 0.5319148936170213,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 평균 진폭(ATR) 일 9.6% / GK 변동성(고저가 기반) 일 5.2% / 10일 수익률 +8.9%",
+          "fill": {
+            "price": 229500.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.0155,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "253fd556c059f00914ccda0728d32d587032de4d8411ce623b6901efa66d9f66",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.1701730533812644,
+          "drift_psi": 0.7494,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
@@ -1788,14 +1881,45 @@
           "drift_psi": 0.5851,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 214000.0,
+          "weight": 0.0,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.4888888888888889,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: VIX 변동성지수(옵션시장 공포) 15(보통 수준) / 변동성 레짐(단/장기) 0.98(보통 수준) / GK 변동성(고저가 기반) 일 3.8%",
+          "fill": {
+            "price": 214000.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "b3c34b2b40d06b75e20a9fadf0dc028977d158b9344f7db968dfd5de0861d121",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.5140901732422577,
+          "drift_psi": 0.5412,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
     "kr_stock:051910.KS": {
       "start_cash": 10000.0,
-      "equity": 10000.0,
-      "return_pct": 0.0,
-      "mdd_pct": 0.0,
+      "equity": 9994.09,
+      "return_pct": -0.06,
+      "mdd_pct": -0.06,
       "history": [
         {
           "date": "2026-08-05",
@@ -1900,6 +2024,37 @@
           "drift_psi": 0.369,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 274000.0,
+          "weight": 0.1083,
+          "equity": 9994.09,
+          "return_pct": -0.06,
+          "hit_rate": 0.44776119402985076,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +11% — 로지스틱회귀 모델이 내일 상승확률을 약 69%로 추정(기준 55% 초과) · 판단 재료: 하이일드 스프레드(신용 스트레스) 2.70%p(신용시장 안정) / 60일 모멘텀 -30.2% / 20일 모멘텀 +5.2% · 사이징: 신호 원비중 32% → 변동성 타깃 조절 후 11% · 참고: 전 종목 합산으로 모델이 69%±10%p라 말한 31건의 실제 상승 비율 52% (95% 신뢰구간 35%~68% · 이 종목 단독 표본은 1건으로 축적 중)",
+          "fill": {
+            "price": 276000.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.0684,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "ccadd3dbd8f3cc18bb7cc34e2f500942e1b03c331f075f336aa2f03d3f0c812a",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.6919956130850728,
+          "drift_psi": 0.9892,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
@@ -2040,9 +2195,9 @@
     },
     "kr_stock:105560.KS": {
       "start_cash": 10000.0,
-      "equity": 9981.81,
-      "return_pct": -0.18,
-      "mdd_pct": -0.18,
+      "equity": 9958.38,
+      "return_pct": -0.42,
+      "mdd_pct": -0.42,
       "history": [
         {
           "date": "2026-08-05",
@@ -2147,6 +2302,37 @@
           "drift_psi": 0.9366,
           "earnings_guard": null,
           "kelly_cap": null
+        },
+        {
+          "date": "2026-08-11",
+          "price": 166600.0,
+          "weight": 0.208,
+          "equity": 9958.38,
+          "return_pct": -0.42,
+          "hit_rate": 0.6363636363636364,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +21% — 로지스틱회귀 모델이 내일 상승확률을 약 76%로 추정(기준 55% 초과) · 판단 재료: 50일선 이격 +0.9%(선 위) / GK 변동성(고저가 기반) 일 3.2% / VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) · 사이징: 신호 원비중 46% → 변동성 타깃 조절 후 21% · 참고: 이 확률대(76%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=20, 25건부터 표시)",
+          "fill": {
+            "price": 172600.0,
+            "bar": "2026-08-11 00:00:00",
+            "weight": 0.065,
+            "decided_bar": "2026-08-10 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "162b285a3849",
+          "data_sha256": "e567ffc844ecd86571cdaa81fc534c9d5b16f8a33cd8899597ce7a6bc81db4e8",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+          "accounting": "next_open_v2",
+          "prob_up": 0.7571312737525309,
+          "drift_psi": 0.9549,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null
         }
       ]
     },
@@ -5908,6 +6094,48 @@
       "promoted": false,
       "n_candidates": 23,
       "trials_total": 85
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:005930.KS",
+      "promoted": false,
+      "n_candidates": 23,
+      "trials_total": 125
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:000660.KS",
+      "promoted": false,
+      "n_candidates": 24,
+      "trials_total": 125
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:035420.KS",
+      "promoted": false,
+      "n_candidates": 23,
+      "trials_total": 125
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:005380.KS",
+      "promoted": false,
+      "n_candidates": 23,
+      "trials_total": 125
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:051910.KS",
+      "promoted": false,
+      "n_candidates": 23,
+      "trials_total": 125
+    },
+    {
+      "asof": "2026-08-11",
+      "key": "kr_stock:105560.KS",
+      "promoted": false,
+      "n_candidates": 23,
+      "trials_total": 125
     }
   ],
   "live_url": null,
@@ -5916,15 +6144,8 @@
     "items": [
       {
         "cat": "증시",
-        "title": "뉴욕증시, 미·이란 합의 기대 재점화 속 혼조 출발 - YTN",
-        "source": "YTN",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFA5Um1wc09wNV9iRS1UNHhBeE12WWh3N1dMZFdFTHptdmJOeEotSFhRSU13T21pUmw0RE5acFhNckF5MWFfUlB1TlZPbGJGVTVKZFVxaFRUT3FDWUpYaVE?oc=5",
-        "time": "Tue, 11 Aug 2026 15:15:00 GMT"
-      },
-      {
-        "cat": "증시",
-        "title": "뉴욕증시, 호르무즈 불확실성 지속에 하락…다우 0.3%↓ - yna.co.kr",
-        "source": "yna.co.kr",
+        "title": "뉴욕증시, 호르무즈 불확실성 지속에 하락…다우 0.3%↓ - 연합뉴스",
+        "source": "연합뉴스",
         "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTFBUbk93RjNFcWJsaHZaRVZMcGpBNkw5N243aS0wc2Q5UXZHbFp4LXBCLUp3X3VKNENvT3lKaW5IaDZPZHBWQW5kMVlvSUNwUjZiOUhsdjE0Z0xnSXc?oc=5",
         "time": "Tue, 11 Aug 2026 20:16:43 GMT"
       },
@@ -5937,17 +6158,31 @@
       },
       {
         "cat": "증시",
-        "title": "[뉴욕증시-1보] CPI는 확인하고 가자…이틀째 약세 마감 - 연합인포맥스",
-        "source": "연합인포맥스",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE82dTNES1ZNNnNaUmg4d05tZEZDR2RlSk12aFRjNFM0cG02YjdiWHNLcW94N3E3YTZrM2lFWWZxLURrWUtmNElvS1RiRmJ6c1FQaVU0Zl8zMDhrV21kMEM1cENXcDNySFBfeGhRZFBkNGbSAXRBVV95cUxNUEVHOGJkeDQwUjVBcDhOakktZjJDUFBqcTB2N2o5ZjVBOGMtSmVaUFoyRjZBYU5rbGZxRk14WWNjTDlQcTFBYnRaX0VwcVN4NVlCcWRuVGhIR0ZXWkNYWEFCRnd0dlZ5MWxubkV2WFhqNzUxVQ?oc=5",
-        "time": "Tue, 11 Aug 2026 20:07:46 GMT"
+        "title": "뉴욕증시, 미·이란 합의 기대 재점화 속 혼조 출발 - YTN",
+        "source": "YTN",
+        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFA5Um1wc09wNV9iRS1UNHhBeE12WWh3N1dMZFdFTHptdmJOeEotSFhRSU13T21pUmw0RE5acFhNckF5MWFfUlB1TlZPbGJGVTVKZFVxaFRUT3FDWUpYaVE?oc=5",
+        "time": "Tue, 11 Aug 2026 15:15:00 GMT"
+      },
+      {
+        "cat": "증시",
+        "title": "[뉴욕증시] CPI는 확인하고 가자…이틀째 약세 마감 - news.einfomax.co.kr",
+        "source": "news.einfomax.co.kr",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9UeWdfRmxJZmUtMnI3d0Z5SmdaWlNaa21qYzdQN2VncFJad2NQZHB5eDJlX0djOU9OQTFxOUZ4NFVnbWw4WllWLXkzdXFlMktxOVZMM0JVLWstY2pMYUp0UEdMNUpTd2txWkNmSEJEUHI?oc=5",
+        "time": "Tue, 11 Aug 2026 21:01:39 GMT"
       },
       {
         "cat": "금리·환율",
-        "title": "짐 비앙코 \"연준이 패닉해야 채권시장 패닉 멈춰…금리 올려야\" - 연합인포맥스",
-        "source": "연합인포맥스",
+        "title": "짐 비앙코 \"연준이 패닉해야 채권시장 패닉 멈춰…금리 올려야\" - news.einfomax.co.kr",
+        "source": "news.einfomax.co.kr",
         "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE10cHNMaXJvQTR5LTM0YklLQnVITzlqTXNGbkk4c0IwaGU4bzVBVTNBeERQTENHcEJEMFJsa2U3YkktcnNINExNQ0hodUVqLVNPaFNNTzNsUFZNUHIwb0d5WmFtYWF3c1JkdFJYazhiNXg?oc=5",
         "time": "Tue, 11 Aug 2026 20:42:32 GMT"
+      },
+      {
+        "cat": "금리·환율",
+        "title": "누빈 \"연준 9월 금리인상 가능성 낮아\" - v.daum.net",
+        "source": "v.daum.net",
+        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE0zLUh2NjV0SFdPMEJka2wtQ3pJbEFzQ2tIZ3djRG1mdk9DRDVLZm1Ybmw5emNsb3RUMjlkUkhvYl84QURKSlV4Y3h1UF9PNjQ?oc=5",
+        "time": "Tue, 11 Aug 2026 21:45:00 GMT"
       },
       {
         "cat": "금리·환율",
@@ -5964,24 +6199,17 @@
         "time": "Tue, 11 Aug 2026 15:04:00 GMT"
       },
       {
-        "cat": "금리·환율",
-        "title": "한은 부총재 \"물가 오름세 지속‥금리 한 번 더 올릴 가능성\" - MBC 뉴스",
-        "source": "MBC 뉴스",
-        "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE1RM3prNmU2TGZkcDlrUTBqV21CcUVrVUsyUnJ0S0ExOWIzRXJtY1N0SEk1T2ZpSjRzN0F6b2ptaG1aSlM4WHNOdzNiS1Z4RHJ1UTdSTWxYQURRYlplelU0RXdjM2lBeW52c29iUGFzVkxqRkcy0gF0QVVfeXFMTWVISnVFNVl3VldpLVNYbGZKT1dRTmVPZE1NWmw3a3lNZ3Y3R0M2a1VVNlRYbndRV1VkVlVubkxtdV9nRUNBNkgtTGM2UGdCbEFwdU1WTmhGS2xMczgyaExSbHFqc01BRU9QWmdfMGttR3BuOWQ?oc=5",
-        "time": "Tue, 11 Aug 2026 06:43:06 GMT"
-      },
-      {
         "cat": "코인",
-        "title": "농산물·원자재 파생상품 거래도 비트코인·이더리움 증거금 허용 - 마켓인",
-        "source": "마켓인",
+        "title": "농산물·원자재 파생상품 거래도 비트코인·이더리움 증거금 허용 - marketin.edaily.co.kr",
+        "source": "marketin.edaily.co.kr",
         "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1OazhJWTRIWGxKSndXcVd0RnVYdUE2bURCUC16M1JfdkpYbUJwY1Z4R3gxeE9UY3ppUkNDSlpCX3RwRWh6dy11RTZLUVRZUnBNYUgza3ZRYWNfNXdsV21OSE5RelFJQWlZN3NKdkZ6eUkwaVk?oc=5",
         "time": "Mon, 10 Aug 2026 23:13:54 GMT",
         "sym": "crypto:ETH/USDT"
       },
       {
         "cat": "코인",
-        "title": "Marex, 올해 비트코인·이더리움을 초기 증거금으로 수락 계획 - Investing.com 한국어",
-        "source": "Investing.com 한국어",
+        "title": "Marex, 올해 비트코인·이더리움을 초기 증거금으로 수락 계획 - kr.investing.com",
+        "source": "kr.investing.com",
         "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1sNmwzZ25xNk5FS0lHQmhtVUJLQXRJUDVJVnExNmxFWDJFUngxS3lnQXZ0VGFjV2hkVUYwck1BaVk4ejZzV25kdGJqVDB2UjlQcVVKQk9iNGZ0ekdiX0Jybnlac1dzSmQ3bF81STBmSjk?oc=5",
         "time": "Mon, 10 Aug 2026 15:00:00 GMT"
       },
@@ -5994,8 +6222,8 @@
       },
       {
         "cat": "코인",
-        "title": "비트마인, 지난주 이더리움 7391개 추가 매수…보유량 580만개 돌파 - bloomingbit.io",
-        "source": "bloomingbit.io",
+        "title": "비트마인, 지난주 이더리움 7391개 추가 매수…보유량 580만개 돌파 - 블루밍비트",
+        "source": "블루밍비트",
         "link": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE42d0JmMi1yRTBabmJoTmZ5el9oVmRhYkxXTUljTllEWFFBSTN6QzBiTnFuY01lcUlUOEItNUlDcjJzNE1tTkcxTlRmMTZqZS1Q?oc=5",
         "time": "Mon, 10 Aug 2026 12:36:53 GMT"
       },
@@ -6033,10 +6261,10 @@
       },
       {
         "cat": "종목",
-        "title": "비트와이즈 솔라나 ETF, 2.67억달러 유입에도 순자산 4900만달러 줄었다 - 위키트리",
-        "source": "위키트리",
-        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE9GMkI5RkZQUkNnU0tJRkpUVDhrMVFTamVRZUl1SXlCdUJLUjFkcnNmTDdrYmdzaG1rSEkwbFJLTGpsa3VZX0ppMVVQcjhxUUI3T3hnNkVn?oc=5",
-        "time": "Sun, 09 Aug 2026 21:47:00 GMT",
+        "title": "머니그램, 솔라나로 암호화폐 현금 입출금 서비스 확대 - 네이트",
+        "source": "네이트",
+        "link": "https://news.google.com/rss/articles/CBMiU0FVX3lxTE1kSDRMajAwVUs5d1RjR21Mc21pQVhIZGc3WWVZVHNLMFgxUkd1amQtbE1fWF9xRHM3ZGV5aXNvYllmcHRuYTVvdEZlZWNza2JfUTh3?oc=5",
+        "time": "Tue, 11 Aug 2026 22:18:00 GMT",
         "sym": "crypto:SOL/USDT"
       },
       {
@@ -6049,8 +6277,8 @@
       },
       {
         "cat": "종목",
-        "title": "\"삼성전자, 지금 당장 사라\"…200조 '역대급 호재' 예고에 들썩 - 한국경제",
-        "source": "한국경제",
+        "title": "\"삼성전자, 지금 당장 사라\"…200조 '역대급 호재' 예고에 들썩 - hankyung.com",
+        "source": "hankyung.com",
         "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5OenM5a2hjak9KcFdxTDFkSTQ2WXBMSFdnX1o3N1RESWthRWlWX1FLUGF0Wk9xNlFHZUpodDdzeUxQN1hVVmIwbTA5S3RWSlFySHBvd3l6MS05dw?oc=5",
         "time": "Sun, 09 Aug 2026 22:29:47 GMT",
         "sym": "kr_stock:005930.KS"
@@ -6073,18 +6301,18 @@
       },
       {
         "cat": "종목",
-        "title": "SK하이닉스 ADR, 5일만에 반등…엔비디아發 인프라 투자 기대 속 유가↓ - 연합인포맥스",
-        "source": "연합인포맥스",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9TTFUyRXZCZ0VYWXFKdS15QUVDTUVjYjIzaDV1bnZPcnBrU19xckl6VGVETmRIeGMxWm1mRFNvTl94X1N0cjdqbHBiRGRSTFN6U0tCY191MlU0V3l5UlJ6LTNEOHBOWTQ5Z0JTSThJazI?oc=5",
-        "time": "Tue, 11 Aug 2026 14:01:32 GMT",
+        "title": "엔비디아 주가, 15개월만 최대 주간 상승률 - 연합뉴스",
+        "source": "연합뉴스",
+        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9wa21DNVRBOWRQMVJFQlRWQUkyOFY3eUFQbGsyRi1lTXI2NVZOdVl2MURvcE1qOUx0QW5fbWNsU1dFZmZ0MUlGYnFBWUdudktoQ18tQUVaV0hGNjFaZVVfaNIBYEFVX3lxTE9wa21DNVRBOWRQMVJFQlRWQUkyOFY3eUFQbGsyRi1lTXI2NVZOdVl2MURvcE1qOUx0QW5fbWNsU1dFZmZ0MUlGYnFBWUdudktoQ18tQUVaV0hGNjFaZVVfaA?oc=5",
+        "time": "Mon, 10 Aug 2026 02:20:37 GMT",
         "sym": "us_stock:NVDA"
       },
       {
         "cat": "종목",
-        "title": "엔비디아 주가, 15개월만 최대 주간 상승률 - yna.co.kr",
-        "source": "yna.co.kr",
-        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9wa21DNVRBOWRQMVJFQlRWQUkyOFY3eUFQbGsyRi1lTXI2NVZOdVl2MURvcE1qOUx0QW5fbWNsU1dFZmZ0MUlGYnFBWUdudktoQ18tQUVaV0hGNjFaZVVfaNIBYEFVX3lxTE9wa21DNVRBOWRQMVJFQlRWQUkyOFY3eUFQbGsyRi1lTXI2NVZOdVl2MURvcE1qOUx0QW5fbWNsU1dFZmZ0MUlGYnFBWUdudktoQ18tQUVaV0hGNjFaZVVfaA?oc=5",
-        "time": "Mon, 10 Aug 2026 02:20:37 GMT",
+        "title": "SK하이닉스 ADR, 5일만에 반등…엔비디아發 인프라 투자 기대 속 유가↓ - news.einfomax.co.kr",
+        "source": "news.einfomax.co.kr",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9TTFUyRXZCZ0VYWXFKdS15QUVDTUVjYjIzaDV1bnZPcnBrU19xckl6VGVETmRIeGMxWm1mRFNvTl94X1N0cjdqbHBiRGRSTFN6U0tCY191MlU0V3l5UlJ6LTNEOHBOWTQ5Z0JTSThJazI?oc=5",
+        "time": "Tue, 11 Aug 2026 14:01:32 GMT",
         "sym": "us_stock:NVDA"
       },
       {
@@ -6113,10 +6341,10 @@
       },
       {
         "cat": "종목",
-        "title": "\"미국 주식 팔고 갈아탔다\"…투자자들 뭉칫돈 몰린 곳이 - 한국경제",
-        "source": "한국경제",
-        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5vOXJxS0lEX3FMYmtHaE9mMEpqVjJqd2gxOFdxMklRMmFrWVdFLUhlNEJpWkx3NUpkY3VaN3BaaWJUM3dRaDR3Z28zYWp5MmRRc2VyOFloRWNIdw?oc=5",
-        "time": "Tue, 11 Aug 2026 12:28:51 GMT",
+        "title": "‘국장 미련 털었나’ 서학개미 유턴… RIA 혜택에도 美기술주 매수 - IT조선",
+        "source": "IT조선",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBJZUQ4UV80QXYxdEZNLVJMV3B1cUlwVExIYS1fX2xiODB1QXM2bldyUDFXSDktTnR0QUNlSWw3MW1iRGFyazFmM3JtcFdldmpHS0EyQ2dvZWh5eUNyc2t6VFdCeDREWnRFSG5Dc3pHNHnSAXRBVV95cUxOQm5XTkxyOFkyczAtdGh6Um5vY0hoZ3Nma1JKSU40M1ItZ2hKRXhVN3QwSnltdnhEak05NFBLUEM2cE15SjM0YzJ2cngzQW5tUFVfVEd5RHlSQ3BReEVkSThzWU5zSzdGdDAzaWZORFNIV0s2RQ?oc=5",
+        "time": "Tue, 11 Aug 2026 21:00:00 GMT",
         "sym": "us_stock:SPY"
       }
     ],
@@ -6192,12 +6420,12 @@
   },
   "fill_check": {
     "window": 90,
-    "total_fills": 27,
+    "total_fills": 31,
     "markets": {
       "kr_stock": {
-        "n": 9,
-        "mean_abs_gap_bp": 145.0,
-        "mean_adverse_bp": 47.4,
+        "n": 13,
+        "mean_abs_gap_bp": 119.8,
+        "mean_adverse_bp": 21.5,
         "worst_adverse_bp": 214.8,
         "assumed_bp": 14.0,
         "optimistic": true

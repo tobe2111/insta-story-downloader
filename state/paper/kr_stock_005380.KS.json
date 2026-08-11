@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-10 00:00:00",
+  "last_bar": "2026-08-11 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -26,6 +26,29 @@
       "accounting": "next_open_v2",
       "prob_up": 0.23532372549643485,
       "drift_psi": 0.9656
+    },
+    {
+      "date": "2026-08-06",
+      "price": 400000.0,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.42857142857142855,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일선 이격, 20일 모멘텀, 평균 진폭(ATR)",
+      "fill": null,
+      "fill_cost": 0.0014,
+      "code_sha": "90277869865c",
+      "data_sha256": "dd367ed1a71636fc950081296a40ddadfaa20962bec124ffa7b3edb8e0a37ee9",
+      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.2593675197041891,
+      "drift_psi": 0.9611
     },
     {
       "date": "2026-08-07",
@@ -56,29 +79,6 @@
       "drift_psi": 0.9786
     },
     {
-      "date": "2026-08-06",
-      "price": 400000.0,
-      "weight": 0.0,
-      "equity": 10000.0,
-      "return_pct": 0.0,
-      "hit_rate": 0.42857142857142855,
-      "champion": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 주요 판단 재료: 20일선 이격, 20일 모멘텀, 평균 진폭(ATR)",
-      "fill": null,
-      "fill_cost": 0.0014,
-      "code_sha": "90277869865c",
-      "data_sha256": "dd367ed1a71636fc950081296a40ddadfaa20962bec124ffa7b3edb8e0a37ee9",
-      "env": "py3.12.13|np2.5.1|pd3.0.5|sk1.9.0|lock:3e29b4dc032e",
-      "accounting": "next_open_v2",
-      "prob_up": 0.2593675197041891,
-      "drift_psi": 0.9611
-    },
-    {
       "date": "2026-08-10",
       "price": 408000.0,
       "weight": 0.0,
@@ -107,11 +107,42 @@
       "drift_psi": 0.973,
       "earnings_guard": null,
       "kelly_cap": null
+    },
+    {
+      "date": "2026-08-11",
+      "price": 403000.0,
+      "weight": 0.0,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.4722222222222222,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 20일선 이격 +0.9%(선 위) / 장단기 금리차(경기 신호) +0.47 / 20일 모멘텀 -9.2%",
+      "fill": {
+        "price": 406000.0,
+        "bar": "2026-08-11 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-10 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "162b285a3849",
+      "data_sha256": "848863a5a2e6ddc2b8e45a1d73c04f3a54dc4018892a2daab8ec12f3988003ea",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.1811446296828139,
+      "drift_psi": 1.0704,
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-10 00:00:00"
+    "decided_bar": "2026-08-11 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "005380.KS",
