@@ -1105,18 +1105,22 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             st = json.loads(fp.read_text(encoding="utf-8"))
         except (ValueError, OSError):
             continue
-        hist = st.get("history", [])
+        # 방송 화면도 사이트·킬스위치와 **같은 기준**을 쓴다.
+        # 2026-08-11 감사: 여기만 (a) 배열 순서 그대로 (b) 자산 고점 대비로
+        # 낙폭을 계산하고 있었다. 같은 규칙을 세 곳에 복사해 두면 두 곳만
+        # 고치게 된다 — 이번이 정확히 그 경우였다. 공용 헬퍼로 통일한다.
+        from quant.live.daily import (
+            START_CASH, chrono, max_drawdown_from_index, twr_index,
+        )
+        hist = chrono(st.get("history", []))
         if not hist:
             continue
         if st.get("market") == "portfolio_shadow":
             shadow = {"equity": hist[-1]["equity"], "date": hist[-1].get("date")}
             continue                # 카드에는 안 띄우고 비교 수치로만 쓴다
-        peak, mdd = 0.0, 0.0
-        for r in hist:
-            eq = float(r.get("equity", 0.0))
-            peak = max(peak, eq)
-            if peak > 0:
-                mdd = min(mdd, eq / peak - 1)
+        mdd = max_drawdown_from_index(twr_index(
+            hist, st.get("deposits") or [],
+            start_cash=float(st.get("start_cash", START_CASH))))
         from quant.markets import SYMBOL_INFO
         key0 = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
         accounts.append({
