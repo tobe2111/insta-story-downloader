@@ -53,7 +53,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state/ docs/status.json
-          git commit -m "매칭 입금: +${{ github.event.inputs.amount }}원 (${{ github.event.inputs.memo }}) [skip ci]"
+          git commit -m "매칭 입금: +${{ github.event.inputs.amount }}원 (${{ github.event.inputs.memo }}) [skip actions]"
           for i in 1 2 3 4; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((2**i))

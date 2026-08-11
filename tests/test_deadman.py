@@ -38,6 +38,23 @@ def test_alerts_via_discord_and_telegram_with_curl_only():
 def test_deadman_watches_sns_and_site_freshness():
     """감시 범위 확장 — SNS 콘텐츠 커밋과 배포 사이트 신선도까지 본다."""
     assert "SNS 게시 콘텐츠" in YML
+
+
+def test_site_check_separates_unreachable_from_stale():
+    """접속 실패와 내용 낡음은 원인이 다르다 — 라벨로 구분해 알린다."""
+    assert "사이트접속불가" in YML and "사이트반영낡음" in YML
+
+
+def test_batch_commits_skip_github_but_not_cloudflare():
+    """배치 커밋은 '[skip actions]'만 쓴다 — '[skip ci]'는 Cloudflare 배포까지
+    건너뛰어, 개발 푸시 없는 날 사이트가 조용히 낡는다(2026-08-10 실제 사고)."""
+    for name in ("daily-paper", "nightly-retrain", "social-post",
+                 "deposit", "kr-live"):
+        y = (ROOT / ".github" / "workflows" / f"{name}.yml").read_text("utf-8")
+        for line in y.splitlines():
+            if "git commit -m" in line:
+                assert "[skip ci]" not in line, f"{name}: [skip ci] 금지"
+                assert "[skip actions]" in line, f"{name}: [skip actions] 필요"
     assert "status.json" in YML and "1 day ago" in YML
 
 

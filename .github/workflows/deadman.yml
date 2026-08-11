@@ -53,11 +53,17 @@ jobs:
           fi
           # 사이트 반영 신선도 — 커밋은 됐는데 배포가 죽은 경우를 잡는다.
           # 배포된 status.json의 updated가 최근 2일 안이어야 정상.
+          # ⚠️ 배치 커밋이 "[skip ci]"를 달면 Cloudflare도 배포를 건너뛰어
+          # 개발 푸시가 없는 날 사이트가 조용히 낡는다(2026-08-10 실제 사고)
+          # — 그래서 배치 커밋은 "[skip actions]"(GitHub만 스킵)를 쓴다.
+          # 접속 실패와 내용 낡음은 원인이 다르므로 라벨을 구분한다.
           URL="${QUANT_LIVE_URL:-https://quant.jiwon-1a2.workers.dev}"
           TODAY="$(date -u +%F)"; YDAY="$(date -u -d '1 day ago' +%F)"
           SITE="$(curl -sf --max-time 30 "$URL/status.json" || true)"
-          if ! grep -q -e "$TODAY" -e "$YDAY" <<< "$SITE"; then
-            MISSING="$MISSING 사이트반영"
+          if [ -z "$SITE" ]; then
+            MISSING="$MISSING 사이트접속불가"
+          elif ! grep -q -e "$TODAY" -e "$YDAY" <<< "$SITE"; then
+            MISSING="$MISSING 사이트반영낡음"
           fi
           MISSING="$(echo "$MISSING" | xargs)"
           echo "missing=$MISSING" >> "$GITHUB_OUTPUT"
