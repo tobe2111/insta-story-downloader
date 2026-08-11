@@ -165,8 +165,11 @@ def test_calibration_never_moves_the_recorded_weight(monkeypatch, tmp_path):
             return bars.copy()
 
     class _S:
+        """ML 챔피언 흉내 — last_proba_가 있어야 prob_up이 기록된다."""
+
         name = "fixed"
         allow_short = False
+        last_proba_ = 0.62
 
         def generate_signals(self, df):
             return _pd.Series(0.8, index=df.index)
