@@ -54,3 +54,30 @@ def test_band_helper_is_shared_not_duplicated():
     from quant.live.daily import _rebalance_band_rel
     assert callable(_rebalance_band_rel)
     assert "from quant.live.daily import" in SRC
+
+
+# ── 계좌 공유 위험이 문서로 남아 있는가 ────────────────────────
+#
+# 2026-08-11 감사: 실거래 브로커는 포지션을 '계좌 잔고'로 읽는다. 거래소·
+# 증권사 잔고에는 '누가 왜 샀는가'가 없으므로, 사장님이 원래 들고 있던
+# 물량도 봇의 포지션으로 간주돼 목표 비중 맞추기 과정에서 매도된다.
+# 코드로 막을 수 없는 종류의 위험이라, 최소한 눈에 띄게 적혀 있어야 한다.
+
+
+def test_shared_account_hazard_is_documented():
+    for mod in ("crypto_live.py", "kr_live.py"):
+        src = (ROOT / "quant" / "broker" / mod).read_text("utf-8")
+        assert "전용 계" in src, f"{mod}: 전용 계좌 경고가 없다"
+        assert "구분하지 않는다" in src
+
+
+def test_live_brokers_guard_against_bad_balance_values():
+    """inf·NaN·음수 잔고가 자금 계산을 오염시키지 않아야 한다."""
+    from quant.broker.base import safe_amount
+    assert safe_amount(float("inf")) == 0.0
+    assert safe_amount(float("nan")) == 0.0
+    assert safe_amount(-5.0) == 0.0
+    assert safe_amount(-5.0, allow_negative=True) == -5.0
+    for mod in ("crypto_live.py", "kr_live.py", "us_live.py"):
+        src = (ROOT / "quant" / "broker" / mod).read_text("utf-8")
+        assert "safe_amount" in src, mod
