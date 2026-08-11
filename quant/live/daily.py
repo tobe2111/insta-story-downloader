@@ -315,7 +315,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "cash": broker.get_cash(), "quantity": pos.quantity,
         "avg_price": pos.avg_price, "last_bar": last_bar,
     })
-    st["history"] = cap_history(st["history"] + [record])
+    st["history"] = cap_history(chrono(st["history"] + [record]))
     atomic_write_json(path, st)
 
     hr = record["hit_rate"]
@@ -516,6 +516,23 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
 
 
+def chrono(history: list[dict]) -> list[dict]:
+    """기록을 날짜 오름차순으로 — 파생 수치는 시간순을 전제한다.
+
+    ⚠️ 왜 필요한가(2026-08-11 장부 무결성 검사에서 발견): 한국주식 6종목의
+    기록 배열이 08-05 → **08-07 → 08-06** → 08-10 순으로 어긋나 있었다.
+    원인은 데이터 소스가 한때 아직 닫히지도 않은 08-07 봉을 먼저 내보낸 것
+    (그래서 _drop_unclosed를 추가했다). 값 자체는 그날의 진짜 기록이지만
+    **배열 순서**가 뒤집혀 있어, 하루치 수익률·낙폭·최고·최악일처럼 '직전
+    날'을 참조하는 계산이 엉뚱한 날을 전날로 잡는다.
+
+    저장된 기록은 건드리지 않는다 — "과거를 고치지 않는다"는 약속이 먼저다.
+    대신 읽는 쪽에서 시간순으로 정렬해 계산한다. 값은 그대로고 순서만 바로잡는
+    것이라 재계산이 아니며, 어긋난 배열은 장부에 증거로 남는다.
+    """
+    return sorted(history or [], key=lambda r: str(r.get("date", "")))
+
+
 def twr_index(history: list[dict], deposits: list[dict],
               start_cash: float = START_CASH) -> list[float]:
     """입금 효과를 제거한 누적 성장 지수(시작 1.0) 시계열.
@@ -527,6 +544,7 @@ def twr_index(history: list[dict], deposits: list[dict],
     자산(equity) 고점 대비로 재면 입금이 고점을 끌어올려, 손실이 그대로인데
     낙폭이 0으로 보인다 — 그러면 킬스위치가 입금 때문에 풀린다.
     """
+    history = chrono(history)
     if not history:
         return []
     flows: dict[str, float] = {}
@@ -581,6 +599,7 @@ def day_return_pct(history: list[dict], deposits: list[dict],
     방송하게 된다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 거짓말이다.
     숫자는 산문이 아니라 장부에서 나와야 하므로, 하루치도 장부에 남긴다.
     """
+    history = chrono(history)
     if not history:
         return None
     flows: dict[str, float] = {}
@@ -697,7 +716,7 @@ def _generation_archive(state: dict, since: str) -> dict | None:
     입금(매칭)은 날짜로 해당 구간에 귀속시켜 TWR 왜곡을 막는다.
     """
     try:
-        hist = state.get("history") or []
+        hist = chrono(state.get("history") or [])   # 구간 분할도 시간순 전제
         if not hist:
             return None
         i0 = next((i for i, r in enumerate(hist)
@@ -767,7 +786,7 @@ def _regime_breakdown(history: list, window: int = 20) -> dict | None:
     """
     try:
         rows = [(str(r.get("date")), float(r.get("price") or 0),
-                 float(r.get("equity") or 0)) for r in history
+                 float(r.get("equity") or 0)) for r in chrono(history)
                 if r.get("price") and r.get("equity")]
         if len(rows) < window + 5:
             return None
@@ -1389,7 +1408,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
         for p in broker._positions.values() if abs(p.quantity) > 0}
     st.update({"cash": broker.get_cash(), "last_bar": bar})
-    st["history"] = cap_history(st["history"] + [record])
+    st["history"] = cap_history(chrono(st["history"] + [record]))
     atomic_write_json(path, st)
 
     print(f"[{bar}] 포트폴리오({n}종목 분산) — 자산 {equity:,.2f} "
@@ -1483,7 +1502,7 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
 
     for st in states:
         key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
-        hist = st["history"]
+        hist = chrono(st["history"])          # 시간순 전제 — 배열 순서를 믿지 않는다
         window = [r for r in hist if date.fromisoformat(r["date"]) >= start]
         if not window:
             continue
@@ -1679,7 +1698,7 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 st = json.load(f)
             if st.get("market") == "portfolio":
                 pf_state = st
-            hist = st.get("history", [])
+            hist = chrono(st.get("history", []))   # 사이트 차트도 시간순으로
             key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
             # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다.
             # 킬스위치와 같은 기준(입금 효과 제거)으로 잰다 — 화면과 브레이크가
