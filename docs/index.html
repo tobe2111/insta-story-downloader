@@ -322,8 +322,10 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <h2>종목별 현황 <span class="tag">매일 새벽 확정 기록 · 20종목</span></h2>
       <div class="tw"><table id="symtable">
         <thead><tr><th>종목</th><th>현재가</th><th>일간</th><th>누적</th>
-          <th>비중</th><th>적중률</th><th style="text-align:left">새벽 판단</th></tr></thead>
-        <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
+          <th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>
+          <th title="8만원 통합 계좌가 실제로 들고 있는 비중(배분 슬라이스·변동성 타깃·킬스위치 반영)">통합 노출</th>
+          <th>적중률</th><th style="text-align:left">새벽 판단</th></tr></thead>
+        <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
     </section>
 
@@ -629,20 +631,28 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '명시적으로 정하고, 엣지가 입증되기 전까지는 게이트가 낮은 목표로 잠급니다.</span>';
   }
 
-  /* --- 종목별 표 --- */
+  /* --- 종목별 표 ---
+     ⚠️ 여기 '비중'은 **그 종목만 굴리는 독립 계좌** 안에서의 비중이다.
+     이 페이지의 주인공은 8만원 통합 계좌인데, 열 이름이 그냥 '비중'이면
+     읽는 사람은 통합 계좌가 애플을 12.4% 들고 있다고 읽는다 — 실제
+     통합 노출은 배분 슬라이스·변동성 타깃·킬스위치를 곱한 1.2%다
+     (2026-08-11 감사 100, 91·92와 같은 계열). 두 숫자를 나란히 놓는다. */
+  const applied=(pfLast.applied)||null;
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};
       const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"—";
+      const ap=applied?(applied[r.k]||0):null;
       return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
         '<td class="num">'+((r.w||0)*100).toFixed(1)+'%</td>'+
+        '<td class="num">'+(ap==null?"—":(ap*100).toFixed(2)+"%")+'</td>'+
         '<td class="num">'+hr+'</td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
-    }).join("")||'<tr><td colspan="7" class="sub">기록 대기 중</td></tr>';
+    }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
 
   /* --- 오답 노트 --- */
   if(pf){

@@ -78,6 +78,18 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("사이트 자바스크립트에 문법 오류를 심는다",
+     "docs/index.html",
+     '  const applied=(pfLast.applied)||null;',
+     '  const applied=(pfLast.applied)||;',
+     "tests/test_site_scripts_parse.py"),
+
+    ("종목계좌 비중을 통합 노출인 것처럼 되돌린다",
+     "docs/index.html",
+     '<th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>',
+     '<th>비중</th>',
+     "tests/test_two_kinds_of_weight_are_labeled.py"),
+
     ("드리프트 등급을 대표본 관행 문턱으로 되돌린다",
      "quant/robustness/drift.py",
      '    if n_ref and n_new:\n        ref = psi_null(int(n_ref), int(n_new), bins)',
