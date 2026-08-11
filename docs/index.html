@@ -518,7 +518,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   }
   /* vol_target은 일별 기록 안에 있다 — 계좌 요약(pf) 최상위가 아니다 */
   const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
-  const vt=pfLast.vol_target||st.vol_target;
+  const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
   document.getElementById("side-flags").innerHTML=
