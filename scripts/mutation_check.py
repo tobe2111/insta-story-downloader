@@ -361,6 +361,160 @@ MUTATIONS = [
      "        if owner and key and verify_key(owner, key):",
      "        if owner and key:",
      "tests/test_license_prompt.py"),
+
+    # 감사 78 — 노출을 키워도 되는지 판정하는 유일한 관문.
+    # 커버리지 25줄 중 22줄이 미실행이었다(판정 로직 자체가 미검사).
+    ("'운 좋은 승자'도 엣지 입증으로 인정한다(신뢰구간 하한 무시)",
+     "quant/risk/portfolio_vol.py",
+     "        if lo <= 0.5:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("표본이 얇아도 엣지 입증으로 인정한다",
+     "quant/risk/portfolio_vol.py",
+     "        if n < MIN_EDGE_SAMPLES:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("90일 판정 시계를 안 기다리고 노출을 푼다",
+     "quant/risk/portfolio_vol.py",
+     "        if gen[\"days\"] < gen[\"target_days\"]:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("통합 계좌 장부까지 세어 방향 표본을 부풀린다(같은 매매 이중 계상)",
+     "quant/risk/portfolio_vol.py",
+     "            if str(st.get(\"market\", \"\")).startswith(\"portfolio\"):\n"
+     "                continue",
+     "            if False:\n"
+     "                continue",
+     "tests/test_edge_proven_gate.py"),
+
+    ("판정에 실패하면 '입증'으로 넘어간다(모를 때 잠그지 않는다)",
+     "quant/risk/portfolio_vol.py",
+     "        return False, f\"판정 불가({exc})\"",
+     "        return True, f\"판정 불가({exc})\"",
+     "tests/test_edge_proven_gate.py"),
+
+    # 감사 79 — LiveTrader.step 24줄 미실행. 부품(KillSwitch·is_market_open)은
+    # 검사돼 있었지만 그 부품이 주문 경로에 꽂혀 있는지는 아무도 안 봤다.
+    ("닫힌 시장에도 주문을 낸다(장 시간 가드 무력화)",
+     "quant/live/engine.py",
+     "            if not is_market_open(self.market):",
+     "            if False:",
+     "tests/test_engine_step_guards.py"),
+
+    ("단일 종목 루프의 킬스위치를 무력화한다",
+     "quant/live/engine.py",
+     "        if self.kill_switch is not None and self.kill_switch.update(equity):",
+     "        if False:",
+     "tests/test_engine_step_guards.py"),
+
+    ("단일 종목 루프의 서킷브레이커를 무력화한다",
+     "quant/live/engine.py",
+     "            if self.circuit_breaker.update(equity, day):",
+     "            if False:",
+     "tests/test_engine_step_guards.py"),
+
+    # 감사 80 — "전 종목 청산"이라 말하고 시세 받은 종목만 비우던 자리.
+    ("킬스위치가 시세 받은 종목만 청산한다(나머지는 열린 채 남는다)",
+     "quant/live/multi.py",
+     "        for s in self.symbols:\n"
+     "            try:\n"
+     "                held = float(self.broker.get_position(s).quantity)",
+     "        for s in list(prices):\n"
+     "            try:\n"
+     "                held = float(self.broker.get_position(s).quantity)",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    ("못 비운 종목을 장부·알림에서 지운다(반쪽 청산을 완전 청산으로 보고)",
+     "quant/live/multi.py",
+     "        self._kill_unflattened = unflat",
+     "        self._kill_unflattened = []; unflat = []",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    ("서킷브레이커 청산만 옛 방식으로 되돌린다(같은 규칙을 두 곳에 적기)",
+     "quant/live/multi.py",
+     "                self._flatten_all(prices, equity, \"서킷브레이커\")",
+     "                [self.broker.target_weight(s, 0.0, p, equity)\n"
+     "                 for s, p in prices.items() if p]",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 81 — 한 종목 주문 실패가 나머지 주문과 그날 기록을 통째로 날리던 자리.
+    ("한 종목 주문이 거부되면 나머지 주문과 그날 기록을 통째로 버린다",
+     "quant/live/multi.py",
+     "            except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 전체를 막지 않게\n"
+     "                log.error(\"주문 실패(%s): %s\", s, exc)\n"
+     "                failed.append(f\"{s}({type(exc).__name__})\")\n"
+     "                continue",
+     "            except Exception:\n"
+     "                raise",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 82 — 어드민 전역 스위치가 웹훅 주문 경로를 덮지 않던 자리.
+    ("어드민 '일시정지' 중에도 웹훅 알림으로 주문을 낸다",
+     "quant/live/webhook.py",
+     "        if bool(settings.get(\"trading_paused\")):",
+     "        if False:",
+     "tests/test_webhook_owner_switches.py"),
+
+    ("총노출 배수를 웹훅 주문에는 적용하지 않는다",
+     "quant/live/webhook.py",
+     "            weight *= float(settings.get(\"exposure_scale\", 1.0))",
+     "            pass",
+     "tests/test_webhook_owner_switches.py"),
+
+    ("웹훅에서도 닫힌 시장에 주문을 낸다",
+     "quant/live/webhook.py",
+     "            if not is_market_open(self.market):",
+     "            if False:",
+     "tests/test_webhook_owner_switches.py"),
+
+    # 감사 83 — 어드민 전역 스위치가 연속 실행 루프(quant live --real)를
+    # 덮지 않던 자리. 규칙이 경로마다 따로 적혀 있어 세 곳이 뒤처져 있었다.
+    ("quant live(단일 종목)가 어드민 일시정지를 무시한다",
+     "quant/live/engine.py",
+     "        if paused:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "        if False:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "tests/test_engine_step_guards.py"),
+
+    ("quant live가 총노출 배수를 무시한다",
+     "quant/live/engine.py",
+     "        weight *= exposure",
+     "        pass",
+     "tests/test_engine_step_guards.py"),
+
+    ("다종목 루프가 어드민 일시정지를 무시한다",
+     "quant/live/multi.py",
+     "        if paused:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "        if False:\n"
+     "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
+     "            return",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 84 — 룩어헤드 차단막. quant verify가 과거 결정을 재현할 때
+    # 미래 봉을 못 보게 막는 자리인데 커버리지 0이었다.
+    ("주식 시세에서 end 이후 봉을 안 자른다(검증이 미래 데이터로 통과)",
+     "quant/data/stock.py",
+     "    if end is not None:\n"
+     "        df = df[df.index <= _align_ts(pd.Timestamp(end), df.index)]",
+     "    if end is not None:\n"
+     "        pass",
+     "tests/test_stock_range_cut.py"),
+
+    ("시간대 정렬을 없앤다(분봉에서 TypeError → 조용한 합성 폴백)",
+     "quant/data/stock.py",
+     "    if tz is not None and ts.tzinfo is None:\n"
+     "        return ts.tz_localize(tz)                       # naive ts → 인덱스 tz",
+     "    if False:\n"
+     "        return ts.tz_localize(tz)",
+     "tests/test_stock_range_cut.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

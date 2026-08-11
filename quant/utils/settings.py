@@ -99,3 +99,34 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
             "설정 파일을 읽지 못해 기본값(정상 운용·전액 노출)으로 폴백합니다: "
             "%s — 일시정지/노출 축소 설정이 무시되고 있습니다: %s", path, exc)
     return out
+
+
+def owner_gate(path: str = SETTINGS_PATH) -> tuple[bool, float]:
+    """사장님의 전역 스위치 — (신규 매매 중단인가, 총노출 배수).
+
+    ⚠️ **주문을 내는 모든 경로가 이 함수를 거쳐야 한다**(2026-08-11 감사 83).
+
+    이 규칙이 각 실행 경로에 따로 적혀 있던 것이 결함이었다. 새벽 배치
+    (daily.py)와 daily_live.py만 설정을 읽었고, 웹훅(82)·연속 실행 루프
+    (LiveTrader·MultiTrader·AutoLearner)는 읽지 않았다. 즉 사장님이
+    대시보드에서 '일시정지'를 눌러 두어도 `quant live --real`은 계속
+    주문을 냈다 — 스위치를 누른 사람은 멈췄다고 믿는다.
+
+    같은 규칙을 여러 곳에 적으면 반드시 한 곳이 뒤처진다. 그래서 판정은
+    여기 한 곳에만 둔다. `tests/test_owner_gate_covers_all_paths.py`가
+    주문 경로를 열거해 전부 이 문을 지나는지 확인한다.
+
+    ⚠️ 안전장치(킬스위치·서킷브레이커)의 **청산**은 이 문 앞에서 막으면
+    안 된다. 일시정지는 "신규 매매 중단, 보유는 유지"라는 뜻이지
+    "위험 통제를 끈다"는 뜻이 아니다. 호출부는 안전장치 뒤에 이 문을 둔다.
+
+    설정을 못 읽는 것이 매매를 막는 이유가 되어서는 안 된다(설정 파일이
+    없는 것이 정상 상태다) — 실패는 기본값(정상 운용·전액)으로 흘린다.
+    load_settings가 이미 그렇게 동작하며 실패를 로그에 남긴다.
+    """
+    s = load_settings(path)
+    try:
+        scale = float(s.get("exposure_scale", 1.0))
+    except (TypeError, ValueError):
+        scale = 1.0
+    return bool(s.get("trading_paused")), min(1.0, max(0.0, scale))

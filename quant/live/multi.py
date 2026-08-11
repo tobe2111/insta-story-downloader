@@ -88,6 +88,12 @@ class MultiTrader:
         self._last_error: str | None = None
         # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
         self._last_summary_date = load_last_summary_date(state_path)
+        # 킬스위치가 발동했는데 비우지 못한 종목(감사 80). 빈 리스트는
+        # '전부 비웠다'는 확인이고, 값이 있으면 그 종목은 아직 열려 있다.
+        self._kill_unflattened: list[str] = []
+        # 이번 사이클에 거부된 주문(감사 81). 한 종목 실패가 나머지를
+        # 막지 않되, 실패했다는 사실은 장부에 남는다.
+        self._failed_orders: list[str] = []
 
     def _strategy_for(self, symbol: str) -> Strategy:
         return self.strategy(symbol) if callable(self.strategy) else self.strategy
@@ -160,13 +166,7 @@ class MultiTrader:
             if self.kill_switch.just_tripped:
                 log.error("🛑 일일 손실 킬스위치 발동 — 전 종목 청산 후 "
                           "다음 UTC 일까지 매매 중단")
-                for s, price in prices.items():
-                    if not price:
-                        continue
-                    try:
-                        self.broker.target_weight(s, 0.0, price, equity)
-                    except Exception as exc:  # noqa: BLE001 — 일부 실패해도 계속 청산 시도
-                        log.error("킬스위치 청산 실패(%s): %s", s, exc)
+                self._flatten_all(prices, equity, "킬스위치")
                 self._persist(prices)
             else:
                 log.info("일일 킬스위치 할트 중 — 매매 건너뜀 (다음 UTC 일에 재개)")
@@ -181,25 +181,53 @@ class MultiTrader:
             if self.circuit_breaker.update(equity, day):
                 log.error("🛑 서킷브레이커 발동(%s) — 전 종목 청산 후 중단",
                           self.circuit_breaker.reason)
-                for s, price in prices.items():
-                    if price:
-                        self.broker.target_weight(s, 0.0, price, equity)
+                self._flatten_all(prices, equity, "서킷브레이커")
                 self._persist(prices)
                 return
 
+        # ⚠️ 주문은 종목마다 독립적으로 실패할 수 있다(감사 81). 예전에는
+        #    try 없이 돌아서 한 종목이 거부되면 **나머지 종목 주문이 아예 안
+        #    나가고, 그 사이클 기록조차 장부에 남지 않았다** — 매매는 일부
+        #    일어났는데 장부에는 그날이 없는 상태다. 실패는 삼키지 않고
+        #    장부·알림에 남긴다.
+        # 사장님의 전역 스위치(감사 83) — 킬스위치·서킷브레이커 **뒤**에 둔다.
+        # 일시정지는 "신규 매매 중단, 보유 유지"이지 "위험 통제를 끈다"가 아니다.
+        from quant.utils.settings import owner_gate
+        paused, exposure = owner_gate()
+        if paused:
+            log.info("⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)")
+            return
+        if exposure != 1.0:
+            weights = {k: v * exposure for k, v in weights.items()}
+
+        failed: list[str] = []
         for s, w in weights.items():
             price = prices.get(s)
             if not price:
                 continue
-            order = self.broker.target_weight(
-                s, float(w), price, equity,
-                rebalance_band=self.rebalance_band,
-                rebalance_band_rel=self.rebalance_band_rel)
+            try:
+                order = self.broker.target_weight(
+                    s, float(w), price, equity,
+                    rebalance_band=self.rebalance_band,
+                    rebalance_band_rel=self.rebalance_band_rel)
+            except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 전체를 막지 않게
+                log.error("주문 실패(%s): %s", s, exc)
+                failed.append(f"{s}({type(exc).__name__})")
+                continue
             if order is not None and self.notifier is not None:
                 self.notifier.send(
                     f"[{self.mode}] {order.side.upper()} {s} "
                     f"{order.quantity:.6f} @ {price:.2f}"
                 )
+        self._failed_orders = failed
+        if failed:
+            msg = f"⚠️ 주문 실패 {len(failed)}건 — {', '.join(failed)}"
+            log.error(msg)
+            if self.notifier is not None:
+                try:
+                    self.notifier.send(msg, level="error")
+                except Exception as exc:  # noqa: BLE001
+                    log.error("주문 실패 알림 전송 실패: %s", exc)
 
         self.history.append({
             "time": str(pd.Timestamp.utcnow()),
@@ -208,6 +236,50 @@ class MultiTrader:
             "price": 0.0,
         })
         self._persist(prices)
+
+    def _flatten_all(self, prices: dict, equity: float, why: str) -> list[str]:
+        """전 종목 청산을 시도하고 **비우지 못한 종목**을 돌려준다.
+
+        ⚠️ 킬스위치와 서킷브레이커가 반드시 이 함수를 쓴다(감사 80). 예전에는
+        두 곳에 청산 루프가 따로 적혀 있었고, 둘 다 `prices.items()`를 돌았다.
+        `prices`는 `_target_weights()`가 만드는데 거기서 **데이터가 빈 종목은
+        건너뛴다** — 즉 그 사이클에 시세를 못 받은 종목은 청산 시도조차 되지
+        않았다. 두 장치 모두 그날 매매를 멈추므로 그 포지션은 다음 날까지
+        열린 채 남는다. 손실이 커져서 멈춘 바로 그 상황에서다.
+
+        가장 나쁜 건 **아무도 모른다는 것**이었다 — 로그와 알림은 "전 종목
+        청산"이라고 말한다. 시세 없이 주문을 낼 수는 없으니, 대신 **확인한
+        사실만 말한다**: 못 비운 종목을 장부와 알림에 남긴다.
+        """
+        unflat: list[str] = []
+        for s in self.symbols:
+            try:
+                held = float(self.broker.get_position(s).quantity)
+            except Exception as exc:  # noqa: BLE001
+                log.error("보유 조회 실패(%s): %s", s, exc)
+                held = float("nan")       # 모름 — '없음'으로 반올림하지 않는다
+            if held == 0.0:
+                continue                  # 이미 비어 있다
+            price = prices.get(s)
+            if not price:
+                unflat.append(f"{s}(시세 없음)")
+                continue
+            try:
+                self.broker.target_weight(s, 0.0, price, equity)
+            except Exception as exc:  # noqa: BLE001 — 하나 실패해도 나머지는 계속
+                log.error("%s 청산 실패(%s): %s", why, s, exc)
+                unflat.append(f"{s}({type(exc).__name__})")
+        self._kill_unflattened = unflat
+        if unflat:
+            msg = (f"🛑 {why} 청산 **미완료** — 아래 종목은 비우지 못했습니다"
+                   f"(포지션 유지 중): {', '.join(unflat)}")
+            log.error(msg)
+            if self.notifier is not None:
+                try:
+                    self.notifier.send(msg, level="error")
+                except Exception as exc:  # noqa: BLE001
+                    log.error("%s 미완료 알림 실패: %s", why, exc)
+        return unflat
 
     def snapshot(self, prices: dict[str, float] | None = None) -> dict:
         prices = prices or {}
@@ -241,6 +313,13 @@ class MultiTrader:
             "kill_switch_halted": bool(
                 self.kill_switch is not None
                 and self.kill_switch.halted_until is not None),
+            # 킬스위치가 발동했는데 비우지 못한 종목(감사 80). None/빈 값은
+            # '전부 비웠다'는 확인이고, 값이 있으면 그 종목은 아직 열려 있다.
+            # "전 종목 청산"이라는 문구를 그대로 믿으면 안 되는 유일한 경우다.
+            "kill_switch_unflattened": list(self._kill_unflattened) or None,
+            # 이번 사이클에 거부된 주문(감사 81) — 목표 비중과 실제
+            # 보유가 왜 다른지에 답할 수 있어야 한다.
+            "failed_orders": list(self._failed_orders) or None,
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:

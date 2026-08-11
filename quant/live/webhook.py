@@ -114,6 +114,25 @@ class WebhookExecutor:
             return {"ok": False, "error": "숏 비활성(allow_short=False)"}
         weight = max(-self.max_weight, min(self.max_weight, weight))
 
+        # 사장님의 전역 스위치 — **주문을 내는 모든 경로**에 걸린다(감사 82).
+        # 예전에는 새벽 배치(daily.py)만 이 설정을 읽었고 웹훅은 읽지 않았다.
+        # 즉 대시보드에서 '일시정지'를 눌러 두어도 트레이딩뷰 알림 하나가
+        # 실계좌에 주문을 냈다 — 스위치를 누른 사람은 멈췄다고 믿는다.
+        # 설정을 못 읽는 것이 매매를 막는 이유가 되어서는 안 되므로(설정
+        # 파일이 없는 것이 정상 상태다) 실패는 기본값으로 흘린다.
+        try:
+            from quant.utils.settings import load_settings
+            settings = load_settings()
+        except Exception:  # noqa: BLE001
+            settings = {}
+        if bool(settings.get("trading_paused")):
+            # daily.py와 같은 의미 — 신규 주문만 막고 보유는 건드리지 않는다.
+            return {"ok": False, "skipped": True, "reason": "어드민 일시정지"}
+        try:
+            weight *= float(settings.get("exposure_scale", 1.0))
+        except (TypeError, ValueError):
+            pass                      # 값이 이상하면 배수 미적용(전액)
+
         # 장 시간 가드(주식). 코인·미지정은 항상 통과.
         if self.market is not None:
             from quant.live.market_hours import is_market_open, market_status

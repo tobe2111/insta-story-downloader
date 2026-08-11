@@ -76,7 +76,15 @@ class AutoLearner:
         price = float(df["close"].iloc[-1])
         equity = self.broker.equity({self.symbol: price})
 
-        self.broker.target_weight(self.symbol, weight, price, equity)
+        # 사장님의 전역 스위치(감사 83). 이 루프는 페이퍼 전용이지만, 주문을
+        # 내는 경로는 예외 없이 같은 문을 지난다 — 예외를 하나 두면 다음
+        # 경로도 예외가 된다.
+        from quant.utils.settings import owner_gate
+        paused, exposure = owner_gate()
+        if paused:
+            log.info("⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)")
+        else:
+            self.broker.target_weight(self.symbol, weight * exposure, price, equity)
 
         acc = directional_accuracy(df, signals, window=self.accuracy_window)
         # 최근 구간(롤링) 정확도 — 정확도가 시간에 따라 어떻게 변하는지
