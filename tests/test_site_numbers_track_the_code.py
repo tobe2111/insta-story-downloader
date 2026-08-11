@@ -142,3 +142,42 @@ def test_this_test_reads_the_numbers_from_code():
         assert bad not in body, (
             f"검사 안에 현재 설정값을 박았다({bad!r}) — 코드에서 읽어야 "
             "설정이 바뀔 때 이 검사가 제 구실을 한다")
+
+
+# ── 목표 변동성 기본값 (감사 90) ────────────────────────────────
+#
+# 어드민 패널은 사장님이 통합 계좌의 위험 크기를 정하는 화면이다. 거기에
+# "비워두면 코드 기본값 (엣지 미입증 12% / 입증 후 20%)을 따릅니다"라고
+# 적혀 있는데, 그 숫자가 산문에 박혀 있었다. 코드 기본값이 바뀌면 패널이
+# 사장님께 거짓말을 한다 — 그걸 읽고 위험을 정하는 화면에서.
+#
+# index.html은 같은 값을 장부(vt.target)에서 읽어 렌더링한다. 두 화면이
+# 같은 사실을 다른 방식으로 말하고 있었고, 한쪽만 뒤처질 수 있었다.
+
+def _pct_claims(text: str, keyword: str):
+    """키워드 근처에 적힌 퍼센트 값들."""
+    out = []
+    for m in re.finditer(re.escape(keyword), text):
+        seg = re.sub(r"<[^>]+>", " ", text[m.start():m.start() + 220])
+        out += [float(x) for x in re.findall(r"(\d{1,2}(?:\.\d)?)\s*%", seg)]
+    return out
+
+
+def test_admin_states_the_real_default_target_vols():
+    """어드민이 말하는 '코드 기본값'이 진짜 코드 기본값이어야 한다."""
+    from quant.risk.portfolio_vol import PROVEN_TARGET_VOL, VERIFY_TARGET_VOL
+    text = (DOCS / "admin.html").read_text(encoding="utf-8")
+    claims = _pct_claims(text, "코드 기본값")
+    assert claims, "어드민에서 '코드 기본값' 안내를 찾지 못했다"
+    want = {round(VERIFY_TARGET_VOL * 100, 1), round(PROVEN_TARGET_VOL * 100, 1)}
+    got = {round(c, 1) for c in claims}
+    assert want <= got, (
+        f"어드민이 코드 기본값을 {sorted(got)}%라 말하는데 실제는 "
+        f"{sorted(want)}%다 — 사장님이 그 문장을 읽고 위험 크기를 정한다")
+
+
+def test_the_live_flag_reads_the_target_from_the_ledger():
+    """index의 리스크 잠금 문구는 장부 값을 렌더링해야 한다(산문 금지)."""
+    text = (DOCS / "index.html").read_text(encoding="utf-8")
+    assert "vt.target" in text, (
+        "index가 목표 변동성을 장부에서 읽지 않고 산문에 박기 시작했다")

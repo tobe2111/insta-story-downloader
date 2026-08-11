@@ -580,6 +580,14 @@ MUTATIONS = [
      "20종목에",
      "25종목에",
      "tests/test_site_numbers_track_the_code.py"),
+
+    # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면
+    # 사장님이 위험을 정하는 화면이 거짓말을 하던 자리.
+    ("목표 변동성 기본값을 바꿔도 어드민 안내가 뒤처지지 않는가",
+     "quant/risk/portfolio_vol.py",
+     "VERIFY_TARGET_VOL = 0.12",
+     "VERIFY_TARGET_VOL = 0.10",
+     "tests/test_site_numbers_track_the_code.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
