@@ -203,16 +203,31 @@ def _explain(spec: dict, df, weight: float, strategy,
 
     if name == "regime_wrap":
         tw = int(p.get("trend_window", 200))
-        ma = float(close.rolling(tw).mean().iloc[-1])
-        px = float(close.iloc[-1])
-        if px < ma:
-            return (f"{head} — 레짐 필터: 주가가 {tw}일선 아래(약세 국면) → "
-                    "손실 회피를 위해 매매를 멈추고 관망")
+        # ⚠️ 조건을 여기서 다시 계산하지 않는다(감사 69). 예전에는
+        #    `px < ma`로 재계산했는데, MA가 NaN(데이터 부족)이면 그 비교가
+        #    False라 "{tw}일선 위(매매 허용)"이라고 말했다 — 정작 필터는
+        #    NaN 구간을 '진입 보류'로 막고 있었다. 즉 설명이 실제와 **정반대**
+        #    였고, 그 문장이 사이트·SNS에 "왜 오늘 이 비중인가"의 답으로 나갔다.
+        #    이제 판단한 쪽(RegimeFilter.last_gate_)이 남긴 결과를 읽는다.
+        gate = getattr(strategy, "last_gate_", None)
+        if gate is None:                       # 아직 실행 전(설명만 미리 볼 때)
+            ma = close.rolling(tw).mean().iloc[-1]
+            px = float(close.iloc[-1])
+            if ma != ma:
+                gate = {"open": False,
+                        "reason": f"{tw}일선 미정(데이터 부족) → 판정 보류"}
+            elif px < float(ma):
+                gate = {"open": False,
+                        "reason": f"주가가 {tw}일선 아래(약세 국면) → 관망"}
+            else:
+                gate = {"open": True, "reason": f"{tw}일선 위(매매 허용)"}
+        if not gate.get("open"):
+            return f"{head} — 레짐 필터: {gate['reason']}"
         inner = _explain(p.get("inner", {}), df, weight,
                          getattr(strategy, "base", None),
                          raw_weight=raw_weight, history=history,
                          pooled_history=pooled_history)
-        return f"{inner} · 레짐 필터: {tw}일선 위(매매 허용)"
+        return f"{inner} · 레짐 필터: {gate['reason']}"
 
     if name == "event_wrap":
         from datetime import date as _date

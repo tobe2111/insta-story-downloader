@@ -245,6 +245,12 @@ MUTATIONS = [
      '            key, float(pend["weight"]) * sl, prices.get(key, fopen), eq_now,',
      "tests/test_intrabar_next_open.py"),
 
+    ("레짐 필터가 판단 근거를 안 남기게 한다(설명이 재계산으로 되돌아감)",
+     "quant/strategies/regime.py",
+     "        self.last_gate_ = gate",
+     "        self.last_gate_ = None",
+     "tests/test_filter_wrappers.py"),
+
     ("증거 없이도 확률 보정값을 표시한다",
      "quant/live/daily.py",
      "        if active:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
