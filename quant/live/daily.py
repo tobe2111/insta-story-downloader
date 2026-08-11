@@ -19,12 +19,23 @@ import re
 
 import numpy as np
 
+# 상수와 순수 계산은 **의존성 없는 모듈**에서 가져와 여기서 다시 내보낸다.
+# SNS 캡션처럼 numpy가 없는 환경에서 도는 코드가 숫자 하나 읽으려고 매매
+# 엔진 전체를 끌어오지 않게 하기 위함이다(2026-08-11 감사 102 — 그렇게
+# 끌어오다가 그날 밤 게시가 ModuleNotFoundError로 죽었다).
+from quant.live.ledger_basics import (          # noqa: F401 — 재수출
+    GOAL_KRW,
+    PORTFOLIO_START_CASH,
+    START_CASH,
+    chrono,
+    day_return_pct,
+)
+
 from quant.live.retrain import STATE_DIR, champion_spec, champion_strategy
 from quant.utils.logging import get_logger
 
 log = get_logger("daily_paper")
 
-START_CASH = 10_000.0
 
 # ── 체결 현실성 규칙 ────────────────────────────────────────────────
 # 새벽 판단 시점(KST 05:30)에 실제로 체결 가능한 첫 시점은 시장마다 다르다:
@@ -558,11 +569,7 @@ def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
 # 한국주식 실측 왕복 비용(가정 14bp + 개장 갭 79bp ≈ 93bp) 기준, 500원
 # 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
 MIN_ORDER_KRW = 500.0
-GOAL_KRW = 100_000_000          # 8마일 챌린지 목표 (8만원 → 1억)
 
-# 8마일 챌린지 — 통합 계좌 시작금. 8종목 × 만원 = 8만원 (영화 8 Mile 오마주).
-# 개별 종목 계좌는 여전히 각자 만원(START_CASH)으로 참고용 기록을 쌓는다.
-PORTFOLIO_START_CASH = 80_000.0
 
 
 def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
@@ -606,23 +613,6 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
           f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
-
-
-def chrono(history: list[dict]) -> list[dict]:
-    """기록을 날짜 오름차순으로 — 파생 수치는 시간순을 전제한다.
-
-    ⚠️ 왜 필요한가(2026-08-11 장부 무결성 검사에서 발견): 한국주식 6종목의
-    기록 배열이 08-05 → **08-07 → 08-06** → 08-10 순으로 어긋나 있었다.
-    원인은 데이터 소스가 한때 아직 닫히지도 않은 08-07 봉을 먼저 내보낸 것
-    (그래서 _drop_unclosed를 추가했다). 값 자체는 그날의 진짜 기록이지만
-    **배열 순서**가 뒤집혀 있어, 하루치 수익률·낙폭·최고·최악일처럼 '직전
-    날'을 참조하는 계산이 엉뚱한 날을 전날로 잡는다.
-
-    저장된 기록은 건드리지 않는다 — "과거를 고치지 않는다"는 약속이 먼저다.
-    대신 읽는 쪽에서 시간순으로 정렬해 계산한다. 값은 그대로고 순서만 바로잡는
-    것이라 재계산이 아니며, 어긋난 배열은 장부에 증거로 남는다.
-    """
-    return sorted(history or [], key=lambda r: str(r.get("date", "")))
 
 
 def twr_index(history: list[dict], deposits: list[dict],
@@ -679,33 +669,6 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력."""
     idx = twr_index(history, deposits, start_cash)
     return round((idx[-1] - 1) * 100, 2) if idx else 0.0
-
-
-def day_return_pct(history: list[dict], deposits: list[dict],
-                   start_cash: float = START_CASH) -> float | None:
-    """마지막 기록일의 **하루치** 수익률(%) — 입금 효과 제거(TWR과 같은 식).
-
-    왜 따로 두는가(2026-08-11 감사에서 발견): 기록의 return_pct는 원금 대비
-    **누적** 수익률인데, SNS 캡션이 그것을 "오늘 X%"라고 읽고 있었다. 지금은
-    누적이 -0.06%라 차이가 안 보이지만, 누적이 +40%가 되면 매일 "오늘 +40%"를
-    방송하게 된다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 거짓말이다.
-    숫자는 산문이 아니라 장부에서 나와야 하므로, 하루치도 장부에 남긴다.
-    """
-    history = chrono(history)
-    if not history:
-        return None
-    flows: dict[str, float] = {}
-    dates = [r["date"] for r in history]
-    for d in deposits or []:
-        target = next((dt for dt in dates if dt >= d["date"]), None)
-        if target is not None:
-            flows[target] = flows.get(target, 0.0) + float(d["amount"])
-    prev = float(history[-2]["equity"]) if len(history) >= 2 else float(start_cash)
-    if prev <= 0:
-        return None
-    last = history[-1]
-    eq = float(last["equity"]) - flows.get(last["date"], 0.0)
-    return round((eq / prev - 1) * 100, 2)
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,

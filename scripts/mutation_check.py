@@ -78,6 +78,18 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("재현 경보를 산문 매칭으로 되돌린다(통과 줄에 헛울림)",
+     "scripts/verify_gate.py",
+     '        if "✔" in ln:',
+     '        if "✔" in ln and "불일치" not in ln:',
+     "tests/test_verify_gate.py"),
+
+    ("캡션이 다시 매매 엔진(numpy)을 끌어오게 한다",
+     "quant/reporting/social.py",
+     "    from quant.live.ledger_basics import PORTFOLIO_START_CASH",
+     "    from quant.live.daily import PORTFOLIO_START_CASH",
+     "tests/test_social_path_stays_light.py"),
+
     ("사이트 자바스크립트에 문법 오류를 심는다",
      "docs/index.html",
      '  const applied=(pfLast.applied)||null;',
@@ -178,8 +190,10 @@ MUTATIONS = [
      "if False and not self._same_site_ok(parsed):",
      "tests/test_web_csrf.py"),
 
+    # chrono는 2026-08-11 감사 102에서 의존성 없는 ledger_basics로 옮겼다
+    # (SNS 게시 경로가 numpy를 끌어오지 않게). daily는 재수출만 한다.
     ("장부 정렬(chrono)을 없앤다",
-     "quant/live/daily.py",
+     "quant/live/ledger_basics.py",
      'return sorted(history or [], key=lambda r: str(r.get("date", "")))',
      "return list(history or [])",
      "tests/test_ledger_integrity.py"),

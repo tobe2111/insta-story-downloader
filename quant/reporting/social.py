@@ -100,7 +100,7 @@ def _day_pct_from_history(hist: list, port: dict) -> float | None:
     if not hist:
         return None
     try:
-        from quant.live.daily import day_return_pct
+        from quant.live.ledger_basics import day_return_pct
         return day_return_pct(hist, port.get("deposits") or [],
                               start_cash=float(port.get("start_cash")
                                                or hist[0].get("principal")
@@ -156,7 +156,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     tops = " · ".join(x["top_names"]) if x["top_names"] else "전 종목 관망"
     # 종목 수와 시작금은 산문에 박지 않는다 — 설정이 바뀌면 SNS만 조용히
     # 거짓말을 하게 된다(사이트에 같은 결함이 있어 이미 계약 검사로 막았다).
-    from quant.live.daily import PORTFOLIO_START_CASH
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH
     from quant.markets import AUTO_TARGETS
     n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
     start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
