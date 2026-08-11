@@ -1,8 +1,8 @@
 {
-  "cash": 9989.452505252788,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-10 00:00:00",
+  "cash": 9397.077971691297,
+  "quantity": 0.764359417420845,
+  "avg_price": 774.530029296875,
+  "last_bar": "2026-08-11 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -127,13 +127,44 @@
       "drift_psi": 0.1542,
       "earnings_guard": null,
       "kelly_cap": null
+    },
+    {
+      "date": "2026-08-11",
+      "price": 770.5599975585938,
+      "weight": 0.0619,
+      "equity": 9986.06,
+      "return_pct": -0.14,
+      "hit_rate": 0.5,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +6% — 로지스틱회귀 모델이 내일 상승확률을 약 57%로 추정(기준 55% 초과) · 판단 재료: VIX 변동성지수(옵션시장 공포) 15(보통 수준) / 60일 모멘텀 +3.3% / VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) · 사이징: 신호 원비중 4% → 변동성 타깃 조절 후 6% · 참고: 전 종목 합산으로 모델이 57%±10%p라 말한 27건의 실제 상승 비율 48% (95% 신뢰구간 31%~66% · 이 종목 단독 표본은 3건으로 축적 중)",
+      "fill": {
+        "price": 774.530029,
+        "bar": "2026-08-11 00:00:00",
+        "weight": 0.0593,
+        "decided_bar": "2026-08-10 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "46dafa70c0f2",
+      "data_sha256": "c948cee03181618366d9bf53cfc7a9a8a63d4421a48f96041b9f46f6b08ba290",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5665525848594559,
+      "drift_psi": 0.1124,
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null
     }
   ],
   "market": "us_stock",
   "symbol": "SPY",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0593,
-    "decided_bar": "2026-08-10 00:00:00"
+    "weight": 0.0619,
+    "decided_bar": "2026-08-11 00:00:00"
   }
 }
