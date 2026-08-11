@@ -347,6 +347,20 @@ MUTATIONS = [
      "                self._send(run_optimize_html(params))",
      "                self._send(run_sweep_html(params))",
      "tests/test_web_routes.py"),
+
+    # 감사 76 — 팔아서 돈을 받은 라이선스 키를 0o644로 저장하던 자리.
+    # .env의 API 키는 ㊾에서 조여 놓고 정작 파는 물건이 열려 있었다.
+    ("구매자의 라이선스 키를 남도 읽을 수 있게 저장한다",
+     "quant/licensing.py",
+     "                private = write_private(path, f\"owner: {owner}\\nkey:   {key}\\n\")",
+     "                private = True; path.write_text(f\"owner: {owner}\\nkey:   {key}\\n\", encoding=\"utf-8\")",
+     "tests/test_license_prompt.py"),
+
+    ("남에게 발급된 키도 통과시킨다(1인 1키 붕괴)",
+     "quant/licensing.py",
+     "        if owner and key and verify_key(owner, key):",
+     "        if owner and key:",
+     "tests/test_license_prompt.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
