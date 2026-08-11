@@ -497,6 +497,24 @@ MUTATIONS = [
      "            log.info(\"⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)\")\n"
      "            return",
      "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 84 — 룩어헤드 차단막. quant verify가 과거 결정을 재현할 때
+    # 미래 봉을 못 보게 막는 자리인데 커버리지 0이었다.
+    ("주식 시세에서 end 이후 봉을 안 자른다(검증이 미래 데이터로 통과)",
+     "quant/data/stock.py",
+     "    if end is not None:\n"
+     "        df = df[df.index <= _align_ts(pd.Timestamp(end), df.index)]",
+     "    if end is not None:\n"
+     "        pass",
+     "tests/test_stock_range_cut.py"),
+
+    ("시간대 정렬을 없앤다(분봉에서 TypeError → 조용한 합성 폴백)",
+     "quant/data/stock.py",
+     "    if tz is not None and ts.tzinfo is None:\n"
+     "        return ts.tz_localize(tz)                       # naive ts → 인덱스 tz",
+     "    if False:\n"
+     "        return ts.tz_localize(tz)",
+     "tests/test_stock_range_cut.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
