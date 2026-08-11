@@ -232,7 +232,21 @@ class Backtester:
             if self.intrabar_stops and pos != 0.0 and entry > 0.0 and i > 0:
                 fill = self._intrabar_stop_fill(pos, entry, open_[i], high[i], low[i])
                 if fill is not None and fill > 0.0:
-                    cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
+                    # 시가 체결 모델과 함께 쓸 때: 이 봉 시가에 체결된 몫
+                    # (pending_delta)은 종가가 아니라 **시가**가 출발점이다.
+                    # 예전에는 전량을 close[i-1] 기준으로 계산하고 pending을
+                    # 지우지 않아, 아래 1)에서 이미 청산된 포지션에 손익이
+                    # 한 번 더 붙었다(2026-08-11 감사에서 발견한 잠재 결함 —
+                    # intrabar_stops는 수동 백테스트에서만 켜져 실전 경로에는
+                    # 닿지 않았지만, 켜는 순간 숫자가 틀린다).
+                    if (use_next_open and abs(pending_delta) > 1e-12
+                            and open_[i] > 0):
+                        held_before = pos - pending_delta
+                        cash_equity *= 1.0 + (
+                            held_before * (fill / close[i - 1] - 1.0)
+                            + pending_delta * (fill / open_[i] - 1.0))
+                    else:
+                        cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
                     exit_cost = cm.turnover_cost(abs(pos), vol[i])
                     if dollar_vol is not None:
                         exit_cost += cm.market_impact_cost(
@@ -242,6 +256,7 @@ class Backtester:
                     entry = 0.0
                     extreme = 0.0
                     intrabar_exit = True
+                    pending_delta = 0.0     # 이미 체결·청산됐다 — 재계상 금지
 
             # 1) 이전 봉에서 설정한 pos로 이번 봉 수익 실현
             #    (봉 내 청산 시 pos=0이라 자연히 건너뜀 — 부분 수익은 이미 반영)
