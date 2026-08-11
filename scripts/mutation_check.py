@@ -283,6 +283,28 @@ MUTATIONS = [
      "        if active:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
      "        if True:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
      "tests/test_drift_calibration.py"),
+
+    # 결함 73 — 공개 게이트가 draft를 태그로 찾아 영원히 못 찾던 자리.
+    # 세 OS 빌드가 다 성공한 v0.17.1이 이 한 줄 때문에 보류됐다.
+    ("draft 릴리스를 태그로 조회하게 되돌린다(영원히 못 찾음)",
+     "scripts/publish_release.py",
+     "        batch = api(f\"/releases?per_page=100&page={page}\") or []\n"
+     "        hits += [r for r in batch if r.get(\"tag_name\") == version]",
+     "        one = api(f\"/releases/tags/{version}\")\n"
+     "        hits += [one] if one else []",
+     "tests/test_publish_release.py"),
+
+    ("자산이 갈라진 중복 draft 중 하나를 그냥 공개한다(반쪽 릴리스)",
+     "scripts/publish_release.py",
+     "    if len(hits) > 1:",
+     "    if False:",
+     "tests/test_publish_release.py"),
+
+    ("자산 확인 없이 공개한다(빠진 파일 무시)",
+     "scripts/publish_release.py",
+     "    missing = [f for f in required if f not in have]",
+     "    missing = []",
+     "tests/test_publish_release.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
