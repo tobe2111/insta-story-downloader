@@ -24,7 +24,8 @@ log = get_logger("champion_challenger")
 class ChampionChallenger:
     def __init__(self, champion: Strategy, challenger: Strategy,
                  min_obs: int = 60, edge: float = 0.0, t_threshold: float = 2.0,
-                 cost_model=None):
+                 cost_model=None, next_open_fill: bool = False,
+                 rebalance_band: float = 0.0):
         """champion을 challenger로 교체할지 판단한다.
 
         min_obs     : 판단에 필요한 최소 봉 수(표본이 적으면 교체 보류)
@@ -33,6 +34,12 @@ class ChampionChallenger:
         cost_model  : 시장별 거래비용 프리셋(CostModel). 없으면 백테스터 기본
                       비용(편도 0.1%+슬리피지 0.05%)이 적용된다 — 비용 없는
                       대결은 회전율 높은 전략에 유리하게 왜곡되므로 금지.
+        next_open_fill / rebalance_band :
+            '챔피언을 뽑는 세계'를 '돈이 도는 세계'와 맞추는 두 손잡이.
+            실제 운용은 다음 세션 시가에 체결하고(개장 갭 실측 79bp) 리밸런스
+            밴드로 잔조정을 거른다. 오디션이 종가 체결·밴드 0으로 평가하면
+            고회전 전략이 부당하게 유리해져, 실제로는 낼 수 없는 성과를 근거로
+            챔피언이 선발된다(2026-08-11 발견). 호출자가 시장에 맞는 값을 넣는다.
         """
         self.champion = champion
         self.challenger = challenger
@@ -40,6 +47,8 @@ class ChampionChallenger:
         self.edge = edge
         self.t_threshold = t_threshold
         self.cost_model = cost_model
+        self.next_open_fill = bool(next_open_fill)
+        self.rebalance_band = max(0.0, float(rebalance_band))
 
     def evaluate(self, df: pd.DataFrame, tail: int | None = None,
                  folds: int = 0) -> dict:
@@ -57,8 +66,11 @@ class ChampionChallenger:
         """
         from quant.backtest import Backtester
 
-        res_c = Backtester(self.champion, cost_model=self.cost_model).run(df)
-        res_h = Backtester(self.challenger, cost_model=self.cost_model).run(df)
+        bt = dict(cost_model=self.cost_model,
+                  next_open_fill=self.next_open_fill,
+                  rebalance_band=self.rebalance_band)
+        res_c = Backtester(self.champion, **bt).run(df)
+        res_h = Backtester(self.challenger, **bt).run(df)
         rc, rh = res_c.returns, res_h.returns
         if tail is not None and tail > 0:
             rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]

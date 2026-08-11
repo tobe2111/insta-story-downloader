@@ -401,6 +401,33 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         return None
 
 
+def measured_cost_model(market: str, state_dir: str = STATE_DIR):
+    """실측 체결 비용을 반영한 CostModel — 오디션이 현실의 비용을 물게 한다.
+
+    CostModel.for_market()은 '가정'이다(한국주식 왕복 28bp). 그런데 실측된
+    개장 갭까지 더하면 ~93bp로 3배 넘게 어긋난다. 오디션이 가정으로 평가하면
+    고회전 전략이 부당하게 유리해지고, 실제로는 낼 수 없는 성과를 근거로
+    챔피언이 뽑힌다. 실측 표본이 충분할 때만 반영하고 아니면 가정 그대로 —
+    소표본 실측으로 선발 기준을 흔드는 것이 더 위험하다.
+    """
+    from quant.backtest.costs import CostModel
+    base = CostModel.for_market(market)
+    measured = _measured_roundtrip_cost(market, state_dir)
+    if measured is None:
+        return base
+    one_way = max(0.0, measured / 2.0)          # 왕복 → 편도
+    assumed_one_way = float(base.fee + base.slippage)
+    if one_way <= assumed_one_way:
+        return base                             # 실측이 더 싸면 가정 유지(보수적)
+    # 초과분은 슬리피지로 붙인다 — 수수료는 계약이고 갭은 체결 미끄러짐이다
+    return CostModel(fee=base.fee,
+                     slippage=base.slippage + (one_way - assumed_one_way),
+                     impact_coef=base.impact_coef,
+                     short_borrow=base.short_borrow, funding=base.funding,
+                     market_impact_coef=base.market_impact_coef,
+                     participation_cap=base.participation_cap)
+
+
 def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
     """시장별 상대 리밸런스 밴드 — 왕복 비용에 비례(하한·상한 클립).
 

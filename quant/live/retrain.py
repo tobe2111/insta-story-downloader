@@ -209,6 +209,25 @@ def append_history(record: dict, state_dir: str = STATE_DIR) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def _audition_kwargs_from_record(rec: dict) -> dict:
+    """장부 기록에서 그날의 오디션 조건을 되살린다(verify 재현용).
+
+    audition_env가 없는 옛 기록은 그때 실제로 쓰던 조건 — 시장별 가정 비용,
+    종가 체결, 밴드 0 — 으로 폴백한다. 알고리즘이 진화해도 과거 결정의 재현
+    검증이 깨지지 않아야 한다(그게 깨지면 '조작 불가능' 주장도 깨진다).
+    """
+    from quant.backtest.costs import CostModel
+    env = rec.get("audition_env")
+    if not env:
+        return {"cost_model": CostModel.for_market(rec["market"])}
+    return {
+        "cost_model": CostModel(fee=float(env["fee"]),
+                                slippage=float(env["slippage"])),
+        "next_open_fill": bool(env.get("next_open_fill", False)),
+        "rebalance_band": float(env.get("rebalance_band", 0.0)),
+    }
+
+
 def nightly_retrain(
     df,
     champion_spec: dict,
@@ -222,6 +241,8 @@ def nightly_retrain(
     edge: float = 0.0,
     cost_model=None,
     select_folds: int = 3,
+    next_open_fill: bool = False,
+    rebalance_band: float = 0.0,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -256,7 +277,8 @@ def nightly_retrain(
             cc = ChampionChallenger(
                 build(champion_spec), build(full_spec),
                 min_obs=min_obs, edge=edge, t_threshold=select_t,
-                cost_model=cost_model)
+                cost_model=cost_model, next_open_fill=next_open_fill,
+                rebalance_band=rebalance_band)
             r = cc.evaluate(select_df, folds=select_folds)
         except Exception as exc:  # noqa: BLE001 — 후보 하나의 실패로 전체를 죽이지 않는다
             log.warning("챌린저 평가 실패 %s: %s", spec, exc)
@@ -284,7 +306,8 @@ def nightly_retrain(
     cc = ChampionChallenger(
         build(champion_spec), build(best["spec"]),
         min_obs=min(min_obs, confirm_window // 2), edge=edge,
-        t_threshold=confirm_t, cost_model=cost_model)
+        t_threshold=confirm_t, cost_model=cost_model,
+        next_open_fill=next_open_fill, rebalance_band=rebalance_band)
     final = cc.evaluate(df, tail=confirm_window)
 
     if not final["swap"]:
@@ -506,7 +529,11 @@ def verify_retrain(asof: str, *, market: str | None = None,
             # 옛 기록(폴드 게이트 이전)은 0으로 재현 — 알고리즘 진화가
             # 과거 결정의 재현 검증을 깨뜨리지 않게 장부 값을 따른다.
             select_folds=int(rec.get("select_folds", 0)),
-            cost_model=CostModel.for_market(rec["market"]))
+            # 그날의 오디션 조건을 장부에서 그대로 되살린다. 실측 비용은
+            # 날마다 변하므로 '오늘 값'으로 어제 결정을 재생하면 재현이
+            # 깨진다 — 결정의 전제는 결정과 함께 보존돼야 한다.
+            # 옛 기록(audition_env 이전)은 그때 쓰던 가정 비용으로 폴백.
+            **_audition_kwargs_from_record(rec))
         same_promoted = bool(decision["promoted"]) == bool(rec["promoted"])
         same_champion = True
         if decision["promoted"] and rec["promoted"]:
@@ -592,13 +619,25 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
           f"선발 t≥{select_t_eff:.2f} · 결승 t≥{confirm_t_eff:.2f}"
           f" (상한 {CONFIRM_T_CAP})")
 
-    # 시장별 현실적 거래비용으로 대결 — 비용을 빼면 회전율 높은 전략이 과대평가된다
-    from quant.backtest.costs import CostModel
+    # 오디션 환경을 실제 운용 환경과 맞춘다 — '챔피언을 뽑는 세계'와 '돈이
+    # 도는 세계'가 다르면, 실제로는 낼 수 없는 성과를 근거로 챔피언이 뽑힌다.
+    #   ① 비용: 가정이 아니라 실측(개장 갭 포함). 한국주식은 가정 28bp vs
+    #      실측 ~93bp로 3배 넘게 어긋나 있었다.
+    #   ② 체결: 다음 세션 시가(주식). 종가 체결은 개장 갭을 공짜로 건너뛴다.
+    #   ③ 밴드: 실제 운용의 리밸런스 밴드를 그대로 적용 — 밴드 없이 평가하면
+    #      고회전 전략이 부당하게 유리해진다.
+    from quant.live.daily import (IMMEDIATE_FILL_MARKETS, _rebalance_band_rel,
+                                  measured_cost_model)
+    audition_cost = measured_cost_model(market, state_dir)
+    audition_next_open = market not in IMMEDIATE_FILL_MARKETS
+    audition_band = _rebalance_band_rel(market, state_dir)
     decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
                                select_t=select_t_eff,
                                confirm_t=confirm_t_eff,
-                               cost_model=CostModel.for_market(market))
+                               cost_model=audition_cost,
+                               next_open_fill=audition_next_open,
+                               rebalance_band=audition_band)
 
     # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
     from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
@@ -623,7 +662,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     from quant.live.parliament import update_parliament
     entry["parliament"] = update_parliament(
         entry, df, build=build_strategy,
-        cost_model=CostModel.for_market(market),
+        # 의석 비중도 오디션과 같은 비용으로 — 여기만 가정을 쓰면 '싸게 평가된
+        # 고회전 의원'이 의석을 더 가져간다(같은 격차의 재발).
+        cost_model=measured_cost_model(market, state_dir),
+        next_open_fill=market not in IMMEDIATE_FILL_MARKETS,
+        rebalance_band=_rebalance_band_rel(market, state_dir),
         confirm_window=confirm_window,
         promoted_spec=decision["champion"] if decision["promoted"] else None)
     leader = entry["parliament"][0]
@@ -646,6 +689,15 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "trials_total": trials_total,
         "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
         "select_folds": 3,             # 폴드 일관성 게이트 — verify 재현용
+        # 오디션 환경 — verify가 그날의 조건 그대로 재현하기 위한 값들.
+        # 비용은 실측이라 날마다 변한다: 오늘 값으로 어제 결정을 재생하면
+        # 재현이 깨진다. 결정의 전제를 결정과 함께 남기는 것이 장부의 일이다.
+        "audition_env": {
+            "fee": round(float(audition_cost.fee), 8),
+            "slippage": round(float(audition_cost.slippage), 8),
+            "next_open_fill": bool(audition_next_open),
+            "rebalance_band": round(float(audition_band), 6),
+        },
 
         "mutation_seed": f"{asof}:{key}",
         "code_sha": code_sha(),
