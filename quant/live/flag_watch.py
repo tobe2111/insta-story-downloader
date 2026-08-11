@@ -45,7 +45,31 @@ def _current_flags(status: dict) -> dict[str, str]:
     except Exception:  # noqa: BLE001 — 보정표 실패가 다른 플래그를 막으면 안 된다
         pass
 
-    # ③ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
+    # ③ 회전율 비용 — 비용이 기대수익을 넘으면 엣지가 있든 없든 수익이 없다.
+    #    2026-08-11 실측에서 일 37% 회전 → 연 40% 비용 vs 기대수익 8.8%였다.
+    #    밴드·평활·쿨다운으로 고쳤지만 효과는 미검증 — 그래서 매일 감시한다.
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = [r for r in (p.get("history") or []) if r.get("turnover")]
+        recent = hist[-20:]
+        if len(recent) < 10:
+            continue                       # 표본이 얇으면 판정하지 않는다
+        ratios = [float(r["turnover"].get("ratio") or 0.0) for r in recent]
+        avg = sum(ratios) / len(ratios)
+        # 가중평균 왕복 비용 43bp(코인 30·미국 12·한국 실측 93 기준 근사)
+        annual_cost = avg * 252 * 0.0043
+        vt = (hist[-1].get("vol_target") or {}) if hist else {}
+        expected = float(vt.get("target") or 0.12)   # 샤프 1.0 가정
+        if annual_cost > expected:
+            flags["turnover_cost"] = (
+                f"⚠️ 회전율 경보: 최근 {len(recent)}일 평균 {avg * 100:.0f}%/일 "
+                f"→ 연 비용 약 {annual_cost * 100:.0f}%가 기대수익 "
+                f"{expected * 100:.0f}%를 넘습니다. 비용이 엣지를 먹는 구조 — "
+                f"밴드·쿨다운을 더 넓히거나 고비용 시장(한국주식) 비중을 "
+                f"재검토해야 합니다.")
+
+    # ④ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
     #    사건이다. 단계가 더 내려가면(0.75→0.5) 키가 바뀌어 다시 알리고,
     #    1.0 복귀는 조용히 플래그만 끈다(복귀 후 재발동 시 재알림).
     for key, p in (status.get("paper") or {}).items():
@@ -62,7 +86,7 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"축소{dd_txt} — 낙폭 단계별 자동 브레이크입니다. 회복 시 "
                 f"단계적으로 복귀합니다(수동 개입 불필요).")
 
-    # ④ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑤ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

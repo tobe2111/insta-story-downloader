@@ -92,6 +92,30 @@ def test_killswitch_flag_and_escalation(tmp_path, monkeypatch):
     assert spy3.sent == []
 
 
+def test_turnover_cost_alert(tmp_path, monkeypatch):
+    """회전율이 높아 비용이 기대수익을 넘으면 경보한다."""
+    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"ratio": 0.37},
+           "vol_target": {"target": 0.12}} for d in range(1, 21)]
+    st = {"paper": {"portfolio:ALL": {"history": hi}}}
+    new, spy = _run(tmp_path, monkeypatch, st)
+    assert "turnover_cost" in new
+    assert any("회전율 경보" in m for m in spy.sent)
+    # 회전율이 낮으면 조용하다
+    lo = [dict(r, turnover={"ratio": 0.03}) for r in hi]
+    new2, _ = _run(tmp_path, monkeypatch,
+                   {"paper": {"portfolio:ALL": {"history": lo}}})
+    assert "turnover_cost" not in new2
+
+
+def test_turnover_alert_needs_sample(tmp_path, monkeypatch):
+    """표본이 얇으면 판정하지 않는다 — 소표본 경보는 소음이다."""
+    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"ratio": 0.9}}
+          for d in range(1, 6)]
+    new, _ = _run(tmp_path, monkeypatch,
+                  {"paper": {"portfolio:ALL": {"history": hi}}})
+    assert "turnover_cost" not in new
+
+
 def test_weekly_health_section(tmp_path):
     """주간 요약이 판정 시계·오디션·킬스위치를 담는다(건강 보고서)."""
     from quant.live.daily import format_weekly, weekly_summary

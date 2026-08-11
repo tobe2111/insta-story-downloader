@@ -318,6 +318,79 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
+# 비용 비례 상대 리밸런스 밴드 — "얼마나 벗어나야 고쳐 잡을 것인가".
+#
+# 실측(2026-08-11): 매일 20종목 중 7.4개(37%)를 갈아타고 있었다. 총노출 100%
+# 기준으로 환산하면 연 40%(낙관 가정으로도 11%)의 비용인데 기대수익은 8.8%다 —
+# 엣지가 있든 없든 수익이 날 수 없는 구조. 원인은 포트폴리오가 밴드를 종목 수로
+# 나눠(0.05/20=0.25%) 사실상 무력화한 것이었다.
+#
+# 고칠 때 절대 밴드를 키우는 대신 '목표 포지션 대비 상대 밴드'를 쓴다 —
+# 노출이 커져도 밴드가 상대적으로 촘촘해지지 않는다. 그리고 밴드 폭을 그 시장의
+# 왕복 비용에 비례시킨다: 비싼 시장일수록 더 많이 벗어나야 고쳐 잡는다.
+# 한국주식(실측 왕복 ~93bp)은 약 28%, 코인·미국주식은 하한 15%가 적용된다.
+# K는 정밀 최적화가 아니라 '한국주식이 저비용 시장의 약 2배 밴드를 갖는다'는
+# 기준으로 잡은 휴리스틱이다(정확한 최적 밴드는 비용^(1/3)에 비례한다는
+# 이론이 있으나, 표본이 쌓이기 전의 정밀 조정은 과적합이다).
+# 신호 평활 계수 — 오늘 목표에 얼마나 무게를 둘 것인가(1.0=평활 없음).
+# 0.5는 2일 지수평활 — 확률의 하루짜리 떨림은 절반으로 줄이되, 진짜 추세
+# 전환은 이틀이면 대부분 반영된다. 청산 신호에는 적용하지 않는다.
+SIGNAL_SMOOTH_ALPHA = 0.3
+# 종목별 재조정 쿨다운(거래일) — "매일 판단하되 자주 고쳐 잡지는 않는다".
+#
+# 밴드와 평활만으로는 부족했다(실측 회전율 70%→40%, 연 비용 40% vs 기대수익
+# 8.8%). 시뮬레이션상 주 1회 수준으로 재조정 빈도를 낮추면 연 비용이 7.9%로
+# 떨어져 비로소 기대수익 아래로 내려온다. 판단(예측·기록)은 매일 그대로 하고,
+# 포지션을 고쳐 잡는 행위만 뜸하게 한다 — 신호는 매일 검증되고 비용만 준다.
+#
+# 예외 두 가지는 쿨다운을 무시한다:
+#   ① 청산(목표 0) — 나가는 길은 언제나 열려 있어야 한다
+#   ② 큰 이탈(밴드의 COOLDOWN_OVERRIDE_MULT 배 초과) — 시장이 크게 변했는데
+#      달력을 이유로 방치하는 것은 규율이 아니라 태만이다
+#
+# ⚠️ 정직하게: 이 파라미터들의 효과는 **아직 검증되지 않았다**. 기록이 5일뿐
+#    이라 시뮬레이션의 회전율 바닥이 33%(첫 거래)로 깔려서, 쿨다운이 실제로
+#    얼마나 묶는지 측정할 수 없다. 그래서 값은 '표준적이고 방어 가능한 수준'
+#    으로 두고, 진짜 검증은 매일 기록되는 turnover와 아래 경보에 맡긴다.
+TRADE_COOLDOWN_DAYS = 5
+COOLDOWN_OVERRIDE_MULT = 3.0
+REBALANCE_BAND_REL_K = 30.0
+REBALANCE_BAND_REL_MIN = 0.15
+REBALANCE_BAND_REL_MAX = 0.40
+
+
+def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
+    """페이퍼 장부에서 실측한 왕복 비용(비율) — 없으면 None.
+
+    가정(CostModel)은 한국주식 왕복 28bp라고 말하지만, 실측 개장 갭은 그보다
+    훨씬 컸다(불리 갭 평균 79bp). 밴드를 가정이 아니라 **실측**에 연결하면,
+    체결이 실제로 비싼 시장에서 자동으로 덜 매매하게 된다 — 측정이 관찰로
+    끝나지 않고 행동으로 이어지는 고리다. 표본이 얇으면 가정으로 돌아간다.
+    """
+    try:
+        from quant.reporting.fill_gap import fill_gap_report
+        rep = fill_gap_report(state_dir)
+        row = ((rep or {}).get("markets") or {}).get(market)
+        if not row or row.get("n", 0) < 10:
+            return None                        # 표본 부족 — 가정을 쓴다
+        # 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
+        return (row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])) / 1e4
+    except Exception:  # noqa: BLE001 — 실측 실패는 가정으로 폴백
+        return None
+
+
+def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
+    """시장별 상대 리밸런스 밴드 — 왕복 비용에 비례(하한·상한 클립).
+
+    비용은 실측이 있으면 실측, 없으면 CostModel 가정을 쓴다.
+    """
+    cost = _measured_roundtrip_cost(market, state_dir)
+    if cost is None:
+        cost = 2.0 * _fill_cost(market)        # 가정: 편도 × 2
+    raw = REBALANCE_BAND_REL_K * cost
+    return max(REBALANCE_BAND_REL_MIN, min(REBALANCE_BAND_REL_MAX, raw))
+
+
 # 최소 주문금액(원) — 이보다 작은 매매는 비용만 남기므로 주문하지 않는다.
 # 한국주식 실측 왕복 비용(가정 14bp + 개장 갭 79bp ≈ 93bp) 기준, 500원
 # 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
@@ -687,6 +760,49 @@ def _xsec_tilt(weights: dict, lo: float = 0.75, hi: float = 1.25) -> dict:
     return out
 
 
+def _in_cooldown(key: str, last_trade: dict, today: str, target_w: float,
+                 held_w: float, band: float) -> bool:
+    """이 종목을 오늘 고쳐 잡지 않고 넘길 것인가 — 쿨다운 판정.
+
+    청산과 큰 이탈은 쿨다운을 무시한다. 그 외에는 마지막 조정 후
+    TRADE_COOLDOWN_DAYS 거래일이 지나야 다시 손댄다.
+    """
+    if abs(target_w) < 1e-9:
+        return False                            # 청산은 언제나 허용
+    if abs(target_w - held_w) >= band * COOLDOWN_OVERRIDE_MULT * abs(target_w):
+        return False                            # 큰 이탈은 즉시 대응
+    last = last_trade.get(key)
+    if not last:
+        return False                            # 첫 진입
+    try:
+        import datetime as _dt
+        d0 = _dt.date.fromisoformat(str(last)[:10])
+        d1 = _dt.date.fromisoformat(str(today)[:10])
+        # 거래일 근사: 달력일 × 5/7 (주말 제외). 정밀 달력이 필요한 판단이 아니다.
+        return (d1 - d0).days * 5.0 / 7.0 < TRADE_COOLDOWN_DAYS
+    except (ValueError, TypeError):
+        return False
+
+
+def _smooth_weights(new: dict, prev: dict, alpha: float = SIGNAL_SMOOTH_ALPHA
+                    ) -> dict:
+    """목표 비중을 어제 목표와 지수평활한다 — 마음이 덜 바뀌게.
+
+    확률이 임계값 근처(0.55↔0.62)에서 떠는 것만으로 전 종목이 매매되는 것이
+    회전율의 큰 원인이었다. 평활은 그 떨림을 걸러낸다. 다만 **관망(0)으로의
+    전환은 평활하지 않는다** — "팔아라"는 신호를 반만 듣는 것은 위험 관리가
+    아니라 미련이다. 새로 진입(0→양수)할 때만 서서히 들어간다.
+    """
+    out = {}
+    for k, w in new.items():
+        p = float(prev.get(k, 0.0) or 0.0)
+        if abs(w) < 1e-9:
+            out[k] = 0.0                    # 청산 신호는 즉시 반영
+        else:
+            out[k] = alpha * float(w) + (1.0 - alpha) * p
+    return out
+
+
 def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
                    floor_krw: float = None) -> bool:
     """이 주문이 '잔돈'인가 — 목표와 현 보유의 차액이 최소 금액에 못 미치는가.
@@ -861,8 +977,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         broker.fee = _fill_cost(key.split(":")[0])
         eq_now = broker.equity({**prices, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
-        broker.target_weight(key, float(pend["weight"]) * sl, fopen, eq_now,
-                             rebalance_band=REBALANCE_BAND / n)
+        order = broker.target_weight(
+            key, float(pend["weight"]) * sl, fopen, eq_now,
+            rebalance_band_rel=_rebalance_band_rel(key.split(":")[0]))
+        if order is None:
+            pending.pop(key, None)
+            continue                       # 밴드 안 — 고쳐 잡지 않는다
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]), 4),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
@@ -896,6 +1016,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
     # 자본을 고확신 종목으로 기울인다. 총예산 보존 재정규화 후 과집중 상한
     # (3/n)을 다시 적용한다(상한 초과분은 재분배하지 않고 버림 — 보수적).
+    # 신호 평활 — 확률의 하루짜리 떨림이 전 종목 매매를 부르는 것을 막는다.
+    # 슬라이스·변동성 타깃보다 앞에 둔다(원 신호 단계에서 걸러야 뒤가 안정).
+    weights = _smooth_weights(weights, st.get("prev_weights") or {})
+    st["prev_weights"] = {k: round(v, 6) for k, v in weights.items()}
+
     tilt = _xsec_tilt(weights)
     budget = sum(slices.get(k, 1.0 / n) for k in weights)
     tilted = {k: slices.get(k, 1.0 / n) * tilt.get(k, 1.0) for k in weights}
@@ -918,6 +1043,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
     n_orders_before = len(getattr(broker, "order_log", []))
     skipped_dust = []
+    skipped_cool = []
+    last_trade = st.get("last_trade") or {}
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
@@ -925,6 +1052,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         eff = w * eff_scale * vscale
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
+        # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
+        held_w = 0.0
+        if prices.get(key):
+            try:
+                held_w = (broker.get_position(key).quantity
+                          * float(prices[key]) / equity) if equity > 0 else 0.0
+            except Exception:  # noqa: BLE001 — 조회 실패는 '없음'으로
+                held_w = 0.0
+        if _in_cooldown(key, last_trade, bar, eff * sl, held_w,
+                        _rebalance_band_rel(market, state_dir)):
+            skipped_cool.append(key)
+            pending.pop(key, None)
+            continue
         # 잔돈 주문 차단 — 목표와 현 보유의 차이가 최소 주문금액에 못 미치면
         # 주문하지 않는다. 40원짜리 매매는 비용(한국주식 실측 왕복 ~93bp)만
         # 남기고 체결 표본까지 오염시킨다.
@@ -934,9 +1074,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             continue
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
-            # 밴드도 슬라이스 크기에 비례 — 종목 간 공평
+            # 비용 비례 상대 밴드 — 비싼 시장일수록 더 벗어나야 고쳐 잡는다
             broker.target_weight(key, eff * sl, prices[key], equity,
-                                 rebalance_band=REBALANCE_BAND / n)
+                                 rebalance_band_rel=_rebalance_band_rel(market))
         else:
             pending[key] = {"weight": round(eff, 4), "slice": round(sl, 5),
                             "decided_bar": last_bars[key]}
@@ -951,6 +1091,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
                       "side": o.side, "type": "즉시"})
+    # 쿨다운 기준일 갱신 — 오늘 실제로 고쳐 잡은 종목만
+    for f in fills:
+        last_trade[f["key"]] = str(bar)[:10]
+    st["last_trade"] = last_trade
+    if skipped_cool:
+        log.info("쿨다운으로 재조정 보류 %d건: %s",
+                 len(skipped_cool), ", ".join(skipped_cool))
     equity = broker.equity(prices)
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -995,6 +1142,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               },
               # 잔돈으로 판단해 생략한 주문 — 비용만 남기는 매매는 안 한다
               "skipped_dust": skipped_dust or None,
+              # 쿨다운으로 보류한 재조정 — 왜 오늘 안 고쳤는지의 답
+              "skipped_cooldown": skipped_cool or None,
+              # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
+              # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
+              "turnover": {"filled": len(fills), "universe": n,
+                           "ratio": round(len(fills) / n, 4) if n else None},
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
