@@ -87,3 +87,43 @@ def test_parliament_summary_is_silent_for_single_member():
         {"strategy": "ml", "weight": 0.6},
         {"strategy": "ma_cross", "weight": 0.4}]})
     assert two and "60%" in two and "40%" in two
+
+
+# ── 코인 미완결 봉 공개 (감사 63) ─────────────────────────────
+
+
+def test_site_discloses_the_partial_crypto_bar():
+    """코인이 미완결 봉으로 판단한다는 사실이 사이트에 적혀 있는가.
+
+    trust.html은 "미완결 봉 제거는 이미 고쳐진 상태"라고 적고 있었다.
+    주식 문맥에서는 맞지만, 코인은 여전히 진행 중인 봉으로 판단한다
+    (실측 15/15). 읽는 사람은 '전부 고쳐졌다'로 읽는다. 사이트가 코드보다
+    더 말하는 것을 막는 것이 이 파일의 목적이다.
+    """
+    t = (ROOT / "docs" / "trust.html").read_text(encoding="utf-8")
+    assert "만들어지는 중인 봉" in t, "코인 미완결 봉 사실이 공개돼 있지 않다"
+    assert "bar_partial" in t          # 장부 필드명까지 밝힌다
+    assert "15개 중 15개" in t          # 추정이 아니라 실측 숫자
+    assert "일봉 종가가 아닙니다" in t   # 공개 차트와 어긋나는 이유
+    # 고친 사실과 그 대가까지 함께 적혀 있어야 한다(감사 71)
+    assert "완성된 정보로 판단하고, 지금 가격에 체결한다" in t
+    assert "보지 못합니다" in t          # 대가를 숨기지 않는다
+
+
+def test_site_claim_matches_the_code_for_closed_bar_signals():
+    """사이트가 "완성된 봉으로 판단한다"고 말하면 코드가 실제로 그래야 한다."""
+    src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert "def _signal_frame(" in src
+    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다
+    assert src.count("_signal_frame(market, df)") >= 2
+    assert "strat.generate_signals(df_sig)" in src
+    assert "strategy.generate_signals(df_sig)" in src
+    # 체결 가격은 여전히 현재가(원본 프레임의 마지막 종가)여야 한다
+    assert 'prices[key] = float(df["close"].iloc[-1])' in src
+
+
+def test_partial_bar_field_exists_in_code():
+    """사이트가 약속한 bar_partial이 실제로 기록되는가(주장-코드 대조)."""
+    src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert '"bar_partial"' in src
+    assert (ROOT / "quant" / "data" / "barclock.py").exists()

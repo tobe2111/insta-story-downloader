@@ -13,6 +13,22 @@ import json
 import os
 
 
+def _measured_cost_note(n: int) -> str:
+    """실측 비용이 이미 적용 중인지 사실대로 말한다.
+
+    ⚠️ 예전 문구는 "표본 30건 이상 유지 시 비용 프리셋 상향 검토"였는데,
+    코드는 10건에서 이미 실측 비용으로 갈아타고 있었다(감사 66). 경보를
+    읽는 사람은 '아직 아무 일도 안 일어났다'고 믿지만 오디션의 비용
+    모델은 이미 바뀐 뒤다. 문턱은 코드에서 직접 읽어 온다.
+    """
+    from quant.live.daily import MEASURED_COST_MIN_SAMPLES as _MIN
+    if n >= _MIN:
+        return (f"표본 {_MIN}건을 넘겨 **오디션 비용 모델은 이미 실측값으로 "
+                f"전환된 상태**입니다(가정이 아니라 실측으로 후보를 겨룹니다).")
+    return (f"표본이 {_MIN}건을 넘으면 오디션 비용 모델이 자동으로 실측값으로 "
+            f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
+
+
 def _current_flags(status: dict) -> dict[str, str]:
     """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다."""
     flags: dict[str, str] = {}
@@ -25,7 +41,7 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"⚠️ 체결 가정 검증: {market} 실측 불리 갭 평균 "
                 f"{r['mean_adverse_bp']}bp > 백테스트 가정 {r['assumed_bp']}bp "
                 f"(표본 {r['n']}건) — 백테스트가 낙관적일 수 있습니다. "
-                f"표본 30건 이상 유지 시 비용 프리셋 상향 검토.")
+                + _measured_cost_note(int(r.get("n") or 0)))
 
     # ② 보정 어긋남 — 예측확률이 실제 적중률의 신뢰구간 밖(표본 확정 구간만)
     try:
@@ -160,7 +176,31 @@ def _current_flags(status: dict) -> dict[str, str]:
             f"분산이 계획보다 얕아진 날입니다 — 데이터 소스 장애일 수 있습니다."
             + (f"\n첫 사유: {first}" if first else ""))
 
-    # ⑨ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑨ 데이터 품질 — 무결성 위반(중복·음수가격·OHLC 모순)은 그 종목을
+    #    아예 스킵시키므로 여기 오지 않는다. 여기서 보는 것은 '사람이 맥락으로
+    #    판단할' 스파이크다: 하루 ±20%가 넘는 봉이 갑자기 늘면 분할·배당
+    #    미조정일 가능성이 크고, 그러면 수익률이 통째로 거짓이 된다.
+    #    (품질 검사 자체가 수동 백테스트에서만 돌던 것을 2026-08-11에
+    #     새벽 배치로 옮겼다 — 정작 매매하는 쪽이 검사받지 않고 있었다.)
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        dq = (hist[-1].get("data_quality") if hist else None) or {}
+        spikes = int(dq.get("spikes") or 0)
+        if spikes <= 0:
+            continue
+        prev = [int(((r.get("data_quality") or {}).get("spikes") or 0))
+                for r in hist[-8:-1]]
+        base = max(prev) if prev else 0
+        if spikes > max(3, base * 2):
+            flags[f"data_spikes:{hist[-1].get('date')}:{spikes}"] = (
+                f"⚠️ 가격 스파이크 급증: 전 종목 합계 {spikes}건 "
+                f"(최근 기준 {base}건) — 하루 ±20% 넘는 봉이 갑자기 늘었습니다. "
+                f"분할·배당 미조정일 가능성이 크고, 그렇다면 수익률 계산이 "
+                f"통째로 어긋납니다. 해당 종목의 원본 시세를 확인하세요.")
+
+    # ⑩ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

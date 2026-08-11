@@ -174,3 +174,163 @@ def test_regime_gates_shorts_too():
     ma = d["close"].rolling(50).mean()
     below = d["close"] < ma
     assert (sig[below] == 0).all()
+
+
+# ── 설명이 실제 행동과 어긋나지 않는다 (감사 69) ──────────────
+
+
+def _regime_case(n, tw, drift, vol=None):
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.explain import explain_signal
+    from quant.live.retrain import build_strategy
+
+    close = 100 * np.exp(np.cumsum(
+        np.random.default_rng(1).normal(drift, 0.01, n)))
+    df = pd.DataFrame({"open": close, "high": close * 1.01, "low": close * 0.99,
+                       "close": close, "volume": 1e6},
+                      index=pd.date_range("2025-01-01", periods=n, freq="D"))
+    params = {"inner": {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}},
+              "trend_window": tw}
+    if vol is not None:
+        params["max_daily_vol"] = vol
+    spec = {"strategy": "regime_wrap", "params": params}
+    strat = build_strategy(spec)
+    w = float(strat.generate_signals(df).iloc[-1])
+    return w, explain_signal(spec, df, w, strategy=strat)
+
+
+def test_explanation_never_says_allowed_while_the_filter_blocks():
+    """사이트·SNS에 나가는 '왜 이 비중인가'가 실제 행동과 반대면 안 된다.
+
+    설명문이 레짐 조건을 **다시 계산**하고 있었고, 그 재계산이 필터와
+    어긋났다(감사 69):
+
+      · MA가 NaN(데이터 부족) → 필터는 '진입 보류'로 막는데, 설명의
+        `px < ma`는 NaN 비교가 False라 "200일선 위(매매 허용)"이라고
+        **정반대**로 말했다.
+      · 변동성 한도 초과로 막힌 날 → 설명은 변동성 필터를 아예 언급하지
+        않아 역시 "매매 허용"이라고 말했다.
+
+    같은 규칙을 두 곳에 적으면 어긋난다. 이제 판단한 쪽이 결과를 남기고
+    (RegimeFilter.last_gate_) 설명은 읽기만 한다.
+    """
+    cases = [
+        ("MA 미정(데이터 부족)", dict(n=60, tw=200, drift=-0.002)),
+        ("약세장", dict(n=400, tw=200, drift=-0.003)),
+        ("강세장", dict(n=400, tw=200, drift=+0.003)),
+        ("변동성 한도 초과", dict(n=400, tw=200, drift=+0.003, vol=0.001)),
+    ]
+    for label, kw in cases:
+        w, txt = _regime_case(**kw)
+        blocked = abs(w) < 1e-9
+        says_allowed = "매매 허용" in txt
+        if blocked:
+            assert not says_allowed, (
+                f"[{label}] 비중 0인데 설명은 '매매 허용'이라 말한다:\n{txt}")
+        else:
+            assert says_allowed, (
+                f"[{label}] 매매했는데 설명은 막혔다고 말한다:\n{txt}")
+
+
+def test_regime_filter_records_why_it_decided():
+    """설명이 읽을 수 있도록 필터가 판단 근거를 남기는가."""
+    from quant.live.retrain import build_strategy
+    import numpy as np
+    import pandas as pd
+
+    close = 100 * np.exp(np.cumsum(
+        np.random.default_rng(2).normal(-0.003, 0.01, 400)))
+    df = pd.DataFrame({"open": close, "high": close * 1.01, "low": close * 0.99,
+                       "close": close, "volume": 1e6},
+                      index=pd.date_range("2025-01-01", periods=400, freq="D"))
+    s = build_strategy({"strategy": "regime_wrap", "params": {
+        "inner": {"strategy": "ma_cross", "params": {}}, "trend_window": 200}})
+    assert s.last_gate_ is None, "실행 전인데 판단 흔적이 있다"
+    s.generate_signals(df)
+    assert isinstance(s.last_gate_, dict)
+    assert "open" in s.last_gate_ and "reason" in s.last_gate_
+
+
+def test_explanation_works_before_the_strategy_has_run():
+    """실행 전에 미리 설명을 보는 경로도 죽지 않는다(폴백)."""
+    w, txt = _regime_case(n=60, tw=200, drift=-0.002)
+    from quant.live.explain import explain_signal
+    import numpy as np
+    import pandas as pd
+    close = 100 * np.ones(60)
+    df = pd.DataFrame({"open": close, "high": close, "low": close,
+                       "close": close, "volume": 1e6},
+                      index=pd.date_range("2025-01-01", periods=60, freq="D"))
+    spec = {"strategy": "regime_wrap", "params": {
+        "inner": {"strategy": "ma_cross", "params": {}}, "trend_window": 200}}
+    out = explain_signal(spec, df, 0.0, strategy=None)   # strategy 없음
+    assert "레짐 필터" in out and "판정 보류" in out
+
+
+def _event_case(day, factor, include_minor):
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.explain import explain_signal
+    from quant.live.retrain import build_strategy
+
+    n = 300
+    close = 100 * np.exp(np.cumsum(
+        np.random.default_rng(3).normal(0.003, 0.01, n)))
+    idx = pd.date_range(end=pd.Timestamp(day), periods=n, freq="D")
+    df = pd.DataFrame({"open": close, "high": close * 1.01, "low": close * 0.99,
+                       "close": close, "volume": 1e6}, index=idx)
+    inner = {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}}
+    spec = {"strategy": "event_wrap", "params": {
+        "inner": inner, "pad_days": 1, "factor": factor,
+        "include_minor": include_minor}}
+    strat = build_strategy(spec)
+    w = float(strat.generate_signals(df).iloc[-1])
+    raw = float(build_strategy(inner).generate_signals(df).iloc[-1])
+    return raw, w, explain_signal(spec, df, w, strategy=strat)
+
+
+def test_event_guard_explanation_matches_what_it_did():
+    """가드가 막았는데 '매매 허용'이라 말하면 안 된다 (감사 70).
+
+    설명문이 `is_event_day`로 조건을 다시 계산했는데 그 함수는 **주요
+    이벤트만** 본다. include_minor면 가드는 옵션만기·월말도 막는데 설명은
+    "오늘은 주요 이벤트 없음(매매 허용)"이라고 정반대로 말했다. 실측:
+    2026-01-16(옵션만기) 원신호 +1.00 → 가드 후 0.00, 설명은 매매 허용.
+    """
+    import datetime as dt
+
+    from quant.events import event_dates, minor_event_dates
+
+    majors = set(event_dates(1))
+    minors = set(minor_event_dates())
+    minor_only = next(d for d in sorted(minors)
+                      if d not in majors and d.year == 2026)
+
+    raw, w, txt = _event_case(minor_only, 0.0, include_minor=True)
+    assert raw != 0 and w == 0, "테스트 전제가 깨졌다(가드가 안 막았다)"
+    assert "매매 허용" not in txt, f"막았는데 허용이라 말한다:\n{txt}"
+    assert "옵션만기" in txt or "월말" in txt
+
+    # 같은 날이라도 마이너를 안 보는 설정이면 통과가 맞다
+    raw2, w2, txt2 = _event_case(minor_only, 0.0, include_minor=False)
+    assert w2 == raw2 and "매매 허용" in txt2
+
+    plain = dt.date(2026, 3, 11)
+    while plain in majors or plain in minors:
+        plain += dt.timedelta(days=1)
+    raw3, w3, txt3 = _event_case(plain, 0.0, include_minor=True)
+    assert w3 == raw3 and "매매 허용" in txt3
+
+
+def test_event_guard_explains_the_size_not_just_the_direction():
+    """factor=0.5는 '관망'이 아니라 '절반'이다 — 크기까지 사실대로."""
+    from quant.events import event_dates
+
+    day = next(d for d in sorted(event_dates(1)) if d.year == 2026)
+    raw, w, txt = _event_case(day, 0.5, include_minor=True)
+    assert abs(w - raw * 0.5) < 1e-9, "테스트 전제가 깨졌다"
+    assert "관망" not in txt, f"절반으로 줄였는데 '관망'이라 말한다:\n{txt}"
+    assert "50%" in txt

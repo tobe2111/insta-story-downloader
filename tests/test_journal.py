@@ -108,3 +108,43 @@ def test_journal_cli_parses():
     import quant.cli as cli
     ns = cli.build_parser().parse_args(["journal", "--state", "results/x.json"])
     assert ns.command == "journal" and callable(ns.func)
+
+
+# ── 복기 도구가 실제 장부를 본다 (감사 67) ────────────────────
+
+
+def test_journal_defaults_to_the_real_account_ledger(tmp_path, monkeypatch):
+    """`quant journal`의 기본 대상이 실제로 돈을 굴리는 장부인가.
+
+    기본값이 results/state.json이었다. 그 파일은 개발용 `learn` 봇이 쓰는
+    것이고, 8마일 통합 계좌는 state/paper/portfolio_ALL.json에 쌓인다.
+    즉 사장님이 `quant journal`을 치면 매일 매매가 도는데도 "아직 완결된
+    거래가 없습니다"만 나왔다 — 복기 도구가 빈 파일을 보고 있었다.
+    """
+    import json as _json
+
+    from quant.cli import _default_journal_state
+
+    monkeypatch.chdir(tmp_path)
+    # 통합 계좌 장부가 없으면 예전 경로로 폴백(하위 호환)
+    assert _default_journal_state().endswith("state.json")
+
+    pf = tmp_path / "state" / "paper"
+    pf.mkdir(parents=True)
+    (pf / "portfolio_ALL.json").write_text(_json.dumps({"history": []}), "utf-8")
+    got = _default_journal_state()
+    assert got.endswith("portfolio_ALL.json"), (
+        "통합 계좌 장부가 있는데도 개발용 파일을 기본으로 삼는다")
+
+
+def test_journal_can_actually_read_the_portfolio_ledger():
+    """통합 계좌의 기록 형식(history: equity·weight)으로 복기가 되는가."""
+    from quant.live.journal import build_review
+
+    hist = [{"equity": 80000.0, "weight": 0.0},
+            {"equity": 80500.0, "weight": 0.4},
+            {"equity": 81000.0, "weight": 0.4},
+            {"equity": 80900.0, "weight": 0.0}]
+    rev = build_review(hist, periods_per_year=365)
+    assert rev["num_trades"] >= 1, "통합 계좌 형식에서 라운드트립을 못 뽑는다"
+    assert rev["n_points"] == len(hist)

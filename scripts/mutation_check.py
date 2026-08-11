@@ -1,0 +1,363 @@
+"""변이 시험 — 안전장치를 일부러 망가뜨려, 계약 검사가 정말 잡는지 확인한다.
+
+    python scripts/mutation_check.py
+
+왜 필요한가(2026-08-11 감사 58): 계약 검사가 초록이라는 것은 '검사가
+통과했다'는 뜻이지 '장치가 동작한다'는 뜻이 아니다. 이 프로젝트의 검사
+상당수가 소스에 특정 문자열이 있는지만 봤고, 그런 검사는 **배선이
+사라지는 것은 잡아도 배선이 무력화되는 것은 못 잡는다.** 그리고 그날
+잡은 결함은 전부 후자였다 — 킬스위치가 스케일러에 지워지고, 켈리 상한이
+되돌려지고, 실적 가드가 사라지는 식.
+
+그래서 반대로 확인한다: 프로덕션 코드를 한 줄씩 일부러 망가뜨리고 해당
+검사를 돌린다. 검사가 **실패해야** 그 검사가 살아 있는 것이다. 통과하면
+그 검사는 장식이고, 그 안전장치는 지금 아무도 지키지 않고 있다.
+
+1차(8건) 결과 3건이 장식이었다.
+  · 켈리 상한 — clip을 지워도 통과(테스트가 소스 문자열만 봄)
+  · 통합 계좌 데이터 무결성 게이트 — 꺼도 통과(행동 검사가 종목별 경로뿐)
+  · CSRF 가드 — do_GET의 호출을 무력화해도 통과(함수는 옳지만 호출되는지를
+    아무도 안 봄)
+
+2차(8건 추가) 결과 3건이 더 나왔다.
+  · 통합 계좌가 **합성 폴백 데이터**로도 매매 — 사이트가 "실데이터로만
+    판단한다"고 말하는 그 규칙
+  · **선발전이 결승 구간을 미리 보게** 만들어도 통과 — 오디션 전체에서
+    가장 중요한 장치인데 아무도 안 지키고 있었다
+  · 다중검정 보정 문턱(select_t)을 0으로 내려도 통과
+
+3차(5건 추가) 결과 **5건 전부** 무방비였다.
+  · 배포판 실거래 잠금 — 규제·책임 방어선인데 조건을 무력화해도 통과
+  · 어드민 '총노출 배수' — 손잡이를 무시해도 통과(오늘 아침 고친 그 장치)
+  · 같은 봉 재실행 멱등 가드 — 08-07 중복 기록 사고의 방어선
+  · 주식의 '다음 세션 시가' 체결 규칙 — 결정 당일 종가로 즉시 체결시켜도 통과
+  · 실측 비용 왕복 단위 — 편도로 되돌려 마찰을 절반으로 써도 통과
+
+4차(5건 추가) 결과 2건이 더 나왔다.
+  · 실적 가드 — 항상 비발동으로 만들어도 통과
+  · 재조정 쿨다운 — 항상 통과시켜(회전율 통제 해제) 만들어도 통과
+
+그리고 이 도구 자신이 두 가지 병에 걸려 있었다.
+
+  ① 존재하지 않는 테스트 파일을 지정하면 pytest가 4(사용 오류)를 주는데,
+     그것을 '검사가 실패했다 = 잡았다'로 세고 있었다. 실제로 없는 검사가
+     ✅로 찍혔다. → 변이 전에 기준선을 먼저 돌려, 원본 코드에서 통과하는
+     검사만 대상으로 삼는다(파일 없음·기준선 실패는 💥로 따로 센다).
+  ② **아무것도 바꾸지 않는 변이를 '못 잡음'으로 셌다.** 확률 보정 항목에서
+     record가 이미 만들어진 뒤에 지역변수 weight를 덮어썼는데, 그 줄은
+     동작에 영향이 없다. 검사가 약한 게 아니라 부술 것이 없었다.
+     → 변이가 실제로 동작을 바꾸는지부터 확인할 것. 못 잡았다고 보고하기
+     전에 그 변이가 진짜 결함인지 먼저 따져야 한다.
+
+누적 26건 중 13건(50%)이 장식이었다. 전부 행동 검사로 메웠고 지금은
+26/26을 잡는다.
+
+교훈: 이 프로젝트에서 '기능을 만들었다'와 '기능이 지켜진다' 사이의 간격은
+절반이었다. 새 안전장치를 만들면 여기 변이 항목을 함께 추가할 것 —
+추가하지 않은 장치는 다음 리팩터링에서 조용히 사라진다.
+
+⚠️ 원본 문자열이 안 맞으면 그 항목은 건너뛴다(⏭️). 건너뜀은 통과가
+   아니다 — 코드가 바뀌었다는 뜻이므로 변이 문자열을 갱신해야 한다.
+   조용히 넘어가지 않도록 결과에 함께 센다.
+
+⚠️ 이 스크립트는 실행 중 소스 파일을 잠깐 고쳤다가 되돌린다. 돌아가는
+   동안 git status를 보면 변조된 상태가 잡히므로, **커밋과 동시에 돌리지
+   말 것.** 중단되면 해당 파일이 변조된 채로 남을 수 있다(그때는
+   `git checkout <파일>`로 되돌린다).
+
+⚠️ 세 번째 자기 결함(감사 72): 복원 후에도 **변조된 .pyc가 재사용**됐다.
+   파이썬은 .pyc 유효성을 (원본 mtime, 원본 크기)로 판단하는데, 변조와
+   복원이 같은 초 안에 일어나고 바뀐 글자 수가 같으면(`gate` → `None`,
+   둘 다 4글자) 복원본이 '변경 없음'으로 보인다. 그 결과 이후 테스트가
+   디스크에 없는 코드로 돌아 멀쩡한 검사 두 개가 실패했다 — 도구가 남긴
+   오염이 진짜 결함처럼 보였다. 이제 변조·복원 양쪽에서 해당 모듈의 .pyc를
+   지우고, 하위 프로세스는 PYTHONDONTWRITEBYTECODE=1로 돌린다.
+"""
+import os
+import pathlib, subprocess, sys
+
+MUTATIONS = [
+    # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("킬스위치 감쇠를 스케일러 앞으로 되돌린다(오늘 고친 결함 재현)",
+     "quant/live/daily.py",
+     "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)",
+     "eff = w * eff_scale * guard_damp.get(key, 1.0) * vscale",
+     "tests/test_killswitch_effective.py"),
+
+    ("켈리 상한 clip을 지운다(무효화)",
+     "quant/live/daily.py",
+     "        kcap = kelly_caps.get(key)\n        if kcap is not None:\n            eff = float(np.clip(eff, -kcap, kcap))",
+     "        kcap = kelly_caps.get(key)\n        if kcap is not None:\n            pass",
+     "tests/test_guards_actually_bind.py"),
+
+    ("데이터 무결성 게이트를 끈다",
+     "quant/live/daily.py",
+     "            if is_severe(q):",
+     "            if False and is_severe(q):",
+     "tests/test_guards_actually_bind.py"),
+
+    ("입금을 낙폭 계산에서 다시 빼먹는다",
+     "quant/live/daily.py",
+     "    drawdown = drawdown_from_index(_series)",
+     "    drawdown = 0.0 if not st['history'] else min(0.0, equity / max(float(h.get('equity', 0)) for h in st['history']) - 1.0)",
+     "tests/test_killswitch_deposits.py"),
+
+    ("CSRF 가드를 끈다",
+     "quant/web/server.py",
+     "if not self._same_site_ok(parsed):",
+     "if False and not self._same_site_ok(parsed):",
+     "tests/test_web_csrf.py"),
+
+    ("장부 정렬(chrono)을 없앤다",
+     "quant/live/daily.py",
+     'return sorted(history or [], key=lambda r: str(r.get("date", "")))',
+     "return list(history or [])",
+     "tests/test_ledger_integrity.py"),
+
+    ("알림 실패를 성공으로 기록한다(경보 유실)",
+     "quant/live/flag_watch.py",
+     "        if notifier.send(cur[k]) is False:",
+     "        if False:",
+     "tests/test_flag_watch.py"),
+
+    ("부분 체결 뒤 전량 재주문(160% 초과 체결)",
+     "quant/broker/retry.py",
+     "                    remaining = max(0.0, qty - landed)",
+     "                    remaining = qty",
+     "tests/test_broker_retry_partial.py"),
+
+    # ── 2차: 오디션·리스크·인증 계열 ──────────────────────────
+
+    ("합성 폴백 데이터로도 매매하게 만든다",
+     "quant/live/daily.py",
+     '            if df.empty or (require_real_data\n'
+     '                            and df.attrs.get("synthetic_fallback")):',
+     "            if df.empty:",
+     "tests/test_audition_gates_bind.py"),
+
+    ("무레버리지 상한을 3배로 푼다",
+     "quant/risk/portfolio_vol.py",
+     "MAX_GROSS_EXPOSURE = 1.0",
+     "MAX_GROSS_EXPOSURE = 3.0",
+     "tests/test_killswitch_effective.py"),
+
+    ("엣지 미입증인데 목표 변동성 잠금을 푼다",
+     "quant/risk/portfolio_vol.py",
+     "    if not proven and not override:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "    if False:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "tests/test_settings_contract.py"),
+
+    ("결승전 구간을 선발전에도 보여준다(오디션 오염)",
+     "quant/live/retrain.py",
+     "    select_df = df.iloc[:-confirm_window]",
+     "    select_df = df",
+     "tests/test_audition_gates_bind.py"),
+
+    ("폴드 과반 게이트를 없앤다",
+     "quant/live/retrain.py",
+     'return c["fold_wins"] >= c["n_folds"] // 2 + 1',
+     "return True",
+     "tests/test_alpha7_volforecast_folds.py"),
+
+    ("다중검정 보정 문턱을 0으로 내린다",
+     "quant/live/retrain.py",
+     "    select_t: float = 2.0,",
+     "    select_t: float = 0.0,",
+     "tests/test_audition_gates_bind.py"),
+
+    ("웹훅 서명 검증을 통과시킨다",
+     "quant/live/webhook.py",
+     "    return hmac.compare_digest(got, expected)",
+     "    return True",
+     "tests/test_webhook.py"),
+
+    ("잔돈 주문 차단을 끈다",
+     "quant/live/daily.py",
+     "    delta = abs(target_w * equity - cur_notional)\n    return delta < floor",
+     "    return False",
+     "tests/test_position_read_failure.py"),
+
+    # ── 3차: 운영 손잡이·배포 잠금·회계 계열 ──────────────────
+
+    ("배포판에서 실거래 차단을 푼다",
+     "quant/utils/dist.py",
+     "    if is_distribution_build():\n        raise SystemExit(",
+     "    if False:\n        raise SystemExit(",
+     "tests/test_license_path.py"),
+
+    ("어드민 '일시정지'를 무시한다",
+     "quant/live/daily.py",
+     "    eff_scale = risk_scale * float(settings[\"exposure_scale\"])",
+     "    eff_scale = risk_scale",
+     "tests/test_guards_actually_bind.py"),
+
+    ("같은 봉 재실행 멱등 가드를 없앤다(중복 기록)",
+     "quant/live/daily.py",
+     '    if st.get("last_bar") == bar:',
+     "    if False:",
+     "tests/test_guards_actually_bind.py"),
+
+    ("주식도 결정 당일 종가에 즉시 체결시킨다(실현 불가 가격)",
+     "quant/live/daily.py",
+     'IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}',
+     'IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic", "us_stock", "kr_stock"}',
+     "tests/test_intrabar_next_open.py"),
+
+    ("실측 비용을 왕복이 아닌 편도로 되돌린다(비용 절반)",
+     "quant/live/daily.py",
+     "        return 2.0 * one_way_bp / 1e4          # 왕복",
+     "        return one_way_bp / 1e4",
+     "tests/test_alpha14_fill_gap.py"),
+
+    # ── 4차: 리포팅·외부 데이터·부분 실패 계열 ────────────────
+
+    ("FRED 거시 데이터의 발표 지연을 없앤다(발표 전 값을 미리 씀)",
+     "quant/data/macro.py",
+     "        s.index = s.index + pd.Timedelta(days=int(lag))",
+     "        pass",
+     "tests/test_lookahead_external.py"),
+
+    ("새벽 배치 부분 실패 기록을 끈다(절반 마비를 성공으로)",
+     "quant/live/daily.py",
+     "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:",
+     "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:\n    return",
+     "tests/test_run_health.py"),
+
+    ("실적 가드를 항상 비발동으로 만든다",
+     "quant/data/earnings.py",
+     "    if d is not None and abs((d - asof).days) <= pad_days:",
+     "    if False:",
+     "tests/test_earnings_guard.py"),
+
+    ("쿨다운을 항상 통과시킨다(회전율 통제 해제)",
+     "quant/live/daily.py",
+     "    last = last_trade.get(key)\n    if not last:",
+     "    last = None\n    if not last:",
+     "tests/test_turnover_control.py"),
+
+    # ⚠️ 처음에는 여기서 `weight = float(adj)`를 심어 '보정이 사이징에
+    #    개입한다'를 흉내 내려 했는데, 그 줄은 record가 이미 만들어진
+    #    **뒤**에 있어 아무것도 바꾸지 않는 무의미한 변이였다(감사 62).
+    #    못 잡은 것이 아니라 부술 것이 없었던 것이다 — 변이가 실제로
+    #    동작을 바꾸는지부터 확인해야 한다. 대신 '증거 없이 보정값을
+    #    표시한다'를 변이한다: active 판정을 무시하면 표본이 없는
+    #    확률대에도 경험 보정값이 붙어, 근거 없는 숫자가 화면에 나간다.
+    ("종목별 경로의 실적 가드를 무력화한다",
+     "quant/live/daily.py",
+     "            weight = float(weight * ef)",
+     "            pass",
+     "tests/test_earnings_guard.py"),
+
+    ("주식 대기 주문의 시가 체결을 종가 체결로 바꾼다",
+     "quant/live/daily.py",
+     '            key, float(pend["weight"]) * sl, fopen, eq_now,',
+     '            key, float(pend["weight"]) * sl, prices.get(key, fopen), eq_now,',
+     "tests/test_intrabar_next_open.py"),
+
+    ("레짐 필터가 판단 근거를 안 남기게 한다(설명이 재계산으로 되돌아감)",
+     "quant/strategies/regime.py",
+     "        self.last_gate_ = gate",
+     "        self.last_gate_ = None",
+     "tests/test_filter_wrappers.py"),
+
+    # ⚠️ 처음에는 event_guard가 last_gate_를 안 남기게 변이했는데 안 잡혔다.
+    #    확인해 보니 **결함이 아니었다** — 설명문의 폴백이 마이너 달력과
+    #    factor를 모두 정확히 다루므로, 기록이 없어도 옳은 말을 한다.
+    #    (레짐 쪽은 폴백이 변동성 필터를 모르니 기록이 사라지면 틀린다.)
+    #    그래서 실제 결함이었던 것을 그대로 되살린다: 설명이 주요 이벤트만
+    #    보는 is_event_day로 되돌아가면 옵션만기 날 "매매 허용"이라 말한다.
+    ("이벤트 설명을 주요 이벤트만 보던 옛 방식으로 되돌린다",
+     "quant/live/explain.py",
+     "        gate = getattr(strategy, \"last_gate_\", None)\n        if gate is None:                       # 실행 전 미리보기 폴백\n            from quant.events import event_dates",
+     "        gate = None\n        if gate is None:\n            from quant.events import event_dates as _unused_ed\n            from quant.events import is_event_day\n            _d0 = df.index[-1]\n            _dd = _d0.date() if hasattr(_d0, \"date\") else _date.today()\n            gate = ({\"open\": False, \"reason\": \"이벤트 창\"} if is_event_day(_dd, pad)\n                    else {\"open\": True, \"reason\": \"오늘은 주요 이벤트 없음(매매 허용)\"})\n        if False:\n            from quant.events import event_dates",
+     "tests/test_filter_wrappers.py"),
+
+    ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
+     "quant/live/daily.py",
+     "            df_sig = _signal_frame(market, df)",
+     "            df_sig = df",
+     "tests/test_signal_frame.py"),
+
+    ("증거 없이도 확률 보정값을 표시한다",
+     "quant/live/daily.py",
+     "        if active:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
+     "        if True:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",
+     "tests/test_drift_calibration.py"),
+]
+
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """변조/복원한 모듈의 .pyc 캐시를 지운다.
+
+    ⚠️ 왜 필요한가(2026-08-11 감사 72 — 이 도구 자신의 결함): 파이썬은
+    .pyc의 유효성을 (원본 mtime, 원본 크기)로 판단한다. 변조와 복원이 같은
+    초 안에 일어나고 **바뀐 글자 수가 같으면**(예: `gate` → `None`, 둘 다
+    4글자) 복원 후에도 파이썬이 변조된 .pyc를 그대로 재사용한다.
+
+    실제로 그 일이 일어났다: 복원이 끝났는데도 이후 테스트가 변조된
+    바이트코드로 돌아 두 개가 실패했고, 디스어셈블해 보니 디스크에는
+    `self.last_gate_ = gate`인데 실행되는 코드는 `= None`이었다. 도구가
+    남긴 오염이 '진짜 결함'처럼 보인 것이다 — 오늘 내내 경계한 바로 그
+    형태를 도구 자신이 만들고 있었다.
+    """
+    pyc_dir = path.parent / "__pycache__"
+    if not pyc_dir.is_dir():
+        return
+    for f in pyc_dir.glob(path.stem + ".*.pyc"):
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
+def run(test):
+    # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"],
+                       capture_output=True, text=True, timeout=900, env=env)
+    return r.returncode
+
+
+# 파일이 없거나 수집이 깨진 경우 pytest는 4(사용 오류)를 준다. 그것을
+# '검사가 실패했다 = 잡았다'로 세면 **없는 검사가 잡은 것으로 보인다.**
+# 실제로 그랬다: tests/test_calibration_guard.py는 존재하지도 않는데
+# ✅로 찍혔다(감사 62 — 이 도구 자신의 같은 병). 그래서 변이 전에
+# 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
+BASELINE_OK = 0
+
+print(f"{'결과':4s} {'설명':60s} 검사")
+print("─" * 110)
+caught = missed = skipped = broken = 0
+_baseline: dict = {}
+for desc, path, old, new, test in MUTATIONS:
+    p = pathlib.Path(path)
+    src = p.read_text(encoding="utf-8")
+    if src.count(old) != 1:
+        print(f"⏭️   {desc[:58]:60s} (원본 문자열 {src.count(old)}회 — 코드가 바뀜)")
+        skipped += 1
+        continue
+    if test not in _baseline:
+        if not pathlib.Path(test).exists():
+            _baseline[test] = "파일 없음"
+        else:
+            _baseline[test] = ("" if run(test) == BASELINE_OK
+                               else "원본 코드에서 이미 실패")
+    if _baseline[test]:
+        print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
+        broken += 1
+        continue
+    p.write_text(src.replace(old, new), encoding="utf-8")
+    _purge_bytecode(p)
+    try:
+        rc = run(test)
+    finally:
+        p.write_text(src, encoding="utf-8")
+        _purge_bytecode(p)          # 복원본이 반드시 다시 컴파일되게
+    if rc != 0:
+        print(f"✅   {desc[:58]:60s} {test.split('/')[-1]}")
+        caught += 1
+    else:
+        print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}  ← 못 잡음")
+        missed += 1
+print("─" * 110)
+print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
+sys.exit(1 if (missed or broken) else 0)

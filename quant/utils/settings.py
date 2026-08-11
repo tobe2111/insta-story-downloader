@@ -19,6 +19,10 @@
 
 ⚠️ 파일이 없거나 깨져도 자동화는 절대 죽지 않는다 — 안전한 기본값(정상
 운용)으로 폴백한다. 설정 실수로 새벽 잡이 통째로 실패하는 것을 막기 위함.
+다만 **조용히 폴백하지는 않는다**(감사 53). 폴백은 곧 "사장님이 누른
+일시정지·노출 축소가 무시된다"는 뜻이라, 파일이 깨진 날에 시스템은 아무
+일 없다는 듯 전액 노출로 매매한다. 파싱에 실패하면 경고를 남겨 새벽 잡
+로그에 그대로 보이게 한다 — 죽지는 않되 숨기지도 않는다.
 
 ⚠️ 화이트리스트 규칙: load_settings()가 명시적으로 옮겨 담지 않은 키는 조용히
 버려진다. 즉 **DEFAULTS에 없는 키는 코드가 아무리 읽어도 항상 None이다.**
@@ -49,6 +53,12 @@ DEFAULTS = {
 SETTINGS_PATH = os.path.join("config", "settings.json")
 
 
+def _log():
+    # 지연 임포트 — settings는 아주 이른 시점에도 불리므로 순환을 피한다.
+    from quant.utils.logging import get_logger
+    return get_logger("settings")
+
+
 def load_settings(path: str = SETTINGS_PATH) -> dict:
     """설정을 읽어 검증·클램프한다. 없거나 깨지면 기본값(정상 운용)."""
     out = dict(DEFAULTS)
@@ -60,6 +70,12 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
             try:
                 scale = float(raw.get("exposure_scale", 1.0))
             except (TypeError, ValueError):
+                # 값이 있는데 못 읽었다 = 사장님이 줄이려던 노출이 100%로
+                # 되돌아간다. 죽이지는 않되 반드시 로그에 남긴다.
+                _log().warning(
+                    "설정 exposure_scale 값을 읽지 못해 1.0(전액)으로 폴백합니다: %r "
+                    "— 의도한 노출 축소가 무시되고 있습니다",
+                    raw.get("exposure_scale"))
                 scale = 1.0
             # [0,1] 클램프 — 오타(예: 10)가 10배 레버리지가 되면 안 된다
             out["exposure_scale"] = min(1.0, max(0.0, scale))
@@ -73,6 +89,13 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
                 except (TypeError, ValueError):
                     out["portfolio_target_vol"] = None
             out["risk_override_ack"] = bool(raw.get("risk_override_ack", False))
-    except (OSError, ValueError):
-        pass                       # 파일 없음/손상 → 기본값으로 정상 운용
+    except FileNotFoundError:
+        pass                       # 파일 없음 = 아직 아무것도 안 바꿈(정상)
+    except (OSError, ValueError) as exc:
+        # 손상된 설정 파일 → 기본값으로 정상 운용. 하지만 그 기본값은
+        # trading_paused=False, exposure_scale=1.0이다. 즉 사장님이 눌러 둔
+        # 일시정지·노출 축소가 이 한 줄에서 사라진다. 조용히 넘기면 안 된다.
+        _log().error(
+            "설정 파일을 읽지 못해 기본값(정상 운용·전액 노출)으로 폴백합니다: "
+            "%s — 일시정지/노출 축소 설정이 무시되고 있습니다: %s", path, exc)
     return out

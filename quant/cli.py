@@ -468,10 +468,21 @@ def _cmd_validate(args) -> None:
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
     print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
     dsr_value = None
+    # 다중검정 보정의 N — 이 검증 그리드가 아니라 **그 챔피언을 뽑기까지
+    # 실제로 시도한 횟수**를 쓴다. 장부(retrain_history)에 종목별 도전자 수가
+    # 누적돼 있다. 기록이 없으면 그리드 크기로 폴백(옛 동작).
+    try:
+        import datetime as _dt
+
+        from quant.live.retrain import recent_trials
+        ledger_trials = recent_trials(args.market, args.symbol,
+                                      _dt.date.today().isoformat())
+    except Exception:  # noqa: BLE001 — 장부 조회 실패가 검증을 막지 않는다
+        ledger_trials = 0
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
-                          periods_per_year=ppy)
+                          periods_per_year=ppy, extra_trials=ledger_trials)
         m = wf["oos_metrics"]
         print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
@@ -578,7 +589,7 @@ def _cmd_setup(args) -> None:
     print("· 백테스트·검증·페이퍼 트레이딩에는 키가 전혀 필요 없습니다.")
     print("· 키 '발급'은 계좌 본인 인증이 필요해 직접 하셔야 하지만,")
     print("  발급 후 입력·저장·확인은 여기서 한 번에 끝납니다.")
-    print("· 저장 위치: .env (git 미포함, 본인만 읽기 권한)")
+    print("· 저장 위치: .env (git 미포함 · 리눅스/맥은 본인만 읽기 권한)")
     print("· 각 그룹은 건너뛸 수 있습니다(엔터).\n")
 
     load_env_file()          # 기존 값을 알아야 '이미 설정됨'을 표시할 수 있다
@@ -600,9 +611,20 @@ def _cmd_setup(args) -> None:
     if not updates:
         print("\n변경 없음 — 종료합니다.")
         return
-    update_env_file(".env", updates)
+    private = update_env_file(".env", updates)
     os.environ.update(updates)      # 이번 세션의 연결 확인에 바로 반영
-    print(f"\n✅ {len(updates)}개 키를 .env에 저장했습니다 (권한 600, git 미포함).")
+    print(f"\n✅ {len(updates)}개 키를 .env에 저장했습니다 (git 미포함).")
+    # 권한은 '확인한 사실'만 말한다. 예전에는 chmod 성공 여부와 무관하게
+    # "권한 600"이라 단언했다 — 지켜지지 않은 보안 약속은 느슨한 권한보다
+    # 위험하다(2026-08-11 감사 ㊾).
+    if private:
+        print("   파일 권한: 600 (본인만 읽기) — 확인됨")
+    elif os.name != "posix":
+        print("   ⚠️ 파일 권한: 윈도우에서는 '본인만 읽기'를 보장할 수 없습니다.")
+        print("      .env 를 다른 사람이 쓰는 계정과 공유되지 않는 폴더에 두세요.")
+    else:
+        print("   ⚠️ 파일 권한을 600으로 조이지 못했습니다 — 같은 기계의 다른")
+        print("      사용자가 키를 읽을 수 있습니다. `chmod 600 .env` 를 직접 실행하세요.")
 
     # 연결 확인 (best-effort — 실패해도 저장은 유지)
     if any(k.startswith("EXCHANGE_") for k in updates):
@@ -694,6 +716,14 @@ def _cmd_webhook(args) -> None:
           f'{(symbols or ["BTC/USDT"])[0]}","price":{{{{close}}}}}}')
     if not allow_ips:
         print("   ⚠️ IP 허용목록 미설정 — --tradingview-ips 권장(공식 IP만 허용).")
+    if not args.max_age:
+        # 재전송 차단은 5분 창이라, 그보다 오래된 캡처 신호는 통과한다.
+        # 신선도 검사를 켜면 그 구멍이 닫힌다 — 다만 페이로드에 timestamp가
+        # 있어야 하므로 기본값으로 켜면 기존 알림이 전부 400이 된다.
+        # 그래서 켜지 않되 **꺼져 있다는 사실은 말한다**(2026-08-11 감사).
+        print("   ⚠️ 신선도 검사 꺼짐 — 5분 지난 캡처 신호도 통과합니다. "
+              "알림 JSON에 \"timestamp\": {{timenow}} 를 넣고 --max-age 300 "
+              "을 주면 막힙니다.")
     print("   ⚠️ 이 포트를 인터넷에 열 때는 HTTPS(리버스 프록시) 뒤에 두세요.")
     run_webhook_server(executor, host=args.host, port=args.port, secret=secret,
                        allow_ips=allow_ips, replay=True,
@@ -754,6 +784,16 @@ def _cmd_pipeline(args) -> None:
     script = Path(__file__).resolve().parent.parent / "examples" / "run_config.py"
     sys.argv = ["run_config.py"] + (["--config", args.config] if args.config else [])
     runpy.run_path(str(script), run_name="__main__")
+
+
+def _default_journal_state() -> str:
+    """복기 대상 기본 경로 — 실제로 굴리는 통합 계좌를 먼저 본다.
+
+    통합 계좌 장부가 있으면 그것을, 없으면 개발용 learn 봇 상태로 폴백한다.
+    """
+    import os as _os
+    pf = _os.path.join("state", "paper", "portfolio_ALL.json")
+    return pf if _os.path.exists(pf) else _os.path.join("results", "state.json")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1000,7 +1040,12 @@ def build_parser() -> argparse.ArgumentParser:
     wh.set_defaults(func=_cmd_webhook)
 
     jn = sub.add_parser("journal", help="봇 상태 파일에서 거래 성과 복기(거래 단위 통계)")
-    jn.add_argument("--state", default="results/state.json")
+    # ⚠️ 기본값이 results/state.json이었다(감사 67). 그 파일은 개발용 `learn`
+    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 8마일 통합 계좌는
+    #    state/paper/portfolio_ALL.json에 쌓인다. 즉 사장님이 `quant journal`을
+    #    치면 매일 매매가 도는데도 "아직 완결된 거래가 없습니다"만 나왔다 —
+    #    복기 도구가 실제 장부가 아닌 빈 파일을 보고 있었다.
+    jn.add_argument("--state", default=_default_journal_state())
     jn.add_argument("--market", default="crypto")
     jn.set_defaults(func=_cmd_journal)
     cc = sub.add_parser(

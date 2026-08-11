@@ -109,3 +109,66 @@ def test_wired_into_daily_and_site():
     # 자산 고점으로 낙폭을 재던 옛 코드가 되살아나면 안 된다
     assert "equity / peak_eq - 1" not in src
     assert "eq / peak - 1" not in src
+
+
+# ── 같은 규칙이 세 곳에 복사돼 있었다 ─────────────────────────
+#
+# 2026-08-11 감사: 낙폭 계산이 (1) 킬스위치 (2) 사이트 status.json
+# (3) 방송 화면 세 곳에 각각 적혀 있었고, 앞의 둘만 고쳤더니 방송만
+# 옛 기준(자산 고점 대비 + 배열 순서)으로 남았다. 규칙을 복사하면
+# 반드시 한 곳이 뒤처진다.
+
+
+def test_broadcast_uses_the_shared_drawdown_rule():
+    src = (ROOT / "quant" / "web" / "app.py").read_text("utf-8")
+    assert "max_drawdown_from_index(twr_index(" in src
+    assert "chrono(st.get(\"history\", []))" in src
+    # 자산 고점 대비로 재던 옛 코드가 되살아나면 안 된다
+    assert "eq / peak - 1" not in src
+
+
+def test_no_ad_hoc_drawdown_formula_on_account_equity():
+    """계좌 자산 위에서 낙폭을 직접 계산하는 곳이 남아 있는가.
+
+    robustness/는 제외한다 — 거기 낙폭은 합성 성장지수(cumprod) 위에서
+    재는 것이라 입금 개념 자체가 없다. 즉 이미 올바른 기준이다.
+    (첫 구현에서 이 구분 없이 훑었다가 monte_carlo를 오탐했다.)
+    """
+    import re
+    bad = []
+    for path in (ROOT / "quant").rglob("*.py"):
+        if "robustness" in path.parts or "backtest" in path.parts:
+            continue
+        if path.name == "circuit_breaker.py":
+            # 예외지만 침묵이 아니다: 세션 한정 고점이고 입금을 모델링하지
+            # 않는다는 사실이 코드에 적혀 있어야만 통과시킨다.
+            src = path.read_text("utf-8")
+            assert "세션(프로세스) 안의 고점" in src and "입금을 모델링하지" in src
+            continue
+        for i, ln in enumerate(path.read_text("utf-8").splitlines(), 1):
+            # self.peak_equity 형태도 잡는다 — 첫 정규식이 이걸 놓쳐
+            # circuit_breaker를 통과시켰다(2026-08-11, 탐지기 자체의 결함).
+            if re.search(r"(eq|equity)\s*/\s*(self\.)?peak\w*\s*-\s*1", ln):
+                bad.append(f"{path.relative_to(ROOT)}:{i}")
+    assert not bad, f"공용 헬퍼를 쓰지 않는 낙폭 계산: {bad}"
+
+
+def test_broadcast_and_site_agree_on_drawdown():
+    """방송과 사이트가 같은 계좌에 대해 같은 낙폭을 말하는가."""
+    import json
+
+    from quant.live.daily import write_docs_status
+    from quant.web.app import broadcast_json
+
+    state = str(ROOT / "state")
+    if not (Path(state) / "paper").is_dir():
+        return
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        site = write_docs_status(state, docs_path=f"{td}/status.json")
+    bc = json.loads(broadcast_json(state, with_live=False))
+    site_mdd = {k: v.get("mdd_pct") for k, v in (site.get("paper") or {}).items()}
+    for acct in bc.get("accounts", []):
+        if acct["key"] in site_mdd:
+            assert abs((acct["mdd_pct"] or 0)
+                       - (site_mdd[acct["key"]] or 0)) < 0.011, acct["key"]

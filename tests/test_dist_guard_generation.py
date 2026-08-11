@@ -172,3 +172,39 @@ def test_wired_into_status_and_site():
     assert "0일부터 다시" in p                  # 리셋 사실의 명시(착시 방지)
     assert "이전 구조" in p and "g.archive" in p  # 세대별 아카이브 분리 표시
     assert "구조 교체" in p                     # 차트의 세대 경계 마커
+
+
+# ── 반쪽 릴리스가 공개되지 않는다 (감사 65) ───────────────────
+
+
+def test_release_is_draft_until_every_promised_asset_exists():
+    """빌드 하나가 실패해도 나머지가 릴리스를 공개해 버리던 구조를 막는다.
+
+    build는 matrix(3 OS)이고 fail-fast: false다. 한 OS가 죽어도 나머지가
+    계속 가는데, 그 나머지가 올리는 릴리스 본문에는 **세 파일이 다 있다고
+    적힌 표**가 그대로 들어간다. 실제로 v0.17.0이 그랬다 — 윈도우 빌드가
+    죽었는데 공개 페이지는 windows.exe를 안내했고, 사이트의 윈도우 다운로드
+    버튼(releases/latest/download/quant-cockpit-windows.exe)은 404였다.
+    """
+    y = (ROOT / ".github" / "workflows" / "build-app.yml").read_text("utf-8")
+    assert "draft: true" in y, "빌드가 릴리스를 곧바로 공개한다"
+    assert "publish:" in y and "needs: build" in y
+    # 공개 전에 자산 존재를 확인하고, 없으면 실패해야 한다
+    assert "REQUIRED=" in y and "quant-cockpit-windows.exe" in y
+    assert "빠진 자산" in y
+    # 사이트가 링크하는 세 파일이 모두 확인 대상인지
+    site = (ROOT / "docs" / "index.html").read_text("utf-8")
+    for name in ("quant-cockpit-windows.exe", "quant-cockpit-macos.zip",
+                 "quant-cockpit-linux.zip"):
+        if name in site:
+            assert name in y, f"사이트는 {name}를 링크하는데 확인 목록에 없다"
+
+
+def test_publish_job_forces_utf8_like_the_build_job():
+    """새 잡을 만들 때 UTF-8 규칙이 빠지는 것을 막는다(실제로 한 번 빠졌다)."""
+    import yaml
+    y = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "build-app.yml").read_text("utf-8"))
+    for name, job in y["jobs"].items():
+        env = job.get("env") or {}
+        assert env.get("PYTHONUTF8") == "1", f"{name} 잡에 UTF-8 강제가 없다"

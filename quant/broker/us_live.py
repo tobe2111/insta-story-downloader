@@ -56,14 +56,27 @@ class AlpacaBroker(Broker):
         return self.get_equity()
 
     def get_position(self, symbol: str) -> Position:
+        """보유 포지션 조회. 실제로 '없을 때'만 0주를 반환한다.
+
+        ⚠️ 예전에는 `except RuntimeError: return Position(symbol, 0, 0)`이었다
+           (감사 55). 주석은 "포지션 없음 → 404"라고 적혀 있었지만, get_json은
+           401(토큰 만료)·429(요청 제한)·500(알파카 장애)·타임아웃도 전부 같은
+           RuntimeError로 던진다. 실거래 계좌에서 그 전부가 '0주 보유'로
+           읽히면, 상위 로직은 목표 비중만큼 **다시 사서** 포지션이 두 배가
+           된다. 오늘 이미 브로커 재시도에서 같은 형태의 초과 체결을 잡았다.
+
+           404만 '없음'이다. 나머지는 모르는 것이므로 그대로 올려보낸다 —
+           호출부가 '모름'을 보고 매매를 건너뛸 수 있어야 한다.
+        """
         try:
             p = get_json(f"{self.base}/v2/positions/{symbol}", self._headers())
             return Position(symbol,
                             safe_amount(p.get("qty", 0.0), allow_negative=True),
                             safe_amount(p.get("avg_entry_price", 0.0)))
-        except RuntimeError:
-            # 포지션 없음 → 404
-            return Position(symbol, 0.0, 0.0)
+        except RuntimeError as exc:
+            if getattr(exc, "status", None) == 404:
+                return Position(symbol, 0.0, 0.0)     # 진짜로 보유 없음
+            raise
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
         body = {

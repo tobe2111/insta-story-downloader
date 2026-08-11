@@ -6,11 +6,20 @@
 ⚠️ 보안 원칙:
     · .env 는 .gitignore 에 포함되어 절대 커밋되지 않는다.
     · 키는 로그에 출력하지 않는다. 이 모듈도 값(value)을 어디에도 남기지 않는다.
-    · 파일 권한은 setup 마법사가 0o600(본인만 읽기)으로 만든다.
+    · 파일은 **처음부터** 0o600(본인만 읽기)으로 만든다. 예전에는 평범하게
+      쓰고(umask대로 0o644) 나서 chmod로 조였는데, 그 사이 짧은 순간 키가
+      같은 기계의 다른 사용자에게 읽혔다. 더 나쁜 건 chmod가 실패해도
+      `except OSError: pass`로 삼켜 놓고, 마법사는 "권한 600"이라고
+      단언했다는 점이다 — 지켜지지 않은 약속을 지켜졌다고 말하는 쪽이
+      권한이 느슨한 것보다 위험하다(2026-08-11 감사 ㊾).
+    · 윈도우의 os.chmod는 POSIX 권한 비트를 흉내만 낸다(읽기전용 토글).
+      그래서 '본인만 읽기'가 보장되지 않으며, `is_private()`는 그 사실을
+      숨기지 않고 False를 돌려준다.
 """
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 
@@ -53,15 +62,49 @@ def load_env_file(path: str | Path = ".env", override: bool = False) -> int:
     return n
 
 
-def update_env_file(path: str | Path, updates: dict[str, str]) -> None:
+def is_private(path: str | Path) -> bool:
+    """파일이 '본인만 읽기'인지 실제로 확인한다(그룹·기타 권한 0인가).
+
+    윈도우에서는 POSIX 권한 비트가 의미를 갖지 않으므로 항상 False —
+    '확인할 수 없다'를 '안전하다'로 반올림하지 않는다.
+    """
+    if os.name != "posix":
+        return False
+    try:
+        mode = os.stat(path).st_mode
+    except OSError:
+        return False
+    return not (mode & (stat.S_IRWXG | stat.S_IRWXO))
+
+
+def _write_private(fp: Path, text: str) -> None:
+    """0o600으로 '먼저' 만든 뒤 내용을 쓴다 — 노출되는 순간을 없앤다."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fd = os.open(fp, flags, 0o600)
+    try:
+        f = os.fdopen(fd, "w", encoding="utf-8")
+    except BaseException:        # fdopen이 실패했을 때만 fd 소유권이 남는다
+        os.close(fd)
+        raise
+    with f:                      # 성공했으면 파일 객체가 fd를 닫는다(이중 close 금지)
+        f.write(text)
+
+
+def update_env_file(path: str | Path, updates: dict[str, str]) -> bool:
     """기존 .env의 다른 키·주석을 보존하면서 updates만 추가/갱신한다.
 
-    새 파일은 0o600(본인만 읽기) 권한으로 만든다. 빈 값은 건너뛴다.
+    파일을 0o600으로 만든 뒤 내용을 쓴다(쓰고 나서 조이지 않는다).
+    빈 값은 건너뛴다.
+
+    반환값은 '저장 후 파일이 실제로 본인만 읽기인가'다. 호출자는 이 값을
+    보고 사용자에게 사실대로 말해야 한다 — 예전처럼 무조건 "권한 600"이라
+    출력하면 안 된다. 업데이트할 값이 없으면 파일을 건드리지 않았으므로
+    현재 상태를 그대로 확인해 돌려준다.
     """
     fp = Path(path)
     updates = {k: v for k, v in updates.items() if v}
     if not updates:
-        return
+        return is_private(fp) if fp.exists() else True
     lines: list[str] = []
     seen: set[str] = set()
     if fp.exists():
@@ -77,8 +120,13 @@ def update_env_file(path: str | Path, updates: dict[str, str]) -> None:
     for k, v in updates.items():
         if k not in seen:
             lines.append(f"{k}={v}")
-    fp.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    try:
-        os.chmod(fp, 0o600)      # 본인만 읽기 — 키 유출 방지
-    except OSError:
-        pass
+    existed = fp.exists()
+    _write_private(fp, "\n".join(lines) + "\n")
+    if existed:
+        # 이미 있던 파일은 os.open이 권한을 바꾸지 않는다(O_CREAT의 mode는
+        # 새로 만들 때만 적용). 예전 버전이 0o644로 남겨둔 파일을 조인다.
+        try:
+            os.chmod(fp, 0o600)
+        except OSError:
+            pass                 # 삼키되 숨기지 않는다 — 아래 반환값이 말한다
+    return is_private(fp)

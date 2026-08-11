@@ -81,3 +81,29 @@ def test_live_brokers_guard_against_bad_balance_values():
     for mod in ("crypto_live.py", "kr_live.py", "us_live.py"):
         src = (ROOT / "quant" / "broker" / mod).read_text("utf-8")
         assert "safe_amount" in src, mod
+
+
+# ── 세 실행 경로가 같은 밴드 규칙을 쓰는가 ─────────────────────
+#
+# 2026-08-11: 회전율 통제(상대 밴드)를 통합 계좌에서 만들고 실거래에
+# 이식했는데, 연속 실행 엔진(multi.py)만 절대 밴드로 남아 있었다.
+# 절대 밴드만 쓰면 포지션이 커질수록 밴드가 상대적으로 촘촘해져
+# 회전율이 폭증한다 — 통합 계좌에서 실제로 겪은 문제다.
+
+
+def test_continuous_engine_also_uses_relative_band():
+    src = (ROOT / "quant" / "live" / "multi.py").read_text("utf-8")
+    assert "rebalance_band_rel=self.rebalance_band_rel" in src
+    assert "rebalance_band_rel: float = 0.15" in src
+
+
+def test_all_execution_paths_pass_a_relative_band():
+    """통합·실거래·연속 다종목·단일 종목 — 넷 다 상대 밴드를 넘긴다.
+
+    2026-08-11: 회전율 통제를 통합 계좌에서 만든 뒤 실거래 → 연속 다종목 →
+    단일 종목 순으로 뒤늦게 하나씩 발견했다. 규칙을 네 곳에 복사해 두면
+    세 곳만 고치게 된다 — 이 테스트가 네 번째를 지킨다.
+    """
+    for mod in ("daily.py", "daily_live.py", "multi.py", "engine.py"):
+        src = (ROOT / "quant" / "live" / mod).read_text("utf-8")
+        assert "rebalance_band_rel" in src, mod

@@ -118,3 +118,53 @@ def test_no_workflow_prints_a_secret():
             if re.search(r"(echo|print|cat|tee)[^\n]*\$\{\{\s*secrets\.", ln):
                 bad.append(f"{path.name}:{i}")
     assert not bad, f"시크릿을 로그로 출력한다: {bad}"
+
+
+# ── Windows 콘솔 인코딩 ───────────────────────────────────────
+#
+# 2026-08-11: v0.17.0 Windows 빌드가 실패했다. 새로 만든 라이선스 검증
+# 단계가 확인 메시지에 이모지(🔒)를 찍는데, Windows 콘솔은 cp1252라
+# 파이썬이 UnicodeEncodeError로 죽는다. 자물쇠는 정상적으로 구워졌고
+# **출력하다** 죽은 것이라 더 억울하다.
+#
+# 이 프로젝트는 v0.13.1에서 같은 이유로 이미 한 번 깨졌고, 그때 스모크
+# 단계에만 PYTHONUTF8을 넣었다. 새 단계는 그걸 물려받지 못했다 —
+# 규칙이 사람 기억에만 있으면 다음 단계에서 또 빠진다.
+
+
+def _windows_workflows():
+    import yaml
+    out = []
+    for path in sorted(WF.glob("*.yml")):
+        text = path.read_text("utf-8")
+        if "windows-latest" not in text:
+            continue
+        out.append((path, yaml.safe_load(text)))
+    return out
+
+
+def test_python_steps_on_windows_force_utf8():
+    bad = []
+    for path, doc in _windows_workflows():
+        for job in (doc.get("jobs") or {}).values():
+            job_env = job.get("env") or {}
+            for step in job.get("steps") or []:
+                run = str(step.get("run") or "")
+                if "python" not in run:
+                    continue
+                env = {**job_env, **(step.get("env") or {})}
+                if str(env.get("PYTHONUTF8", "")) != "1":
+                    bad.append(f"{path.name}: {step.get('name', run[:40])}")
+    assert not bad, (
+        "Windows에서 파이썬을 돌리는데 PYTHONUTF8=1이 없습니다 — 한글·이모지 "
+        "출력이 cp1252로 죽습니다:\n  " + "\n  ".join(bad))
+
+
+def test_utf8_is_set_at_job_level_not_per_step():
+    """단계마다 챙기는 규칙은 다음 단계에서 또 빠진다 — 잡에 건다."""
+    import yaml
+    doc = yaml.safe_load((WF / "build-app.yml").read_text("utf-8"))
+    for name, job in (doc.get("jobs") or {}).items():
+        env = job.get("env") or {}
+        assert env.get("PYTHONUTF8") == "1", name
+        assert env.get("PYTHONIOENCODING") == "utf-8", name

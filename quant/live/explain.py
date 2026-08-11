@@ -203,32 +203,61 @@ def _explain(spec: dict, df, weight: float, strategy,
 
     if name == "regime_wrap":
         tw = int(p.get("trend_window", 200))
-        ma = float(close.rolling(tw).mean().iloc[-1])
-        px = float(close.iloc[-1])
-        if px < ma:
-            return (f"{head} — 레짐 필터: 주가가 {tw}일선 아래(약세 국면) → "
-                    "손실 회피를 위해 매매를 멈추고 관망")
+        # ⚠️ 조건을 여기서 다시 계산하지 않는다(감사 69). 예전에는
+        #    `px < ma`로 재계산했는데, MA가 NaN(데이터 부족)이면 그 비교가
+        #    False라 "{tw}일선 위(매매 허용)"이라고 말했다 — 정작 필터는
+        #    NaN 구간을 '진입 보류'로 막고 있었다. 즉 설명이 실제와 **정반대**
+        #    였고, 그 문장이 사이트·SNS에 "왜 오늘 이 비중인가"의 답으로 나갔다.
+        #    이제 판단한 쪽(RegimeFilter.last_gate_)이 남긴 결과를 읽는다.
+        gate = getattr(strategy, "last_gate_", None)
+        if gate is None:                       # 아직 실행 전(설명만 미리 볼 때)
+            ma = close.rolling(tw).mean().iloc[-1]
+            px = float(close.iloc[-1])
+            if ma != ma:
+                gate = {"open": False,
+                        "reason": f"{tw}일선 미정(데이터 부족) → 판정 보류"}
+            elif px < float(ma):
+                gate = {"open": False,
+                        "reason": f"주가가 {tw}일선 아래(약세 국면) → 관망"}
+            else:
+                gate = {"open": True, "reason": f"{tw}일선 위(매매 허용)"}
+        if not gate.get("open"):
+            return f"{head} — 레짐 필터: {gate['reason']}"
         inner = _explain(p.get("inner", {}), df, weight,
                          getattr(strategy, "base", None),
                          raw_weight=raw_weight, history=history,
                          pooled_history=pooled_history)
-        return f"{inner} · 레짐 필터: {tw}일선 위(매매 허용)"
+        return f"{inner} · 레짐 필터: {gate['reason']}"
 
     if name == "event_wrap":
         from datetime import date as _date
-
-        from quant.events import is_event_day
         pad = int(p.get("pad_days", 1))
-        last = df.index[-1]
-        d = last.date() if hasattr(last, "date") else _date.today()
-        if is_event_day(d, pad):
-            return (f"{head} — 이벤트 가드: FOMC 등 예고된 거시 이벤트 창"
-                    f"(±{pad}일) → 변동성 위험을 피해 비중 축소/관망")
+        # ⚠️ 조건을 다시 계산하지 않는다(감사 70). 예전에는 is_event_day로
+        #    재계산했는데 그 함수는 **주요 이벤트만** 본다. include_minor면
+        #    가드는 옵션만기·월말도 막는데 설명은 "주요 이벤트 없음(매매
+        #    허용)"이라고 정반대로 말했다. 게다가 factor=0.5인 날에도
+        #    "관망"이라 해 크기까지 틀렸다. 판단한 쪽의 기록을 읽는다.
+        gate = getattr(strategy, "last_gate_", None)
+        if gate is None:                       # 실행 전 미리보기 폴백
+            from quant.events import event_dates
+            last = df.index[-1]
+            d = last.date() if hasattr(last, "date") else _date.today()
+            guarded = set(event_dates(pad))
+            if p.get("include_minor"):
+                from quant.events import minor_event_dates
+                guarded |= set(minor_event_dates())
+            factor = float(p.get("factor", 0.0))
+            how = "관망" if factor <= 0 else f"비중 {factor:.0%}로 축소"
+            gate = ({"open": False, "reason": f"이벤트 창(±{pad}일) → {how}"}
+                    if d in guarded else
+                    {"open": True, "reason": "오늘은 해당 이벤트 없음(매매 허용)"})
+        if not gate.get("open"):
+            return f"{head} — 이벤트 가드: {gate['reason']}"
         inner = _explain(p.get("inner", {}), df, weight,
                          getattr(strategy, "base", None),
                          raw_weight=raw_weight, history=history,
                          pooled_history=pooled_history)
-        return f"{inner} · 이벤트 가드: 오늘은 주요 이벤트 없음(매매 허용)"
+        return f"{inner} · 이벤트 가드: {gate['reason']}"
 
     if name == "stop_wrap":
         trail = float(p.get("trail", 0.10))

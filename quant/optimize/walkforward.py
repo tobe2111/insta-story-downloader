@@ -55,6 +55,7 @@ def walk_forward(
     fee: float = 0.001,
     periods_per_year: int = 365,
     embargo: int = 0,
+    extra_trials: int = 0,
 ) -> dict[str, Any]:
     """롤링 워크포워드 검증을 수행한다.
 
@@ -135,11 +136,19 @@ def walk_forward(
     oos_metrics: Metrics = compute_metrics(equity, stitched, positions, periods_per_year,
                                            positions_are_decision_time=False)
 
-    # 다중검정 보정: 그리드에서 시도한 조합 수만큼 '운으로 나올 최대 샤프'를
-    # 기준선으로 올린 DSR. 0.95↑ 실력 가능성, 0.5 근처면 운일 수 있음.
+    # 다중검정 보정: '운으로 나올 최대 샤프'를 기준선으로 올린 DSR.
+    # 0.95↑ 실력 가능성, 0.5 근처면 운일 수 있음.
+    #
+    # ⚠️ N은 '이 전략을 골라내기까지 시도한 총 횟수'여야 한다(2026-08-11 감사).
+    #    예전에는 이 검증 명령의 그리드 크기(4)만 셌다. 그런데 실제로 굴리는
+    #    챔피언은 매일 밤 23명씩, 누적 1,846명의 도전자를 이겨서 뽑힌 것이다.
+    #    N=4의 허들은 1.05σ, N=1846은 3.43σ — 3.3배 차이다. 즉 DSR이 크게
+    #    부풀어 "실력 미확인" 경보가 울려야 할 때 울리지 않았다.
+    #    호출자가 장부의 실제 시행 횟수를 extra_trials로 넘긴다.
     n_trials = 1
     for vals in param_grid.values():
         n_trials *= max(1, len(vals))
+    n_trials = max(n_trials, int(extra_trials or 0))
     from quant.robustness.deflated_sharpe import deflated_sharpe_ratio
     dsr = deflated_sharpe_ratio(stitched, n_trials=n_trials)
 

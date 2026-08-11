@@ -57,6 +57,8 @@ class AutoLearner:
         self.state_path = state_path
         self.notifier = notifier
         self.history: list[dict] = []
+        # 잘려나간 과거의 손익·낙폭 요약 — 아래 fold_history가 채운다.
+        self.history_summary: dict = {}
         self._last_error: str | None = None
         # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
         self._last_summary_date = load_last_summary_date(state_path)
@@ -113,9 +115,13 @@ class AutoLearner:
             "strategy": getattr(self.strategy, "name", "?"),
             "mode": "paper-autolearn",
             "history": self.history,
+            "history_summary": self.history_summary,
             "position": {"symbol": pos.symbol, "quantity": pos.quantity,
                          "avg_price": pos.avg_price},
             "orders": orders,
+            # 누적 주문 건수 — orders는 최근 20건만 실리므로 이 값이
+            # 없으면 화면의 "거래횟수"가 20에서 영원히 멈춘다.
+            "order_count": len(getattr(self.broker, "order_log", [])),
             "last_error": self._last_error,
             "last_summary_date": self._last_summary_date,
         }
@@ -123,9 +129,11 @@ class AutoLearner:
     def _persist(self) -> None:
         if not self.state_path:
             return
-        from quant.utils.jsonio import atomic_write_json, cap_history
+        from quant.utils.jsonio import atomic_write_json, fold_history
 
-        self.history = cap_history(self.history)      # 무한 성장 방지
+        # 무한 성장 방지 — 자르되 잘린 구간의 손익·낙폭은 요약에 남긴다.
+        self.history, self.history_summary = fold_history(
+            self.history, self.history_summary)
         # NaN 안전(hit_rate 등이 NaN이면 대시보드 JSON.parse가 멈춘다) + 원자적 쓰기.
         atomic_write_json(self.state_path, self.snapshot())
 

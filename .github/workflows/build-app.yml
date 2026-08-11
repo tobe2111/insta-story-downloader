@@ -43,6 +43,17 @@ jobs:
             asset: quant-cockpit-macos
     runs-on: ${{ matrix.os }}
 
+    # ⚠️ 잡 전체에 UTF-8을 강제한다 — 단계마다 챙기지 않는다.
+    #    Windows 콘솔은 cp1252라 파이썬이 한글·이모지를 출력하다 죽는다.
+    #    v0.13.1에서 이 이유로 빌드가 깨져 스모크 단계에 환경변수를 넣었는데,
+    #    2026-08-11에 새로 만든 라이선스 검증 단계가 그걸 물려받지 못해
+    #    v0.17.0 Windows 빌드가 또 실패했다(자물쇠는 정상적으로 구워졌고
+    #    확인 메시지를 '출력'하다 죽었다). 규칙이 사람 기억에만 있으면
+    #    다음 단계에서 또 빠지므로, 단계가 아니라 잡에 건다.
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+
     steps:
       - uses: actions/checkout@v4
 
@@ -95,10 +106,6 @@ jobs:
         shell: bash
         env:
           QUANT_WEBHOOK_SECRET: smoke-test-dummy
-          # Windows 콘솔(cp1252)에서 한국어 잠금 문구가 \uXXXX로 이스케이프돼
-          # 문구 매칭이 실패한다(v0.13.1에서 재현) — UTF-8 출력을 강제한다.
-          PYTHONUTF8: "1"
-          PYTHONIOENCODING: utf-8
         run: |
           set -e
           expect_block () {
@@ -255,9 +262,15 @@ jobs:
 
       # Release에 자산 첨부 — 다운로드 버튼이 있는 공개 페이지가 만들어진다.
       # 버전(APP_VERSION)은 위 'Resolve version'에서 결정된 값을 쓴다.
+      #
+      # ⚠️ draft: true 로 올린다(2026-08-11 감사 65). 이유는 아래 publish 잡의
+      #    설명 참고 — 요약하면, 세 OS 잡이 각자 릴리스를 만들기 때문에 한
+      #    OS가 실패해도 나머지가 "윈도우 파일 있습니다"라고 적힌 표를 그대로
+      #    공개해 버린다. 실제로 v0.17.0이 그 상태였다.
       - name: Attach to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          draft: true
           tag_name: ${{ env.APP_VERSION }}
           name: "Quant ${{ env.APP_VERSION }}"
           body: |
@@ -274,3 +287,119 @@ jobs:
           files: |
             ${{ matrix.asset }}.zip
             ${{ env.RAW_ASSET }}
+
+  # ── 세 OS가 다 성공했을 때만 공개한다 ──────────────────────────
+  #
+  # ⚠️ 왜 필요한가(2026-08-11 감사 65): 위 build 잡은 matrix라 세 OS가 각자
+  #    독립적으로 릴리스를 만들고 자산을 붙인다. fail-fast: false라 한 OS가
+  #    죽어도 나머지는 계속 간다 — 그리고 그 나머지가 올리는 릴리스 본문에는
+  #    **세 파일이 다 있다고 적힌 표**가 그대로 들어간다.
+  #
+  #    실제로 v0.17.0이 그 상태였다. 윈도우 빌드가 UnicodeEncodeError로 죽고
+  #    macOS·Linux만 올라갔는데, 공개된 릴리스 페이지에는
+  #      | Windows | quant-cockpit-windows.exe | 받자마자 더블클릭 |
+  #    이 그대로 실려 있었다. 사이트의 윈도우 다운로드 버튼은
+  #    releases/latest/download/quant-cockpit-windows.exe 를 가리키므로
+  #    **누르면 404**다. 빌드 실패가 '정상 릴리스'로 보이는 자리였다.
+  #
+  #    고침: build는 draft로만 올린다(draft는 releases/latest에 잡히지 않으므로
+  #    사이트는 직전 정상 버전을 계속 내려준다). 이 잡이 세 자산이 실제로 다
+  #    붙었는지 확인한 뒤에만 draft를 해제한다. 하나라도 없으면 실패시키고
+  #    draft로 남겨 둔다 — 반쪽 릴리스가 공개되는 일이 없다.
+  publish:
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # build 잡과 같은 규칙 — 파이썬을 쓰는 잡에는 잡 단위로 UTF-8을 건다.
+    # (계약 검사가 이 누락을 바로 잡아냈다 — 규칙이 사람 기억에만 있으면
+    #  새 잡을 만들 때 또 빠진다는 것을 방금 내가 증명한 셈이다.)
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 버전 결정 (build 잡과 같은 규칙)
+        id: ver
+        shell: bash
+        env:
+          IN_VERSION: ${{ github.event.inputs.version }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ -n "$IN_VERSION" ]; then
+            v="$IN_VERSION"
+          elif [ "$REF_TYPE" = "tag" ]; then
+            v="$REF_NAME"
+          else
+            v="$(tr -d ' \t\r\n' < VERSION)"
+          fi
+          case "$v" in v*) ;; *) v="v$v" ;; esac
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "resolved version: $v"
+
+      - name: 약속한 자산이 전부 붙었는지 확인 후 공개
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 릴리스 본문 표가 약속하는 파일들 — 여기가 곧 계약이다.
+          REQUIRED="quant-cockpit-windows.exe quant-cockpit-macos.zip quant-cockpit-linux.zip"
+
+          rel=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$REPO/releases/tags/$VERSION" || true)
+          rid=$(printf '%s' "$rel" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' 2>/dev/null || true)
+          if [ -z "$rid" ]; then
+            echo "❌ 릴리스 $VERSION 을 찾을 수 없습니다 — 모든 빌드가 실패했을 수 있습니다."
+            exit 1
+          fi
+
+          have=$(printf '%s' "$rel" | python3 -c \
+            'import json,sys; print(" ".join(a["name"] for a in json.load(sys.stdin).get("assets",[])))')
+          echo "붙어 있는 자산: $have"
+
+          missing=""
+          for f in $REQUIRED; do
+            case " $have " in *" $f "*) ;; *) missing="$missing $f" ;; esac
+          done
+
+          if [ -n "$missing" ]; then
+            echo "❌ 빠진 자산:$missing"
+            echo "   릴리스를 draft로 남겨 둡니다 — 반쪽 릴리스를 공개하면"
+            echo "   사이트의 다운로드 버튼이 404가 됩니다(v0.17.0에서 실제로 발생)."
+            echo "   해당 OS 빌드 로그를 확인한 뒤 이 워크플로를 다시 실행하세요."
+            exit 1
+          fi
+
+          echo "✅ 세 자산 모두 확인 — 릴리스를 공개합니다."
+          curl -sS -X PATCH \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/releases/$rid" \
+            -d '{"draft":false}' > /dev/null
+          echo "공개 완료: https://github.com/$REPO/releases/tag/$VERSION"
+
+      - name: 실패 경보 (디스코드/텔레그램)
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          MSG="🚨 [Quant] 릴리스 ${{ steps.ver.outputs.version }} 자산 누락 — draft로 보류했습니다. 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료"

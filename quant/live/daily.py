@@ -51,6 +51,7 @@ def _first_bar_after(df, bar_ts: str):
 
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
 from quant.utils.repro import code_sha as _code_sha
+from quant.data.barclock import bar_status
 from quant.utils.repro import data_sha256 as _data_sha256
 from quant.utils.repro import env_fingerprint as _env_fingerprint
 
@@ -178,6 +179,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         raise RuntimeError(
             f"{market}/{symbol}: 실데이터 수신 실패 → 합성 폴백 감지. "
             "가짜 데이터로 페이퍼 기록을 오염시키지 않도록 중단합니다.")
+    # 데이터 무결성 검사 — 통합 계좌와 같은 기준(2026-08-11 감사에서 배선).
+    # 중복 봉·음수 가격·OHLC 모순 위의 기록은 그럴듯한 거짓말이 된다.
+    from quant.data.quality import is_severe, scan_ohlcv
+    _q = scan_ohlcv(df)
+    if is_severe(_q):
+        raise RuntimeError(
+            f"{market}/{symbol}: 데이터 무결성 위반 "
+            f"{ {k: v for k, v in _q.items() if v} } — 기록하지 않습니다.")
     if market == "crypto":
         # 펀딩비 컬럼 — ML의 x_funding 피처 재료(실패 시 조용히 생략)
         from quant.data.funding import attach_funding
@@ -198,9 +207,13 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         return {"skipped": True, "last_bar": last_bar}
 
     strategy = champion_strategy(market, symbol, state_dir)
-    signals = strategy.generate_signals(df)
-    weight = float(_risk_for(market).size_positions(df, signals).iloc[-1])
-    price = float(df["close"].iloc[-1])
+    # 신호는 완성된 봉으로만 — 통합 계좌와 같은 규칙(감사 71).
+    # 코인은 UTC 일봉의 '오늘' 봉이 항상 진행 중이라 그대로 쓰면 모델이
+    # 미완성 봉(레인지 평균 36% 축소)을 마지막 행으로 받는다.
+    df_sig = _signal_frame(market, df)
+    signals = strategy.generate_signals(df_sig)
+    weight = float(_risk_for(market).size_positions(df_sig, signals).iloc[-1])
+    price = float(df["close"].iloc[-1])      # 체결·평가는 지금 가격
 
     # 실적 가드 — 발표 ±1일 창에서는 비중 절반(미국 주식만). 발표일 갭 위험은
     # 하루짜리 방향 모델의 엣지가 가장 약한 지점이다. 쓴 캘린더는 state에
@@ -210,7 +223,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         from datetime import date as _edate
         from quant.data.earnings import earnings_guard_factor
         ef, edate = earnings_guard_factor(
-            symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+            symbol, _edate.fromisoformat(str(df_sig.index[-1])[:10]),
             state_dir=state_dir)
         if edate and ef < 1.0:
             weight = float(weight * ef)
@@ -280,7 +293,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     pos = broker.get_position(symbol)
     equity = broker.equity({symbol: price})
 
-    acc = directional_accuracy(df, signals, window=60)
+    acc = directional_accuracy(df_sig, signals, window=60)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
         "equity": round(equity, 2),
@@ -305,6 +318,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "earnings_guard": earnings_guard,
         # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적
         "kelly_cap": round(kelly_cap, 4) if kelly_cap < 1.0 else None,
+        # 결정에 쓴 마지막 봉이 아직 만들어지는 중이었는가(코인만 해당).
+        # 값이 있으면 이 기록의 price는 그날 일봉 종가가 아니다 — 공개
+        # 차트와 대조하려는 사람이 오해하지 않도록 장부에 남긴다(감사 56).
+        "bar_partial": bar_status(market, df.index[-1], timeframe),
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -390,6 +407,14 @@ REBALANCE_BAND_REL_MIN = 0.15
 REBALANCE_BAND_REL_MAX = 0.40
 
 
+# 실측 비용으로 갈아타는 최소 표본 — 코드가 행동을 바꾸는 그 숫자다.
+# ⚠️ 경보 문구는 "표본 30건 이상 유지 시 검토"라고 말하는데 코드는 10건에서
+#    이미 갈아타고 있었다(감사 66). 사장님은 아직 아무 일도 안 일어났다고
+#    믿는 동안 오디션의 비용 모델이 조용히 바뀐다 — 말과 행동이 다른
+#    자리라, 두 곳이 같은 상수를 읽게 한다.
+MEASURED_COST_MIN_SAMPLES = 10
+
+
 def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
     """페이퍼 장부에서 실측한 **왕복** 체결 마찰(비율) — 없으면 None.
 
@@ -407,7 +432,7 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         from quant.reporting.fill_gap import fill_gap_report
         rep = fill_gap_report(state_dir)
         row = ((rep or {}).get("markets") or {}).get(market)
-        if not row or row.get("n", 0) < 10:
+        if not row or row.get("n", 0) < MEASURED_COST_MIN_SAMPLES:
             return None                        # 표본 부족 — 가정을 쓴다
         # 편도 = 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
         one_way_bp = row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])
@@ -969,6 +994,22 @@ def _smooth_weights(new: dict, prev: dict, alpha: float = SIGNAL_SMOOTH_ALPHA
     return out
 
 
+def _signal_frame(market: str, df):
+    """신호·피처 계산에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
+
+    주식 제공자에는 _drop_unclosed가 있어 이미 완성 봉만 온다. 코인은
+    24시간 시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중이므로 여기서 뺀다.
+    뺄 봉이 없거나 뺐을 때 표본이 남지 않으면 원본을 그대로 돌려준다.
+
+    체결 가격은 이 프레임이 아니라 원본의 마지막 종가(=현재가)를 쓴다 —
+    "완성된 정보로 판단하고, 지금 가격에 체결한다".
+    """
+    from quant.data.barclock import bar_status
+    if len(df) < 2 or bar_status(market, df.index[-1]) is None:
+        return df
+    return df.iloc[:-1]
+
+
 def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
                    floor_krw: float = None) -> bool:
     """이 주문이 '잔돈'인가 — 목표와 현 보유의 차액이 최소 금액에 못 미치는가.
@@ -978,6 +1019,11 @@ def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
     그런 주문은 기대수익보다 비용이 크고, 체결 표본까지 오염시킨다.
     이미 보유 중인 종목의 청산(목표 0)은 잔돈이어도 막지 않는다 —
     빠져나오는 길을 막으면 리스크 관리가 아니라 덫이 된다.
+
+    ⚠️ 보유 조회가 실패하면 '없음(0)'으로 치지 않는다(감사 53). 목표가 0인
+       청산 상황에서 보유를 0으로 오인하면 delta도 0이 되어 **잔돈으로
+       분류되고 청산 주문이 통째로 생략된다** — 위 문단이 약속한 '빠져나오는
+       길'이 조회 실패 한 번에 막힌다. 모를 때는 잔돈이 아니라고 본다.
     """
     if price is None or equity <= 0:
         return False
@@ -985,8 +1031,8 @@ def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
     try:
         pos = broker.get_position(key)
         cur_qty = float(getattr(pos, "quantity", 0.0) or 0.0)
-    except Exception:  # noqa: BLE001 — 포지션 조회 실패는 '없음'으로
-        cur_qty = 0.0
+    except Exception:  # noqa: BLE001 — 모르면 막지 않는다(청산 봉쇄 방지)
+        return False
     cur_notional = cur_qty * float(price)
     if abs(target_w) < 1e-9 and abs(cur_notional) > 0:
         return False                       # 청산은 언제나 허용
@@ -1052,6 +1098,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
+    data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
+    partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     pending = st.get("pending") or {}
@@ -1063,6 +1111,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
+            # 데이터 무결성 검사 — 중복 봉·음수 가격·OHLC 모순은 그 종목의
+            # 수익률 계산을 통째로 왜곡한다.
+            # ⚠️ 이 검사는 원래 수동 backtest 명령에서만 돌았다(2026-08-11
+            #    감사). 정작 **실제로 매매하는** 새벽 배치는 한 번도 데이터를
+            #    검사하지 않았다 — 오염된 데이터 위의 기록은 그럴듯한
+            #    거짓말이 되고, 그 기록이 사이트와 방송에 그대로 나간다.
+            from quant.data.quality import is_severe, scan_ohlcv
+            q = scan_ohlcv(df)
+            if is_severe(q):
+                bad = {k: v for k, v in q.items() if v}
+                raise RuntimeError(f"데이터 무결성 위반 {bad}")
+            data_quality[key] = q
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
@@ -1084,9 +1144,28 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 # 섀도 대조군 — 진화 없이 최초 기본 챔피언으로 고정
                 from quant.live.retrain import DEFAULT_CHAMPION, build_strategy
                 strat = build_strategy(DEFAULT_CHAMPION)
-            signals = strat.generate_signals(df)
+            # ⚠️ 신호는 **완성된 봉으로만** 낸다(감사 71). 코인은 24시간
+            #    시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중인데, 주식과 달리
+            #    그 봉을 버리는 장치가 없어 모델이 미완성 봉을 마지막 행으로
+            #    받고 있었다. 실측(스냅샷 2026-08-07~09, 코인 5종목 15봉):
+            #      · 결정에 쓴 봉 15/15가 확정 봉과 다름
+            #      · 종가 차이 평균 66.8bp(최대 150.8bp)
+            #      · 고저 레인지 평균 36% 짧게(최대 89%)
+            #    레인지가 짧으면 ATR·GK변동성이 낮게 읽혀 변동성 타깃의 분모가
+            #    작아지고, 결국 **목표보다 큰 비중**이 실린다. 게다가 오디션은
+            #    완성 봉으로만 평가하니 선발 조건과 실전 조건이 달랐다.
+            #
+            #    대가는 정직하게 적는다: 마지막 몇 시간의 가격 움직임을 신호가
+            #    보지 못한다. 그래도 '오디션과 같은 조건'이 먼저다 — 오늘 하루
+            #    고쳐 온 것이 전부 그 격차였다.
+            #
+            #    체결·평가 가격은 그대로 **지금 값**을 쓴다(아래 prices). 즉
+            #    "완성된 정보로 판단하고, 지금 가격에 체결한다" — 실제 트레이더가
+            #    하는 것과 같다.
+            df_sig = _signal_frame(market, df)
+            signals = strat.generate_signals(df_sig)
             weights[key] = float(
-                _risk_for(market).size_positions(df, signals).iloc[-1])
+                _risk_for(market).size_positions(df_sig, signals).iloc[-1])
             # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
             # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
             #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
@@ -1098,7 +1177,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
                 from quant.data.earnings import earnings_guard_factor
                 ef, edate = earnings_guard_factor(
-                    symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
+                    symbol, _edate.fromisoformat(str(df_sig.index[-1])[:10]),
                     state_dir=state_dir)
                 if edate and ef < 1.0:
                     guard_damp[key] = ef
@@ -1111,11 +1190,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 .get("history") or [])
             if kcap < 1.0:
                 kelly_caps[key] = kcap
-            rets_map[key] = df["close"].pct_change().iloc[-90:]
+            # 공분산도 완성 봉으로 — 진행 중인 봉의 '부분 하루' 수익률이
+            # 섞이면 위험 추정이 실제보다 작아진다(같은 이유로 비중이 커진다).
+            rets_map[key] = df_sig["close"].pct_change().iloc[-90:]
+            # 체결·평가는 지금 가격(진행 중 봉의 종가 = 현재가)으로 한다.
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
             last_dates.append(str(df.index[-1])[:10])
+            bs = bar_status(market, df.index[-1], timeframe)
+            if bs:
+                partial_bars[key] = bs["elapsed"]
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
                 opens_after[key] = _first_bar_after(df, pend["decided_bar"])
@@ -1258,13 +1343,22 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
+        #
+        # ⚠️ 보유 조회가 실패하면 '없음(0)'으로 치지 않는다(감사 53). 보유를
+        #    0으로 오인하면 목표와의 이탈이 100%로 계산돼 `큰 이탈은 즉시
+        #    대응` 예외에 걸리고, 쿨다운(회전율 통제)이 통째로 무력화된다.
+        #    조회가 흔들리는 날일수록 더 많이 매매하게 되는 정반대 결과다.
+        #    모를 때는 손대지 않는다 — 다만 청산(목표 0)만은 막지 않는다.
         held_w = 0.0
         if prices.get(key):
             try:
                 held_w = (broker.get_position(key).quantity
                           * float(prices[key]) / equity) if equity > 0 else 0.0
-            except Exception:  # noqa: BLE001 — 조회 실패는 '없음'으로
-                held_w = 0.0
+            except Exception as exc:  # noqa: BLE001
+                if abs(eff * sl) >= 1e-9:      # 청산이 아니면 오늘은 건너뛴다
+                    skipped_why[key] = f"보유 조회 실패 — {type(exc).__name__}"
+                    pending.pop(key, None)
+                    continue
         if _in_cooldown(key, last_trade, bar, eff * sl, held_w,
                         _rebalance_band_rel(market, state_dir)):
             skipped_cool.append(key)
@@ -1390,14 +1484,38 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
+              # 부분 켈리 상한이 실제로 비중을 깎은 종목(있을 때만).
+              # 장부는 "왜 오늘 노출이 이만큼인가"에 답할 수 있어야 하는데,
+              # 위험 장치 중 이것만 흔적이 없었다 — 상한이 총노출을 41%에서
+              # 1%로 깎아도 장부에는 아무 이유가 안 남았다(감사 59).
+              "kelly_caps": ({k: round(v, 4) for k, v in kelly_caps.items()}
+                             or None),
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
               # 오늘 실제로 몇 종목으로 굴렸는가. 20종목 중 15개가 빠진 날은
               # '20종목 분산'이 아니라 5종목 집중이다 — 그 사실이 장부에
               # 남아야 사이트도 경보도 진실을 말할 수 있다(2026-08-11).
-              "champion": {"symbols": n, "skipped": skipped,
+              # 데이터 품질 집계 — 무결성 위반은 위에서 스킵되므로 여기 남는
+              # 것은 '사람이 맥락으로 판단할' 항목(갭·스파이크·거래량 0)이다.
+              "data_quality": ({
+                  k: sum(q.get(k, 0) for q in data_quality.values())
+                  for k in ("gaps", "spikes", "zero_volume")
+              } if data_quality else None),
+              # ⚠️ symbols는 '오늘 실제로 판단한 종목 수'다 — 계획(planned)이
+              #    아니다. 예전에는 여기가 n(=len(targets), 즉 계획 수)이라
+              #    20종목 중 15개가 데이터 실패로 빠진 날에도 "20종목 분산"이
+              #    그대로 기록됐다. SNS 캡션이 이 값을 읽어 방송하므로, 계획을
+              #    실적으로 말하는 셈이었다(감사 59). 오늘 아침 planned·skipped를
+              #    추가하면서 정작 남들이 읽는 이 필드를 고치지 않았다.
+              "champion": {"symbols": len(prices), "skipped": skipped,
                            "planned": len(targets),
-                           "skipped_why": skipped_why or None}}
+                           "skipped_why": skipped_why or None},
+              # 결정에 쓴 마지막 봉이 아직 만들어지는 중이던 종목들(감사 56).
+              # 코인은 24시간 시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중인데,
+              # 주식과 달리 그 봉을 버리는 장치가 없다. 그 봉의 종가·고저는
+              # 확정값이 아니므로, 어느 종목이 몇 % 만들어진 봉으로 판단됐는지
+              # 남긴다 — 공개 차트와 대조하려는 사람이 오해하지 않도록.
+              "bar_partial": partial_bars or None}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))

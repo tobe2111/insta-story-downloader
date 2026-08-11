@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import io
 import os
 import sys
 from pathlib import Path
@@ -294,3 +295,82 @@ def test_crypto_live_injected_client():
     order = broker.market_order("BTC/USDT", "buy", 0.05, 60000)
     assert fake.last_order == ("BTC/USDT", "market", "buy", 0.05)
     assert order.filled_quantity == 0.05 and order.status == "closed"
+
+
+# ── 조회 실패를 '보유 없음'으로 읽지 않는다 (감사 55) ─────────
+
+
+def test_alpaca_position_404_means_no_position():
+    """진짜 '없음'(404)만 0주로 읽는다."""
+    from quant.utils.http import HttpError
+    os.environ["ALPACA_API_KEY"] = "k"
+    os.environ["ALPACA_SECRET"] = "s"
+    broker = us_live.AlpacaBroker(paper=True)
+
+    def not_found(url, headers=None):
+        raise HttpError("HTTP 404 ...: position does not exist", status=404)
+
+    with mock.patch.object(us_live, "get_json", not_found):
+        pos = broker.get_position("AAPL")
+    assert pos.quantity == 0.0 and pos.avg_price == 0.0
+
+
+def test_alpaca_position_error_is_not_silently_zero():
+    """401/429/500/네트워크 오류를 '0주 보유'로 읽으면 포지션이 두 배가 된다.
+
+    상위 로직은 보유 0을 보면 목표 비중만큼 **다시 산다.** 토큰이 만료된
+    실거래 계좌에서 이 폴백은 조용한 2배 노출을 만든다. 예전 코드는
+    `except RuntimeError: return Position(symbol, 0, 0)` 한 줄로 404와
+    나머지를 구분하지 않았다 — 주석에는 "포지션 없음 → 404"라고 적혀
+    있었지만 실제로는 모든 실패를 그렇게 읽었다.
+    """
+    from quant.utils.http import HttpError
+    os.environ["ALPACA_API_KEY"] = "k"
+    os.environ["ALPACA_SECRET"] = "s"
+    broker = us_live.AlpacaBroker(paper=True)
+
+    for exc in (HttpError("HTTP 401 ...: unauthorized", status=401),
+                HttpError("HTTP 429 ...: rate limited", status=429),
+                HttpError("HTTP 500 ...: server error", status=500),
+                HttpError("네트워크 오류 ...: timed out")):    # status=None
+        def boom(url, headers=None, _e=exc):
+            raise _e
+        with mock.patch.object(us_live, "get_json", boom):
+            try:
+                broker.get_position("AAPL")
+            except RuntimeError:
+                pass                      # 올바른 동작: 모름을 그대로 올린다
+            else:
+                raise AssertionError(f"{exc} 를 '보유 없음'으로 삼켰다")
+
+
+def test_http_errors_carry_status_codes():
+    """404와 그 밖의 실패를 구분하려면 상태코드가 예외에 실려야 한다."""
+    import urllib.error
+    from unittest import mock as _mock
+
+    from quant.utils import http as _http
+
+    def raise_http(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 404, "Not Found", {},
+                                     io.BytesIO(b"nope"))
+
+    with _mock.patch.object(_http._opener, "open", raise_http):
+        try:
+            _http.get_json("https://example.com/x")
+        except _http.HttpError as exc:
+            assert exc.status == 404
+            assert isinstance(exc, RuntimeError)      # 기존 except와 호환
+        else:
+            raise AssertionError("예외가 안 났다")
+
+    def raise_url(req, timeout=None):
+        raise urllib.error.URLError("timed out")
+
+    with _mock.patch.object(_http._opener, "open", raise_url):
+        try:
+            _http.get_json("https://example.com/x")
+        except _http.HttpError as exc:
+            assert exc.status is None       # 서버 응답 자체를 못 받았다
+        else:
+            raise AssertionError("예외가 안 났다")

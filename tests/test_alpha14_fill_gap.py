@@ -77,3 +77,79 @@ def test_wired_into_status_and_site():
     p = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "체결 가정 검증" in p and "st.fill_check" in p
     assert "백테스트 낙관" in p                      # 자기 고발 문구
+
+
+# ── ⑤ 방향 판정이 배열 순서·표본 자르기에 흔들리지 않는다 (감사 51) ──
+
+
+def test_direction_uses_chronological_order_not_array_order():
+    """장부 배열이 날짜순이 아니어도 '직전 기록'을 날짜로 찾는다.
+
+    KR 장부에서 실제로 08-07이 08-06보다 앞에 저장돼 있던 적이 있다.
+    그 상태로 배열 순서를 믿으면 '직전'이 미래가 되고, 매수를 매도로
+    읽어 불리 갭의 부호가 통째로 뒤집힌다.
+    """
+    shuffled = [HIST[1], HIST[2], HIST[0]]        # 날짜순이 아닌 배열
+    assert _iter_fill_gaps(shuffled) == _iter_fill_gaps(HIST)
+
+
+def test_window_slice_does_not_flip_first_sample_direction():
+    """window로 자르면 잘린 배열의 첫 기록이 prev_w=0으로 오인되던 결함.
+
+    앞에 큰 비중(0.9)이 있었는데 잘려나가면, 0.5로 '줄인' 매도 결정이
+    0→0.5 매수로 읽혀 불리 갭 부호가 반대가 된다.
+    """
+    hist = [{"date": "2026-07-20", "price": 100.0, "weight": 0.9}] + HIST
+    full = _iter_fill_gaps(hist)
+    # 최근 3건만 보더라도 방향 판정은 잘리기 전 기록에서 가져와야 한다
+    windowed = _iter_fill_gaps(hist, window=3)
+    assert windowed == full[-len(windowed):]
+    # 매수(0.9→0.5는 매도다) — 부호가 뒤집히지 않았는지 직접 확인
+    assert full[0][2] == pytest.approx(-100.0, abs=0.1)
+
+
+# ── ⑥ 실측 비용은 왕복이다 (감사 61) ──────────────────────────
+
+
+def test_measured_cost_is_round_trip_not_one_way(tmp_path):
+    """assumed_bp·mean_adverse_bp는 둘 다 편도 — 합의 2배가 왕복이다.
+
+    변이 시험에서 `2.0 * one_way_bp`를 `one_way_bp`로 되돌려도(마찰 절반)
+    아무 검사가 실패하지 않았다. 비용을 절반으로 쓰면 오디션이 실제보다
+    낙관적이 되고, 그 낙관 위에서 뽑힌 챔피언이 실제 돈을 굴린다.
+    """
+    from quant.live.daily import _measured_roundtrip_cost
+
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    # 표본 10건 이상이어야 실측을 쓴다 — HIST(2건)를 5배로 늘린다
+    hist = []
+    for i in range(5):
+        for r in HIST:
+            r = json.loads(json.dumps(r))
+            r["date"] = f"2026-0{i + 1}-{r['date'][-2:]}"
+            if r.get("fill"):
+                r["fill"]["decided_bar"] = f"2026-0{i + 1}-01"
+            hist.append(r)
+    # decided_bar가 가리키는 결정일 기록도 각 달마다 필요하다
+    fixed = []
+    for i in range(5):
+        fixed.append({"date": f"2026-0{i + 1}-01", "price": 100.0, "weight": 0.5})
+        fixed.append({"date": f"2026-0{i + 1}-04", "price": 102.0, "weight": 0.2,
+                      "fill": {"price": 101.0, "weight": 0.5,
+                               "decided_bar": f"2026-0{i + 1}-01"}})
+        fixed.append({"date": f"2026-0{i + 1}-05", "price": 99.0, "weight": 0.2,
+                      "fill": {"price": 100.0, "weight": 0.2,
+                               "decided_bar": f"2026-0{i + 1}-04"}})
+    (paper / "kr.json").write_text(json.dumps(
+        {"market": "kr_stock", "symbol": "005930", "history": fixed}), "utf-8")
+
+    rep = fill_gap_report(str(tmp_path))
+    row = rep["markets"]["kr_stock"]
+    assert row["n"] >= 10, "표본이 10건 미만이면 실측을 쓰지 않는다(전제 확인)"
+
+    got = _measured_roundtrip_cost("kr_stock", str(tmp_path))
+    one_way = (row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])) / 1e4
+    assert got == pytest.approx(2.0 * one_way, rel=1e-9), (
+        f"왕복 비용 {got:.6f} — 편도({one_way:.6f})의 2배여야 한다")
+    assert got > one_way, "왕복이 편도보다 크지 않다 — 단위가 절반으로 축소됐다"

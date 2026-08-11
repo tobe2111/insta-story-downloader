@@ -8,7 +8,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from quant.utils.envfile import load_env_file, parse_env_text, update_env_file
+from quant.utils.envfile import (
+    is_private,
+    load_env_file,
+    parse_env_text,
+    update_env_file,
+)
 
 
 def test_parse_basic_quotes_comments():
@@ -58,6 +63,54 @@ def test_update_creates_file_with_owner_only_perms(tmp_path):
     update_env_file(fp, {"K": "v"})
     mode = stat.S_IMODE(fp.stat().st_mode)
     assert mode == 0o600                               # 본인만 읽기/쓰기
+
+
+def test_secret_never_visible_to_others_even_momentarily(tmp_path, monkeypatch):
+    """키가 '느슨한 권한으로 쓰였다가 나중에 조여지는' 창(window)이 없어야 한다.
+
+    예전 구현은 write_text(umask대로 0o644) → chmod(0o600) 순서였다. 그
+    사이 짧은 순간 같은 기계의 다른 사용자가 API 키를 읽을 수 있었다.
+    umask를 일부러 0으로 풀어(0o666이 되도록) 파일이 생성 시점부터
+    0o600인지 확인한다.
+    """
+    if os.name != "posix":
+        return
+    old = os.umask(0)
+    try:
+        fp = tmp_path / ".env"
+        update_env_file(fp, {"EXCHANGE_SECRET": "s3cr3t"})
+        assert stat.S_IMODE(fp.stat().st_mode) == 0o600
+    finally:
+        os.umask(old)
+
+
+def test_update_reports_privacy_truthfully(tmp_path):
+    """update_env_file은 '조였다고 말하기' 대신 '조여졌는지'를 돌려준다.
+
+    예전에는 chmod 실패를 `except OSError: pass`로 삼킨 뒤, 마법사가
+    무조건 "권한 600"이라 출력했다 — 지켜지지 않은 보안 약속이다.
+    """
+    fp = tmp_path / ".env"
+    assert update_env_file(fp, {"K": "v"}) is (os.name == "posix")
+
+    if os.name != "posix":
+        return
+    # 예전 버전이 남긴 느슨한 파일도 갱신 시 조여진다.
+    loose = tmp_path / "loose.env"
+    loose.write_text("OLD=1\n", encoding="utf-8")
+    os.chmod(loose, 0o644)
+    assert is_private(loose) is False
+    assert update_env_file(loose, {"NEW": "2"}) is True
+    assert stat.S_IMODE(loose.stat().st_mode) == 0o600
+    assert "OLD=1" in loose.read_text(encoding="utf-8")   # 기존 키 보존
+
+
+def test_setup_wizard_does_not_hardcode_permission_claim():
+    """마법사 출력이 확인 없이 '권한 600'이라 단언하지 않는지 본다."""
+    src = Path(__file__).resolve().parent.parent / "quant" / "cli.py"
+    text = src.read_text(encoding="utf-8")
+    assert "권한 600, git 미포함" not in text
+    assert "private = update_env_file" in text
 
 
 def test_roundtrip(tmp_path):

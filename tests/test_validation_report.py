@@ -76,3 +76,46 @@ def test_render_validation_report_end_to_end(tmp_path):
     assert out.exists()
     doc = out.read_text(encoding="utf-8")
     assert "<svg" in doc and "판정:" in doc
+
+
+# ── 돌지 못한 검증을 판정처럼 그리지 않는다 (감사 52) ─────────
+
+
+def test_failed_stage_shows_measurement_failure_not_a_number():
+    """크래시한 단계에 그럴듯한 기본값을 채워 넣지 않는다.
+
+    예전 render_validation_report는 PBO가 터지면 조용히 0.5를 넣었다.
+    화면에는 "PBO 50% · IS 1등이 OOS서 손실일 확률 50%"라는, 아무도
+    측정한 적 없는 숫자가 측정값처럼 떴다. 세 카드가 모두 채워져 있으니
+    보는 사람은 세 검증이 다 돌았다고 읽는다 — 실패가 판정으로 보이는
+    전형적 형태다.
+    """
+    doc = _sample_html(failed={"pbo": "PBO — ValueError: 표본 부족"})
+    assert "측정 실패" in doc
+    assert "돌지 못한 검증이 있습니다" in doc
+    assert "표본 부족" in doc                     # 이유를 그대로 남긴다
+    assert "PBO 50%" not in doc and "50%</div>" not in doc
+
+
+def test_overall_verdict_is_never_pass_when_a_stage_did_not_run():
+    """전부 초록이어도, 한 단계가 안 돌았으면 '신뢰할 만함'이 될 수 없다."""
+    ok = _sample_html()
+    assert "신뢰할 만함" in ok                    # 기준선: 세 검증 다 통과
+    for stage in ("wf", "pbo", "cpcv"):
+        doc = _sample_html(failed={stage: "테스트"})
+        assert "신뢰할 만함" not in doc, stage
+        assert "판정 불가" in doc, stage
+
+
+def test_failure_does_not_masquerade_as_a_clean_drawdown():
+    """워크포워드가 터지면 낙폭 0.00%가 '무손실'처럼 보이던 자리."""
+    doc = _sample_html(failed={"wf": "테스트"}, oos_mdd=0.0, oos_return=0.0)
+    assert "측정 실패" in doc and "판정 불가" in doc
+
+
+def test_orchestrator_records_failure_reasons():
+    src = (Path(__file__).resolve().parent.parent / "quant" / "reporting"
+           / "validation_report.py").read_text(encoding="utf-8")
+    for key in ('failed["wf"]', 'failed["pbo"]', 'failed["cpcv"]'):
+        assert key in src, key
+    assert "failed=failed" in src                 # 렌더러에 실제로 전달

@@ -43,6 +43,10 @@ class MultiTrader:
         mode: str = "paper",
         daily_max_loss: float | None = None,
         rebalance_band: float = 0.02,
+        # 상대 밴드 — 목표 대비 비율. 절대 밴드만 쓰면 포지션이 커질수록
+        # 밴드가 상대적으로 촘촘해져 회전율이 폭증한다(통합 계좌에서 실제로
+        # 겪은 문제). 두 밴드 중 더 큰 문턱이 적용된다(2026-08-11 통일).
+        rebalance_band_rel: float = 0.15,
         market: str | None = None,
     ):
         self.data = data
@@ -60,11 +64,14 @@ class MultiTrader:
         # 리밸런스 데드밴드 — 종목별 |목표-현재| 비중 차가 이 값 미만이면 주문
         # 생략(잔조정 왕복비용의 결정론적 환급). 청산은 항상 실행. 0=비활성.
         self.rebalance_band = max(0.0, rebalance_band)
+        self.rebalance_band_rel = max(0.0, rebalance_band_rel)
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
         self.mode = mode
         self.history: list[dict] = []
+        # 잘려나간 과거의 손익·낙폭 요약 — 아래 fold_history가 채운다.
+        self.history_summary: dict = {}
         self._last_bar_ts = None        # 최근 데이터 봉의 타임스탬프(서킷브레이커 일자 기준)
         self._avg_corr: float | None = None   # 최근 롤링 평균 상관(상관 레짐 모니터)
         # 일일 최대손실 킬스위치(자동 손실 차단기) — 기본 None=미사용(하위 호환).
@@ -184,8 +191,10 @@ class MultiTrader:
             price = prices.get(s)
             if not price:
                 continue
-            order = self.broker.target_weight(s, float(w), price, equity,
-                                              rebalance_band=self.rebalance_band)
+            order = self.broker.target_weight(
+                s, float(w), price, equity,
+                rebalance_band=self.rebalance_band,
+                rebalance_band_rel=self.rebalance_band_rel)
             if order is not None and self.notifier is not None:
                 self.notifier.send(
                     f"[{self.mode}] {order.side.upper()} {s} "
@@ -218,8 +227,12 @@ class MultiTrader:
             "strategy": getattr(self.strategy, "name", "multi"),
             "mode": self.mode,
             "history": self.history,
+            "history_summary": self.history_summary,
             "positions": positions,
             "orders": orders,
+            # 누적 주문 건수 — orders는 최근 20건만 실리므로 이 값이
+            # 없으면 화면의 "거래횟수"가 20에서 영원히 멈춘다.
+            "order_count": len(getattr(self.broker, "order_log", [])),
             # 상관 레짐 모니터 — 1에 가까울수록 분산 효과가 약한 국면
             "avg_correlation": self._avg_corr,
             "last_error": self._last_error,
@@ -231,9 +244,11 @@ class MultiTrader:
         }
 
     def _persist(self, prices: dict[str, float] | None = None) -> None:
-        from quant.utils.jsonio import atomic_write_json, cap_history
+        from quant.utils.jsonio import atomic_write_json, fold_history
 
-        self.history = cap_history(self.history)      # 무한 성장 방지(대시보드 점 수도 제한)
+        # 무한 성장 방지 — 자르되 잘린 구간의 손익·낙폭은 요약에 남긴다.
+        self.history, self.history_summary = fold_history(
+            self.history, self.history_summary)
         snap = self.snapshot(prices)
         if self.state_path:
             # NaN 안전 + 원자적 쓰기(부분/손상 방지).

@@ -83,7 +83,8 @@ def _svg_hist(values: Sequence[float], bins: int = 20, w: int = 720, h: int = 16
 
 
 def _card(label: str, value: str, verdict: str, hint: str) -> str:
-    color = {"pass": "#16a34a", "warn": "#d97706", "fail": "#dc2626"}.get(verdict, "#93a1b8")
+    color = {"pass": "#16a34a", "warn": "#d97706", "fail": "#dc2626",
+             "unknown": "#93a1b8"}.get(verdict, "#93a1b8")
     return (f'<div class="card"><div class="clab">{_html.escape(label)}</div>'
             f'<div class="cval" style="color:{color}">{_html.escape(value)}</div>'
             f'<div class="chint">{_html.escape(hint)}</div></div>')
@@ -97,24 +98,64 @@ def build_validation_html(*, title: str, dsr: float, n_trials: int,
                           cpcv_sharpe_mean: float, cpcv_sharpe_min: float,
                           cpcv_sharpe_std: float, cpcv_worst_return: float,
                           cpcv_path_sharpes: Sequence[float],
-                          n_paths: int) -> str:
-    """검증 결과(plain 데이터)를 HTML 문자열로 렌더한다(순수 stdlib)."""
-    dsr_v = "pass" if dsr >= 0.95 else ("warn" if dsr >= 0.7 else "fail")
-    pbo_v = "pass" if pbo < 0.2 else ("warn" if pbo < 0.5 else "fail")
-    cpcv_v = "pass" if cpcv_sharpe_min > 0 else ("warn" if cpcv_sharpe_mean > 0 else "fail")
-    overall = ("신뢰할 만함 — 세 검증 모두 통과" if {dsr_v, pbo_v, cpcv_v} == {"pass"}
-               else ("실전 금지 — 검증 실패 항목 있음" if "fail" in {dsr_v, pbo_v, cpcv_v}
-                     else "주의 — 애매한 항목 있음, 페이퍼로 더 확인"))
+                          n_paths: int,
+                          failed: dict[str, str] | None = None) -> str:
+    """검증 결과(plain 데이터)를 HTML 문자열로 렌더한다(순수 stdlib).
+
+    failed: 실행에 실패한 단계 → 이유. {"pbo": "표본 부족", ...}
+        해당 카드는 숫자 대신 '측정 실패'를 띄우고, 종합 판정은 결코
+        '신뢰할 만함'이 되지 않는다. 돌지 않은 검증을 통과로 읽으면 안 된다.
+    """
+    failed = dict(failed or {})
+    dsr_v = ("unknown" if "wf" in failed else
+             "pass" if dsr >= 0.95 else ("warn" if dsr >= 0.7 else "fail"))
+    pbo_v = ("unknown" if "pbo" in failed else
+             "pass" if pbo < 0.2 else ("warn" if pbo < 0.5 else "fail"))
+    cpcv_v = ("unknown" if "cpcv" in failed else
+              "pass" if cpcv_sharpe_min > 0
+              else ("warn" if cpcv_sharpe_mean > 0 else "fail"))
+    vset = {dsr_v, pbo_v, cpcv_v}
+    if "fail" in vset:
+        overall = "실전 금지 — 검증 실패 항목 있음"
+    elif "unknown" in vset:
+        # 돌지 않은 검증은 통과도 실패도 아니다. 예전에는 실패한 단계에
+        # 그럴듯한 기본값(PBO 0.5 등)을 채워 넣어, 크래시가 '애매함'으로
+        # 보였다 — 측정하지 않은 값을 측정값처럼 보여준 셈이다(감사 52).
+        overall = "판정 불가 — 돌지 못한 검증이 있음"
+    elif vset == {"pass"}:
+        overall = "신뢰할 만함 — 세 검증 모두 통과"
+    else:
+        overall = "주의 — 애매한 항목 있음, 페이퍼로 더 확인"
     overall_col = ("#16a34a" if overall.startswith("신뢰")
-                   else "#dc2626" if overall.startswith("실전") else "#d97706")
+                   else "#dc2626" if overall.startswith("실전")
+                   else "#93a1b8" if overall.startswith("판정 불가")
+                   else "#d97706")
+
+    def _c(key, label, value, verdict, hint):
+        if key in failed:
+            return _card(label, "측정 실패", "unknown",
+                         f"이 검증은 돌지 못했습니다: {failed[key]}")
+        return _card(label, value, verdict, hint)
 
     cards = (
-        _card("DSR (다중검정 보정 샤프)", f"{dsr:.2f}", dsr_v,
-              f"시행 {n_trials}회 보정 · ≥0.95 실력 가능성") +
-        _card("PBO (과적합 확률)", f"{pbo:.0%}", pbo_v,
-              f"IS 1등이 OOS서 손실일 확률 {prob_oos_loss:.0%} · <20% 양호") +
-        _card("CPCV 최소경로 샤프", f"{cpcv_sharpe_min:.2f}", cpcv_v,
-              f"경로 {n_paths}개 평균 {cpcv_sharpe_mean:.2f}±{cpcv_sharpe_std:.2f}"))
+        _c("wf", "DSR (다중검정 보정 샤프)", f"{dsr:.2f}", dsr_v,
+           f"시행 {n_trials}회 보정 · ≥0.95 실력 가능성") +
+        _c("pbo", "PBO (과적합 확률)", f"{pbo:.0%}", pbo_v,
+           f"IS 1등이 OOS서 손실일 확률 {prob_oos_loss:.0%} · <20% 양호") +
+        _c("cpcv", "CPCV 최소경로 샤프", f"{cpcv_sharpe_min:.2f}", cpcv_v,
+           f"경로 {n_paths}개 평균 {cpcv_sharpe_mean:.2f}±{cpcv_sharpe_std:.2f}"))
+
+    fail_note = ""
+    if failed:
+        items = "".join(f"<li>{_html.escape(k)}: {_html.escape(v)}</li>"
+                        for k, v in sorted(failed.items()))
+        fail_note = (
+            '<div class="panel" style="border-color:#d97706">'
+            '<b>⚠️ 돌지 못한 검증이 있습니다</b>'
+            f'<ul style="margin:6px 0 0;font-size:13px">{items}</ul>'
+            '<p class="muted" style="margin:6px 0 0">해당 항목은 숫자 대신 '
+            "'측정 실패'로 표시했습니다. 빈 자리를 그럴듯한 기본값으로 "
+            '메우면 크래시가 판정처럼 보이기 때문입니다.</p></div>')
 
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -140,6 +181,7 @@ def build_validation_html(*, title: str, dsr: float, n_trials: int,
 <p class="muted">과최적화 검증 리포트 — 워크포워드(DSR)·PBO·CPCV. 수익 예측이 아니라
 '그럴듯한 거짓말(과최적화) 걸러내기'가 목적입니다.</p>
 <div class="verdict" style="color:{overall_col}">판정: {_html.escape(overall)}</div>
+{fail_note}
 <div class="cards">{cards}</div>
 
 <h2>OOS 자본곡선 (워크포워드 검증 구간)</h2>
@@ -171,13 +213,17 @@ def render_validation_report(df, strategy_cls, param_grid, *, path,
                              periods_per_year=365):
     """검증 3종을 실행하고 HTML 리포트를 저장한다. 저장 경로를 반환.
 
-    각 단계가 데이터 부족 등으로 실패하면 그 부분만 비우고 계속한다.
+    한 단계가 데이터 부족 등으로 실패해도 나머지는 계속 돌린다. 다만
+    실패한 단계는 **실패했다고 리포트에 적는다** — 예전에는 조용히
+    기본값(PBO 0.5, 낙폭 0.00% 등)을 채워 넣어 크래시가 판정처럼
+    보였다(감사 52). 측정하지 않은 값을 측정값처럼 그리면 안 된다.
     """
     from quant.optimize import cpcv as _cpcv
     from quant.optimize import walk_forward
     from quant.robustness import param_returns_matrix, pbo as _pbo
 
     title = title or f"{getattr(strategy_cls, '__name__', '전략')} 검증"
+    failed: dict[str, str] = {}
 
     # 워크포워드 + DSR
     try:
@@ -188,7 +234,8 @@ def render_validation_report(df, strategy_cls, param_grid, *, path,
         equity = wf["equity"].to_numpy().tolist()
         dsr, n_trials = wf["dsr"], wf["n_trials"]
         oos_sharpe, oos_return, oos_mdd = m.sharpe, m.total_return, m.max_drawdown
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        failed["wf"] = f"워크포워드/DSR — {type(exc).__name__}: {exc}"[:180]
         equity, dsr, n_trials = [], 0.0, 1
         oos_sharpe = oos_return = oos_mdd = 0.0
 
@@ -199,7 +246,8 @@ def render_validation_report(df, strategy_cls, param_grid, *, path,
         pr = _pbo(mat, n_blocks=pbo_blocks)
         pbo_val, pbo_lambdas = pr["pbo"], pr["lambda_values"]
         mean_rank, prob_loss = pr["mean_oos_rank"], pr["prob_oos_loss"]
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        failed["pbo"] = f"PBO — {type(exc).__name__}: {exc}"[:180]
         pbo_val, pbo_lambdas, mean_rank, prob_loss = 0.5, [], 0.5, 0.5
 
     # CPCV
@@ -209,7 +257,8 @@ def render_validation_report(df, strategy_cls, param_grid, *, path,
         cpcv_paths = [p["sharpe"] for p in cv["paths"]]
         cpcv_mean, cpcv_min = cv["sharpe_mean"], cv["sharpe_min"]
         cpcv_std, cpcv_worst, n_paths = cv["sharpe_std"], cv["worst_path_return"], cv["n_paths"]
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
+        failed["cpcv"] = f"CPCV — {type(exc).__name__}: {exc}"[:180]
         cpcv_paths, cpcv_mean, cpcv_min, cpcv_std, cpcv_worst, n_paths = [], 0.0, 0.0, 0.0, 0.0, 0
 
     doc = build_validation_html(
@@ -217,7 +266,8 @@ def render_validation_report(df, strategy_cls, param_grid, *, path,
         oos_return=oos_return, oos_mdd=oos_mdd, equity=equity, pbo=pbo_val,
         pbo_lambdas=pbo_lambdas, mean_oos_rank=mean_rank, prob_oos_loss=prob_loss,
         cpcv_sharpe_mean=cpcv_mean, cpcv_sharpe_min=cpcv_min, cpcv_sharpe_std=cpcv_std,
-        cpcv_worst_return=cpcv_worst, cpcv_path_sharpes=cpcv_paths, n_paths=n_paths)
+        cpcv_worst_return=cpcv_worst, cpcv_path_sharpes=cpcv_paths,
+        n_paths=n_paths, failed=failed)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(doc, encoding="utf-8")

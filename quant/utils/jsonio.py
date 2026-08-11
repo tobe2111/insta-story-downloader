@@ -58,7 +58,54 @@ def atomic_write_json(path: str | os.PathLike, obj: Any, indent: int = 2) -> Non
 
 
 def cap_history(history: list) -> list:
-    """history를 HISTORY_CAP 최근 항목으로 잘라 반환한다(제자리 축소 아님)."""
+    """history를 HISTORY_CAP 최근 항목으로 잘라 반환한다(제자리 축소 아님).
+
+    ⚠️ 이것만 쓰면 잘려나간 과거가 통계에서도 사라진다. 요약 지표(총손익·
+    최대낙폭)를 함께 쓰는 곳은 fold_history를 쓸 것.
+    """
     if len(history) > HISTORY_CAP:
         return history[-HISTORY_CAP:]
     return history
+
+
+def fold_history(history: list, summary: dict | None = None,
+                 key: str = "equity", cap: int = HISTORY_CAP) -> tuple[list, dict]:
+    """history를 자르되, **잘려나가는 구간을 요약에 접어 넣어** 함께 반환한다.
+
+    왜 필요한가(2026-08-11 감사 ㊿): 감시 대시보드는 총손익을
+    `equity[-1]/equity[0]-1`로, 최대낙폭을 남아 있는 equity 배열만 훑어
+    계산했다. cap_history가 앞을 잘라내는 순간 이 두 숫자의 뜻이 조용히
+    바뀐다 — 총손익은 '잘린 시점 이후 손익'이 되고, 최대낙폭은 **가장
+    아팠던 구간이 밀려나면 저절로 좋아진다.** 위험 지표가 시간이 지나면
+    스스로 개선되는 것은 지표가 아니라 위안이다.
+
+    낙폭은 '지금까지의 최고점 대비'라는 누적 계산이라, 버리는 구간의
+    (최초값·최고점·그때까지의 최저 낙폭) 셋만 들고 가면 전 구간 값을
+    정확히 복원할 수 있다 — 근사가 아니라 등가다.
+
+    반환: (잘린 history, 갱신된 요약)
+      요약 = {"start": 최초 자산, "peak": 버린 구간까지의 최고 자산,
+              "max_drawdown": 버린 구간까지의 최대 낙폭(≤0), "dropped": 버린 개수}
+    """
+    s: dict = dict(summary or {})
+    if len(history) <= cap:
+        return history, s
+    n_drop = len(history) - cap
+    start = s.get("start")
+    peak = s.get("peak")
+    max_dd = float(s.get("max_drawdown") or 0.0)
+    for rec in history[:n_drop]:
+        try:
+            e = float(rec.get(key))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if not math.isfinite(e):
+            continue
+        if start is None:
+            start = e
+        peak = e if peak is None else max(peak, e)
+        if peak:
+            max_dd = min(max_dd, e / peak - 1.0)
+    s.update({"start": start, "peak": peak, "max_drawdown": max_dd,
+              "dropped": int(s.get("dropped") or 0) + n_drop})
+    return history[n_drop:], s
