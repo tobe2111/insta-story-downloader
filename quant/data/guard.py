@@ -45,3 +45,23 @@ def unusable_reason(df, *, require_real_data: bool = True,
             bad = {k: v for k, v in (q or {}).items() if v}
             return f"데이터 무결성 위반: {bad}"
     return None
+
+
+def last_real_price(provider, symbol: str, timeframe: str = "1h") -> float:
+    """마지막 종가 — **진짜 시세일 때만**. 아니면 0.0.
+
+    웹훅은 페이로드에 price가 없으면 시세를 조회해 그 값으로 주문 수량을
+    정한다. 그 조회가 합성 폴백을 돌려주면 가짜 가격으로 실주문이 나간다
+    (감사 85). 0.0을 돌려주면 `WebhookExecutor.execute`가 "현재가를 얻지
+    못함"으로 주문을 거부한다 — 모를 때는 주문하지 않는다.
+    """
+    try:
+        df = provider.get_ohlcv(symbol, timeframe, limit=2)
+    except Exception:  # noqa: BLE001
+        return 0.0
+    if unusable_reason(df, check_quality=False):
+        return 0.0
+    try:
+        return float(df["close"].iloc[-1])
+    except Exception:  # noqa: BLE001
+        return 0.0

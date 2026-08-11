@@ -536,6 +536,12 @@ MUTATIONS = [
      "            why = unusable_reason(df, require_real_data=self.require_real_data)",
      "            why = None if len(df) else \"데이터 없음\"",
      "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("웹훅이 합성 폴백 가격으로 주문 수량을 정한다",
+     "quant/data/guard.py",
+     "    if unusable_reason(df, check_quality=False):\n        return 0.0",
+     "    if False:\n        return 0.0",
+     "tests/test_synthetic_fallback_never_trades.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

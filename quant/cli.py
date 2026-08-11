@@ -695,8 +695,13 @@ def _cmd_webhook(args) -> None:
     provider = get_provider(args.market)
 
     def price_fn(symbol: str) -> float:
-        df = provider.get_ohlcv(symbol, args.timeframe, limit=2)
-        return float(df["close"].iloc[-1]) if len(df) else 0.0
+        # 합성 폴백 시세로 주문 수량을 정하면 안 된다(감사 85).
+        # 거래소 조회가 전부 실패하면 GBM 난수 걷기(시작가 100)가
+        # 오는데, 그 가격으로 수량을 계산하면 실제와 수십만 배
+        # 어긋난다. 0.0을 주면 실행기가 "현재가를 얻지 못함"으로
+        # 주문을 거부한다 — 모를 때는 주문하지 않는다.
+        from quant.data.guard import last_real_price
+        return last_real_price(provider, symbol, args.timeframe)
 
     symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
     executor = WebhookExecutor(

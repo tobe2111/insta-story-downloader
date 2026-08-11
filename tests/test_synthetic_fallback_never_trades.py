@@ -166,3 +166,54 @@ def test_the_crypto_fallback_does_mark_itself():
     from quant.data.crypto import CryptoDataProvider
     df = CryptoDataProvider._fallback("BTC/USDT", "1h", None, None, 30)
     assert df.attrs.get("synthetic_fallback") is True
+
+
+# ── 웹훅 시세 조회 경로 ─────────────────────────────────────────
+#
+# 웹훅은 페이로드에 price가 없으면 시세를 조회해 그 값으로 주문 수량을
+# 정한다. 그 조회가 합성 폴백을 돌려주면 가짜 가격으로 실주문이 나간다.
+
+class _Provider:
+    def __init__(self, synthetic=False, empty=False, boom=False):
+        self.synthetic, self.empty, self.boom = synthetic, empty, boom
+
+    def get_ohlcv(self, symbol, *_a, **_k):
+        if self.boom:
+            raise RuntimeError("네트워크 실패(모의)")
+        if self.empty:
+            return pd.DataFrame()
+        return _bars(synthetic=self.synthetic)
+
+
+def test_price_lookup_refuses_synthetic_data():
+    from quant.data.guard import last_real_price
+    assert last_real_price(_Provider(synthetic=True), "BTC/USDT") == 0.0, (
+        "합성 폴백 가격을 그대로 돌려줬다 — 그 값으로 주문 수량이 정해진다")
+
+
+def test_price_lookup_returns_a_real_price():
+    from quant.data.guard import last_real_price
+    assert last_real_price(_Provider(), "BTC/USDT") > 0.0
+
+
+def test_price_lookup_survives_a_broken_provider():
+    from quant.data.guard import last_real_price
+    assert last_real_price(_Provider(boom=True), "BTC/USDT") == 0.0
+    assert last_real_price(_Provider(empty=True), "BTC/USDT") == 0.0
+
+
+def test_zero_price_makes_the_webhook_refuse_the_order():
+    """0.0이 실제로 주문 거부로 이어지는가 — 배선까지 확인한다."""
+    from quant.live.webhook import WebhookExecutor
+    b = _Broker()
+    ex = WebhookExecutor(b, price_fn=lambda _s: 0.0)
+    res = ex.execute({"symbol": "BTC/USDT", "action": "buy", "weight": 1.0})
+    assert b.orders == [], "현재가를 못 얻었는데 주문이 나갔다"
+    assert res.get("ok") is False and "현재가" in str(res.get("error"))
+
+
+def test_the_webhook_cli_uses_the_guarded_lookup():
+    """CLI가 가드 없는 조회로 되돌아가면 막는다."""
+    src = (ROOT / "quant" / "cli.py").read_text(encoding="utf-8")
+    block = src.split("def price_fn")[1].split("\n\n")[0]
+    assert "last_real_price" in block, "웹훅이 가드 없는 시세 조회로 되돌아갔다"
