@@ -62,6 +62,13 @@ ACCOUNTING_VERSION = "next_open_v2"
 # 무행동 밴드 — 목표 비중이 어제 대비 5%p 미만으로만 달라졌으면 리밸런싱을
 # 생략한다. 확률·변동성의 미세한 흔들림이 만드는 잔조정은 기대수익 0에
 # 왕복 수수료만 확정 지불하는 거래다. 청산(비중 0)은 밴드와 무관하게 실행.
+# 종목 단위 데모 계좌의 절대 리밸런스 밴드(자산 대비).
+#
+# 통합 계좌는 상대 밴드(REBALANCE_BAND_REL_*)로 옮겼지만 종목 계좌는 이 값을
+# 유지한다 — 의도적이다. 이 계좌들은 '측정 도구'다: 확률 보정 표본과 체결
+# 갭(fill_check) 실측이 여기서 나온다. 회전을 줄이면 측정 표본도 함께 줄어
+# 정작 통합 계좌의 밴드를 정할 근거가 늦게 쌓인다. 각 계좌가 단일 종목에
+# 풀사이즈로 들어가므로 절대 밴드 5%도 상대적으로 촘촘하지 않다.
 REBALANCE_BAND = 0.05
 
 
@@ -332,6 +339,17 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
 # K는 정밀 최적화가 아니라 '한국주식이 저비용 시장의 약 2배 밴드를 갖는다'는
 # 기준으로 잡은 휴리스틱이다(정확한 최적 밴드는 비용^(1/3)에 비례한다는
 # 이론이 있으나, 표본이 쌓이기 전의 정밀 조정은 과적합이다).
+# 실행 구조 세대 — '얼마를 어떻게 사고파는가'가 바뀌면 통계의 시계도 리셋된다.
+#
+# 판정 시계는 원래 피처셋만 세대로 쳤다. 그런데 2026-08-11에 사이징(총노출
+# 6.8%→100%)과 회전율 통제를 크게 바꿨고, 피처는 그대로여서 시계가 돌지 않았다.
+# 노출이 15배 다른 두 구간의 수익률은 같은 통계가 아니다 — 원칙의 구멍이었다.
+# 실행 구조를 바꿀 때는 EPOCH를 그날로, TAG를 다음 번호로 올린다.
+STRUCTURE_TAG = "sz2"
+STRUCTURE_EPOCH = "2026-08-11"
+STRUCTURE_WHY = ("포트폴리오 변동성 타깃(총노출 6.8%→100%) + 회전율 통제"
+                 "(비용 비례 밴드·신호 평활·재조정 쿨다운)")
+
 # 신호 평활 계수 — 오늘 목표에 얼마나 무게를 둘 것인가(1.0=평활 없음).
 # 0.5는 2일 지수평활 — 확률의 하루짜리 떨림은 절반으로 줄이되, 진짜 추세
 # 전환은 이틀이면 대부분 반영된다. 청산 신호에는 적용하지 않는다.
@@ -345,7 +363,7 @@ SIGNAL_SMOOTH_ALPHA = 0.3
 #
 # 예외 두 가지는 쿨다운을 무시한다:
 #   ① 청산(목표 0) — 나가는 길은 언제나 열려 있어야 한다
-#   ② 큰 이탈(밴드의 COOLDOWN_OVERRIDE_MULT 배 초과) — 시장이 크게 변했는데
+#   ② 큰 이탈(목표의 COOLDOWN_OVERRIDE_DRIFT 배 초과) — 시장이 크게 변했는데
 #      달력을 이유로 방치하는 것은 규율이 아니라 태만이다
 #
 # ⚠️ 정직하게: 이 파라미터들의 효과는 **아직 검증되지 않았다**. 기록이 5일뿐
@@ -353,7 +371,11 @@ SIGNAL_SMOOTH_ALPHA = 0.3
 #    얼마나 묶는지 측정할 수 없다. 그래서 값은 '표준적이고 방어 가능한 수준'
 #    으로 두고, 진짜 검증은 매일 기록되는 turnover와 아래 경보에 맡긴다.
 TRADE_COOLDOWN_DAYS = 5
-COOLDOWN_OVERRIDE_MULT = 3.0
+# 쿨다운을 무시할 '큰 이탈'의 기준 — 목표 대비 드리프트 비율.
+# 처음에는 밴드의 배수로 뒀는데, 밴드가 시장별로 다르다 보니 같은 크기의
+# 변화가 시장에 따라 예외가 되기도 안 되기도 했다(코인 45%, 한국 84%).
+# 목표의 100%(포지션이 두 배가 되거나 반토막)라는 단일 기준으로 통일한다.
+COOLDOWN_OVERRIDE_DRIFT = 1.0
 REBALANCE_BAND_REL_K = 30.0
 REBALANCE_BAND_REL_MIN = 0.15
 REBALANCE_BAND_REL_MAX = 0.40
@@ -515,12 +537,21 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
 
 
 def _generation_info(state_dir: str) -> dict | None:
-    """현재 구조 세대(피처셋 태그)의 관찰 일수 — 90일 시계를 숨기지 않는다.
+    """현재 구조 세대의 관찰 일수 — 90일 시계를 숨기지 않는다.
 
     구조(피처·모델·사이징)가 바뀔 때마다 성과 통계의 시계는 사실상 0으로
     리셋된다. 이 사실을 사이트에 명시해, 과거 세대의 기록이 현재 구조의
-    실적처럼 읽히는 착시를 막는다. since = 재학습 장부에서 현재 피처셋
-    태그가 처음 등장한 날(기록 전이면 오늘 = 0일차).
+    실적처럼 읽히는 착시를 막는다.
+
+    세대는 두 축으로 결정된다:
+      ① 피처셋(FEATURE_SET) — 무엇을 보고 판단하는가
+      ② 실행 구조(STRUCTURE_TAG/EPOCH) — 얼마를 어떻게 사고파는가
+    ②를 뒤늦게 넣은 이유: 2026-08-11에 사이징(총노출 6.8%→100%)과 회전율
+    통제를 크게 바꿨는데, 피처는 그대로라 시계가 리셋되지 않았다. 그러나
+    노출이 15배 다른 두 구간의 수익률은 같은 통계가 아니다 — 피처만 세대로
+    치는 것은 우리가 세운 원칙의 구멍이었다.
+
+    since = ①이 처음 등장한 날과 ②의 마지막 변경일 중 **나중** 날짜.
     """
     try:
         import datetime as _dt
@@ -541,9 +572,14 @@ def _generation_info(state_dir: str) -> dict | None:
         today = _dt.date.today()
         if since is None:
             since = today.isoformat()
+        # 실행 구조가 더 최근에 바뀌었으면 그날부터 다시 센다
+        if STRUCTURE_EPOCH > since:
+            since = STRUCTURE_EPOCH
         days = (today - _dt.date.fromisoformat(since)).days
-        return {"feature_set": FEATURE_SET, "since": since,
-                "days": max(0, days), "target_days": 90}
+        return {"feature_set": f"{FEATURE_SET}/{STRUCTURE_TAG}",
+                "since": since, "days": max(0, days), "target_days": 90,
+                "structure": {"tag": STRUCTURE_TAG, "epoch": STRUCTURE_EPOCH,
+                              "why": STRUCTURE_WHY}}
     except Exception:  # noqa: BLE001 — 표시 재료일 뿐
         return None
 
@@ -761,15 +797,16 @@ def _xsec_tilt(weights: dict, lo: float = 0.75, hi: float = 1.25) -> dict:
 
 
 def _in_cooldown(key: str, last_trade: dict, today: str, target_w: float,
-                 held_w: float, band: float) -> bool:
+                 held_w: float, band: float = 0.0) -> bool:
     """이 종목을 오늘 고쳐 잡지 않고 넘길 것인가 — 쿨다운 판정.
 
     청산과 큰 이탈은 쿨다운을 무시한다. 그 외에는 마지막 조정 후
     TRADE_COOLDOWN_DAYS 거래일이 지나야 다시 손댄다.
+    (band 인자는 하위 호환용 — 이제 예외 기준은 시장과 무관한 단일 값이다.)
     """
     if abs(target_w) < 1e-9:
         return False                            # 청산은 언제나 허용
-    if abs(target_w - held_w) >= band * COOLDOWN_OVERRIDE_MULT * abs(target_w):
+    if abs(target_w - held_w) >= COOLDOWN_OVERRIDE_DRIFT * abs(target_w):
         return False                            # 큰 이탈은 즉시 대응
     last = last_trade.get(key)
     if not last:

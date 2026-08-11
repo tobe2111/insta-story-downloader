@@ -131,21 +131,31 @@ def test_cooldown_blocks_frequent_readjustment():
     lt = {"crypto:BTC/USDT": "2026-08-10"}
     # 이틀 뒤 소폭 이탈 → 쿨다운(5거래일 미만)으로 보류
     assert _in_cooldown("crypto:BTC/USDT", lt, "2026-08-12",
-                        target_w=0.10, held_w=0.11, band=0.25)
+                        target_w=0.10, held_w=0.11)
     # 열흘 뒤면 다시 손댈 수 있다
     assert not _in_cooldown("crypto:BTC/USDT", lt, "2026-08-24",
-                            target_w=0.10, held_w=0.11, band=0.25)
+                            target_w=0.10, held_w=0.11)
 
 
 def test_cooldown_yields_to_liquidation_and_big_moves():
     from quant.live.daily import _in_cooldown
     lt = {"x": "2026-08-10"}
     # 청산은 달력과 무관
-    assert not _in_cooldown("x", lt, "2026-08-11", 0.0, 0.10, 0.25)
-    # 큰 이탈(밴드의 2배 초과)도 즉시 대응 — 목표 0.10, 보유 0.20
-    assert not _in_cooldown("x", lt, "2026-08-11", 0.10, 0.20, 0.25)
+    assert not _in_cooldown("x", lt, "2026-08-11", 0.0, 0.10)
+    # 큰 이탈(목표의 100% 초과 = 두 배/반토막)은 즉시 대응
+    assert not _in_cooldown("x", lt, "2026-08-11", 0.10, 0.21)
     # 첫 진입(기록 없음)도 막지 않는다
-    assert not _in_cooldown("y", lt, "2026-08-11", 0.10, 0.0, 0.25)
+    assert not _in_cooldown("y", lt, "2026-08-11", 0.10, 0.0)
+
+
+def test_cooldown_override_is_market_agnostic():
+    """예외 기준이 시장별 밴드에 좌우되면 같은 변화가 시장 따라 달라진다."""
+    from quant.live.daily import _in_cooldown
+    lt = {"a": "2026-08-10", "b": "2026-08-10"}
+    # 동일한 60% 드리프트는 어느 시장이든 동일하게 '예외 아님'(쿨다운 유지)
+    for key in ("a", "b"):
+        assert _in_cooldown(key, lt, "2026-08-11",
+                            target_w=0.10, held_w=0.16)
 
 
 def test_wired_into_portfolio_and_recorded():

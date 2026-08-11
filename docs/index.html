@@ -519,7 +519,9 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         " 실측 불리 갭 "+r.mean_adverse_bp+"bp가 가정 "+r.assumed_bp+"bp 초과 (표본 "+r.n+"건)");
     });
   }
-  const vt=(pf&&pf.vol_target)||st.vol_target;
+  /* vol_target은 일별 기록 안에 있다 — 계좌 요약(pf) 최상위가 아니다 */
+  const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
+  const vt=pfLast.vol_target||st.vol_target;
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
   document.getElementById("side-flags").innerHTML=
@@ -548,7 +550,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     }
     document.getElementById("c-gen").innerHTML=
       '현재 구조 <b>'+esc(g.feature_set)+'</b> 관찰 <b>'+g.days+'일차</b> / 판정 기준 '+
-      g.target_days+'일 ('+esc(g.since)+'~). 구조가 바뀌면 통계의 시계도 0일부터 다시 셉니다.'+ar;
+      g.target_days+'일 ('+esc(g.since)+'~). 구조가 바뀌면 통계의 시계도 0일부터 다시 셉니다.'+
+      (g.structure?'<div class="sub" style="margin-top:8px;font-size:11.5px">'+
+        '마지막 리셋 '+esc(g.structure.epoch)+' — '+esc(g.structure.why)+
+        '. 피처뿐 아니라 <b>사이징·체결 구조</b>가 바뀌어도 리셋합니다: 노출이 다른 '+
+        '두 구간의 수익률은 같은 통계가 아니기 때문입니다.</div>':'')+ar;
   }
   if(st.fill_check&&st.fill_check.markets){
     const fc=st.fill_check,nm={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"};
