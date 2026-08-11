@@ -92,11 +92,27 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   else if(ret<1)hook="작은 플러스가<br>쌓여야 복리입니다.";
   else hook="좋은 날이지만,<br>하루로는 증명이 아닙니다.";
 
-  var top=Object.entries(alloc).filter(function(e){return e[1]>0})
+  // ⚠️ alloc은 **배분 예산**이지 매수 비중이 아니다. 모델이 관망한 종목에도
+  //    예산은 붙어 있어서, alloc을 "매수 8%"라 부르면 그날 한 주도 사지 않은
+  //    종목을 샀다고 공개하게 된다(2026-08-11 감사 91 — 실제로 2026-08-10
+  //    QQQ는 장부가 "관망 (현금)", 비중 0인데 alloc은 0.0802였다).
+  //    장부의 applied(종목별 실제 적용 노출)를 쓰고, 그게 없는 옛 기록은
+  //    그날 종목 장부의 비중이 0인 종목을 빼고 '배분'이라 부른다.
+  var applied=last.applied||null;
+  function heldOn(k){                       // 그날 그 종목을 실제로 들었나
+    var h=((st.paper||{})[k]||{}).history||[];
+    for(var i=h.length-1;i>=0;i--)if(h[i].date===date)return (h[i].weight||0)>0;
+    return false;                           // 기록이 없으면 샀다고 말하지 않는다
+  }
+  var src=applied||alloc, wLabel=applied?"노출":"배분";
+  var top=Object.entries(src)
+    .filter(function(e){return e[1]>0 && (applied||heldOn(e[0]))})
     .sort(function(a,b){return b[1]-a[1]}).slice(0,5)
     .map(function(e){var k=e[0];
       return {key:k,name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
-  var nCash=Object.values(alloc).filter(function(v){return !(v>0)}).length;
+  var held={};top.forEach(function(t){held[t.key]=1});
+  var nCash=Object.keys(alloc).filter(function(k){
+    return applied?!(applied[k]>0):!heldOn(k)}).length;
 
   // 대표 종목의 새벽 판단 근거 — 배분 1위 종목 페이퍼 장부의 reason
   var lead=top[0]||null, leadReason=[];
@@ -160,7 +176,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===4){
     var rows=top.map(function(t){
       return '<div class="row"><b>'+esc(t.name)+'</b>'
-        +'<span class="w">매수 '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
+        +'<span class="w">'+wLabel+' '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
     if(!top.length)rows='<div class="row"><b>전 종목</b><span class="cash">관망 (현금 100%)</span></div>';
     else if(nCash>0)rows+='<div class="row"><b>나머지 '+nCash+'종목</b><span class="cash">관망 (현금)</span></div>';
     html=page("오늘 새벽 AI의 배분",

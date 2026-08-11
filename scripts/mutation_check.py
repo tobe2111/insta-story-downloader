@@ -78,6 +78,13 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("배분 예산을 매수 비중이라 부른다(관망 종목 방송)",
+     "quant/reporting/social.py",
+     "    keep = (list(src) if applied\n"
+     "            else [k for k in src if _held_on(status, k, date)])",
+     "    keep = list(src)",
+     "tests/test_alloc_is_not_a_purchase.py"),
+
     ("킬스위치 감쇠를 스케일러 앞으로 되돌린다(오늘 고친 결함 재현)",
      "quant/live/daily.py",
      "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)",

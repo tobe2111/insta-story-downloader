@@ -1461,6 +1461,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
 
     gross = sum(_applied(k, w) for k, w in weights.items())
+    # 종목별 '실제로 적용한' 노출 — 사이트·SNS가 "오늘 뭘 얼마나 샀나"를
+    # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
+    # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
+    # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
+    applied = {k: round(v, 4)
+               for k, v in ((k, _applied(k, w)) for k, w in weights.items())
+               if v > 0}
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))
@@ -1485,7 +1492,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "paused": paused,
               "exposure_scale": float(settings["exposure_scale"]),
               "drawdown_pct": round(drawdown * 100, 2),
+              # ⚠️ alloc은 **배분 예산**이다(관망 종목에도 붙는다).
+              #    "얼마나 샀나"는 아래 applied를 봐야 한다.
               "alloc": {k: round(v, 4) for k, v in slices.items()},
+              "applied": applied or None,
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
               # 포트폴리오 변동성 타깃의 흔적 — 총노출이 왜 이 크기인지의 답.
               # proven=False면 게이트가 검증 목표를 상한으로 잠근 상태다.

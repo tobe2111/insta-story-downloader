@@ -36,6 +36,18 @@ def _fmt_won(v: float) -> str:
     return f"{v:,.0f}원"
 
 
+def _held_on(status: dict, key: str, date: str) -> bool:
+    """그날 그 종목을 **실제로 들고 있었나** (종목 장부의 비중 > 0).
+
+    기록이 없으면 False — 확인 못 한 것을 "샀다"고 방송하지 않는다.
+    """
+    hist = ((status.get("paper") or {}).get(key) or {}).get("history") or []
+    for rec in reversed(hist):
+        if rec.get("date") == date:
+            return float(rec.get("weight") or 0.0) > 0
+    return False
+
+
 def _today_numbers(status: dict) -> dict:
     """status.json에서 캡션에 쓸 그날의 숫자를 뽑는다 (없는 값은 None)."""
     port = (status.get("paper") or {}).get("portfolio:ALL") or {}
@@ -46,10 +58,17 @@ def _today_numbers(status: dict) -> dict:
     recent = [r for r in (status.get("retrain_recent") or [])
               if r.get("asof") == date]
     swaps = sum(1 for r in recent if r.get("promoted"))
-    # 배분 상위 종목 — "오늘 AI가 어디에 실었나"의 하이라이트
-    alloc = last.get("alloc") or {}
+    # 배분 상위 종목 — "오늘 AI가 어디에 실었나"의 하이라이트.
+    # ⚠️ alloc은 **배분 예산**이라 모델이 관망한 종목에도 붙어 있다. 그대로
+    #    쓰면 그날 한 주도 안 산 종목이 "오늘 배분 상위"로 나간다(감사 91).
+    #    장부의 applied(종목별 실제 적용 노출)를 쓰고, 그게 없는 옛 기록은
+    #    그날 종목 장부의 비중이 0인 종목을 뺀다.
     names = status.get("symbols") or {}
-    top = sorted(alloc.items(), key=lambda kv: -kv[1])[:3]
+    applied = last.get("applied") or {}
+    src = applied or (last.get("alloc") or {})
+    keep = (list(src) if applied
+            else [k for k in src if _held_on(status, k, date)])
+    top = sorted(((k, src[k]) for k in keep), key=lambda kv: -kv[1])[:3]
     top_names = [names.get(k, {}).get("name") or k.split(":")[-1]
                  for k, v in top if v > 0]
     return {
