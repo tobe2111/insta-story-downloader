@@ -239,15 +239,30 @@ def _cmd_live_check(args) -> None:
     from quant.live.daily_live import check_readiness
     print("\n🔍 실거래 전환 준비 진단"
           + (" (실전 도메인)" if args.real else " (모의투자 도메인)"))
+    rows = list(check_readiness(paper=not args.real, broker_name=args.broker))
     ok_all = True
-    for name, ok, note in check_readiness(paper=not args.real,
-                                          broker_name=args.broker):
+    for name, ok, note in rows:
         print(f"  {'✅' if ok else '❌'} {name}: {note}")
         ok_all = ok_all and ok
-    print("\n" + ("✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
-                  "있습니다." if ok_all else
-                  "❌ 미비 항목이 있습니다 — 'python -m quant setup'으로 키를 "
-                  "등록하세요."))
+    # 점검 항목이 하나도 없으면 '전부 통과'가 아니라 '점검하지 못함'이다.
+    # 빈 목록이 True로 남으면 아무것도 확인하지 않고 실거래를 허용한다.
+    if not rows:
+        print("  ❌ 점검 항목이 하나도 없습니다 — 진단이 돌지 않았습니다"
+              f"(브로커 이름 확인: {args.broker!r})")
+        ok_all = False
+    if ok_all:
+        print("\n✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
+              "있습니다.")
+        return
+    # ⚠️ 종료코드로도 실패를 말한다(2026-08-11 감사 87). 예전에는 화면에만
+    #    "미비 항목이 있습니다"를 찍고 0(성공)으로 끝냈다. 그런데 이 명령은
+    #    kr-live 워크플로에서 **실거래 집행 바로 앞 단계**에 놓여 있다 —
+    #    GitHub Actions는 단계가 실패해야 잡을 멈추므로, 0을 돌려주면
+    #    키가 없거나 인증이 만료돼도 다음 단계가 그대로 실주문을 낸다.
+    #    장치가 있고 이름도 '진단'이고 관문 자리에 있는데 막지 않았다.
+    raise SystemExit(
+        "\n❌ 미비 항목이 있습니다 — 'python -m quant setup'으로 키를 "
+        "등록하세요.\n   (실거래 집행 앞 관문이므로 실패로 끝냅니다)")
 
 
 def _cmd_live(args) -> None:

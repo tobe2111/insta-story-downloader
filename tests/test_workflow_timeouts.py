@@ -85,3 +85,46 @@ def test_job_timeout_covers_its_longest_step():
             assert job["timeout-minutes"] > step_max, (
                 f"{wf}:{name} 잡 {job['timeout-minutes']}분 ≤ "
                 f"단계 {step_max}분 — 정상 실행이 죽는다")
+
+
+# ── 파이프가 실패를 가리지 않는가 (감사 88) ────────────────────
+#
+# GitHub의 기본 셸은 `bash -e {0}` 로 **pipefail이 없다.** 그래서
+# `python ... | tee log.txt` 는 파이프라인의 마지막 명령(tee)의 종료코드를
+# 쓰고, 앞 명령이 실패해도 단계가 초록으로 끝난다.
+#
+# `| tee` 를 쓰는 단계 9곳 중 8곳은 `shell: bash` 를 선언해 안전했는데
+# (그러면 GitHub이 `-e -o pipefail` 로 돌린다), **하필 kr-live의 실거래
+# 집행 단계 하나만 빠져 있었다** — 실거래가 실패해도 잡이 성공으로 끝났다.
+
+def _piped_steps():
+    out = []
+    for f in sorted(WF.glob("*.yml")):
+        doc = yaml.safe_load(f.read_text(encoding="utf-8"))
+        top = ((doc.get("defaults") or {}).get("run") or {}).get("shell")
+        for jn, job in (doc.get("jobs") or {}).items():
+            jd = ((job.get("defaults") or {}).get("run") or {}).get("shell") or top
+            for s in job.get("steps") or []:
+                run = str(s.get("run") or "")
+                if "| tee" in run or "| head" in run:
+                    out.append((f.name, s.get("name") or jn,
+                                s.get("shell") or jd, run))
+    return out
+
+
+PIPED = _piped_steps()
+
+
+def test_there_are_piped_steps_to_check():
+    assert PIPED, "파이프 단계를 하나도 못 찾았다 — 아래 검사가 무의미해진다"
+
+
+@pytest.mark.parametrize("wf,name,shell,run", PIPED,
+                         ids=[f"{w}:{n}" for w, n, _s, _r in PIPED])
+def test_a_pipe_never_hides_a_failure(wf, name, shell, run):
+    """파이프 앞 명령이 실패하면 단계도 실패해야 한다."""
+    explicit = "pipefail" in run
+    assert shell == "bash" or explicit, (
+        f"{wf} / {name}: shell 미선언(기본 `bash -e`)이라 pipefail이 없다 — "
+        "파이프 앞 명령이 실패해도 단계가 초록으로 끝난다. "
+        "`shell: bash` 를 넣거나 `set -o pipefail` 을 쓸 것")
