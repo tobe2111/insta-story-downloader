@@ -192,9 +192,12 @@ def _cmd_paper_daily(args) -> None:
                              f"({srec['return_pct']:+.2f}%)")
         except Exception as exc:  # noqa: BLE001
             print(f"⚠️ 섀도 대조군 실패 — {exc}")
-        if lines:
+        # 실패 알림은 lines가 비어도 나가야 한다 — 전 종목이 휴장·스킵이면
+        # lines가 비는데, 예전에는 그때 실패 목록까지 함께 삼켜졌다.
+        if lines or out["failed"]:
             _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
-                          + (f"\n⚠️ 실패: {', '.join(out['failed'])}"
+                          + (f"\n⚠️ 실패 {len(out['failed'])}종목: "
+                             f"{', '.join(out['failed'])}"
                              if out["failed"] else ""))
     else:
         print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")

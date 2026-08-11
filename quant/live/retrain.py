@@ -741,6 +741,12 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             print(f"⚠️ {key}: 재학습 실패 — {exc}")
     print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 실패 {len(failed)}"
           + (f" ({', '.join(failed)})" if failed else ""))
+    # 부분 실패도 장부에 남긴다 — '전부 실패'만 예외로 올리면 19/20이 실패한
+    # 날도 잡이 초록이고, 그 종목들은 옛 챔피언을 그대로 쓰면서 아무 흔적도
+    # 남지 않는다(2026-08-11 감사).
+    from quant.live.daily import _write_run_health
+    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
+                      "retrain", ok, failed)
     if targets and not ok:
         raise RuntimeError(f"전 종목 재학습 실패: {failed}")
     return {"ok": ok, "failed": failed, "promoted": promoted}

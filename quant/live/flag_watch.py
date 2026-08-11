@@ -121,7 +121,24 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"장부에는 같은 구조 태그로 기록되지만 모델은 다른 피처로 "
                 f"학습·판단합니다.")
 
-    # ⑦ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑦ 새벽 배치 부분 실패 — '전 종목 실패'만 예외로 올리던 탓에 20종목 중
+    #    19개가 실패한 날도 잡은 초록이었다(2026-08-11 발견). 실패한 종목은
+    #    그날 판단·기록이 통째로 없고 옛 챔피언을 그대로 쓴다.
+    for kind, r in (status.get("run_health") or {}).items():
+        n = int(r.get("failed") or 0)
+        if not n:
+            continue
+        keys = ", ".join((r.get("failed_keys") or [])[:5])
+        more = "…" if len(r.get("failed_keys") or []) > 5 else ""
+        err = next(iter((r.get("errors") or {}).values()), "")
+        label = {"paper": "페이퍼", "retrain": "재학습"}.get(kind, kind)
+        flags[f"run_failed:{kind}:{r.get('date')}:{n}"] = (
+            f"⚠️ {label} 부분 실패: {r.get('date')} {n}종목 실패 "
+            f"(성공 {r.get('ok')}) — {keys}{more}. "
+            f"실패 종목은 그날 기록이 없고 이전 판단을 그대로 씁니다."
+            + (f"\n첫 오류: {err}" if err else ""))
+
+    # ⑧ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

@@ -1317,9 +1317,40 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
             print(f"⚠️ {key}: 페이퍼 실패 — {exc}")
     print(f"\n요약: 성공 {len(ok)} · 실패 {len(failed)}"
           + (f" ({', '.join(failed)})" if failed else ""))
+    # 부분 실패를 장부에 남긴다 — 예전에는 20종목 중 19개가 실패해도 잡이
+    # 초록이고 콘솔에만 남았다(2026-08-11 감사). 전부 실패해야 예외였다.
+    # 사이트·경보가 읽을 수 있게 기록해야 '조용한 절반 마비'가 보인다.
+    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
+                      "paper", ok, failed)
     if targets and not ok:
         raise RuntimeError(f"전 종목 페이퍼 실패: {failed}")
     return {"ok": ok, "failed": failed, "records": records}
+
+
+def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:
+    """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
+
+    '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
+    종목은 그날 판단·기록이 통째로 없는데도 아무 흔적이 남지 않았다.
+    """
+    from datetime import date as _date
+
+    from quant.utils.jsonio import atomic_write_json
+
+    path = os.path.join(state_dir, "run_health.json")
+    cur: dict = {}
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                cur = json.load(f)
+        except (OSError, ValueError):
+            cur = {}
+    cur[kind] = {"date": _date.today().isoformat(),
+                 "ok": len(ok), "failed": len(failed),
+                 "failed_keys": sorted(failed)[:20],
+                 "errors": {k: str(v)[:200] for k, v in
+                            list(failed.items())[:5]}}
+    atomic_write_json(path, cur)
 
 
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
@@ -1358,13 +1389,26 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         # 주간 수익 기준점: 창 직전 마지막 기록(없으면 창 첫 기록의 자산)
         idx0 = hist.index(window[0])
         base = hist[idx0 - 1]["equity"] if idx0 > 0 else window[0]["equity"]
-        week_ret = (window[-1]["equity"] / base - 1) * 100 if base else 0.0
+        # 입금은 수익이 아니다 — 자산 비율만 쓰면 매칭입금이 주간 수익으로
+        # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
+        # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
+        # '그 이후 첫 기록일'에 귀속시킨다.
+        flows: dict[str, float] = {}
+        for d in st.get("deposits") or []:
+            target = next((r["date"] for r in window if r["date"] >= d["date"]),
+                          None)
+            if target is not None:
+                flows[target] = flows.get(target, 0.0) + float(d["amount"])
         days_chg = []
+        chain = 1.0
         prev = base
         for r in window:
             if prev:
-                days_chg.append((r["date"], (r["equity"] / prev - 1) * 100))
-            prev = r["equity"]
+                r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
+                chain *= 1.0 + r_t
+                days_chg.append((r["date"], r_t * 100))
+            prev = float(r["equity"])
+        week_ret = (chain - 1) * 100 if base else 0.0
         best = max(days_chg, key=lambda x: x[1]) if days_chg else None
         worst = min(days_chg, key=lambda x: x[1]) if days_chg else None
         markets[key] = {
@@ -1593,6 +1637,16 @@ def write_docs_status(state_dir: str = STATE_DIR,
             if arch:
                 gen["archive"] = arch
         status["generation"] = gen
+
+    # 새벽 배치의 부분 실패 — '전부 실패'만 예외로 올리던 탓에 절반이 마비된
+    # 날도 초록으로 보였다. 실패는 숨길 이유가 없다(2026-08-11 감사).
+    rh_path = os.path.join(state_dir, "run_health.json")
+    if os.path.exists(rh_path):
+        try:
+            with open(rh_path, encoding="utf-8") as f:
+                status["run_health"] = json.load(f)
+        except (OSError, ValueError):
+            pass
 
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.
