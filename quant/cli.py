@@ -468,10 +468,21 @@ def _cmd_validate(args) -> None:
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
     print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
     dsr_value = None
+    # 다중검정 보정의 N — 이 검증 그리드가 아니라 **그 챔피언을 뽑기까지
+    # 실제로 시도한 횟수**를 쓴다. 장부(retrain_history)에 종목별 도전자 수가
+    # 누적돼 있다. 기록이 없으면 그리드 크기로 폴백(옛 동작).
+    try:
+        import datetime as _dt
+
+        from quant.live.retrain import recent_trials
+        ledger_trials = recent_trials(args.market, args.symbol,
+                                      _dt.date.today().isoformat())
+    except Exception:  # noqa: BLE001 — 장부 조회 실패가 검증을 막지 않는다
+        ledger_trials = 0
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
-                          periods_per_year=ppy)
+                          periods_per_year=ppy, extra_trials=ledger_trials)
         m = wf["oos_metrics"]
         print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")

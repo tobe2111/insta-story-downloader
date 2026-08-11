@@ -47,6 +47,14 @@ class CircuitBreaker:
             if daily <= -cfg.max_daily_loss:
                 self._trip(f"일일 손실 한도 도달 ({daily:.2%})")
 
+        # ⚠️ 낙폭 기준의 범위(2026-08-11 감사에서 명시): 여기 peak_equity는
+        #    **이 세션(프로세스) 안의 고점**이고 입금을 모델링하지 않는다.
+        #    통합 계좌의 낙폭(quant/live/daily.py)은 입금 효과를 제거한 성장
+        #    지수 위에서 재는데, 그건 매칭입금이 브레이크를 풀어버리기
+        #    때문이다. 이 서킷브레이커는 연속 실행 세션용이라 세션 중 입금이
+        #    없다는 전제이며, 그 전제가 깨지면(세션 중 입금) 낙폭이 실제보다
+        #    작게 보인다. 세션 중 입금을 할 계획이라면 daily.py의 twr_index
+        #    기반 계산을 써야 한다.
         if cfg.max_drawdown is not None and self.peak_equity and self.peak_equity > 0:
             dd = equity / self.peak_equity - 1.0
             if dd <= -cfg.max_drawdown:

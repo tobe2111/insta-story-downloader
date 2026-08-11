@@ -43,6 +43,10 @@ class MultiTrader:
         mode: str = "paper",
         daily_max_loss: float | None = None,
         rebalance_band: float = 0.02,
+        # 상대 밴드 — 목표 대비 비율. 절대 밴드만 쓰면 포지션이 커질수록
+        # 밴드가 상대적으로 촘촘해져 회전율이 폭증한다(통합 계좌에서 실제로
+        # 겪은 문제). 두 밴드 중 더 큰 문턱이 적용된다(2026-08-11 통일).
+        rebalance_band_rel: float = 0.15,
         market: str | None = None,
     ):
         self.data = data
@@ -60,6 +64,7 @@ class MultiTrader:
         # 리밸런스 데드밴드 — 종목별 |목표-현재| 비중 차가 이 값 미만이면 주문
         # 생략(잔조정 왕복비용의 결정론적 환급). 청산은 항상 실행. 0=비활성.
         self.rebalance_band = max(0.0, rebalance_band)
+        self.rebalance_band_rel = max(0.0, rebalance_band_rel)
         self.state_path = state_path
         self.dashboard_path = dashboard_path
         self.notifier = notifier
@@ -184,8 +189,10 @@ class MultiTrader:
             price = prices.get(s)
             if not price:
                 continue
-            order = self.broker.target_weight(s, float(w), price, equity,
-                                              rebalance_band=self.rebalance_band)
+            order = self.broker.target_weight(
+                s, float(w), price, equity,
+                rebalance_band=self.rebalance_band,
+                rebalance_band_rel=self.rebalance_band_rel)
             if order is not None and self.notifier is not None:
                 self.notifier.send(
                     f"[{self.mode}] {order.side.upper()} {s} "

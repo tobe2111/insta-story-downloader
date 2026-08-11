@@ -139,8 +139,16 @@ def test_no_ad_hoc_drawdown_formula_on_account_equity():
     for path in (ROOT / "quant").rglob("*.py"):
         if "robustness" in path.parts or "backtest" in path.parts:
             continue
+        if path.name == "circuit_breaker.py":
+            # 예외지만 침묵이 아니다: 세션 한정 고점이고 입금을 모델링하지
+            # 않는다는 사실이 코드에 적혀 있어야만 통과시킨다.
+            src = path.read_text("utf-8")
+            assert "세션(프로세스) 안의 고점" in src and "입금을 모델링하지" in src
+            continue
         for i, ln in enumerate(path.read_text("utf-8").splitlines(), 1):
-            if re.search(r"(eq|equity)\s*/\s*peak\w*\s*-\s*1", ln):
+            # self.peak_equity 형태도 잡는다 — 첫 정규식이 이걸 놓쳐
+            # circuit_breaker를 통과시켰다(2026-08-11, 탐지기 자체의 결함).
+            if re.search(r"(eq|equity)\s*/\s*(self\.)?peak\w*\s*-\s*1", ln):
                 bad.append(f"{path.relative_to(ROOT)}:{i}")
     assert not bad, f"공용 헬퍼를 쓰지 않는 낙폭 계산: {bad}"
 
