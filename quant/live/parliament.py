@@ -94,7 +94,11 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
                 try:
                     c = float(rets[i].corr(rets[j]))
                 except Exception:  # noqa: BLE001
-                    c = 0.0
+                    # 상관을 못 재면 '무상관(0)'이 아니라 '중복(1)'으로 본다
+                    # (감사 53). 0으로 치면 계산 실패가 곧 통과가 되어, 같은
+                    # 베팅에 두 자리를 주는 쪽으로 가드가 열린다 — 다양성
+                    # 강제 장치가 실패할 때 정확히 반대로 동작하는 셈이다.
+                    c = 1.0
                 if c == c and c > CORR_CAP:
                     dup = True
                     break

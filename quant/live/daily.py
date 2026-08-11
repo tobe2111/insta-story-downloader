@@ -986,6 +986,11 @@ def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
     그런 주문은 기대수익보다 비용이 크고, 체결 표본까지 오염시킨다.
     이미 보유 중인 종목의 청산(목표 0)은 잔돈이어도 막지 않는다 —
     빠져나오는 길을 막으면 리스크 관리가 아니라 덫이 된다.
+
+    ⚠️ 보유 조회가 실패하면 '없음(0)'으로 치지 않는다(감사 53). 목표가 0인
+       청산 상황에서 보유를 0으로 오인하면 delta도 0이 되어 **잔돈으로
+       분류되고 청산 주문이 통째로 생략된다** — 위 문단이 약속한 '빠져나오는
+       길'이 조회 실패 한 번에 막힌다. 모를 때는 잔돈이 아니라고 본다.
     """
     if price is None or equity <= 0:
         return False
@@ -993,8 +998,8 @@ def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
     try:
         pos = broker.get_position(key)
         cur_qty = float(getattr(pos, "quantity", 0.0) or 0.0)
-    except Exception:  # noqa: BLE001 — 포지션 조회 실패는 '없음'으로
-        cur_qty = 0.0
+    except Exception:  # noqa: BLE001 — 모르면 막지 않는다(청산 봉쇄 방지)
+        return False
     cur_notional = cur_qty * float(price)
     if abs(target_w) < 1e-9 and abs(cur_notional) > 0:
         return False                       # 청산은 언제나 허용
@@ -1279,13 +1284,22 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
+        #
+        # ⚠️ 보유 조회가 실패하면 '없음(0)'으로 치지 않는다(감사 53). 보유를
+        #    0으로 오인하면 목표와의 이탈이 100%로 계산돼 `큰 이탈은 즉시
+        #    대응` 예외에 걸리고, 쿨다운(회전율 통제)이 통째로 무력화된다.
+        #    조회가 흔들리는 날일수록 더 많이 매매하게 되는 정반대 결과다.
+        #    모를 때는 손대지 않는다 — 다만 청산(목표 0)만은 막지 않는다.
         held_w = 0.0
         if prices.get(key):
             try:
                 held_w = (broker.get_position(key).quantity
                           * float(prices[key]) / equity) if equity > 0 else 0.0
-            except Exception:  # noqa: BLE001 — 조회 실패는 '없음'으로
-                held_w = 0.0
+            except Exception as exc:  # noqa: BLE001
+                if abs(eff * sl) >= 1e-9:      # 청산이 아니면 오늘은 건너뛴다
+                    skipped_why[key] = f"보유 조회 실패 — {type(exc).__name__}"
+                    pending.pop(key, None)
+                    continue
         if _in_cooldown(key, last_trade, bar, eff * sl, held_w,
                         _rebalance_band_rel(market, state_dir)):
             skipped_cool.append(key)

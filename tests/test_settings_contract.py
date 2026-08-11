@@ -146,3 +146,41 @@ def test_target_vol_setting_actually_changes_the_target(tmp_path, monkeypatch):
     target, _, why = pv.target_vol_now(str(tmp_path))
     assert target == 0.25
     assert "소유자 우회" in why
+
+
+# ── ⑥ 폴백은 하되 조용히 하지는 않는다 (감사 53) ──────────────
+
+
+def test_corrupt_settings_file_is_loud(tmp_path, caplog):
+    """깨진 설정 파일로 폴백하면 일시정지·노출 축소가 사라진다 — 로그로 알린다.
+
+    기본값은 trading_paused=False / exposure_scale=1.0이다. 즉 파일이 깨진
+    날 시스템은 사장님이 눌러 둔 브레이크를 놓고 전액 노출로 매매하면서,
+    아무 일도 없었던 것처럼 군다. 죽지는 않되 숨기지도 않아야 한다.
+    """
+    import logging
+    p = tmp_path / "settings.json"
+    p.write_text('{"trading_paused": true, ', encoding="utf-8")   # 잘린 JSON
+    with caplog.at_level(logging.ERROR):
+        s = load_settings(str(p))
+    assert s["trading_paused"] is False and s["exposure_scale"] == 1.0
+    assert any("무시되고 있습니다" in r.getMessage() for r in caplog.records), \
+        "설정 폴백이 조용히 일어났다"
+
+
+def test_missing_file_is_not_an_error(tmp_path, caplog):
+    """파일이 아예 없는 것은 '아직 아무것도 안 바꿈'이라 경보 대상이 아니다."""
+    import logging
+    with caplog.at_level(logging.WARNING):
+        load_settings(str(tmp_path / "nope.json"))
+    assert not caplog.records
+
+
+def test_garbage_exposure_scale_is_loud(tmp_path, caplog):
+    import logging
+    p = tmp_path / "settings.json"
+    p.write_text('{"exposure_scale": "half"}', encoding="utf-8")
+    with caplog.at_level(logging.WARNING):
+        s = load_settings(str(p))
+    assert s["exposure_scale"] == 1.0
+    assert caplog.records, "노출 축소가 조용히 무시됐다"
