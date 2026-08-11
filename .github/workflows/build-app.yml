@@ -42,6 +42,9 @@ jobs:
           - os: macos-latest
             asset: quant-cockpit-macos
     runs-on: ${{ matrix.os }}
+    # 매달림 방어(2026-08-11 감사 77) — 무제한이면 배치가 멈춘 채
+    # 몇 시간을 태우고 로그도 안 남는다. 값은 실측 최대의 3배 이상.
+    timeout-minutes: 45
 
     # ⚠️ 잡 전체에 UTF-8을 강제한다 — 단계마다 챙기지 않는다.
     #    Windows 콘솔은 cp1252라 파이썬이 한글·이모지를 출력하다 죽는다.
@@ -310,6 +313,9 @@ jobs:
     needs: build
     if: always()
     runs-on: ubuntu-latest
+    # 매달림 방어(2026-08-11 감사 77) — 무제한이면 배치가 멈춘 채
+    # 몇 시간을 태우고 로그도 안 남는다. 값은 실측 최대의 3배 이상.
+    timeout-minutes: 10
     permissions:
       contents: write
     # build 잡과 같은 규칙 — 파이썬을 쓰는 잡에는 잡 단위로 UTF-8을 건다.

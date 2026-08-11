@@ -19,6 +19,9 @@ permissions:
 jobs:
   retrain:
     runs-on: ubuntu-latest
+    # 매달림 방어(2026-08-11 감사 77) — 무제한이면 배치가 멈춘 채
+    # 몇 시간을 태우고 로그도 안 남는다. 값은 실측 최대의 3배 이상.
+    timeout-minutes: 45
     defaults:
       run:
         shell: bash
