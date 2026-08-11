@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("사이트가 배분 방식을 다시 산문에 박는다(폴백 은폐)",
+     "docs/paper.html",
+     '?rest.length+"종목 위험 분산("+(AMN[am]||"방식 기록 없음")+") (각 종목의 챔피언 전략 추종)"',
+     '?rest.length+"종목 위험 분산(HRP·계층적 리스크 패리티) (각 종목의 챔피언 전략 추종)"',
+     "tests/test_ledger_fields_reach_the_screen.py"),
+
     ("카드가 누적을 '오늘'이라 부르던 때로 되돌린다",
      "docs/sns_card.html",
      "  var hd=dayp;",

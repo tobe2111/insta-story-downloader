@@ -535,6 +535,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      사람이 결과를 손으로 바꿀 수 있는 유일한 통로가 그 둘이다. 손을 댄 날의
      성적은 전략만의 결과가 아니므로, 그 사실이 성적과 같은 화면에 있어야
      한다 — 회의적인 독자가 가장 먼저 물을 질문이기도 하다. */
+  /* 배분 폴백도 경고다(감사 98) — 조용히 내려가면 아무도 모른다 */
+  if(pfLast.alloc_method==="equal")flags.push("<b>배분 폴백</b> — 상관 추정이 안 돼 "+
+    "위험 배분(HRP·ERC)이 자본 균등 1/n으로 내려갔습니다");
+  else if(pfLast.alloc_method==="erc")flags.push("<b>배분 폴백</b> — HRP가 실패해 "+
+    "ERC(위험기여 균등)로 내려갔습니다");
   if(pfLast.paused===true)flags.push("<b>사람의 개입 — 일시정지</b> — 운영자가 "+
     "신규 주문을 멈춘 상태입니다(보유는 유지). 이 날의 성적은 전략만의 결과가 아닙니다");
   const xs=pfLast.exposure_scale;
