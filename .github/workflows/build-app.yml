@@ -346,44 +346,12 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
           REPO: ${{ github.repository }}
         shell: bash
-        run: |
-          set -euo pipefail
-          # 릴리스 본문 표가 약속하는 파일들 — 여기가 곧 계약이다.
-          REQUIRED="quant-cockpit-windows.exe quant-cockpit-macos.zip quant-cockpit-linux.zip"
-
-          rel=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" \
-                -H "Accept: application/vnd.github+json" \
-                "https://api.github.com/repos/$REPO/releases/tags/$VERSION" || true)
-          rid=$(printf '%s' "$rel" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' 2>/dev/null || true)
-          if [ -z "$rid" ]; then
-            echo "❌ 릴리스 $VERSION 을 찾을 수 없습니다 — 모든 빌드가 실패했을 수 있습니다."
-            exit 1
-          fi
-
-          have=$(printf '%s' "$rel" | python3 -c \
-            'import json,sys; print(" ".join(a["name"] for a in json.load(sys.stdin).get("assets",[])))')
-          echo "붙어 있는 자산: $have"
-
-          missing=""
-          for f in $REQUIRED; do
-            case " $have " in *" $f "*) ;; *) missing="$missing $f" ;; esac
-          done
-
-          if [ -n "$missing" ]; then
-            echo "❌ 빠진 자산:$missing"
-            echo "   릴리스를 draft로 남겨 둡니다 — 반쪽 릴리스를 공개하면"
-            echo "   사이트의 다운로드 버튼이 404가 됩니다(v0.17.0에서 실제로 발생)."
-            echo "   해당 OS 빌드 로그를 확인한 뒤 이 워크플로를 다시 실행하세요."
-            exit 1
-          fi
-
-          echo "✅ 세 자산 모두 확인 — 릴리스를 공개합니다."
-          curl -sS -X PATCH \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/releases/$rid" \
-            -d '{"draft":false}' > /dev/null
-          echo "공개 완료: https://github.com/$REPO/releases/tag/$VERSION"
+        # ⚠️ 확인 로직은 여기 heredoc이 아니라 scripts/publish_release.py 에 있다.
+        #    워크플로 안에 적힌 코드는 테스트가 '문자열이 있는가'밖에 못 본다.
+        #    결함 73이 정확히 그 틈으로 나갔다 — draft 릴리스를 태그로 조회해
+        #    영원히 못 찾는 코드였는데, "REQUIRED= 가 있다"는 검사는 초록이었다.
+        #    파일로 두면 가짜 API를 물려 진짜 동작을 검사할 수 있다.
+        run: python3 scripts/publish_release.py
 
       - name: 실패 경보 (디스코드/텔레그램)
         if: failure()

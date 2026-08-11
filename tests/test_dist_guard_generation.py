@@ -185,19 +185,19 @@ def test_release_is_draft_until_every_promised_asset_exists():
     적힌 표**가 그대로 들어간다. 실제로 v0.17.0이 그랬다 — 윈도우 빌드가
     죽었는데 공개 페이지는 windows.exe를 안내했고, 사이트의 윈도우 다운로드
     버튼(releases/latest/download/quant-cockpit-windows.exe)은 404였다.
+
+    ⚠️ 이 검사는 **배선만** 본다(draft로 올리는가, 공개 잡이 build를 기다리는가,
+    확인 스크립트를 부르는가). 확인이 **실제로 동작하는가**는 여기서 볼 수 없다 —
+    실제로 v0.17.1에서 이 검사가 초록인 채로 공개 게이트가 한 번도 통과할 수
+    없는 상태였다(결함 73: draft를 태그로 조회). 동작 검사는
+    tests/test_publish_release.py 가 가짜 API를 물려서 한다.
     """
     y = (ROOT / ".github" / "workflows" / "build-app.yml").read_text("utf-8")
     assert "draft: true" in y, "빌드가 릴리스를 곧바로 공개한다"
     assert "publish:" in y and "needs: build" in y
-    # 공개 전에 자산 존재를 확인하고, 없으면 실패해야 한다
-    assert "REQUIRED=" in y and "quant-cockpit-windows.exe" in y
-    assert "빠진 자산" in y
-    # 사이트가 링크하는 세 파일이 모두 확인 대상인지
-    site = (ROOT / "docs" / "index.html").read_text("utf-8")
-    for name in ("quant-cockpit-windows.exe", "quant-cockpit-macos.zip",
-                 "quant-cockpit-linux.zip"):
-        if name in site:
-            assert name in y, f"사이트는 {name}를 링크하는데 확인 목록에 없다"
+    # 공개 전 확인은 검사 가능한 스크립트가 맡는다(YAML 안 heredoc 금지)
+    assert "scripts/publish_release.py" in y
+    assert (ROOT / "scripts" / "publish_release.py").exists()
 
 
 def test_publish_job_forces_utf8_like_the_build_job():
