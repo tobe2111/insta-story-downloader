@@ -1283,8 +1283,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if order is None:
             pending.pop(key, None)
             continue                       # 밴드 안 — 고쳐 잡지 않는다
+        # ⚠️ 기록하는 비중은 **실제로 낸 주문**과 같아야 한다(감사 92).
+        #    주문은 바로 위에서 `pend["weight"] * sl`로 나가는데 기록만
+        #    슬라이스를 빼먹고 있었다 — 같은 값을 한 줄 사이에서 두 정의로
+        #    쓴 셈이라, 장부가 실제보다 10~50배 큰 체결 비중을 말했다
+        #    (2026-08-10 069500 체결: 장부 0.165 / 실제 주문 0.0036).
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
-                      "weight": round(float(pend["weight"]), 4),
+                      "weight": round(float(pend["weight"]) * sl, 4),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 

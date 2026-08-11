@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("체결 기록에서 배분 슬라이스를 다시 빼먹는다(주문≠장부)",
+     "quant/live/daily.py",
+     '"weight": round(float(pend["weight"]) * sl, 4),',
+     '"weight": round(float(pend["weight"]), 4),',
+     "tests/test_fill_records_match_the_orders.py"),
+
     ("배분 예산을 매수 비중이라 부른다(관망 종목 방송)",
      "quant/reporting/social.py",
      "    keep = (list(src) if applied\n"
