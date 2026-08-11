@@ -267,3 +267,70 @@ def test_explanation_works_before_the_strategy_has_run():
         "inner": {"strategy": "ma_cross", "params": {}}, "trend_window": 200}}
     out = explain_signal(spec, df, 0.0, strategy=None)   # strategy 없음
     assert "레짐 필터" in out and "판정 보류" in out
+
+
+def _event_case(day, factor, include_minor):
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.explain import explain_signal
+    from quant.live.retrain import build_strategy
+
+    n = 300
+    close = 100 * np.exp(np.cumsum(
+        np.random.default_rng(3).normal(0.003, 0.01, n)))
+    idx = pd.date_range(end=pd.Timestamp(day), periods=n, freq="D")
+    df = pd.DataFrame({"open": close, "high": close * 1.01, "low": close * 0.99,
+                       "close": close, "volume": 1e6}, index=idx)
+    inner = {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}}
+    spec = {"strategy": "event_wrap", "params": {
+        "inner": inner, "pad_days": 1, "factor": factor,
+        "include_minor": include_minor}}
+    strat = build_strategy(spec)
+    w = float(strat.generate_signals(df).iloc[-1])
+    raw = float(build_strategy(inner).generate_signals(df).iloc[-1])
+    return raw, w, explain_signal(spec, df, w, strategy=strat)
+
+
+def test_event_guard_explanation_matches_what_it_did():
+    """가드가 막았는데 '매매 허용'이라 말하면 안 된다 (감사 70).
+
+    설명문이 `is_event_day`로 조건을 다시 계산했는데 그 함수는 **주요
+    이벤트만** 본다. include_minor면 가드는 옵션만기·월말도 막는데 설명은
+    "오늘은 주요 이벤트 없음(매매 허용)"이라고 정반대로 말했다. 실측:
+    2026-01-16(옵션만기) 원신호 +1.00 → 가드 후 0.00, 설명은 매매 허용.
+    """
+    import datetime as dt
+
+    from quant.events import event_dates, minor_event_dates
+
+    majors = set(event_dates(1))
+    minors = set(minor_event_dates())
+    minor_only = next(d for d in sorted(minors)
+                      if d not in majors and d.year == 2026)
+
+    raw, w, txt = _event_case(minor_only, 0.0, include_minor=True)
+    assert raw != 0 and w == 0, "테스트 전제가 깨졌다(가드가 안 막았다)"
+    assert "매매 허용" not in txt, f"막았는데 허용이라 말한다:\n{txt}"
+    assert "옵션만기" in txt or "월말" in txt
+
+    # 같은 날이라도 마이너를 안 보는 설정이면 통과가 맞다
+    raw2, w2, txt2 = _event_case(minor_only, 0.0, include_minor=False)
+    assert w2 == raw2 and "매매 허용" in txt2
+
+    plain = dt.date(2026, 3, 11)
+    while plain in majors or plain in minors:
+        plain += dt.timedelta(days=1)
+    raw3, w3, txt3 = _event_case(plain, 0.0, include_minor=True)
+    assert w3 == raw3 and "매매 허용" in txt3
+
+
+def test_event_guard_explains_the_size_not_just_the_direction():
+    """factor=0.5는 '관망'이 아니라 '절반'이다 — 크기까지 사실대로."""
+    from quant.events import event_dates
+
+    day = next(d for d in sorted(event_dates(1)) if d.year == 2026)
+    raw, w, txt = _event_case(day, 0.5, include_minor=True)
+    assert abs(w - raw * 0.5) < 1e-9, "테스트 전제가 깨졌다"
+    assert "관망" not in txt, f"절반으로 줄였는데 '관망'이라 말한다:\n{txt}"
+    assert "50%" in txt

@@ -251,6 +251,18 @@ MUTATIONS = [
      "        self.last_gate_ = None",
      "tests/test_filter_wrappers.py"),
 
+    ("이벤트 가드가 판단 근거를 안 남기게 한다(설명이 재계산으로 되돌아감)",
+     "quant/strategies/event_guard.py",
+     "                self.last_gate_ = {\n                    \"open\": False, \"date\": str(last),",
+     "                self.last_gate_ = None or {\n                    \"open\": True, \"date\": str(last),",
+     "tests/test_filter_wrappers.py"),
+
+    ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
+     "quant/live/daily.py",
+     "            df_sig = _signal_frame(market, df)",
+     "            df_sig = df",
+     "tests/test_signal_frame.py"),
+
     ("증거 없이도 확률 보정값을 표시한다",
      "quant/live/daily.py",
      "        if active:\n            record[\"prob_up_cal\"] = round(float(adj), 4)",

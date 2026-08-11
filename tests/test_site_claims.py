@@ -105,6 +105,21 @@ def test_site_discloses_the_partial_crypto_bar():
     assert "bar_partial" in t          # 장부 필드명까지 밝힌다
     assert "15개 중 15개" in t          # 추정이 아니라 실측 숫자
     assert "일봉 종가가 아닙니다" in t   # 공개 차트와 어긋나는 이유
+    # 고친 사실과 그 대가까지 함께 적혀 있어야 한다(감사 71)
+    assert "완성된 정보로 판단하고, 지금 가격에 체결한다" in t
+    assert "보지 못합니다" in t          # 대가를 숨기지 않는다
+
+
+def test_site_claim_matches_the_code_for_closed_bar_signals():
+    """사이트가 "완성된 봉으로 판단한다"고 말하면 코드가 실제로 그래야 한다."""
+    src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert "def _signal_frame(" in src
+    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다
+    assert src.count("_signal_frame(market, df)") >= 2
+    assert "strat.generate_signals(df_sig)" in src
+    assert "strategy.generate_signals(df_sig)" in src
+    # 체결 가격은 여전히 현재가(원본 프레임의 마지막 종가)여야 한다
+    assert 'prices[key] = float(df["close"].iloc[-1])' in src
 
 
 def test_partial_bar_field_exists_in_code():
