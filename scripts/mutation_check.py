@@ -339,6 +339,14 @@ MUTATIONS = [
      "        if not row or row.get(\"n\", 0) < MEASURED_COST_MIN_SAMPLES:",
      "        if not row:",
      "tests/test_rebalance_band_basis.py"),
+
+    # 감사 75 — do_GET의 라우트 분기 79줄이 미실행이었다. 누른 버튼과 도는
+    # 계산이 어긋나도 아무 검사가 실패하지 않았다.
+    ("웹 조종석에서 '최적화'를 누르면 스윕이 돌게 한다(라우트 교차)",
+     "quant/web/server.py",
+     "                self._send(run_optimize_html(params))",
+     "                self._send(run_sweep_html(params))",
+     "tests/test_web_routes.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
