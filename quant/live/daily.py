@@ -318,6 +318,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     return record
 
 
+# 최소 주문금액(원) — 이보다 작은 매매는 비용만 남기므로 주문하지 않는다.
+# 한국주식 실측 왕복 비용(가정 14bp + 개장 갭 79bp ≈ 93bp) 기준, 500원
+# 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
+MIN_ORDER_KRW = 500.0
 GOAL_KRW = 100_000_000          # 8마일 챌린지 목표 (8만원 → 1억)
 
 # 8마일 챌린지 — 통합 계좌 시작금. 8종목 × 만원 = 8만원 (영화 8 Mile 오마주).
@@ -683,6 +687,31 @@ def _xsec_tilt(weights: dict, lo: float = 0.75, hi: float = 1.25) -> dict:
     return out
 
 
+def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
+                   floor_krw: float = None) -> bool:
+    """이 주문이 '잔돈'인가 — 목표와 현 보유의 차액이 최소 금액에 못 미치는가.
+
+    소액 계좌에서 20종목에 1/n로 나누면 종목당 목표가 수십 원까지 내려간다.
+    한국주식 실측 왕복 비용(가정 14bp + 개장 갭 79bp ≈ 93bp)을 생각하면
+    그런 주문은 기대수익보다 비용이 크고, 체결 표본까지 오염시킨다.
+    이미 보유 중인 종목의 청산(목표 0)은 잔돈이어도 막지 않는다 —
+    빠져나오는 길을 막으면 리스크 관리가 아니라 덫이 된다.
+    """
+    if price is None or equity <= 0:
+        return False
+    floor = MIN_ORDER_KRW if floor_krw is None else floor_krw
+    try:
+        pos = broker.get_position(key)
+        cur_qty = float(getattr(pos, "quantity", 0.0) or 0.0)
+    except Exception:  # noqa: BLE001 — 포지션 조회 실패는 '없음'으로
+        cur_qty = 0.0
+    cur_notional = cur_qty * float(price)
+    if abs(target_w) < 1e-9 and abs(cur_notional) > 0:
+        return False                       # 청산은 언제나 허용
+    delta = abs(target_w * equity - cur_notional)
+    return delta < floor
+
+
 def _kill_switch_scale(prev: float, dd: float) -> float:
     """자동 킬스위치 — 낙폭 단계별 노출 축소와 '단계적' 복귀(히스테리시스).
 
@@ -874,13 +903,35 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if budget > 0 and tot > 0:
         cap = 3.0 / n
         slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}
+    # 포트폴리오 목표 변동성 — 종목 사이징(20% 목표) × 1/n 슬라이스의 이중
+    # 감쇠로 총노출이 우연히 결정되던 것을 명시적 목표로 교정한다. 엣지가
+    # 입증되기 전에는 게이트가 검증 목표(연 1%)를 상한으로 강제한다.
+    from quant.risk.portfolio_vol import target_vol_now, vol_scale
+    tgt_vol, vol_proven, vol_why = target_vol_now(state_dir)
+    pre_w = {k: w * eff_scale * slices.get(k, 1.0 / n)
+             for k, w in weights.items()}
+    vscale, ex_ante = vol_scale(pre_w, rets_map, tgt_vol)
+    log.info("변동성 타깃: 목표 연 %.2f%% · 사전추정 %s · 배수 %.2f (%s)",
+             tgt_vol * 100,
+             f"{ex_ante * 100:.2f}%" if ex_ante else "추정불가",
+             vscale, vol_why)
+
     n_orders_before = len(getattr(broker, "order_log", []))
+    skipped_dust = []
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
-        eff = w * eff_scale                    # 킬스위치×어드민 배수 반영 비중
+        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중
+        eff = w * eff_scale * vscale
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
+        # 잔돈 주문 차단 — 목표와 현 보유의 차이가 최소 주문금액에 못 미치면
+        # 주문하지 않는다. 40원짜리 매매는 비용(한국주식 실측 왕복 ~93bp)만
+        # 남기고 체결 표본까지 오염시킨다.
+        if _is_dust_order(broker, key, eff * sl, prices.get(key), equity):
+            skipped_dust.append(key)
+            pending.pop(key, None)
+            continue
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
             # 밴드도 슬라이스 크기에 비례 — 종목 간 공평
@@ -889,6 +940,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         else:
             pending[key] = {"weight": round(eff, 4), "slice": round(sl, 5),
                             "decided_bar": last_bars[key]}
+    if skipped_dust:
+        log.info("잔돈 주문 %d건 생략(최소 %s원 미만): %s",
+                 len(skipped_dust), f"{MIN_ORDER_KRW:,.0f}",
+                 ", ".join(skipped_dust))
     st["pending"] = pending
     # 코인 즉시 체결 내역 — "오늘 얼마에 사고팔았나"를 사이트가 보여줄 재료.
     # 주식 시가 체결(fills 위쪽)과 함께 그날 기록에 남는다.
@@ -901,7 +956,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
-    gross = sum(abs(w) * eff_scale * slices.get(k, 1.0 / n)
+    gross = sum(abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
                 for k, w in weights.items())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
@@ -929,6 +984,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "drawdown_pct": round(drawdown * 100, 2),
               "alloc": {k: round(v, 4) for k, v in slices.items()},
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
+              # 포트폴리오 변동성 타깃의 흔적 — 총노출이 왜 이 크기인지의 답.
+              # proven=False면 게이트가 검증 목표를 상한으로 잠근 상태다.
+              "vol_target": {
+                  "target": round(tgt_vol, 5),
+                  "ex_ante": round(ex_ante, 5) if ex_ante else None,
+                  "scale": round(vscale, 4),
+                  "proven": vol_proven,
+                  "reason": vol_why,
+              },
+              # 잔돈으로 판단해 생략한 주문 — 비용만 남기는 매매는 안 한다
+              "skipped_dust": skipped_dust or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
