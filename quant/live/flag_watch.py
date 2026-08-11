@@ -138,7 +138,29 @@ def _current_flags(status: dict) -> dict[str, str]:
             f"실패 종목은 그날 기록이 없고 이전 판단을 그대로 씁니다."
             + (f"\n첫 오류: {err}" if err else ""))
 
-    # ⑧ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑧ 종목 스킵 — 데이터 장애로 빠진 종목은 그날 관망(포지션 유지)이라
+    #    조용히 지나간다. 하지만 20종목 중 다섯만 남은 날은 '20종목 분산'이
+    #    아니라 5종목 집중이고, 그건 완전히 다른 위험이다(2026-08-11).
+    #    소수 스킵(휴장·상장폐지 등)은 정상이라 1/4 이상일 때만 알린다.
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        ch = (hist[-1].get("champion") if hist else None) or {}
+        gone = ch.get("skipped") or []
+        planned = int(ch.get("planned") or 0) or (len(gone) + int(ch.get("symbols") or 0))
+        if not gone or not planned or len(gone) * 4 < planned:
+            continue
+        why = ch.get("skipped_why") or {}
+        first = next(iter(why.values()), "")
+        flags[f"symbols_skipped:{hist[-1].get('date')}:{len(gone)}"] = (
+            f"⚠️ 종목 스킵 과다: {planned}종목 중 {len(gone)}개가 빠져 "
+            f"{int(ch.get('symbols') or 0)}종목으로 운용했습니다 "
+            f"({', '.join(gone[:5])}{'…' if len(gone) > 5 else ''}). "
+            f"분산이 계획보다 얕아진 날입니다 — 데이터 소스 장애일 수 있습니다."
+            + (f"\n첫 사유: {first}" if first else ""))
+
+    # ⑨ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

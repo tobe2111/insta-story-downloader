@@ -994,6 +994,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
+    skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -1054,6 +1055,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 opens_after[key] = _first_bar_after(df, pend["decided_bar"])
         except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
             skipped.append(key)
+            # 왜 빠졌는지도 남긴다 — 키만 있으면 '데이터 장애'인지 '거래소
+            # 휴장'인지 구분할 수 없고, 구분 못 하면 대응도 못 한다.
+            skipped_why[key] = str(exc)[:200]
             log.warning("포트폴리오 %s 스킵: %s", key, exc)
     if not prices:
         raise RuntimeError("포트폴리오: 전 종목 데이터 실패 — 기록하지 않음")
@@ -1290,7 +1294,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "earnings_guard": earnings_guards or None,
               # 횡단면 확신도 틸트 배수 — 그날 왜 이 종목에 더 실렸는지의 흔적
               "xsec_tilt": {k: round(v, 3) for k, v in tilt.items()},
-              "champion": {"symbols": n, "skipped": skipped}}
+              # 오늘 실제로 몇 종목으로 굴렸는가. 20종목 중 15개가 빠진 날은
+              # '20종목 분산'이 아니라 5종목 집중이다 — 그 사실이 장부에
+              # 남아야 사이트도 경보도 진실을 말할 수 있다(2026-08-11).
+              "champion": {"symbols": n, "skipped": skipped,
+                           "planned": len(targets),
+                           "skipped_why": skipped_why or None}}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))

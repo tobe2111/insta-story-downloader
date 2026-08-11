@@ -165,3 +165,59 @@ def test_weekly_return_chains_daily_moves(tmp_path):
     assert abs(m["week_return_pct"] - (-1.0)) < 0.01
     assert abs(m["best_day"]["pct"] - 10.0) < 0.01
     assert abs(m["worst_day"]["pct"] - (-10.0)) < 0.01
+
+
+# ── ④ 종목 스킵 — '20종목 분산'이 거짓이 되는 날 ──────────────
+
+
+def _pf(skipped, planned=20, symbols=None):
+    n = planned - len(skipped) if symbols is None else symbols
+    return {"paper": {"portfolio:ALL": {"history": [{
+        "date": "2026-08-11",
+        "champion": {"symbols": n, "skipped": skipped, "planned": planned,
+                     "skipped_why": {k: "실데이터 없음" for k in skipped}
+                     or None}}]}}}
+
+
+def _spy(monkeypatch):
+    sent = []
+
+    class _S:
+        def send(self, m, level="info"):
+            sent.append(m)
+            return True
+
+    monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: _S())
+    return sent
+
+
+def test_heavy_skip_is_alerted(tmp_path, monkeypatch):
+    from quant.live import flag_watch
+    sent = _spy(monkeypatch)
+    st = _pf([f"m:{i}" for i in range(15)])
+    new = flag_watch.check_and_notify_flags(st, str(tmp_path))
+    assert any(k.startswith("symbols_skipped:") for k in new)
+    msg = next(m for m in sent if "종목 스킵 과다" in m)
+    assert "20종목 중 15개" in msg and "5종목으로 운용" in msg
+    assert "실데이터 없음" in msg
+
+
+def test_small_skip_stays_quiet(tmp_path, monkeypatch):
+    """휴장·상장폐지로 한둘 빠지는 것은 정상이라 경보하지 않는다."""
+    from quant.live import flag_watch
+    _spy(monkeypatch)
+    new = flag_watch.check_and_notify_flags(_pf(["m:1", "m:2"]), str(tmp_path))
+    assert not any(k.startswith("symbols_skipped:") for k in new)
+
+
+def test_no_skip_no_alert(tmp_path, monkeypatch):
+    from quant.live import flag_watch
+    _spy(monkeypatch)
+    new = flag_watch.check_and_notify_flags(_pf([]), str(tmp_path))
+    assert not any(k.startswith("symbols_skipped:") for k in new)
+
+
+def test_record_carries_plan_and_reasons():
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert '"planned": len(targets)' in src
+    assert '"skipped_why"' in src

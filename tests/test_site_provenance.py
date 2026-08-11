@@ -27,13 +27,39 @@ def _read(name: str) -> str:
     return (DOCS / name).read_text(encoding="utf-8")
 
 
+def _produced_status_keys() -> set[str]:
+    """status.json에 실제로 생기는 최상위 키.
+
+    두 출처를 합친다. 소스 정규식만 보면 딕셔너리 리터럴로 만드는 키
+    (live_url 등)를 놓치고, 실행 결과만 보면 그날 조건이 안 맞아 안 생긴
+    키(generation·validation·run_health 등)를 '없는 키'로 오판한다.
+    """
+    import tempfile
+    from quant.live.daily import write_docs_status
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    keys = set(re.findall(r'status\["([a-z_]+)"\]', src))
+    with tempfile.TemporaryDirectory() as td:
+        st = write_docs_status(str(ROOT / "state"),
+                               docs_path=f"{td}/status.json")
+        keys |= {k for k in st if re.fullmatch(r"[a-z_]+", k)}
+    return keys
+
+
 # ── ① 산문에 박힌 숫자 = 실제 설정 ─────────────────────────────
+
+
+# 현재 상태를 말하는 페이지들. trust.html은 제외한다 — 거기 적힌 '8종목'은
+# 과거(8→20 확장) 기록이고, 과거를 현재 설정에 맞춰 고치는 것이야말로 이
+# 사이트가 하지 않겠다고 약속한 일이다.
+_LIVE_PAGES = ("index.html", "paper.html", "today.html",
+               "sns_card.html", "weekly.html")
 
 
 def test_symbol_count_in_prose_matches_config():
     from quant.markets import AUTO_TARGETS
     n = len(AUTO_TARGETS)
-    for page in ("index.html", "paper.html"):
+    for page in _LIVE_PAGES:
         html = _read(page)
         if "종목" not in html:
             continue
@@ -42,9 +68,15 @@ def test_symbol_count_in_prose_matches_config():
         assert found <= {n}, f"{page}: 산문 {found} vs 실제 {n}종목"
 
 
+def test_history_pages_may_keep_past_numbers():
+    """과거 기록은 현재 설정에 맞춰 고치지 않는다 — 그게 이 사이트의 약속이다."""
+    html = _read("trust.html")
+    assert "8종목에서 20종목으로" in html      # 변경을 지운 게 아니라 적어 뒀다
+
+
 def test_start_cash_and_goal_in_prose_match_config():
     from quant.live.daily import GOAL_KRW, PORTFOLIO_START_CASH
-    html = _read("index.html") + _read("paper.html")
+    html = "".join(_read(p) for p in _LIVE_PAGES)
     if "8만원" in html:
         assert PORTFOLIO_START_CASH == 80_000, "산문은 8만원인데 설정이 다르다"
     if "1억" in html:
@@ -87,13 +119,15 @@ def test_status_derived_values_are_consistent():
 
 
 def test_site_reads_only_fields_that_exist():
-    """사이트가 참조하는 status.json 최상위 키가 실제로 생성되는 키인가."""
-    html = _read("index.html")
-    referenced = set(re.findall(r"\bst\.([a-z_]+)", html))
-    # 실제 생성 키는 소스에서 추출한다(status["..."] 할당)
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
-    produced = set(re.findall(r'status\["([a-z_]+)"\]', src))
-    unknown = referenced - produced
-    # 이 테스트가 실제로 잡아낸 것: 사이트가 st.vol_target(최상위)을 읽었지만
-    # vol_target은 일별 기록 안에만 있어 카드가 영원히 비어 있었다.
-    assert not unknown, f"사이트가 없는 필드를 읽는다: {sorted(unknown)}"
+    """사이트가 참조하는 status.json 최상위 키가 실제로 생성되는 키인가.
+
+    index.html만 보던 것을 전 페이지로 넓혔다(2026-08-11) — 한 페이지만
+    지키는 계약은 나머지 페이지에서 같은 결함이 자라게 둔다.
+    """
+    produced = _produced_status_keys()
+    for page in sorted(DOCS.glob("*.html")):
+        referenced = set(re.findall(r"\bst\.([a-z_]+)", page.read_text("utf-8")))
+        unknown = referenced - produced
+        # 이 테스트가 실제로 잡아낸 것: 사이트가 st.vol_target(최상위)을 읽었지만
+        # vol_target은 일별 기록 안에만 있어 카드가 영원히 비어 있었다.
+        assert not unknown, f"{page.name}: 없는 필드를 읽는다 {sorted(unknown)}"
