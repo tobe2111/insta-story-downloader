@@ -571,6 +571,23 @@ MUTATIONS = [
      "        shell: bash\n        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
      "        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
      "tests/test_workflow_timeouts.py"),
+
+    # 감사 89 — 사이트의 '20종목' 주장이 실제 유니버스와 연결돼 있지 않던 자리.
+    # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
+    # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
+    ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
+     "docs/paper.html",
+     "20종목에",
+     "25종목에",
+     "tests/test_site_numbers_track_the_code.py"),
+
+    # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면
+    # 사장님이 위험을 정하는 화면이 거짓말을 하던 자리.
+    ("목표 변동성 기본값을 바꿔도 어드민 안내가 뒤처지지 않는가",
+     "quant/risk/portfolio_vol.py",
+     "VERIFY_TARGET_VOL = 0.12",
+     "VERIFY_TARGET_VOL = 0.10",
+     "tests/test_site_numbers_track_the_code.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
