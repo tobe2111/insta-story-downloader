@@ -78,6 +78,13 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("SNS 카드에서 신뢰구간을 뺀다(소표본을 확정처럼 방송)",
+     "docs/sns_card.html",
+     "        +'<span style=\"font-size:24px;color:var(--muted);font-weight:600\"> (95% '\n"
+     "        +(ci[0]*100).toFixed(0)+'~'+(ci[1]*100).toFixed(0)+'%)</span></span></div>'}).join(\"\");",
+     "        +'</span></div>'}).join(\"\");",
+     "tests/test_card_shows_uncertainty.py"),
+
     ("주문이 실패한 종목까지 노출로 기록한다(다종목)",
      "quant/live/multi.py",
      '"weight": float(sum(abs(v) for v in placed.values())),',

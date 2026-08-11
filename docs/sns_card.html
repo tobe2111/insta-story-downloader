@@ -137,6 +137,15 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
           agg[bi].n++;if(h[i+1].price>h[i].price)agg[bi].up++;break}}
     }});
   var calTotal=agg.reduce(function(a,b){return a+b.n},0);
+  // 윌슨 95% 신뢰구간 — paper.html이 쓰는 것과 같은 식이다(감사 94).
+  // 카드에는 이게 없어서 표본 8일짜리 비율이 확정된 사실처럼 나갔다:
+  // "55~60%라 말한 날 8일 · 실제 상승 12%". 사이트는 같은 자리에
+  // "2~47%"를 함께 보이며 "구간을 믿으세요"라고 적는데, 정작 가장 널리
+  // 퍼지는 카드가 그 안전장치를 빼고 있었다. 좋게 보이는 쪽(70% 이상 →
+  // 64%)도 같은 문제다 — 소표본을 증거처럼 방송하게 된다.
+  function wilson(p,n){var z=1.96,d=1+z*z/n,c=(p+z*z/(2*n))/d,
+    h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;
+    return [Math.max(0,c-h),Math.min(1,c+h)]}
 
   var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
     +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'
@@ -192,12 +201,18 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===6){
     var rows6=agg.map(function(a,i){
       if(!a.n)return "";
+      var ci=wilson(a.up/a.n,a.n);
       return '<div class="row" style="font-size:33px"><b>'+buckets[i][2]+'라 말한 날 '+a.n+'일</b>'
-        +'<span class="w">실제 상승 '+(a.up/a.n*100).toFixed(0)+'%</span></div>'}).join("");
+        +'<span class="w">실제 상승 '+(a.up/a.n*100).toFixed(0)+'%'
+        +'<span style="font-size:24px;color:var(--muted);font-weight:600"> (95% '
+        +(ci[0]*100).toFixed(0)+'~'+(ci[1]*100).toFixed(0)+'%)</span></span></div>'}).join("");
     html=page("AI가 말한 확률, 실제로 맞나",
       '<h1 style="font-size:58px">예측은 새벽에,<br>채점은 다음 날</h1>'
       +'<div class="rows" style="margin-top:40px">'+(rows6||'<div class="sub">표본 수집 중입니다.</div>')+'</div>'
-      +'<div class="note">표본 '+calTotal+'일 — 말한 확률과 실제 빈도가 맞는지(보정)를 매일 공개 채점합니다. 어긋나면 어긋난 대로 보입니다.</div>');
+      +'<div class="note">표본 '+calTotal+'일'
+      +(calTotal<30?' — <b>아직 수집 중입니다.</b> 비율보다 괄호 안 95% 구간을 믿으세요.'
+        :' — 비율은 표본이 적으면 흔들립니다. 괄호 안 95% 구간을 함께 보세요.')
+      +' 말한 확률과 실제 빈도가 맞는지(보정)를 매일 공개 채점합니다. 어긋나면 어긋난 대로 보입니다.</div>');
   }else if(n===7){
     html=page("왜 믿을 수 있나",
       '<h1 style="font-size:58px">잘된 날만 골라<br>올리지 않습니다</h1>'
