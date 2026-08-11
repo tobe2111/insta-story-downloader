@@ -415,6 +415,41 @@ MUTATIONS = [
      "            if self.circuit_breaker.update(equity, day):",
      "            if False:",
      "tests/test_engine_step_guards.py"),
+
+    # 감사 80 — "전 종목 청산"이라 말하고 시세 받은 종목만 비우던 자리.
+    ("킬스위치가 시세 받은 종목만 청산한다(나머지는 열린 채 남는다)",
+     "quant/live/multi.py",
+     "        for s in self.symbols:\n"
+     "            try:\n"
+     "                held = float(self.broker.get_position(s).quantity)",
+     "        for s in list(prices):\n"
+     "            try:\n"
+     "                held = float(self.broker.get_position(s).quantity)",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    ("못 비운 종목을 장부·알림에서 지운다(반쪽 청산을 완전 청산으로 보고)",
+     "quant/live/multi.py",
+     "        self._kill_unflattened = unflat",
+     "        self._kill_unflattened = []; unflat = []",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    ("서킷브레이커 청산만 옛 방식으로 되돌린다(같은 규칙을 두 곳에 적기)",
+     "quant/live/multi.py",
+     "                self._flatten_all(prices, equity, \"서킷브레이커\")",
+     "                [self.broker.target_weight(s, 0.0, p, equity)\n"
+     "                 for s, p in prices.items() if p]",
+     "tests/test_multi_killswitch_liquidation.py"),
+
+    # 감사 81 — 한 종목 주문 실패가 나머지 주문과 그날 기록을 통째로 날리던 자리.
+    ("한 종목 주문이 거부되면 나머지 주문과 그날 기록을 통째로 버린다",
+     "quant/live/multi.py",
+     "            except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 전체를 막지 않게\n"
+     "                log.error(\"주문 실패(%s): %s\", s, exc)\n"
+     "                failed.append(f\"{s}({type(exc).__name__})\")\n"
+     "                continue",
+     "            except Exception:\n"
+     "                raise",
+     "tests/test_multi_killswitch_liquidation.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
