@@ -33,8 +33,20 @@
   · 주식의 '다음 세션 시가' 체결 규칙 — 결정 당일 종가로 즉시 체결시켜도 통과
   · 실측 비용 왕복 단위 — 편도로 되돌려 마찰을 절반으로 써도 통과
 
-누적 21건 중 11건(52%)이 장식이었다. 전부 행동 검사로 메웠고 지금은
-21/21을 잡는다.
+4차(5건 추가) 결과 3건이 더 나왔다.
+  · 실적 가드 — 항상 비발동으로 만들어도 통과
+  · 재조정 쿨다운 — 항상 통과시켜(회전율 통제 해제) 만들어도 통과
+  · 확률 보정의 '표시 전용' 규약 — 보정값을 비중에 대입해도 통과.
+    규약이 주석에만 있었다.
+
+그리고 이 도구 자신도 같은 병에 걸려 있었다: 존재하지 않는 테스트 파일을
+지정하면 pytest가 4(사용 오류)를 돌려주는데, 그것을 '검사가 실패했다 =
+잡았다'로 세고 있었다. 실제로 없는 검사가 ✅로 찍혔다. 이제 변이 전에
+기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다
+(파일 없음·기준선 실패는 💥로 따로 센다).
+
+누적 26건 중 14건(54%)이 장식이었다. 전부 행동 검사로 메웠고 지금은
+26/26을 잡는다.
 
 교훈: 이 프로젝트에서 '기능을 만들었다'와 '기능이 지켜진다' 사이의 간격은
 절반이었다. 새 안전장치를 만들면 여기 변이 항목을 함께 추가할 것 —
@@ -178,6 +190,38 @@ MUTATIONS = [
      "        return 2.0 * one_way_bp / 1e4          # 왕복",
      "        return one_way_bp / 1e4",
      "tests/test_alpha14_fill_gap.py"),
+
+    # ── 4차: 리포팅·외부 데이터·부분 실패 계열 ────────────────
+
+    ("FRED 거시 데이터의 발표 지연을 없앤다(발표 전 값을 미리 씀)",
+     "quant/data/macro.py",
+     "        s.index = s.index + pd.Timedelta(days=int(lag))",
+     "        pass",
+     "tests/test_lookahead_external.py"),
+
+    ("새벽 배치 부분 실패 기록을 끈다(절반 마비를 성공으로)",
+     "quant/live/daily.py",
+     "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:",
+     "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:\n    return",
+     "tests/test_run_health.py"),
+
+    ("실적 가드를 항상 비발동으로 만든다",
+     "quant/data/earnings.py",
+     "    if d is not None and abs((d - asof).days) <= pad_days:",
+     "    if False:",
+     "tests/test_earnings_guard.py"),
+
+    ("쿨다운을 항상 통과시킨다(회전율 통제 해제)",
+     "quant/live/daily.py",
+     "    last = last_trade.get(key)\n    if not last:",
+     "    last = None\n    if not last:",
+     "tests/test_turnover_control.py"),
+
+    ("확률 보정 가드가 사이징에 개입하게 만든다(표시 전용 규약 위반)",
+     "quant/live/daily.py",
+     '            record["prob_up_cal"] = round(float(adj), 4)',
+     '            record["prob_up_cal"] = round(float(adj), 4)\n            weight = float(adj)',
+     "tests/test_drift_calibration.py"),
 ]
 
 def run(test):
@@ -185,15 +229,34 @@ def run(test):
                        capture_output=True, text=True, timeout=900)
     return r.returncode
 
+
+# 파일이 없거나 수집이 깨진 경우 pytest는 4(사용 오류)를 준다. 그것을
+# '검사가 실패했다 = 잡았다'로 세면 **없는 검사가 잡은 것으로 보인다.**
+# 실제로 그랬다: tests/test_calibration_guard.py는 존재하지도 않는데
+# ✅로 찍혔다(감사 62 — 이 도구 자신의 같은 병). 그래서 변이 전에
+# 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
+BASELINE_OK = 0
+
 print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
-caught = missed = skipped = 0
+caught = missed = skipped = broken = 0
+_baseline: dict = {}
 for desc, path, old, new, test in MUTATIONS:
     p = pathlib.Path(path)
     src = p.read_text(encoding="utf-8")
     if src.count(old) != 1:
         print(f"⏭️   {desc[:58]:60s} (원본 문자열 {src.count(old)}회 — 코드가 바뀜)")
         skipped += 1
+        continue
+    if test not in _baseline:
+        if not pathlib.Path(test).exists():
+            _baseline[test] = "파일 없음"
+        else:
+            _baseline[test] = ("" if run(test) == BASELINE_OK
+                               else "원본 코드에서 이미 실패")
+    if _baseline[test]:
+        print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
+        broken += 1
         continue
     p.write_text(src.replace(old, new), encoding="utf-8")
     try:
@@ -207,4 +270,5 @@ for desc, path, old, new, test in MUTATIONS:
         print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}  ← 못 잡음")
         missed += 1
 print("─" * 110)
-print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped}")
+print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
+sys.exit(1 if (missed or broken) else 0)

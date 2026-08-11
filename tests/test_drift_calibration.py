@@ -131,3 +131,74 @@ def test_calibration_summary_honest_when_calibrated():
     y_true = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
     text = calibration_summary(y_true, y_prob)
     assert "보장" in text                     # 보정이 좋아도 수익 보장 아님을 고지
+
+
+# ── 확률 보정은 '표시 전용'이다 — 사이징에 개입하지 않는다 (감사 62) ──
+#
+# recalibrated_prob은 "60%라고 한 날 실제 적중률이 45%였다"는 경험 보정을
+# 화면에 병기한다. 규약은 명확하다: **보여주기만 하고 비중은 건드리지
+# 않는다.** 모델의 말과 경험을 나란히 두는 것이 목적이고, 보정값으로
+# 사이징까지 하면 그날부터 장부의 '판단'과 '표시'가 서로 다른 것을
+# 가리키게 된다.
+#
+# 변이 시험에서 보정값을 비중에 대입해도(`weight = float(adj)`) 아무 검사가
+# 실패하지 않았다. 규약은 주석에만 있었다.
+
+
+def test_calibration_never_moves_the_recorded_weight(monkeypatch, tmp_path):
+    import json as _json
+
+    import numpy as _np
+    import pandas as _pd
+
+    from quant.live import daily as dl
+
+    rng = _np.random.default_rng(8)
+    close = 100 * _np.exp(_np.cumsum(rng.normal(0.0004, 0.02, 300)))
+    idx = _pd.date_range("2025-01-01", periods=300, freq="D")
+    bars = _pd.DataFrame({"open": close, "high": close * 1.01,
+                          "low": close * 0.99, "close": close,
+                          "volume": 1e6}, index=idx)
+
+    class _P:
+        def get_ohlcv(self, *a, **k):
+            return bars.copy()
+
+    class _S:
+        name = "fixed"
+        allow_short = False
+
+        def generate_signals(self, df):
+            return _pd.Series(0.8, index=df.index)
+
+    def _run(state_dir, adjusted):
+        monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
+        monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _S())
+        monkeypatch.setattr(dl, "champion_spec",
+                            lambda *a, **k: {"strategy": "fixed", "params": {}})
+        monkeypatch.setattr(
+            "quant.live.calibration_guard.recalibrated_prob",
+            lambda p, h: ((0.01, True) if adjusted else (p, False)))
+        dl.run_daily_paper("synthetic", "DEMO", state_dir=str(state_dir),
+                           require_real_data=False)
+        st = _json.loads((state_dir / "paper" / "synthetic_DEMO.json")
+                         .read_text(encoding="utf-8"))
+        return st["history"][-1]
+
+    off = _run(tmp_path / "off", adjusted=False)
+    on = _run(tmp_path / "on", adjusted=True)
+
+    # 보정이 확률을 0.8 → 0.01로 뒤집어도 비중은 한 톨도 움직이면 안 된다
+    assert on["weight"] == off["weight"], (
+        f"보정이 비중을 움직였다: {off['weight']} → {on['weight']} "
+        "— 확률 보정은 표시 전용이다")
+    assert on["prob_up_cal"] == 0.01, "보정값이 기록되지 않았다(전제 확인)"
+    assert "prob_up_cal" not in off, "보정 비활성인데 값이 기록됐다"
+
+
+def test_calibration_is_documented_as_display_only():
+    from pathlib import Path as _P
+    src = (_P(__file__).resolve().parent.parent / "quant" / "live"
+           / "daily.py").read_text(encoding="utf-8")
+    block = src.split("recalibrated_prob")[0][-600:]
+    assert "표시 전용" in block or "사이징에는 개입하지 않" in block

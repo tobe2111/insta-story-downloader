@@ -53,3 +53,51 @@ def test_next_earnings_date_still_looks_forward_only(tmp_path):
     d = next_earnings_date("AAPL", dt.date(2026, 8, 11), str(tmp_path),
                            fetch=lambda s: [])
     assert d == dt.date(2026, 9, 1)
+
+
+# ── 가드가 실제로 발동하는가 (감사 62) ────────────────────────
+#
+# 변이 시험에서 발동 조건(`abs((d - asof).days) <= pad_days`)을 죽여
+# **항상 비발동**으로 만들어도 아무 검사가 실패하지 않았다. 실적 발표일
+# 전후는 변동성이 가장 큰 구간이고, 공분산은 발표 일정을 모르므로 하필
+# 그날 목표보다 더 실린다 — 그걸 막으라고 만든 장치다.
+
+
+def test_guard_fires_inside_the_window_and_not_outside(tmp_path, monkeypatch):
+    import datetime as _dt
+
+    from quant.data import earnings as eg
+
+    day = _dt.date(2026, 8, 20)
+    monkeypatch.setattr(eg, "nearest_earnings_date",
+                        lambda sym, asof, sd, fetch=None: day)
+
+    # 발표 당일·±1일은 발동(비중 절반), 그 밖은 비발동(1.0)
+    for delta, want in ((0, eg.GUARD_FACTOR), (-1, eg.GUARD_FACTOR),
+                        (1, eg.GUARD_FACTOR), (-3, 1.0), (5, 1.0)):
+        f, d = eg.earnings_guard_factor(
+            "AAPL", day + _dt.timedelta(days=delta),
+            state_dir=str(tmp_path), pad_days=1)
+        if want < 1.0:
+            assert f == want and d == day.isoformat(), delta
+        else:
+            assert f == 1.0 and d is None, delta
+
+
+def test_guard_factor_actually_halves():
+    """GUARD_FACTOR가 1.0으로 되돌려지면(사실상 해제) 잡는다."""
+    from quant.data.earnings import GUARD_FACTOR
+    assert 0.0 < GUARD_FACTOR < 1.0, "실적 가드가 아무것도 줄이지 않는다"
+
+
+def test_guard_is_wired_after_the_scaler():
+    """감쇠 계수로 따로 두고 스케일 뒤에 곱하는 배선이 유지되는가.
+
+    비중에 바로 곱하면 뒤의 변동성 스케일러가 되돌려 키워 가드가 사라진다
+    (2026-08-11 감사에서 고친 결함).
+    """
+    from pathlib import Path as _P
+    root = _P(__file__).resolve().parent.parent
+    src = (root / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    assert "guard_damp[key] = ef" in src
+    assert "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)" in src
