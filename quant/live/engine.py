@@ -49,6 +49,11 @@ class LiveTrader:
         # 통일한다 — 규칙을 복사하면 반드시 한 곳이 뒤처진다(2026-08-11).
         rebalance_band_rel: float = 0.15,
         market: str | None = None,
+        # 합성 폴백 시세로는 매매하지 않는다(감사 85). 거래소 조회가
+        # 전부 실패하면 GBM 난수 걷기가 오는데, 그걸로 실주문을 내면
+        # 존재하지 않는 시장에 대고 매매하는 셈이다. 일부러 고른 합성
+        # 시장에는 표식이 붙지 않으므로 기본 True로 둬도 안전하다.
+        require_real_data: bool = True,
     ):
         self.data = data
         self.strategy = strategy
@@ -60,6 +65,7 @@ class LiveTrader:
         # 장 시간 가드 — 지정 시(예: 'us_stock'·'kr_stock') 정규장이 아니면 그
         # 사이클의 주문을 건너뛴다. 코인·미지정은 24시간이라 항상 통과. None=미적용.
         self.market = market
+        self.require_real_data = require_real_data
         # 리밸런스 데드밴드 — |목표-현재| 비중 차가 이 값 미만이면 주문 생략.
         # vol targeting 등이 만드는 매 봉 잔조정은 기대수익 0에 왕복비용만
         # 확정 지불한다(비용 수학). 청산은 항상 실행. 0이면 비활성.
@@ -98,8 +104,15 @@ class LiveTrader:
                 return
 
         df = self.data.get_ohlcv(self.symbol, self.timeframe, limit=self.lookback)
-        if df.empty:
-            log.warning("데이터 없음, 스킵")
+        # 매매해도 되는 데이터인가 — 합성 폴백·무결성 위반을 여기서 거른다.
+        # 예전에는 df.empty만 봤다(감사 85). 거래소가 전부 실패해 GBM 난수
+        # 걷기가 와도 그대로 매매했다 — 실제 BTC 6천만 원인데 폴백 시세는
+        # 100이라 주문 수량이 60만 배 틀린다.
+        from quant.data.guard import unusable_reason
+        why = unusable_reason(df, require_real_data=self.require_real_data)
+        if why:
+            log.warning("%s 매매 건너뜀 — %s", self.symbol, why)
+            self._last_error = why
             return
 
         target = self.strategy.generate_signals(df)

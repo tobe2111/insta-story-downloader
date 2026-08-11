@@ -515,6 +515,33 @@ MUTATIONS = [
      "    if False:\n"
      "        return ts.tz_localize(tz)",
      "tests/test_stock_range_cut.py"),
+
+    # 감사 85 — 거래소가 전부 실패하면 GBM 난수 걷기(시작가 100)가 오는데,
+    # 연속 실행 루프는 그걸 걸러내지 않았다. 실제 BTC 6천만 원 기준 주문
+    # 수량이 60만 배 틀린다 — 존재하지 않는 시장에 대고 매매하는 셈이다.
+    ("합성 폴백 시세를 매매 가능한 데이터로 통과시킨다",
+     "quant/data/guard.py",
+     "    if require_real_data and attrs.get(\"synthetic_fallback\"):",
+     "    if False:",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("quant live(단일 종목)가 데이터 검문을 건너뛴다",
+     "quant/live/engine.py",
+     "        why = unusable_reason(df, require_real_data=self.require_real_data)",
+     "        why = None if len(df) else \"데이터 없음\"",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("다종목 루프가 데이터 검문을 건너뛴다",
+     "quant/live/multi.py",
+     "            why = unusable_reason(df, require_real_data=self.require_real_data)",
+     "            why = None if len(df) else \"데이터 없음\"",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("웹훅이 합성 폴백 가격으로 주문 수량을 정한다",
+     "quant/data/guard.py",
+     "    if unusable_reason(df, check_quality=False):\n        return 0.0",
+     "    if False:\n        return 0.0",
+     "tests/test_synthetic_fallback_never_trades.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
