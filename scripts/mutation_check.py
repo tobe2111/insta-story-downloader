@@ -571,6 +571,15 @@ MUTATIONS = [
      "        shell: bash\n        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
      "        run: |\n          if [ \"$IN_REAL\" = \"true\" ]; then",
      "tests/test_workflow_timeouts.py"),
+
+    # 감사 89 — 사이트의 '20종목' 주장이 실제 유니버스와 연결돼 있지 않던 자리.
+    # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
+    # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
+    ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
+     "docs/paper.html",
+     "20종목에",
+     "25종목에",
+     "tests/test_site_numbers_track_the_code.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
