@@ -361,6 +361,60 @@ MUTATIONS = [
      "        if owner and key and verify_key(owner, key):",
      "        if owner and key:",
      "tests/test_license_prompt.py"),
+
+    # 감사 78 — 노출을 키워도 되는지 판정하는 유일한 관문.
+    # 커버리지 25줄 중 22줄이 미실행이었다(판정 로직 자체가 미검사).
+    ("'운 좋은 승자'도 엣지 입증으로 인정한다(신뢰구간 하한 무시)",
+     "quant/risk/portfolio_vol.py",
+     "        if lo <= 0.5:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("표본이 얇아도 엣지 입증으로 인정한다",
+     "quant/risk/portfolio_vol.py",
+     "        if n < MIN_EDGE_SAMPLES:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("90일 판정 시계를 안 기다리고 노출을 푼다",
+     "quant/risk/portfolio_vol.py",
+     "        if gen[\"days\"] < gen[\"target_days\"]:",
+     "        if False:",
+     "tests/test_edge_proven_gate.py"),
+
+    ("통합 계좌 장부까지 세어 방향 표본을 부풀린다(같은 매매 이중 계상)",
+     "quant/risk/portfolio_vol.py",
+     "            if str(st.get(\"market\", \"\")).startswith(\"portfolio\"):\n"
+     "                continue",
+     "            if False:\n"
+     "                continue",
+     "tests/test_edge_proven_gate.py"),
+
+    ("판정에 실패하면 '입증'으로 넘어간다(모를 때 잠그지 않는다)",
+     "quant/risk/portfolio_vol.py",
+     "        return False, f\"판정 불가({exc})\"",
+     "        return True, f\"판정 불가({exc})\"",
+     "tests/test_edge_proven_gate.py"),
+
+    # 감사 79 — LiveTrader.step 24줄 미실행. 부품(KillSwitch·is_market_open)은
+    # 검사돼 있었지만 그 부품이 주문 경로에 꽂혀 있는지는 아무도 안 봤다.
+    ("닫힌 시장에도 주문을 낸다(장 시간 가드 무력화)",
+     "quant/live/engine.py",
+     "            if not is_market_open(self.market):",
+     "            if False:",
+     "tests/test_engine_step_guards.py"),
+
+    ("단일 종목 루프의 킬스위치를 무력화한다",
+     "quant/live/engine.py",
+     "        if self.kill_switch is not None and self.kill_switch.update(equity):",
+     "        if False:",
+     "tests/test_engine_step_guards.py"),
+
+    ("단일 종목 루프의 서킷브레이커를 무력화한다",
+     "quant/live/engine.py",
+     "            if self.circuit_breaker.update(equity, day):",
+     "            if False:",
+     "tests/test_engine_step_guards.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
