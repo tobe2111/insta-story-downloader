@@ -384,7 +384,14 @@ def _cmd_briefing(args) -> None:
 def _cmd_social_content(args) -> None:
     from quant.reporting.social import prune_old, write_content
 
-    meta = write_content(docs_dir=args.docs_dir, site_url=args.site_url)
+    from quant.reporting.social import PublishedContentChanged
+    try:
+        meta = write_content(docs_dir=args.docs_dir,
+                             site_url=args.site_url,
+                             force=getattr(args, "force", False))
+    except PublishedContentChanged as exc:
+        # 과거 공개 글을 조용히 바꾸느니 소리 내어 실패한다(감사 86).
+        raise SystemExit(f"❌ {exc}")
     removed = prune_old(docs_dir=args.docs_dir, keep=args.keep)
     print(meta["dir"])                    # 워크플로가 이 경로를 받아 캡처한다
     if removed:
@@ -990,6 +997,9 @@ def build_parser() -> argparse.ArgumentParser:
                     default="https://quant.jiwon-1a2.workers.dev")
     sc.add_argument("--keep", type=int, default=14,
                     help="보관할 날짜 폴더 수(오래된 것 정리)")
+    sc.add_argument("--force", action="store_true",
+                    help="이미 공개된 날의 캡션을 덮어쓴다 — 과거 기록을 "
+                         "바꾸는 행위이므로 의도적일 때만 쓸 것(감사 86)")
     sc.set_defaults(func=_cmd_social_content)
 
     sp = sub.add_parser(
