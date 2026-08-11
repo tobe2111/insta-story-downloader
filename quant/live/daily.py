@@ -1024,6 +1024,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
+    guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
+    kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -1057,7 +1059,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df)
             weights[key] = float(
                 _risk_for(market).size_positions(df, signals).iloc[-1])
-            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록
+            # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
+            # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
+            #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
+            #    보고 전체를 그만큼 되돌려 키워 가드가 사라진다 — 킬스위치가
+            #    무력화됐던 것과 정확히 같은 구조다. 게다가 공분산은 실적
+            #    발표를 모르므로, 하필 위험한 날에 목표보다 더 실리게 된다.
             if market == "us_stock" and abs(weights[key]) > 0:
                 from datetime import date as _edate
 
@@ -1066,14 +1073,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                     symbol, _edate.fromisoformat(str(df.index[-1])[:10]),
                     state_dir=state_dir)
                 if edate and ef < 1.0:
-                    weights[key] = float(weights[key] * ef)
+                    guard_damp[key] = ef
                     earnings_guards[key] = edate
-            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용
+            # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용.
+            # 상한은 '자본 대비 최종 비중'에 걸어야 의미가 있다. 스케일 전
+            # 비중에 걸면 스케일러가 상한 위로 다시 올려 놓는다(같은 결함).
             kcap = _kelly_cap_from_history(
                 _load_paper(_paper_path(market, symbol, state_dir))
                 .get("history") or [])
             if kcap < 1.0:
-                weights[key] = float(np.clip(weights[key], -kcap, kcap))
+                kelly_caps[key] = kcap
             rets_map[key] = df["close"].pct_change().iloc[-90:]
             prices[key] = float(df["close"].iloc[-1])
             st["base_prices"].setdefault(key, prices[key])
@@ -1211,8 +1220,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
-        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중
-        eff = w * eff_scale * vscale
+        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중.
+        # 이벤트 감쇠(실적 가드)와 켈리 상한은 **스케일 뒤에** 적용한다 —
+        # 앞에 두면 스케일러가 되돌려 키워 둘 다 무효가 된다.
+        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
+        kcap = kelly_caps.get(key)
+        if kcap is not None:
+            eff = float(np.clip(eff, -kcap, kcap))
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
@@ -1286,8 +1300,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
-    gross = sum(abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
-                for k, w in weights.items())
+    # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
+    # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
+    def _applied(k: str, w: float) -> float:
+        v = (abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
+             * guard_damp.get(k, 1.0))
+        cap = kelly_caps.get(k)
+        return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
+
+    gross = sum(_applied(k, w) for k, w in weights.items())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))

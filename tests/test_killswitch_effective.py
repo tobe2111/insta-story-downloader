@@ -74,3 +74,48 @@ def test_daily_uses_undamped_weights_for_the_budget():
     assert "vol_scale(pre_w" not in src
     # 장부에 예산(scale)과 브레이크(damp)를 따로 남긴다
     assert '"damp"' in src and '"applied"' in src
+
+
+# ── 같은 결함이 실적 가드·켈리 상한에도 있었다 ────────────────
+#
+# 둘 다 '비중 자체'에 곱하거나 잘라 넣고 있었는데, 그 뒤에 오는 변동성
+# 스케일러가 "위험이 줄었다"고 보고 전체를 되돌려 키운다. 결과적으로
+#   · 실적 가드: 절반으로 줄인 만큼 다시 커져 상대 비중만 바뀐다
+#   · 켈리 상한: 상한 위로 다시 올라간다
+# 공분산은 실적 발표를 모르므로, 하필 위험한 날에 목표보다 더 실린다.
+
+
+def test_event_guard_survives_the_scaler():
+    keys = [f"s{i}" for i in range(20)]
+    base = {k: 0.05 for k in keys}
+    rets = _rets(keys)
+    scale, _ = vol_scale(base, rets, 0.12)
+
+    guarded = "s0"
+    # 수정 후: 감쇠는 스케일 뒤에 곱해지므로 그 종목만 정확히 절반이 된다
+    after = {k: v * scale * (0.5 if k == guarded else 1.0)
+             for k, v in base.items()}
+    plain = {k: v * scale for k, v in base.items()}
+    assert abs(after[guarded] - plain[guarded] * 0.5) < 1e-12
+    # 그리고 계좌 전체 노출도 그만큼 줄어든다(위험한 날엔 덜 싣는다)
+    assert sum(after.values()) < sum(plain.values())
+
+
+def test_kelly_cap_binds_after_scaling():
+    keys = [f"s{i}" for i in range(20)]
+    base = {k: 0.05 for k in keys}
+    scale, _ = vol_scale(base, _rets(keys), 0.12)
+    kcap = 0.02
+    capped = min(base["s0"] * scale, kcap)
+    assert capped == kcap, "스케일 뒤에 걸어야 상한이 실제로 구속한다"
+
+
+def test_guards_are_applied_after_the_scaler_in_source():
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)" in src
+    assert "kelly_caps.get(key)" in src
+    # 비중에 직접 곱하거나 잘라 넣던 옛 코드가 되살아나면 안 된다
+    assert "weights[key] = float(weights[key] * ef)" not in src
+    assert "np.clip(weights[key], -kcap, kcap)" not in src
+    # 기록되는 총노출도 감쇠·상한을 반영해야 한다
+    assert "def _applied(k: str, w: float)" in src
