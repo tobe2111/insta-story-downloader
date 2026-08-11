@@ -786,6 +786,16 @@ def _cmd_pipeline(args) -> None:
     runpy.run_path(str(script), run_name="__main__")
 
 
+def _default_journal_state() -> str:
+    """복기 대상 기본 경로 — 실제로 굴리는 통합 계좌를 먼저 본다.
+
+    통합 계좌 장부가 있으면 그것을, 없으면 개발용 learn 봇 상태로 폴백한다.
+    """
+    import os as _os
+    pf = _os.path.join("state", "paper", "portfolio_ALL.json")
+    return pf if _os.path.exists(pf) else _os.path.join("results", "state.json")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="quant", description="퀀트 트레이딩 CLI")
     sub = p.add_subparsers(dest="command")
@@ -1030,7 +1040,12 @@ def build_parser() -> argparse.ArgumentParser:
     wh.set_defaults(func=_cmd_webhook)
 
     jn = sub.add_parser("journal", help="봇 상태 파일에서 거래 성과 복기(거래 단위 통계)")
-    jn.add_argument("--state", default="results/state.json")
+    # ⚠️ 기본값이 results/state.json이었다(감사 67). 그 파일은 개발용 `learn`
+    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 8마일 통합 계좌는
+    #    state/paper/portfolio_ALL.json에 쌓인다. 즉 사장님이 `quant journal`을
+    #    치면 매일 매매가 도는데도 "아직 완결된 거래가 없습니다"만 나왔다 —
+    #    복기 도구가 실제 장부가 아닌 빈 파일을 보고 있었다.
+    jn.add_argument("--state", default=_default_journal_state())
     jn.add_argument("--market", default="crypto")
     jn.set_defaults(func=_cmd_journal)
     cc = sub.add_parser(
