@@ -17,17 +17,28 @@ import json
 import os
 
 
-def _iter_fill_gaps(hist: list[dict]) -> list[tuple[str, float, float]]:
+def _iter_fill_gaps(hist: list[dict], window: int | None = None
+                    ) -> list[tuple[str, float, float]]:
     """기록에서 (체결일, |갭|bp, 불리갭 bp)를 뽑는다.
 
     갭 = 체결가(다음 세션 시가) / 결정 시점 가격(결정일 종가) − 1.
     불리갭 = 방향(매수 +1/매도 −1) × 갭 — 양수면 실측이 가정보다 불리했다.
     방향은 결정일 직전 기록 대비 목표 비중의 변화로 판정하고, 비중 변화가
     없으면(리밸런스 밴드로 주문이 안 나감) 표본에서 뺀다.
+
+    ⚠️ 방향 판정은 '직전 기록'에 기대므로 두 가지를 지켜야 한다(감사 51).
+      · 배열 순서가 아니라 날짜순으로 정렬한 뒤 봐야 한다. KR 장부에서 실제로
+        08-07이 08-06보다 앞에 저장된 적이 있었고, 그때 '직전'은 미래였다.
+      · window로 자르려면 **정렬 후 자르되 직전 기록은 자르기 전에서** 찾아야
+        한다. 잘린 배열의 첫 기록은 prev_w를 0으로 가정해 매수/매도 방향이
+        뒤집히고, 그 표본의 불리 갭 부호가 통째로 반대가 된다.
     """
+    from quant.live.daily import chrono
+    hist = chrono(hist)
     out: list[tuple[str, float, float]] = []
     by_date = {str(r.get("date", "")): i for i, r in enumerate(hist)}
-    for r in hist:
+    scan = hist if window is None else hist[-window:]
+    for r in scan:
         fill = r.get("fill")
         if not fill or not fill.get("decided_bar"):
             continue
@@ -39,6 +50,7 @@ def _iter_fill_gaps(hist: list[dict]) -> list[tuple[str, float, float]]:
             dec_price = float(hist[j]["price"])
             fill_price = float(fill["price"])
             target = float(fill.get("weight", 0.0))
+            # j는 정렬된 '전체' 장부의 인덱스라 window로 잘라도 직전이 남는다.
             prev_w = float(hist[j - 1].get("weight", 0.0)) if j > 0 else 0.0
         except (KeyError, TypeError, ValueError):
             continue
@@ -78,7 +90,7 @@ def fill_gap_report(state_dir: str = "state", window: int = 90) -> dict | None:
         market = str(st.get("market", ""))
         if not market or market.startswith("portfolio"):
             continue                      # 통합 계좌 fills는 종목 계좌와 중복
-        gaps = _iter_fill_gaps((st.get("history") or [])[-window:])
+        gaps = _iter_fill_gaps(st.get("history") or [], window)
         if gaps:
             per_market.setdefault(market, []).extend(
                 (a, s) for _, a, s in gaps)
