@@ -72,11 +72,22 @@ def build_dashboard_html(state: dict) -> str:
     strategy = state.get("strategy", "-")
     mode = state.get("mode", "paper")
 
+    # 잘려나간 과거의 요약(fold_history) — history는 상한(HISTORY_CAP)에 걸려
+    # 앞이 잘린다. 이 요약이 없으면 총손익은 '잘린 시점 이후 손익'이 되고,
+    # 최대낙폭은 가장 아팠던 구간이 밀려나는 순간 저절로 좋아진다. 시간이
+    # 지나면 스스로 개선되는 위험 지표는 지표가 아니라 위안이다(감사 ㊿).
+    summ = state.get("history_summary") or {}
+    dropped = int(summ.get("dropped") or 0)
     if equity:
-        start, cur = equity[0], equity[-1]
+        cur = equity[-1]
+        start = summ.get("start")
+        if not isinstance(start, (int, float)) or start != start:
+            start = equity[0]
         pnl = cur / start - 1.0 if start else 0.0
-        peak = start
-        max_dd = 0.0
+        peak = summ.get("peak")
+        if not isinstance(peak, (int, float)) or peak != peak:
+            peak = start
+        max_dd = float(summ.get("max_drawdown") or 0.0)
         for e in equity:
             peak = max(peak, e)
             max_dd = min(max_dd, e / peak - 1.0 if peak else 0.0)
@@ -103,7 +114,9 @@ def build_dashboard_html(state: dict) -> str:
         _kpi("최대낙폭", f"{max_dd:.2%}", "neg" if max_dd < 0 else "", vid="kpi-dd"),
         _kpi("현재 목표비중", f"{last_weight:+.0%}", vid="kpi-weight"),
         _kpi("방향 정확도", acc_txt, vid="kpi-acc"),
-        _kpi("거래횟수", f"{len(orders)}", vid="kpi-trades"),
+        # orders는 스냅샷에 최근 20건만 실린다 — 누적 건수는 order_count.
+        _kpi("거래횟수",
+             f"{int(state.get('order_count', len(orders)))}", vid="kpi-trades"),
     ])
 
     pos_row = "".join(
@@ -124,6 +137,15 @@ def build_dashboard_html(state: dict) -> str:
 
     mode_badge = ('<span class="badge live">실거래</span>' if mode != "paper"
                   else '<span class="badge">페이퍼</span>')
+
+    # 그래프에는 최근 구간만 그려진다는 사실을 숨기지 않는다 — KPI(손익·낙폭)는
+    # 전 기간 기준이고 그래프만 잘려 있다는 차이를 화면에 적어 둔다.
+    chart_note = ""
+    if dropped:
+        chart_note = (f'<div style="color:var(--muted);font-size:11.5px;'
+                      f'padding-top:6px">그래프는 최근 {len(equity):,}개 시점만 '
+                      f'표시합니다(앞의 {dropped:,}개는 저장 상한으로 생략). '
+                      f'위의 손익·최대낙폭은 전 기간 기준입니다.</div>')
 
     doc = f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -175,7 +197,7 @@ def build_dashboard_html(state: dict) -> str:
   {mode_badge}
 </header>
 <div class="kpis">{kpis}</div>
-<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#3fb96f" if pnl>=0 else "#e5484d", elem_id="eqline")}</div>
+<div class="card"><h2>자본 추이 (Equity)</h2>{_sparkline(equity, color="#3fb96f" if pnl>=0 else "#e5484d", elem_id="eqline")}{chart_note}</div>
 <div class="card"><h2>현재 포지션</h2><div class="over"><table>
   <tr><th>종목</th><th>수량</th><th>평균단가</th></tr>
   <tbody id="pos-body">{pos_row}</tbody></table></div></div>

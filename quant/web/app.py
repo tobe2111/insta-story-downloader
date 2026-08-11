@@ -429,8 +429,15 @@ async function _tick(){
       const W=760,H=180, lo=Math.min(...eq), hi=Math.max(...eq), rng=(hi-lo)||1;
       const pts = eq.map((v,i)=>`${(i/(eq.length-1)*W).toFixed(1)},${(H-(v-lo)/rng*H).toFixed(1)}`).join(' ');
       const line = document.getElementById('eqline'); if(line) line.setAttribute('points', pts);
-      const cur=eq[eq.length-1], st=eq[0], pnl=st? cur/st-1:0;
-      let peak=st, dd=0; for(const v of eq){ peak=Math.max(peak,v); dd=Math.min(dd, peak? v/peak-1:0); }
+      // 잘려나간 과거를 요약에서 이어받는다. 이 seed가 없으면 5초마다
+      // 서버가 계산한 '전 기간' KPI를 '잘린 구간' KPI로 덮어써, 화면의
+      // 최대낙폭이 저장 상한에 걸린 날부터 저절로 좋아진다(감사 ㊿).
+      const sm = (s && s.history_summary) || {};
+      const st = (typeof sm.start === 'number') ? sm.start : eq[0];
+      const cur=eq[eq.length-1], pnl=st? cur/st-1:0;
+      let peak=(typeof sm.peak === 'number')? sm.peak : st;
+      let dd=Number(sm.max_drawdown)||0;
+      for(const v of eq){ peak=Math.max(peak,v); dd=Math.min(dd, peak? v/peak-1:0); }
       const setTxt=(id,txt,col)=>{const el=document.getElementById(id); if(el){el.textContent=txt; if(col)el.style.color=col;}};
       setTxt('kpi-equity', _num(cur,2));
       setTxt('kpi-pnl', (pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%', pnl>=0?'#3fb96f':'#e5484d');
@@ -443,7 +450,10 @@ async function _tick(){
     if(acc==null || isNaN(acc)) acc = last.hit_rate;
     setTxtSafe('kpi-acc', (acc==null||isNaN(acc))?'N/A':(acc*100).toFixed(1)+'%');
     const orders = (s && s.orders) || [];
-    setTxtSafe('kpi-trades', String(orders.length));
+    // orders는 스냅샷에서 최근 20건만 실린다 — 누적 건수는 order_count를 쓴다.
+    // 예전에는 orders.length를 '거래횟수'로 보여줘 20에서 영원히 멈췄다.
+    setTxtSafe('kpi-trades', String((s && typeof s.order_count === 'number')
+                                    ? s.order_count : orders.length));
     // 포지션 테이블 재구성
     const pos = (s && (s.positions || (s.position? [s.position]:[]))) || [];
     const pb=document.getElementById('pos-body');

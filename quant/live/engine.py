@@ -71,6 +71,9 @@ class LiveTrader:
         self.circuit_breaker = circuit_breaker
         self.mode = mode
         self.history: list[dict] = []
+        # 잘려나간 과거의 손익·낙폭 요약(fold_history가 채운다) — 상한에
+        # 걸려도 총손익·최대낙폭이 전 기간 기준을 유지하게 한다.
+        self.history_summary: dict = {}
         # 일일 최대손실 킬스위치(자동 손실 차단기) — 기본 None=미사용(하위 호환).
         # 상태를 디스크에 영속화해 재시작해도 '오늘은 쉼'이 유지된다.
         self.kill_switch = None
@@ -172,12 +175,16 @@ class LiveTrader:
             "strategy": getattr(self.strategy, "name", "?"),
             "mode": self.mode,
             "history": self.history,
+            "history_summary": self.history_summary,
             "position": {
                 "symbol": pos.symbol,
                 "quantity": pos.quantity,
                 "avg_price": pos.avg_price,
             },
             "orders": orders,
+            # 누적 주문 건수 — orders는 최근 20건만 실리므로 이 값이
+            # 없으면 화면의 "거래횟수"가 20에서 영원히 멈춘다.
+            "order_count": len(getattr(self.broker, "order_log", [])),
             "last_error": self._last_error,
             "last_summary_date": self._last_summary_date,
             # 감시 탭 배지용 — 킬스위치 발동(오늘 매매 중단) 여부
@@ -187,9 +194,11 @@ class LiveTrader:
         }
 
     def _persist(self) -> None:
-        from quant.utils.jsonio import atomic_write_json, cap_history
+        from quant.utils.jsonio import atomic_write_json, fold_history
 
-        self.history = cap_history(self.history)      # 무한 성장 방지
+        # 무한 성장 방지 — 자르되 잘린 구간의 손익·낙폭은 요약에 남긴다.
+        self.history, self.history_summary = fold_history(
+            self.history, self.history_summary)
         snap = None
         if self.state_path:
             snap = self.snapshot()
