@@ -42,3 +42,10 @@ results/
 # wrangler (Cloudflare)
 .wrangler
 .dev.vars*
+
+# 커버리지 산출물 — 측정할 때마다 바뀌는 바이너리라 추적하지 않는다.
+# (2026-08-11: 감사 중 커버리지를 재면서 실수로 커밋했다. 77KB SQLite가
+#  매 측정마다 diff에 잡히면 진짜 변경이 묻힌다.)
+.coverage
+.coverage.*
+htmlcov/
