@@ -403,6 +403,14 @@ REBALANCE_BAND_REL_MIN = 0.15
 REBALANCE_BAND_REL_MAX = 0.40
 
 
+# 실측 비용으로 갈아타는 최소 표본 — 코드가 행동을 바꾸는 그 숫자다.
+# ⚠️ 경보 문구는 "표본 30건 이상 유지 시 검토"라고 말하는데 코드는 10건에서
+#    이미 갈아타고 있었다(감사 66). 사장님은 아직 아무 일도 안 일어났다고
+#    믿는 동안 오디션의 비용 모델이 조용히 바뀐다 — 말과 행동이 다른
+#    자리라, 두 곳이 같은 상수를 읽게 한다.
+MEASURED_COST_MIN_SAMPLES = 10
+
+
 def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
     """페이퍼 장부에서 실측한 **왕복** 체결 마찰(비율) — 없으면 None.
 
@@ -420,7 +428,7 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         from quant.reporting.fill_gap import fill_gap_report
         rep = fill_gap_report(state_dir)
         row = ((rep or {}).get("markets") or {}).get(market)
-        if not row or row.get("n", 0) < 10:
+        if not row or row.get("n", 0) < MEASURED_COST_MIN_SAMPLES:
             return None                        # 표본 부족 — 가정을 쓴다
         # 편도 = 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
         one_way_bp = row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])

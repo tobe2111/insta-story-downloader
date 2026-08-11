@@ -13,6 +13,22 @@ import json
 import os
 
 
+def _measured_cost_note(n: int) -> str:
+    """실측 비용이 이미 적용 중인지 사실대로 말한다.
+
+    ⚠️ 예전 문구는 "표본 30건 이상 유지 시 비용 프리셋 상향 검토"였는데,
+    코드는 10건에서 이미 실측 비용으로 갈아타고 있었다(감사 66). 경보를
+    읽는 사람은 '아직 아무 일도 안 일어났다'고 믿지만 오디션의 비용
+    모델은 이미 바뀐 뒤다. 문턱은 코드에서 직접 읽어 온다.
+    """
+    from quant.live.daily import MEASURED_COST_MIN_SAMPLES as _MIN
+    if n >= _MIN:
+        return (f"표본 {_MIN}건을 넘겨 **오디션 비용 모델은 이미 실측값으로 "
+                f"전환된 상태**입니다(가정이 아니라 실측으로 후보를 겨룹니다).")
+    return (f"표본이 {_MIN}건을 넘으면 오디션 비용 모델이 자동으로 실측값으로 "
+            f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
+
+
 def _current_flags(status: dict) -> dict[str, str]:
     """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다."""
     flags: dict[str, str] = {}
@@ -25,7 +41,7 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"⚠️ 체결 가정 검증: {market} 실측 불리 갭 평균 "
                 f"{r['mean_adverse_bp']}bp > 백테스트 가정 {r['assumed_bp']}bp "
                 f"(표본 {r['n']}건) — 백테스트가 낙관적일 수 있습니다. "
-                f"표본 30건 이상 유지 시 비용 프리셋 상향 검토.")
+                + _measured_cost_note(int(r.get("n") or 0)))
 
     # ② 보정 어긋남 — 예측확률이 실제 적중률의 신뢰구간 밖(표본 확정 구간만)
     try:

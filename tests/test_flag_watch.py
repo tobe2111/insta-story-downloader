@@ -162,3 +162,39 @@ def test_wired_into_write_docs_status():
     dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
     assert "check_and_notify_flags" in dl
     assert "killswitch" in (ROOT / "quant" / "live" / "flag_watch.py").read_text("utf-8")
+
+
+# ── 경보가 말하는 문턱과 코드가 쓰는 문턱이 같은가 (감사 66) ──
+
+
+def test_alarm_states_the_threshold_the_code_actually_uses():
+    """경보는 "30건 이상 시 검토"라는데 코드는 10건에서 이미 갈아탄다면,
+    읽는 사람은 아무 일도 안 일어났다고 믿는 동안 오디션의 비용 모델이
+    바뀐 뒤다. 두 곳이 같은 상수를 읽어야 한다.
+    """
+    from quant.live.daily import MEASURED_COST_MIN_SAMPLES as MIN
+    from quant.live.flag_watch import _current_flags
+
+    def _msg(n):
+        st = {"fill_check": {"markets": {"kr_stock": {
+            "n": n, "mean_adverse_bp": 99.4, "assumed_bp": 14.0,
+            "optimistic": True}}}}
+        return _current_flags(st)["optimistic:kr_stock"]
+
+    below = _msg(MIN - 1)
+    assert f"{MIN}건" in below and "아직 가정을 씁니다" in below
+    assert "30건" not in below, "코드가 안 쓰는 문턱을 경보가 말한다"
+
+    at = _msg(MIN)
+    assert "이미 실측값으로" in at, (
+        "문턱을 넘었는데 경보가 여전히 '앞으로 바뀔 것'처럼 말한다")
+
+
+def test_threshold_constant_is_shared_not_duplicated():
+    from pathlib import Path as _P
+    root = _P(__file__).resolve().parent.parent
+    fw = (root / "quant" / "live" / "flag_watch.py").read_text("utf-8")
+    dl = (root / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert "MEASURED_COST_MIN_SAMPLES" in dl
+    assert "MEASURED_COST_MIN_SAMPLES" in fw, "경보가 문턱을 따로 적어 두고 있다"
+    assert 'row.get("n", 0) < MEASURED_COST_MIN_SAMPLES' in dl
