@@ -480,7 +480,8 @@ def recent_trials(market: str, symbol: str, asof: str,
 def verify_retrain(asof: str, *, market: str | None = None,
                    symbol: str | None = None,
                    state_dir: str = STATE_DIR,
-                   confirm_window: int = 120) -> list[dict]:
+                   confirm_window: int = 120,
+                   sample: int = 0) -> list[dict]:
     """그날의 재학습 결정을 스냅샷·시드로 재실행해 기록과 대조한다.
 
     '조작 불가'를 주장이 아니라 사실로 만드는 검증기: 누구나
@@ -503,6 +504,24 @@ def verify_retrain(asof: str, *, market: str | None = None,
     if not todo:
         return [{"key": "-", "ok": False,
                  "detail": f"{asof} 기록 없음(--date 확인)"}]
+
+    # 표본 감사 — 20종목 전체 재현은 몇십 분이 걸려 매일 자동으로 돌리기
+    # 어렵다. 날짜를 시드로 결정적으로 골라 매일 다른 종목을 감사하면,
+    # 한 주면 전 종목을 훑으면서도 실행 시간은 일정하다.
+    # ⚠️ 자른 사실을 결과에 남긴다 — 조용한 표본 축소는 '전부 검증했다'로
+    #    읽히고, 그건 이 프로젝트에서 가장 하지 말아야 할 종류의 침묵이다.
+    skipped = 0
+    if sample and len(todo) > sample:
+        import random
+        picked = random.Random(f"verify:{asof}").sample(todo, sample)
+        skipped = len(todo) - len(picked)
+        todo = picked
+
+    if skipped:
+        results.append({
+            "key": "-", "ok": True,
+            "detail": f"표본 감사: {len(todo)}종목만 재현(미검사 {skipped}종목) "
+                      f"— 날짜 시드로 매일 다른 표본을 고른다"})
 
     for rec in todo:
         key = f"{rec['market']}:{rec['symbol']}"

@@ -73,6 +73,64 @@ jobs:
             --strategy ml --limit 800 --save state/validation.json \
             | tee validate-us-stock.txt
 
+      # 재현성 감사 — 어제의 재학습 결정을 저장된 스냅샷으로 되돌려 같은
+      # 결론이 나오는지 확인한다.
+      #
+      # ⚠️ 이 단계가 없던 것이 2026-08-11 감사에서 나온 결함이다. verify 명령은
+      #    처음부터 있었지만 **어떤 워크플로도 실행하지 않았다** — 사이트가
+      #    "판단·장부·코드가 공개돼 누구든 검증할 수 있다"고 말하는 동안,
+      #    그 검증은 한 번도 돌아본 적이 없었다. 돌지 않는 검증은 깨져도
+      #    아무도 모르고, 깨진 줄 모르는 검증은 검증이 아니라 장식이다.
+      #
+      # 실패해도 잡을 죽이지 않는다(continue-on-error): 옛 기록은 스냅샷이나
+      # champion_before가 없어 '재현 불가'가 정상이다. 대신 결과를 그대로
+      # 남기고, 아래 경보 단계가 '불일치'만 골라 알린다.
+      - name: 재현성 감사 (어제 결정을 스냅샷으로 재현)
+        id: repro
+        continue-on-error: true
+        # 한 종목 재현에 십수 분이 걸린다(풀링 후보 23개 × 워크포워드).
+        # 전 종목은 몇 시간이라 매일 돌릴 수 없으므로 날짜 시드로 1종목씩
+        # 회전 감사한다 — 3주면 전 종목을 한 바퀴 돈다. 자른 사실은 출력에
+        # 그대로 남는다(조용한 표본 축소 금지).
+        timeout-minutes: 35
+        run: |
+          d=$(date -u -d "yesterday" +%F)
+          echo "대상 날짜: $d"
+          python -m quant verify --date "$d" --sample 1 | tee verify.txt
+
+      - name: 재현 불일치 경보
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python - <<'PY'
+          try:
+              text = open("verify.txt", encoding="utf-8").read()
+          except OSError:
+              raise SystemExit("verify.txt 없음 — 재현 감사가 실행되지 않았다")
+          lines = text.splitlines()
+          # 결과 줄이 하나도 없으면 감사가 '조용히 죽은' 것이다 — 통과로
+          # 읽으면 안 된다. 돌지 않은 검증이 정확히 이번에 잡은 결함이다.
+          if not any(("✔" in ln or "✘" in ln) for ln in lines):
+              raise SystemExit("재현 감사 출력 없음 — verify가 실행되지 못했다\n"
+                               + text[-2000:])
+          # '스냅샷 없음'·'구버전 기록'은 옛 기록의 정상적 한계라 경보 제외.
+          # 결정이 달라진 것(불일치)만이 진짜 사건이다.
+          bad = [ln for ln in lines if "불일치" in ln or "재현 실패" in ln]
+          if not bad:
+              print("✅ 재현 감사 통과(또는 대상 없음)")
+              raise SystemExit(0)
+          from quant.live.notifications import get_notifier
+          get_notifier().send(
+              "🚨 재현성 감사 불일치 — 같은 스냅샷·같은 코드로 어제 결정이 "
+              "재현되지 않았습니다. 장부의 '조작 불가능' 주장이 걸린 문제라 "
+              "즉시 확인이 필요합니다.\n" + "\n".join(bad[:10]))
+          raise SystemExit("재현 불일치: " + " | ".join(bad[:5]))
+          PY
+
       # 검증 결과를 장부에 커밋한다 — 아티팩트는 만료되고, 만료되는 증거는
       # 감시가 아니다. 커밋된 값을 flag_watch가 매일 읽어 과최적화를 경보한다.
       - name: 검증 결과 커밋 (state/validation.json)

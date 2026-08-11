@@ -362,7 +362,8 @@ def _cmd_verify(args) -> None:
     print(f"🔍 재현성 검증: {args.date} · {scope}")
     out = verify_retrain(args.date, market=args.market or None,
                          symbol=args.symbol or None,
-                         state_dir=args.state_dir)
+                         state_dir=args.state_dir,
+                         sample=int(getattr(args, "sample", 0) or 0))
     for r in out:
         print(f"  {'✔' if r['ok'] else '✘'} {r['key']}: {r['detail']}")
     if all(r["ok"] for r in out):
@@ -917,6 +918,9 @@ def build_parser() -> argparse.ArgumentParser:
     vf.add_argument("--market", default="", help="비우면 전체")
     vf.add_argument("--symbol", default="", help="비우면 전체")
     vf.add_argument("--state-dir", default="state", dest="state_dir")
+    vf.add_argument("--sample", type=int, default=0,
+                    help="종목 표본 수(0=전체). 날짜 시드로 결정적 선택 — "
+                         "매일 다른 표본이라 한 주면 전 종목을 훑는다")
     vf.set_defaults(func=_cmd_verify)
 
     bf = sub.add_parser(
