@@ -51,6 +51,7 @@ def _first_bar_after(df, bar_ts: str):
 
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
 from quant.utils.repro import code_sha as _code_sha
+from quant.data.barclock import bar_status
 from quant.utils.repro import data_sha256 as _data_sha256
 from quant.utils.repro import env_fingerprint as _env_fingerprint
 
@@ -313,6 +314,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "earnings_guard": earnings_guard,
         # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적
         "kelly_cap": round(kelly_cap, 4) if kelly_cap < 1.0 else None,
+        # 결정에 쓴 마지막 봉이 아직 만들어지는 중이었는가(코인만 해당).
+        # 값이 있으면 이 기록의 price는 그날 일봉 종가가 아니다 — 공개
+        # 차트와 대조하려는 사람이 오해하지 않도록 장부에 남긴다(감사 56).
+        "bar_partial": bar_status(market, df.index[-1], timeframe),
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -1066,6 +1071,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
+    partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     pending = st.get("pending") or {}
@@ -1142,6 +1148,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
             last_dates.append(str(df.index[-1])[:10])
+            bs = bar_status(market, df.index[-1], timeframe)
+            if bs:
+                partial_bars[key] = bs["elapsed"]
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
                 opens_after[key] = _first_bar_after(df, pend["decided_bar"])
@@ -1438,7 +1447,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               } if data_quality else None),
               "champion": {"symbols": n, "skipped": skipped,
                            "planned": len(targets),
-                           "skipped_why": skipped_why or None}}
+                           "skipped_why": skipped_why or None},
+              # 결정에 쓴 마지막 봉이 아직 만들어지는 중이던 종목들(감사 56).
+              # 코인은 24시간 시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중인데,
+              # 주식과 달리 그 봉을 버리는 장치가 없다. 그 봉의 종가·고저는
+              # 확정값이 아니므로, 어느 종목이 몇 % 만들어진 봉으로 판단됐는지
+              # 남긴다 — 공개 차트와 대조하려는 사람이 오해하지 않도록.
+              "bar_partial": partial_bars or None}
     record["twr_pct"] = time_weighted_return(
         st["history"] + [record], st.get("deposits", []),
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
