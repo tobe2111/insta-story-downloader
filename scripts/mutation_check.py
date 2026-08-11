@@ -549,6 +549,21 @@ MUTATIONS = [
      "        if changed:",
      "        if False:",
      "tests/test_social_archive_immutable.py"),
+
+    # 감사 87 — 실거래 집행 바로 앞 관문이 종료코드로 실패를 말하지 않던 자리.
+    ("실거래 준비 진단이 미비해도 성공으로 끝난다(관문이 안 막는다)",
+     "quant/cli.py",
+     "    raise SystemExit(\n"
+     "        \"\\n❌ 미비 항목이 있습니다 — 'python -m quant setup'으로 키를 \"",
+     "    print(\n"
+     "        \"\\n❌ 미비 항목이 있습니다 — 'python -m quant setup'으로 키를 \"",
+     "tests/test_live_check_gates.py"),
+
+    ("점검 항목이 0건이어도 '준비 완료'로 통과시킨다",
+     "quant/cli.py",
+     "    if not rows:",
+     "    if False:",
+     "tests/test_live_check_gates.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
