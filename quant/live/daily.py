@@ -1545,6 +1545,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 검증 실패가 사이트 갱신을 막으면 안 된다
         pass
 
+    # 야간 검증(PBO·DSR) 장부 — 과최적화 감시가 사이트·경보로 이어지게
+    vpath = os.path.join(state_dir, "validation.json")
+    if os.path.exists(vpath):
+        try:
+            with open(vpath, encoding="utf-8") as f:
+                status["validation"] = json.load(f)
+        except (OSError, ValueError):
+            pass
+
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO
     status["symbols"] = SYMBOL_INFO

@@ -86,7 +86,25 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"축소{dd_txt} — 낙폭 단계별 자동 브레이크입니다. 회복 시 "
                 f"단계적으로 복귀합니다(수동 개입 불필요).")
 
-    # ⑤ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑤ 과최적화 감시 — 야간 검증(PBO·DSR)이 콘솔에만 찍히고 사라지던 것을
+    #    장부에 남겨 여기서 읽는다. PBO는 'IS 1등이 OOS에서 동전던지기일 확률'
+    #    이라 0.5를 넘으면 백테스트 우위가 과적합일 가능성이 높다는 뜻이다.
+    #    (예전에는 아무도 안 쓰는 ma_cross를 검증하고 있었다 — 2026-08-11 수정)
+    for key, r in (status.get("validation") or {}).items():
+        pbo = r.get("pbo")
+        if pbo is not None and float(pbo) > 0.5:
+            flags[f"overfit:{key}"] = (
+                f"⚠️ 과최적화 의심: {key}({r.get('strategy')}) PBO "
+                f"{float(pbo) * 100:.0f}% — 백테스트 1등이 실전에서 동전던지기일 "
+                f"확률입니다. 파라미터 탐색을 줄이거나 표본을 늘려야 합니다.")
+        dsr = r.get("dsr")
+        if dsr is not None and float(dsr) < 0.95:
+            flags[f"dsr_low:{key}"] = (
+                f"⚠️ 실력 미확인: {key}({r.get('strategy')}) DSR "
+                f"{float(dsr):.2f} — 다중검정 보정 후 '운이 아니다'라고 말할 "
+                f"신뢰도(0.95)에 못 미칩니다.")
+
+    # ⑥ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]

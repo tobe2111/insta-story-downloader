@@ -463,6 +463,7 @@ def _cmd_validate(args) -> None:
 
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
     print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
+    dsr_value = None
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
@@ -470,6 +471,7 @@ def _cmd_validate(args) -> None:
         m = wf["oos_metrics"]
         print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
+        dsr_value = float(wf["dsr"])
         print(f"  DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
               f"{'— 실력 가능성' if wf['dsr'] >= 0.95 else '— 운일 수 있음(0.95 미만)'}")
     except ValueError as exc:
@@ -477,11 +479,14 @@ def _cmd_validate(args) -> None:
 
     # 2) PBO — IS 1등이 OOS에서 동전던지기인지
     print("\n[2/3] PBO (백테스트 과적합 확률)")
+    pbo_value = None
     try:
         mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
-        print("  " + pbo_report(pbo(mat, n_blocks=args.pbo_blocks))
-              .replace("\n", "\n  "))
-    except ValueError as exc:
+        pbo_res = pbo(mat, n_blocks=args.pbo_blocks)
+        pbo_value = float(pbo_res.get("pbo")) if isinstance(pbo_res, dict) \
+            else float(getattr(pbo_res, "pbo", None) or 0.0)
+        print("  " + pbo_report(pbo_res).replace("\n", "\n  "))
+    except (ValueError, TypeError, AttributeError) as exc:
         print(f"  건너뜀: {exc}")
 
     # 3) CPCV — 여러 OOS 경로의 분포
@@ -492,6 +497,26 @@ def _cmd_validate(args) -> None:
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
     except ValueError as exc:
         print(f"  건너뜀: {exc}")
+
+    # 검증 결과를 장부에 남긴다 — 과최적화 감시가 콘솔에만 찍히고 사라지면
+    # 아무것도 막지 못한다. 저장된 값은 flag_watch가 매일 읽어 경보한다.
+    if getattr(args, "save", None):
+        import os as _os
+
+        from quant.utils.jsonio import atomic_write_json
+        path, prev = args.save, {}
+        if _os.path.exists(path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    prev = _json.load(f)
+            except (OSError, ValueError):
+                prev = {}
+        prev[f"{args.market}:{args.symbol}"] = {
+            "strategy": args.strategy, "bars": len(df),
+            "dsr": dsr_value, "pbo": pbo_value,
+        }
+        atomic_write_json(path, prev)
+        print(f"\n💾 검증 결과 저장: {path}")
 
     if getattr(args, "report", None):
         from quant.reporting import render_validation_report
@@ -801,6 +826,9 @@ def build_parser() -> argparse.ArgumentParser:
     va.add_argument("--oos-window", type=int, default=125, dest="oos_window")
     va.add_argument("--embargo", type=int, default=5)
     va.add_argument("--pbo-blocks", type=int, default=10, dest="pbo_blocks")
+    va.add_argument("--save", default=None,
+                    help="검증 결과(DSR·PBO)를 JSON 장부에 누적 저장 "
+                         "(예: state/validation.json) — flag_watch가 읽어 경보한다")
     va.add_argument("--cpcv-groups", type=int, default=6, dest="cpcv_groups")
     va.add_argument("--report", default=None,
                     help="검증 결과를 그래프 HTML 리포트로 저장(예: results/validate.html)")

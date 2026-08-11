@@ -116,6 +116,24 @@ def test_turnover_alert_needs_sample(tmp_path, monkeypatch):
     assert "turnover_cost" not in new
 
 
+def test_overfit_and_dsr_alerts(tmp_path, monkeypatch):
+    """야간 검증(PBO·DSR)이 콘솔에만 찍히고 사라지던 것을 경보로 잇는다."""
+    st = {"validation": {
+        "crypto:BTC/USDT": {"strategy": "ml", "pbo": 0.72, "dsr": 0.99},
+        "us_stock:SPY": {"strategy": "ml", "pbo": 0.20, "dsr": 0.40}}}
+    new, spy = _run(tmp_path, monkeypatch, st)
+    assert "overfit:crypto:BTC/USDT" in new       # PBO 0.72 > 0.5
+    assert "dsr_low:us_stock:SPY" in new          # DSR 0.40 < 0.95
+    assert "overfit:us_stock:SPY" not in new      # PBO 0.20은 조용
+    assert "dsr_low:crypto:BTC/USDT" not in new   # DSR 0.99는 조용
+    assert any("과최적화 의심" in m for m in spy.sent)
+
+
+def test_validation_wired_into_status():
+    dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert "validation.json" in dl and '"validation"' in dl
+
+
 def test_weekly_health_section(tmp_path):
     """주간 요약이 판정 시계·오디션·킬스위치를 담는다(건강 보고서)."""
     from quant.live.daily import format_weekly, weekly_summary
