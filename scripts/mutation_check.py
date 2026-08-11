@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("주문이 실패한 종목까지 노출로 기록한다(다종목)",
+     "quant/live/multi.py",
+     '"weight": float(sum(abs(v) for v in placed.values())),',
+     '"weight": float(sum(abs(v) for v in weights.values())),',
+     "tests/test_recorded_exposure_is_what_was_ordered.py"),
+
     ("체결 기록에서 배분 슬라이스를 다시 빼먹는다(주문≠장부)",
      "quant/live/daily.py",
      '"weight": round(float(pend["weight"]) * sl, 4),',
