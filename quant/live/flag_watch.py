@@ -150,10 +150,16 @@ def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
             prev = set()
     cur = _current_flags(status)
     new = [k for k in cur if k not in prev]
+    # 전송에 실패한 경보는 '보냈다'로 적지 않는다 — 적으면 다음 실행부터
+    # '이미 켜져 있던 플래그'로 분류돼 **영원히 다시 오지 않는다**. 웹훅이
+    # 한 번 죽은 날 하필 킬스위치가 발동하면 그 사실을 끝내 모르게 된다
+    # (2026-08-11 감사에서 발견). 실패분은 빼 두고 다음 실행에 다시 시도한다.
+    failed: set[str] = set()
     if new:
         from quant.live.notifications import get_notifier
         notifier = get_notifier()
         for k in new:
-            notifier.send(cur[k])
-    atomic_write_json(path, {"flags": sorted(cur)})
-    return new
+            if notifier.send(cur[k]) is False:   # None(구식 구현)은 성공 취급
+                failed.add(k)
+    atomic_write_json(path, {"flags": sorted(set(cur) - failed)})
+    return [k for k in new if k not in failed]
