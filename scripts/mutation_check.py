@@ -78,6 +78,26 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("카드가 누적을 '오늘'이라 부르던 때로 되돌린다",
+     "docs/sns_card.html",
+     "  var hd=dayp;",
+     "  var hd=ret;",
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("사람의 개입(일시정지·노출 배수)을 캡션에서 뺀다",
+     "quant/reporting/social.py",
+     '    if x.get("paused"):\n        hands.append("신규 주문 일시정지(보유 유지)")',
+     '    if False:\n        hands.append("신규 주문 일시정지(보유 유지)")',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("길이 초과 시 짧은 판이 고지까지 잘라내게 되돌린다",
+     "quant/reporting/social.py",
+     'f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"\n'
+     '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
+     'f"💰 {eq} (누적 {ret})\\n"\n'
+     '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
     ("SNS 카드에서 신뢰구간을 뺀다(소표본을 확정처럼 방송)",
      "docs/sns_card.html",
      "        +'<span style=\"font-size:24px;color:var(--muted);font-weight:600\"> (95% '\n"

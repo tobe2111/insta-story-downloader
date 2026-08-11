@@ -529,6 +529,17 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
+  /* 사람의 개입은 숨기지 않는다(2026-08-11 감사 96).
+     장부는 어드민 일시정지·노출 배수를 "숨기지 않고 기록한다"고 적어 두고
+     실제로 기록하는데, **사이트 어디에도 표시되지 않았다.** 이 시스템에서
+     사람이 결과를 손으로 바꿀 수 있는 유일한 통로가 그 둘이다. 손을 댄 날의
+     성적은 전략만의 결과가 아니므로, 그 사실이 성적과 같은 화면에 있어야
+     한다 — 회의적인 독자가 가장 먼저 물을 질문이기도 하다. */
+  if(pfLast.paused===true)flags.push("<b>사람의 개입 — 일시정지</b> — 운영자가 "+
+    "신규 주문을 멈춘 상태입니다(보유는 유지). 이 날의 성적은 전략만의 결과가 아닙니다");
+  const xs=pfLast.exposure_scale;
+  if(typeof xs==="number"&&Math.abs(xs-1)>1e-9)flags.push("<b>사람의 개입 — 노출 배수 "+
+    (xs*100).toFixed(0)+"%</b> — 운영자가 손으로 위험 크기를 조정했습니다");
   document.getElementById("side-flags").innerHTML=
     '<div class="t">🚩 지금 켜진 경고</div>'+
     (flags.length?flags.map(f=>'<div class="flag">'+f+'</div>').join("")

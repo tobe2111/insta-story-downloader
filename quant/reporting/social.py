@@ -82,6 +82,11 @@ def _today_numbers(status: dict) -> dict:
         "twr_pct": last.get("twr_pct"),
         "gross": last.get("weight"),
         "risk_scale": last.get("risk_scale", 1.0),
+        # 사람의 개입 — 장부에는 "숨기지 않고 기록한다"고 남기면서 방송에는
+        # 없었다(감사 96). 이 시스템에서 사람이 결과를 바꿀 수 있는 유일한
+        # 통로다. 빼면 '전부 자동'이라는 주장 자체가 거짓이 된다.
+        "paused": bool(last.get("paused")),
+        "exposure_scale": last.get("exposure_scale"),
         "n_symbols": (last.get("champion") or {}).get("symbols"),
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
@@ -157,6 +162,15 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
     kill = ("" if x["risk_scale"] >= 1.0 else
             f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
+    # 사람이 손을 댄 날은 그 사실도 같은 글에 나간다(감사 96).
+    hands = []
+    if x.get("paused"):
+        hands.append("신규 주문 일시정지(보유 유지)")
+    xs = x.get("exposure_scale")
+    if isinstance(xs, (int, float)) and abs(float(xs) - 1.0) > 1e-9:
+        hands.append(f"노출 배수 {float(xs):.0%}")
+    owner = ("\n✋ 사람의 개입 — " + " · ".join(hands)
+             + ". 이 날의 성적은 전략만의 결과가 아닙니다") if hands else ""
 
     # "오늘 AI가 한 일" — 교체가 있으면 교체가 뉴스, 없으면 유지가 뉴스다
     if not x["retrain_total"]:
@@ -181,7 +195,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"\n"
         f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
         f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\n"
-        f"🎯 오늘 배분 상위: {tops}{kill}\n"
+        f"🎯 오늘 배분 상위: {tops}{kill}{owner}\n"
         f"\n"
         f"🤖 {work}\n"
         f"\n"
@@ -199,14 +213,19 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"\n"
         f"📊 8마일 챌린지 {day} · {date}\n"
         f"💰 {eq} (누적 {ret}{day_line}) · 노출 {gross}\n"
-        f"🎯 배분 상위: {tops}{kill}\n"
+        f"🎯 배분 상위: {tops}{kill}{owner}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
     )
     if len(th) > THREADS_TEXT_LIMIT:      # 링크·고지는 지키고 하이라이트를 줄인다
+        # ⚠️ 킬스위치와 사람의 개입은 '하이라이트'가 아니라 **고지**다
+        #    (2026-08-11 감사 97). 둘이 배분 상위 줄에 붙어 있던 탓에
+        #    길이가 넘치면 같이 잘려 나갔다 — 쓸 말이 많은 날(교체가 많고
+        #    종목명이 긴 날)일수록 경고가 사라지는 구조였다. 주석은 원래
+        #    "고지는 지킨다"고 적혀 있었는데 코드가 그러지 않았다.
         th = (
             f"📊 8마일 챌린지 {day} · {date}\n"
-            f"💰 {eq} (누적 {ret})\n"
+            f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\n"
             f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"
         )
