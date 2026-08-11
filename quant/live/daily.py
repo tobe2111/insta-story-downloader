@@ -513,30 +513,59 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
 
 
-def time_weighted_return(history: list[dict], deposits: list[dict],
-                         start_cash: float = START_CASH) -> float:
-    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력.
+def twr_index(history: list[dict], deposits: list[dict],
+              start_cash: float = START_CASH) -> list[float]:
+    """입금 효과를 제거한 누적 성장 지수(시작 1.0) 시계열.
 
-    일별 구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
+    구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
     입금 날짜가 기록일 사이면 '그 이후 첫 기록일'에 귀속시킨다(보수적).
+
+    수익률뿐 아니라 **낙폭**도 이 지수 위에서 재야 한다(2026-08-11 감사).
+    자산(equity) 고점 대비로 재면 입금이 고점을 끌어올려, 손실이 그대로인데
+    낙폭이 0으로 보인다 — 그러면 킬스위치가 입금 때문에 풀린다.
     """
     if not history:
-        return 0.0
+        return []
     flows: dict[str, float] = {}
     dates = [r["date"] for r in history]
     for d in deposits or []:
         target = next((dt for dt in dates if dt >= d["date"]), None)
         if target is not None:
             flows[target] = flows.get(target, 0.0) + float(d["amount"])
-    twr = 1.0
-    prev = start_cash
+    out: list[float] = []
+    idx, prev = 1.0, float(start_cash)
     for r in history:
         eq = float(r["equity"])
-        flow = flows.get(r["date"], 0.0)
         if prev > 0:
-            twr *= max(0.0, (eq - flow) / prev)
+            idx *= max(0.0, (eq - flows.get(r["date"], 0.0)) / prev)
         prev = eq
-    return round((twr - 1) * 100, 2)
+        out.append(idx)
+    return out
+
+
+def drawdown_from_index(index: list[float]) -> float:
+    """성장 지수 시계열의 현재 낙폭(비율, 0 이하)."""
+    if not index:
+        return 0.0
+    peak = max(index)
+    return (index[-1] / peak - 1) if peak > 0 else 0.0
+
+
+def max_drawdown_from_index(index: list[float]) -> float:
+    """성장 지수 시계열의 최대낙폭(비율, 0 이하)."""
+    peak, mdd = 0.0, 0.0
+    for v in index:
+        peak = max(peak, v)
+        if peak > 0:
+            mdd = min(mdd, v / peak - 1)
+    return mdd
+
+
+def time_weighted_return(history: list[dict], deposits: list[dict],
+                         start_cash: float = START_CASH) -> float:
+    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력."""
+    idx = twr_index(history, deposits, start_cash)
+    return round((idx[-1] - 1) * 100, 2) if idx else 0.0
 
 
 def day_return_pct(history: list[dict], deposits: list[dict],
@@ -1111,11 +1140,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     equity = broker.equity(prices)
 
     # 자동 킬스위치 — 계좌 낙폭 단계별 노출 축소·단계 복귀(히스테리시스).
-    # 낙폭은 자산 고점 대비라 매칭 입금이 있으면 약간 보수적으로(빨리 회복한
-    # 것처럼) 왜곡되지만, 입금은 드물고 방향은 안전한 쪽이다.
-    peak_eq = max([float(r.get("equity", 0.0)) for r in st["history"]]
-                  + [equity, 1e-9])
-    drawdown = equity / peak_eq - 1
+    #
+    # ⚠️ 낙폭은 자산(equity)이 아니라 **입금 효과를 제거한 성장 지수** 위에서
+    #    잰다. 예전에는 자산 고점 대비로 쟀는데, 그러면 매칭 입금이 고점을
+    #    끌어올려 손실이 그대로인데도 낙폭이 0으로 보인다 — 즉 **입금이
+    #    킬스위치를 풀어버린다**(2026-08-11 감사). 하필 브레이크가 필요한
+    #    상황에서 돈을 더 넣는 순간 브레이크가 풀리는 구조였다.
+    #    (지금은 입금이 없어 두 방식의 값이 같다 — 첫 입금 날 발동할 결함이다.)
+    _series = twr_index(
+        st["history"] + [{"date": bar, "equity": equity}],
+        st.get("deposits") or [],
+        start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
+    drawdown = drawdown_from_index(_series)
     risk_scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), drawdown)
     st["risk_scale"] = risk_scale
     if risk_scale < 1.0:
@@ -1608,13 +1644,13 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 pf_state = st
             hist = st.get("history", [])
             key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
-            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다
-            peak, mdd = 0.0, 0.0
-            for r in hist:
-                eq = float(r.get("equity", 0.0))
-                peak = max(peak, eq)
-                if peak > 0:
-                    mdd = min(mdd, eq / peak - 1)
+            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다.
+            # 킬스위치와 같은 기준(입금 효과 제거)으로 잰다 — 화면과 브레이크가
+            # 다른 숫자를 보면 사장님이 보는 낙폭과 시스템이 반응하는 낙폭이
+            # 어긋난다(2026-08-11).
+            mdd = max_drawdown_from_index(twr_index(
+                hist, st.get("deposits") or [],
+                start_cash=float(st.get("start_cash", START_CASH))))
             status["paper"][key] = {
                 "start_cash": st.get("start_cash", START_CASH),
                 "equity": (hist[-1]["equity"] if hist else st.get("cash")),
