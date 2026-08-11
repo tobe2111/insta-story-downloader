@@ -89,9 +89,12 @@ def test_e2e_marker_blocks_cli_subprocess():
 # ── ③ 판정 시계 ────────────────────────────────────────────────
 
 
-def test_generation_info_from_ledger(tmp_path):
+def test_generation_info_from_ledger(monkeypatch, tmp_path):
+    """세대는 피처셋 첫 등장일부터 — 실행 구조가 더 옛날이면 그대로 쓴다."""
+    from quant.live import daily as _daily
     from quant.live.daily import _generation_info
     from quant.strategies.ml import FEATURE_SET
+    monkeypatch.setattr(_daily, "STRUCTURE_EPOCH", "2026-01-01")
     ledger = tmp_path / "retrain_history.jsonl"
     rows = [
         {"asof": "2026-08-01", "feature_set": "fs7:+krxflow"},   # 이전 세대
@@ -100,9 +103,30 @@ def test_generation_info_from_ledger(tmp_path):
     ]
     ledger.write_text("\n".join(json.dumps(r) for r in rows) + "\n", "utf-8")
     g = _generation_info(str(tmp_path))
-    assert g["feature_set"] == FEATURE_SET
+    assert g["feature_set"].startswith(FEATURE_SET)
     assert g["since"] == "2026-08-05"          # 이전 세대 날짜는 무시
     assert g["days"] >= 0 and g["target_days"] == 90
+
+
+def test_structure_change_also_resets_the_clock(monkeypatch, tmp_path):
+    """피처가 그대로여도 사이징·체결 구조가 바뀌면 시계는 0으로 리셋된다.
+
+    노출이 15배 다른 두 구간의 수익률은 같은 통계가 아니다 — 피처만 세대로
+    치던 것은 우리가 세운 원칙의 구멍이었다(2026-08-11 발견).
+    """
+    from quant.live import daily as _daily
+    from quant.live.daily import _generation_info
+    from quant.strategies.ml import FEATURE_SET
+    monkeypatch.setattr(_daily, "STRUCTURE_EPOCH", "2026-08-11")
+    monkeypatch.setattr(_daily, "STRUCTURE_TAG", "sz2")
+    ledger = tmp_path / "retrain_history.jsonl"
+    ledger.write_text(json.dumps(
+        {"asof": "2026-08-05", "feature_set": FEATURE_SET}) + "\n", "utf-8")
+    g = _generation_info(str(tmp_path))
+    assert g["since"] == "2026-08-11"          # 피처(08-05)가 아니라 구조일
+    assert g["feature_set"].endswith("/sz2")   # 라벨에 구조 세대가 보인다
+    assert g["structure"]["epoch"] == "2026-08-11"
+    assert g["structure"]["why"]               # 왜 리셋했는지 사유가 남는다
 
 
 def test_generation_info_empty_ledger_is_day_zero(tmp_path):

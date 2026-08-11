@@ -122,9 +122,7 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
 /* ============ 다운로드 히어로 ============ */
 .hero{position:relative;overflow:hidden;border-radius:16px;
   border:1px solid var(--line-strong);
-  background:
-    radial-gradient(1200px 460px at 10% -20%,var(--accent-soft),transparent 62%),
-    linear-gradient(180deg,var(--bg3),var(--bg2));
+  background:var(--bg3);
   padding:30px 32px 26px;
   display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
   gap:34px;align-items:center}
@@ -146,8 +144,7 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
 .dlrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:22px}
 .btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;
   font-size:15px;color:#fff;background:var(--accent);
-  padding:14px 24px;border-radius:12px;line-height:1.25;
-  box-shadow:0 6px 22px -8px color-mix(in srgb,var(--accent) 70%,transparent)}
+  padding:14px 24px;border-radius:12px;line-height:1.25}
 .btn:hover{text-decoration:none;filter:brightness(1.08)}
 .btn small{display:block;font-size:11px;font-weight:500;opacity:.82;
   margin-top:2px}
@@ -204,7 +201,7 @@ tbody tr:hover{background:var(--bg3)}
 
 /* ============ 하단 다운로드 밴드 ============ */
 .band{border-radius:18px;border:1px solid var(--line-strong);
-  background:linear-gradient(120deg,var(--bg3),var(--bg2));
+  background:var(--bg3);
   padding:30px 34px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
 .band h2{font-size:22px;letter-spacing:-.02em;font-weight:800}
 .band .sub{margin-top:6px;max-width:52ch}
@@ -519,7 +516,9 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         " 실측 불리 갭 "+r.mean_adverse_bp+"bp가 가정 "+r.assumed_bp+"bp 초과 (표본 "+r.n+"건)");
     });
   }
-  const vt=(pf&&pf.vol_target)||st.vol_target;
+  /* vol_target은 일별 기록 안에 있다 — 계좌 요약(pf) 최상위가 아니다 */
+  const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
+  const vt=pfLast.vol_target||st.vol_target;
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
   document.getElementById("side-flags").innerHTML=
@@ -548,7 +547,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     }
     document.getElementById("c-gen").innerHTML=
       '현재 구조 <b>'+esc(g.feature_set)+'</b> 관찰 <b>'+g.days+'일차</b> / 판정 기준 '+
-      g.target_days+'일 ('+esc(g.since)+'~). 구조가 바뀌면 통계의 시계도 0일부터 다시 셉니다.'+ar;
+      g.target_days+'일 ('+esc(g.since)+'~). 구조가 바뀌면 통계의 시계도 0일부터 다시 셉니다.'+
+      (g.structure?'<div class="sub" style="margin-top:8px;font-size:11.5px">'+
+        '마지막 리셋 '+esc(g.structure.epoch)+' — '+esc(g.structure.why)+
+        '. 피처뿐 아니라 <b>사이징·체결 구조</b>가 바뀌어도 리셋합니다: 노출이 다른 '+
+        '두 구간의 수익률은 같은 통계가 아니기 때문입니다.</div>':'')+ar;
   }
   if(st.fill_check&&st.fill_check.markets){
     const fc=st.fill_check,nm={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"};
@@ -563,6 +566,20 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '백테스트 가정보다 실제 체결이 불리하면 그 사실을 그대로 표시합니다 (최근 '+
       fc.window+'일 · '+fc.total_fills+'건).</div>';
   }
+  /* 회전율·비용 — 비용이 기대수익을 넘으면 엣지가 있어도 수익이 없다 */
+  let turnHtml="";
+  if(pf){
+    const hs=(pf.history||[]).filter(r=>r.turnover);
+    if(hs.length){
+      const rec=hs.slice(-20), avg=rec.reduce((a,r)=>a+(r.turnover.ratio||0),0)/rec.length;
+      const cost=avg*252*0.0043, tgt=(vt&&vt.target)||0.12;
+      turnHtml='<div class="sub" style="margin-top:10px;padding-top:10px;'+
+        'border-top:1px solid var(--line);font-size:12px">회전율 최근 '+
+        rec.length+'일 평균 <b>'+(avg*100).toFixed(0)+'%/일</b> → 연 비용 약 <b class="'+
+        (cost>tgt?"down":"up")+'">'+(cost*100).toFixed(0)+'%</b> vs 기대수익 '+
+        (tgt*100).toFixed(0)+'%'+(cost>tgt?' ⚠️ 비용이 수익을 먹는 구간':'')+'</div>';
+    }
+  }
   if(vt){
     document.getElementById("c-vol").innerHTML=
       '목표 변동성 <b>연 '+(vt.target*100).toFixed(2)+'%</b>'+
@@ -570,7 +587,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       ' · 배수 '+(vt.scale!=null?vt.scale.toFixed(2):"—")+'배'+
       '<div class="sub" style="margin-top:8px;font-size:11.5px">'+
       (vt.proven?'✅ 엣지 입증 — 목표를 상향했습니다.':'🔒 엣지 미입증 — 검증 목표로 잠금 중.')+
-      ' '+esc(vt.reason||"")+'</div>';
+      ' '+esc(vt.reason||"")+'</div>'+turnHtml;
   }else{
     document.getElementById("c-vol").innerHTML=
       '<span class="sub">다음 새벽 기록부터 표시됩니다 — 포트폴리오 목표 변동성을 '+

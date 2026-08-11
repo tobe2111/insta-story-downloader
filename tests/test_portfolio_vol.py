@@ -58,6 +58,20 @@ def test_scale_raises_underrisked_portfolio():
     assert scale > 1.0
 
 
+def test_low_vol_estimate_does_not_cap_below_target():
+    """사전 변동성이 아주 낮아도 배수 상한이 먼저 걸리면 안 된다.
+
+    실측에서 배수 25배가 노출 상한보다 먼저 걸려 총노출이 34%에서 멈추는
+    것을 확인했다 — 한도는 배수가 아니라 노출이어야 한다.
+    """
+    w = {f"s{i}": 0.02 for i in range(5)}       # 총노출 0.10
+    rmap = {f"s{i}": [x * 0.001 for x in _rets(i + 5)] for i in range(5)}
+    scale, ex = vol_scale(w, rmap, target=0.12)
+    assert ex is not None and ex < 0.01         # 아주 낮은 사전 변동성
+    gross_after = sum(abs(v) for v in w.values()) * scale
+    assert gross_after == pytest.approx(MAX_GROSS_EXPOSURE, rel=1e-6)
+
+
 def test_gross_exposure_is_the_real_cap():
     """배수가 아니라 총노출이 한도 — 레버리지 금지선을 넘지 않는다."""
     w = {f"s{i}": 0.05 for i in range(4)}          # 총노출 0.2

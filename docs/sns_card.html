@@ -15,10 +15,7 @@ html,body{width:1080px;height:1350px;overflow:hidden}
 body{padding:64px 76px 90px;font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,sans-serif;
   background:var(--bg);color:var(--fg);display:flex;flex-direction:column;
   position:relative}
-/* 은은한 배경 그라데이션 — 밋밋한 검정 방지 */
-body::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(900px 500px at 85% -10%,rgba(76,125,255,.16),transparent),
-             radial-gradient(700px 420px at -10% 110%,rgba(76,125,255,.08),transparent)}
+/* 배경은 단색 — 그라데이션을 쓰지 않는다(디자인 방침) */
 .logo{font-weight:800;letter-spacing:.16em;font-size:34px}
 .logo em{color:var(--accent);font-style:normal}
 .badge{display:inline-block;border:1.5px solid var(--line);border-radius:99px;

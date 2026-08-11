@@ -49,11 +49,18 @@ import os
 VERIFY_TARGET_VOL = 0.12
 # 엣지 입증 후 목표(연율) — 종목 단위 목표와 정렬한다.
 PROVEN_TARGET_VOL = 0.20
-# 스케일 배수 상한 — 사전 변동성 추정이 0에 가까울 때의 폭주 방지용 안전핀일
-# 뿐, 리스크를 제한하는 '진짜 제약'이 아니다. 실제 제약은 아래 총노출 상한이다.
-# (초기에 이 값을 3.0으로 뒀다가, 엣지가 입증돼도 목표에 영원히 도달할 수 없는
-#  구조가 되는 것을 발견해 분리했다 — 배수는 수단이고 노출이 한도다.)
-MAX_VOL_SCALE = 25.0
+# 사전 변동성 추정의 하한(연율) — 추정이 0에 가까울 때 배수가 폭주하는 것을
+# '배수를 자르는' 대신 '추정을 바닥 처리'해서 막는다. 이렇게 해야 실제 한도가
+# 항상 총노출(무레버리지선)로 유지된다 — 배수 상한이 먼저 걸리면 신호가 약한
+# 날에 노출이 목표에 못 미치고, 그건 문서화된 의도와 다르다(실측에서 실제로
+# 배수 25배가 먼저 걸려 총노출이 34%에서 멈추는 것을 확인했다).
+# 0으로 나누는 것만 막으면 되므로 아주 작게 잡는다 — 이 값이 실제로 걸리면
+# 그것 역시 '노출이 한도'라는 설계에 어긋난다(0.005로 뒀다가 저변동성 구간에서
+# 총노출이 32%에 묶이는 것을 실측하고 낮췄다).
+MIN_EX_ANTE_VOL = 0.0005
+# 스케일 배수 상한 — 최후의 안전핀. 배수가 커도 아래 총노출 상한이 실제 노출을
+# 100%로 묶으므로 위험하지 않다(배수는 수단이고 노출이 한도다).
+MAX_VOL_SCALE = 200.0
 # 총노출 상한 — 1.0 = 레버리지 금지(계좌 자산을 넘겨 사지 않는다).
 # 변동성 타깃이 아무리 크게 요구해도 이 선을 넘지 않는다.
 MAX_GROSS_EXPOSURE = 1.0
@@ -186,7 +193,8 @@ def vol_scale(weights: dict, rets_map: dict, target: float,
     ex = ex_ante_vol(weights, rets_map, periods_per_year)
     if not ex or ex <= 0:
         return 1.0, ex
-    scale = min(target / ex, MAX_VOL_SCALE)
+    # 추정을 바닥 처리한 뒤 배수를 낸다 — 한도는 배수가 아니라 노출이어야 한다
+    scale = min(target / max(ex, MIN_EX_ANTE_VOL), MAX_VOL_SCALE)
     gross = sum(abs(w) for w in weights.values())
     if gross > 0 and max_gross > 0:
         scale = min(scale, max_gross / gross)     # 레버리지 금지
