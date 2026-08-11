@@ -622,14 +622,18 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     # 오디션 환경을 실제 운용 환경과 맞춘다 — '챔피언을 뽑는 세계'와 '돈이
     # 도는 세계'가 다르면, 실제로는 낼 수 없는 성과를 근거로 챔피언이 뽑힌다.
     #   ① 비용: 가정이 아니라 실측(개장 갭 포함). 한국주식은 가정 28bp vs
-    #      실측 ~93bp로 3배 넘게 어긋나 있었다.
+    #      실측 ~113bp(왕복)로 4배 어긋나 있었다. 단, 갭을 시가 체결로
+    #      모델링하는 시장에서는 비용에 또 얹지 않는다(이중 계상 금지).
     #   ② 체결: 다음 세션 시가(주식). 종가 체결은 개장 갭을 공짜로 건너뛴다.
     #   ③ 밴드: 실제 운용의 리밸런스 밴드를 그대로 적용 — 밴드 없이 평가하면
     #      고회전 전략이 부당하게 유리해진다.
     from quant.live.daily import (IMMEDIATE_FILL_MARKETS, _rebalance_band_rel,
                                   measured_cost_model)
-    audition_cost = measured_cost_model(market, state_dir)
     audition_next_open = market not in IMMEDIATE_FILL_MARKETS
+    # 갭을 가격으로 겪는(next_open_fill) 시장에 실측 갭을 비용으로까지 더하면
+    # 두 번 물린다 — 그래서 모델링 여부를 넘겨 준다(2026-08-11 이중계상 수정).
+    audition_cost = measured_cost_model(market, state_dir,
+                                        models_gap=audition_next_open)
     audition_band = _rebalance_band_rel(market, state_dir)
     decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
@@ -664,8 +668,9 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         entry, df, build=build_strategy,
         # 의석 비중도 오디션과 같은 비용으로 — 여기만 가정을 쓰면 '싸게 평가된
         # 고회전 의원'이 의석을 더 가져간다(같은 격차의 재발).
-        cost_model=measured_cost_model(market, state_dir),
-        next_open_fill=market not in IMMEDIATE_FILL_MARKETS,
+        cost_model=measured_cost_model(market, state_dir,
+                                       models_gap=audition_next_open),
+        next_open_fill=audition_next_open,
         rebalance_band=_rebalance_band_rel(market, state_dir),
         confirm_window=confirm_window,
         promoted_spec=decision["champion"] if decision["promoted"] else None)

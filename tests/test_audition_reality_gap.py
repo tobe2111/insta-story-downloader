@@ -87,18 +87,53 @@ def test_next_open_fill_falls_back_without_open_column():
 # ── ② 실측 비용 ────────────────────────────────────────────────
 
 
-def test_measured_cost_model_uses_measurement_when_sample_suffices(monkeypatch):
+def test_measured_cost_model_uses_measurement_when_gap_is_not_priced(monkeypatch):
+    """갭을 가격으로 모델링하지 **않을** 때만 비용으로 얹는다."""
     from quant.backtest.costs import CostModel
     from quant.live.daily import measured_cost_model
     monkeypatch.setattr(
         "quant.reporting.fill_gap.fill_gap_report",
         lambda state_dir="state": {"markets": {
             "kr_stock": {"n": 40, "assumed_bp": 14.0, "mean_adverse_bp": 79.0}}})
-    got = measured_cost_model("kr_stock", "state")
+    got = measured_cost_model("kr_stock", "state", models_gap=False)
     base = CostModel.for_market("kr_stock")
     assert (got.fee + got.slippage) > (base.fee + base.slippage)
-    # 왕복 93bp ≈ 편도 46.5bp
-    assert (got.fee + got.slippage) == pytest.approx(0.00465, abs=1e-5)
+    # 편도 = 가정 14bp + 불리 갭 79bp = 93bp
+    assert (got.fee + got.slippage) == pytest.approx(0.0093, abs=1e-5)
+
+
+def test_measured_cost_is_not_double_counted_with_next_open_fill(monkeypatch):
+    """이중 계상 금지 — 갭을 가격으로 겪는 백테스트에는 비용을 얹지 않는다.
+
+    개장 갭을 반영하는 길은 둘이다: (a) 다음 봉 시가 체결 (b) 실측 갭을
+    슬리피지에 가산. 둘을 동시에 쓰면 한국주식 기준 갭을 두 번 물어 실제보다
+    2배 비싸게 평가되고, 이번엔 반대 방향으로 고회전 전략이 부당하게
+    불리해진다(2026-08-11, 앞선 수정이 만든 결함을 되잡음).
+    """
+    from quant.backtest.costs import CostModel
+    from quant.live.daily import measured_cost_model
+    monkeypatch.setattr(
+        "quant.reporting.fill_gap.fill_gap_report",
+        lambda state_dir="state": {"markets": {
+            "kr_stock": {"n": 40, "assumed_bp": 14.0, "mean_adverse_bp": 79.0}}})
+    got = measured_cost_model("kr_stock", "state", models_gap=True)
+    base = CostModel.for_market("kr_stock")
+    assert (got.fee + got.slippage) == pytest.approx(base.fee + base.slippage)
+    # 기본값도 '가격으로 모델링한다'여야 한다 — 실수로 두 번 물지 않게
+    assert (measured_cost_model("kr_stock", "state").slippage
+            == pytest.approx(base.slippage))
+
+
+def test_measured_roundtrip_cost_is_actually_roundtrip(monkeypatch):
+    """단위 버그 회귀 — assumed_bp·mean_adverse_bp는 둘 다 '편도'다."""
+    from quant.live.daily import _measured_roundtrip_cost
+    monkeypatch.setattr(
+        "quant.reporting.fill_gap.fill_gap_report",
+        lambda state_dir="state": {"markets": {
+            "kr_stock": {"n": 40, "assumed_bp": 14.0, "mean_adverse_bp": 79.0}}})
+    # 편도 93bp → 왕복 186bp. 예전 구현은 93bp를 '왕복'이라 불러 절반으로
+    # 축소했고, 그만큼 밴드가 좁아 실제보다 많이 매매했다.
+    assert _measured_roundtrip_cost("kr_stock", "state") == pytest.approx(0.0186)
 
 
 def test_measured_cost_never_cheaper_than_assumption(monkeypatch):
@@ -109,7 +144,7 @@ def test_measured_cost_never_cheaper_than_assumption(monkeypatch):
         "quant.reporting.fill_gap.fill_gap_report",
         lambda state_dir="state": {"markets": {
             "us_stock": {"n": 40, "assumed_bp": 6.0, "mean_adverse_bp": -50.0}}})
-    got = measured_cost_model("us_stock", "state")
+    got = measured_cost_model("us_stock", "state", models_gap=False)
     base = CostModel.for_market("us_stock")
     assert (got.fee + got.slippage) == pytest.approx(base.fee + base.slippage)
 
@@ -184,15 +219,15 @@ def test_parliament_uses_same_fill_rules():
     assert "next_open_fill=next_open_fill" in p
     assert "rebalance_band=rebalance_band" in p
     # 오디션과 의회가 '같은' 조건을 쓴다 — 한쪽만 고치면 격차가 남는다
-    assert "next_open_fill=audition_next_open" in src      # 오디션
-    assert "next_open_fill=market not in IMMEDIATE_FILL_MARKETS" in src  # 의회
+    assert src.count("next_open_fill=audition_next_open") >= 2  # 오디션·의회
     assert src.count("_rebalance_band_rel(market, state_dir)") >= 2
 
 
 def test_retrain_wires_measured_cost_and_fill_rules():
     src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
-    assert "measured_cost_model(market, state_dir)" in src
-    assert "next_open_fill=market not in IMMEDIATE_FILL_MARKETS" in src
+    assert "measured_cost_model(market, state_dir," in src
+    assert "models_gap=audition_next_open" in src
+    assert "audition_next_open = market not in IMMEDIATE_FILL_MARKETS" in src
     assert "rebalance_band=_rebalance_band_rel(market, state_dir)" in src
     # 가정 비용만 쓰던 옛 호출이 남아 있으면 격차가 되살아난다
     assert "cost_model=CostModel.for_market(market))" not in src

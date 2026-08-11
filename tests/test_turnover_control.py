@@ -88,8 +88,10 @@ def test_band_widens_when_measured_cost_is_high(monkeypatch):
     monkeypatch.setattr("quant.reporting.fill_gap.fill_gap_report", fake)
     kr = _rebalance_band_rel("kr_stock")
     us = _rebalance_band_rel("us_stock")
-    assert kr > us                            # 93bp vs 6bp
-    assert kr == pytest.approx(0.279, abs=1e-3)
+    assert kr > us                            # 왕복 186bp vs 12bp
+    # 편도 93bp → 왕복 186bp → 30배 = 5.58 → 상한(0.40)에서 잘린다.
+    # 예전에는 편도를 왕복으로 착각해 절반(0.279)만 반영했다(2026-08-11 수정).
+    assert kr == REBALANCE_BAND_REL_MAX
     assert us == REBALANCE_BAND_REL_MIN       # 유리했던 시장은 하한
 
 

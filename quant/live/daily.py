@@ -382,12 +382,17 @@ REBALANCE_BAND_REL_MAX = 0.40
 
 
 def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
-    """페이퍼 장부에서 실측한 왕복 비용(비율) — 없으면 None.
+    """페이퍼 장부에서 실측한 **왕복** 체결 마찰(비율) — 없으면 None.
 
-    가정(CostModel)은 한국주식 왕복 28bp라고 말하지만, 실측 개장 갭은 그보다
-    훨씬 컸다(불리 갭 평균 79bp). 밴드를 가정이 아니라 **실측**에 연결하면,
-    체결이 실제로 비싼 시장에서 자동으로 덜 매매하게 된다 — 측정이 관찰로
-    끝나지 않고 행동으로 이어지는 고리다. 표본이 얇으면 가정으로 돌아간다.
+    가정(CostModel)은 한국주식 편도 14bp(왕복 28bp)라고 말하지만, 실측
+    개장 갭은 그보다 훨씬 컸다(불리 갭 평균 99bp/편도). 밴드를 가정이 아니라
+    **실측**에 연결하면, 체결이 실제로 비싼 시장에서 자동으로 덜 매매하게
+    된다 — 측정이 관찰로 끝나지 않고 행동으로 이어지는 고리다. 표본이 얇으면
+    가정으로 돌아간다.
+
+    ⚠️ 단위(2026-08-11 감사에서 잡은 버그): fill_gap_report의 assumed_bp와
+    mean_adverse_bp는 **둘 다 편도**다. 예전 구현은 그 편도 합을 '왕복'이라
+    부르고 호출부가 다시 2로 나눠, 실제 마찰을 절반으로 축소해 쓰고 있었다.
     """
     try:
         from quant.reporting.fill_gap import fill_gap_report
@@ -395,23 +400,37 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         row = ((rep or {}).get("markets") or {}).get(market)
         if not row or row.get("n", 0) < 10:
             return None                        # 표본 부족 — 가정을 쓴다
-        # 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
-        return (row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])) / 1e4
+        # 편도 = 가정 수수료 + 실측 불리 갭(음수면 유리했다는 뜻 → 0으로 바닥)
+        one_way_bp = row["assumed_bp"] + max(0.0, row["mean_adverse_bp"])
+        return 2.0 * one_way_bp / 1e4          # 왕복
     except Exception:  # noqa: BLE001 — 실측 실패는 가정으로 폴백
         return None
 
 
-def measured_cost_model(market: str, state_dir: str = STATE_DIR):
-    """실측 체결 비용을 반영한 CostModel — 오디션이 현실의 비용을 물게 한다.
+def measured_cost_model(market: str, state_dir: str = STATE_DIR,
+                        models_gap: bool = True):
+    """오디션이 물어야 할 체결 비용 모델.
 
-    CostModel.for_market()은 '가정'이다(한국주식 왕복 28bp). 그런데 실측된
-    개장 갭까지 더하면 ~93bp로 3배 넘게 어긋난다. 오디션이 가정으로 평가하면
-    고회전 전략이 부당하게 유리해지고, 실제로는 낼 수 없는 성과를 근거로
-    챔피언이 뽑힌다. 실측 표본이 충분할 때만 반영하고 아니면 가정 그대로 —
-    소표본 실측으로 선발 기준을 흔드는 것이 더 위험하다.
+    ⚠️ 이중 계상 주의(2026-08-11 감사에서 제가 만든 결함을 되잡은 것):
+    개장 갭을 반영하는 방법은 두 가지이고, **동시에 쓰면 두 번 물린다.**
+        (a) 가격으로: 백테스트가 다음 봉 '시가'에 체결(next_open_fill)
+        (b) 비용으로: 실측 불리 갭을 슬리피지에 더한다
+    (b)는 (a)가 없던 시절의 대체물이었다. 지금 오디션은 갭이 존재하는 시장
+    (한국·미국 주식)에서 항상 (a)를 쓰므로, 거기에 (b)까지 더하면 한국주식
+    기준 갭을 두 번 — 실제보다 2배 비싸게 — 물게 된다. 그러면 이번엔 반대
+    방향으로 고회전 전략이 부당하게 불리해진다.
+
+    (a)를 남기는 이유: 평균 한 숫자가 아니라 **갭의 분포 전체**를 그대로
+    겪는다. 평균으로 눌러 담는 것보다 충실하다.
+
+    models_gap=False(백테스트가 종가 체결로 갭을 모델링하지 않을 때)일 때만
+    실측 갭을 비용으로 얹는다. 표본이 얇으면 가정 그대로 — 소표본으로 선발
+    기준을 흔드는 것이 더 위험하다.
     """
     from quant.backtest.costs import CostModel
     base = CostModel.for_market(market)
+    if models_gap:
+        return base                             # 갭은 이미 가격에 있다
     measured = _measured_roundtrip_cost(market, state_dir)
     if measured is None:
         return base
