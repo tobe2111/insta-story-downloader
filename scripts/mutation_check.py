@@ -13,9 +13,20 @@
 검사를 돌린다. 검사가 **실패해야** 그 검사가 살아 있는 것이다. 통과하면
 그 검사는 장식이고, 그 안전장치는 지금 아무도 지키지 않고 있다.
 
-첫 실행에서 8건 중 2건이 장식이었다(켈리 상한·통합 계좌 데이터 게이트).
-세 번째로 CSRF 가드도 '함수는 옳지만 호출되는지는 아무도 안 보는' 상태로
-드러났다. 셋 다 행동 검사를 새로 써서 메웠다.
+1차(8건) 결과 3건이 장식이었다.
+  · 켈리 상한 — clip을 지워도 통과(테스트가 소스 문자열만 봄)
+  · 통합 계좌 데이터 무결성 게이트 — 꺼도 통과(행동 검사가 종목별 경로뿐)
+  · CSRF 가드 — do_GET의 호출을 무력화해도 통과(함수는 옳지만 호출되는지를
+    아무도 안 봄)
+
+2차(8건 추가) 결과 3건이 더 나왔다.
+  · 통합 계좌가 **합성 폴백 데이터**로도 매매 — 사이트가 "실데이터로만
+    판단한다"고 말하는 그 규칙
+  · **선발전이 결승 구간을 미리 보게** 만들어도 통과 — 오디션 전체에서
+    가장 중요한 장치인데 아무도 안 지키고 있었다
+  · 다중검정 보정 문턱(select_t)을 0으로 내려도 통과
+
+여섯 건 모두 행동 검사를 새로 써서 메웠다. 지금은 16/16을 잡는다.
 
 ⚠️ 원본 문자열이 안 맞으면 그 항목은 건너뛴다(⏭️). 건너뜀은 통과가
    아니다 — 코드가 바뀌었다는 뜻이므로 변이 문자열을 갱신해야 한다.
@@ -72,6 +83,57 @@ MUTATIONS = [
      "                    remaining = max(0.0, qty - landed)",
      "                    remaining = qty",
      "tests/test_broker_retry_partial.py"),
+
+    # ── 2차: 오디션·리스크·인증 계열 ──────────────────────────
+
+    ("합성 폴백 데이터로도 매매하게 만든다",
+     "quant/live/daily.py",
+     '            if df.empty or (require_real_data\n'
+     '                            and df.attrs.get("synthetic_fallback")):',
+     "            if df.empty:",
+     "tests/test_audition_gates_bind.py"),
+
+    ("무레버리지 상한을 3배로 푼다",
+     "quant/risk/portfolio_vol.py",
+     "MAX_GROSS_EXPOSURE = 1.0",
+     "MAX_GROSS_EXPOSURE = 3.0",
+     "tests/test_killswitch_effective.py"),
+
+    ("엣지 미입증인데 목표 변동성 잠금을 푼다",
+     "quant/risk/portfolio_vol.py",
+     "    if not proven and not override:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "    if False:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "tests/test_settings_contract.py"),
+
+    ("결승전 구간을 선발전에도 보여준다(오디션 오염)",
+     "quant/live/retrain.py",
+     "    select_df = df.iloc[:-confirm_window]",
+     "    select_df = df",
+     "tests/test_audition_gates_bind.py"),
+
+    ("폴드 과반 게이트를 없앤다",
+     "quant/live/retrain.py",
+     'return c["fold_wins"] >= c["n_folds"] // 2 + 1',
+     "return True",
+     "tests/test_alpha7_volforecast_folds.py"),
+
+    ("다중검정 보정 문턱을 0으로 내린다",
+     "quant/live/retrain.py",
+     "    select_t: float = 2.0,",
+     "    select_t: float = 0.0,",
+     "tests/test_audition_gates_bind.py"),
+
+    ("웹훅 서명 검증을 통과시킨다",
+     "quant/live/webhook.py",
+     "    return hmac.compare_digest(got, expected)",
+     "    return True",
+     "tests/test_webhook.py"),
+
+    ("잔돈 주문 차단을 끈다",
+     "quant/live/daily.py",
+     "    delta = abs(target_w * equity - cur_notional)\n    return delta < floor",
+     "    return False",
+     "tests/test_position_read_failure.py"),
 ]
 
 def run(test):
