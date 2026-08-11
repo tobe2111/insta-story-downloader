@@ -1188,13 +1188,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 입증되기 전에는 게이트가 검증 목표(연 1%)를 상한으로 강제한다.
     from quant.risk.portfolio_vol import target_vol_now, vol_scale
     tgt_vol, vol_proven, vol_why = target_vol_now(state_dir)
-    pre_w = {k: w * eff_scale * slices.get(k, 1.0 / n)
-             for k, w in weights.items()}
-    vscale, ex_ante = vol_scale(pre_w, rets_map, tgt_vol)
-    log.info("변동성 타깃: 목표 연 %.2f%% · 사전추정 %s · 배수 %.2f (%s)",
+    # ⚠️ 변동성 스케일은 **감쇠 전** 비중으로 계산한다(2026-08-11 감사).
+    #    킬스위치가 걸린 비중(eff_scale 곱한 값)을 넣으면, 스케일러가 "위험이
+    #    작다"고 판단해 그만큼 되돌려 키운다 — 무레버리지 상한도 감쇠된
+    #    총노출 기준으로 계산되므로 **최종 노출이 감쇠 전과 똑같아진다.**
+    #    실측: eff_scale 0.25(75% 축소)를 걸어도 최종 총노출 100%.
+    #    즉 낙폭 브레이크와 어드민 노출 배수가 둘 다 죽어 있었다.
+    #    순서가 곧 의미다: 변동성 타깃이 '위험 예산'을 정하고, 킬스위치는
+    #    그 예산을 잘라낸다. 예산 계산에 이미 잘린 값을 넣으면 안 된다.
+    base_w = {k: w * slices.get(k, 1.0 / n) for k, w in weights.items()}
+    vscale, ex_ante = vol_scale(base_w, rets_map, tgt_vol)
+    log.info("변동성 타깃: 목표 연 %.2f%% · 사전추정 %s · 배수 %.2f · "
+             "감쇠 %.2f (%s)",
              tgt_vol * 100,
              f"{ex_ante * 100:.2f}%" if ex_ante else "추정불가",
-             vscale, vol_why)
+             vscale, eff_scale, vol_why)
 
     n_orders_before = len(getattr(broker, "order_log", []))
     skipped_dust = []
@@ -1312,6 +1320,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   "target": round(tgt_vol, 5),
                   "ex_ante": round(ex_ante, 5) if ex_ante else None,
                   "scale": round(vscale, 4),
+                  # 감쇠(킬스위치×어드민)까지 반영한 실제 적용 배수 —
+                  # 예산(scale)과 브레이크(damp)를 따로 남겨야 "왜 오늘
+                  # 노출이 이만큼인가"를 장부만으로 답할 수 있다.
+                  "damp": round(eff_scale, 4),
+                  "applied": round(vscale * eff_scale, 4),
                   "proven": vol_proven,
                   "reason": vol_why,
               },
