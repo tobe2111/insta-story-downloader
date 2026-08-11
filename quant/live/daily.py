@@ -178,6 +178,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         raise RuntimeError(
             f"{market}/{symbol}: 실데이터 수신 실패 → 합성 폴백 감지. "
             "가짜 데이터로 페이퍼 기록을 오염시키지 않도록 중단합니다.")
+    # 데이터 무결성 검사 — 통합 계좌와 같은 기준(2026-08-11 감사에서 배선).
+    # 중복 봉·음수 가격·OHLC 모순 위의 기록은 그럴듯한 거짓말이 된다.
+    from quant.data.quality import is_severe, scan_ohlcv
+    _q = scan_ohlcv(df)
+    if is_severe(_q):
+        raise RuntimeError(
+            f"{market}/{symbol}: 데이터 무결성 위반 "
+            f"{ {k: v for k, v in _q.items() if v} } — 기록하지 않습니다.")
     if market == "crypto":
         # 펀딩비 컬럼 — ML의 x_funding 피처 재료(실패 시 조용히 생략)
         from quant.data.funding import attach_funding
@@ -1052,6 +1060,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
+    data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     pending = st.get("pending") or {}
@@ -1063,6 +1072,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
+            # 데이터 무결성 검사 — 중복 봉·음수 가격·OHLC 모순은 그 종목의
+            # 수익률 계산을 통째로 왜곡한다.
+            # ⚠️ 이 검사는 원래 수동 backtest 명령에서만 돌았다(2026-08-11
+            #    감사). 정작 **실제로 매매하는** 새벽 배치는 한 번도 데이터를
+            #    검사하지 않았다 — 오염된 데이터 위의 기록은 그럴듯한
+            #    거짓말이 되고, 그 기록이 사이트와 방송에 그대로 나간다.
+            from quant.data.quality import is_severe, scan_ohlcv
+            q = scan_ohlcv(df)
+            if is_severe(q):
+                bad = {k: v for k, v in q.items() if v}
+                raise RuntimeError(f"데이터 무결성 위반 {bad}")
+            data_quality[key] = q
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
@@ -1395,6 +1416,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 오늘 실제로 몇 종목으로 굴렸는가. 20종목 중 15개가 빠진 날은
               # '20종목 분산'이 아니라 5종목 집중이다 — 그 사실이 장부에
               # 남아야 사이트도 경보도 진실을 말할 수 있다(2026-08-11).
+              # 데이터 품질 집계 — 무결성 위반은 위에서 스킵되므로 여기 남는
+              # 것은 '사람이 맥락으로 판단할' 항목(갭·스파이크·거래량 0)이다.
+              "data_quality": ({
+                  k: sum(q.get(k, 0) for q in data_quality.values())
+                  for k in ("gaps", "spikes", "zero_volume")
+              } if data_quality else None),
               "champion": {"symbols": n, "skipped": skipped,
                            "planned": len(targets),
                            "skipped_why": skipped_why or None}}

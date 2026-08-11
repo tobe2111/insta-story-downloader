@@ -160,7 +160,31 @@ def _current_flags(status: dict) -> dict[str, str]:
             f"분산이 계획보다 얕아진 날입니다 — 데이터 소스 장애일 수 있습니다."
             + (f"\n첫 사유: {first}" if first else ""))
 
-    # ⑨ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
+    # ⑨ 데이터 품질 — 무결성 위반(중복·음수가격·OHLC 모순)은 그 종목을
+    #    아예 스킵시키므로 여기 오지 않는다. 여기서 보는 것은 '사람이 맥락으로
+    #    판단할' 스파이크다: 하루 ±20%가 넘는 봉이 갑자기 늘면 분할·배당
+    #    미조정일 가능성이 크고, 그러면 수익률이 통째로 거짓이 된다.
+    #    (품질 검사 자체가 수동 백테스트에서만 돌던 것을 2026-08-11에
+    #     새벽 배치로 옮겼다 — 정작 매매하는 쪽이 검사받지 않고 있었다.)
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        dq = (hist[-1].get("data_quality") if hist else None) or {}
+        spikes = int(dq.get("spikes") or 0)
+        if spikes <= 0:
+            continue
+        prev = [int(((r.get("data_quality") or {}).get("spikes") or 0))
+                for r in hist[-8:-1]]
+        base = max(prev) if prev else 0
+        if spikes > max(3, base * 2):
+            flags[f"data_spikes:{hist[-1].get('date')}:{spikes}"] = (
+                f"⚠️ 가격 스파이크 급증: 전 종목 합계 {spikes}건 "
+                f"(최근 기준 {base}건) — 하루 ±20% 넘는 봉이 갑자기 늘었습니다. "
+                f"분할·배당 미조정일 가능성이 크고, 그렇다면 수익률 계산이 "
+                f"통째로 어긋납니다. 해당 종목의 원본 시세를 확인하세요.")
+
+    # ⑩ 판정 시계 — 새 구조 세대 시작(리셋)과 90일 만료는 각각 한 번만 알린다
     gen = status.get("generation")
     if gen:
         fs, days, target = gen["feature_set"], gen["days"], gen["target_days"]
