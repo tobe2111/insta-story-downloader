@@ -186,3 +186,58 @@ def test_worker_does_not_wildcard_cors_on_admin_endpoints():
     assert "Access-Control-Allow-Origin" not in issue
     # 공개 시세는 여전히 열려 있어야 한다(사이트 티커바가 쓴다)
     assert "Access-Control-Allow-Origin" in WORKER
+
+
+# ── 배포판 실거래 잠금이 실제로 막는가 (감사 61) ──────────────
+#
+# 변이 시험에서 block_live_in_distribution()의 조건을 무력화해도 아무
+# 검사가 실패하지 않았다. 이 잠금은 규제·책임 방어선이다 — 판매·배포본에
+# 실계좌 주문 경로가 살아 있으면 구매자가 실거래로 돌리다 손실이 났을 때
+# "모의였다"는 방어가 성립하지 않는다.
+
+
+def _fake_dist(monkeypatch, on: bool):
+    """quant._dist_build 를 있는 것처럼(또는 없는 것처럼) 만든다."""
+    import sys
+    import types
+
+    from quant.utils import dist as d
+    if on:
+        mod = types.ModuleType("quant._dist_build")
+        mod.DISTRIBUTION = True
+        monkeypatch.setitem(sys.modules, "quant._dist_build", mod)
+    else:
+        monkeypatch.delitem(sys.modules, "quant._dist_build", raising=False)
+    return d
+
+
+def test_distribution_build_blocks_live_trading(monkeypatch):
+    import pytest
+
+    d = _fake_dist(monkeypatch, True)
+    assert d.is_distribution_build() is True
+    with pytest.raises(SystemExit) as err:
+        d.block_live_in_distribution()
+    assert "실거래" in str(err.value)
+
+
+def test_source_install_is_not_blocked(monkeypatch):
+    """소스 설치(깃 클론)에서는 아무것도 잠기지 않는다."""
+    d = _fake_dist(monkeypatch, False)
+    assert d.is_distribution_build() is False
+    d.block_live_in_distribution()          # 예외 없이 통과해야 한다
+
+
+def test_every_live_entrypoint_calls_the_lock():
+    """실거래 진입점이 늘어나면 잠금도 함께 걸려야 한다.
+
+    --live/--real 플래그로 실계좌에 붙는 경로를 모아, 각 경로가
+    block_live_in_distribution()을 부르는지 확인한다.
+    """
+    src = (ROOT / "quant" / "cli.py").read_text(encoding="utf-8")
+    live_blocks = src.count("block_live_in_distribution()")
+    assert live_blocks >= 3, (
+        f"실거래 잠금 호출이 {live_blocks}곳뿐이다 — 진입점이 늘었는데 "
+        "잠금을 안 건 경로가 있는지 확인하라")
+    start = (ROOT / "start.py").read_text(encoding="utf-8")
+    assert "block_live_in_distribution()" in start

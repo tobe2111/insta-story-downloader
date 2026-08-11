@@ -98,3 +98,57 @@ def test_stops_still_cut_losses():
     loose = _run(df, next_open_fill=True, intrabar_stops=True, stop_loss=0.50)
     tight = _run(df, next_open_fill=True, intrabar_stops=True, stop_loss=0.005)
     assert loose != tight        # 손절 폭이 결과를 실제로 바꾼다
+
+
+# ── 주식은 결정 당일 종가에 체결되지 않는다 (감사 61) ─────────
+
+
+def test_stocks_never_fill_at_the_decision_day_close(monkeypatch, tmp_path):
+    """주식 결정은 '다음 세션 시가' 대기열로 가야 한다.
+
+    변이 시험에서 IMMEDIATE_FILL_MARKETS에 주식을 넣어(결정 당일 종가에
+    즉시 체결) 아무 검사가 실패하지 않았다. 마감 종가로 즉시 체결하는 것은
+    실현 불가능한 가격이고, 백테스트가 그만큼 낙관적이 된다 — 오늘 하루
+    고쳐 온 오디션-현실 격차의 원형이다.
+    """
+    import json as _json
+
+    import numpy as _np
+    import pandas as _pd
+
+    from quant.live import daily as dl
+
+    assert "us_stock" not in dl.IMMEDIATE_FILL_MARKETS
+    assert "kr_stock" not in dl.IMMEDIATE_FILL_MARKETS
+
+    rng = _np.random.default_rng(4)
+    close = 100 * _np.exp(_np.cumsum(rng.normal(0.0004, 0.02, 300)))
+    idx = _pd.date_range("2025-01-01", periods=300, freq="D")
+    bars = _pd.DataFrame({"open": close * 0.995, "high": close * 1.01,
+                          "low": close * 0.99, "close": close,
+                          "volume": 1e6}, index=idx)
+
+    class _P:
+        def get_ohlcv(self, *a, **k):
+            return bars.copy()
+
+    class _S:
+        name = "fixed"
+        allow_short = False
+
+        def generate_signals(self, df):
+            return _pd.Series(0.9, index=df.index)
+
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _S())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+    dl.run_daily_portfolio([("us_stock", "SPY")], state_dir=str(tmp_path),
+                           require_real_data=False)
+    st = _json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                     .read_text(encoding="utf-8"))
+    rec = st["history"][-1]
+
+    assert not rec["fills"], "주식이 결정 당일에 체결됐다(실현 불가 가격)"
+    assert rec["pending_next_open"], "다음 시가 대기열에 올라가지 않았다"
+    assert not st.get("positions"), "체결 전인데 포지션이 잡혔다"

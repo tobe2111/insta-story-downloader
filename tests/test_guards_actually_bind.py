@@ -182,3 +182,62 @@ def test_recorded_gross_matches_what_was_actually_executed(monkeypatch,
     assert rec["weight"] + 1e-6 >= held / equity - 1e-6, (
         f"장부 총노출 {rec['weight']:.4f} < 실제 보유 {held / equity:.4f} — "
         "장부가 실제보다 작은 노출을 말하고 있다")
+
+
+# ── ③ 운영 손잡이가 실제로 노출을 움직인다 (감사 61) ──────────
+
+
+def _settings(monkeypatch, **over):
+    from quant.utils.settings import DEFAULTS
+    cfg = {**DEFAULTS, **over}
+    monkeypatch.setattr("quant.utils.settings.load_settings",
+                        lambda *a, **k: cfg)
+    return cfg
+
+
+def test_admin_exposure_scale_actually_reduces_gross(monkeypatch, tmp_path):
+    """어드민의 '총노출 배수'가 장부의 총노출을 그대로 줄이는가.
+
+    변이 시험에서 `eff_scale = risk_scale * exposure_scale`을
+    `eff_scale = risk_scale`로 바꿔도(손잡이 무시) 아무 검사가 실패하지
+    않았다. 이 손잡이는 오늘 아침 '스케일러가 되돌려 키운다'는 결함을
+    고친 바로 그 장치다 — 고쳐 놓고 지키는 검사가 없었다.
+    """
+    prov = _Provider(default=_bars(seed=17))
+    _settings(monkeypatch)
+    full = _run(monkeypatch, tmp_path / "a", prov)["record"]["weight"]
+    assert full > 0.05, "기준선 노출이 너무 작아 배수 효과를 못 잰다"
+
+    for scale in (0.5, 0.25):
+        _settings(monkeypatch, exposure_scale=scale)
+        got = _run(monkeypatch, tmp_path / f"s{scale}", prov)["record"]["weight"]
+        assert got == pytest.approx(full * scale, rel=1e-6), (
+            f"노출 배수 {scale}인데 총노출이 {got:.4f} (기대 {full * scale:.4f})")
+
+
+def test_admin_pause_stops_new_orders(monkeypatch, tmp_path):
+    """'일시정지'면 신규 주문이 나가지 않는다(보유는 유지)."""
+    prov = _Provider(default=_bars(seed=18))
+    _settings(monkeypatch, trading_paused=True)
+    out = _run(monkeypatch, tmp_path, prov)
+    assert out["record"]["paused"] is True
+    assert not out["state"].get("positions"), "일시정지인데 포지션이 잡혔다"
+    assert not out["record"]["fills"], "일시정지인데 체결이 났다"
+
+
+# ── ④ 같은 봉 재실행은 기록을 두 번 남기지 않는다 ─────────────
+
+
+def test_same_bar_rerun_is_idempotent(monkeypatch, tmp_path):
+    """재시도 크론이 같은 날 두 번 돌아도 장부에 하루가 두 번 적히면 안 된다.
+
+    2026-08-07에 한국 주식 6종목이 중복 기록된 사고의 방어선이다. 변이
+    시험에서 이 가드를 없애도 아무 검사가 실패하지 않았다.
+    """
+    prov = _Provider(default=_bars(seed=19))
+    first = _run(monkeypatch, tmp_path, prov)
+    assert len(first["state"]["history"]) == 1
+
+    second = _run(monkeypatch, tmp_path, prov)
+    assert second["result"].get("skipped") is True, "같은 봉인데 또 기록했다"
+    assert len(second["state"]["history"]) == 1, "장부에 같은 날이 두 번 적혔다"

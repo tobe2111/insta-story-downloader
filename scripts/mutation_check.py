@@ -26,7 +26,19 @@
     가장 중요한 장치인데 아무도 안 지키고 있었다
   · 다중검정 보정 문턱(select_t)을 0으로 내려도 통과
 
-여섯 건 모두 행동 검사를 새로 써서 메웠다. 지금은 16/16을 잡는다.
+3차(5건 추가) 결과 **5건 전부** 무방비였다.
+  · 배포판 실거래 잠금 — 규제·책임 방어선인데 조건을 무력화해도 통과
+  · 어드민 '총노출 배수' — 손잡이를 무시해도 통과(오늘 아침 고친 그 장치)
+  · 같은 봉 재실행 멱등 가드 — 08-07 중복 기록 사고의 방어선
+  · 주식의 '다음 세션 시가' 체결 규칙 — 결정 당일 종가로 즉시 체결시켜도 통과
+  · 실측 비용 왕복 단위 — 편도로 되돌려 마찰을 절반으로 써도 통과
+
+누적 21건 중 11건(52%)이 장식이었다. 전부 행동 검사로 메웠고 지금은
+21/21을 잡는다.
+
+교훈: 이 프로젝트에서 '기능을 만들었다'와 '기능이 지켜진다' 사이의 간격은
+절반이었다. 새 안전장치를 만들면 여기 변이 항목을 함께 추가할 것 —
+추가하지 않은 장치는 다음 리팩터링에서 조용히 사라진다.
 
 ⚠️ 원본 문자열이 안 맞으면 그 항목은 건너뛴다(⏭️). 건너뜀은 통과가
    아니다 — 코드가 바뀌었다는 뜻이므로 변이 문자열을 갱신해야 한다.
@@ -134,6 +146,38 @@ MUTATIONS = [
      "    delta = abs(target_w * equity - cur_notional)\n    return delta < floor",
      "    return False",
      "tests/test_position_read_failure.py"),
+
+    # ── 3차: 운영 손잡이·배포 잠금·회계 계열 ──────────────────
+
+    ("배포판에서 실거래 차단을 푼다",
+     "quant/utils/dist.py",
+     "    if is_distribution_build():\n        raise SystemExit(",
+     "    if False:\n        raise SystemExit(",
+     "tests/test_license_path.py"),
+
+    ("어드민 '일시정지'를 무시한다",
+     "quant/live/daily.py",
+     "    eff_scale = risk_scale * float(settings[\"exposure_scale\"])",
+     "    eff_scale = risk_scale",
+     "tests/test_guards_actually_bind.py"),
+
+    ("같은 봉 재실행 멱등 가드를 없앤다(중복 기록)",
+     "quant/live/daily.py",
+     '    if st.get("last_bar") == bar:',
+     "    if False:",
+     "tests/test_guards_actually_bind.py"),
+
+    ("주식도 결정 당일 종가에 즉시 체결시킨다(실현 불가 가격)",
+     "quant/live/daily.py",
+     'IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}',
+     'IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic", "us_stock", "kr_stock"}',
+     "tests/test_intrabar_next_open.py"),
+
+    ("실측 비용을 왕복이 아닌 편도로 되돌린다(비용 절반)",
+     "quant/live/daily.py",
+     "        return 2.0 * one_way_bp / 1e4          # 왕복",
+     "        return one_way_bp / 1e4",
+     "tests/test_alpha14_fill_gap.py"),
 ]
 
 def run(test):
