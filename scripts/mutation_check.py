@@ -305,6 +305,62 @@ MUTATIONS = [
      "    missing = [f for f in required if f not in have]",
      "    missing = []",
      "tests/test_publish_release.py"),
+
+    # `quant setup` — 구매자가 처음 치는 명령. 커버리지 0이었던 53줄.
+    ("지키지 못한 파일 권한 약속을 지켰다고 말한다(결함 ㊾ 재발)",
+     "quant/cli.py",
+     "    if private:\n"
+     "        print(\"   파일 권한: 600 (본인만 읽기) — 확인됨\")",
+     "    if True:\n"
+     "        print(\"   파일 권한: 600 (본인만 읽기) — 확인됨\")",
+     "tests/test_cli_setup.py"),
+
+    ("합성 폴백을 '거래소 연결 정상'으로 보고한다",
+     "quant/cli.py",
+     "            fb = bool(df.attrs.get(\"synthetic_fallback\"))",
+     "            fb = False",
+     "tests/test_cli_setup.py"),
+
+    ("API 시크릿을 화면에 그대로 보이는 input으로 받는다",
+     "quant/cli.py",
+     "            val = (getpass.getpass(prompt) if secret else input(prompt)).strip()",
+     "            val = input(prompt).strip()",
+     "tests/test_cli_setup.py"),
+
+    # 감사 74 — 밴드가 가정→실측으로 갈아타며 2.67배 뛰는데 흔적이 없던 자리.
+    ("재조정 밴드 근거를 장부에서 뺀다(왜 오늘 매매가 멎었는지 알 수 없게)",
+     "quant/live/daily.py",
+     "              \"rebalance_band\": {m: rebalance_band_basis(m, state_dir)",
+     "              \"rebalance_band\": None and {m: rebalance_band_basis(m, state_dir)",
+     "tests/test_rebalance_band_basis.py"),
+
+    ("실측 표본이 얇아도 실측 비용으로 밴드를 넓힌다(소표본 과잉반응)",
+     "quant/live/daily.py",
+     "        if not row or row.get(\"n\", 0) < MEASURED_COST_MIN_SAMPLES:",
+     "        if not row:",
+     "tests/test_rebalance_band_basis.py"),
+
+    # 감사 75 — do_GET의 라우트 분기 79줄이 미실행이었다. 누른 버튼과 도는
+    # 계산이 어긋나도 아무 검사가 실패하지 않았다.
+    ("웹 조종석에서 '최적화'를 누르면 스윕이 돌게 한다(라우트 교차)",
+     "quant/web/server.py",
+     "                self._send(run_optimize_html(params))",
+     "                self._send(run_sweep_html(params))",
+     "tests/test_web_routes.py"),
+
+    # 감사 76 — 팔아서 돈을 받은 라이선스 키를 0o644로 저장하던 자리.
+    # .env의 API 키는 ㊾에서 조여 놓고 정작 파는 물건이 열려 있었다.
+    ("구매자의 라이선스 키를 남도 읽을 수 있게 저장한다",
+     "quant/licensing.py",
+     "                private = write_private(path, f\"owner: {owner}\\nkey:   {key}\\n\")",
+     "                private = True; path.write_text(f\"owner: {owner}\\nkey:   {key}\\n\", encoding=\"utf-8\")",
+     "tests/test_license_prompt.py"),
+
+    ("남에게 발급된 키도 통과시킨다(1인 1키 붕괴)",
+     "quant/licensing.py",
+     "        if owner and key and verify_key(owner, key):",
+     "        if owner and key:",
+     "tests/test_license_prompt.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

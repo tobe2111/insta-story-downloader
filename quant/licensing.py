@@ -383,11 +383,24 @@ def prompt_license(root: str | None = None, tries: int = 3) -> bool:
             return False
         if owner and key and verify_key(owner, key):
             base = Path(root or os.getcwd())
+            path = base / _LICENSE_FILE
             try:
-                (base / _LICENSE_FILE).write_text(
-                    f"owner: {owner}\nkey:   {key}\n", encoding="utf-8")
-                print(f"\n✅ 정품 확인 완료 — {base / _LICENSE_FILE} 에 저장했습니다. "
-                      "다음 실행부터 묻지 않습니다.\n")
+                # ⚠️ 라이선스 키는 비밀이다 — 사신 분이 돈을 낸 그 값이다.
+                #    예전에는 평범한 write_text로 저장해 0o644가 됐고, 같은
+                #    기계의 다른 사용자가 읽어 그대로 쓸 수 있었다(감사 76).
+                #    .env의 API 키는 ㊾에서 조여 놓고 정작 파는 물건을
+                #    열어 둔 셈이었다.
+                from quant.utils.envfile import write_private
+                private = write_private(path, f"owner: {owner}\nkey:   {key}\n")
+                print(f"\n✅ 정품 확인 완료 — {path} 에 저장했습니다. "
+                      "다음 실행부터 묻지 않습니다.")
+                if not private:
+                    # 확인한 사실만 말한다 — 지키지 못한 약속은 하지 않는다.
+                    print("   ⚠️ 이 파일을 '본인만 읽기'로 조이지 못했습니다. 여러 "
+                          "사람이 쓰는 기계라면 키가 노출될 수 있습니다"
+                          + (" (`chmod 600 %s`)." % path if os.name == "posix"
+                             else " (윈도우에서는 보장되지 않습니다)."))
+                print()
             except OSError:
                 print("\n✅ 정품 확인 완료 (파일 저장은 실패 — 환경변수로 설정하세요)\n")
             return True

@@ -77,6 +77,32 @@ def is_private(path: str | Path) -> bool:
     return not (mode & (stat.S_IRWXG | stat.S_IRWXO))
 
 
+def write_private(fp: str | Path, text: str) -> bool:
+    """비밀을 담은 파일을 0o600으로 '먼저' 만든 뒤 내용을 쓴다.
+
+    쓰고 나서 조이면 그 사이 짧은 순간 같은 기계의 다른 사용자가 읽는다.
+    이미 있던 파일은 O_CREAT의 mode가 적용되지 않으므로 뒤에서 한 번 조인다.
+
+    반환값은 **'저장 후 실제로 본인만 읽기인가'** 다 — 호출자는 이 값을 보고
+    사용자에게 사실대로 말해야 한다. 확인하지 않은 보안을 약속하면 안 된다
+    (감사 ㊾).
+
+    ⚠️ 비밀을 파일로 쓰는 곳은 전부 이 함수를 거친다. .env는 처음부터 이렇게
+    했는데 **정작 팔아서 돈을 받은 라이선스 키(license.key)는 평범한
+    write_text로 0o644에 저장되고 있었다**(감사 76). 같은 기계의 다른
+    사용자가 읽어 그대로 쓸 수 있다 — 그게 곧 무단 복제다.
+    """
+    fp = Path(fp)
+    existed = fp.exists()
+    _write_private(fp, text)
+    if existed:
+        try:
+            os.chmod(fp, 0o600)
+        except OSError:
+            pass                     # 삼키되 숨기지 않는다 — 반환값이 말한다
+    return is_private(fp)
+
+
 def _write_private(fp: Path, text: str) -> None:
     """0o600으로 '먼저' 만든 뒤 내용을 쓴다 — 노출되는 순간을 없앤다."""
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
