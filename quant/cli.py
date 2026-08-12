@@ -483,7 +483,9 @@ def _cmd_validate(args) -> None:
     import json as _json
 
     from quant.data import get_provider
-    from quant.optimize import cpcv, cpcv_report, walk_forward
+    from quant.optimize import (cpcv, cpcv_report, grid_search, robust_best,
+                                stability_report, stability_scores,
+                                walk_forward)
     from quant.robustness import param_returns_matrix, pbo, pbo_report
     from quant.strategies import get_strategy
 
@@ -501,7 +503,7 @@ def _cmd_validate(args) -> None:
     print(f"그리드: {grid}")
 
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
-    print("\n[1/3] 워크포워드 (롤링 IS→OOS)")
+    print("\n[1/4] 워크포워드 (롤링 IS→OOS)")
     dsr_value = None
     # 다중검정 보정의 N — 이 검증 그리드가 아니라 **그 챔피언을 뽑기까지
     # 실제로 시도한 횟수**를 쓴다. 장부(retrain_history)에 종목별 도전자 수가
@@ -528,7 +530,7 @@ def _cmd_validate(args) -> None:
         print(f"  건너뜀: {exc}")
 
     # 2) PBO — IS 1등이 OOS에서 동전던지기인지
-    print("\n[2/3] PBO (백테스트 과적합 확률)")
+    print("\n[2/4] PBO (백테스트 과적합 확률)")
     pbo_value = None
     try:
         mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
@@ -540,12 +542,31 @@ def _cmd_validate(args) -> None:
         print(f"  건너뜀: {exc}")
 
     # 3) CPCV — 여러 OOS 경로의 분포
-    print("\n[3/3] CPCV (다중 OOS 경로 분포)")
+    print("\n[3/4] CPCV (다중 OOS 경로 분포)")
     try:
         cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
                   n_test=2, embargo=args.embargo, periods_per_year=ppy)
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
     except ValueError as exc:
+        print(f"  건너뜀: {exc}")
+
+    # 4) 파라미터 안정성 — 1등이 '넓은 고원'인가 '외딴 봉우리'인가
+    #
+    # ⚠️ 이 도구(quant/optimize/stability.py)는 만들어져 있었는데 **부르는
+    #    곳이 한 곳도 없었다**(감사 157). 오디션은 2단계 검증으로 봉우리를
+    #    막지만, 사장님이 손으로 그리드를 볼 때 쓸 창구가 없었다.
+    #    검증 3종이 "이 성적이 운인가"를 묻는다면 이건 "이 **파라미터**가
+    #    운인가"를 묻는다 — 옆칸으로 한 스텝만 옮겨도 무너지는 설정은
+    #    데이터가 조금만 달라져도 무너진다.
+    print("\n[4/4] 파라미터 안정성 (고원 vs 외딴 봉우리)")
+    peak_only = None
+    try:
+        gs = grid_search(df, strategy_cls, grid, periods_per_year=ppy)
+        scored = stability_scores(gs["results"])
+        print("  " + stability_report(scored).replace("\n", "\n  "))
+        rb = robust_best(scored)
+        peak_only = bool(rb is not None and rb != gs["best_params"])
+    except (ValueError, TypeError, KeyError) as exc:
         print(f"  건너뜀: {exc}")
 
     # 검증 결과를 장부에 남긴다 — 과최적화 감시가 콘솔에만 찍히고 사라지면
@@ -564,6 +585,10 @@ def _cmd_validate(args) -> None:
         prev[f"{args.market}:{args.symbol}"] = {
             "strategy": args.strategy, "bars": len(df),
             "dsr": dsr_value, "pbo": pbo_value,
+            # 원점수 1등과 견고성 1등이 다른가 — True면 그 파라미터는
+            # '외딴 봉우리'일 수 있다(감사 157). 콘솔에만 찍히면 아무것도
+            # 막지 못하므로 장부에 남겨 flag_watch가 읽게 한다.
+            "peak_only": peak_only,
         }
         atomic_write_json(path, prev)
         print(f"\n💾 검증 결과 저장: {path}")

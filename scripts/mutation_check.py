@@ -847,6 +847,31 @@ MUTATIONS = [
      "        sign = 1.0",
      "tests/test_cpcv_really_holds_out.py"),
 
+    # 감사 157 — '외딴 봉우리' 판정이 사람에게 닿는가.
+    ("견고성 1등 대신 원점수 1등을 고른다(외딴 봉우리를 그대로 승인)",
+     "quant/optimize/stability.py",
+     "        if sign * v > best_val:",
+     "        if False:",
+     "tests/test_the_lonely_peak_warning_reaches_someone.py"),
+
+    ("이웃 점수를 안 모은다(모든 조합이 자기 점수만 보고 고원이 된다)",
+     "quant/optimize/stability.py",
+     "                    if key in index and math.isfinite(index[key]):\n                        neigh.append(index[key])",
+     "                    if False:\n                        neigh.append(index[key])",
+     "tests/test_the_lonely_peak_warning_reaches_someone.py"),
+
+    ("외딴 봉우리 판정을 장부에서 지운다(콘솔에만 찍히고 사라진다)",
+     "quant/cli.py",
+     '            "peak_only": peak_only,',
+     '            "peak_only": None,',
+     "tests/test_the_lonely_peak_warning_reaches_someone.py"),
+
+    ("외딴 봉우리 경보를 끈다(장부에 남아도 아무도 안 읽는다)",
+     "quant/live/flag_watch.py",
+     '        if r.get("peak_only"):',
+     "        if False:",
+     "tests/test_the_lonely_peak_warning_reaches_someone.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
