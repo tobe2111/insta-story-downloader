@@ -292,6 +292,32 @@ MUTATIONS = [
      "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
      "tests/test_alpha6_vix_kimchi_calguard.py"),
 
+    # 감사 138 — 접수 건수와 실제로 산 건수를 한 숫자로 합쳐 말했다.
+    ("0주로 잘린 주문도 '주문 N건'에 넣는다(안 샀는데 샀다고 보고)",
+     "quant/live/daily_live.py",
+     "    placed = len(orders) - len(zero_qty)",
+     "    placed = len(orders)",
+     "tests/test_live_reports_what_it_actually_bought.py"),
+
+    ("0주가 된 이유(목표 금액 vs 1주 값)를 안 남긴다",
+     "quant/live/daily_live.py",
+     "                if order.status == \"skipped\":",
+     "                if False:",
+     "tests/test_live_reports_what_it_actually_bought.py"),
+
+    # 감사 137 — 실계좌에서 1주도 못 사는 보유를 장부가 인정하는가.
+    ("실현 불가 보유를 장부에서 숨긴다(못 사는 종목을 보유로 기록)",
+     "quant/live/daily.py",
+     "              \"lot_infeasible\": _lot_infeasible(applied, prices, equity) or None,",
+     "              \"lot_infeasible\": None,",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("국내주식도 소수점 매매가 되는 것으로 친다",
+     "quant/live/daily.py",
+     "FRACTIONAL_MARKETS = {\"crypto\", \"synthetic\", \"us_stock\"}",
+     "FRACTIONAL_MARKETS = {\"crypto\", \"synthetic\", \"us_stock\", \"kr_stock\"}",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
     # 감사 136 — 장부 키를 바꾸고 소비처를 안 찾아 경보가 죽어 있었다.
     ("회전율 경보가 없는 키를 0으로 읽게 되돌린다(경보가 영원히 안 울린다)",
      "quant/live/flag_watch.py",

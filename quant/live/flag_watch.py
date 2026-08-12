@@ -101,6 +101,26 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"밴드·쿨다운을 더 넓히거나 고비용 시장(한국주식) 비중을 "
                 f"재검토해야 합니다.")
 
+    # ③-2 실현 불가 보유 — 소수점 매매가 없는 시장(국내주식)에서 배정금액이
+    #     1주 값에 못 미치면, 장부의 그 줄은 실계좌에서 재현할 수 없다.
+    #     기록만 남기고 아무도 안 읽으면 감사 135의 반복이다 — 읽는 사람을 둔다.
+    #     구조적 조건이라 매일 바뀌지 않으므로, 플래그 키에 종목 수를 넣어
+    #     '수가 바뀔 때'만 다시 알린다(같은 상태로 매일 울리면 아무도 안 본다).
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        bad = ((hist[-1].get("lot_infeasible") if hist else None) or {})
+        if not bad:
+            continue
+        names = ", ".join(sorted(bad))
+        flags[f"lot_infeasible:{len(bad)}"] = (
+            f"⚠️ 실현 불가 보유 {len(bad)}종목: {names} — 소수점 매매가 없는 "
+            f"시장인데 배정금액이 1주 값에 못 미칩니다(예: "
+            f"{next(iter(bad.values()))['budget']:,.0f}원 배정 / 1주 "
+            f"{next(iter(bad.values()))['price']:,.0f}원). 이 줄들은 실계좌에서 "
+            f"재현할 수 없습니다 — 유니버스 조정이나 정수 주 강제를 검토하세요.")
+
     # ④ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
     #    사건이다. 단계가 더 내려가면(0.75→0.5) 키가 바뀌어 다시 알리고,
     #    1.0 복귀는 조용히 플래그만 끈다(복귀 후 재발동 시 재알림).

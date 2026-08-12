@@ -44,6 +44,43 @@ log = get_logger("daily_paper")
 #   그대로 감수한다 — 마감 종가로 즉시 체결 처리하면 실현 불가능한 가격이다)
 IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}
 
+# 소수점 매매가 가능한 시장 — 페이퍼 계좌는 소수점 수량을 그대로 사지만,
+# 실계좌에서는 시장마다 가능 여부가 다르다(감사 137).
+#   crypto   : 원래 소수점이 정상
+#   us_stock : 증권사에 따라 소수점 매매 지원(국내 증권사 다수가 제공)
+#   kr_stock : **국내주식은 소수점 매매가 없다** — 1주 단위로만 산다
+# 이 목록에 없는 시장은 '1주 미만 배정 = 실계좌에서 살 수 없음'이 된다.
+FRACTIONAL_MARKETS = {"crypto", "synthetic", "us_stock"}
+
+
+def _lot_infeasible(applied: dict, prices: dict, equity: float) -> dict:
+    """1주도 못 사는 종목 — {키: {배정금액, 1주 가격, 살 수 있는 주수}}.
+
+    ⚠️ 이 실험의 전제(8만원으로 20종목 분산)가 어디까지 현실인지의 답이다
+       (감사 137). 2026-08-12 실측: 한국 주식 5종목의 배정금액이 18~690원인데
+       1주 가격은 10만~144만원 — **실계좌에서는 단 한 주도 못 산다.**
+       그런데 장부에는 보유로, 사이트에는 '종목별 현황'으로 나가고 손익에도
+       반영된다. 숫자는 맞지만 **무엇의 숫자인지**가 현실과 다르다.
+
+    고치는 방식(유니버스 조정·정수 주 강제)은 실험 설계 변경이라 운영자의
+    결정이다. 감사가 할 일은 **그 사실을 숨기지 않는 것**이다.
+    """
+    out = {}
+    for key, w in applied.items():
+        market = key.split(":")[0]
+        if market in FRACTIONAL_MARKETS:
+            continue
+        px = prices.get(key)
+        if not px or px <= 0 or equity <= 0:
+            continue
+        budget = float(w) * equity
+        shares = budget / float(px)
+        if shares < 1.0:
+            out[key] = {"budget": round(budget, 2),
+                        "price": round(float(px), 2),
+                        "shares": round(shares, 6)}
+    return out
+
 
 def _fill_cost(market: str) -> float:
     """편도 체결 비용(수수료+거래세+슬리피지) — 시장별 현실 프리셋."""
@@ -1609,6 +1646,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 배당·분할 날 수익률에 가짜 점프가 생긴다. 그 사실이 장부에
               # 남지 않으면 "누구든 검증할 수 있다"는 말이 약해진다 —
               # 공개 차트와 대조하는 사람은 왜 어긋나는지 알 수 없다.
+              # 실계좌에서 1주도 못 사는 종목(감사 137). 소수점 매매가 없는
+              # 시장(국내주식)에서 배정금액이 1주 값에 못 미치면, 이 기록의
+              # 그 줄은 **현실에서 재현할 수 없는 보유**다. 숨기지 않는다.
+              "lot_infeasible": _lot_infeasible(applied, prices, equity) or None,
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.

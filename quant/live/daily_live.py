@@ -89,6 +89,7 @@ def run_daily_live(targets=None, *, paper: bool = True,
     from quant.data import get_provider
     n = len(targets)
     orders, decisions, skipped = [], {}, []
+    zero_qty: list = []          # 1주 미만이라 0주로 잘린 주문(감사 138)
     for market, symbol in targets:
         try:
             df = get_provider(market).get_ohlcv(symbol, "1d", limit=400)
@@ -130,6 +131,20 @@ def run_daily_live(targets=None, *, paper: bool = True,
                                "qty": order.quantity, "price": order.price,
                                "status": order.status,
                                "order_id": order.order_id})
+                # ⚠️ 국내주식은 정수 주만 산다. 목표 금액이 1주 값에 못 미치면
+                #    브로커가 int(quantity)=0으로 잘라 status='skipped'를
+                #    돌려준다 — **한 주도 안 샀는데 orders에는 한 줄이 남는다.**
+                #    예전에는 아래 요약이 그걸 "주문 N건"으로 세어, 실제로는
+                #    아무것도 안 산 날에도 주문이 나간 것처럼 보고했다(감사 138).
+                #    왜 0주가 됐는지(목표 금액 vs 1주 값)까지 남겨야 운영자가
+                #    '유니버스를 바꿔야 하는 상황'임을 알 수 있다.
+                if order.status == "skipped":
+                    want = weight / n * equity
+                    zero_qty.append({"symbol": symbol,
+                                     "budget": round(want, 2),
+                                     "price": round(price, 2),
+                                     "shares": round(want / price, 6)
+                                     if price > 0 else None})
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 나머지를 막으면 안 된다
             skipped.append(symbol)
             log.warning("실거래 %s 스킵: %s", symbol, exc)
@@ -137,6 +152,9 @@ def run_daily_live(targets=None, *, paper: bool = True,
     summary = {"mode": "모의투자" if paper else "실전",
                "broker": type(broker).__name__,
                "decisions": decisions, "orders": orders, "skipped": skipped,
+               # 접수된 주문 중 **실제로 0주**였던 것들. 이게 없으면
+               # "주문 N건"이 곧 "N종목을 샀다"로 읽힌다(감사 138).
+               "zero_qty": zero_qty,
                "exposure_scale": exposure}
     try:
         import datetime as _dt
@@ -151,7 +169,13 @@ def run_daily_live(targets=None, *, paper: bool = True,
         atomic_write_json(path, {"history": hist[-400:]})
     except Exception:  # noqa: BLE001 — 기록 실패가 집행 결과 보고를 막으면 안 된다
         pass
-    print(f"[{summary['mode']}] 결정 {len(decisions)}종목 · 주문 {len(orders)}건"
+    # ⚠️ 접수 건수와 **실제로 산 건수**를 구분해서 말한다(감사 138).
+    #    국내주식은 1주 미만이 0주로 잘리므로, 둘을 합쳐 세면
+    #    한 주도 안 산 날에도 "주문 5건"으로 보고된다.
+    placed = len(orders) - len(zero_qty)
+    print(f"[{summary['mode']}] 결정 {len(decisions)}종목 · 주문 {placed}건"
+          + (f" · 1주 미만이라 미집행 {len(zero_qty)}종목"
+             f"({', '.join(z['symbol'] for z in zero_qty)})" if zero_qty else "")
           + (f" · 스킵 {len(skipped)}" if skipped else ""))
     return summary
 
