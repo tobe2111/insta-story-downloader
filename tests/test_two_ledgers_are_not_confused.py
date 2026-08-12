@@ -94,3 +94,34 @@ def test_the_symbol_start_cash_is_not_hardcoded_wrongly():
     from quant.live.ledger_basics import START_CASH
     assert f"won({int(START_CASH)})" in PAPER, (
         "참고 계좌 시작금을 코드에서 읽지 않는다")
+
+
+# ── 형제 찾기 (감사 110) ────────────────────────────────────────
+#
+# 감사 100·107을 고치고도 **같은 페이지 안의 형제**를 놓쳤다. paper.html의
+# 카드 표(`거래일·일간·자산·누적·비중·적중률`)는 통합 계좌와 종목 계좌가
+# **함께 쓴다.** 그래서 '비중'이 한 카드에서는 총노출(62.6%), 다른 카드
+# 에서는 참고 계좌 안의 비중을 뜻했다. FROZEN_IDEAS ⑭를 내가 어겼다.
+
+def test_the_shared_card_table_names_the_account():
+    """한 표를 두 계좌가 쓰면 열 이름이 카드에 따라 달라져야 한다."""
+    assert "const isPf" in PAPER, (
+        "카드 표가 통합/종목을 구분하지 않는다 — 같은 열 이름이 두 뜻이 된다")
+    seg = PAPER.split("const isPf", 1)[1]
+    seg = seg[:seg.index("</table></div>")]
+    assert "총노출" in seg and "참고계좌 비중" in seg, (
+        "통합 카드는 '총노출', 종목 카드는 '참고계좌 비중'이어야 한다")
+    assert "<th>비중</th>" not in seg, "맨 '비중'이 남아 있다"
+
+
+def test_no_bare_asset_or_weight_header_anywhere():
+    """페이지 전체에서 맨 '자산'·'비중' 열 이름을 금지한다."""
+    bare = re.findall(r"<th[^>]*>\s*(자산|비중)\s*</th>", PAPER)
+    assert not bare, f"어느 계좌의 것인지 알 수 없는 열 이름: {bare}"
+
+
+def test_today_page_names_the_account_too():
+    """오늘의 판단 페이지도 마찬가지."""
+    today = (ROOT / "docs" / "today.html").read_text("utf-8")
+    assert "<th>목표 계좌 비중</th>" not in today, "'계좌'가 어느 계좌인지 모호하다"
+    assert "통합 계좌 목표 비중" in today

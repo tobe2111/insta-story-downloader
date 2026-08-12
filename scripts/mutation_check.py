@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("카드 표에서 통합/종목 계좌 구분을 지운다(같은 이름 두 뜻)",
+     "docs/paper.html",
+     '<th title="${isPf?"통합 계좌가 실제로 들고 있는 비중의 합(총노출)":"그 종목만 굴리는 참고 계좌 안에서의 비중"}">${isPf?"총노출":"참고계좌 비중"}</th>',
+     '<th>비중</th>',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
     ("벤치마크 라벨에서 '무엇을 보유했나'를 지운다",
      "docs/index.html",
      '⋯ 첫날 전 종목 균등 매수 후 그대로 보유했다면',

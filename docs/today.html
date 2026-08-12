@@ -152,7 +152,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     let ptab="";
     const pkeys=Object.keys(pend).filter(k=>Math.abs(pend[k])>0.0005);
     if(pkeys.length){
-      ptab=`<table><tr><th style="text-align:left">종목</th><th>목표 계좌 비중</th>
+      ptab=`<table><tr><th style="text-align:left">종목</th><th title="8만원 통합 계좌 기준 목표 비중">통합 계좌 목표 비중</th>
         <th>체결 예정</th></tr>`+pkeys.sort((a,b)=>pend[b]-pend[a]).map(k=>
         `<tr><td style="text-align:left"><b>${esc(nm(k))}</b></td>
          <td>${(pend[k]*100).toFixed(2)}%</td>
