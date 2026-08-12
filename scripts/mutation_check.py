@@ -1224,6 +1224,33 @@ MUTATIONS = [
      "            signal = signal.clip(lower=0.0)",
      "tests/test_every_strategy_obeys_its_own_rule.py"),
 
+    # 감사 170 — 리다이렉트 한 번에 실거래 키가 평문으로 나갔다.
+    ("리다이렉트에서 호스트만 보고 스킴 강등을 놓친다(https→http에 키가 따라간다)",
+     "quant/utils/http.py",
+     '            downgrade = old.scheme == "https" and nxt.scheme != "https"\n'
+     "            if old.netloc != nxt.netloc or downgrade:",
+     "            if old.netloc != nxt.netloc:",
+     "tests/test_credentials_do_not_leak_over_http.py"),
+
+    ("교차 호스트 리다이렉트에서 인증 헤더를 안 뗀다(키가 남의 서버로 간다)",
+     "quant/utils/http.py",
+     "                for h in [k for k in new.headers if k.lower() in _SENSITIVE_HEADERS]:\n"
+     "                    del new.headers[h]",
+     "                pass",
+     "tests/test_credentials_do_not_leak_over_http.py"),
+
+    ("오류 본문을 안 가린다(서버가 되울린 URL로 키가 로그에 남는다)",
+     "quant/utils/http.py",
+     '        detail = _redact_url(exc.read().decode(errors="replace")[:2000])',
+     '        detail = exc.read().decode(errors="replace")[:2000]',
+     "tests/test_credentials_do_not_leak_over_http.py"),
+
+    ("상태 파일 임시 이름을 고정한다(두 프로세스가 같은 임시 파일을 밟는다)",
+     "quant/utils/jsonio.py",
+     '    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")',
+     '    tmp = p.with_name(p.name + ".tmp")',
+     "tests/test_credentials_do_not_leak_over_http.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
