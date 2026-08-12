@@ -959,6 +959,46 @@ MUTATIONS = [
      'SEVERE_KEYS = ("duplicate_index", "nonpositive_price")',
      "tests/test_the_integrity_gate_checks_the_fill_price.py"),
 
+    # 감사 162 — 캐시를 켜면 데이터가 조용히 달라졌다.
+    ("잘린 캐시를 온전한 것처럼 내준다(3개월 묵은 봉이 '오늘'이 된다)",
+     "quant/data/cache.py",
+     "                rows = meta.get(\"rows\")\n"
+     "                if rows is not None and int(rows) != len(df):",
+     "                rows = meta.get(\"rows\")\n"
+     "                if False:",
+     "tests/test_the_cache_is_transparent.py"),
+
+    ("캐시 저장 시 봉 수를 안 남긴다(잘린 것을 대조할 근거가 없어진다)",
+     "quant/data/cache.py",
+     '        payload = {"attrs": dict(df.attrs), "rows": int(len(df))}',
+     '        payload = {"attrs": dict(df.attrs)}',
+     "tests/test_the_cache_is_transparent.py"),
+
+    ("CSV를 다시 비원자적으로 쓴다(쓰다 죽으면 반쪽 파일이 남는다)",
+     "quant/data/cache.py",
+     "            self._atomic_write(path, df.to_csv())",
+     "            df.to_csv(path)",
+     "tests/test_the_cache_is_transparent.py"),
+
+    ("캐시가 출처(attrs)를 안 싣는다(무조정가로 받은 사실이 사라진다)",
+     "quant/data/cache.py",
+     '                df.attrs.update(meta.get("attrs") or {})',
+     "                pass",
+     "tests/test_the_cache_is_transparent.py"),
+
+    ("캐시 왕복 정확도를 포기한다(같은 데이터인데 값이 1.4e-14 달라진다)",
+     "quant/data/cache.py",
+     '                df = pd.read_csv(path, index_col=0, parse_dates=True,\n'
+     '                                 float_precision="round_trip")',
+     "                df = pd.read_csv(path, index_col=0, parse_dates=True)",
+     "tests/test_the_cache_is_transparent.py"),
+
+    ("오래된 캐시를 지울 때 메타를 안 지운다(짝 잃은 JSON이 무한히 쌓인다)",
+     "quant/data/cache.py",
+     "                self._meta_path(p).unlink(missing_ok=True)    # 짝도 함께",
+     "                pass",
+     "tests/test_the_cache_is_transparent.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
