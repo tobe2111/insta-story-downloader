@@ -65,7 +65,26 @@ class EventGuard(Strategy):
                                f"변동성 위험을 피해 {how}")}
             else:
                 scope = "주요+마이너" if self.include_minor else "주요"
-                self.last_gate_ = {
-                    "open": True, "date": str(last),
-                    "reason": f"오늘은 해당 이벤트 없음({scope} 달력 기준·매매 허용)"}
+                # ⚠️ '이벤트 없음'과 '달력이 끝나서 모름'은 다르다(감사 154).
+                #    달력은 2027년까지만 있고, 그 뒤로는 event_dates가 매일
+                #    빈 답을 준다 — 가드가 조용히 꺼진 채 전략은 "오늘은
+                #    이벤트 없음(매매 허용)"이라고 **매일** 말하게 된다.
+                #    꺼진 안전장치보다 나쁜 것은 꺼진 줄 모르는 안전장치다.
+                from quant.events import (CALENDAR_END, calendar_is_stale,
+                                          calendar_runway_days)
+                stale = calendar_is_stale(last) if last else False
+                if stale:
+                    left = calendar_runway_days(last)
+                    self.last_gate_ = {
+                        "open": True, "date": str(last), "stale_calendar": True,
+                        "reason": (
+                            f"⚠️ 이벤트 달력이 {CALENDAR_END}까지뿐 "
+                            + (f"(남은 {left}일)" if left >= 0
+                               else f"({-left}일 지남 — 필터가 꺼져 있다)")
+                            + " — '이벤트 없음'이 아니라 **모름**이다. 달력 갱신 필요")}
+                else:
+                    self.last_gate_ = {
+                        "open": True, "date": str(last),
+                        "reason": (f"오늘은 해당 이벤트 없음"
+                                   f"({scope} 달력 기준·매매 허용)")}
         return self._finalize(sig * scale, df.index)

@@ -51,7 +51,33 @@ FOMC_DATES: tuple[str, ...] = (
     "2027-07-28", "2027-09-15", "2027-10-27", "2027-12-08",
 )
 
-CALENDAR_END = date(2027, 12, 31)   # 달력이 여기까지만 있음 — 이후는 갱신 필요
+# 달력이 어디까지 있는가 — **목록에서 직접 계산한다**(감사 154).
+# 예전에는 date(2027, 12, 31)로 손으로 적어 두었고, 그 상수를 **읽는 곳이
+# 한 곳도 없었다.** 즉 달력이 끝나도 아무 일도 안 일어나고, `is_event_day`가
+# 그날부터 매일 False를 돌려준다 — FOMC 가드가 조용히 꺼진 채로 전략은
+# "오늘은 주요 이벤트 없음(매매 허용)"이라고 매일 말한다. 꺼진 안전장치보다
+# 나쁜 것은 꺼진 줄 모르는 안전장치다.
+CALENDAR_END = date.fromisoformat(max(FOMC_DATES))
+CALENDAR_END_YEAR = CALENDAR_END.year
+
+# 이 날수보다 남은 달력이 짧아지면 '갱신할 때'로 본다. 반년이면 다음 해
+# 일정이 이미 공개돼 있고(연준은 보통 1년 이상 앞서 공지) 고칠 시간도 있다.
+CALENDAR_MIN_RUNWAY_DAYS = 180
+
+
+def calendar_runway_days(today: date | None = None) -> int:
+    """달력이 며칠 더 남았는가. 음수면 이미 지났다."""
+    return (CALENDAR_END - (today or date.today())).days
+
+
+def calendar_is_stale(today: date | None = None,
+                      min_days: int = CALENDAR_MIN_RUNWAY_DAYS) -> bool:
+    """이벤트 필터를 믿어도 되는가 — 안 되면 True.
+
+    True인데도 계속 쓰면 '이벤트 없음'이 **모른다는 뜻**인지 **정말 없다는
+    뜻**인지 구분할 수 없다. 호출자는 이 값을 판단문에 그대로 실어야 한다.
+    """
+    return calendar_runway_days(today) < min_days
 
 
 @lru_cache(maxsize=8)
@@ -91,8 +117,13 @@ def _month_end(year: int, month: int) -> date:
 
 @lru_cache(maxsize=8)
 def minor_event_dates(start_year: int = 2018,
-                      end_year: int = 2027) -> frozenset[date]:
-    """옵션만기일 + 월말(달력 마지막 날·전일)의 집합."""
+                      end_year: int | None = None) -> frozenset[date]:
+    """옵션만기일 + 월말(달력 마지막 날·전일)의 집합.
+
+    end_year 기본값은 주요 달력의 끝 해에 맞춘다 — 손으로 적어 두면 FOMC
+    목록을 늘렸을 때 이쪽만 뒤처진다(감사 154).
+    """
+    end_year = CALENDAR_END_YEAR if end_year is None else int(end_year)
     out: set[date] = set()
     for y in range(start_year, end_year + 1):
         for m in range(1, 13):
