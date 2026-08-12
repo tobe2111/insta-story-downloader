@@ -4,6 +4,18 @@
     python scripts/mutation_check.py --dry-run      # 목록 정합성만(몇 초 — CI)
     python scripts/mutation_check.py 의회            # 부분 실행(설명·검사 이름)
 
+⚠️ **손으로 전수를 돌릴 땐 작업 트리 말고 별도 워크트리에서 돌릴 것**(감사 183).
+   이 도구는 도는 내내 `quant/` 소스를 **실제로 고쳤다가 되돌린다.** 그래서
+   돌아가는 동안 `git status`가 계속 더러워 보이고, 그때 무심코 커밋하면
+   **일부러 심어 둔 결함이 그대로 올라간다.** 실측: `quant/strategies/ml.py`가
+   `df.index[hi] → df.index[-1]`(룩어헤드) 상태로 잡힌 적이 있다.
+
+       git worktree add --detach /tmp/sweep-wt HEAD
+       (cd /tmp/sweep-wt && python3 scripts/mutation_check.py)
+
+   전수는 328건 기준 **약 15분**이 걸린다(항목당 2~3초). 야간 잡은 러너를
+   통째로 버리므로 이 문제가 없다 — 손으로 돌릴 때만 해당한다.
+
 ⚠️ **2026-08-12 감사 125까지 이 도구는 CI에서 한 번도 돌지 않았다.**
    121개 항목을 쌓아 두고 손으로 부를 때만 돌렸다 — 다른 모든 안전장치를
    지키는 도구가 정작 아무도 안 지키는 상태였다. 이 저장소가 이미 겪은 병과
