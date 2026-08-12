@@ -1747,6 +1747,20 @@ MUTATIONS = [
      '        crossed = (bar_low <= limit_price) if side == "buy" \\',
      "tests/test_one_place_decides_which_way_the_order_goes.py"),
 
+    # 감사 193 — 일일 요약이 막 시작한 날을 요약하고 있었다.
+    ("일일 요약이 끝난 날 대신 시작한 날을 보고한다(늘 '사이클 0회'로 찍힌다)",
+     "quant/live/summary.py",
+     "    return t, build_daily_summary(state, today=last_date)",
+     "    return t, build_daily_summary(state, today=t)",
+     "tests/test_the_daily_summary_reports_the_day_that_ended.py"),
+
+    ("요약이 그 날이 아니라 전체 마지막 기록을 읽는다(어제 요약에 오늘 자산)",
+     "quant/live/summary.py",
+     "    last = same_day[-1] if same_day else (\n"
+     "        history[-1] if history and isinstance(history[-1], dict) else {})",
+     "    last = history[-1] if history and isinstance(history[-1], dict) else {}",
+     "tests/test_the_daily_summary_reports_the_day_that_ended.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
