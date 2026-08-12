@@ -300,7 +300,8 @@ MUTATIONS = [
 
     ("코인 어댑터가 규격을 안 알려 준다",
      "quant/broker/crypto_live.py",
-     "            return from_ccxt_market(m) if m else None",
+     "            return from_ccxt_market(\n"
+     '                m, getattr(self.client, "precisionMode", None)) if m else None',
      "            return None",
      "tests/test_exchange_specs_actually_bind.py"),
 
@@ -1040,6 +1041,41 @@ MUTATIONS = [
      '        findings["zero_volume"] = int((vol.isna() | (vol <= 0)).sum())',
      '        findings["zero_volume"] = int((vol <= 0).sum())',
      "tests/test_an_empty_result_is_not_a_success.py"),
+
+    # 감사 164 — 눈금에 딱 맞는 수량이 한 칸 깎여 나갔다.
+    ("눈금에 붙은 수량을 그대로 내림한다(0.3개 청산이 0.2개만 나간다)",
+     "quant/broker/specs.py",
+     "            nearest = round(n)\n"
+     "            if math.isclose(n, nearest, rel_tol=1e-9, abs_tol=1e-9):\n"
+     "                n = nearest",
+     "            nearest = round(n)\n"
+     "            if False:\n"
+     "                n = nearest",
+     "tests/test_the_order_quantity_survives_rounding.py"),
+
+    ("1 이상인 수량 단위를 '제약 없음'으로 버린다(정수 단위 시장이 거절당한다)",
+     "quant/broker/specs.py",
+     "    if mode == TICK_SIZE:\n"
+     "        return float(prec) if prec > 0 else 0.0",
+     "    if mode == TICK_SIZE:\n"
+     "        return float(prec) if 0 < prec < 1 else 0.0",
+     "tests/test_the_order_quantity_survives_rounding.py"),
+
+    ("거래소 precision 모드를 무시하고 값만 보고 추측한다",
+     "quant/broker/specs.py",
+     '        qty_step=_step(precision.get("amount"), precision_mode),',
+     '        qty_step=_step(precision.get("amount")),',
+     "tests/test_the_order_quantity_survives_rounding.py"),
+
+    # (crypto_live의 규격 조회 줄은 "코인 어댑터가 규격을 안 알려 준다"가 이미
+    #  덮고 있다. 같은 줄에 두 항목을 두지 않는다 — _assert_no_duplicates.
+    #  모드를 안 넘기는 경우는 specs 쪽 '추측한다' 항목이 행동으로 잡는다.)
+
+    ("딱 최소금액인 주문을 부동소수 오차로 거절한다",
+     "quant/broker/specs.py",
+     "        if self.min_notional > 0 and qty * price < self.min_notional * (1 - 1e-9):",
+     "        if self.min_notional > 0 and qty * price < self.min_notional:",
+     "tests/test_the_order_quantity_survives_rounding.py"),
 
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",

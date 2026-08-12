@@ -116,7 +116,11 @@ class CryptoLiveBroker(Broker):
                     return None
                 markets = load()
             m = (markets or {}).get(symbol)
-            return from_ccxt_market(m) if m else None
+            # precisionMode를 함께 넘긴다(감사 164). 안 넘기면 specs가
+            # 값만 보고 추측해야 하는데, 주요 거래소는 전부 TICK_SIZE라
+            # '단위 1.0'(정수 단위 종목)을 '제약 없음'으로 잘못 읽었다.
+            return from_ccxt_market(
+                m, getattr(self.client, "precisionMode", None)) if m else None
         except Exception:  # noqa: BLE001 — 규격 조회 실패가 주문을 막지 않는다
             return None
 
