@@ -495,6 +495,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       code:k.split(":")[1]||k, px:last.price, day,
       w:last.weight||0, reason:last.reason||""};
   }).sort((a,b)=>(b.w||0)-(a.w||0));
+  /* 통합 계좌의 마지막 기록 — 사이드바·경고·종목표가 함께 쓴다.
+     (const는 선언 전 사용이 오류라 쓰는 곳보다 반드시 앞에 둔다) */
+  const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
+  const applied=(pfLast.applied)||null;
   document.getElementById("sidecnt").textContent=rows.length+"종목";
   document.getElementById("sidelist").innerHTML=rows.map(r=>{
     const wpc=Math.min(100,(r.w||0)*100/0.25*100/100*4);
@@ -504,7 +508,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '<div class="wbar"><i style="width:'+Math.max(2,Math.min(100,(r.w||0)*400))+'%"></i></div></div>'+
       '<div><div class="px num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</div>'+
       '<div class="ch num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</div>'+
-      '<div class="cd" style="text-align:right">비중 '+((r.w||0)*100).toFixed(1)+'%</div></div></div>';
+      /* ⚠️ 사이드바도 '비중'만 적고 있었다(2026-08-12 감사 116). 감사
+         100·110에서 표 열 이름은 고쳤는데 **같은 페이지 사이드바를 또
+         놓쳤다** — FROZEN_IDEAS ⑭ 다섯 번째 위반이다. 여기 값은 종목
+         계좌 비중이고, 통합 계좌 노출은 그보다 훨씬 작다. */
+      '<div class="cd" style="text-align:right" title="그 종목만 굴리는 참고 계좌 안에서의 비중 — 통합 계좌 보유량이 아닙니다">종목계좌 '+((r.w||0)*100).toFixed(1)+'%'
+      +(applied&&applied[r.k]>0?'<br><span class="sub" style="font-size:10.5px">통합 '+(applied[r.k]*100).toFixed(2)+'%</span>':"")
+      +'</div></div></div>';
   }).join("");
 
   /* --- 사이드바: 판정 시계 --- */
@@ -527,7 +537,6 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     });
   }
   /* vol_target은 일별 기록 안에 있다 — 계좌 요약(pf) 최상위가 아니다 */
-  const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
   const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
@@ -662,7 +671,6 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      읽는 사람은 통합 계좌가 애플을 12.4% 들고 있다고 읽는다 — 실제
      통합 노출은 배분 슬라이스·변동성 타깃·킬스위치를 곱한 1.2%다
      (2026-08-11 감사 100, 91·92와 같은 계열). 두 숫자를 나란히 놓는다. */
-  const applied=(pfLast.applied)||null;
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};

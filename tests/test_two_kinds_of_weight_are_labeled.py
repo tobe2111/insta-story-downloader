@@ -59,9 +59,13 @@ def test_the_portfolio_column_reads_the_applied_exposure():
     종목 비중에 무언가를 곱해 화면에서 다시 계산하면, 감사 91·92가 고친
     바로 그 실수(스케일러를 빼먹는다)를 화면에서 반복하게 된다.
     """
-    body = INDEX.split("/* --- 종목별 표 ---", 1)[1].split("/* --- 오답", 1)[0]
-    assert "pfLast.applied" in body, (
+    # applied는 사이드바도 함께 쓰므로 2026-08-12(감사 116)에 선언을 위로
+    # 옮겼다. 표가 **그 변수를 쓰는지**와, 그 변수가 **장부에서 오는지**를
+    # 따로 본다(선언 위치를 고정하면 리팩터링마다 검사가 깨진다).
+    assert "const applied=(pfLast.applied)||null;" in INDEX, (
         "통합 노출을 장부의 applied에서 읽지 않는다")
+    body = INDEX.split("/* --- 종목별 표 ---", 1)[1].split("/* --- 오답", 1)[0]
+    assert "applied[r.k]" in body, "종목별 표가 통합 노출을 쓰지 않는다"
     assert not re.search(r"r\.w\s*\*\s*[0-9a-zA-Z_.]+\s*\*", body), (
         "화면에서 종목 비중에 스케일러를 곱해 통합 노출을 다시 계산한다 — "
         "계산은 기록하는 쪽에서 한 번만 한다")

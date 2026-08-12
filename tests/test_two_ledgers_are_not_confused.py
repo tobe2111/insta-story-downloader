@@ -125,3 +125,32 @@ def test_today_page_names_the_account_too():
     today = (ROOT / "docs" / "today.html").read_text("utf-8")
     assert "<th>목표 계좌 비중</th>" not in today, "'계좌'가 어느 계좌인지 모호하다"
     assert "통합 계좌 목표 비중" in today
+
+
+# ── 사이드바도 (감사 116) ───────────────────────────────────────
+#
+# 감사 100·110에서 **표 열 이름**은 고쳤는데 같은 페이지 **사이드바**를
+# 또 놓쳤다 — FROZEN_IDEAS ⑭ 다섯 번째 위반. 사이트를 실제로 렌더해
+# 읽고서야 보였다("종목계좌 20.8%"가 아니라 그냥 "비중 20.8%"였다).
+
+def test_the_sidebar_names_the_account_too():
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    body = idx.split('getElementById("sidelist")', 1)[1][:900]
+    assert "종목계좌" in body, (
+        "사이드바가 '비중'만 적는다 — 통합 계좌 보유량으로 읽힌다")
+    assert not re.search(r">비중 '\+", body), "맨 '비중'이 남아 있다"
+
+
+def test_the_sidebar_also_offers_the_portfolio_number():
+    """참고 계좌 비중만 보이면 '그래서 진짜 얼마?'에 답이 없다."""
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    body = idx.split('getElementById("sidelist")', 1)[1][:900]
+    assert "applied[r.k]" in body, "사이드바가 통합 노출을 함께 보이지 않는다"
+
+
+def test_no_bare_weight_label_anywhere_on_the_landing_page():
+    """페이지 전체 패턴 금지 — 형제가 새로 생기면 여기서 걸린다."""
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    shown = re.sub(r"/\*(?:.|\n)*?\*/", "", idx)
+    bad = re.findall(r">비중\s*(?:'|<)", shown)
+    assert not bad, f"어느 계좌의 것인지 알 수 없는 '비중' 라벨: {len(bad)}곳"

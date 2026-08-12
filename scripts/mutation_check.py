@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("사이드바 '종목계좌' 라벨을 맨 '비중'으로 되돌린다",
+     "docs/index.html",
+     '">종목계좌 \'+((r.w||0)*100).toFixed(1)+\'%\'',
+     '">비중 \'+((r.w||0)*100).toFixed(1)+\'%\'',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
     ("표지가 '사람의 개입은 없습니다'라고 단언하게 되돌린다",
      "docs/sns_card.html",
      "      +(owner?'오늘은 <b>사람이 손을 댔습니다</b> — '+owner+'.</div>'\n"
