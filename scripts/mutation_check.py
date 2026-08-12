@@ -442,6 +442,28 @@ MUTATIONS = [
      "        return v",
      "tests/test_risk_limits_bind_at_the_source.py"),
 
+    # ── 승격 판정의 심장(오디션 결승) ──
+    #
+    # 이 파일이 "새 챔피언으로 바꿀 것인가"를 최종 결정한다. 문턱 세 개가
+    # 모두 통과해야 교체인데, 셋 다 변이가 닿은 적이 없었다(감사 142).
+    ("승격에서 t-검정 조건을 뺀다(통계 없이 교체)",
+     "quant/live/champion_challenger.py",
+     "        swap = bool(n >= self.min_obs and mean > self.edge and t_stat > self.t_threshold)",
+     "        swap = bool(n >= self.min_obs and mean > self.edge)",
+     "tests/test_promotion_gates_actually_gate.py"),
+
+    ("관망 봉까지 t-검정 표본에 넣는다(0으로 표본을 부풀려 판단 왜곡)",
+     "quant/live/champion_challenger.py",
+     "        diff = (rh - rc)[active].dropna()",
+     "        diff = (rh - rc).dropna()",
+     "tests/test_promotion_gates_actually_gate.py"),
+
+    ("결승전이 지정 구간을 무시하고 전 기간을 본다",
+     "quant/live/champion_challenger.py",
+     "            rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]",
+     "            rc, rh = rc, rh",
+     "tests/test_promotion_gates_actually_gate.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
