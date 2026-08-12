@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("적중률에서 표본 수를 뗀다(n=3 우연이 실력처럼)",
+     "quant/live/daily.py",
+     '        "hit_n": acc.get("n"),',
+     '        "hit_n": None,',
+     "tests/test_hit_rate_carries_its_sample.py"),
+
     ("카드 표에서 통합/종목 계좌 구분을 지운다(같은 이름 두 뜻)",
      "docs/paper.html",
      '<th title="${isPf?"통합 계좌가 실제로 들고 있는 비중의 합(총노출)":"그 종목만 굴리는 참고 계좌 안에서의 비중"}">${isPf?"총노출":"참고계좌 비중"}</th>',

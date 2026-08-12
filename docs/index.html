@@ -666,7 +666,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};
-      const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"—";
+      /* 적중률은 표본 수와 함께 보여준다(감사 111) — 포지션을 잡은 봉만
+         세므로 관망이 많은 종목은 n이 아주 작다. n 없이 비율만 보이면
+         n=3짜리 우연이 실력처럼 읽힌다. n<20이면 흐리게 + n 병기. */
+      const hn=(typeof last.hit_n==="number")?last.hit_n:null;
+      const hr=(typeof last.hit_rate!=="number")?"—"
+        :((last.hit_rate*100).toFixed(0)+"%"+(hn==null?"":
+          (hn<20?'<span class="sub" style="font-size:11px"> n='+hn+'</span>':"")));
       const ap=applied?(applied[r.k]||0):null;
       return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
@@ -674,7 +680,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
         '<td class="num">'+((r.w||0)*100).toFixed(1)+'%</td>'+
         '<td class="num">'+(ap==null?"—":(ap*100).toFixed(2)+"%")+'</td>'+
-        '<td class="num">'+hr+'</td>'+
+        '<td class="num'+(hn!=null&&hn<20?" sub":"")+'">'+hr+'</td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';

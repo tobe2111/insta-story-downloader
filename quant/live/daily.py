@@ -336,6 +336,12 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "equity": round(equity, 2),
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),
+        # ⚠️ 적중률은 **표본 수와 함께** 남긴다(2026-08-12 감사 111).
+        #    포지션을 잡은 봉만 세므로 관망이 많은 종목은 n이 아주 작다.
+        #    n 없이 "적중률 64%"만 보이면 n=3짜리 우연이 실력처럼 읽힌다 —
+        #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
+        #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
+        "hit_n": acc.get("n"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
         "reason": reason,
         # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
