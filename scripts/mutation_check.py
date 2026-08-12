@@ -1469,6 +1469,33 @@ MUTATIONS = [
      "        rng = np.random.default_rng(self.seed)",
      "tests/test_every_download_goes_through_the_same_door.py"),
 
+    # 감사 179 — 사람이 읽는 네 산출물. 결함 없음, 계약 고정.
+    ("대시보드가 잘려 나간 과거의 낙폭을 잊는다(위험 지표가 저절로 좋아진다)",
+     "quant/reporting/dashboard.py",
+     '        max_dd = float(summ.get("max_drawdown") or 0.0)',
+     "        max_dd = 0.0",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
+    ("체결 격차의 불리 방향을 뒤집는다(낙관을 보수로 둔갑시킨다)",
+     "quant/reporting/fill_gap.py",
+     "        dirn = 1.0 if target > prev_w + 1e-9 else (\n"
+     "            -1.0 if target < prev_w - 1e-9 else 0.0)",
+     "        dirn = -1.0 if target > prev_w + 1e-9 else (\n"
+     "            1.0 if target < prev_w - 1e-9 else 0.0)",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
+    ("체결 격차를 배열 순서대로 읽는다(장부가 날짜순이 아니면 '직전'이 미래가 된다)",
+     "quant/reporting/fill_gap.py",
+     "    hist = chrono(hist)",
+     "    hist = list(hist)",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
+    ("기여도 힌트를 근거 없이도 만든다(전부 손실인데 '75% 기여'라고 말한다)",
+     "quant/reporting/attribution.py",
+     "    if total > 0:",
+     "    if True:",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
