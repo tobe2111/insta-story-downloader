@@ -141,6 +141,9 @@ class AutoLearner:
             "hit_rate": acc["hit_rate"],          # 전체 적중률
             "recent_hit_rate": recent,            # 최근 window봉 적중률
             "n": acc["n"],
+            # 채점에서 뺀 보합 봉 수 — 안 남기면 '보합이 없었다'와
+            # 구별되지 않는다(감사 168).
+            "n_flat": acc.get("n_flat"),
         }
         self.history.append(record)
         self._persist()

@@ -1144,6 +1144,28 @@ MUTATIONS = [
      "                return float(self.price_fn(symbol))",
      "tests/test_a_broken_number_cannot_become_an_order.py"),
 
+    # 감사 168 — 보합 봉이 '틀린 예측'으로 채점됐다.
+    ("보합 봉을 오답으로 채점한다(맞출 방향이 없던 봉을 틀렸다고 한다)",
+     "quant/robustness/accuracy.py",
+     "    moved = ret_next != 0\n"
+     "    active = held & moved",
+     "    moved = ret_next.notna()\n"
+     "    active = held & moved",
+     "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
+
+    ("채점에서 뺀 보합 봉 수를 안 돌려준다(뺀 사실이 안 보인다)",
+     "quant/robustness/accuracy.py",
+     '    out: dict = {"hit_rate": hit_rate, "n": n,\n'
+     '                 "n_flat": int((held & ~moved).sum())}',
+     '    out: dict = {"hit_rate": hit_rate, "n": n}',
+     "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
+
+    ("장부에 보합 제외 봉 수를 안 남긴다",
+     "quant/live/daily.py",
+     '        "hit_flat": acc.get("n_flat"),',
+     "",
+     "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

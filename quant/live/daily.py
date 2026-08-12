@@ -405,6 +405,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
         #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
         "hit_n": acc.get("n"),
+        # 채점에서 뺀 보합 봉 수(감사 168). 방향이 없던 봉은 방향 예측을
+        # 채점할 수 없어 분모에서 빼는데, 몇 봉을 뺐는지 안 남기면
+        # '보합이 없었다'와 구별되지 않는다.
+        "hit_flat": acc.get("n_flat"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
         "reason": reason,
         # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
