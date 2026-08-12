@@ -78,6 +78,13 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("표지가 '사람의 개입은 없습니다'라고 단언하게 되돌린다",
+     "docs/sns_card.html",
+     "      +(owner?'오늘은 <b>사람이 손을 댔습니다</b> — '+owner+'.</div>'\n"
+     "             :'오늘은 사람의 개입이 없었습니다.</div>'));",
+     "      +'사람의 개입은 없습니다.</div>');",
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
     ("캡션이 후보 수를 '분산'이라 말하게 되돌린다",
      "quant/reporting/social.py",
      'f"📈 총노출 {gross} · {spread}(코인·한국·미국)\\n"',

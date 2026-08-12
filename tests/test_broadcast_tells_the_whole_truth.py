@@ -189,3 +189,46 @@ def test_both_outlets_say_it_the_same_way():
     for name, body in (("카드", card_body), ("캡션", src)):
         assert "종목 분산" not in body, f"{name}에 'N종목 분산'이 남아 있다"
         assert "보유" in body and "후보" in body, f"{name}이 보유/후보를 구별하지 않는다"
+
+
+# ── 표지가 개입을 부인하지 않는가 (감사 115) ───────────────────
+#
+# 카드를 **실제로 렌더해서 읽어** 보니 1장 표지가 이렇게 단언하고 있었다:
+#
+#     "사람의 개입은 없습니다."
+#
+# 이 시스템에는 운영자가 결과를 바꿀 수 있는 통로가 둘 있고(일시정지·
+# 노출 배수), 장부는 그걸 매일 기록한다. 감사 96에서 캡션·카드2·사이트에는
+# '✋ 사람의 개입'을 붙였는데 **표지만 반대말**을 하고 있었다 — 같은
+# 게시물 1장과 2장이 정면으로 어긋난다.
+#
+# 이 문장은 이 계정에서 신뢰가 가장 많이 걸린 한 줄이다.
+
+def _card_body() -> str:
+    return re.sub(r"^\s*//.*$", "", CARD, flags=re.M)
+
+
+def test_the_cover_does_not_deny_intervention_unconditionally():
+    body = _card_body()
+    assert "'사람의 개입은 없습니다." not in body, (
+        "표지가 개입을 무조건 부인한다 — 손댄 날에도 그대로 나간다")
+    assert "owner?" in body.split("스스로 배우고", 1)[1][:400], (
+        "표지 문구가 개입 여부에 따라 갈리지 않는다")
+
+
+def test_the_cover_says_it_plainly_when_a_hand_was_used():
+    body = _card_body()
+    seg = body.split("스스로 배우고", 1)[1][:500]
+    assert "사람이 손을 댔습니다" in seg, (
+        "손댄 날에 표지가 그 사실을 말하지 않는다")
+    assert "없었습니다" in seg, "손대지 않은 날의 문구가 없다"
+
+
+def test_the_cover_and_the_caption_cannot_contradict():
+    """같은 게시물 안에서 표지와 캡션이 반대말을 하면 안 된다."""
+    body = _card_body()
+    src = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    # 둘 다 같은 장부 필드(paused · exposure_scale)에서 판단해야 한다.
+    for name, text in (("카드", body), ("캡션", src)):
+        assert "paused" in text and "exposure_scale" in text, (
+            f"{name}이 개입 여부를 장부에서 읽지 않는다")
