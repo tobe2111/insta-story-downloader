@@ -78,6 +78,18 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("두 계좌 구분을 지운다(20만원이 8만원처럼 보임)",
+     "docs/paper.html",
+     '<div class="card"><h2>종목별 참고 계좌',
+     '<div class="card"><h2>종목별 현황',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("피처 계측 목록을 유령 이름으로 되돌린다",
+     "quant/strategies/ml.py",
+     '    "x_btc_ret5", "x_spy_ret5",            # 크로스에셋 — 코인/미국 조류',
+     '    "x_btc", "x_spy",                      # 크로스에셋 — 코인/미국 조류',
+     "tests/test_feature_health_measures_real_columns.py"),
+
     ("deadman을 23:30 UTC로 되돌린다(하루 누락 맹점 부활)",
      ".github/workflows/deadman.yml",
      '    - cron: "30 1 * * *"',
@@ -678,9 +690,9 @@ MUTATIONS = [
     # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
     # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
     ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
-     "docs/paper.html",
-     "20종목에",
-     "25종목에",
+     "docs/index.html",
+     '매일 새벽 확정 기록 · 20종목',
+     '매일 새벽 확정 기록 · 25종목',
      "tests/test_site_numbers_track_the_code.py"),
 
     # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면

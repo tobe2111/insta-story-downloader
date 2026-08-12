@@ -78,9 +78,11 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
 <h1>8마일 챌린지 — 매일 자동 페이퍼</h1>
-<p class="sub">통합 계좌는 <b>가상 자금 80,000원</b>(영화 '8마일' 오마주)으로 시작해, 현재 20종목에
-위험균등 분산하며, 클라우드가 매일 새벽(한국시간)
-챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
+<p class="sub">통합 계좌는 <b>가상 자금 80,000원</b>(영화 '8마일' 오마주)으로 시작해 여러 종목에
+위험 분산하며, 클라우드가 매일 새벽(한국시간)
+챔피언 전략으로 자동 모의 매매한 결과입니다.
+<br>⚠️ 아래 <b>종목별 참고 계좌</b>는 종목마다 따로 굴리는 <b>별개의 1만원 계좌</b>입니다 —
+합계가 8만원을 넘는 것이 정상이며, 통합 계좌의 보유량이 아닙니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
 <p class="note">⚖️ <b>2026-08-05(v0.5.0)부로 회계 기준을 보수적으로 변경했습니다
@@ -379,9 +381,29 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <td>${last.weight!=null?(last.weight*100).toFixed(0)+"%":"–"}</td>
       <td>${hr}</td><td>${mini(hist)}</td>
       <td style="text-align:left;font-size:12px;color:var(--muted);min-width:280px">${esc(String(last.reason||champ))}</td></tr>`};
-  const tbl=rest.length?`<div class="card"><h2>종목별 현황 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
+  /* ⚠️ 이 표의 자산·일간·누적·최대낙폭·비중은 **그 종목만 굴리는 독립
+     계좌**(각 1만원 시작)의 숫자다. 8마일 통합 계좌(8만원)와 다른 계좌인데
+     그 사실이 어디에도 없어서, 20종목 × 1만원 = 20만원이 8만원짜리 실험
+     페이지에 그대로 보였다. 만든 사람조차 "8만원인데 왜 20만원이지?"라고
+     물었다(2026-08-12 감사 107) — 만든 사람이 헷갈리면 읽는 사람은
+     반드시 헷갈린다. 합계를 먼저 밝히고 표를 보여준다. */
+  const symEq=rest.reduce((a,k)=>{const h=(st.paper[k]||{}).history||[];
+    const e=(h[h.length-1]||{}).equity; return a+(typeof e==="number"?e:0)},0);
+  const tbl=rest.length?`<div class="card"><h2>종목별 참고 계좌 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
+    <p class="sub" style="margin:2px 0 10px;font-size:12.5px">
+      아래는 <b>종목마다 따로 굴리는 참고용 계좌</b>입니다 — 각각
+      <b>${won(10000)}으로 시작</b>해 그 종목만 매매한 결과라,
+      ${rest.length}개를 합치면 ${won(symEq)}가 됩니다.
+      <b>8마일 챌린지 본 계좌(${won(80000)} 시작)와는 별개의 장부</b>이며,
+      여기 자산·비중이 통합 계좌의 보유량은 아닙니다.
+      통합 계좌가 실제로 얼마를 들고 있는지는 위 카드의 <b>총노출</b>과
+      <a href="index.html">첫 화면의 '통합 노출' 열</a>을 보세요.</p>
     <div class="tablewrap"><table>
-    <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
+    <tr><th style="text-align:left">종목</th>
+      <th title="그 종목만 굴리는 참고 계좌의 자산(1만원 시작)">참고계좌 자산</th>
+      <th>일간</th><th>누적</th><th>최대낙폭</th>
+      <th title="참고 계좌 안에서의 비중 — 통합 계좌 보유량이 아닙니다">참고계좌 비중</th>
+      <th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
     ${rest.map(row).join("")}</table></div></div>`:"";
   // 왜 이 종목들인가 — 선정 원칙과 종목별 이유(status.json의 단일 출처)
   let why="";
