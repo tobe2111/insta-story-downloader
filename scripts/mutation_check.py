@@ -940,6 +940,25 @@ MUTATIONS = [
      "    return sum((p - t) for t, p in pairs) / len(pairs)",
      "tests/test_overconfidence_has_two_directions.py"),
 
+    # 감사 161 — 무결성 관문이 체결에 쓰는 값을 안 봤다.
+    ("OHLC 밴드 검사에서 시가를 뺀다(체결가가 오염돼도 관문을 통과)",
+     "quant/data/quality.py",
+     '        for col in ("open", "close"):',
+     '        for col in ("close",):',
+     "tests/test_the_integrity_gate_checks_the_fill_price.py"),
+
+    ("밴드 하한 검사를 뺀다(가격이 아래로 튀는 오염을 놓친다)",
+     "quant/data/quality.py",
+     '                bad = bad | (df[col] > df["high"]) | (df[col] < df["low"])',
+     '                bad = bad | (df[col] > df["high"])',
+     "tests/test_the_integrity_gate_checks_the_fill_price.py"),
+
+    ("OHLC 모순을 무결성 위반 목록에서 뺀다(깨진 데이터로 그대로 매매)",
+     "quant/data/quality.py",
+     'SEVERE_KEYS = ("duplicate_index", "nonpositive_price", "ohlc_violations")',
+     'SEVERE_KEYS = ("duplicate_index", "nonpositive_price")',
+     "tests/test_the_integrity_gate_checks_the_fill_price.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

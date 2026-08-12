@@ -30,7 +30,7 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
         zero_volume      : 거래량이 0 이하인 봉 수 (거래정지·수집 오류 의심).
         duplicate_index  : 중복된 타임스탬프 수.
         nonpositive_price: O/H/L/C 중 0 이하가 있는 봉 수.
-        ohlc_violations  : high < low 이거나 close가 [low, high] 밖인 봉 수.
+        ohlc_violations  : high < low 이거나 **open·close**가 [low, high] 밖인 봉 수.
     """
     findings = {
         "gaps": 0, "spikes": 0, "zero_volume": 0,
@@ -64,8 +64,22 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
     if price_cols:
         findings["nonpositive_price"] = int((df[price_cols] <= 0).any(axis=1).sum())
 
-    if all(c in df.columns for c in ("high", "low", "close")):
-        bad = (df["high"] < df["low"]) | (df["close"] > df["high"]) | (df["close"] < df["low"])
+    if all(c in df.columns for c in ("high", "low")):
+        # ⚠️ **시가도 봐야 한다**(감사 161). 예전에는 close만 밴드 검사를
+        #    했다. 그런데 이 시스템은 주식 체결을 **다음 봉 시가**로 한다
+        #    (`_first_bar_after`가 `float(r["open"])`을 그대로 체결가로 쓴다).
+        #    즉 무결성 관문이 **체결에 쓰는 바로 그 값**을 안 보고 있었다.
+        #
+        #    실측: 밴드가 99~101인 봉의 시가만 5000으로 바꿔도
+        #        ohlc_violations 0 · is_severe False  → 관문 통과
+        #    같은 크기로 종가를 망가뜨리면 1건·True로 잡힌다.
+        #
+        #    is_severe는 페이퍼·포트폴리오 배치 양쪽의 입구 관문이라,
+        #    통과하면 그 값이 그대로 체결가가 되고 장부에 남는다.
+        bad = df["high"] < df["low"]
+        for col in ("open", "close"):
+            if col in df.columns:
+                bad = bad | (df[col] > df["high"]) | (df[col] < df["low"])
         findings["ohlc_violations"] = int(bad.sum())
 
     return findings
@@ -92,7 +106,7 @@ def quality_report(df: pd.DataFrame, findings: dict | None = None,
         f"  거래량 0         : {f['zero_volume']}건",
         f"  중복 타임스탬프  : {f['duplicate_index']}건",
         f"  0 이하 가격      : {f['nonpositive_price']}건",
-        f"  OHLC 모순        : {f['ohlc_violations']}건 (high<low 또는 close가 밴드 밖)",
+        f"  OHLC 모순        : {f['ohlc_violations']}건 (high<low 또는 시가·종가가 밴드 밖)",
     ]
     if is_severe(f):
         lines.append("  ⚠️ 무결성 위반이 있습니다 — 이 데이터로 만든 백테스트 결과를 "
