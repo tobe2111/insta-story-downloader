@@ -299,7 +299,11 @@ def test_broadcast_scene_cycle_present():
 def test_docs_have_table_and_weekly_and_hero():
     root = Path(__file__).resolve().parent.parent / "docs"
     paper = (root / "paper.html").read_text(encoding="utf-8")
-    assert "종목별 현황" in paper                    # 증권사 시세표
+    # 2026-08-12 감사 107에서 제목을 '종목별 참고 계좌'로 바꿨다 —
+    # 통합 계좌(8만원)와 종목 계좌(각 1만원)를 구별하기 위해서다.
+    # 여기서는 '종목별 표가 있다'만 보고, 이름 규칙은
+    # tests/test_two_ledgers_are_not_confused.py가 검사한다.
+    assert "종목별" in paper                          # 증권사 시세표
     assert 'href="weekly.html"' in paper
     weekly = (root / "weekly.html").read_text(encoding="utf-8")
     assert "주간 아카이브" in weekly and "status.json" in weekly
