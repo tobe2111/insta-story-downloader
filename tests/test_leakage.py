@@ -26,11 +26,42 @@ from quant.strategies import (
 )
 
 _DF = SyntheticDataProvider(seed=17).get_ohlcv("LEAK", "1d", limit=420)
-_CUT = 320   # 이 시점 이후(미래)를 잘라낸다
+
+# ⚠️ 절단점은 **여럿**이어야 한다(2026-08-12 감사 108).
+#    1봉 룩어헤드는 절단 계열의 **경계 봉 하나만** 바꾼다. 그런데 신호는
+#    대개 0/±1로 뭉툭해서, 그 한 봉이 우연히 같으면 차이가 0이 되어
+#    통과한다. 절단점이 하나뿐이면 그 우연이 한 번만 맞으면 되지만,
+#    여럿이면 매번 맞아야 하므로 확률이 급격히 떨어진다.
+#
+#    ⚠️ 정직한 한계: 이 방법으로도 **못 잡는 누수**가 있다. breakout의
+#    `upper`에 `shift(-1)`을 심어 실측했더니 신호가 420봉 전부 0이 됐다
+#    (미래 고가를 보면 종가가 그 위로 못 올라가 진입 조건이 영영 성립하지
+#    않는다). 신호가 상수가 되면 절단해도 달라질 것이 없어 어떤 절단점도
+#    차이를 못 만든다. 다만 그 방향의 누수는 **거래를 못 하게 만들 뿐
+#    성적을 부풀리지 않아** 위험하지 않다.
+#
+#    ⚠️ 그런데 **성적을 부풀리는 종류도 못 잡았다.** `close.shift(-1)`을
+#    심어 돌렸더니 절단점 9개에서 전부 통과했다(2026-08-12 실측).
+#    이유는 같다 — 전체를 한 칸 당기면 절단 계열과 원본이 **경계 봉
+#    하나에서만** 달라지고, 그 한 봉의 신호가 우연히 같으면 끝이다.
+#    절단점을 늘려도 매번 같은 이유로 숨는다.
+#
+#    즉 이 탐지기는 **여러 봉을 한꺼번에 바꾸는 누수**(피처 전체가 미래
+#    구간 통계를 쓰는 등)에는 강하지만, **1봉 시프트**에는 약하다.
+#    파일 첫머리의 "새 전략을 추가할 때 미래 참조 버그를 자동으로
+#    막아준다"는 설명은 그만큼 넓지 않다 — 미해결로 남기고 사장님께
+#    보고했다. 고치려면 신호 비교가 아니라 '미래 구간을 무작위로 바꿔도
+#    과거 신호가 불변인가'를 봐야 한다(다음 감사 과제).
+_CUTS = (200, 240, 280, 300, 320, 340, 360, 380, 400)
 
 
 def _assert_no_lookahead(make_strategy, name: str):
     full = make_strategy().generate_signals(_DF)
+    for cut in _CUTS:
+        _compare_at(full, make_strategy, name, cut)
+
+
+def _compare_at(full, make_strategy, name: str, _CUT: int):
     trunc = make_strategy().generate_signals(_DF.iloc[:_CUT])
     # 겹치는 과거 구간 전체 — **절단 경계 봉을 포함해서** 비교한다.
     #
@@ -44,7 +75,9 @@ def _assert_no_lookahead(make_strategy, name: str):
     b = trunc.iloc[:_CUT].to_numpy()
     assert len(a) == len(b) == _CUT
     bad = int(np.sum(~np.isclose(a, b, atol=1e-9)))
-    assert bad == 0, f"'{name}' 미래 참조 의심: {bad}개 봉의 과거 신호가 미래 절단 시 바뀜"
+    assert bad == 0, (
+        f"'{name}' 미래 참조 의심(절단점 {_CUT}): "
+        f"{bad}개 봉의 과거 신호가 미래 절단 시 바뀜")
 
 
 def test_no_lookahead_registered_strategies():
