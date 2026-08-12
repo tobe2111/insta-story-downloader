@@ -1077,6 +1077,32 @@ MUTATIONS = [
      "        if self.min_notional > 0 and qty * price < self.min_notional:",
      "tests/test_the_order_quantity_survives_rounding.py"),
 
+    # 감사 165 — 종목 선별이 근거 없이 흔들렸다.
+    ("결측 팩터를 '딱 평균'으로 채운다(자료 부실한 종목이 상을 받는다)",
+     "quant/data/fundamentals.py",
+     "    score = Z.mean(axis=1).where(have >= need).dropna()",
+     "    score = Z.fillna(0.0).mean(axis=1)",
+     "tests/test_the_screener_does_not_reward_missing_data.py"),
+
+    ("팩터 최소 보유 개수를 없앤다(팩터 하나만 있어도 후보가 된다)",
+     "quant/data/fundamentals.py",
+     "    need = max(1, math.ceil(len(Z.columns) * MIN_FACTOR_COVERAGE))",
+     "    need = 1",
+     "tests/test_the_screener_does_not_reward_missing_data.py"),
+
+    ("잡음 수준의 팩터를 진짜 신호처럼 쓴다(의미 없는 열이 선택을 지운다)",
+     "quant/data/fundamentals.py",
+     "        if not np.isfinite(std) or degenerate_spread(\n"
+     "                std, float(col.abs().mean())):",
+     "        if not np.isfinite(std) or std == 0:",
+     "tests/test_the_screener_does_not_reward_missing_data.py"),
+
+    ("동점을 입력 순서로 가른다(목록 순서만 바꿔도 다른 종목을 산다)",
+     "quant/data/fundamentals.py",
+     "    order = sorted(score.index, key=lambda s: (-float(score[s]), str(s)))",
+     "    order = list(score.sort_values(ascending=False).index)",
+     "tests/test_the_screener_does_not_reward_missing_data.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

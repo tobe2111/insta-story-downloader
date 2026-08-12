@@ -11,15 +11,23 @@
 """
 from __future__ import annotations
 
+import math
 import os
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 from quant.utils.http import get_json
 from quant.utils.logging import get_logger
+from quant.utils.numerics import degenerate_spread
 
 log = get_logger("data.fundamentals")
+
+# 요청한 팩터 중 이 비율만큼은 값이 있어야 후보로 본다(감사 165).
+# 결측을 0으로 채우면 '자료 없음'이 '딱 평균'과 같아져, 팩터 하나만
+# 우연히 좋은 부실 데이터 종목이 완전한 종목을 제친다.
+MIN_FACTOR_COVERAGE = 0.5
 
 _FMP_URL = "https://financialmodelingprep.com/api/v3"
 
@@ -89,27 +97,54 @@ def rank_factors(data: dict[str, dict], factors: dict[str, float],
     if not data or not factors:
         return {}
     df = pd.DataFrame(data).T   # index=종목, columns=팩터
-    score = pd.Series(0.0, index=df.index)
-    used = False
+
+    zs: dict[str, pd.Series] = {}
     for fac, direction in factors.items():
         if fac not in df.columns:
             continue
         col = pd.to_numeric(df[fac], errors="coerce")
-        std = col.std(ddof=0)
-        if not std or std != std:      # std 0 또는 NaN → 무의미
+        std = float(col.std(ddof=0))
+        # ⚠️ **std가 0이 아니라고 '차이가 있다'는 뜻은 아니다**(감사 165).
+        #    z-점수는 규모를 지워 버린다. 그래서 종목 간 PER 차이가
+        #    2e-7이어도(= 사실상 같은 값) z는 ±1.22로 나온다 — 진짜
+        #    신호와 **똑같은 세기**다.
+        #
+        #    실측: ROE가 0.05→0.35로 뚜렷한 3종목에, 전부 30.0 근방인
+        #    의미 없는 PER 열을 하나 더하면 세 종목 점수가 전부 정확히
+        #    0이 된다. 잡음이 진짜 신호를 통째로 지운다.
+        #
+        #    감사 159가 만든 판정을 그대로 쓴다 — 계열의 크기 대비
+        #    표준편차가 무의미하게 작으면 그 팩터는 안 쓴다.
+        if not np.isfinite(std) or degenerate_spread(
+                std, float(col.abs().mean())):
             continue
-        z = (col - col.mean()) / std
-        score = score.add((z * float(direction)).fillna(0.0), fill_value=0.0)
-        used = True
-    if not used:
+        zs[fac] = ((col - col.mean()) / std) * float(direction)
+    if not zs:
         return {}
 
-    ranked = score.sort_values(ascending=False)
-    if top_n is not None:
-        ranked = ranked.head(max(1, top_n))
-    else:
-        ranked = ranked[ranked > 0]        # 점수 양수만
-    if ranked.empty:
+    Z = pd.DataFrame(zs)                      # index=종목, columns=쓸 만한 팩터
+    # ⚠️ 결측 팩터를 0으로 채우면 '자료 없음'이 '딱 평균'이 된다(감사 165).
+    #    실측: PER·PBR·ROE 세 팩터 중 ROE 하나만 있는 종목이, 셋 다 좋은
+    #    종목과 나란히 상위 2종목에 뽑혔다. 나머지 둘을 평균으로 받았기
+    #    때문이다. 자료가 부실할수록 극단값 하나로 올라오기 쉬워진다.
+    #
+    #    합이 아니라 **있는 팩터의 평균**으로 점수를 낸다(팩터 수가 다른
+    #    종목끼리 비교 가능해진다). 그리고 최소 몇 개는 있어야 후보로 본다.
+    have = Z.notna().sum(axis=1)
+    need = max(1, math.ceil(len(Z.columns) * MIN_FACTOR_COVERAGE))
+    score = Z.mean(axis=1).where(have >= need).dropna()
+    if score.empty:
         return {}
-    w = 1.0 / len(ranked)
-    return {sym: w for sym in ranked.index}
+
+    # 동점은 종목명으로 갈라 재현 가능하게 만든다. 예전에는 정렬이
+    # 입력 순서에 기대서, 같은 자료를 종목 순서만 바꿔 넣으면 뽑히는
+    # 종목이 달라졌다(감사 147과 같은 원리).
+    order = sorted(score.index, key=lambda s: (-float(score[s]), str(s)))
+    if top_n is not None:
+        order = order[:max(1, int(top_n))]
+    else:
+        order = [s for s in order if float(score[s]) > 0]   # 점수 양수만
+    if not order:
+        return {}
+    w = 1.0 / len(order)
+    return {str(sym): w for sym in order}
