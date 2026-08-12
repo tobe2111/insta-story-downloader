@@ -1451,8 +1451,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         eff_scale = 0.0
 
     # 위험 배분 슬라이스 — HRP(상관 추정 오차에 강함) → ERC → 균등 폴백 사다리
+    # ⚠️ **`or` 폴백은 '전부 0인 배분'을 못 걸러낸다**(감사 183). 파이썬에서
+    #    값이 전부 0인 dict는 **참(truthy)**이다. 배분기가 `{"A":0.0,"B":0.0}`을
+    #    돌려주면 `hrp or erc or 균등`이 폴백으로 넘어가지 않고 그대로 채택된다
+    #    — 전 종목 비중 0, 하루 통째로 관망인데 장부에는 "hrp로 배분함"이라
+    #    적힌다. 조용한 무동작이라 알아채는 데 며칠 걸린다.
+    #
+    #    `hrp.py` 안에 같은 뜻의 검사가 있었지만 거기서는 정규화 뒤라 어떤
+    #    입력으로도 안 걸렸다 — 방어를 위험한 자리가 아니라 만든 자리에 둔
+    #    셈이다. 받아들이는 쪽으로 옮긴다.
+    from quant.live.hrp import is_allocation
+
     hrp = _hrp_slices(rets_map, n)
+    hrp = hrp if is_allocation(hrp) else None
     erc = None if hrp else _erc_slices(rets_map, n)
+    erc = erc if is_allocation(erc) else None
     slices = hrp or erc or {k: 1.0 / n for k in weights}
     alloc_method = "hrp" if hrp else ("erc" if erc else "equal")
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해

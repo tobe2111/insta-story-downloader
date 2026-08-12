@@ -717,10 +717,15 @@ MUTATIONS = [
      "    pass",
      "tests/test_allocation_does_not_depend_on_list_order.py"),
 
-    ("HRP 비중 합 검사를 없앤다(전 종목 0인 배분이 폴백 없이 그대로 나간다)",
-     "quant/live/hrp.py",
-     "        if abs(sum(out.values()) - 1.0) > 1e-6:",
-     "        if False:",
+    # ⚠️ 이 항목도 감사 183에서 갈아 끼웠다. 예전 변이는 `hrp_weights` 안의
+    #    합계 검사를 껐는데, 거기까지 오면 바로 위 `w / w.sum()`이 이미 합을
+    #    1로 만들어 놓은 뒤라 **어떤 입력으로도 안 걸리는 방어**였다. 진짜
+    #    위험한 자리는 배분을 받아들이는 호출부다 — 전부 0인 dict는 truthy라
+    #    `or` 폴백을 그냥 통과한다.
+    ("전부 0인 배분을 폴백 없이 채택한다(하루 통째로 관망인데 장부엔 hrp라 적힌다)",
+     "quant/live/daily.py",
+     "    hrp = hrp if is_allocation(hrp) else None",
+     "    hrp = hrp",
      "tests/test_a_halted_symbol_cannot_take_the_book.py"),
 
     # 감사 150 — 같은 판정을 두 곳에서 다르게 쓰면 가장 극단이 빠져나간다.
@@ -1810,11 +1815,19 @@ MUTATIONS = [
      "    keep = list(src)",
      "tests/test_alloc_is_not_a_purchase.py"),
 
-    ("킬스위치 감쇠를 스케일러 앞으로 되돌린다(오늘 고친 결함 재현)",
+    # ⚠️ 이 항목은 감사 183에서 갈아 끼웠다. 예전 변이는
+    #        w * eff_scale * vscale * guard_damp  →  w * eff_scale * guard_damp * vscale
+    #    였는데 **곱셈은 교환법칙이 성립한다** — 값이 똑같으니 어떤 검사도
+    #    잡을 수 없는 무의미한 변이였다(전수 시험에서 '못 잡음'으로 나왔다).
+    #    진짜 결함은 순서가 아니라 **vscale을 무엇으로 계산하느냐**다:
+    #    감쇠된 비중을 넣으면 스케일러가 "위험이 줄었다"며 되돌려 키워
+    #    브레이크가 사라진다. 그 자리를 겨눈다.
+    ("변동성 배수를 감쇠된 비중으로 계산한다(킬스위치가 통째로 무효가 된다)",
      "quant/live/daily.py",
-     "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)",
-     "eff = w * eff_scale * guard_damp.get(key, 1.0) * vscale",
-     "tests/test_killswitch_effective.py"),
+     "    vscale, ex_ante = vol_scale(base_w, rets_map, tgt_vol)",
+     "    vscale, ex_ante = vol_scale({k: v * eff_scale for k, v in base_w.items()},\n"
+     "                                rets_map, tgt_vol)",
+     "tests/test_killswitch_is_wired_to_the_brake.py"),
 
     ("켈리 상한 clip을 지운다(무효화)",
      "quant/live/daily.py",

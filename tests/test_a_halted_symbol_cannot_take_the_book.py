@@ -190,3 +190,70 @@ def test_a_normal_panel_is_unchanged():
                       ("_hrp_slices", _hrp_slices(rets, 4))):
         assert out and len(out) == 4, f"{name}: {out}"
         assert all(v > 0.1 for v in out.values()), f"{name}: {out}"
+
+
+# ── 전부 0인 배분이 폴백 없이 채택되는가 (감사 183) ───────────
+
+
+def test_an_all_zero_allocation_is_not_accepted_as_an_allocation():
+    """파이썬에서 **값이 전부 0인 dict는 참(truthy)이다.**
+
+    `daily.py`가 `slices = hrp or erc or 균등`으로 폴백하는데, 배분기가
+    `{"A": 0.0, "B": 0.0}`을 돌려주면 `or`가 넘어가지 않고 그대로 채택된다
+    — 전 종목 비중 0, **하루 통째로 관망**인데 장부에는 "hrp로 배분함"이라
+    적힌다. 조용한 무동작이라 알아채는 데 며칠 걸린다.
+
+    ⚠️ 같은 뜻의 검사가 `hrp.py` 안에도 있었지만 거기서는 정규화(`w/w.sum()`)
+       **뒤**라 어떤 입력으로도 안 걸렸다 — 방어를 위험한 자리가 아니라
+       만든 자리에 둔 셈이다(변이 시험이 그 자리를 `if False:`로 바꿔도
+       아무도 못 잡았다). 받아들이는 쪽으로 옮겼다.
+    """
+    from quant.live.hrp import is_allocation
+
+    assert is_allocation({"A": 0.0, "B": 0.0}) is False, (
+        "전부 0인 배분을 배분으로 받아들였다 — or 폴백이 그대로 통과한다")
+    assert is_allocation({}) is False
+    assert is_allocation(None) is False
+    assert is_allocation({"A": float("nan"), "B": 0.5}) is False
+    assert is_allocation({"A": -0.3, "B": 1.3}) is False, "음수 비중은 배분이 아니다"
+
+
+def test_a_real_allocation_still_passes():
+    """대조군 — 늘 False면 폴백이 항상 걸려 HRP·ERC가 통째로 죽는다."""
+    from quant.live.hrp import is_allocation
+
+    assert is_allocation({"A": 0.3, "B": 0.2}) is True, "합이 1이 아니어도 슬라이스는 배분이다"
+    assert is_allocation({"A": 0.6, "B": 0.4}, total=1.0) is True
+    assert is_allocation({"A": 0.3, "B": 0.2}, total=1.0) is False
+    assert is_allocation({"A": 1.0, "B": 0.0}) is True, "일부만 0인 건 정상 배분이다"
+
+
+def test_the_daily_batch_falls_back_when_the_allocator_returns_zeros(tmp_path,
+                                                                     monkeypatch):
+    """부품이 아니라 **배선**을 본다 — 진짜 일일 배치를 돌린다(감사 120)."""
+    import json
+
+    from quant.live import daily as D
+    from quant.live.retrain import save_champions
+
+    d = str(tmp_path)
+    save_champions({f"synthetic:D{i}": {"strategy": "ma_cross",
+                                        "params": {"fast": 10, "slow": 30},
+                                        "promotions": 0} for i in (1, 2)}, d)
+    p = tmp_path / "paper"
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "portfolio_ALL.json").write_text(json.dumps({
+        "market": "portfolio", "symbol": "ALL", "start_cash": 80_000.0,
+        "cash": 80_000.0, "positions": {}, "base_prices": {},
+        "last_bar": None, "history": [],
+    }), encoding="utf-8")
+
+    targets = [("synthetic", "D1"), ("synthetic", "D2")]
+    monkeypatch.setattr(D, "_hrp_slices", lambda rets, n: {k: 0.0 for k in rets})
+
+    rec = D.run_daily_portfolio(targets, lookback=200, state_dir=d,
+                                require_real_data=False)
+    assert rec["alloc_method"] != "hrp", (
+        f"전부 0인 배분을 hrp로 채택했다: {rec['alloc_method']}")
+    assert rec["weight"] > 0, (
+        "배분기가 0을 줬다고 하루 통째로 관망했다 — 폴백이 안 걸렸다")

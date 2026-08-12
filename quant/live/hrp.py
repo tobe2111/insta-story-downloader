@@ -25,6 +25,43 @@ from quant.utils.numerics import REL_EPS
 log = get_logger("hrp")
 
 
+def is_allocation(w, *, total: float | None = None) -> bool:
+    """이 dict를 배분으로 써도 되는가.
+
+    ⚠️ 왜 함수로 빼는가(감사 183). 원래 이 검사는 `hrp_weights` 안에
+       인라인으로만 있었는데, 거기까지 오면 `w = w / w.sum()`이 이미 합을
+       1로 만들어 놓은 뒤라 **어떤 입력으로도 걸리지 않는 방어**였다.
+       변이 시험이 그 자리를 `if False:`로 바꿔도 아무도 못 잡았다.
+
+       정작 위험한 자리는 호출부였다(`daily.py`):
+
+           slices = hrp or erc or {k: 1.0 / n for k in weights}
+
+       파이썬에서 **값이 전부 0인 dict는 참(truthy)이다.** 배분기가
+       `{"A": 0.0, "B": 0.0}`을 돌려주면 `or`가 폴백으로 안 넘어가고
+       그대로 채택된다 — 전 종목 비중 0, 하루 통째로 관망인데 장부에는
+       "hrp로 배분함"이라 적힌다. 조용한 무동작이 가장 위험하다.
+
+       그래서 검사를 **배분을 받아들이는 자리**로 옮겨 이름을 붙였다.
+
+    total: 합이 정확히 얼마여야 하는지(정규화된 비중이면 1.0). None이면
+        '합이 0보다 크다'만 본다 — 슬라이스는 가용 종목 예산(k/n)이라
+        합이 1이 아니기 때문이다.
+    """
+    if not w:
+        return False
+    try:
+        vals = [float(v) for v in w.values()]
+    except (TypeError, ValueError):
+        return False
+    if not all(np.isfinite(vals)):
+        return False
+    if any(v < -1e-12 for v in vals):
+        return False
+    s = float(sum(vals))
+    return abs(s - total) <= 1e-6 if total is not None else s > 1e-12
+
+
 def _cluster_var(cov: pd.DataFrame, items: list) -> float:
     """군집 분산 — 군집 내부를 역분산 비중으로 들었을 때의 분산."""
     sub = cov.loc[items, items].to_numpy()
@@ -105,11 +142,11 @@ def hrp_weights(returns: pd.DataFrame) -> dict | None:
         # 사라지면 호출자가 기본 슬라이스(1/n)를 주게 되어
         # 오히려 거래정지 종목에 예산이 간다.
         out.update({str(c): 0.0 for c in _dropped})
-        # ⚠️ 합이 1이 아니면 배분이 아니다(감사 149). 호출자는 `if not w`로만
-        #    검사하는데 **값이 전부 0인 dict는 참(truthy)이다** — 그러면
-        #    ERC·균등 폴백으로 넘어가지 않고 전 종목 비중 0이 그대로 나간다
-        #    (하루 통째로 관망). 여기서 명시적으로 실패로 돌린다.
-        if abs(sum(out.values()) - 1.0) > 1e-6:
+        # 합이 1이 아니면 배분이 아니다(감사 149). 여기까지 오면 위의
+        # `w / w.sum()` 때문에 사실상 항상 1이라 이 자리에서는 걸릴 일이
+        # 없다 — 진짜 방어는 **배분을 받아들이는 자리**에 있다(감사 183,
+        # `is_allocation` 주석 참고). 그래도 벨트는 남겨 둔다.
+        if not is_allocation(out, total=1.0):
             log.warning("HRP 비중 합이 %.6f — 폴백", sum(out.values()))
             return None
         return out

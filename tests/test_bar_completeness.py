@@ -106,8 +106,99 @@ def test_both_ledger_paths_record_partial_bars():
 
 
 def test_stock_provider_still_drops_unclosed_bars():
-    """주식 쪽 방어가 사라지면 같은 결함이 주식으로 번진다."""
-    src = (ROOT / "quant" / "data" / "stock.py").read_text(encoding="utf-8")
-    assert "def _drop_unclosed" in src
-    assert "_drop_unclosed(" in src.split("def _drop_unclosed")[0] or \
-        src.count("_drop_unclosed") >= 2, "정의만 있고 호출되지 않는다"
+    """주식 쪽 방어가 사라지면 같은 결함이 주식으로 번진다.
+
+    ⚠️ **이 검사는 원래 문자열 세기였다**(감사 183에서 고침). 이렇게 있었다.
+
+        assert src.count("_drop_unclosed") >= 2, "정의만 있고 호출되지 않는다"
+
+    그런데 `stock.py`에는 그 호출을 **설명하는 주석**이 있고, 거기에도
+    `_drop_unclosed`가 적혀 있다. 그래서 진짜 호출을 통째로 지워도 개수가
+    2를 유지해 검사가 통과했다 — 변이 시험이 그대로 빠져나갔다.
+    FROZEN_IDEAS ㊵의 자기참조 함정이 자기 자신에게 걸린 것이다.
+
+    이제 **행동으로** 확인한다. 마감 전 '오늘' 봉이 붙은 프레임을 넣고
+    그 봉이 실제로 잘려 나가는지 본다.
+    """
+    import pandas as pd
+
+    from quant.data.stock import StockDataProvider
+
+    p = StockDataProvider(market="us_stock")
+    # 미국 정규장 마감은 16:00 ET — 12:00 ET는 장중이라 '오늘' 봉이 미완결
+    now = pd.Timestamp("2026-08-12 12:00", tz="America/New_York")
+    idx = pd.DatetimeIndex(["2026-08-10", "2026-08-11", "2026-08-12"])
+    df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
+                       "close": [10.0, 11.0, 12.0], "volume": 1e6}, index=idx)
+
+    got = p._drop_unclosed(df, now=now)
+    assert list(got.index.strftime("%m-%d")) == ["08-10", "08-11"], (
+        f"장중인데 오늘(08-12) 봉이 남았다: {list(got.index)}")
+
+    # 대조군 — 마감 후에는 그날 봉을 인정해야 한다(늘 자르면 하루가 사라진다)
+    after = p._drop_unclosed(df, now=pd.Timestamp("2026-08-12 17:00",
+                                                  tz="America/New_York"))
+    assert list(after.index.strftime("%m-%d")) == ["08-10", "08-11", "08-12"]
+
+
+def test_the_stock_fetch_path_actually_calls_the_guard():
+    """정의만 있고 **불리지 않으면** 방어가 아니다 — 수집 경로로 확인한다.
+
+    위 검사는 함수가 옳은지만 본다. 감사 120의 교훈대로 부품 검사와 배선
+    검사는 다른 것이라, 여기서는 `get_ohlcv`가 그 함수를 지나는지 본다.
+    """
+    import pandas as pd
+
+    from quant.data.stock import StockDataProvider
+
+    seen: list = []
+    p = StockDataProvider(market="us_stock")
+    idx = pd.DatetimeIndex(["2026-08-10", "2026-08-11"])
+    frame = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
+                          "close": [10.0, 11.0], "volume": 1e6}, index=idx)
+
+    p._via_yfinance = lambda *a, **k: frame.copy()       # 첫 소스가 바로 성공
+    orig = p._drop_unclosed
+    p._drop_unclosed = lambda df, now=None: seen.append(1) or orig(df, now)
+
+    p.get_ohlcv("SPY", "1d", limit=10)
+    assert seen, "get_ohlcv가 _drop_unclosed를 지나지 않는다 — 방어가 배선 안 됨"
+
+
+def test_no_source_string_check_is_satisfied_by_comments_alone():
+    """문자열 세기 검사가 **주석만으로** 충족되면 그건 검사가 아니다 (감사 183).
+
+    이 파일의 `_drop_unclosed` 검사가 정확히 그랬다 — 진짜 호출을 지워도
+    그 호출을 설명하는 주석에 같은 이름이 적혀 있어 개수가 유지됐다.
+    변이 시험이 그대로 빠져나갔다(FROZEN_IDEAS ㊵ 자기참조 함정).
+
+    여기서는 `tests/`의 모든 `.count("X") >= N` 중 식별자꼴 토큰을 모아,
+    **주석을 걷어낸 코드만으로도** 그 개수가 나오는지 본다. 안 나오면
+    그 검사는 주석에 기대고 있다는 뜻이다.
+    """
+    import re
+
+    counts: dict[str, int] = {}
+    for f in sorted(ROOT.glob("tests/*.py")):
+        for m in re.finditer(r'\.count\((["\'])(.+?)\1\)\s*>=\s*(\d+)',
+                             f.read_text(encoding="utf-8")):
+            tok, need = m.group(2), int(m.group(3))
+            if len(tok) >= 6 and re.search(r"[A-Za-z_]{4,}", tok):
+                counts[tok] = max(counts.get(tok, 0), need)
+
+    assert counts, "세는 검사를 하나도 못 찾았다 — 이 검사가 헛돈다"
+
+    weak = []
+    for tok, need in sorted(counts.items()):
+        in_code = in_all = 0
+        for s in sorted(ROOT.glob("quant/**/*.py")):
+            for ln in s.read_text(encoding="utf-8").splitlines():
+                n = ln.count(tok)
+                in_all += n
+                if not ln.lstrip().startswith("#"):
+                    in_code += n
+        if in_all >= need > in_code:
+            weak.append(f"{tok!r}: 코드에 {in_code}회 · 주석까지 세면 {in_all}회 "
+                        f"(검사는 {need}회 요구)")
+    assert not weak, ("주석에 기대는 문자열 검사가 있다 — 진짜 호출이 사라져도 "
+                      "통과한다:\n  " + "\n  ".join(weak))
