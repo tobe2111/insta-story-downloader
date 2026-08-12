@@ -25,20 +25,36 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class FakeBroker(Broker):
+    """⚠️ 포지션이 **실제로 변해야** 한다(감사 148).
+
+    감사 148에서 실거래 배치가 RobustBroker(confirm_fills=True)를 거치게
+    됐다. 접수만 보고하고 포지션이 그대로면 래퍼는 체결을 기다리며
+    fill_timeout(90초)을 꽉 채운다 — 검사 하나가 90초씩 늘어난다.
+    실제 브로커는 체결되면 포지션이 변하므로, 가짜도 그렇게 둔다.
+    """
+
     def __init__(self, cash: float = 1_000_000.0):
         self.cash = cash
         self.orders: list[Order] = []
+        self.qty = 0.0
 
     def get_cash(self) -> float:
         return self.cash
 
     def get_position(self, symbol: str) -> Position:
-        return Position(symbol, 0.0, 0.0)
+        return Position(symbol, self.qty, 0.0)
 
     def market_order(self, symbol, side, quantity, price) -> Order:
+        self.qty += quantity if side == "buy" else -quantity
         o = Order(symbol, side, quantity, price, status="accepted")
         self.orders.append(o)
         return o
+
+
+# 가짜 시계 — 체결확인 폴링·재시도 백오프를 실시간으로 기다리지 않는다.
+_T = [0.0]
+CLOCK = {"sleep": lambda s: _T.__setitem__(0, _T[0] + float(s)),
+         "now": lambda: _T[0]}
 
 
 def _seed_champion(tmp_path, symbol="005930.KS"):
@@ -71,7 +87,8 @@ def test_real_mode_requires_env_gate(monkeypatch, tmp_path):
     monkeypatch.delenv("QUANT_LIVE_REAL", raising=False)
     with pytest.raises(RuntimeError, match="QUANT_LIVE_REAL"):
         run_daily_live(targets=[("kr_stock", "005930.KS")], paper=False,
-                       state_dir=str(tmp_path), broker=FakeBroker())
+                       state_dir=str(tmp_path), broker=FakeBroker(),
+                       _clock=CLOCK)
 
 
 # ── ② 어드민 일시정지 ──────────────────────────────────────────
@@ -82,7 +99,8 @@ def test_admin_pause_blocks_orders(monkeypatch, tmp_path):
     monkeypatch.setattr(st, "load_settings", lambda *a, **k: {
         "trading_paused": True, "exposure_scale": 1.0, "social_post": True})
     out = run_daily_live(targets=[("kr_stock", "005930.KS")],
-                         state_dir=str(tmp_path), broker=FakeBroker())
+                         state_dir=str(tmp_path), broker=FakeBroker(),
+                         _clock=CLOCK)
     assert out.get("skipped") == "어드민 일시정지"
 
 
@@ -97,7 +115,7 @@ def test_decision_places_long_only_sliced_order(monkeypatch, tmp_path):
         "trading_paused": False, "exposure_scale": 0.5, "social_post": True})
     b = FakeBroker(cash=1_000_000.0)
     out = run_daily_live(targets=[("kr_stock", "005930.KS")],
-                         state_dir=str(tmp_path), broker=b)
+                         state_dir=str(tmp_path), broker=b, _clock=CLOCK)
     assert out["mode"] == "모의투자"
     w = out["decisions"]["005930.KS"]
     assert 0.0 <= w <= 0.5                    # 롱온리 + 노출 배수 0.5 상한
