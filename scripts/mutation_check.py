@@ -82,7 +82,9 @@
    오염이 진짜 결함처럼 보였다. 이제 변조·복원 양쪽에서 해당 모듈의 .pyc를
    지우고, 하위 프로세스는 PYTHONDONTWRITEBYTECODE=1로 돌린다.
 """
+import atexit
 import os
+import signal
 import pathlib, subprocess, sys
 
 MUTATIONS = [
@@ -1251,6 +1253,62 @@ MUTATIONS = [
      '    tmp = p.with_name(p.name + ".tmp")',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 171 — 앙상블·게이트·유틸 7파일. 결함 없음, 계약 고정.
+    ("앙상블 손익 계산에서 지연을 뺀다(그 봉의 신호로 그 봉의 손익을 만든다)",
+     "quant/strategies/ensemble.py",
+     "        {i: sigs[i].shift(1).fillna(0.0) * rets for i in range(len(sigs))})",
+     "        {i: sigs[i].fillna(0.0) * rets for i in range(len(sigs))})",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("롤링 HRP가 이번 봉까지 포함해 가중을 만든다(미래를 본다)",
+     "quant/strategies/ensemble.py",
+     "                pnl.iloc[i - lookback:i]).reindex(cols).fillna(0.0).values",
+     "                pnl.iloc[i - lookback:i + 1]).reindex(cols).fillna(0.0).values",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("앙상블 가중치 정규화를 끈다(행 합이 1이 아니게 되어 숨은 레버리지)",
+     "quant/strategies/ensemble.py",
+     "    out = w.div(rs, axis=0)",
+     "    out = w",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("ADX 게이트를 항상 열어 둔다(횡보장에서도 매매)",
+     "quant/strategies/adx.py",
+     "        allowed = (strength >= self.min_adx).astype(float)  # 추세 강할 때만 매매",
+     "        allowed = (strength >= 0.0).astype(float)",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("유동성 게이트를 항상 열어 둔다(거래대금 미달 종목도 매매)",
+     "quant/strategies/liquidity.py",
+     "        allowed = (dollar_vol >= self.min_dollar_vol).astype(float)",
+     "        allowed = (dollar_vol >= 0.0).astype(float)",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("스크리너가 재무를 못 받은 종목도 후보에 넣는다",
+     "quant/portfolio/screener.py",
+     "        if r:\n            ratios[sym] = r",
+     "        ratios[sym] = r",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    (".env가 셸 환경변수를 덮어쓴다(직접 준 키가 파일 값으로 바뀐다)",
+     "quant/utils/envfile.py",
+     "        if override or k not in os.environ:",
+     "        if True:",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("데이터 지문에서 행 수를 뺀다(행이 늘어도 같은 지문)",
+     "quant/utils/manifest.py",
+     "                       (index_first, index_last, int(n_rows),\n"
+     "                        close_first, close_last))",
+     "                       (index_first, index_last, close_first, close_last))",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    ("JSON 로그에서 컨텍스트 필드를 빠뜨린다(주문 추적 정보가 사라진다)",
+     "quant/utils/logging.py",
+     "        if isinstance(ctx, dict):\n            payload.update(ctx)",
+     "        if False:\n            payload.update(ctx)",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
@@ -2014,6 +2072,49 @@ def _assert_no_duplicates() -> None:
 _assert_no_duplicates()
 
 
+# ── 죽어도 원본을 되돌린다 ────────────────────────────────────
+#
+# ⚠️ 이 도구는 **운영 코드를 실제로 망가뜨렸다가 되돌린다.** 되돌리는 일은
+#    `finally`가 하는데, `finally`는 파이썬이 예외를 처리할 때만 돈다.
+#    바깥에서 SIGTERM으로 죽이면(타임아웃·CI 취소) **변조된 채로 남는다.**
+#
+#    2026-08-12 감사 171에서 실제로 그랬다: `timeout 110`이 이 프로세스를
+#    잡았고, quant/portfolio/screener.py가 `if r:` 가드가 빠진 상태로 작업
+#    트리에 남았다. 그대로 커밋됐으면 재무를 못 받은 종목이 후보에 섞이는
+#    코드가 배포된다. 도구가 자기 안전장치를 안 갖추고 있었던 것이다.
+#
+#    (1) 지금 무엇을 망가뜨렸는지 전역에 적어 두고
+#    (2) SIGTERM·SIGINT를 받으면 되돌린 뒤 죽고
+#    (3) 어떤 경로로 끝나든 atexit이 한 번 더 확인한다.
+_IN_FLIGHT: dict = {}
+
+
+def _restore_in_flight() -> None:
+    for path, text in list(_IN_FLIGHT.items()):
+        try:
+            p = pathlib.Path(path)
+            if p.read_text(encoding="utf-8") != text:
+                p.write_text(text, encoding="utf-8")
+                _purge_bytecode(p)
+                print(f"↩️  중단됨 — {path} 원본 복원", file=sys.stderr)
+        except OSError:
+            pass
+        _IN_FLIGHT.pop(path, None)
+
+
+def _on_signal(signum, _frame):
+    _restore_in_flight()
+    sys.exit(128 + signum)
+
+
+atexit.register(_restore_in_flight)
+for _sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+    try:
+        signal.signal(_sig, _on_signal)
+    except (ValueError, OSError, AttributeError):
+        pass                  # 메인 스레드가 아니거나 없는 시그널이면 건너뛴다
+
+
 def _dry_run() -> None:
     """--dry-run — pytest를 돌리지 않고 **목록 자체가 살아 있는지**만 본다.
 
@@ -2098,6 +2199,7 @@ for desc, path, old, new, test in MUTATIONS:
         print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
         broken += 1
         continue
+    _IN_FLIGHT[str(p)] = src        # 죽어도 되돌릴 수 있게 원본을 등록해 둔다
     p.write_text(src.replace(old, new), encoding="utf-8")
     _purge_bytecode(p)
     try:
@@ -2105,6 +2207,7 @@ for desc, path, old, new, test in MUTATIONS:
     finally:
         p.write_text(src, encoding="utf-8")
         _purge_bytecode(p)          # 복원본이 반드시 다시 컴파일되게
+        _IN_FLIGHT.pop(str(p), None)
     if rc != 0:
         print(f"✅   {desc[:58]:60s} {test.split('/')[-1]}")
         caught += 1
