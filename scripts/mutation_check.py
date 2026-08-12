@@ -78,6 +78,18 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("전략이 미래 종가를 앞당겨 본다(성적 부풀리기)",
+     "quant/strategies/breakout.py",
+     '        close = df["close"].to_numpy()',
+     '        close = df["close"].shift(-1).ffill().to_numpy()',
+     "tests/test_leakage.py"),
+
+    ("룩어헤드 검사에서 미래 교란을 뺀다(1봉 누수 눈감기)",
+     "tests/test_leakage.py",
+     "        _compare_perturbed(full, make_strategy, name, cut)",
+     "        pass",
+     "tests/test_lookahead_challenger_ring.py"),
+
     ("두 계좌 구분을 지운다(20만원이 8만원처럼 보임)",
      "docs/paper.html",
      '<div class="card"><h2>종목별 참고 계좌',

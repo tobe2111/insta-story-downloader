@@ -164,9 +164,49 @@ def test_primary_leakage_detector_includes_the_boundary_bar():
     """프로젝트의 1차 룩어헤드 방어선(test_leakage.py)에도 같은 규칙을 요구한다."""
     src = (Path(__file__).resolve().parent / "test_leakage.py").read_text(
         encoding="utf-8")
-    body = src.split("def _assert_no_lookahead")[1].split("\ndef ")[0]
-    code = "\n".join(ln for ln in body.splitlines()
+    code = "\n".join(ln for ln in src.splitlines()
                      if not ln.lstrip().startswith("#"))   # 주석은 설명이다
-    assert "_CUT - 1" not in code, (
+    assert "cut - 1" not in code and "_CUT - 1" not in code, (
         "경계 봉을 제외하고 비교하면 1봉 룩어헤드를 놓친다")
-    assert "iloc[:_CUT]" in code
+
+    # ⚠️ 예전에는 `iloc[:_CUT]`라는 **문자열**이 있는지만 봤다. 그래서
+    #    2026-08-12에 비교 로직을 함수로 빼자(감사 108) 구현은 그대로인데
+    #    검사만 깨졌다 — 문자열을 고정하는 검사의 전형적인 증상이다.
+    #    이제 **동작**으로 확인한다: 경계 봉만 다른 두 계열을 넣어
+    #    비교기가 그 차이를 세는가.
+    import importlib.util
+
+    import pandas as pd
+
+    path = Path(__file__).resolve().parent / "test_leakage.py"
+    spec = importlib.util.spec_from_file_location("_leak_probe", path)
+    L = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(L)
+
+    same = pd.Series([0.0] * 100)
+    boundary_differs = pd.Series([0.0] * 99 + [1.0])
+    assert L._diff(same, boundary_differs, 100) == 1, (
+        "경계 봉(마지막 한 봉)만 다른데 비교기가 0을 돌려준다 — "
+        "1봉 룩어헤드에 눈을 감는 상태다")
+    assert L._diff(same, same, 100) == 0
+
+    # 절단점이 여럿이어야 우연히 숨을 확률이 떨어진다(감사 108).
+    assert len(getattr(L, "_CUTS", ())) >= 5, "절단점이 너무 적다"
+
+    # 그리고 **두 방식이 모두 실제로 불리는가.** 교란 비교가 빠지면
+    # 1봉 누수(성적을 부풀리는 종류)가 다시 안 보인다 — 변이 시험이
+    # 정확히 그 구멍을 잡았다. 함수가 정의만 돼 있고 호출되지 않는
+    # 상황을 막는다.
+    called = []
+    L._compare_at = lambda *a, **k: called.append("cut")
+    L._compare_perturbed = lambda *a, **k: called.append("perturb")
+
+    class _Flat:
+        def generate_signals(self, df):
+            import pandas as pd
+            return pd.Series(0.0, index=df.index)
+
+    L._assert_no_lookahead(_Flat, "probe")
+    assert "cut" in called, "절단 비교가 호출되지 않는다"
+    assert "perturb" in called, (
+        "미래 교란 비교가 호출되지 않는다 — 1봉 룩어헤드에 다시 눈을 감는다")

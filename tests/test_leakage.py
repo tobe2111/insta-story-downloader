@@ -56,28 +56,54 @@ _CUTS = (200, 240, 280, 300, 320, 340, 360, 380, 400)
 
 
 def _assert_no_lookahead(make_strategy, name: str):
+    """인과성 검사 — **절단**과 **교란** 두 가지로 본다.
+
+    ① 절단: 미래를 잘라도 과거 신호가 같아야 한다.
+    ② 교란: 미래 구간의 값을 **크게 바꿔도** 과거 신호가 같아야 한다.
+
+    ②가 2026-08-12(감사 108)에 추가됐다. ①만으로는 **1봉 시프트를 놓친다** —
+    전체를 한 칸 당기는 누수는 절단 계열과 원본이 경계 봉 하나에서만
+    달라지고, 그 한 봉의 신호가 우연히 같으면 차이가 0이 된다. 실측에서
+    `close.shift(-1)`(성적을 부풀리는 종류)이 절단점 9개를 전부 통과했다.
+
+    ②는 미래 구간 전체를 1.5배로 옮긴다. 인과적 전략이라면 과거 신호가
+    한 봉도 바뀌지 않아야 하고, 미래를 한 칸이라도 당겨 보면 경계 봉의
+    입력이 **실제로 달라져** 신호가 흔들린다. OHLC를 같은 배수로 곱하므로
+    고가≥종가 같은 정합성은 그대로 유지된다.
+    """
     full = make_strategy().generate_signals(_DF)
     for cut in _CUTS:
         _compare_at(full, make_strategy, name, cut)
+        _compare_perturbed(full, make_strategy, name, cut)
 
 
-def _compare_at(full, make_strategy, name: str, _CUT: int):
-    trunc = make_strategy().generate_signals(_DF.iloc[:_CUT])
-    # 겹치는 과거 구간 전체 — **절단 경계 봉을 포함해서** 비교한다.
-    #
-    # ⚠️ 예전에는 `iloc[:_CUT - 1]`로 경계 봉을 빼고 봤다(감사 57). 그런데
-    #    1봉 룩어헤드(`close.shift(-1)`)는 절단된 계열의 **마지막 한 봉만**
-    #    바꾼다. 그 봉을 비교에서 빼면 차이가 0이 되어 검사가 초록으로
-    #    통과한다 — 하필 가장 흔한 형태의 룩어헤드에 눈을 감는 탐지기였다.
-    #    인과적 전략이라면 마지막 봉의 신호도 미래 유무와 무관해야 하므로,
-    #    경계를 포함하는 것이 옳다(실측: 전 후보 24종 모두 포함해도 통과).
-    a = full.iloc[:_CUT].to_numpy()
-    b = trunc.iloc[:_CUT].to_numpy()
-    assert len(a) == len(b) == _CUT
-    bad = int(np.sum(~np.isclose(a, b, atol=1e-9)))
+def _diff(a, b, cut: int) -> int:
+    a, b = a.iloc[:cut].to_numpy(), b.iloc[:cut].to_numpy()
+    assert len(a) == len(b) == cut
+    return int(np.sum(~np.isclose(a, b, atol=1e-9, equal_nan=True)))
+
+
+def _compare_at(full, make_strategy, name: str, cut: int):
+    """① 미래를 잘라낸다."""
+    trunc = make_strategy().generate_signals(_DF.iloc[:cut])
+    bad = _diff(full, trunc, cut)
     assert bad == 0, (
-        f"'{name}' 미래 참조 의심(절단점 {_CUT}): "
+        f"'{name}' 미래 참조 의심(절단 {cut}): "
         f"{bad}개 봉의 과거 신호가 미래 절단 시 바뀜")
+
+
+def _compare_perturbed(full, make_strategy, name: str, cut: int):
+    """② 미래 구간의 값을 크게 바꾼다 — 과거 신호는 불변이어야 한다."""
+    pert = _DF.copy()
+    tail = pert.index[cut:]
+    for col in ("open", "high", "low", "close"):
+        if col in pert.columns:
+            pert.loc[tail, col] = pert.loc[tail, col].to_numpy() * 1.5
+    got = make_strategy().generate_signals(pert)
+    bad = _diff(full, got, cut)
+    assert bad == 0, (
+        f"'{name}' 미래 참조 확인(교란 {cut}): 미래 구간만 바꿨는데 "
+        f"과거 신호 {bad}개 봉이 달라졌다 — 그 봉들이 미래를 보고 있다")
 
 
 def test_no_lookahead_registered_strategies():
