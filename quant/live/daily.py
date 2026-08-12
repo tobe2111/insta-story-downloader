@@ -1466,6 +1466,20 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
 
     gross = sum(_applied(k, w) for k, w in weights.items())
+
+    def _turnover_traded(history: list, now: dict) -> float | None:
+        """자산 대비 실제 회전율 = Σ|오늘 노출 − 어제 노출|.
+
+        비용은 '몇 종목을 건드렸나'가 아니라 '얼마어치를 사고팔았나'에
+        비례한다. 어제 기록에 종목별 적용 노출이 없으면(감사 91 이전)
+        계산할 수 없으므로 None — 모르면 숫자를 만들지 않는다.
+        """
+        prev = (chrono(history)[-1].get("applied") if history else None)
+        if not prev or not now:
+            return None
+        keys = set(prev) | set(now)
+        return round(sum(abs(float(now.get(k, 0.0)) - float(prev.get(k, 0.0)))
+                         for k in keys), 4)
     # 종목별 '실제로 적용한' 노출 — 사이트·SNS가 "오늘 뭘 얼마나 샀나"를
     # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
@@ -1522,8 +1536,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "skipped_cooldown": skipped_cool or None,
               # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
+              # ⚠️ ratio는 '오늘 **몇 종목을** 건드렸나'지 회전율이 아니다
+              #    (2026-08-12 감사 119). 사이트가 이걸 자산 대비 회전율로
+              #    읽고 왕복비용을 곱해 "연 비용 70%"를 냈는데, 13종목을
+              #    각각 자산의 0.1%씩 움직였다면 실제 회전율은 1.3%지
+              #    65%가 아니다. 비용은 **거래 금액**에 비례한다.
+              #    그래서 진짜 회전율 traded = Σ|Δ적용노출| 을 함께 남긴다.
               "turnover": {"filled": len(fills), "universe": n,
-                           "ratio": round(len(fills) / n, 4) if n else None},
+                           "symbols_ratio": round(len(fills) / n, 4) if n else None,
+                           "traded": _turnover_traded(st["history"], applied)},
               # 피처 건강 — 외부 소스가 죽으면 피처가 조용히 줄어드는데
               # 장부에는 같은 fs8로 남는다. 실제 개수를 함께 남긴다.
               "feature_health": feat_health or None,

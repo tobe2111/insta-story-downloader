@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("종목 수 비율을 다시 회전율로 써서 비용을 계산한다",
+     "docs/index.html",
+     "    const withT=hs.filter(r=>typeof r.turnover.traded===\"number\");",
+     "    const withT=hs;",
+     "tests/test_turnover_is_money_not_symbols.py"),
+
     ("어드민 참고 변동성을 다시 산문에 박는다",
      "docs/admin.html",
      '<span id="volref">참고 수치를 장부에서 읽는 중…</span></span></span>',

@@ -637,18 +637,36 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '백테스트 가정보다 실제 체결이 불리하면 그 사실을 그대로 표시합니다 (최근 '+
       fc.window+'일 · '+fc.total_fills+'건).</div>';
   }
-  /* 회전율·비용 — 비용이 기대수익을 넘으면 엣지가 있어도 수익이 없다 */
+  /* 회전율·비용 — 비용이 기대수익을 넘으면 엣지가 있어도 수익이 없다.
+     ⚠️ 예전에는 turnover.ratio(= 체결 종목 수 ÷ 후보 수)를 자산 대비
+     회전율로 읽고 왕복비용을 곱해 "연 비용 70%"를 냈다(2026-08-12 감사
+     119). 여러 종목을 각각 자산의 0.1%씩만 움직였다면 실제 회전율은
+     아주 작다 — 비용은 **거래 금액**에 비례한다. 그 숫자를 근거로
+     전략을 바꿀 뻔했다.
+     이제 장부의 traded(= Σ|Δ적용노출|)만 비용으로 환산하고, 그 값이
+     없는 옛 기록은 '체결 종목 비율'이라고만 적는다(비용 환산 안 함). */
   let turnHtml="";
   if(pf){
     const hs=(pf.history||[]).filter(r=>r.turnover);
-    if(hs.length){
-      const rec=hs.slice(-20), avg=rec.reduce((a,r)=>a+(r.turnover.ratio||0),0)/rec.length;
+    const withT=hs.filter(r=>typeof r.turnover.traded==="number");
+    if(withT.length){
+      const rec=withT.slice(-20);
+      const avg=rec.reduce((a,r)=>a+r.turnover.traded,0)/rec.length;
       const cost=avg*252*0.0043, tgt=(vt&&vt.target)||0.12;
       turnHtml='<div class="sub" style="margin-top:10px;padding-top:10px;'+
-        'border-top:1px solid var(--line);font-size:12px">회전율 최근 '+
-        rec.length+'일 평균 <b>'+(avg*100).toFixed(0)+'%/일</b> → 연 비용 약 <b class="'+
+        'border-top:1px solid var(--line);font-size:12px">회전율(자산 대비 매매금액) 최근 '+
+        rec.length+'일 평균 <b>'+(avg*100).toFixed(1)+'%/일</b> → 연 비용 약 <b class="'+
         (cost>tgt?"down":"up")+'">'+(cost*100).toFixed(0)+'%</b> vs 기대수익 '+
         (tgt*100).toFixed(0)+'%'+(cost>tgt?' ⚠️ 비용이 수익을 먹는 구간':'')+'</div>';
+    }else if(hs.length){
+      const rec=hs.slice(-20);
+      const avg=rec.reduce((a,r)=>a+(r.turnover.symbols_ratio||r.turnover.ratio||0),0)/rec.length;
+      turnHtml='<div class="sub" style="margin-top:10px;padding-top:10px;'+
+        'border-top:1px solid var(--line);font-size:12px">체결 종목 비율 최근 '+
+        rec.length+'일 평균 <b>'+(avg*100).toFixed(0)+'%</b>'+
+        ' <span style="color:var(--dim)">— 몇 종목을 건드렸나일 뿐 자산 대비 '+
+        '회전율이 아니라, 비용으로 환산하지 않습니다(자산 대비 회전율은 '+
+        '오늘 밤 기록부터).</span></div>';
     }
   }
   if(vt){
