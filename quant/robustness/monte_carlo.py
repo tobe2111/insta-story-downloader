@@ -19,11 +19,22 @@ from quant.utils.numerics import degenerate_spread
 
 
 def _block_bootstrap(r: np.ndarray, rng: np.random.Generator, block: int) -> np.ndarray:
+    """원형 블록 부트스트랩 — 모든 시점의 포함 확률이 같다(감사 188).
+
+    ⚠️ 예전에는 `r[start : start + block]`으로 끝에서 잘랐다. 블록은
+       `start ≤ j`인 자리에서만 j를 담으므로 **앞쪽 원소가 들어갈 블록이
+       적다.** 실측(n=100·block=10): index 0이 균등 대비 **0.108×**,
+       앞 10개 평균 0.584×. 표본의 앞부분이 조용히 반쯤 깎인 셈이다.
+
+       이 함수는 사이트에 찍히는 '무작위 대비 백분위'(random_pctile)의
+       분모를 만든다 — 비교 기준이 흔들리면 우리 성적의 위치도 흔들린다.
+       `compare.py`의 형제도 같이 고쳤다(⑭).
+    """
     n = len(r)
     out: list[float] = []
     while len(out) < n:
         start = int(rng.integers(0, n))
-        out.extend(r[start : start + block])
+        out.extend(r[(start + k) % n] for k in range(block))
     return np.asarray(out[:n])
 
 

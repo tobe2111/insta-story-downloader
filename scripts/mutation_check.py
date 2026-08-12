@@ -1667,6 +1667,26 @@ MUTATIONS = [
      "        if False:",
      "tests/test_the_numbers_we_say_out_loud.py"),
 
+    # 감사 188 — 블록 부트스트랩이 표본 앞부분을 깎고 있었다. 형제 2곳.
+    ("A/B 검정 재추출에서 블록을 끝에서 자른다(표본 앞부분이 반쯤 깎인다)",
+     "quant/robustness/compare.py",
+     "        idx.extend((start + k) % n for k in range(block))",
+     "        idx.extend(range(start, min(start + block, n)))",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
+    ("무작위 벤치마크 재추출에서 블록을 끝에서 자른다(사이트 백분위의 분모가 흔들린다)",
+     "quant/robustness/monte_carlo.py",
+     "        out.extend(r[(start + k) % n] for k in range(block))",
+     "        out.extend(r[start : start + block])",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
+    ("재추출을 낱개로 바꾼다(자기상관 보존이라는 목적이 사라진다)",
+     "quant/robustness/compare.py",
+     "        start = int(rng.integers(0, n))\n"
+     "        idx.extend((start + k) % n for k in range(block))",
+     "        idx.extend(int(rng.integers(0, n)) for _ in range(block))",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
