@@ -1573,6 +1573,45 @@ MUTATIONS = [
      "    pass",
      "tests/test_the_display_only_cards_tell_the_truth.py"),
 
+    # 감사 182 — 전수조사 마지막 파일(kiwoom_live) + 형제(kr_live). 결함 3건.
+    ("키움: 모르는 주문 방향을 매도로 흘린다('BUY'라고 쓰면 팔린다)",
+     "quant/broker/kiwoom_live.py",
+     '        if side not in ("buy", "sell"):\n'
+     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
+     "        pass",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("키움: 보유목록 키가 없어도 '0주 보유'라 답한다(목표만큼 다시 사서 두 배가 된다)",
+     "quant/broker/kiwoom_live.py",
+     "        if self.HOLDINGS_KEY not in data:",
+     "        if False:",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("키움: 예수금 필드가 없어도 '현금 0'이라 답한다(평가금액이 꺼져 청산 지시가 난다)",
+     "quant/broker/kiwoom_live.py",
+     "        if self.CASH_FIELD not in data:",
+     "        if False:",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("KIS: 모르는 주문 방향을 매도로 흘린다(형제 쪽만 살아 있으면 더 나쁘다)",
+     "quant/broker/kr_live.py",
+     '        if side not in ("buy", "sell"):\n'
+     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
+     "        pass",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("KIS: 보유목록(output1)이 없어도 '0주 보유'라 답한다",
+     "quant/broker/kr_live.py",
+     '        if "output1" not in data:',
+     "        if False:",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("KIS: 요약(output2)이 없어도 '현금 0'이라 답한다",
+     "quant/broker/kr_live.py",
+     '        if "output2" not in data:',
+     "        if False:",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
