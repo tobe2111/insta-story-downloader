@@ -127,7 +127,26 @@ def _wilson_ci(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
 
 
 def _band_pairs(history: list, prob: float, band: float) -> list:
-    """장부에서 (새벽 확률, 다음 날 방향) 짝 중 오늘 확률대에 드는 것만 모은다."""
+    """장부에서 (새벽 확률, 다음 날 방향) 짝 중 오늘 확률대에 드는 것만 모은다.
+
+    ⚠️ **보합(정확히 같은 가격)은 '오르지 않음'으로 센다.** 이 문장은
+       "모델이 70%라 말했을 때 실제로 몇 번 올랐나"를 재는 보정 곡선이므로
+       그 셈 자체는 옳다. 다만 **보합이 생기는 빈도는 종목마다 다르다** —
+       거래정지·상하한가·저유동 국내주식은 잦고 코인은 거의 없다.
+
+       실측(같은 '오를 때만 오른다' 성질):
+           보합 4일 섞인 종목 → 상승 비율  56%
+           보합 없는 종목     → 상승 비율 100%
+
+       그래서 감사 168에서 적중률에 했던 것과 같은 규칙을 여기에도 적용한다
+       — 빼거나 숨기지 않고 **보합이 몇 날이었는지 함께 말한다.** 숨기면
+       "보합이 없었다"와 구별되지 않는다(형제를 안 찾은 자리였다, 감사 187).
+    """
+    return [p for p, _ in _band_pairs_flat(history, prob, band)]
+
+
+def _band_pairs_flat(history: list, prob: float, band: float) -> list:
+    """(결과, 보합여부) 짝 목록 — 보합 수를 함께 셀 수 있게."""
     pairs = []
     for a, b in zip(history, history[1:]):
         p = a.get("prob_up")
@@ -135,8 +154,15 @@ def _band_pairs(history: list, prob: float, band: float) -> list:
         if p is None or pa in (None, 0) or pb is None:
             continue
         if abs(float(p) - prob) <= band:
-            pairs.append(1.0 if float(pb) > float(pa) else 0.0)
+            flat = float(pb) == float(pa)
+            pairs.append((1.0 if float(pb) > float(pa) else 0.0, flat))
     return pairs
+
+
+def _flat_note(pairs: list) -> str:
+    """보합이 섞여 있으면 몇 날인지 밝힌다(없으면 빈 문자열)."""
+    n = sum(1 for _, flat in pairs if flat)
+    return f" · 보합 {n}일 포함" if n else ""
 
 
 def _band_accuracy(history: list, prob: float, band: float = 0.10,
@@ -150,23 +176,25 @@ def _band_accuracy(history: list, prob: float, band: float = 0.10,
     25건 이상일 때만 비율을 표시하고 윌슨 95% 신뢰구간을 병기한다 —
     작은 표본의 비율이 확신처럼 읽히는 것을 막는 규칙.
     """
-    own = _band_pairs(history, prob, band)
+    own_f = _band_pairs_flat(history, prob, band)
+    own = [v for v, _ in own_f]
     if len(own) >= MIN_BAND_SAMPLES:
         acc = sum(own) / len(own)
         lo, hi = _wilson_ci(acc, len(own))
         return (f" · 참고: 이 종목에서 모델이 {prob:.0%}±10%p라 말한 최근 "
                 f"{len(own)}일의 실제 상승 비율 {acc:.0%} "
-                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%})")
-    pooled = []
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(own_f)})")
+    pooled_f = []
     for h in (pooled_history or []):
-        pooled.extend(_band_pairs(h, prob, band))
+        pooled_f.extend(_band_pairs_flat(h, prob, band))
+    pooled = [v for v, _ in pooled_f]
     if len(pooled) >= MIN_BAND_SAMPLES:
         acc = sum(pooled) / len(pooled)
         lo, hi = _wilson_ci(acc, len(pooled))
         return (f" · 참고: 전 종목 합산으로 모델이 {prob:.0%}±10%p라 말한 "
                 f"{len(pooled)}건의 실제 상승 비율 {acc:.0%} "
-                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%} · 이 종목 단독 표본은 "
-                f"{len(own)}건으로 축적 중)")
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(pooled_f)} · "
+                f"이 종목 단독 표본은 {len(own)}건으로 축적 중)")
     return (f" · 참고: 이 확률대({prob:.0%}±10%p)의 과거 성적은 "
             f"표본 축적 중 (종목 n={len(own)} · 합산 n={len(pooled)}, "
             f"{MIN_BAND_SAMPLES}건부터 표시)")
