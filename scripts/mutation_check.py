@@ -778,6 +778,19 @@ MUTATIONS = [
      "                  None),",
      "tests/test_a_data_outage_cannot_erase_a_loss.py"),
 
+    # 감사 153 — 비용이 체결보다 한 봉 먼저 부과됐다.
+    ("거래비용을 체결 봉이 아니라 결정 봉에 부과한다(포지션 전에 비용부터)",
+     "quant/portfolio/backtest.py",
+     "        cost = self.cost * turnover.shift(1).fillna(0.0)",
+     "        cost = self.cost * turnover.fillna(0.0)",
+     "tests/test_costs_are_charged_when_the_trade_happens.py"),
+
+    ("포트폴리오 백테스트에서 거래비용을 통째로 뺀다(오디션이 비용을 무시)",
+     "quant/portfolio/backtest.py",
+     "        port_ret = (port_ret_gross - cost).rename(\"returns\")",
+     "        port_ret = port_ret_gross.rename(\"returns\")",
+     "tests/test_costs_are_charged_when_the_trade_happens.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
