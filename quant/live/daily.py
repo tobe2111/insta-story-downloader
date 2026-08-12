@@ -53,33 +53,59 @@ IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}
 FRACTIONAL_MARKETS = {"crypto", "synthetic", "us_stock"}
 
 
-def _lot_infeasible(applied: dict, prices: dict, equity: float) -> dict:
-    """1주도 못 사는 종목 — {키: {배정금액, 1주 가격, 살 수 있는 주수}}.
+def _fit_to_budget(targets: dict, prices: dict, equity: float,
+                   cap: float = 1.0) -> tuple[dict, dict]:
+    """목표 비중을 **실제로 살 수 있는** 비중으로 바꾼다 (감사 137 후속).
 
-    ⚠️ 이 실험의 전제(8만원으로 20종목 분산)가 어디까지 현실인지의 답이다
-       (감사 137). 2026-08-12 실측: 한국 주식 5종목의 배정금액이 18~690원인데
-       1주 가격은 10만~144만원 — **실계좌에서는 단 한 주도 못 산다.**
-       그런데 장부에는 보유로, 사이트에는 '종목별 현황'으로 나가고 손익에도
-       반영된다. 숫자는 맞지만 **무엇의 숫자인지**가 현실과 다르다.
+    운영자 결정(2026-08-12): *"금액이 문제면 비싼 건 미루면 되잖아.
+    예산에 맞게 투자하면 되지."*
 
-    고치는 방식(유니버스 조정·정수 주 강제)은 실험 설계 변경이라 운영자의
-    결정이다. 감사가 할 일은 **그 사실을 숨기지 않는 것**이다.
+    규칙
+      ① 소수점 매매가 안 되는 시장(국내주식)은 **정수 주로 내림**한다.
+      ② 1주도 못 사면 그날은 **미룬다**(deferred) — 억지로 사지 않는다.
+      ③ 내림·미룸으로 남은 예산은 **살 수 있는 종목에 재배분**한다.
+         현금으로 놀리면 총노출이 목표보다 낮아져 위험 예산이 샌다.
+      ④ 재배분해도 한 종목 과집중 상한(cap)은 넘지 않는다.
+
+    자산이 커지면 ②에 걸리는 종목이 저절로 줄어든다 — 8만원에서 시작해
+    원금이 커지며 유니버스가 넓어지는 것 자체가 이 실험의 서사다.
+
+    ⚠️ 주식은 '다음 세션 시가'에 체결되므로 여기서 쓴 오늘 가격과 체결가가
+       다르다. 이 계산은 **계획 시점의 실현 가능성** 판단이고, 실제 수량은
+       체결 시점에 브로커가 다시 정한다.
+
+    반환: (조정된 목표 비중, 미룬 종목 {키: {budget, price}})
     """
-    out = {}
-    for key, w in applied.items():
-        market = key.split(":")[0]
-        if market in FRACTIONAL_MARKETS:
-            continue
+    import math
+    if equity <= 0:
+        return dict(targets), {}
+    out: dict = {}
+    deferred: dict = {}
+    freed = 0.0
+    for key, w in targets.items():
         px = prices.get(key)
-        if not px or px <= 0 or equity <= 0:
+        if key.split(":")[0] in FRACTIONAL_MARKETS or not px or px <= 0:
+            out[key] = w
             continue
-        budget = float(w) * equity
-        shares = budget / float(px)
-        if shares < 1.0:
-            out[key] = {"budget": round(budget, 2),
-                        "price": round(float(px), 2),
-                        "shares": round(shares, 6)}
-    return out
+        lots = math.floor(abs(w) * equity / float(px))
+        got = lots * float(px) / equity
+        if lots <= 0 and abs(w) > 0:
+            deferred[key] = {"budget": round(abs(w) * equity, 2),
+                             "price": round(float(px), 2)}
+        out[key] = math.copysign(got, w) if got else 0.0
+        freed += abs(w) - got
+    if freed > 1e-12:
+        # 재배분 대상 — 원래 사려던 종목 중 '얼마든 더 담을 수 있는' 쪽.
+        # 정수 주 시장은 다시 내림에 걸리므로 여기서는 제외한다(자산이
+        # 커지면 ①에서 자연히 한 주가 붙는다).
+        room = {k: abs(v) for k, v in targets.items()
+                if k.split(":")[0] in FRACTIONAL_MARKETS and abs(v) > 0}
+        tot = sum(room.values())
+        if tot > 0:
+            for k, base in room.items():
+                add = min(freed * base / tot, max(0.0, cap - abs(out[k])))
+                out[k] = math.copysign(abs(out[k]) + add, targets[k])
+    return out, deferred
 
 
 def _fill_cost(market: str) -> float:
@@ -1426,6 +1452,36 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
              f"{ex_ante * 100:.2f}%" if ex_ante else "추정불가",
              vscale, eff_scale, vol_why)
 
+    def _target_w(key: str, w: float) -> float:
+        """그 종목의 최종 목표 비중(부호 포함).
+
+        ⚠️ **주문과 기록이 같은 값을 쓰게 하는 단 하나의 자리다.** 예전에는
+           주문 루프와 기록(_applied)이 같은 식을 따로 적어, 한쪽만 고치면
+           장부가 실제 주문과 다른 값을 말했다(감사 92가 그 사고였다).
+
+        킬스위치×어드민 배수×변동성 타깃을 곱하고, 이벤트 감쇠(실적 가드)와
+        켈리 상한은 **스케일 뒤에** 건다 — 앞에 두면 스케일러가 되돌려 키워
+        둘 다 무효가 된다.
+        """
+        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
+        kcap = kelly_caps.get(key)
+        if kcap is not None:
+            eff = float(np.clip(eff, -kcap, kcap))
+        return eff * slices.get(key, 1.0 / n)
+
+    # 예산에 맞춰 실현 가능한 비중으로 바꾼다(정수 주 내림 · 못 사면 미룸 ·
+    # 남은 예산은 살 수 있는 종목에 재배분) — 2026-08-12 운영자 결정.
+    # ⚠️ 이름을 `targets`로 두면 **함수 인자 targets(종목 목록)를 가린다.**
+    #    실제로 그렇게 썼다가 `"planned": len(targets)`가 계획 종목 수 대신
+    #    오늘 판단한 종목 수를 세게 됐고, 감사 59에서 고쳤던 결함이 그대로
+    #    되살아났다 — 검사가 잡았다(500줄짜리 함수에서 이름 하나가 그렇다).
+    fitted_w, deferred_lots = _fit_to_budget(
+        {k: _target_w(k, w) for k, w in weights.items()},
+        prices, equity, cap=3.0 / n)
+    if deferred_lots:
+        log.info("1주 미만이라 오늘 미룬 종목 %d개: %s",
+                 len(deferred_lots), ", ".join(sorted(deferred_lots)))
+
     n_orders_before = len(getattr(broker, "order_log", []))
     skipped_dust = []
     skipped_cool = []
@@ -1433,13 +1489,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for key, w in weights.items():
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
-        # 킬스위치×어드민 배수×포트폴리오 변동성 타깃을 반영한 비중.
-        # 이벤트 감쇠(실적 가드)와 켈리 상한은 **스케일 뒤에** 적용한다 —
-        # 앞에 두면 스케일러가 되돌려 키워 둘 다 무효가 된다.
-        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
-        kcap = kelly_caps.get(key)
-        if kcap is not None:
-            eff = float(np.clip(eff, -kcap, kcap))
+        tw = fitted_w[key]             # 예산까지 반영한 최종 목표 비중
         if paused:
             continue                           # 일시정지: 신규 주문 없음(포지션 유지)
         # 재조정 쿨다운 — 매일 판단하되 자주 고쳐 잡지는 않는다
@@ -1455,11 +1505,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 held_w = (broker.get_position(key).quantity
                           * float(prices[key]) / equity) if equity > 0 else 0.0
             except Exception as exc:  # noqa: BLE001
-                if abs(eff * sl) >= 1e-9:      # 청산이 아니면 오늘은 건너뛴다
+                if abs(tw) >= 1e-9:            # 청산이 아니면 오늘은 건너뛴다
                     skipped_why[key] = f"보유 조회 실패 — {type(exc).__name__}"
                     pending.pop(key, None)
                     continue
-        if _in_cooldown(key, last_trade, bar, eff * sl, held_w,
+        if _in_cooldown(key, last_trade, bar, tw, held_w,
                         _rebalance_band_rel(market, state_dir)):
             skipped_cool.append(key)
             pending.pop(key, None)
@@ -1467,17 +1517,20 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         # 잔돈 주문 차단 — 목표와 현 보유의 차이가 최소 주문금액에 못 미치면
         # 주문하지 않는다. 40원짜리 매매는 비용(한국주식 실측 왕복 ~93bp)만
         # 남기고 체결 표본까지 오염시킨다.
-        if _is_dust_order(broker, key, eff * sl, prices.get(key), equity):
+        if _is_dust_order(broker, key, tw, prices.get(key), equity):
             skipped_dust.append(key)
             pending.pop(key, None)
             continue
         if market in IMMEDIATE_FILL_MARKETS:
             broker.fee = _fill_cost(market)
             # 비용 비례 상대 밴드 — 비싼 시장일수록 더 벗어나야 고쳐 잡는다
-            broker.target_weight(key, eff * sl, prices[key], equity,
+            broker.target_weight(key, tw, prices[key], equity,
                                  rebalance_band_rel=_rebalance_band_rel(market))
         else:
-            pending[key] = {"weight": round(eff, 4), "slice": round(sl, 5),
+            # 예산 반영 후의 최종 비중을 통째로 남긴다(slice=1.0).
+            # 예전에는 eff와 slice를 나눠 저장하고 체결 때 곱했는데,
+            # 그러면 예산 조정이 체결 시점에 사라진다.
+            pending[key] = {"weight": round(tw, 6), "slice": 1.0,
                             "decided_bar": last_bars[key]}
     if skipped_dust:
         log.info("잔돈 주문 %d건 생략(최소 %s원 미만): %s",
@@ -1524,13 +1577,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                       for k in prices) / len(prices)
     # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
     # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
-    def _applied(k: str, w: float) -> float:
-        v = (abs(w) * eff_scale * vscale * slices.get(k, 1.0 / n)
-             * guard_damp.get(k, 1.0))
-        cap = kelly_caps.get(k)
-        return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
-
-    gross = sum(_applied(k, w) for k, w in weights.items())
+    # ⚠️ 여기서 다시 계산하지 않는다. 예전에는 주문 루프와 이 기록이 같은
+    #    식을 **따로** 적어, 한쪽만 고치면 장부가 실제 주문과 다른 값을
+    #    말했다(감사 92). 이제 둘 다 fitted_w 하나만 읽는다 — 예산 조정
+    #    (정수 주 내림·미룸·재배분)도 자동으로 반영된다.
+    gross = sum(abs(v) for v in fitted_w.values())
 
     def _turnover_traded(history: list, now: dict) -> float | None:
         """자산 대비 실제 회전율 = Σ|오늘 노출 − 어제 노출|.
@@ -1549,9 +1600,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
     # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
-    applied = {k: round(v, 4)
-               for k, v in ((k, _applied(k, w)) for k, w in weights.items())
-               if v > 0}
+    applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))
@@ -1649,7 +1698,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 실계좌에서 1주도 못 사는 종목(감사 137). 소수점 매매가 없는
               # 시장(국내주식)에서 배정금액이 1주 값에 못 미치면, 이 기록의
               # 그 줄은 **현실에서 재현할 수 없는 보유**다. 숨기지 않는다.
-              "lot_infeasible": _lot_infeasible(applied, prices, equity) or None,
+              "lot_infeasible": deferred_lots or None,
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.

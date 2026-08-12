@@ -319,10 +319,28 @@ MUTATIONS = [
      "tests/test_live_reports_what_it_actually_bought.py"),
 
     # 감사 137 — 실계좌에서 1주도 못 사는 보유를 장부가 인정하는가.
-    ("실현 불가 보유를 장부에서 숨긴다(못 사는 종목을 보유로 기록)",
+    ("미룬 종목을 장부에서 숨긴다(못 사는 종목을 조용히 넘김)",
      "quant/live/daily.py",
-     "              \"lot_infeasible\": _lot_infeasible(applied, prices, equity) or None,",
+     "              \"lot_infeasible\": deferred_lots or None,",
      "              \"lot_infeasible\": None,",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("정수 주 내림을 끈다(못 사는 수량을 산 것으로 기록)",
+     "quant/live/daily.py",
+     "        lots = math.floor(abs(w) * equity / float(px))",
+     "        lots = abs(w) * equity / float(px)",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("미룬 예산을 재배분하지 않는다(총노출이 목표보다 낮아짐)",
+     "quant/live/daily.py",
+     "    if freed > 1e-12:",
+     "    if False:",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("주문과 장부가 다시 각자 계산하게 되돌린다",
+     "quant/live/daily.py",
+     "        tw = fitted_w[key]             # 예산까지 반영한 최종 목표 비중",
+     "        tw = _target_w(key, w)",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
     ("국내주식도 소수점 매매가 되는 것으로 친다",

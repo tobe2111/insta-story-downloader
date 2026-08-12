@@ -1,21 +1,27 @@
-"""실계좌에서 **살 수 없는 보유**를 장부가 인정하는가 (감사 137).
+"""예산에 맞게 투자하는가 — 못 사면 미루고, 남은 예산은 재배분 (감사 137).
 
 2026-08-12, 실제 페이퍼 계좌의 보유를 열어 봤다.
 
     kr_stock:000660 (SK하이닉스)   0.0000주   평가 41원   · 1주 1,443,000원
     kr_stock:005930 (삼성전자)     0.0001주   평가 18원   · 1주   236,000원
-    kr_stock:051910 (LG화학)       0.0006주   평가 153원  · 1주   272,000원
     kr_stock:069500 (KODEX 200)    0.0018주   평가 182원  · 1주   100,800원
-    kr_stock:105560 (KB금융)       0.0039주   평가 690원  · 1주   174,600원
 
-**국내주식은 소수점 매매가 없다.** 이 다섯 줄은 실계좌에서 단 한 주도
-살 수 없다. 그런데 장부에는 보유로 적히고, 사이트 '종목별 현황'에 나가고,
-손익에 반영된다. 숫자는 맞지만 **무엇의 숫자인지**가 현실과 다르다 —
-오늘 반복해서 나온 계열이다(FROZEN_IDEAS ⑳).
+**국내주식은 소수점 매매가 없다.** 이 줄들은 실계좌에서 단 한 주도 살 수
+없는데 장부에는 보유로 적히고 손익에 반영됐다. 8만원으로 가장 싼 종목
+1주를 사려면 자산의 126%가 필요하다 — 레버리지 없이는 불가능하다.
 
-'8만원으로 20종목 분산'이라는 이 실험의 전제가 어디까지 현실인지의 문제라,
-고치는 방식(유니버스 조정·정수 주 강제)은 **운영자의 결정**이다. 감사가 할
-일은 그 사실을 숨기지 않는 것이다: 장부에 남기고, 읽는 사람을 둔다.
+운영자 결정: *"금액이 문제면 비싼 건 미루면 되잖아. 예산에 맞게 투자하면
+되지."* 그래서 `_fit_to_budget`이
+
+    ① 정수 주 시장은 내림 → ② 1주도 못 사면 미룸 → ③ 남은 예산은 살 수
+    있는 종목에 재배분 → ④ 재배분해도 과집중 상한은 안 넘음
+
+을 한다. ③이 핵심이다 — 미룬 예산을 현금으로 놀리면 총노출이 목표보다
+낮아져 위험 예산이 샌다.
+
+그리고 이 결과가 **주문과 장부 양쪽의 유일한 출처**다. 예전에는 주문 루프와
+기록(_applied)이 같은 식을 따로 적어, 한쪽만 고치면 장부가 실제 주문과 다른
+값을 말했다(감사 92가 그 사고였다).
 """
 
 from __future__ import annotations
@@ -26,149 +32,190 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from quant.live.daily import FRACTIONAL_MARKETS, _lot_infeasible  # noqa: E402
+from quant.live.daily import FRACTIONAL_MARKETS, _fit_to_budget  # noqa: E402
 
 
-# ── 판정 규칙 ─────────────────────────────────────────────────
+# ── ① 정수 주 내림 ────────────────────────────────────────────
 
 
-def test_a_korean_stock_below_one_share_is_flagged():
-    got = _lot_infeasible({"kr_stock:005930.KS": 0.0002},
-                          {"kr_stock:005930.KS": 236_000.0}, 80_000.0)
-    assert "kr_stock:005930.KS" in got
-    row = got["kr_stock:005930.KS"]
-    assert row["shares"] < 1.0
-    assert row["price"] == 236_000.0
-    assert abs(row["budget"] - 16.0) < 0.01      # 0.0002 × 80,000
+def test_a_korean_stock_is_floored_to_whole_shares():
+    # 1,000,000원 계좌 · 25% 배정(250,000원) · 1주 100,800원 → 2주(201,600원)
+    out, deferred = _fit_to_budget({"kr_stock:069500.KS": 0.25},
+                                   {"kr_stock:069500.KS": 100_800.0},
+                                   1_000_000.0)
+    assert not deferred, deferred
+    assert abs(out["kr_stock:069500.KS"] - 0.2016) < 1e-6, out
 
 
-def test_one_whole_share_is_not_flagged():
-    """대조군 — 살 수 있는 것까지 깃발이 서면 매일 울려 아무도 안 본다.
-
-    ⚠️ 처음 쓴 픽스처(비중 0.5 · 1주 100,800원 · 자산 8만원)는 사실
-       0.397주라 **정당하게 깃발이 섰다.** 검사가 내 픽스처를 잡았다 —
-       이 실험에서 국내주식 1주를 사려면 자산의 절반을 넘겨야 한다는
-       사실 자체가 감사 137의 본론이다.
-    """
-    # 4만원 배정 / 1주 2만원 → 2주. 이 정도 저가 종목이라야 성립한다.
-    assert _lot_infeasible({"kr_stock:CHEAP": 0.5},
-                           {"kr_stock:CHEAP": 20_000.0},
-                           80_000.0) == {}
+def test_fractional_markets_are_untouched():
+    """코인·미국주식은 소수점 매매가 되므로 그대로 둔다."""
+    assert "kr_stock" not in FRACTIONAL_MARKETS
+    t = {"crypto:BTC/USDT": 0.3, "us_stock:AAPL": 0.2}
+    out, deferred = _fit_to_budget(dict(t), {"crypto:BTC/USDT": 63_656.0,
+                                             "us_stock:AAPL": 306.0},
+                                   1_000_000.0)
+    assert out == t and not deferred
 
 
-def test_the_experiment_cannot_buy_a_single_share_of_its_own_universe():
-    """실측 고정 — 현 유니버스의 국내주식은 8만원 전액으로도 못 사는 것이 있다.
-
-    2026-08-12 종가 기준. 이 값이 바뀌면(액면분할·주가 하락) 검사가 깨지고,
-    그때 다시 판단하면 된다 — 조용히 지나가지 않게 못 박아 둔다.
-    """
-    # SK하이닉스 1주 = 1,443,000원 > 계좌 전체(8만원)의 18배
-    got = _lot_infeasible({"kr_stock:000660.KS": 1.0},
-                          {"kr_stock:000660.KS": 1_443_000.0}, 80_000.0)
-    assert got, "계좌 전액을 걸어도 1주를 못 사는데 깃발이 안 선다"
-    assert got["kr_stock:000660.KS"]["shares"] < 0.06
+# ── ② 못 사면 미룬다 ──────────────────────────────────────────
 
 
-def test_fractional_markets_are_exempt():
-    """코인·미국주식은 소수점 매매가 되므로 1주 미만이 정상이다."""
-    assert "crypto" in FRACTIONAL_MARKETS
-    assert "us_stock" in FRACTIONAL_MARKETS
-    assert "kr_stock" not in FRACTIONAL_MARKETS, (
-        "국내주식은 소수점 매매가 없다 — 면제 대상이 아니다")
-    assert _lot_infeasible({"crypto:BTC/USDT": 0.02, "us_stock:AAPL": 0.02},
-                           {"crypto:BTC/USDT": 63_656.0,
-                            "us_stock:AAPL": 306.0}, 80_000.0) == {}
+def test_what_cannot_be_bought_is_deferred_not_faked():
+    """1주 값이 배정금액보다 크면 0으로 두고, 왜인지 남긴다."""
+    out, deferred = _fit_to_budget({"kr_stock:000660.KS": 0.05},
+                                   {"kr_stock:000660.KS": 1_443_000.0},
+                                   1_000_000.0)      # 배정 5만원 / 1주 144만원
+    assert out["kr_stock:000660.KS"] == 0.0, "못 사는데 보유로 적었다"
+    row = deferred["kr_stock:000660.KS"]
+    assert row["budget"] == 50_000.0 and row["price"] == 1_443_000.0, row
 
 
-def test_missing_price_is_not_a_verdict():
-    """가격을 모르면 판정하지 않는다 — 모르면 숫자를 만들지 않는다."""
-    assert _lot_infeasible({"kr_stock:X": 0.1}, {}, 80_000.0) == {}
-    assert _lot_infeasible({"kr_stock:X": 0.1}, {"kr_stock:X": 0.0},
-                           80_000.0) == {}
-    assert _lot_infeasible({"kr_stock:X": 0.1}, {"kr_stock:X": 100.0}, 0.0) == {}
+# ── ③ 남은 예산은 재배분 ──────────────────────────────────────
 
 
-# ── 장부에 남는가 ─────────────────────────────────────────────
+def test_the_freed_budget_goes_to_what_can_be_bought():
+    """미룬 예산이 현금으로 놀지 않는다 — 총노출이 목표를 지킨다."""
+    targets = {"kr_stock:000660.KS": 0.10,     # 못 산다(1주 144만원)
+               "crypto:BTC/USDT": 0.30,
+               "us_stock:AAPL": 0.10}
+    out, deferred = _fit_to_budget(
+        dict(targets),
+        {"kr_stock:000660.KS": 1_443_000.0, "crypto:BTC/USDT": 63_656.0,
+         "us_stock:AAPL": 306.0},
+        1_000_000.0, cap=1.0)
+    assert deferred, "못 사는 종목을 못 알아봤다"
+    before, after = sum(map(abs, targets.values())), sum(map(abs, out.values()))
+    assert abs(after - before) < 1e-9, (
+        f"총노출이 {before:.4f} → {after:.4f}로 샜다 — 미룬 예산이 놀고 있다")
+    # 재배분은 원래 비중에 비례한다(3:1)
+    assert out["crypto:BTC/USDT"] > 0.30 and out["us_stock:AAPL"] > 0.10
+    assert abs((out["crypto:BTC/USDT"] - 0.30)
+               - 3 * (out["us_stock:AAPL"] - 0.10)) < 1e-6, out
 
 
-def test_the_ledger_field_exists_and_is_quiet_on_a_clean_day(tmp_path):
+def test_redistribution_respects_the_concentration_cap():
+    """재배분이 한 종목 과집중 상한을 넘지 않는다 — 상한이 뒷문으로 뚫리면 안 된다."""
+    out, _ = _fit_to_budget(
+        {"kr_stock:000660.KS": 0.40, "crypto:BTC/USDT": 0.10},
+        {"kr_stock:000660.KS": 1_443_000.0, "crypto:BTC/USDT": 63_656.0},
+        1_000_000.0, cap=0.15)
+    assert out["crypto:BTC/USDT"] <= 0.15 + 1e-9, (
+        f"재배분이 상한 0.15를 넘겼다: {out}")
+
+
+def test_nothing_to_redistribute_to_is_not_an_error():
+    """살 수 있는 종목이 하나도 없으면 그냥 현금으로 둔다(억지로 사지 않는다)."""
+    out, deferred = _fit_to_budget({"kr_stock:000660.KS": 0.05},
+                                   {"kr_stock:000660.KS": 1_443_000.0},
+                                   1_000_000.0)
+    assert out["kr_stock:000660.KS"] == 0.0 and deferred
+
+
+def test_short_targets_keep_their_sign():
+    """공매도 방향도 부호가 유지돼야 한다 — 부호를 잃으면 반대로 산다."""
+    out, _ = _fit_to_budget({"kr_stock:069500.KS": -0.25},
+                            {"kr_stock:069500.KS": 100_800.0}, 1_000_000.0)
+    assert out["kr_stock:069500.KS"] < 0, out
+
+
+def test_a_missing_price_is_left_alone():
+    """가격을 모르면 손대지 않는다 — 모르면 숫자를 만들지 않는다."""
+    out, deferred = _fit_to_budget({"kr_stock:X": 0.1}, {}, 1_000_000.0)
+    assert out["kr_stock:X"] == 0.1 and not deferred
+
+
+# ── 장부·주문이 같은 값을 쓰는가 ──────────────────────────────
+
+
+def _run(tmp_path, *, cash=1_000_000.0, syms=3):
+    import json
+
     from quant.live.daily import run_daily_portfolio
     from quant.live.retrain import save_champions
     d = str(tmp_path)
-    save_champions({f"synthetic:L{i}": {"strategy": "ma_cross",
+    save_champions({f"synthetic:B{i}": {"strategy": "ma_cross",
                                         "params": {"fast": 10, "slow": 30},
-                                        "promotions": 0} for i in range(3)}, d)
-    rec = run_daily_portfolio([("synthetic", f"L{i}") for i in range(3)],
-                              lookback=200, state_dir=d,
-                              require_real_data=False)
-    assert "lot_infeasible" in rec, "장부에 필드 자체가 없다"
-    assert rec["lot_infeasible"] is None, (
-        f"합성 시장은 소수점이 정상인데 깃발이 섰다: {rec['lot_infeasible']}")
-
-
-def test_a_real_infeasible_day_reaches_the_ledger(tmp_path, monkeypatch):
-    """살 수 없는 날이 실제로 장부에 적히는가.
-
-    ⚠️ 위 검사만 있으면 `"lot_infeasible": None`으로 고정해도 통과한다 —
-       변이 시험이 그것을 잡았다. '없을 때 없다'와 '있을 때 있다'는
-       **다른 문장**이고, 둘 다 확인해야 한다.
-
-    소수점 매매가 안 되는 시장을 흉내내기 위해 합성 시장을 면제 목록에서
-    빼고, 자산을 아주 작게(50원) 잡아 1주도 못 사는 상황을 만든다.
-    """
-    import json
-
-    import quant.live.daily as D
-    from quant.live.retrain import save_champions
-    monkeypatch.setattr(D, "FRACTIONAL_MARKETS", {"crypto"})
-    d = str(tmp_path)
-    save_champions({f"synthetic:P{i}": {"strategy": "ma_cross",
-                                        "params": {"fast": 10, "slow": 30},
-                                        "promotions": 0} for i in range(3)}, d)
+                                        "promotions": 0}
+                    for i in range(syms)}, d)
     p = tmp_path / "paper"
     p.mkdir(parents=True, exist_ok=True)
-    # 자산 50원 — 100원짜리 종목 1주도 못 산다. 시작금도 같이 낮춰야
-    # 낙폭 킬스위치가 걸려 노출이 0이 되는 것을 피한다.
     (p / "portfolio_ALL.json").write_text(json.dumps({
-        "market": "portfolio", "symbol": "ALL",
-        "start_cash": 50.0, "cash": 50.0, "positions": {},
-        "base_prices": {}, "last_bar": None, "history": [],
+        "market": "portfolio", "symbol": "ALL", "start_cash": cash,
+        "cash": cash, "positions": {}, "base_prices": {},
+        "last_bar": None, "history": [],
     }), encoding="utf-8")
+    return run_daily_portfolio([("synthetic", f"B{i}") for i in range(syms)],
+                               lookback=200, state_dir=d,
+                               require_real_data=False)
 
-    rec = D.run_daily_portfolio([("synthetic", f"P{i}") for i in range(3)],
-                                lookback=200, state_dir=d,
-                                require_real_data=False)
+
+def test_the_ledger_total_equals_the_sum_of_its_parts(tmp_path):
+    """총노출(weight)이 종목별 적용 노출(applied)의 합과 같은가.
+
+    둘을 따로 계산하던 시절에는 이것이 어긋날 수 있었다(감사 92).
+    """
+    rec = _run(tmp_path)
+    parts = sum((rec.get("applied") or {}).values())
+    assert abs(rec["weight"] - parts) < 1e-3, (
+        f"총노출 {rec['weight']} vs 종목 합 {parts:.4f} — 두 숫자가 갈라졌다")
+
+
+def test_the_ledger_has_the_deferred_field(tmp_path):
+    rec = _run(tmp_path)
+    assert "lot_infeasible" in rec, "미룬 종목 필드가 장부에 없다"
+    assert rec["lot_infeasible"] is None, (
+        f"합성 시장은 소수점이 정상인데 미뤘다: {rec['lot_infeasible']}")
+
+
+def test_a_real_deferral_reaches_the_ledger_and_the_alert(tmp_path,
+                                                          monkeypatch):
+    """살 수 없는 날이 장부에도 경보에도 닿는가.
+
+    ⚠️ '없을 때 없다'만 확인하면 `"lot_infeasible": None` 고정으로도
+       통과한다 — 변이 시험이 실제로 그것을 잡았다.
+    """
+    import quant.live.daily as D
+    monkeypatch.setattr(D, "FRACTIONAL_MARKETS", {"crypto"})
+    rec = _run(tmp_path, cash=50.0)          # 100원짜리 1주도 못 산다
     bad = rec.get("lot_infeasible")
-    assert bad, (
-        "자산 50원으로 100원짜리 주식을 들고 있다고 기록하면서 "
-        "'살 수 없다'는 사실은 장부에 없다")
+    assert bad, "자산 50원인데 '살 수 없다'는 사실이 장부에 없다"
     row = next(iter(bad.values()))
-    for field in ("budget", "price", "shares"):
+    for field in ("budget", "price"):
         assert field in row, f"{field}가 없다 — 읽는 사람이 판단할 수 없다"
-    assert row["shares"] < 1.0
 
-
-# ── 읽는 사람이 있는가 (감사 135의 반복 방지) ─────────────────
-
-
-def test_someone_actually_reads_it():
-    """기록만 남기고 아무도 안 읽으면 감사 135와 같은 결함이 된다."""
     from quant.live.flag_watch import _current_flags
-    status = {"paper": {"portfolio:ALL": {"history": [{
-        "date": "2026-08-12",
-        "lot_infeasible": {"kr_stock:005930.KS": {
-            "budget": 18.0, "price": 236000.0, "shares": 0.000076}},
-    }]}}}
-    flags = _current_flags(status)
-    hit = [k for k in flags if k.startswith("lot_infeasible")]
-    assert hit, f"실현 불가 보유가 경보로 이어지지 않는다: {sorted(flags)}"
-    assert "005930" in flags[hit[0]]
-    assert "236,000" in flags[hit[0]]        # 1주 값을 같이 보여준다
+    flags = _current_flags({"paper": {"portfolio:ALL": {"history": [rec]}}})
+    assert [k for k in flags if k.startswith("lot_infeasible")], (
+        f"미룬 종목이 경보로 이어지지 않는다: {sorted(flags)}")
 
 
-def test_a_clean_ledger_raises_no_flag():
-    from quant.live.flag_watch import _current_flags
-    status = {"paper": {"portfolio:ALL": {"history": [
-        {"date": "2026-08-12", "lot_infeasible": None}]}}}
-    assert not [k for k in _current_flags(status)
-                if k.startswith("lot_infeasible")]
+def test_the_orders_obey_the_budget_not_just_the_ledger(tmp_path, monkeypatch):
+    """**주문**도 예산 규칙을 따르는가 — 장부만 줄이고 실제로는 사면 안 된다.
+
+    감사 91·92 계열: 장부와 주문이 갈라지는 사고가 이 저장소에서 반복해서
+    났다. 여기서도 기록만 `fitted_w`를 읽고 주문은 예산 전 값을 쓰면,
+    사이트는 "안 샀다"는데 계좌에는 포지션이 생긴다.
+
+    ⚠️ 이 검사는 처음에 헛돌았다. 합성 시장은 소수점 매매가 되는 것으로
+       분류돼 예산 조정 자체가 일어나지 않았고, 변이 시험이 그것을 잡았다.
+       그래서 ① 합성을 정수 주 시장으로 만들고 ② 잔돈 차단을 꺼서
+       (안 그러면 두 경우 다 주문이 안 나가 구별이 안 된다) 한 변수만
+       다르게 만든다.
+    """
+    import quant.live.daily as D
+    monkeypatch.setattr(D, "FRACTIONAL_MARKETS", {"crypto"})
+    monkeypatch.setattr(D, "MIN_ORDER_KRW", 0.0)
+    rec = _run(tmp_path, cash=1_000.0)       # 1주 값이 배정금액보다 크다
+
+    assert rec.get("lot_infeasible"), "전제가 깨졌다 — 미룬 종목이 없다"
+    assert not (rec.get("applied") or {}), (
+        f"미뤘는데 장부에 노출이 남았다: {rec.get('applied')}")
+
+    import json
+    st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                    .read_text("utf-8"))
+    held = {k: v for k, v in (st.get("positions") or {}).items()
+            if abs(float(v.get("quantity", 0.0))) > 0}
+    assert not held, (
+        f"장부는 '안 샀다'는데 실제로는 샀다: {held} — "
+        "주문이 예산 규칙을 무시하고 조정 전 비중을 쓴다")

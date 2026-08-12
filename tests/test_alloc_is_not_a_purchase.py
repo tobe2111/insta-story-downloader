@@ -90,15 +90,38 @@ def test_applied_is_preferred_when_present():
     assert _today_numbers(st)["top_names"] == ["AAPL"]
 
 
-def test_applied_sums_to_the_recorded_gross():
-    """종목별 노출의 합은 총노출이어야 한다 — 아니면 둘 중 하나가 거짓말이다."""
-    import quant.live.daily as daily
-    src = Path(daily.__file__).read_text("utf-8")
-    # 총노출과 종목별 노출이 **같은 함수**에서 나와야 어긋나지 않는다.
-    assert "gross = sum(_applied(k, w) for k, w in weights.items())" in src
-    assert re.search(r"applied = \{k: round\(v, 4\)\s*\n\s*for k, v in "
-                     r"\(\(k, _applied\(k, w\)\)", src), (
-        "종목별 노출을 총노출과 다른 식으로 계산하면 둘이 어긋난다")
+def test_applied_sums_to_the_recorded_gross(tmp_path):
+    """종목별 노출의 합은 총노출이어야 한다 — 아니면 둘 중 하나가 거짓말이다.
+
+    ⚠️ 예전 판은 소스에 특정 식(`gross = sum(_applied(...))`)이 있는지만
+       봤다. 그런 검사는 **식이 바뀌면 깨지고, 값이 어긋나도 모른다** —
+       2026-08-12에 예산 규칙(_fit_to_budget)을 넣으며 계산을 한 곳으로
+       모으자 이 검사가 깨졌는데, 정작 확인해야 할 '두 숫자가 같은가'는
+       한 번도 보지 않고 있었다.
+       이제 **진짜 배치를 돌려 장부의 두 숫자를 비교한다.**
+    """
+    import json
+
+    from quant.live.daily import run_daily_portfolio
+    from quant.live.retrain import save_champions
+    d = str(tmp_path)
+    save_champions({f"synthetic:G{i}": {"strategy": "ma_cross",
+                                        "params": {"fast": 10, "slow": 30},
+                                        "promotions": 0} for i in range(3)}, d)
+    p = tmp_path / "paper"
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "portfolio_ALL.json").write_text(json.dumps({
+        "market": "portfolio", "symbol": "ALL", "start_cash": 1_000_000.0,
+        "cash": 1_000_000.0, "positions": {}, "base_prices": {},
+        "last_bar": None, "history": [],
+    }), encoding="utf-8")
+    rec = run_daily_portfolio([("synthetic", f"G{i}") for i in range(3)],
+                              lookback=200, state_dir=d,
+                              require_real_data=False)
+    parts = sum((rec.get("applied") or {}).values())
+    assert rec["weight"] > 0, "총노출이 0이면 이 비교가 헛것이 된다"
+    assert abs(rec["weight"] - parts) < 1e-3, (
+        f"총노출 {rec['weight']} vs 종목별 합 {parts:.4f} — 둘이 갈라졌다")
 
 
 def test_the_record_carries_applied():
