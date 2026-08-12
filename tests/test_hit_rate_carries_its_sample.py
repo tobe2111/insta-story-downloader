@@ -77,3 +77,27 @@ def test_the_threshold_is_stated_once_not_scattered():
     body = INDEX.split("const hn=", 1)[1][:800]
     thresholds = set(re.findall(r"hn\s*<\s*(\d+)", body))
     assert len(thresholds) == 1, f"문턱이 여러 개다: {thresholds}"
+
+
+# ── 라벨이 실제 계산과 같은가 (감사 112) ────────────────────────
+
+def test_the_label_does_not_claim_a_window_the_value_does_not_have():
+    """'적중률(60일)'이라 적었지만 장부에 남는 값은 **전체 기간**이다.
+
+    directional_accuracy는 hit_rate(전체)와 rolling(최근 window)을 따로
+    돌려주는데, 장부는 hit_rate만 남긴다. window=60은 rolling을 만드는
+    데만 쓰인다. 열 이름이 '(60일)'이면 최근 60일치처럼 읽힌다 —
+    숫자는 맞고 이름이 틀린, 오늘 반복해서 나온 계열이다.
+    """
+    paper = (ROOT / "docs" / "paper.html").read_text("utf-8")
+    assert "적중률(60일)" not in paper, (
+        "장부에 남는 값은 전체 기간 적중률인데 열 이름이 '(60일)'이다")
+    for page in ("paper.html", "index.html"):
+        src = (ROOT / "docs" / page).read_text("utf-8")
+        assert "적중률(전체)" in src, f"{page}: 적중률의 기간을 밝히지 않는다"
+
+
+def test_the_ledger_stores_the_overall_rate_not_the_rolling_one():
+    """전제 고정 — 장부가 rolling을 저장하기 시작하면 라벨도 바뀌어야 한다."""
+    assert '"hit_rate": acc.get("hit_rate")' in DAILY
+    assert '"rolling"' not in DAILY.split('"hit_rate"')[1][:200]

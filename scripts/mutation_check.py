@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
+     "docs/paper.html",
+     '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',
+     '<th>적중률(60일)</th></tr>${rows}</table></div>',
+     "tests/test_hit_rate_carries_its_sample.py"),
+
     ("적중률에서 표본 수를 뗀다(n=3 우연이 실력처럼)",
      "quant/live/daily.py",
      '        "hit_n": acc.get("n"),',
