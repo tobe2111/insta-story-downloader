@@ -103,6 +103,20 @@ def load_snapshot(state_dir: str, asof: str, market: str, symbol: str):
         return pd.read_csv(f, index_col=0, parse_dates=True)
 
 
+def snapshot_pool_day(state_dir: str, cutoff: str) -> str | None:
+    """cutoff보다 **엄격히 이전**인 최신 스냅샷 폴더명(없으면 None).
+
+    폴더 고르는 규칙을 한 곳에 둔다 — 호출자가 '어느 날의 풀인가'를 알아야
+    같은 폴더를 두 번 읽지 않고 캐시할 수 있다(감사 129에서 학습 블록마다
+    풀을 다시 고르게 바꾸면서 필요해졌다).
+    """
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return None
+    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])
+    return days[-1] if days else None
+
+
 def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
     """cutoff(YYYY-MM-DD)보다 '이전' 날짜 중 최신 스냅샷 폴더의 전 종목 df 목록.
 
@@ -113,13 +127,10 @@ def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
     달라 verify 재현이 깨진다(하루 지연은 학습 풀에 무해).
     """
     import pandas as pd
-    base = os.path.join(state_dir, SNAP_DIR)
-    if not os.path.isdir(base):
+    day = snapshot_pool_day(state_dir, cutoff)
+    if day is None:
         return []
-    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])
-    if not days:
-        return []
-    day_dir = os.path.join(base, days[-1])
+    day_dir = os.path.join(state_dir, SNAP_DIR, day)
     out = []
     for name in sorted(os.listdir(day_dir)):
         if not name.endswith(".csv.gz"):

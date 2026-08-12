@@ -214,6 +214,15 @@ MUTATIONS = [
      "                idx = pd.DatetimeIndex(pdf.index).normalize().asi8",
      "tests/test_alpha12_pooled.py"),
 
+    # 감사 129 — 풀링을 살리자 드러난 세 번째 결함. 스냅샷 폴더를 프레임
+    # **끝** 날짜로 한 번만 고르면, 같은 과거 봉이라도 뒤에 미래가 얼마나
+    # 붙어 있느냐에 따라 풀이 달라진다 — 인과성이 깨진다(링 검사 54봉).
+    ("스냅샷 풀을 프레임 끝 날짜로 한 번만 고른다(미래를 자르면 과거가 바뀐다)",
+     "quant/strategies/ml.py",
+     "                        rows = self._pool_at(feats.columns, df.index[hi])",
+     "                        rows = self._pool_at(feats.columns, df.index[-1])",
+     "tests/test_lookahead_challenger_ring.py"),
+
     # 감사 127 — 풀링이 통째로 죽어 있어도 아무도 몰랐다.
     ("풀링을 조용히 끈다(넣으나 마나 같아진다)",
      "quant/strategies/ml.py",

@@ -402,6 +402,9 @@ class MLStrategy(Strategy):
         # None이면 성공(또는 아직 안 돌림), 문자열이면 그날의 실패 사유.
         self.pool_error_: str | None = None
         self.pool_rows_: int = 0
+        # 스냅샷 폴더 단위 캐시 — 블록마다 풀을 다시 고르되(감사 129)
+        # 같은 폴더를 여러 번 읽지 않는다.
+        self._pool_cache: dict = {}
         # 피처 가지치기 — 블록마다 전체 피처로 1차 학습해 중요도 상위 K개만
         # 남기고 재학습한다(0=끔). 피처가 세대를 거듭해 늘면(fs6+) 중복·잡음
         # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
@@ -447,19 +450,39 @@ class MLStrategy(Strategy):
             w = np.clip(np.round(w / self.weight_step) * self.weight_step, -1.0, 1.0)
         return w
 
-    def _build_pool(self, cols, span: int, last_bar) -> tuple | None:
-        """풀 표본 (날짜i8, X, y)를 만든다 — 타깃 피처 열 순서에 정렬.
+    def _pool_at(self, cols, cutoff) -> tuple | None:
+        """그 **학습 블록 시점에 존재하던** 스냅샷으로 풀을 만든다 (감사 129).
+
+        예전에는 프레임 **맨 끝** 날짜로 폴더를 한 번만 골랐다. 그러면 같은
+        과거 봉이라도 뒤에 미래 데이터가 얼마나 붙어 있느냐에 따라 풀이
+        달라진다 — 미래를 잘라내면 과거 신호가 바뀐다. 이 저장소가 가장
+        엄격하게 지키는 성질(인과성)이 정확히 그렇게 깨졌고, 링 인과성
+        검사가 54봉이 바뀐다고 잡았다.
+
+        (감사 127에서 풀링을 살리기 전까지는 풀 자체가 죽어 있어 이 결함도
+         보이지 않았다 — 죽은 장치가 또 하나를 가려 주고 있었다.)
+
+        블록마다 폴더를 다시 고르되 **폴더 단위로 캐시**한다. 인접 블록은
+        대개 같은 폴더를 쓰므로 실제 읽기 횟수는 폴더 수만큼이다.
+        """
+        from quant.utils.repro import load_snapshot_pool, snapshot_pool_day
+        day = snapshot_pool_day("state", str(cutoff)[:10])
+        if day is None:
+            return None
+        key = (day, tuple(cols))
+        if key not in self._pool_cache:
+            self._pool_cache[key] = self._build_pool(
+                cols, load_snapshot_pool("state", str(cutoff)[:10]))
+        return self._pool_cache[key]
+
+    def _build_pool(self, cols, frames) -> tuple | None:
+        """풀 표본 (날짜, X, y)를 만든다 — 타깃 피처 열 순서에 정렬.
 
         각 풀 프레임에 타깃과 같은 피처·라벨 규칙을 적용하고, 타깃에 없는
-        컬럼은 버리고 없는 값은 0(정보 없음)으로 채운다. 실패는 조용히
-        건너뛴다(풀은 보너스 표본 — 실패가 학습을 막으면 안 된다).
+        컬럼은 버리고 없는 값은 0(정보 없음)으로 채운다. 실패해도 학습은
+        계속하되(풀은 보너스 표본) **죽었다는 사실은 남긴다**(감사 127).
         """
         try:
-            if isinstance(self.pool, list):
-                frames = self.pool
-            else:
-                from quant.utils.repro import load_snapshot_pool
-                frames = load_snapshot_pool("state", str(last_bar)[:10])
             dates, xs, ys = [], [], []
             for pdf in frames:
                 if pdf is None or len(pdf) < 80 or "close" not in pdf:
@@ -608,8 +631,11 @@ class MLStrategy(Strategy):
         probs = np.full(n, np.nan)     # 봉별 예측확률 — 신뢰도 곡선(보정 검증)용
         model = None
         active_cols = None             # 가지치기 시 이 블록 모델이 쓰는 피처 열
-        pool_rows = (self._build_pool(feats.columns, span, df.index[-1])
-                     if self.pool is not None else None)
+        # 주입형(리스트)은 호출자가 준 프레임이 전부라 한 번만 만들면 된다.
+        # 스냅샷형("peers")은 **블록마다** 그 시점의 폴더로 다시 고른다
+        # (감사 129 — 프레임 끝 날짜로 한 번만 고르면 인과성이 깨진다).
+        pool_rows = (self._build_pool(feats.columns, self.pool)
+                     if isinstance(self.pool, list) else None)
 
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
         i = self.train_window
@@ -641,10 +667,13 @@ class MLStrategy(Strategy):
                         age = (hi - 1) - np.arange(lo, hi)[mask]
                         sw = np.power(0.5, age / self.weight_halflife)
                     X_tr, y_tr, sw_tr = X[lo:hi][mask], yt, sw
-                    if pool_rows is not None:
+                    rows = pool_rows
+                    if rows is None and self.pool is not None:
+                        rows = self._pool_at(feats.columns, df.index[hi])
+                    if rows is not None:
                         # 풀링: 학습 상한 날짜 이전의 타 종목 표본을 합친다
                         X_tr, y_tr, sw_tr = self._merge_pool(
-                            X_tr, y_tr, sw_tr, pool_rows, df.index[hi])
+                            X_tr, y_tr, sw_tr, rows, df.index[hi])
                     model = _wrapped()
                     _fit(model, X_tr, y_tr, sw_tr)
                     self._record_importances(model)
