@@ -35,6 +35,10 @@ def _redact(exc: object) -> str:
 
 
 class Notifier(ABC):
+    #: 이 채널이 **사장님께 실제로 닿는가**. 콘솔 로그는 닿지 않는다 —
+    #: 새벽 배치의 stdout은 깃허브 액션 로그 안에서 아무도 안 읽는다.
+    external: bool = True
+
     @abstractmethod
     def send(self, message: str, level: str = "info") -> bool:
         """전송을 시도하고 성공 여부를 돌려준다(예외는 던지지 않는다)."""
@@ -42,7 +46,9 @@ class Notifier(ABC):
 
 
 class ConsoleNotifier(Notifier):
-    """로그로 출력 (항상 사용 가능)."""
+    """로그로 출력 (항상 사용 가능). 바깥으로 나가지는 않는다."""
+
+    external = False
 
     def send(self, message: str, level: str = "info") -> bool:
         getattr(log, level if level in ("info", "warning", "error") else "info")(
@@ -104,7 +110,20 @@ class MultiNotifier(Notifier):
         self.notifiers = notifiers
 
     def send(self, message: str, level: str = "info") -> bool:
-        """모든 채널이 성공해야 True — 하나라도 실패하면 '보냈다'가 아니다."""
+        """모든 채널이 성공해야 True — 하나라도 실패하면 '보냈다'가 아니다.
+
+        ⚠️ **바깥으로 나가는 채널이 하나도 없으면 False다**(감사 175).
+           예전에는 콘솔만 있어도 True를 돌려줬다. 콘솔은 항상 성공하니까.
+
+           그런데 `flag_watch`는 이 반환값으로 '이 경보를 보냈다'를 장부에
+           적는다. 적히면 다음 실행부터 **'이미 켜져 있던 플래그'**로 분류돼
+           영원히 다시 오지 않는다. 즉 텔레그램·슬랙·디스코드를 하나도 설정하지
+           않은 상태에서 킬스위치가 발동하면, 그 사실이 **깃허브 액션 로그
+           안에 한 줄 남고 영구히 사라진다.**
+
+           이 파일 머리말이 경고하던 바로 그 사고인데(전송 실패를 성공으로
+           적는 것), 문이 하나 더 있었다 — **보낼 곳이 아예 없는 경우**다.
+        """
         ok = True
         for n in self.notifiers:
             try:
@@ -113,6 +132,15 @@ class MultiNotifier(Notifier):
             except Exception as exc:  # noqa: BLE001
                 log.warning("알림 채널 오류(%s): %s", type(n).__name__, exc)
                 ok = False
+        # '설정된 외부 채널이 있는가'와 '그 채널이 성공했는가'는 다른 질문이다.
+        # 후자는 위에서 ok가 이미 말했고 채널별 경고도 나갔다. 여기서는
+        # **보낼 곳 자체가 없는 경우**만 따로 알린다.
+        if not any(getattr(n, "external", True) for n in self.notifiers):
+            log.warning(
+                "바깥으로 나가는 알림 채널이 없습니다 — 콘솔에만 남았습니다. "
+                "TELEGRAM_BOT_TOKEN·SLACK_WEBHOOK_URL·DISCORD_WEBHOOK_URL 중 "
+                "하나를 설정하세요. 이 경보는 '전달됨'으로 기록하지 않습니다.")
+            return False
         return ok
 
 

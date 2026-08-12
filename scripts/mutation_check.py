@@ -1385,6 +1385,25 @@ MUTATIONS = [
      "    if len(rows) < 0:",
      "tests/test_the_audit_log_never_kills_the_batch.py"),
 
+    # 감사 175 — 보낼 곳이 없는데 '보냈다'로 기록됐다.
+    ("바깥 채널이 없어도 전달 성공으로 본다(경보가 영원히 다시 안 온다)",
+     "quant/live/notifications.py",
+     '        if not any(getattr(n, "external", True) for n in self.notifiers):',
+     "        if False:",
+     "tests/test_an_alarm_with_nowhere_to_go_is_not_delivered.py"),
+
+    ("콘솔을 '바깥으로 나가는 채널'로 표시한다",
+     "quant/live/notifications.py",
+     "    external = False\n\n    def send(self, message: str, level: str = \"info\") -> bool:",
+     "    external = True\n\n    def send(self, message: str, level: str = \"info\") -> bool:",
+     "tests/test_an_alarm_with_nowhere_to_go_is_not_delivered.py"),
+
+    ("웹훅 URL을 오류 로그에서 안 가린다(토큰이 그대로 남는다)",
+     "quant/live/notifications.py",
+     "    return _URL_RE.sub(lambda m: f\"{m.group(1)}/…(redacted)\", str(exc))",
+     "    return str(exc)",
+     "tests/test_an_alarm_with_nowhere_to_go_is_not_delivered.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
