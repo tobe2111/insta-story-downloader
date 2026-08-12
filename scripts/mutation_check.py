@@ -999,6 +999,48 @@ MUTATIONS = [
      "                pass",
      "tests/test_the_cache_is_transparent.py"),
 
+    # 감사 163 — 검증이 비운 프레임을 '성공'이라고 했다.
+    ("거래량이 없다고 가격 봉을 통째로 지운다(지수·환율 계열이 0봉이 된다)",
+     "quant/data/base.py",
+     "        return df.dropna(subset=PRICE_COLUMNS)",
+     "        return df.dropna()",
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
+    ("주식: 검증 후 빈 결과를 성공으로 반환한다(보조 소스 2개를 건너뛴다)",
+     "quant/data/stock.py",
+     '                if out.empty:\n'
+     '                    raise ValueError("검증 후 빈 결과")',
+     "                if False:\n"
+     "                    pass",
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
+    ("코인: 검증 후 빈 결과를 성공으로 반환한다(보조 거래소를 건너뛴다)",
+     "quant/data/crypto.py",
+     '        if out.empty:\n'
+     '            raise ValueError("검증 후 빈 결과")',
+     "        if False:\n"
+     "            pass",
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
+    ("야후 HTTP 소스에서 거래량 결측으로 봉을 지운다",
+     "quant/data/stock.py",
+     "        ).dropna(subset=_PRICE_COLS)   # 거래량 결측으로 봉을 지우지 않는다(감사 163)",
+     "        ).dropna()",
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
+    ("stooq 소스에서 거래량 결측으로 봉을 지운다",
+     "quant/data/stock.py",
+     "        df = df[[\"open\", \"high\", \"low\", \"close\", \"volume\"]].dropna(\n"
+     "            subset=_PRICE_COLS)        # 거래량 결측으로 봉을 지우지 않는다(감사 163)",
+     '        df = df[["open", "high", "low", "close", "volume"]].dropna()',
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
+    ("결측 거래량을 품질 보고서에서 안 센다(거래량 없는 계열이 안 보인다)",
+     "quant/data/quality.py",
+     '        findings["zero_volume"] = int((vol.isna() | (vol <= 0)).sum())',
+     '        findings["zero_volume"] = int((vol <= 0).sum())',
+     "tests/test_an_empty_result_is_not_a_success.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

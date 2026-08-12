@@ -27,7 +27,9 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
                            절대값보다 '갑작스러운 증가'를 볼 것.
         spikes           : |종가 등락률| > spike_threshold(기본 20%)인 봉 수.
                            분할·배당 미조정의 전형적 흔적 — 단, 실제 폭락일 수도 있다.
-        zero_volume      : 거래량이 0 이하인 봉 수 (거래정지·수집 오류 의심).
+        zero_volume      : 거래량이 0 이하이거나 **결측**인 봉 수
+                           (거래정지·수집 오류 의심. 지수·환율은 거래량이
+                           원래 없으므로 전 구간이 여기 잡히는 것이 정상).
         duplicate_index  : 중복된 타임스탬프 수.
         nonpositive_price: O/H/L/C 중 0 이하가 있는 봉 수.
         ohlc_violations  : high < low 이거나 **open·close**가 [low, high] 밖인 봉 수.
@@ -58,7 +60,13 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
         findings["spikes"] = int((pct > spike_threshold).sum())
 
     if "volume" in df.columns:
-        findings["zero_volume"] = int((df["volume"] <= 0).sum())
+        # 결측도 함께 센다(감사 163). `_validate`는 이제 거래량이 없다고
+        # 가격 봉을 지우지 않는다 — 지수·환율은 거래량 자체가 없기 때문이다.
+        # 그래서 결측 거래량이 프레임에 남는데, `<= 0`은 NaN을 False로 봐서
+        # 그 사실이 보고서에서 통째로 안 보이게 된다. 무결성 위반은 아니므로
+        # (SEVERE_KEYS 아님) 매매를 막지는 않고, 사람이 볼 줄에만 남긴다.
+        vol = df["volume"]
+        findings["zero_volume"] = int((vol.isna() | (vol <= 0)).sum())
 
     price_cols = [c for c in ("open", "high", "low", "close") if c in df.columns]
     if price_cols:

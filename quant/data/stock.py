@@ -12,6 +12,7 @@ from typing import Optional
 
 import pandas as pd
 
+from quant.data.base import PRICE_COLUMNS as _PRICE_COLS
 from quant.data.base import DataProvider
 from quant.utils.logging import get_logger
 
@@ -55,6 +56,17 @@ class StockDataProvider(DataProvider):
                 if df is None or df.empty:
                     raise ValueError("빈 결과")
                 out = self._drop_unclosed(self._validate(df))
+                # ⚠️ **비었는지는 검증 '뒤에도' 봐야 한다**(감사 163).
+                #    위의 검사는 소스가 준 원본만 본다. 그런데 프레임을
+                #    비울 수 있는 것은 그 뒤에 있다 — `_validate`의 dropna와
+                #    `_drop_unclosed`의 미완결 봉 제거다. 둘이 다 지워도
+                #    여기까지 '성공'으로 내려와 source를 붙이고 반환했다.
+                #    그러면 보조 소스 2개를 건너뛰고, 합성 폴백 표식도 안
+                #    붙어서 **아무도 데이터가 없다는 걸 모른다.** 3중 소스
+                #    체인은 소스 하나가 흔들려도 기록이 안 비게 하려고 만든
+                #    것인데, 그 목적이 통째로 무력화된다.
+                if out.empty:
+                    raise ValueError("검증 후 빈 결과")
                 out.attrs["source"] = name
                 if name != "yfinance":
                     log.info("%s: 보조 소스(%s)로 시세 수신 (%d봉)",
@@ -158,7 +170,7 @@ class StockDataProvider(DataProvider):
             {"open": q["open"], "high": q["high"], "low": q["low"],
              "close": q["close"], "volume": q["volume"]},
             index=pd.to_datetime(r["timestamp"], unit="s").normalize(),
-        ).dropna()
+        ).dropna(subset=_PRICE_COLS)   # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
 
     def _via_stooq(self, symbol, timeframe, start, end, limit) -> pd.DataFrame:
@@ -179,7 +191,8 @@ class StockDataProvider(DataProvider):
         if "Close" not in df.columns:
             raise ValueError("stooq 응답 형식 오류")
         df = df.rename(columns=str.lower).set_index(pd.to_datetime(df["Date"]))
-        df = df[["open", "high", "low", "close", "volume"]].dropna()
+        df = df[["open", "high", "low", "close", "volume"]].dropna(
+            subset=_PRICE_COLS)        # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
 
 
