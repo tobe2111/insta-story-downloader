@@ -1332,6 +1332,37 @@ MUTATIONS = [
      '            raise RuntimeError(f"이미지가 공개되지 않음(배포 지연/실패?): {u}")',
      "tests/test_the_image_check_does_not_kill_the_post.py"),
 
+    # 감사 173 — 붙이는 피처(펀딩·미결제·수급)의 시점 계약.
+    ("수급 표준편차 0을 pd.NA로 바꾼다(astype(float)이 터져 수급 피처가 통째로 사라진다)",
+     "quant/data/krx.py",
+     "            sd = s5.rolling(60).std().replace(0.0, np.nan)",
+     "            sd = s5.rolling(60).std().replace(0.0, pd.NA)",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    ("수급 z점수 클립을 없앤다(극단값이 사이징까지 흔든다)",
+     "quant/data/krx.py",
+     '            z = ((s5 - mu) / sd).astype(float).clip(-4.0, 4.0)',
+     "            z = ((s5 - mu) / sd).astype(float)",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    ("미결제약정을 후진충전으로 붙인다(다음 값이 이번 봉에 실린다 = 룩어헤드)",
+     "quant/data/openinterest.py",
+     '        out["oi"] = pd.Series(s.reindex(target, method="ffill").to_numpy(),',
+     '        out["oi"] = pd.Series(s.reindex(target, method="bfill").to_numpy(),',
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    ("펀딩 정산을 봉 경계에서 한 칸 당긴다(그날 장중 정산이 그날 봉에 실린다)",
+     "quant/data/funding.py",
+     '    pos = bar_index.searchsorted(f.index, side="left")',
+     '    pos = bar_index.searchsorted(f.index, side="right")',
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    ("펀딩 값의 유한성 검사를 뺀다(NaN·inf가 비용 계열을 오염시킨다)",
+     "quant/data/funding.py",
+     "        if p < len(bar_index) and math.isfinite(float(v)):",
+     "        if p < len(bar_index):",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

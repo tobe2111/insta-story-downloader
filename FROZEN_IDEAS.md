@@ -1500,3 +1500,36 @@ SNS 게시 직전, 카드 이미지가 공개됐는지 확인하는 코드였다
 
 같은 눈으로 볼 것: `if os.getenv(...)`로 감싼 코드, `dry_run=True` 기본값,
 `if not TESTING:` 분기 — 전부 "검사는 절대 안 지나가는 길"이다(㉜와 같은 계열).
+
+### ㊿+⑪ **`pd.NA`는 float 파이프라인을 object로 바꿔 놓고 조용히 터진다**
+
+KRX 수급 z점수 계산이었다(감사 173).
+
+    sd = s5.rolling(60).std().replace(0.0, pd.NA)     # ← 여기
+    z  = ((s5 - mu) / sd).astype(float).clip(-4.0, 4.0)
+
+`replace(0.0, pd.NA)`는 계열을 **object dtype**으로 바꾼다. 그러면 다음 줄의
+`.astype(float)`가 터진다.
+
+    TypeError: float() argument must be a string or a real number, not 'NAType'
+
+그리고 그 예외를 바깥의 `except Exception`이 삼킨다. 결과는 **수급 피처 두 개가
+통째로 사라지는 것** — 표준편차가 0이던 그 구간만이 아니라, **그 종목의 그날
+전체**가 없어진다. 로그 한 줄 말고는 흔적이 없다.
+
+언제 표준편차가 정확히 0이 되나: 5일 합이 60일 내내 같을 때. 수급이 0으로만
+기록되는 저유동 종목, 장기 거래정지, 결측을 0으로 채우는 API. 흔치 않지만
+**하필 그런 종목에서 맥락 피처가 조용히 사라지는 것**이 제일 나쁘다.
+
+고침은 한 글자다 — `np.nan`. 이건 float라 dtype이 안 바뀐다.
+
+형제 찾기 결과가 이 결함의 성격을 말해 준다: 저장소 전체에서 `pd.NA`를 쓰는
+곳은 **여기 하나뿐**이었다. 나머지 10곳(`stochastic`·`ensemble`·`adx`·`rsi`·
+`accuracy`·`allocation` …)은 전부 `np.nan`이다. **혼자만 다른 코드**가 오래
+살아남는 이유는, 다른 곳과 달라서 눈에 띄지 않기 때문이 아니라 **터지는
+조건이 드물어서**다.
+
+규칙: 숫자 계열에 결측을 넣을 때는 **그 계열의 dtype을 유지하는 값**을 쓴다.
+`pd.NA`는 nullable 확장 dtype(Int64·boolean)용이고, float64 계열에는
+`np.nan`이다. 그리고 `except Exception`으로 감싼 블록 안에서 dtype이 바뀌면
+**실패가 조용해진다** — 감싸기 전에 안에서 무엇이 터질 수 있는지 세어 볼 것.
