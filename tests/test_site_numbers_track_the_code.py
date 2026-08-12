@@ -217,3 +217,39 @@ def test_the_card_counts_holdings_from_the_ledger():
     body = _card_body()
     assert "var held=" in body and "nCash" in body, (
         "보유 종목 수를 장부에서 세지 않는다")
+
+
+# ── 어드민 참고 수치도 장부에서 (감사 118) ─────────────────────
+#
+# 목표 변동성 입력란 아래에 이런 문장이 **고정 문자열**로 박혀 있었다:
+#   "참고: 20종목 무레버리지 전액투자의 예상 변동성이 약 8.8%입니다."
+# 사장님이 그 숫자를 읽고 위험 크기를 정하는 화면인데, 값이 맞는지
+# 아무도 확인하지 않는다. 감사 90에서 '코드 기본값 12/20%'는 코드에서
+# 읽게 고쳤는데 이 줄만 남겨 뒀다 — 형제 미탐색 일곱 번째.
+
+ADMIN = (DOCS / "admin.html").read_text(encoding="utf-8")
+
+
+def test_admin_does_not_hardcode_a_reference_volatility():
+    body = re.sub(r"/\*(?:.|\n)*?\*/", "", ADMIN)
+    assert "8.8%" not in body, "참고 변동성이 산문에 박혀 있다"
+    assert "무레버리지 전액투자의 예상 변동성이 약" not in body
+
+
+def test_admin_reads_the_reference_from_the_ledger():
+    assert 'id="volref"' in ADMIN, "참고 수치를 담을 자리가 없다"
+    assert "vt.ex_ante" in ADMIN and "vt.scale" in ADMIN, (
+        "어드민이 참고 수치를 장부에서 읽지 않는다")
+
+
+def test_admin_does_not_invent_a_derived_number():
+    """검증할 수 없는 파생값을 만들지 않는다.
+
+    처음엔 '전액투자 환산 = ex_ante ÷ 총노출'을 보이려 했다가 잡았다 —
+    ex_ante는 스케일 **전** 비중 기준이고 weight는 스케일 **후** 총노출
+    이라 나누면 아무 뜻이 없다. 장부에 있는 값만 그대로 적는다.
+    """
+    body = re.sub(r"/\*(?:.|\n)*?\*/", "", ADMIN)
+    assert "vt.ex_ante/last.weight" not in body.replace(" ", ""), (
+        "스케일 전후가 다른 두 값을 나눠 파생 수치를 만든다")
+    assert "전액투자 환산" not in body

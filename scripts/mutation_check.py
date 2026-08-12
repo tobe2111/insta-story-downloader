@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("어드민 참고 변동성을 다시 산문에 박는다",
+     "docs/admin.html",
+     '<span id="volref">참고 수치를 장부에서 읽는 중…</span></span></span>',
+     '참고: 20종목 무레버리지 전액투자의 예상 변동성이 약 8.8%입니다.</span></span>',
+     "tests/test_site_numbers_track_the_code.py"),
+
     ("오늘의 판단이 후보 수를 '분산'이라 말하게 되돌린다",
      "docs/today.html",
      '<div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>',
