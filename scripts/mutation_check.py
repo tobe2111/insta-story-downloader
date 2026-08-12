@@ -1166,6 +1166,64 @@ MUTATIONS = [
      "",
      "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
 
+    # 감사 169 — 전략 신호기 8종. 결함은 못 찾았고, 계약을 고정한다.
+    # (이 파일들에는 변이 항목이 한 건도 없었다 — 부등호를 뒤집어도 초록이었다.)
+    ("이동평균 교차의 롱 조건을 뒤집는다",
+     "quant/strategies/moving_average.py",
+     "        signal[fast_ma > slow_ma] = 1.0",
+     "        signal[fast_ma < slow_ma] = 1.0",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("모멘텀의 진입 방향을 뒤집는다",
+     "quant/strategies/momentum.py",
+     "        signal[past_return > self.threshold] = 1.0",
+     "        signal[past_return < self.threshold] = 1.0",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("MACD가 신호선 대신 0선을 본다(규칙이 통째로 달라진다)",
+     "quant/strategies/macd.py",
+     "        out[macd_line > signal_line] = 1.0",
+     "        out[macd_line > 0] = 1.0",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("돌파 채널에서 shift를 뺀다(그 봉 자신의 고가로 돌파를 판정)",
+     "quant/strategies/breakout.py",
+     '        upper = df["high"].rolling(self.window).max().shift(1).to_numpy()',
+     '        upper = df["high"].rolling(self.window).max().to_numpy()',
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("평균회귀가 상단 밴드에서 매수한다(방향을 뒤집는다)",
+     "quant/strategies/mean_reversion.py",
+     "                if c[i] < lo[i]:",
+     "                if c[i] > lo[i]:",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("RSI 과매도 진입 문턱을 없앤다(아무 때나 진입)",
+     "quant/strategies/rsi.py",
+     "                if v < self.oversold:",
+     "                if v < 100:",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("스토캐스틱의 롱 청산을 없앤다(한 번 사면 안 판다)",
+     "quant/strategies/stochastic.py",
+     "            elif pos > 0 and v >= 50:      # 롱: 중심선 복귀 시 청산",
+     "            elif pos > 0 and v >= 1e9:     # 롱: 중심선 복귀 시 청산",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("켈트너 상단 돌파 조건을 뒤집는다",
+     "quant/strategies/keltner.py",
+     '        signal[df["close"] > upper] = 1.0',
+     '        signal[df["close"] < upper] = 1.0',
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("숏 금지를 무시한다(롱 온리 계정에 숏이 나간다)",
+     "quant/strategies/base.py",
+     "        if not self.allow_short:\n"
+     "            signal = signal.clip(lower=0.0)",
+     "        if False:\n"
+     "            signal = signal.clip(lower=0.0)",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
