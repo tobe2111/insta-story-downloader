@@ -464,6 +464,25 @@ MUTATIONS = [
      "            rc, rh = rc, rh",
      "tests/test_promotion_gates_actually_gate.py"),
 
+    # ── 장 시간 가드(닫힌 시장에 주문을 내지 않게) ──
+    ("주말 휴장 판정을 끈다(토·일에도 개장으로 봄)",
+     "quant/live/market_hours.py",
+     "    if local.weekday() >= 5:            # 토(5)·일(6) 휴장\n        return False",
+     "    if False:                           # 토(5)·일(6) 휴장\n        return False",
+     "tests/test_fill_and_hours.py"),
+
+    ("정규장 시간 판정을 통과시킨다(새벽에도 개장)",
+     "quant/live/market_hours.py",
+     "    return open_t <= local.time() <= close_t",
+     "    return True",
+     "tests/test_fill_and_hours.py"),
+
+    ("시장 시간대 변환을 없앤다(UTC 시각을 현지 시각으로 착각)",
+     "quant/live/market_hours.py",
+     "    return now.astimezone(ZoneInfo(tzname))",
+     "    return now",
+     "tests/test_fill_and_hours.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
