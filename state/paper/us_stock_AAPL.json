@@ -1,8 +1,8 @@
 {
-  "cash": 6368.0,
-  "quantity": 11.5474395527898,
+  "cash": 8694.99450893192,
+  "quantity": 3.981585632860523,
   "avg_price": 314.3399963378906,
-  "last_bar": "2026-08-10 00:00:00",
+  "last_bar": "2026-08-11 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -112,11 +112,42 @@
       "drift_psi": 0.2079,
       "earnings_guard": null,
       "kelly_cap": null
+    },
+    {
+      "date": "2026-08-11",
+      "price": 304.9100036621094,
+      "weight": 0.0,
+      "equity": 9909.02,
+      "return_pct": -0.91,
+      "hit_rate": 0.5142857142857142,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: VIX 기간구조(공포의 급성도) 0.81(깊은 콘탱고(안정)) / 미국 S&P500 5일 흐름 -0.1% / 60일 모멘텀 +2.3%",
+      "fill": {
+        "price": 307.75,
+        "bar": "2026-08-11 00:00:00",
+        "weight": 0.1235,
+        "decided_bar": "2026-08-10 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "46dafa70c0f2",
+      "data_sha256": "a8a8de894e39113ea30d1a33cee8a16107ed104d8c018bec0fab459c5fbd300d",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:3e29b4dc032e",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4970401235336856,
+      "drift_psi": 0.2185,
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null
     }
   ],
   "pending": {
-    "weight": 0.1235,
-    "decided_bar": "2026-08-10 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-11 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",
