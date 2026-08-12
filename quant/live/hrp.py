@@ -37,6 +37,18 @@ def hrp_weights(returns: pd.DataFrame) -> dict | None:
     try:
         if returns.shape[1] < 2 or len(returns) < 40:
             return None
+        # ⚠️ 종목 이름순으로 고정한 뒤 계산한다(감사 147). 통계적으로 동일한
+        #    자산들 사이에서도 단일 연결 군집의 잎 순서는 **입력 열 순서**로
+        #    갈리고, 재귀 이분은 그 순서를 그대로 비중으로 옮긴다. 실측:
+        #
+        #        A,E,B,F,C,D →  A 0.127 · B 0.125 · C 0.487 · D 0.259
+        #        F,C,A,D,E,B →  A 0.128 · B 0.483 · C 0.127 · D 0.260
+        #
+        #    같은 데이터인데 목록 순서만 바꿔서 한 종목 비중이 4배 뛴다.
+        #    호출 쪽 열 순서는 rets_map(=AUTO_TARGETS) 삽입 순서라, 종목을
+        #    한 줄 옮겨 넣는 것만으로 어제와 다른 포트폴리오가 나간다.
+        #    재현성이 이 시스템의 전제다 — 순서를 이름으로 못 박는다.
+        returns = returns[sorted(returns.columns, key=str)]
         cov = returns.cov()
         corr = returns.corr().clip(-1.0, 1.0)
         if not np.isfinite(cov.to_numpy()).all():

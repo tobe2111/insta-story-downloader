@@ -572,6 +572,75 @@ MUTATIONS = [
      "    ok = sd > 0",
      "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
 
+    # 감사 147 — A등급(돈이 움직임) 파일의 핵심 규칙에 처음 칼을 댄다.
+    ("HRP 이분 배분을 뒤집는다(변동성 큰 군집에 예산을 더 준다)",
+     "quant/live/hrp.py",
+     "            alpha = 1.0 - v_l / (v_l + v_r)",
+     "            alpha = v_l / (v_l + v_r)",
+     "tests/test_alpha8_hrp_regime.py"),
+
+    # ⚠️ '준대각화를 뺀다'는 변이는 넣지 않는다 — 우리 조건에서 **행동이
+    #    거의 같다.** 군집 분산을 역분산으로 재는 순간 섞인 군집도 순수 군집과
+    #    비슷한 값을 내서, 잎 순서를 버려도 저변동 군집 예산이 0.801 → 0.783
+    #    (2%p)밖에 안 움직인다. 행동이 같은 변이를 '놓침'으로 세면 검사를
+    #    존재하지 않는 피해에 못 박게 된다(FROZEN_IDEAS ㉚).
+    ("HRP 입력 열 순서 고정을 푼다(종목 목록 순서가 배분을 바꾼다)",
+     "quant/live/hrp.py",
+     "        returns = returns[sorted(returns.columns, key=str)]",
+     "        pass",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("HRP 군집분산을 역분산이 아닌 균등가중으로 잰다(위험 패리티가 사라짐)",
+     "quant/live/hrp.py",
+     "    ivp = 1.0 / np.maximum(np.diag(sub), 1e-16)",
+     "    ivp = np.ones(len(sub), dtype=float)",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("켈리 공식에서 손익비 나눗셈을 뺀다(비율이 b배 부풀어 과대 베팅)",
+     "quant/risk/kelly.py",
+     "    f = (p * b - (1.0 - p)) / b",
+     "    f = p * b - (1.0 - p)",
+     "tests/test_kelly.py"),
+
+    ("부분 켈리를 풀 켈리로 바꾼다(추정 오차에 장기 성장률이 무너진다)",
+     "quant/risk/kelly.py",
+     "    return min(top, frac * f)",
+     "    return min(top, f)",
+     "tests/test_kelly.py"),
+
+    ("켈리 최소 표본 요건을 없앤다(거래 3번의 승률로 사이징)",
+     "quant/risk/kelly.py",
+     "    if n < max(1, int(min_trades)) or frac <= 0.0 or top <= 0.0:",
+     "    if frac <= 0.0 or top <= 0.0:",
+     "tests/test_kelly.py"),
+
+    # ⚠️ 'arange(lo, i-1) → arange(lo, i)'는 변이로 넣지 않는다 — **룩어헤드가
+    #    아니다.** 그 한 봉의 타깃은 rv[i]이고 예측 시점 i에 이미 확정돼 있다.
+    #    값은 0.0039 달라지지만 접두사 안정성은 그대로 0.0이다(FROZEN_IDEAS ㉚).
+    ("HAR 변동성을 전 구간으로 학습한다(예측이 미래를 본다)",
+     "quant/risk/volforecast.py",
+     "        rows = np.arange(lo, i - 1)",
+     "        rows = np.arange(lo, n - 1)",
+     "tests/test_vol_forecast_cannot_see_the_future.py"),
+
+    ("HAR 예측의 안전 클립을 사실상 푼다(예측이 후행의 1/1000까지 내려가 비중 폭주)",
+     "quant/risk/volforecast.py",
+     "    pred_var = pred_var.clip(lower=base_var * 0.25, upper=base_var * 4.0)",
+     "    pred_var = pred_var.clip(lower=base_var * 1e-6, upper=base_var * 1e6)",
+     "tests/test_vol_forecast_cannot_see_the_future.py"),
+
+    ("VaR 분위수 보간을 선형으로 되돌린다(손실을 과소평가)",
+     "quant/risk/portfolio.py",
+     '    q = float(r.quantile(1.0 - alpha, interpolation="lower"))',
+     "    q = float(r.quantile(1.0 - alpha))",
+     "tests/test_risk_portfolio.py"),
+
+    ("CVaR를 VaR와 같은 값으로 만든다(꼬리 평균 손실이 사라짐)",
+     "quant/risk/portfolio.py",
+     "    cvar = -float(tail.mean()) if len(tail) else var",
+     "    cvar = var",
+     "tests/test_risk_portfolio.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
