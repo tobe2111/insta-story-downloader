@@ -159,3 +159,33 @@ def test_the_short_thread_still_drops_the_highlights():
         "짧은 판에 고지가 들어 있지 않다")
     assert "배분 상위" not in short, (
         "짧은 판이 하이라이트를 그대로 두고 있다 — 줄일 것은 이쪽이다")
+
+
+# ── 후보와 보유를 나눠 말하는가 (감사 114) ─────────────────────
+#
+# 감사 113에서 **카드**를 고치면서 캡션을 놓쳤다. 감사 89에서는 반대로
+# 캡션을 고치고 카드를 놓쳤었다 — 같은 실수의 거울이고, FROZEN_IDEAS ⑭를
+# 오늘만 네 번째로 어긴 것이다. 두 출구를 한 검사로 함께 묶는다.
+
+def test_the_caption_separates_holdings_from_the_universe():
+    st = _status(applied={"us_stock:AAPL": 0.012})
+    st["symbols"]["kr_stock:005930.KS"] = {"name": "삼성전자"}
+    st["paper"]["portfolio:ALL"]["history"][-1]["alloc"]["kr_stock:005930.KS"] = 0.2
+    st["paper"]["kr_stock:005930.KS"] = {"history": [
+        {"date": "2026-08-10", "weight": 0.0}]}          # 관망
+    text = build_captions(st, site_url="https://e.com")["instagram"]
+    assert "종목 분산" not in text, (
+        "캡션이 후보 수를 '분산'이라 말한다 — 절반이 관망인 날도 전 종목에 "
+        f"퍼져 있는 것처럼 읽힌다\n{text}")
+    assert "보유" in text and "후보" in text, text
+
+
+def test_both_outlets_say_it_the_same_way():
+    """캡션과 카드 **양쪽** — 한쪽만 고치는 실수를 한 검사로 막는다."""
+    card = (ROOT / "docs" / "sns_card.html").read_text("utf-8")
+    import re as _re
+    card_body = _re.sub(r"^\s*//.*$", "", card, flags=_re.M)
+    src = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    for name, body in (("카드", card_body), ("캡션", src)):
+        assert "종목 분산" not in body, f"{name}에 'N종목 분산'이 남아 있다"
+        assert "보유" in body and "후보" in body, f"{name}이 보유/후보를 구별하지 않는다"

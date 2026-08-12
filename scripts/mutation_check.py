@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("캡션이 후보 수를 '분산'이라 말하게 되돌린다",
+     "quant/reporting/social.py",
+     'f"📈 총노출 {gross} · {spread}(코인·한국·미국)\\n"',
+     'f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\\n"',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
     ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
      "docs/paper.html",
      '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',
