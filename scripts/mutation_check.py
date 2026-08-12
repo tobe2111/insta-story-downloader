@@ -872,6 +872,33 @@ MUTATIONS = [
      "        if False:",
      "tests/test_the_lonely_peak_warning_reaches_someone.py"),
 
+    # 감사 158 — 민감도 히트맵(고원 vs 봉우리를 눈으로 보는 도구).
+    ("히트맵 축을 뒤바꾼다(x·y 라벨이 실제 파라미터와 어긋난다)",
+     "quant/optimize/sweep.py",
+     "            params = {**base, x_param: x, y_param: y}",
+     "            params = {**base, x_param: y, y_param: x}",
+     "tests/test_the_heatmap_axes_do_not_lie.py"),
+
+    ("히트맵 격자의 행·열을 뒤집는다(전치된 그림을 보고 파라미터를 고른다)",
+     "quant/optimize/sweep.py",
+     "            grid[i][j] = float(getattr(res.metrics, objective))",
+     "            grid[j][i] = float(getattr(res.metrics, objective))",
+     "tests/test_the_heatmap_axes_do_not_lie.py"),
+
+    ("잘못된 조합을 0점으로 채운다(빈칸이 '성과 0'인 유효 조합처럼 보인다)",
+     "quant/optimize/sweep.py",
+     "            except (ValueError, TypeError):\n                continue",
+     "            except (ValueError, TypeError):\n                grid[i][j] = 0.0\n                continue",
+     "tests/test_the_heatmap_axes_do_not_lie.py"),
+
+    ("튜닝 진입점이 워크포워드를 안 거치게 한다(전체 데이터로 튜닝 = 룩어헤드)",
+     "quant/optimize/tuning.py",
+     "    result = walk_forward(df, strategy_cls, param_grid, is_window, oos_window, **kwargs)",
+     "    from quant.optimize.grid import grid_search\n"
+     "    gs = grid_search(df, strategy_cls, param_grid)\n"
+     "    result = {\"oos_metrics\": gs[\"best_metrics\"], \"segments\": [], \"equity\": None}",
+     "tests/test_the_heatmap_axes_do_not_lie.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
