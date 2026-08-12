@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -15,6 +16,22 @@ _spec = importlib.util.spec_from_file_location(
               / "quant" / "reporting" / "validation_report.py"))
 vr = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(vr)
+
+
+def _card_value(doc: str, label_part: str) -> str:
+    """라벨에 `label_part`가 든 카드의 **값 칸** 글자만 꺼낸다.
+
+    문서 전체에서 문구를 찾으면 옆의 설명문에 걸려 검사가 장식이 된다
+    (감사 132). 값이 어디에 찍히는지를 정확히 겨눈다.
+    """
+    for card in re.findall(r'<div class="card">.*?</div></div>', doc, re.S):
+        m = re.search(r'<div class="clab">(.*?)</div>', card, re.S)
+        if not m or label_part not in m.group(1):
+            continue
+        v = re.search(r'<div class="cval"[^>]*>(.*?)</div>', card, re.S)
+        assert v, f"카드에 값 칸이 없다: {card[:120]}"
+        return re.sub(r"<[^>]+>", "", v.group(1)).strip()
+    raise AssertionError(f"'{label_part}' 카드를 못 찾았다 — 검사가 낡았다")
 
 
 def _sample_html(**over):
@@ -91,10 +108,23 @@ def test_failed_stage_shows_measurement_failure_not_a_number():
     전형적 형태다.
     """
     doc = _sample_html(failed={"pbo": "PBO — ValueError: 표본 부족"})
-    assert "측정 실패" in doc
+    # ⚠️ `"측정 실패" in doc`만 보면 안 된다(감사 132). 그 문구는 아래
+    #    설명문("해당 항목은 숫자 대신 '측정 실패'로 표시했습니다")에도
+    #    있어서, **카드 렌더 분기를 통째로 꺼도 통과한다.** 변이 시험이
+    #    정확히 그것을 잡았다 — 오늘 반복해서 나온 계열이다(감사 107).
+    #    그러니 **그 카드 자체**를 꺼내 값을 본다.
+    val = _card_value(doc, "PBO")
+    assert val == "측정 실패", f"실패한 단계 카드에 숫자가 떴다: {val!r}"
+    assert not re.search(r"\d", val), f"안 잰 값이 숫자로 보인다: {val!r}"
     assert "돌지 못한 검증이 있습니다" in doc
     assert "표본 부족" in doc                     # 이유를 그대로 남긴다
-    assert "PBO 50%" not in doc and "50%</div>" not in doc
+
+
+def test_a_healthy_stage_still_shows_its_number():
+    """대조군 — 정상 단계까지 '측정 실패'가 되면 위 검사는 헛것이 된다."""
+    val = _card_value(_sample_html(), "PBO")
+    assert re.search(r"\d", val), f"정상인데 숫자가 없다: {val!r}"
+    assert "측정 실패" not in val
 
 
 def test_overall_verdict_is_never_pass_when_a_stage_did_not_run():

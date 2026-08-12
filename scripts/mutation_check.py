@@ -251,6 +251,31 @@ MUTATIONS = [
      "                if False:\n                    w[t] = 0.0",
      "tests/test_alpha11_kelly_stop.py"),
 
+    # ── 검증 리포트·요약·상수(변이가 한 번도 닿지 않던 파일들) ──
+    ("돌지 못한 검증을 '신뢰할 만함'으로 넘긴다",
+     "quant/reporting/validation_report.py",
+     "    elif \"unknown\" in vset:",
+     "    elif False:",
+     "tests/test_validation_report.py"),
+
+    ("실패한 단계를 '측정 실패' 대신 숫자로 채운다(안 잰 값을 잰 것처럼)",
+     "quant/reporting/validation_report.py",
+     "        if key in failed:",
+     "        if False:",
+     "tests/test_validation_report.py"),
+
+    ("날짜 롤오버 가드를 없앤다(일일 요약이 사이클마다 중복 전송)",
+     "quant/live/summary.py",
+     "    if last_date is None or last_date == t:\n        return t, None",
+     "    if False:\n        return t, None",
+     "tests/test_live_summary.py"),
+
+    ("정규장이 있는 시장의 실거래 브로커 매핑을 지운다",
+     "quant/markets.py",
+     "    \"kr_stock\": \"kr_live\",",
+     "    \"kr_stock\": None,",
+     "tests/test_markets_constants.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
