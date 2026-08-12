@@ -78,6 +78,48 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    # ── 감사 120 — 변이 사각지대 18개 파일 소거 ──
+    #
+    # ⚠️ 이 항목이 감사 120을 낳았다. 처음엔 test_killswitch.py를 가리켰고
+    #    통과했다 — 그래서 **전체 검사**로 다시 돌렸더니 1,580개가 전부
+    #    통과했다. 낙폭 자동 브레이크를 통째로 지워도 아무도 몰랐다.
+    #    킬스위치 검사가 셋이나 있었지만 전부 `_kill_switch_scale`을 순수
+    #    함수로 부르거나 소스 문자열을 볼 뿐, "낙폭이 커지면 노출이 준다"를
+    #    확인하지 않았다. 부품 검사와 배선 검사는 다른 것이다.
+    ("킬스위치 단계 축소를 무효화한다(낙폭에도 노출 유지)",
+     "quant/live/daily.py",
+     "    risk_scale = _kill_switch_scale(float(st.get(\"risk_scale\", 1.0)), drawdown)",
+     "    risk_scale = 1.0",
+     "tests/test_killswitch_is_wired_to_the_brake.py"),
+
+    # 이 항목도 처음엔 test_license_gate.py를 가리켜 통과했다. 전체로
+    # 돌리니 test_dist_guard_generation.py가 잡았다 — 장치는 지켜지고
+    # 있었고 **가리킨 곳이 틀렸다.** 못 잡음으로 세면 없는 결함을 만든다.
+    ("배포판 실거래 잠금 표식 판정을 끈다",
+     "quant/utils/dist.py",
+     "        return bool(getattr(_dist_build, \"DISTRIBUTION\", False))",
+     "        return False",
+     "tests/test_dist_guard_generation.py"),
+
+    ("봉내 스톱 판정을 끈다(손절이 봉 안에서 안 걸림)",
+     "quant/backtest/engine.py",
+     "        if self.intrabar_stops:\n            high = df[\"high\"].to_numpy()",
+     "        if False:\n            high = df[\"high\"].to_numpy()",
+     "tests/test_intrabar_stops.py"),
+
+    # ── 어드민·웹 경로 ──
+    ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
+     "quant/web/server.py",
+     "        return hmac.compare_digest(supplied, token)",
+     "        return True",
+     "tests/test_web.py"),
+
+    ("합성 폴백 데이터 배너를 끈다(가짜 데이터를 진짜처럼)",
+     "quant/web/app.py",
+     '    if any(getattr(df, "attrs", {}).get("synthetic_fallback") for df in dfs):',
+     "    if False:",
+     "tests/test_web.py"),
+
     ("종목 수 비율을 다시 회전율로 써서 비용을 계산한다",
      "docs/index.html",
      "    const withT=hs.filter(r=>typeof r.turnover.traded===\"number\");",
