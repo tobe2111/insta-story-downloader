@@ -1714,6 +1714,20 @@ MUTATIONS = [
      "        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)",
      "tests/test_a_failed_write_does_not_eat_the_keys.py"),
 
+    # 감사 191 — 조회 실패를 '오늘 받아온 사실'로 도장 찍고 있었다.
+    ("실적 캘린더 조회 실패를 신선한 캐시로 적는다(가드가 발표일에 꺼져 있다)",
+     "quant/data/earnings.py",
+     '                 "fetched": today.isoformat() if ok\n'
+     '                 else (entry or {}).get("fetched", "")}',
+     '                 "fetched": today.isoformat()}',
+     "tests/test_a_failed_lookup_does_not_become_a_fact.py"),
+
+    ("실적 가드 창을 발표 이전으로만 좁힌다(갭이 가장 큰 다음 날이 무방비)",
+     "quant/data/earnings.py",
+     "        d = nearest_earnings_date(symbol, asof, state_dir, fetch=fetch)",
+     "        d = next_earnings_date(symbol, asof, state_dir, fetch=fetch)",
+     "tests/test_a_failed_lookup_does_not_become_a_fact.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
