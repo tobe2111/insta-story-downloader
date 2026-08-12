@@ -48,7 +48,23 @@ def macro_summary() -> dict | None:
         vals: dict = {}
         items = []
         for key, sid, name, unit in _ITEMS:
-            s = fred_series(sid)
+            # ⚠️ **표시용은 lag_days=0**(감사 181). `fred_series`는 기본적으로
+            #    발표 시차만큼 인덱스를 **앞으로 민다** — 판단(ML 피처)에서
+            #    "그 시점에 실제로 알 수 있던 값"만 쓰게 하려는 룩어헤드
+            #    방지책이고, 거기서는 옳다.
+            #
+            #    그런데 이 카드는 그 시프트된 인덱스의 마지막 날짜를 그대로
+            #    "이 값의 날짜"로 status.json에 실었다. 이 넷은 전부 시차
+            #    1일이라 **관측일 + 1일**이 찍힌다. FRED가 당일치를 내놓는
+            #    날이면 사이트가 **내일 날짜**를 공개 기록에 남긴다.
+            #
+            #    실측(FRED 최신 관측일 2026-08-12):
+            #        예전: date = "2026-08-13"   ← 미래
+            #        지금: date = "2026-08-12"
+            #
+            #    값(`value`·`chg5_pct`)은 시프트와 무관하게 동일하다 —
+            #    바뀌는 것은 날짜 라벨뿐이다. 판단 경로는 건드리지 않는다.
+            s = fred_series(sid, lag_days=0)
             if s is None or s.empty:
                 continue
             entry = {"key": key, "name": name, "unit": unit,

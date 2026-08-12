@@ -1533,6 +1533,46 @@ MUTATIONS = [
      '        ("최대낙폭", f"{0.0:.2%}"),',
      "tests/test_the_tools_that_check_us_are_checked_too.py"),
 
+    # 감사 181 — 표시 전용 카드도 공개 기록이다. 거시 날짜에서 결함 1건.
+    ("거시 카드에 발표 시차만큼 밀린 날짜를 찍는다(공개 기록에 미래 날짜가 남는다)",
+     "quant/live/macro_brief.py",
+     "            s = fred_series(sid, lag_days=0)",
+     "            s = fred_series(sid)",
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
+    ("장단기 금리 해석의 부호를 뒤집는다(역전을 '정상'이라 말한다)",
+     "quant/live/macro_brief.py",
+     '        parts.append("장단기 금리 역전(경기침체 신호)" if t < 0',
+     '        parts.append("장단기 금리 역전(경기침체 신호)" if t > 0',
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
+    ("브리핑에서 같은 기사를 중복 제거하지 않는다(같은 헤드라인이 여러 번 뜬다)",
+     "quant/live/briefing.py",
+     '            if it["title"] in seen:            # 카테고리 간 중복 제거\n'
+     "                continue",
+     "            if False:\n"
+     "                continue",
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
+    ("브리핑 헤드라인 상한을 무시한다(피드 하나가 화면을 다 잡아먹는다)",
+     "quant/live/briefing.py",
+     "        if len(items) >= top_n:",
+     "        if len(items) >= top_n * 100:",
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
+    ("피드 하나가 죽으면 브리핑 전체를 죽인다(뉴스 한 곳 장애로 그날 기록이 빈다)",
+     "quant/live/briefing.py",
+     '            log.warning("브리핑 피드 실패(%s): %s", category, exc)\n'
+     "            continue",
+     "            raise",
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
+    ("`python -m quant` 진입점이 CLI를 안 부른다(모든 야간 잡이 조용히 무동작)",
+     "quant/__main__.py",
+     "    main()",
+     "    pass",
+     "tests/test_the_display_only_cards_tell_the_truth.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
