@@ -1119,6 +1119,31 @@ MUTATIONS = [
      '        return up.reindex(close.index, method="ffill").fillna(0.0)',
      "tests/test_the_higher_timeframe_gate_waits_exactly_one_bar.py"),
 
+    # 감사 167 — 망가진 숫자가 그대로 주문이 됐다.
+    ("주문 직전 유한성 검사를 없앤다(NaN 수량이 조용히 매도로 나간다)",
+     "quant/broker/base.py",
+     "        if not all(math.isfinite(v) for v in\n"
+     "                   (float(weight), float(price), float(equity))):\n"
+     "            return None",
+     "        if False:\n"
+     "            return None",
+     "tests/test_a_broken_number_cannot_become_an_order.py"),
+
+    ("계산 결과 수량의 유한성 검사를 없앤다(나눗셈이 넘쳐도 그대로 전송)",
+     "quant/broker/base.py",
+     "        if not math.isfinite(qty) or qty <= 0:\n"
+     "            return None",
+     "        if False:\n"
+     "            return None",
+     "tests/test_a_broken_number_cannot_become_an_order.py"),
+
+    ("웹훅 시세 헬퍼의 값을 안 거른다(헬퍼가 NaN을 주면 그대로 주문가가 된다)",
+     "quant/live/webhook.py",
+     "                p = float(self.price_fn(symbol))\n"
+     "                return p if p > 0 else 0.0",
+     "                return float(self.price_fn(symbol))",
+     "tests/test_a_broken_number_cannot_become_an_order.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

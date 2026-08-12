@@ -168,7 +168,11 @@ class WebhookExecutor:
                     pass
         if callable(self.price_fn):
             try:
-                return float(self.price_fn(symbol))
+                # 위 페이로드 경로와 같은 기준으로 거른다(감사 167). 예전엔
+                # 여기만 `> 0` 검사가 없어서, 시세 헬퍼가 NaN을 주면 그대로
+                # 반환됐다 — 호출부의 `price <= 0`은 NaN을 못 막는다.
+                p = float(self.price_fn(symbol))
+                return p if p > 0 else 0.0
             except Exception:  # noqa: BLE001
                 return 0.0
         return 0.0

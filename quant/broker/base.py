@@ -82,6 +82,24 @@ class Broker(ABC):
         청산(weight=0)은 두 밴드와 무관하게 항상 실행한다 — 빠져나오는 길을
         막으면 리스크 관리가 아니라 덫이 된다. 0(기본)=기존 동작.
         """
+        # ⚠️ **여기가 '숫자가 주문이 되는' 마지막 자리다**(감사 167).
+        #    `price <= 0`만으로는 NaN을 못 막는다 — `NaN <= 0`은 False다.
+        #    그대로 통과하면 아래 계산이 전부 NaN이 되고, 마지막 줄의
+        #    `"buy" if delta > 0 else "sell"`에서 `NaN > 0`도 False라
+        #    **조용히 '매도'로 떨어진다.** 실측:
+        #
+        #        price  = NaN  →  ('sell', nan, nan)
+        #        equity = NaN  →  ('sell', nan)
+        #        weight = NaN  →  ('sell', nan)
+        #        equity = inf  →  ('buy',  inf)
+        #
+        #    이 파일 맨 위의 `safe_amount`가 정확히 이걸 막으라고 있는
+        #    함수인데(독스트링에 "inf 수량 주문"이라고 적혀 있다), 정작
+        #    주문을 만드는 이 함수는 쓰지 않고 있었다 — 부품은 있는데
+        #    배선이 없던 자리다(감사 135와 같은 계열).
+        if not all(math.isfinite(v) for v in
+                   (float(weight), float(price), float(equity))):
+            return None
         if price <= 0:
             return None
         fee = getattr(self, "fee", 0.0) or 0.0
@@ -105,5 +123,10 @@ class Broker(ABC):
             delta = target_qty - current
         if abs(delta * price) < 1e-6:
             return None  # 조정 불필요
+        # 입력이 유한해도 나눗셈이 넘칠 수 있다(equity 1e308 / price 1e-308).
+        # 수량은 마지막에 한 번 더 본다.
+        qty = abs(delta)
+        if not math.isfinite(qty) or qty <= 0:
+            return None
         side = "buy" if delta > 0 else "sell"
-        return self.market_order(symbol, side, abs(delta), price)
+        return self.market_order(symbol, side, qty, price)
