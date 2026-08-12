@@ -1423,6 +1423,31 @@ MUTATIONS = [
      "    if False:",
      "tests/test_an_open_position_is_not_a_finished_trade.py"),
 
+    # 감사 177 — 탐색과 그림의 '좋다' 방향. 결함 없음, 계약 고정.
+    ("목적함수 방향 집합을 비운다(작을수록 좋은 지표에서 최악을 최적으로 고른다)",
+     "quant/objective.py",
+     'LOWER_IS_BETTER = frozenset({"volatility"})',
+     "LOWER_IS_BETTER = frozenset()",
+     "tests/test_the_best_marker_points_at_the_best.py"),
+
+    ("히트맵이 최고값을 방향과 무관하게 max로 고른다(★가 최악에 붙는다)",
+     "quant/reporting/heatmap.py",
+     "    best = (min(flat) if lower_better else max(flat)) if flat else None",
+     "    best = max(flat) if flat else None",
+     "tests/test_the_best_marker_points_at_the_best.py"),
+
+    ("히트맵 색 방향 반전을 없앤다(나쁜 쪽이 초록으로 칠해진다)",
+     "quant/reporting/heatmap.py",
+     "    clo, chi = (hi, lo) if lower_better else (lo, hi)   # 색 방향 지정",
+     "    clo, chi = (lo, hi)",
+     "tests/test_the_best_marker_points_at_the_best.py"),
+
+    ("탐색의 부호 반전을 없앤다(변동성 최소화가 최대화가 된다)",
+     "quant/optimize/grid.py",
+     "        cmp = -score if lower_better else score   # 작을수록 좋은 지표는 부호 반전",
+     "        cmp = score",
+     "tests/test_the_best_marker_points_at_the_best.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
