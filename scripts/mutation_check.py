@@ -1103,6 +1103,22 @@ MUTATIONS = [
      "    order = list(score.sort_values(ascending=False).index)",
      "tests/test_the_screener_does_not_reward_missing_data.py"),
 
+    # 감사 166 — 상위 시간봉 게이트가 한 봉이 아니라 두 봉을 기다렸다.
+    ("상위 시간봉 라벨을 pandas 기본값에 맡긴다(규칙마다 지연이 달라진다)",
+     "quant/strategies/multitimeframe.py",
+     '        htf_close = (close.resample(self.htf, label="right", closed="right")\n'
+     "                     .last().dropna())",
+     "        htf_close = close.resample(self.htf).last().dropna()",
+     "tests/test_the_higher_timeframe_gate_waits_exactly_one_bar.py"),
+
+    ("완성 라벨에 shift를 더 건다(새 추세마다 상위 봉 하나를 더 쉰다)",
+     "quant/strategies/multitimeframe.py",
+     "        up = (htf_close > htf_ma).astype(float)\n"
+     '        return up.reindex(close.index, method="ffill").fillna(0.0)',
+     "        up = (htf_close > htf_ma).astype(float).shift(1)\n"
+     '        return up.reindex(close.index, method="ffill").fillna(0.0)',
+     "tests/test_the_higher_timeframe_gate_waits_exactly_one_bar.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
