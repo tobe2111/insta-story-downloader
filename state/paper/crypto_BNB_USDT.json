@@ -1,8 +1,8 @@
 {
-  "cash": 9038.82539688426,
-  "quantity": 1.6720368081736288,
-  "avg_price": 593.4083215195668,
-  "last_bar": "2026-08-11 00:00:00",
+  "cash": 10059.241370694248,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-12 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -152,6 +152,47 @@
         "timeframe": "1d",
         "note": "결정 시점에 아직 만들어지는 중이던 봉 — 이 봉의 종가·고저는 확정값이 아니다"
       }
+    },
+    {
+      "date": "2026-08-12",
+      "price": 611.2,
+      "weight": 0.0,
+      "equity": 10059.24,
+      "return_pct": 0.59,
+      "hit_rate": 0.5714285714285714,
+      "hit_n": 42,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: GK 변동성(고저가 기반) 일 1.4% / 평균 진폭(ATR) 일 2.3% / 실현변동성 비율(5/60일) 1.08(보통 수준)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "e7d0933ae667",
+      "data_sha256": "007f495adc280a29ed0d850034b2a849bdff74769cfebce62dd6cf0b678b9d49",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4865318186751556,
+      "drift_psi": 0.292,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.8897,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx"
     }
   ],
   "market": "crypto",

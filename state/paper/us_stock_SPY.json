@@ -2,7 +2,7 @@
   "cash": 9397.077971691297,
   "quantity": 0.764359417420845,
   "avg_price": 774.530029296875,
-  "last_bar": "2026-08-11 00:00:00",
+  "last_bar": "2026-08-12 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -158,13 +158,55 @@
       "earnings_guard": null,
       "kelly_cap": null,
       "bar_partial": null
+    },
+    {
+      "date": "2026-08-12",
+      "price": 772.489990234375,
+      "weight": 0.0,
+      "equity": 9987.54,
+      "return_pct": -0.12,
+      "hit_rate": 0.5076923076923077,
+      "hit_n": 65,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 60일 모멘텀 +4.8% / VIX 변동성지수(옵션시장 공포) 15(안도 구간) / 50일선 이격 +3.3%(선 위)",
+      "fill": {
+        "price": 774.710022,
+        "bar": "2026-08-12 00:00:00",
+        "weight": 0.0619,
+        "decided_bar": "2026-08-11 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "e7d0933ae667",
+      "data_sha256": "9a1490330adfdc6c083e25563223a991e862bbfe31cdd80170779bbbff431266",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.48909082760410355,
+      "drift_psi": 0.1616,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "SPY",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0619,
-    "decided_bar": "2026-08-11 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-12 00:00:00"
   }
 }
