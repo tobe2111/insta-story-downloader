@@ -398,6 +398,10 @@ class MLStrategy(Strategy):
         # 로드해 verify가 같은 풀을 재구성할 수 있다. 리스트 주입은 테스트용.
         # 룩어헤드 차단: 각 재학습 블록의 학습 상한 날짜 '이전' 풀 행만 쓴다.
         self.pool = pool
+        # 풀 구성 결과의 흔적 — 조용한 실패가 감사 127을 몇 주 숨겼다.
+        # None이면 성공(또는 아직 안 돌림), 문자열이면 그날의 실패 사유.
+        self.pool_error_: str | None = None
+        self.pool_rows_: int = 0
         # 피처 가지치기 — 블록마다 전체 피처로 1차 학습해 중요도 상위 K개만
         # 남기고 재학습한다(0=끔). 피처가 세대를 거듭해 늘면(fs6+) 중복·잡음
         # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
@@ -469,34 +473,64 @@ class MLStrategy(Strategy):
                     lab[pdf["close"].shift(-1).isna()] = np.nan
                     py = lab.to_numpy()
                 base_cols = [c for c in pf.columns if c in FEATURE_NAMES]
-                ok = pf[base_cols].notna().all(axis=1).to_numpy()
-                ok &= np.isfinite(py) if py.dtype.kind == "f" else True
-                ok &= ~np.isnan(py)
+                # ⚠️ 제자리 연산(&=) 금지 — pandas 3.0의 to_numpy()는 **읽기
+                #    전용** 배열을 돌려준다. 예전 코드는 여기서
+                #    `ValueError: output array is read-only`를 냈고, 아래
+                #    `except Exception: return None`이 그것을 삼켜
+                #    **풀링(패널) 학습이 통째로 죽어 있었다**(감사 127).
+                #    풀을 넣든 안 넣든 신호가 한 봉도 다르지 않았는데,
+                #    오디션 링에는 '풀링 후보'가 매일 두 개씩 올라갔다.
+                #    isfinite는 NaN도 걸러내므로 ~isnan은 필요 없다.
+                ok = np.asarray(pf[base_cols].notna().all(axis=1), dtype=bool)
+                ok = ok & np.isfinite(np.asarray(py, dtype=float))
                 if not ok.any():
                     continue
                 pX = pf.reindex(columns=cols).fillna(0.0).to_numpy()
-                idx = pd.DatetimeIndex(pdf.index).normalize().asi8
+                # ⚠️ 정수 epoch로 바꾸지 않는다(감사 128). 예전에는 `.asi8`를
+                #    썼는데 pandas 3.0의 asi8은 **마이크로초**를 돌려주고,
+                #    비교 상대인 `pd.Timestamp.value`는 **나노초**였다.
+                #    1000배 차이라 `dates < cut`이 **언제나 전부 참** —
+                #    학습 상한 필터가 통째로 없는 것과 같았고, 미래 종목의
+                #    행이 모든 학습 블록에 섞여 들어갔다. 룩어헤드다.
+                #    단위가 붙은 datetime64로 두면 numpy가 알아서 맞춘다.
+                idx = pd.DatetimeIndex(pdf.index).normalize().to_numpy(
+                    dtype="datetime64[ns]")
                 dates.append(idx[ok])
                 xs.append(pX[ok])
                 ys.append(py[ok])
             if not xs:
+                self.pool_error_ = "풀 프레임에서 쓸 수 있는 표본이 없다"
                 return None
+            self.pool_error_ = None
+            self.pool_rows_ = int(sum(len(d) for d in dates))
             return (np.concatenate(dates), np.vstack(xs), np.concatenate(ys))
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            # ⚠️ 조용히 넘어가지 않는다(감사 127). 이 자리의 침묵이 위 결함을
+            #    몇 주 동안 숨겼다. 풀이 없어도 학습은 계속하되(보너스 표본이
+            #    맞다), **죽었다는 사실은 남긴다.**
+            from quant.utils.logging import get_logger
+            get_logger("strategies.ml").warning(
+                "풀링 표본 구성 실패 — 풀 없이 학습한다: %s: %s",
+                type(exc).__name__, exc)
+            self.pool_error_ = f"{type(exc).__name__}: {exc}"[:200]
             return None
 
     def _merge_pool(self, X_tr, y_tr, sw_tr, pool_rows, cutoff):
         """학습 상한(cutoff) '이전' 풀 행을 학습 표본 뒤에 붙인다."""
         dates, Xp, yp = pool_rows
-        cut = pd.Timestamp(cutoff).normalize().value
+        # ⚠️ 정수 epoch 비교 금지(감사 128) — 단위가 어긋나도 조용히 통과한다.
+        #    datetime64끼리 비교하면 numpy가 단위를 맞춰 준다.
+        cut = np.datetime64(pd.Timestamp(cutoff).normalize(), "ns")
         sel = dates < cut
         if not sel.any():
             return X_tr, y_tr, sw_tr
         X2 = np.vstack([X_tr, Xp[sel]])
         y2 = np.concatenate([y_tr, yp[sel].astype(int)])
         if sw_tr is not None:
-            # 풀 행의 시간감쇠는 달력일 기준(일봉이라 봉 나이와 사실상 동일)
-            days = (cut - dates[sel]) / 86_400_000_000_000
+            # 풀 행의 시간감쇠는 달력일 기준(일봉이라 봉 나이와 사실상 동일).
+            # 여기도 같은 이유로 timedelta64로 나눈다 — 상수 나눗셈은 단위가
+            # 바뀌는 순간 조용히 1000배 틀린 가중치를 만든다.
+            days = ((cut - dates[sel]) / np.timedelta64(1, "D")).astype(float)
             sw2 = np.concatenate([
                 sw_tr, np.power(0.5, days / self.weight_halflife)])
         else:

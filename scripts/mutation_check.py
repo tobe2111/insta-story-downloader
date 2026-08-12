@@ -1,6 +1,15 @@
 """변이 시험 — 안전장치를 일부러 망가뜨려, 계약 검사가 정말 잡는지 확인한다.
 
-    python scripts/mutation_check.py
+    python scripts/mutation_check.py                # 전수(무겁다 — 야간 잡)
+    python scripts/mutation_check.py --dry-run      # 목록 정합성만(몇 초 — CI)
+    python scripts/mutation_check.py 의회            # 부분 실행(설명·검사 이름)
+
+⚠️ **2026-08-12 감사 125까지 이 도구는 CI에서 한 번도 돌지 않았다.**
+   121개 항목을 쌓아 두고 손으로 부를 때만 돌렸다 — 다른 모든 안전장치를
+   지키는 도구가 정작 아무도 안 지키는 상태였다. 이 저장소가 이미 겪은 병과
+   같다(verify 명령이 있었지만 어떤 워크플로도 실행하지 않았던 것).
+   지금은 두 갈래로 돈다: PR마다 `--dry-run`(ci.yml), 야간에 전수
+   (.github/workflows/mutation-sweep.yml).
 
 왜 필요한가(2026-08-11 감사 58): 계약 검사가 초록이라는 것은 '검사가
 통과했다'는 뜻이지 '장치가 동작한다'는 뜻이 아니다. 이 프로젝트의 검사
@@ -126,17 +135,11 @@ MUTATIONS = [
      "tests/test_risk_limits_are_wired_to_the_batch.py"),
 
     # ── 위험 한도(돈이 실제로 움직이는 경로) ──
-    ("레버리지 금지선(총노출 상한)을 푼다",
-     "quant/risk/portfolio_vol.py",
-     "MAX_GROSS_EXPOSURE = 1.0",
-     "MAX_GROSS_EXPOSURE = 10.0",
-     "tests/test_portfolio_vol.py"),
-
-    ("엣지 미입증 상태의 목표 변동성 상한 게이트를 끈다",
-     "quant/risk/portfolio_vol.py",
-     "    if not proven and not override:\n        base = min(base, VERIFY_TARGET_VOL)",
-     "    if False:\n        base = min(base, VERIFY_TARGET_VOL)",
-     "tests/test_portfolio_vol.py"),
+    #
+    # (레버리지 금지선과 미입증 목표 변동성 잠금은 아래 '무레버리지 상한을
+    #  3배로 푼다'·'엣지 미입증인데 목표 변동성 잠금을 푼다'가 **같은 줄**을
+    #  이미 찌른다. 2026-08-12에 여기 중복으로 넣었다가 목록을 세어 보고
+    #  지웠다 — 중복 금지 규칙을 만든 바로 그 회차에 내가 어겼다.)
 
     # (코인 미완성 봉은 아래 '코인도 진행 중인 봉으로 신호를 내게 되돌린다'가
     #  이미 같은 장치를 찌른다 — 중복 항목은 넣지 않는다. 항목 수를 부풀리면
@@ -184,6 +187,58 @@ MUTATIONS = [
      "            w = (1 - EMA_STEP) * prev + EMA_STEP * target",
      "            w = target",
      "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    # ── 오디션·학습의 미래 차단(가장 비싸고 조용한 계열) ──
+    ("크로스에셋 정렬을 최근접으로 바꾼다(미래 벤치마크가 과거 봉에 붙는다)",
+     "quant/data/crossasset.py",
+     "    return pd.Series(feature.reindex(target, method=\"ffill\").to_numpy(),",
+     "    return pd.Series(feature.reindex(target, method=\"nearest\").to_numpy(),",
+     # ⚠️ 처음엔 test_alpha5_crossasset.py를 가리켰고 통과했다. 그 파일의
+     #    정렬 검사는 '벤치가 df보다 일찍 끝나는' 경우만 본다 — 최근접이든
+     #    전진충전이든 끝 이후에는 같은 값이라 차이가 안 난다. **가운데
+     #    구멍**을 보는 test_lookahead_external.py가 잡는다.
+     "tests/test_lookahead_external.py"),
+
+    ("풀링 학습의 상한을 없앤다(미래 종목의 행까지 학습에 섞는다)",
+     "quant/strategies/ml.py",
+     "        sel = dates < cut",
+     "        sel = dates == dates",
+     "tests/test_alpha12_pooled.py"),
+
+    # 감사 128 — 실제로 이 모습이었다. 정수 epoch 비교라 단위가 어긋나도
+    # 조용히 통과했고, 미래 행이 모든 학습 블록에 들어갔다.
+    ("풀 날짜를 정수 epoch로 되돌린다(단위 어긋남 → 미래 행이 전부 통과)",
+     "quant/strategies/ml.py",
+     "                idx = pd.DatetimeIndex(pdf.index).normalize().to_numpy(\n"
+     "                    dtype=\"datetime64[ns]\")",
+     "                idx = pd.DatetimeIndex(pdf.index).normalize().asi8",
+     "tests/test_alpha12_pooled.py"),
+
+    # 감사 127 — 풀링이 통째로 죽어 있어도 아무도 몰랐다.
+    ("풀링을 조용히 끈다(넣으나 마나 같아진다)",
+     "quant/strategies/ml.py",
+     "        pool_rows = (self._build_pool(feats.columns, span, df.index[-1])\n"
+     "                     if self.pool is not None else None)",
+     "        pool_rows = None",
+     "tests/test_alpha12_pooled.py"),
+
+    ("스냅샷 풀이 당일 폴더까지 읽는다(채우는 중이라 verify 재현이 깨진다)",
+     "quant/utils/repro.py",
+     "    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])",
+     "    days = sorted(d for d in os.listdir(base) if d <= cutoff[:10])",
+     "tests/test_alpha12_pooled.py"),
+
+    ("메타라벨과 풀링의 동시 사용 금지를 푼다",
+     "quant/strategies/ml.py",
+     "        if pool is not None and meta:",
+     "        if False:",
+     "tests/test_alpha12_pooled.py"),
+
+    ("스톱 발동 후 재진입 금지를 끈다(스톱이 무의미해진다)",
+     "quant/strategies/stop_guard.py",
+     "                if stopped:\n                    w[t] = 0.0",
+     "                if False:\n                    w[t] = 0.0",
+     "tests/test_alpha11_kelly_stop.py"),
 
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
@@ -921,6 +976,72 @@ def _purge_bytecode(path: pathlib.Path) -> None:
             pass
 
 
+def _assert_no_duplicates() -> None:
+    """같은 장치를 두 번 찌르는 항목이 없는가 — 도구 자신의 네 번째 결함.
+
+    2026-08-12: '레버리지 금지선'과 '미입증 목표 변동성 잠금'을 넣었는데
+    둘 다 이미 있던 항목과 **같은 파일의 같은 줄**을 찌르는 것이었다.
+    항목 수는 이 도구가 내놓는 유일한 숫자다("N개 장치를 지키고 있다").
+    중복이 섞이면 그 숫자가 조용히 부풀고, 부푼 숫자는 안심을 만든다.
+
+    주의: 앞으로 이 검사에 걸리면 **항목을 지우는 것이 정답**이다.
+    두 항목이 정말 다른 장치를 찌른다면 원본 문자열이 달라야 한다.
+    """
+    seen: dict = {}
+    dups = []
+    for desc, path, old, _new, _test in MUTATIONS:
+        k = (path, old)
+        if k in seen:
+            dups.append(f"  · {desc}\n    ↔ {seen[k]}\n    ({path})")
+        seen[k] = desc
+    if dups:
+        print("💥 변이 항목이 같은 줄을 두 번 찌른다 — 목록을 정리할 것:\n"
+              + "\n".join(dups))
+        sys.exit(2)
+
+
+_assert_no_duplicates()
+
+
+def _dry_run() -> None:
+    """--dry-run — pytest를 돌리지 않고 **목록 자체가 살아 있는지**만 본다.
+
+    왜 필요한가(2026-08-12 감사 125): 이 도구는 **CI에서 한 번도 돌지
+    않았다.** 다른 모든 안전장치를 지키는 도구가 정작 아무도 안 돌린다.
+    그래서 원본 문자열이 리팩터링에 밀려 안 맞게 되면(⏭️ 건너뜀) 그 장치는
+    조용히 무방비가 되고, 아무도 모른다.
+
+    전체 변이 시험은 100건이 넘어 PR마다 돌리기엔 무겁다. 그래서 둘로
+    나눈다 — 이 검사는 몇 초 만에 끝나고 PR마다 돌며, 진짜 변이 시험은
+    야간에 돈다. 여기서 잡는 것은 '조용한 드리프트' 하나뿐이지만, 그것이
+    이 도구가 죽는 가장 흔한 방식이다.
+    """
+    bad = []
+    for desc, path, old, _new, test in MUTATIONS:
+        p = pathlib.Path(path)
+        if not p.exists():
+            bad.append(f"  · {desc}\n    대상 파일 없음: {path}")
+            continue
+        n = p.read_text(encoding="utf-8").count(old)
+        if n != 1:
+            bad.append(f"  · {desc}\n    원본 문자열이 {n}회({path}) — "
+                       f"코드가 바뀌었다. 변이 문자열을 갱신할 것")
+        if not pathlib.Path(test).exists():
+            bad.append(f"  · {desc}\n    검사 파일 없음: {test}")
+    if bad:
+        print(f"💥 변이 목록이 코드와 어긋난다({len(bad)}건) — "
+              f"그만큼의 안전장치가 지금 무방비다:\n" + "\n".join(bad))
+        sys.exit(1)
+    print(f"✅ 변이 항목 {len(MUTATIONS)}건이 모두 코드와 맞물려 있다"
+          f"(대상 파일·원본 문자열·검사 파일 확인). "
+          f"실제 변이 시험은 야간 잡에서 돈다.")
+    sys.exit(0)
+
+
+if "--dry-run" in sys.argv[1:]:
+    _dry_run()
+
+
 def run(test):
     # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
@@ -981,4 +1102,9 @@ for desc, path, old, new, test in MUTATIONS:
         missed += 1
 print("─" * 110)
 print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
-sys.exit(1 if (missed or broken) else 0)
+# ⚠️ 2026-08-12 감사 126 — 이 줄이 문서와 어긋나 있었다.
+#    머리말은 "건너뜀은 통과가 아니다"라고 적어 놓고, 종료코드는
+#    `1 if (missed or broken)`이라 **건너뜀을 통과로 취급**했다.
+#    즉 116개 항목의 원본 문자열이 전부 안 맞게 돼도 이 도구는 0을 준다.
+#    오늘 내내 잡아 온 '말과 행동의 불일치'가 감사 도구 자신에게 있었다.
+sys.exit(1 if (missed or broken or skipped) else 0)

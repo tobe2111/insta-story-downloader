@@ -48,6 +48,14 @@ jobs:
       - name: Syntax check (py_compile)
         run: python -m py_compile $(find quant examples tests -name "*.py")
 
+      # 변이 목록이 코드와 맞물려 있는가 — 몇 초짜리 구조 검사(감사 125).
+      # 안전장치를 지키는 변이 항목의 '원본 문자열'이 리팩터링에 밀려 안
+      # 맞게 되면, 그 항목은 조용히 건너뛰어지고 그 장치는 무방비가 된다.
+      # 진짜 변이 시험(항목마다 pytest 2회)은 무거워서 야간 잡
+      # (mutation-sweep.yml)이 돈다 — 여기서는 목록이 살아 있는지만 본다.
+      - name: 변이 목록 정합성 (mutation_check --dry-run)
+        run: python3 scripts/mutation_check.py --dry-run
+
       - name: Run tests
         run: pytest -q
 
