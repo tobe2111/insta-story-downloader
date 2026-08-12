@@ -189,6 +189,23 @@ class Backtester:
         target = self.strategy.generate_signals(df)
         desired = self.risk.size_positions(df, target)
 
+        # ⚠️ **신호가 봉과 같은 줄에 서 있는지 확인한다**(감사 184). 예전에는
+        #    `desired.to_numpy()`를 그냥 인덱싱했다. 전략이 인덱스가 어긋난
+        #    시리즈를 돌려주면 판다스가 `target * scale`에서 **합집합 인덱스**를
+        #    만들고, 그 배열을 봉 번호로 읽어 **신호와 봉이 어긋난 채** 계산된다.
+        #
+        #    실측(하루 밀린 인덱스): 예외도 경고도 없이 총수익률 -7.32%가 나왔다.
+        #    그럴듯한 숫자라 사람이 알아챌 방법이 없다.
+        #
+        #    이 엔진은 **이 저장소의 모든 성적이 나오는 자리**다. 여기서 조용히
+        #    어긋나면 오디션·챔피언 선정·사이트 숫자가 전부 그 위에 쌓인다.
+        #    외부 피처를 붙이다 reindex 한 번 잘못하면 생기는 일이라, 믿지 않고
+        #    확인한다.
+        if not desired.index.equals(df.index):
+            raise ValueError(
+                f"전략 신호의 인덱스가 봉과 다릅니다(신호 {len(desired)}개 · "
+                f"봉 {len(df)}개) — 어긋난 채 계산하면 그럴듯한 오답이 나옵니다.")
+
         close = df["close"].to_numpy()
         want = desired.to_numpy()
         cm = self.cost_model
@@ -222,9 +239,30 @@ class Backtester:
         throttled = False           # dd_throttle 히스테리시스 상태(축소 국면 여부)
         cooldown = 0                # 스톱 발동 후 남은 재진입 금지 봉 수
         pending_delta = 0.0         # 직전 봉 결정분 — 이번 봉 시가에 체결된다
+        pending_entry = False       # 진입가를 이번 봉 시가로 확정해야 하는가
+        ruined = False              # 자본이 0 이하로 소진됐는가(회복 불가)
 
         for i in range(n):
             price = close[i]
+
+            # 0-a) **진입가는 실제 체결가여야 한다**(감사 184). `next_open_fill`은
+            #      결정을 종가에 하고 체결은 다음 봉 시가에 한다. 그런데 진입가는
+            #      결정 종가로 적어 두고 있었다 — 손절·익절·트레일링이 **한 번도
+            #      거래하지 않은 가격**을 기준으로 재진다.
+            #
+            #      실측(불리 갭 5%, 손절선 -15%): 손절이 체결가 대비 **-20.6%**
+            #      에서 발동했다. 갭이 유리한 날은 반대로 일찍 잘린다. 즉 손절선
+            #      숫자가 뜻대로 동작하지 않고, 그 오차의 크기는 갭 분포를 따른다
+            #      (이 저장소가 실측한 한국주식 평균 불리 갭 79bp).
+            #
+            #      하필 손절 정책을 오디션으로 고르는 시스템이다 — 기준이 흔들리면
+            #      고르는 대상 자체가 흔들린다. 갭을 비용으로 물기로 한 기능인데
+            #      정작 스톱은 갭 이전 가격을 보고 있었다.
+            if pending_entry:
+                if use_next_open and open_[i] > 0 and pos != 0.0:
+                    entry = open_[i]
+                    extreme = open_[i]
+                pending_entry = False
 
             # 0) 봉 내 손절/익절 (옵션): 고저가가 스톱선을 관통하면 그 자리에서
             #    체결한다. 종가까지의 나머지 움직임은 겪지 않는다(이미 청산).
@@ -343,12 +381,37 @@ class Backtester:
                     entry = 0.0
                     extreme = 0.0
                 elif pos == 0.0 or np.sign(new_pos) != np.sign(pos):
-                    entry = price      # 신규 진입 또는 방향 전환
+                    entry = price      # 신규 진입 또는 방향 전환(임시 — 아래 참조)
                     extreme = price    # 극값도 진입가로 초기화
+                    # 다음 봉 시가에 체결된다면 진입가는 그 시가다(감사 184).
+                    pending_entry = use_next_open
 
             # 이번 봉에서 결정된 변화분은 다음 봉 시가에 체결된다(모델링용)
             pending_delta = new_pos - pos
             pos = new_pos
+
+            # 6) **파산 바닥**(감사 184). 자본이 0 이하로 내려가면 그 계좌는 끝이다.
+            #    예전에는 음수 자산을 그대로 다음 봉 수익률에 곱했다. 곱하는 수가
+            #    음수면 **부호가 다시 뒤집힌다** — 실측: 자산 10,000 → -20,000 →
+            #    **+20,000**, 총수익률 **+100%**. 날아간 계좌가 두 배 번 것으로
+            #    보고된다. 게다가 그 사이 CAGR은 음수의 분수 거듭제곱이라 NaN이고,
+            #    오디션은 NaN·가짜 수익을 걸러내지 않는다 — **파산한 백테스트가
+            #    챔피언이 될 수 있다.**
+            #
+            #    지금 설정(롱 온리·max_position 1.0)에서는 최악의 계수가 정확히
+            #    0이라 여기 닿지 않는다. 하지만 `--allow-short`는 지원되는 기능이고
+            #    `max_position`은 CLI 인자다 — 둘 중 하나만 켜면 닿는다. 방어는
+            #    '지금 닿는 자리'가 아니라 '닿을 수 있는 자리'에 둔다.
+            if not ruined and cash_equity <= 0.0:
+                ruined = True
+            if ruined:
+                cash_equity = 0.0
+                pos = 0.0
+                pending_delta = 0.0
+                pending_entry = False
+                entry = 0.0
+                extreme = 0.0
+
             equity[i] = cash_equity
             held[i] = pos
 

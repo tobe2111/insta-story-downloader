@@ -44,11 +44,29 @@ def _block_indices(n: int, rng: np.random.Generator, block: int) -> np.ndarray:
 
     인덱스를 반환하므로, 짝지은(paired) 비교에서 두 전략에 '같은' 재추출을
     적용해 공통 시장 충격을 상쇄할 수 있다.
+
+    ⚠️ **원형(circular) 블록이어야 한다**(감사 188). 예전에는 끝에서 잘랐다.
+
+        idx.extend(range(start, min(start + block, n)))
+
+    블록은 `start ≤ j`인 자리에서만 j를 담을 수 있으므로, **앞쪽 원소는
+    들어갈 블록 자체가 적다.** 실측(n=100·block=10, 2만 회):
+
+        index 0    표집 빈도 0.108×   (균등이면 1.00×)
+        앞 10개    평균     0.584×
+        중간·뒤    평균     1.05×
+
+    즉 표본의 **앞부분이 조용히 절반 무게로 깎인다.** 이 함수는 챔피언을
+    바꿀지 정하는 A/B 유의성 검정에 쓰인다 — 초반 구간이 다른 국면이었다면
+    (워밍업·다른 레짐) 그 구간의 영향만 빠진 채로 판정이 난다.
+
+    끝을 자르지 않고 **앞으로 감으면**(modulo) 모든 인덱스의 포함 확률이
+    정확히 같아진다. 자기상관 보존이라는 목적도 그대로다.
     """
     idx: list[int] = []
     while len(idx) < n:
         start = int(rng.integers(0, n))
-        idx.extend(range(start, min(start + block, n)))
+        idx.extend((start + k) % n for k in range(block))
     return np.asarray(idx[:n])
 
 

@@ -1629,7 +1629,104 @@ MUTATIONS = [
      "        if False:",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # 감사 184 — 모든 성적이 나오는 자리. 결함 3건.
+    ("신호와 봉이 어긋나도 그냥 계산한다(그럴듯한 오답이 나와 사람이 못 잡는다)",
+     "quant/backtest/engine.py",
+     "        if not desired.index.equals(df.index):",
+     "        if False:",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
+    ("파산 바닥을 없앤다(음수 자산에 음수를 곱해 날아간 계좌가 +100%가 된다)",
+     "quant/backtest/engine.py",
+     "            if not ruined and cash_equity <= 0.0:",
+     "            if False:",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
+    ("진입가를 체결가가 아니라 결정가로 적는다(손절선이 뜻대로 안 걸린다)",
+     "quant/backtest/engine.py",
+     "                    pending_entry = use_next_open",
+     "                    pending_entry = False",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
+    # 감사 187 — 방송에서 말하는 숫자 + 재현성 지문. 결함 1건(보합 미고지).
+    ("확률대 표본에서 보합을 말하지 않는다(종목마다 비율이 갈리는데 이유를 숨긴다)",
+     "quant/live/explain.py",
+     '    return f" · 보합 {n}일 포함" if n else ""',
+     '    return ""',
+     "tests/test_the_numbers_we_say_out_loud.py"),
+
+    ("소표본에서도 비율을 말한다(n=8의 비율이 확신처럼 읽힌다)",
+     "quant/live/explain.py",
+     "MIN_BAND_SAMPLES = 25",
+     "MIN_BAND_SAMPLES = 1",
+     "tests/test_the_numbers_we_say_out_loud.py"),
+
+    ("의존성 범위 위반 판정을 끈다(검사와 실전이 다른 세계가 된다)",
+     "quant/utils/repro.py",
+     "        if got and not version_satisfies(str(got), specs):",
+     "        if False:",
+     "tests/test_the_numbers_we_say_out_loud.py"),
+
+    # 감사 188 — 블록 부트스트랩이 표본 앞부분을 깎고 있었다. 형제 2곳.
+    ("A/B 검정 재추출에서 블록을 끝에서 자른다(표본 앞부분이 반쯤 깎인다)",
+     "quant/robustness/compare.py",
+     "        idx.extend((start + k) % n for k in range(block))",
+     "        idx.extend(range(start, min(start + block, n)))",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
+    ("무작위 벤치마크 재추출에서 블록을 끝에서 자른다(사이트 백분위의 분모가 흔들린다)",
+     "quant/robustness/monte_carlo.py",
+     "        out.extend(r[(start + k) % n] for k in range(block))",
+     "        out.extend(r[start : start + block])",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
+    ("재추출을 낱개로 바꾼다(자기상관 보존이라는 목적이 사라진다)",
+     "quant/robustness/compare.py",
+     "        start = int(rng.integers(0, n))\n"
+     "        idx.extend((start + k) % n for k in range(block))",
+     "        idx.extend(int(rng.integers(0, n)) for _ in range(block))",
+     "tests/test_the_resampling_does_not_forget_the_beginning.py"),
+
+    # 감사 189 — 드리프트 경보. 결함 없음, 계약 고정.
+    ("드리프트 판정에서 표본 크기 보정을 끈다(잡음의 절반이 '드리프트'가 된다)",
+     "quant/robustness/drift.py",
+     "        ref = psi_null(int(n_ref), int(n_new), bins)",
+     "        ref = {}",
+     "tests/test_the_drift_alarm_knows_its_own_noise.py"),
+
+    ("계산 불가를 0(안정)으로 위장한다(경보가 조용히 꺼진다)",
+     "quant/robustness/drift.py",
+     "    if exp[0] == exp[-1]:                    # 상수 피처 — 분포 비교 불가\n"
+     '        return float("nan")',
+     "    if exp[0] == exp[-1]:\n        return 0.0",
+     "tests/test_the_drift_alarm_knows_its_own_noise.py"),
+
     # ── 어드민·웹 경로 ──
+    # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
+    ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
+     "quant/web/app.py",
+     "    if not (0 < amount <= 10_000_000):",
+     "    if False:",
+     "tests/test_the_cockpit_does_not_hand_out_the_wheel.py"),
+
+    ("방송 현재가에 합성 폴백을 허용한다(가짜 시세가 생방송에 나간다)",
+     "quant/web/app.py",
+     '                if len(df) and not df.attrs.get("synthetic_fallback"):',
+     "                if len(df):",
+     "tests/test_the_cockpit_does_not_hand_out_the_wheel.py"),
+
+    ("입금 메모 길이 상한을 없앤다",
+     "quant/web/app.py",
+     '    memo = str(params.get("memo", ""))[:80]',
+     '    memo = str(params.get("memo", ""))',
+     "tests/test_the_cockpit_does_not_hand_out_the_wheel.py"),
+
+    ("입금 라우트를 CSRF 보호 목록에서 뺀다(<img> 한 줄로 가짜 입금)",
+     "quant/web/server.py",
+     '    _MUTATING = ("/deposit/run", "/optimize/run", "/sweep/run",',
+     '    _MUTATING = ("/optimize/run", "/sweep/run",',
+     "tests/test_the_cockpit_does_not_hand_out_the_wheel.py"),
+
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
      "        return hmac.compare_digest(supplied, token)",
