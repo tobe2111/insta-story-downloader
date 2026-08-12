@@ -483,6 +483,13 @@ MUTATIONS = [
      "    return now",
      "tests/test_fill_and_hours.py"),
 
+    # 감사 143 — 동작을 고치고 설명을 안 고쳐 장부가 낡은 말을 했다.
+    ("미완성 봉 기록이 다시 '결정에 쓴 봉'이라고 말하게 되돌린다",
+     "quant/data/barclock.py",
+     "            \"note\": \"체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — \"",
+     "            \"note\": \"결정 시점에 아직 만들어지는 중이던 봉 — \"",
+     "tests/test_signal_frame.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
