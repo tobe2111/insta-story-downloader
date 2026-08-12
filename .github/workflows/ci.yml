@@ -43,7 +43,9 @@ jobs:
           # 테스트는 데이터 소스 없으면 합성 데이터로 폴백하므로 핵심 의존성만 설치
           # cryptography는 '선택' 의존성이지만 Ed25519 라이선스 경로도 CI에서
           # 검증하기 위해 설치한다(없으면 해당 테스트는 자동 skip).
-          pip install pandas numpy pyyaml scikit-learn pytest cryptography
+          # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
+          # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
+          pip install -r requirements.txt cryptography
 
       - name: Syntax check (py_compile)
         run: python -m py_compile $(find quant examples tests -name "*.py")

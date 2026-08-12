@@ -54,7 +54,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy pyyaml scikit-learn pytest cryptography
+          # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
+          # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
+          pip install -r requirements.txt cryptography
 
       # ⚠️ 이 도구는 실행 중 소스 파일을 잠깐 고쳤다가 되돌린다. 중단되면
       #    변조된 채로 남을 수 있으므로, 러너를 버리는 이 잡에서만 돌린다
