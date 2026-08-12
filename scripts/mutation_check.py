@@ -369,6 +369,48 @@ MUTATIONS = [
      "        if False:",
      "tests/test_data_source_is_recorded.py"),
 
+    # ── 모든 판정의 분모(성과 지표)와 안전장치 본체 ──
+    #
+    # 이 세 파일은 변이가 한 번도 닿지 않았다(감사 140). 샤프·MDD가 틀리면
+    # 오디션 승격·엣지 입증 게이트·사이트의 모든 숫자가 **동시에** 틀린다.
+    ("샤프지수 연율화를 뺀다(전 판정의 분모가 √252배 작아진다)",
+     "quant/backtest/metrics.py",
+     "        excess.mean() / returns.std() * np.sqrt(periods_per_year)\n"
+     "        if returns.std() > 0",
+     "        excess.mean() / returns.std()\n"
+     "        if returns.std() > 0",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("최대낙폭을 고점 대비가 아니라 시작 대비로 잰다",
+     "quant/backtest/metrics.py",
+     "    cummax = equity.cummax()\n    drawdown = equity / cummax - 1.0",
+     "    cummax = equity.cummax()\n    drawdown = equity / equity.iloc[0] - 1.0",
+     "tests/test_backtest.py"),
+
+    ("CAGR 복리 구간 수를 한 칸 늘린다(수익률 부풀림)",
+     "quant/backtest/metrics.py",
+     "    intervals = max(1, len(equity) - 1)",
+     "    intervals = max(1, len(equity))",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("일일 손실 킬스위치 문턱 판정을 끈다",
+     "quant/live/killswitch.py",
+     "            if daily <= -self.daily_max_loss:",
+     "            if False:",
+     "tests/test_killswitch.py"),
+
+    ("킬스위치 할트를 즉시 풀어 준다(중단 기간이 사라진다)",
+     "quant/live/killswitch.py",
+     "            if today < self.halted_until:\n                return True",
+     "            if False:\n                return True",
+     "tests/test_killswitch.py"),
+
+    ("서킷브레이커 최대낙폭 트립을 끈다",
+     "quant/live/circuit_breaker.py",
+     "            if dd <= -cfg.max_drawdown:",
+     "            if False:",
+     "tests/test_circuit_breaker.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
