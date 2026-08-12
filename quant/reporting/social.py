@@ -88,6 +88,11 @@ def _today_numbers(status: dict) -> dict:
         "paused": bool(last.get("paused")),
         "exposure_scale": last.get("exposure_scale"),
         "n_symbols": (last.get("champion") or {}).get("symbols"),
+        # 실제로 든 종목 수 — 후보 수와 다르다(2026-08-12 감사 114).
+        # 감사 113에서 **카드**를 고치면서 캡션을 놓쳤다. 89에서는 반대로
+        # 캡션을 고치고 카드를 놓쳤었다 — 같은 실수의 거울이다.
+        "n_held": len(keep) if applied else sum(
+            1 for k in src if src[k] > 0 and _held_on(status, k, date)),
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
         "top_names": top_names,
@@ -159,6 +164,11 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     from quant.live.ledger_basics import PORTFOLIO_START_CASH
     from quant.markets import AUTO_TARGETS
     n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
+    # '분산'이라 적으면 후보 전부에 퍼져 있는 것처럼 읽힌다. 절반이 관망인
+    # 날도 있으므로 **보유 수와 후보 수를 나눠** 적는다(감사 114 · 91 계열).
+    n_held = x.get("n_held")
+    spread = (f"오늘 {n_held}종목 보유 / 후보 {n_sym}종목"
+              if isinstance(n_held, int) else f"{n_sym}종목 후보")
     start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
     kill = ("" if x["risk_scale"] >= 1.0 else
             f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
@@ -194,7 +204,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"보여주는 것'입니다.\n"
         f"\n"
         f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
-        f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\n"
+        f"📈 총노출 {gross} · {spread}(코인·한국·미국)\n"
         f"🎯 오늘 배분 상위: {tops}{kill}{owner}\n"
         f"\n"
         f"🤖 {work}\n"

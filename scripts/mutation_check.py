@@ -78,6 +78,37 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("어드민 참고 변동성을 다시 산문에 박는다",
+     "docs/admin.html",
+     '<span id="volref">참고 수치를 장부에서 읽는 중…</span></span></span>',
+     '참고: 20종목 무레버리지 전액투자의 예상 변동성이 약 8.8%입니다.</span></span>',
+     "tests/test_site_numbers_track_the_code.py"),
+
+    ("오늘의 판단이 후보 수를 '분산'이라 말하게 되돌린다",
+     "docs/today.html",
+     '<div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>',
+     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("사이드바 '종목계좌' 라벨을 맨 '비중'으로 되돌린다",
+     "docs/index.html",
+     '">종목계좌 \'+((r.w||0)*100).toFixed(1)+\'%\'',
+     '">비중 \'+((r.w||0)*100).toFixed(1)+\'%\'',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("표지가 '사람의 개입은 없습니다'라고 단언하게 되돌린다",
+     "docs/sns_card.html",
+     "      +(owner?'오늘은 <b>사람이 손을 댔습니다</b> — '+owner+'.</div>'\n"
+     "             :'오늘은 사람의 개입이 없었습니다.</div>'));",
+     "      +'사람의 개입은 없습니다.</div>');",
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("캡션이 후보 수를 '분산'이라 말하게 되돌린다",
+     "quant/reporting/social.py",
+     'f"📈 총노출 {gross} · {spread}(코인·한국·미국)\\n"',
+     'f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\\n"',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
     ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
      "docs/paper.html",
      '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',

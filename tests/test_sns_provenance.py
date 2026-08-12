@@ -111,9 +111,13 @@ def test_site_shows_the_day_separately_from_cumulative():
 
 
 def test_symbol_count_comes_from_the_ledger():
+    # 2026-08-12 감사 114에서 문구가 바뀌었다 — '분산'은 후보 전부에 퍼져
+    # 있는 것처럼 읽혀서, 보유 수와 후보 수를 나눠 적는다.
     hist = [_rec("2026-01-01", 80_000, day_pct=0.0,
                  champion={"symbols": 7})]
-    assert "7종목 분산" in social.build_captions(_status(hist))["instagram"]
+    text = social.build_captions(_status(hist))["instagram"]
+    assert "후보 7종목" in text, text
+    assert "종목 분산" not in text, "'분산'이 되살아났다"
 
 
 def test_start_cash_comes_from_config():

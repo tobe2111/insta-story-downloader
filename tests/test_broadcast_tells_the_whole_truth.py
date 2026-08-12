@@ -159,3 +159,106 @@ def test_the_short_thread_still_drops_the_highlights():
         "짧은 판에 고지가 들어 있지 않다")
     assert "배분 상위" not in short, (
         "짧은 판이 하이라이트를 그대로 두고 있다 — 줄일 것은 이쪽이다")
+
+
+# ── 후보와 보유를 나눠 말하는가 (감사 114) ─────────────────────
+#
+# 감사 113에서 **카드**를 고치면서 캡션을 놓쳤다. 감사 89에서는 반대로
+# 캡션을 고치고 카드를 놓쳤었다 — 같은 실수의 거울이고, FROZEN_IDEAS ⑭를
+# 오늘만 네 번째로 어긴 것이다. 두 출구를 한 검사로 함께 묶는다.
+
+def test_the_caption_separates_holdings_from_the_universe():
+    st = _status(applied={"us_stock:AAPL": 0.012})
+    st["symbols"]["kr_stock:005930.KS"] = {"name": "삼성전자"}
+    st["paper"]["portfolio:ALL"]["history"][-1]["alloc"]["kr_stock:005930.KS"] = 0.2
+    st["paper"]["kr_stock:005930.KS"] = {"history": [
+        {"date": "2026-08-10", "weight": 0.0}]}          # 관망
+    text = build_captions(st, site_url="https://e.com")["instagram"]
+    assert "종목 분산" not in text, (
+        "캡션이 후보 수를 '분산'이라 말한다 — 절반이 관망인 날도 전 종목에 "
+        f"퍼져 있는 것처럼 읽힌다\n{text}")
+    assert "보유" in text and "후보" in text, text
+
+
+def test_no_outlet_anywhere_says_n_symbols_spread():
+    """**모든 출구**에서 'N종목 분산' 금지 — 형제를 하나씩 쫓지 않는다.
+
+    이 문구 하나로 감사 113(카드) · 114(캡션) · 117(오늘의 판단)이 차례로
+    나왔다. FROZEN_IDEAS ⑭를 여섯 번 어긴 뒤에야 **패턴 전체**를 막는다.
+    새 페이지가 생겨도 여기서 걸린다.
+    """
+    import re as _re
+
+    def shown(src: str) -> str:
+        """화면에 나가는 글만 — // 와 /* */ 주석을 모두 뺀다.
+        (주석에 '왜 이렇게 고쳤나'를 적으면 그 낱말이 검사에 걸린다.)"""
+        src = _re.sub(r"/\*(?:.|\n)*?\*/", "", src)
+        return _re.sub(r"^\s*//.*$", "", src, flags=_re.M)
+
+    outlets = {}
+    for p in (ROOT / "docs").glob("*.html"):
+        if p.name == "index-standalone.html":
+            continue
+        outlets[p.name] = shown(p.read_text("utf-8"))
+    outlets["social.py"] = (ROOT / "quant" / "reporting"
+                            / "social.py").read_text("utf-8")
+    bad = [n for n, b in outlets.items() if "종목 분산" in b]
+    assert not bad, (
+        f"'N종목 분산'이 남아 있다: {bad} — 후보 수를 보유처럼 말한다")
+
+
+def test_the_main_outlets_separate_holdings_from_candidates():
+    """카드·캡션·오늘의 판단은 보유와 후보를 명시적으로 나눠 적는다."""
+    import re as _re
+    card = _re.sub(r"^\s*//.*$", "",
+                   (ROOT / "docs" / "sns_card.html").read_text("utf-8"),
+                   flags=_re.M)
+    today = _re.sub(r"/\*(?:.|\n)*?\*/", "",
+                    (ROOT / "docs" / "today.html").read_text("utf-8"))
+    cap = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    for name, body in (("카드", card), ("캡션", cap), ("오늘의 판단", today)):
+        assert "보유" in body and "후보" in body, (
+            f"{name}이 보유/후보를 구별하지 않는다")
+
+
+# ── 표지가 개입을 부인하지 않는가 (감사 115) ───────────────────
+#
+# 카드를 **실제로 렌더해서 읽어** 보니 1장 표지가 이렇게 단언하고 있었다:
+#
+#     "사람의 개입은 없습니다."
+#
+# 이 시스템에는 운영자가 결과를 바꿀 수 있는 통로가 둘 있고(일시정지·
+# 노출 배수), 장부는 그걸 매일 기록한다. 감사 96에서 캡션·카드2·사이트에는
+# '✋ 사람의 개입'을 붙였는데 **표지만 반대말**을 하고 있었다 — 같은
+# 게시물 1장과 2장이 정면으로 어긋난다.
+#
+# 이 문장은 이 계정에서 신뢰가 가장 많이 걸린 한 줄이다.
+
+def _card_body() -> str:
+    return re.sub(r"^\s*//.*$", "", CARD, flags=re.M)
+
+
+def test_the_cover_does_not_deny_intervention_unconditionally():
+    body = _card_body()
+    assert "'사람의 개입은 없습니다." not in body, (
+        "표지가 개입을 무조건 부인한다 — 손댄 날에도 그대로 나간다")
+    assert "owner?" in body.split("스스로 배우고", 1)[1][:400], (
+        "표지 문구가 개입 여부에 따라 갈리지 않는다")
+
+
+def test_the_cover_says_it_plainly_when_a_hand_was_used():
+    body = _card_body()
+    seg = body.split("스스로 배우고", 1)[1][:500]
+    assert "사람이 손을 댔습니다" in seg, (
+        "손댄 날에 표지가 그 사실을 말하지 않는다")
+    assert "없었습니다" in seg, "손대지 않은 날의 문구가 없다"
+
+
+def test_the_cover_and_the_caption_cannot_contradict():
+    """같은 게시물 안에서 표지와 캡션이 반대말을 하면 안 된다."""
+    body = _card_body()
+    src = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    # 둘 다 같은 장부 필드(paused · exposure_scale)에서 판단해야 한다.
+    for name, text in (("카드", body), ("캡션", src)):
+        assert "paused" in text and "exposure_scale" in text, (
+            f"{name}이 개입 여부를 장부에서 읽지 않는다")

@@ -87,8 +87,8 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
     <input type="checkbox" id="social_post"></label>
   <label><span class="t">목표 변동성 (연율)
     <span class="d">통합 계좌가 감수할 위험의 크기. 비워두면 코드 기본값
-    (엣지 미입증 12% / 입증 후 20%)을 따릅니다. 참고: 20종목 무레버리지
-    전액투자의 예상 변동성이 약 8.8%입니다.</span></span>
+    (엣지 미입증 12% / 입증 후 20%)을 따릅니다.
+    <span id="volref">참고 수치를 장부에서 읽는 중…</span></span></span>
     <input type="number" id="portfolio_target_vol" min="0.01" max="0.6" step="0.01"
       placeholder="비워두면 자동"></label>
   <label><span class="t">미입증 상향 승인
@@ -392,6 +392,38 @@ fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
     }
   }).catch(function(){$("sns-body").textContent="콘텐츠 로딩 실패";});
 })();
+</script>
+<script>
+/* ⚠️ 참고 수치를 산문에 박지 않는다(2026-08-12 감사 118). 여기 있던
+   "20종목 무레버리지 전액투자의 예상 변동성 약 8.8%"는 **고정 문자열**
+   이었다. 사장님이 그 숫자를 보고 목표 변동성을 정하는 화면인데, 값이
+   맞는지 아무도 확인하지 않는다. 감사 90에서 '코드 기본값 12/20%'는
+   코드에서 읽게 고쳤는데 이 줄만 남겨 뒀다 — 또 형제다(⑭ 일곱 번째).
+
+   ⚠️⚠️ 처음엔 여기서 '전액투자 환산 = ex_ante ÷ 총노출'을 계산해 보이려
+   했다가 **직접 잡았다.** 장부의 ex_ante는 `base_w`(신호비중 × 배분
+   슬라이스, 스케일 **전**)로 계산되고 weight는 스케일 **후** 총노출이라,
+   둘을 나누면 아무 뜻도 없는 숫자가 나온다. 검증할 수 없는 파생값을
+   보이는 것이 바로 이 감사가 고치고 있는 병이므로, **장부에 있는 값만
+   그대로** 적는다. 환산이 필요하면 그 값을 장부에 남기는 것이 먼저다. */
+fetch("status.json").then(r=>r.json()).then(st=>{
+  const h=(((st.paper||{})["portfolio:ALL"]||{}).history)||[];
+  const last=h[h.length-1]||{}, vt=last.vol_target||{};
+  const n=Object.keys(last.alloc||{}).length;
+  const el=document.getElementById("volref");
+  if(!el)return;
+  if(typeof vt.ex_ante==="number"){
+    el.innerHTML="참고(장부 "+(last.date||"")+" 그대로): 후보 <b>"+n+"종목</b> · "
+      +"목표 <b>"+((vt.target||0)*100).toFixed(1)+"%</b> · "
+      +"사전추정 <b>"+(vt.ex_ante*100).toFixed(2)+"%</b> · "
+      +"적용 배수 <b>"+(vt.scale||0)+"배</b> → 그날 총노출 <b>"
+      +((last.weight||0)*100).toFixed(0)+"%</b>. "
+      +"목표를 올리면 배수가 커지고, 무레버리지 상한에 닿을 때까지 "
+      +"총노출이 늘어납니다.";
+  }else{
+    el.textContent="참고: 장부에 사전추정 변동성 기록이 아직 없습니다.";
+  }
+}).catch(()=>{});
 </script>
 </body>
 </html>
