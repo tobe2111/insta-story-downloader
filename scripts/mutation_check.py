@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("오늘의 판단이 후보 수를 '분산'이라 말하게 되돌린다",
+     "docs/today.html",
+     '<div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>',
+     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
     ("사이드바 '종목계좌' 라벨을 맨 '비중'으로 되돌린다",
      "docs/index.html",
      '">종목계좌 \'+((r.w||0)*100).toFixed(1)+\'%\'',

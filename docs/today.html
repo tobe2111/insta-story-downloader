@@ -89,7 +89,13 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const ret=base?((eq/base-1)*100):0;
     const cls=ret>=0?"pos":"neg";
     const ratio=p.goal?Math.min(1,eq/p.goal):0;
-    out+=`<div class="hero"><div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>
+    /* ⚠️ 'N종목 분산'은 **후보 수**지 실제 보유가 아니다(2026-08-12 감사 117).
+       감사 113(카드)·114(캡션)를 고치면서 이 페이지를 또 놓쳤다 —
+       FROZEN_IDEAS ⑭ 여섯 번째 위반. 절반이 관망인 날도 있다. */
+    const heldN=Object.values((last&&last.applied)||{}).filter(v=>v>0).length;
+    const spread=heldN>0?`오늘 ${heldN}종목 보유 / 후보 ${rest.length}종목`
+                        :`후보 ${rest.length}종목`;
+    out+=`<div class="hero"><div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>
       <div><span class="eq ${cls}">${won(eq)}</span>
         <span class="pct ${cls}" style="margin-left:10px">${pct(ret)}</span>
         ${day!=null?`<span class="pct ${day>=0?"pos":"neg"}" style="margin-left:10px;font-size:15px">오늘 ${pct(day)}</span>`:""}</div>

@@ -180,15 +180,45 @@ def test_the_caption_separates_holdings_from_the_universe():
     assert "보유" in text and "후보" in text, text
 
 
-def test_both_outlets_say_it_the_same_way():
-    """캡션과 카드 **양쪽** — 한쪽만 고치는 실수를 한 검사로 막는다."""
-    card = (ROOT / "docs" / "sns_card.html").read_text("utf-8")
+def test_no_outlet_anywhere_says_n_symbols_spread():
+    """**모든 출구**에서 'N종목 분산' 금지 — 형제를 하나씩 쫓지 않는다.
+
+    이 문구 하나로 감사 113(카드) · 114(캡션) · 117(오늘의 판단)이 차례로
+    나왔다. FROZEN_IDEAS ⑭를 여섯 번 어긴 뒤에야 **패턴 전체**를 막는다.
+    새 페이지가 생겨도 여기서 걸린다.
+    """
     import re as _re
-    card_body = _re.sub(r"^\s*//.*$", "", card, flags=_re.M)
-    src = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
-    for name, body in (("카드", card_body), ("캡션", src)):
-        assert "종목 분산" not in body, f"{name}에 'N종목 분산'이 남아 있다"
-        assert "보유" in body and "후보" in body, f"{name}이 보유/후보를 구별하지 않는다"
+
+    def shown(src: str) -> str:
+        """화면에 나가는 글만 — // 와 /* */ 주석을 모두 뺀다.
+        (주석에 '왜 이렇게 고쳤나'를 적으면 그 낱말이 검사에 걸린다.)"""
+        src = _re.sub(r"/\*(?:.|\n)*?\*/", "", src)
+        return _re.sub(r"^\s*//.*$", "", src, flags=_re.M)
+
+    outlets = {}
+    for p in (ROOT / "docs").glob("*.html"):
+        if p.name == "index-standalone.html":
+            continue
+        outlets[p.name] = shown(p.read_text("utf-8"))
+    outlets["social.py"] = (ROOT / "quant" / "reporting"
+                            / "social.py").read_text("utf-8")
+    bad = [n for n, b in outlets.items() if "종목 분산" in b]
+    assert not bad, (
+        f"'N종목 분산'이 남아 있다: {bad} — 후보 수를 보유처럼 말한다")
+
+
+def test_the_main_outlets_separate_holdings_from_candidates():
+    """카드·캡션·오늘의 판단은 보유와 후보를 명시적으로 나눠 적는다."""
+    import re as _re
+    card = _re.sub(r"^\s*//.*$", "",
+                   (ROOT / "docs" / "sns_card.html").read_text("utf-8"),
+                   flags=_re.M)
+    today = _re.sub(r"/\*(?:.|\n)*?\*/", "",
+                    (ROOT / "docs" / "today.html").read_text("utf-8"))
+    cap = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    for name, body in (("카드", card), ("캡션", cap), ("오늘의 판단", today)):
+        assert "보유" in body and "후보" in body, (
+            f"{name}이 보유/후보를 구별하지 않는다")
 
 
 # ── 표지가 개입을 부인하지 않는가 (감사 115) ───────────────────
