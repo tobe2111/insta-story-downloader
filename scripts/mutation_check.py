@@ -279,8 +279,7 @@ MUTATIONS = [
     ("보유 포지션을 장부에 저장하지 않는다(다음 실행이 빈 계좌로 시작)",
      "quant/live/daily.py",
      "    st[\"positions\"] = {\n"
-     "        p.symbol: {\"quantity\": p.quantity, \"avg_price\": p.avg_price}\n"
-     "        for p in broker._positions.values() if abs(p.quantity) > 0}",
+     "        p.symbol: {\"quantity\": p.quantity, \"avg_price\": p.avg_price,",
      "    st[\"positions\"] = {}",
      "tests/test_daily_paper.py"),
 
@@ -758,6 +757,26 @@ MUTATIONS = [
      "        acc = directional_accuracy(df_sig, signals, window=self.accuracy_window)",
      "        acc = directional_accuracy(df, signals, window=self.accuracy_window)",
      "tests/test_the_learning_loop_judges_on_closed_bars.py"),
+
+    # 감사 152 — 데이터 장애가 손실을 지운다.
+    ("시세를 못 받은 종목을 매입가로 평가하게 되돌린다(손실이 장부에서 사라짐)",
+     "quant/live/daily.py",
+     "    marks = {**{k: v[\"price\"] for k, v in stale_marks.items()}, **prices}",
+     "    marks = dict(prices)",
+     "tests/test_a_data_outage_cannot_erase_a_loss.py"),
+
+    ("마지막 시세를 상태에 안 남긴다(다음 날 매입가로 떨어진다)",
+     "quant/live/daily.py",
+     '                   "last_price": marks.get(p.symbol, p.avg_price),',
+     '                   "last_price": None,',
+     "tests/test_a_data_outage_cannot_erase_a_loss.py"),
+
+    ("낡은 시세로 평가한 사실을 장부에서 지운다(정상 평가인 척)",
+     "quant/live/daily.py",
+     '                  {k: {"price": round(v["price"], 6), "as_of": v["as_of"]}\n'
+     '                   for k, v in stale_marks.items()} or None),',
+     "                  None),",
+     "tests/test_a_data_outage_cannot_erase_a_loss.py"),
 
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
