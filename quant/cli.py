@@ -120,6 +120,9 @@ def _cmd_learn(args) -> None:
         lookback=args.lookback,
         accuracy_window=args.accuracy_window,
         state_path=args.state,
+        # 시장을 넘겨야 미완결 봉을 뺄 수 있다(감사 151). 안 넘기면
+        # 코인의 '오늘' 진행 중인 봉이 그대로 모델에 들어간다.
+        market=args.market,
     )
     cycles = None if args.cycles <= 0 else args.cycles
     print(f"🔁 자동 페이퍼 학습 시작: {args.strategy} · {args.symbol} "

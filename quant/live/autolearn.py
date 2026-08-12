@@ -45,7 +45,9 @@ class AutoLearner:
         accuracy_window: int = 60,
         state_path: str | None = None,
         notifier=None,
+        market: str | None = None,
     ):
+        self.market = market
         self.data = data
         self.strategy = strategy
         self.broker = broker
@@ -63,6 +65,27 @@ class AutoLearner:
         # 일일 요약 중복 방지 — 재시작 시 기존 state에서 마지막 전송일을 복원.
         self._last_summary_date = load_last_summary_date(state_path)
 
+    def _signal_frame(self, df):
+        """신호·피처에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
+
+        `quant.live.daily._signal_frame`과 **같은 규칙**을 쓴다. 두 곳에
+        따로 쓰면 언젠가 갈라지므로 그쪽 함수를 그대로 부른다(㉞).
+
+        market을 안 넘기면 판정할 수 없다 — 주식 제공자는 이미 미완결 봉을
+        버리지만 코인은 아니라서, 시장을 모르면 어느 쪽인지 알 수 없다.
+        그때는 원본을 그대로 쓰되 **한 번 경고한다.** 조용히 옛 동작으로
+        돌아가면 고친 적이 없는 것과 같다.
+        """
+        if self.market is None:
+            if not getattr(self, "_warned_no_market", False):
+                log.warning(
+                    "market이 없어 미완결 봉 판정을 못 한다 — 코인이면 진행 "
+                    "중인 봉이 신호에 섞인다(AutoLearner(market=...)로 넘길 것)")
+                self._warned_no_market = True
+            return df
+        from quant.live.daily import _signal_frame
+        return _signal_frame(self.market, df)
+
     def cycle(self) -> dict:
         """한 사이클: 데이터→(재학습)신호→페이퍼 매매→정확도·자본 기록."""
         df = self.data.get_ohlcv(self.symbol, self.timeframe, limit=self.lookback)
@@ -70,9 +93,19 @@ class AutoLearner:
             log.warning("데이터 없음, 사이클 스킵")
             return {}
 
-        signals = self.strategy.generate_signals(df)     # ML은 여기서 재학습
-        sized = self.risk.size_positions(df, signals)
+        # 판단은 **완성된 봉**으로 한다(감사 151). 코인은 24시간 시장이라
+        # UTC 일봉의 '오늘' 봉이 항상 진행 중이고, 그 봉의 고저 레인지는
+        # 실측으로 평균 36% 짧게 잡힌다 — 변동성 타깃의 분모가 작아져
+        # 목표보다 큰 비중이 실린다(감사 71이 daily.py에서 고친 그 결함).
+        #
+        # ⚠️ 규칙은 daily.py에만 걸려 있었고 이 루프는 원본 프레임을 그대로
+        #    모델에 넣고 있었다. 같은 규칙이 경로마다 달라지면 그 자체가
+        #    다음 결함이다(FROZEN_IDEAS ㉜ — 사람이 덜 보는 쪽이 뒤처진다).
+        df_sig = self._signal_frame(df)
+        signals = self.strategy.generate_signals(df_sig)  # ML은 여기서 재학습
+        sized = self.risk.size_positions(df_sig, signals)
         weight = float(sized.iloc[-1])
+        # 체결·평가는 지금 가격(진행 중 봉의 종가 = 현재가)으로 한다.
         price = float(df["close"].iloc[-1])
         equity = self.broker.equity({self.symbol: price})
 
@@ -84,9 +117,15 @@ class AutoLearner:
         if paused:
             log.info("⏸ 어드민 일시정지 — 신규 주문 없음(보유 유지)")
         else:
-            self.broker.target_weight(self.symbol, weight * exposure, price, equity)
+            # 무행동 밴드 — daily.py와 같은 값(감사 151). 밴드가 없으면
+            # 매 사이클 미세 조정으로 왕복 수수료만 확정 지불한다.
+            from quant.live.daily import REBALANCE_BAND
+            self.broker.target_weight(self.symbol, weight * exposure, price,
+                                      equity, rebalance_band=REBALANCE_BAND)
 
-        acc = directional_accuracy(df, signals, window=self.accuracy_window)
+        # 적중률도 판단과 같은 프레임으로 잰다 — 다른 프레임으로 재면
+        # '무엇을 보고 맞혔는지'가 화면과 어긋난다.
+        acc = directional_accuracy(df_sig, signals, window=self.accuracy_window)
         # 최근 구간(롤링) 정확도 — 정확도가 시간에 따라 어떻게 변하는지
         recent = float("nan")
         if "rolling" in acc and len(acc["rolling"]):

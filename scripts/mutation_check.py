@@ -740,6 +740,25 @@ MUTATIONS = [
      "                _ = lambda *a, **k: None; _(",
      "tests/test_live_orders_are_hardened.py"),
 
+    # 감사 151 — 같은 규칙이 경로마다 달랐다(자동학습 루프).
+    ("자동학습 루프가 진행 중인 봉으로 판단하게 되돌린다(변동성 과소추정)",
+     "quant/live/autolearn.py",
+     "        df_sig = self._signal_frame(df)",
+     "        df_sig = df",
+     "tests/test_the_learning_loop_judges_on_closed_bars.py"),
+
+    ("자동학습 루프의 무행동 밴드를 없앤다(매 사이클 잔조정으로 수수료 누수)",
+     "quant/live/autolearn.py",
+     "                                      equity, rebalance_band=REBALANCE_BAND)",
+     "                                      equity)",
+     "tests/test_the_learning_loop_judges_on_closed_bars.py"),
+
+    ("적중률을 판단과 다른 프레임으로 잰다(성적과 근거가 어긋난다)",
+     "quant/live/autolearn.py",
+     "        acc = directional_accuracy(df_sig, signals, window=self.accuracy_window)",
+     "        acc = directional_accuracy(df, signals, window=self.accuracy_window)",
+     "tests/test_the_learning_loop_judges_on_closed_bars.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
