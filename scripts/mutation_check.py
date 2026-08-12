@@ -490,6 +490,25 @@ MUTATIONS = [
      "            \"note\": \"결정 시점에 아직 만들어지는 중이던 봉 — \"",
      "tests/test_signal_frame.py"),
 
+    # ── 워크포워드 검증(‘신뢰할 만함’ 판정의 근거) ──
+    ("최적화 구간이 검증 구간까지 미리 본다(워크포워드의 존재 이유가 사라짐)",
+     "quant/optimize/walkforward.py",
+     "        is_slice = df.iloc[start : start + is_window]",
+     "        is_slice = df.iloc[start : start + is_window + gap + oos_window]",
+     "tests/test_walkforward_really_holds_out.py"),
+
+    ("엠바고 갭을 없앤다(학습 직후 봉이 검증에 바로 들어간다)",
+     "quant/optimize/walkforward.py",
+     "        oos_start = start + is_window + gap        # 엠바고 갭만큼 띄운다",
+     "        oos_start = start + is_window              # 엠바고 갭만큼 띄운다",
+     "tests/test_walkforward_really_holds_out.py"),
+
+    ("워밍업 구간까지 OOS 성과로 센다(관망 봉이 성적을 희석)",
+     "quant/optimize/walkforward.py",
+     "        oos_ret = res.returns.iloc[-oos_window:]",
+     "        oos_ret = res.returns",
+     "tests/test_walkforward_really_holds_out.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
