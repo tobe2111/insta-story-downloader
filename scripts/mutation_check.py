@@ -721,6 +721,25 @@ MUTATIONS = [
      "        if False:",
      "tests/test_a_halted_symbol_cannot_take_the_book.py"),
 
+    # 감사 150 — 같은 판정을 두 곳에서 다르게 쓰면 가장 극단이 빠져나간다.
+    ("보정 구간 판정을 표와 다르게 되돌린다(확률 1.0이 경험 보정을 피해 간다)",
+     "quant/live/calibration_guard.py",
+     "        if row[\"confirmed\"] and _bin_of(row[\"lo\"], bins) == k:",
+     "        if row[\"confirmed\"] and row[\"lo\"] <= p < row[\"hi\"]:",
+     "tests/test_the_correction_reaches_the_most_confident_call.py"),
+
+    ("경험 보정을 통째로 끈다(모델의 과신이 그대로 나간다)",
+     "quant/live/calibration_guard.py",
+     "            return row[\"actual\"], True",
+     "            return p, False",
+     "tests/test_the_correction_reaches_the_most_confident_call.py"),
+
+    ("주문 단위 감사 로그 기록을 뺀다(증권사 체결 내역과 대사할 기록이 사라짐)",
+     "quant/live/daily_live.py",
+     "                record_order(",
+     "                _ = lambda *a, **k: None; _(",
+     "tests/test_live_orders_are_hardened.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
