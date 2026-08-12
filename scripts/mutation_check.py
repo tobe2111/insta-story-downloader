@@ -78,6 +78,12 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("벤치마크 라벨에서 '무엇을 보유했나'를 지운다",
+     "docs/index.html",
+     '⋯ 첫날 전 종목 균등 매수 후 그대로 보유했다면',
+     '⋯ 그냥 보유했다면',
+     "tests/test_benchmark_label_says_what_it_is.py"),
+
     ("전략이 미래 종가를 앞당겨 본다(성적 부풀리기)",
      "quant/strategies/breakout.py",
      '        close = df["close"].to_numpy()',
