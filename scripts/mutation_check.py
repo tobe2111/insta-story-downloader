@@ -375,10 +375,8 @@ MUTATIONS = [
     # 오디션 승격·엣지 입증 게이트·사이트의 모든 숫자가 **동시에** 틀린다.
     ("샤프지수 연율화를 뺀다(전 판정의 분모가 √252배 작아진다)",
      "quant/backtest/metrics.py",
-     "        excess.mean() / returns.std() * np.sqrt(periods_per_year)\n"
-     "        if returns.std() > 0",
-     "        excess.mean() / returns.std()\n"
-     "        if returns.std() > 0",
+     "        else excess.mean() / _sd * np.sqrt(periods_per_year)",
+     "        else excess.mean() / _sd",
      "tests/test_performance_metrics_are_exact.py"),
 
     ("최대낙폭을 고점 대비가 아니라 시작 대비로 잰다",
@@ -414,7 +412,7 @@ MUTATIONS = [
     # ── 사이징·비용(오디션 성적과 실제 노출을 동시에 좌우) ──
     ("실현변동성 0을 NaN으로 바꾸는 가드를 뺀다(거래정지 종목이 최대 레버리지)",
      "quant/risk/manager.py",
-     "            realized = realized.replace(0.0, np.nan)",
+     "            realized = realized.where(realized > 1e-9, np.nan)",
      "            realized = realized",
      "tests/test_risk_limits_bind_at_the_source.py"),
 
@@ -526,6 +524,52 @@ MUTATIONS = [
      "quant/robustness/pbo.py",
      "    for is_idx in combinations(range(S), S // 2):",
      "    for is_idx in [tuple(range(S // 2))]:",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    # ── DSR·PSR(엣지 입증 게이트가 읽는 값) ──
+    ("다중검정 보정을 빼고 벤치마크를 0으로 둔다(운 좋은 승자를 실력으로)",
+     "quant/robustness/deflated_sharpe.py",
+     "    sr_star = expected_max_sharpe(n_trials, trials_sharpe_std) if n_trials > 1 else 0.0",
+     "    sr_star = 0.0",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("왜도·첨도 보정을 뺀다(가끔 크게 터지는 전략이 안전한 전략과 같은 점수)",
+     "quant/robustness/deflated_sharpe.py",
+     "    denom = np.sqrt(max(1e-12, 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr ** 2))",
+     "    denom = 1.0",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("기대 최대 샤프의 두 계수를 뒤바꾼다",
+     "quant/robustness/deflated_sharpe.py",
+     "        (1.0 - _EULER) * _ND.inv_cdf(1.0 - 1.0 / N)\n"
+     "        + _EULER * _ND.inv_cdf(1.0 - 1.0 / (N * np.e))",
+     "        _EULER * _ND.inv_cdf(1.0 - 1.0 / N)\n"
+     "        + (1.0 - _EULER) * _ND.inv_cdf(1.0 - 1.0 / (N * np.e))",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    # 감사 146 — 부동소수 잡음이 0 판정을 뚫는다.
+    ("분산 퇴화 판정을 다시 `sd <= 0`으로 되돌린다(상수 계열이 DSR 1.0)",
+     "quant/robustness/deflated_sharpe.py",
+     "    if degenerate_spread(sd, np.abs(r).mean()):",
+     "    if sd <= 0:",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("샤프의 분산 퇴화 판정을 되돌린다(상수 수익이 천문학적 샤프)",
+     "quant/backtest/metrics.py",
+     "    _degenerate = degenerate_spread(_sd, float(returns.abs().mean()))",
+     "    _degenerate = _sd <= 0",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("A/B 비교의 분산 퇴화 판정을 되돌린다(상수 팔이 모든 재추출에서 압승)",
+     "quant/robustness/compare.py",
+     "    if degenerate_spread(sd, float(np.abs(r).mean())):   # 감사 146",
+     "    if sd <= 0:",
+     "tests/test_compare.py"),
+
+    ("PBO의 분산 퇴화 판정을 되돌린다(평평한 구간이 IS 1등을 훔침)",
+     "quant/robustness/pbo.py",
+     "    ok = np.isfinite(sd) & (sd > REL_EPS * np.maximum(scale, 1e-300))",
+     "    ok = sd > 0",
      "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
 
     # ── 어드민·웹 경로 ──

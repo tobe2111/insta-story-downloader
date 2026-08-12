@@ -10,6 +10,8 @@ from dataclasses import asdict, dataclass
 import numpy as np
 import pandas as pd
 
+from quant.utils.numerics import degenerate_spread
+
 
 @dataclass
 class Metrics:
@@ -75,12 +77,15 @@ def compute_metrics(
     years = intervals / periods_per_year
     cagr = (equity.iloc[-1] / equity.iloc[0]) ** (1 / years) - 1.0 if years > 0 else 0.0
 
-    vol = returns.std() * np.sqrt(periods_per_year)
+    # ⚠️ `std() > 0`으로 막으면 안 된다(감사 146) — 값이 전부 같아도
+    #    표준편차는 1e-19 언저리라 통과하고, 샤프가 천문학적 수치가 된다.
+    _sd = float(returns.std())
+    _degenerate = degenerate_spread(_sd, float(returns.abs().mean()))
+    vol = _sd * np.sqrt(periods_per_year)
     excess = returns - risk_free / periods_per_year
     sharpe = (
-        excess.mean() / returns.std() * np.sqrt(periods_per_year)
-        if returns.std() > 0
-        else 0.0
+        0.0 if _degenerate
+        else excess.mean() / _sd * np.sqrt(periods_per_year)
     )
     # 하방편차: 목표(0) 대비 손실의 제곱평균제곱근. 음수 수익만의 표준편차(ddof=1,
     # 평균 차감)를 쓰면 손실이 균일할 때 0이 되어 '하방위험 없음'으로 오판하고,

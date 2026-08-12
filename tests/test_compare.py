@@ -105,3 +105,28 @@ def test_ab_test_end_to_end():
     )
     assert set(res) >= {"sharpe_a", "sharpe_b", "sharpe_diff", "significant"}
     assert res["paired"] is True     # 같은 데이터 → 같은 길이
+
+
+# ── 분산이 사실상 0인 계열 (감사 146) ─────────────────────────
+
+
+def test_a_constant_arm_does_not_win_by_infinite_sharpe():
+    """매 봉 똑같이 오르는 쪽이 부동소수 잡음으로 압승하면 안 된다.
+
+    `sd > 0`으로 막으면 np.full(...).std() == 1e-19이 통과해 샤프가 1e15가
+    되고, 그 팔이 모든 부트스트랩 재추출에서 이긴다 — A/B 검정이 통째로
+    잡음에 넘어간다.
+    """
+    const = np.full(300, 0.001)
+    real = np.random.default_rng(7).normal(0.002, 0.01, 300)
+    res = compare_strategies(const, real, n_sims=200, seed=3)
+    assert abs(res["sharpe_a"]) < 1e-9, (
+        f"상수 계열의 샤프가 {res['sharpe_a']:.3e} — 분산이 없으면 판정 불가(0)다")
+    assert res["sharpe_b"] != 0.0, "대조군: 정상 계열은 샤프가 나와야 한다"
+
+
+def test_a_small_but_real_arm_is_not_mistaken_for_degenerate():
+    """대조군 — 크기만 작은 정상 계열을 퇴화로 몰면 가드가 덫이 된다."""
+    tiny = np.random.default_rng(9).normal(1e-6, 1e-5, 300)
+    res = compare_strategies(tiny, tiny * 0.5, n_sims=200, seed=3)
+    assert res["sharpe_a"] != 0.0, "크기가 작을 뿐 정상인 계열을 퇴화로 오판한다"

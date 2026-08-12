@@ -138,3 +138,52 @@ def test_a_short_series_is_refused_not_guessed():
     short = _noise().iloc[:20]
     with pytest.raises(ValueError):
         pbo(short)
+
+
+# ── 분산이 사실상 0인 설정 (감사 146) ─────────────────────────
+
+
+def test_a_flat_stretch_does_not_win_by_floating_point_noise():
+    """구간의 대부분이 평평한 설정이 IS 1등을 훔쳐 PBO를 오염시키면 안 된다.
+
+    `sd > 0`으로 막으면 np.full(...).std(ddof=1) == 1e-19이 통과해 샤프가
+    1e15로 튄다.
+
+    ⚠️ 처음에 '전 구간 상수' 열로 검사를 썼는데 **잡히지 않았다.** 전 구간
+       상수면 IS에서도 OOS에서도 1등이라 λ가 양수로 남아 PBO가 그대로다.
+       진짜로 해를 끼치는 건 **일부 구간만 평평한** 설정이다 — 오래 관망하다
+       뒤늦게 무너진 전략이 바로 이 모양이고, 이건 실제로 흔하다.
+
+    정답을 아는 데이터: c0만 진짜 우위(평균 0.002), 나머지는 잡음. 거기에
+    앞 90%가 +0.05% 상수이고 뒤 10%에서 -2%씩 무너지는 열(cX)을 끼운다.
+
+        가드가 없으면  PBO 0.056 → 0.560   (분할 운을 고른 것이 절반)
+        가드가 있으면  PBO 0.056 → 0.056   (cX는 판정 불가로 0점, 무시)
+    """
+    rng = np.random.default_rng(11)
+    cols = {f"c{i}": rng.normal(0.0, 0.01, T) for i in range(1, 8)}
+    cols["c0"] = rng.normal(0.002, 0.01, T)          # 진짜 우위
+    clean = pd.DataFrame(cols, index=IDX)
+
+    flat = np.empty(T)
+    flat[:int(T * 0.9)] = 0.0005                      # 표준편차 ≈ 1e-19
+    flat[int(T * 0.9):] = -0.02                       # 뒤늦게 무너진다
+    with_flat = clean.copy()
+    with_flat["cX"] = flat
+
+    base = pbo(clean)["pbo"]
+    got = pbo(with_flat)["pbo"]
+    assert base < 0.2, f"대조군 전제가 깨졌다 — 진짜 우위가 있는데 PBO {base:.3f}"
+    assert got < 0.2, (
+        f"평평한 열을 하나 끼웠을 뿐인데 PBO가 {base:.3f} → {got:.3f}로 뛴다 — "
+        "분산 없는 구간이 IS 1등을 훔친다")
+
+
+def test_a_small_but_real_configuration_is_still_ranked():
+    """대조군 — 크기만 작은 정상 설정을 퇴화로 몰면 안 된다(가드가 덫이 되면 안 됨)."""
+    rng = np.random.default_rng(13)
+    cols = {f"c{i}": rng.normal(0.0, 1e-5, T) for i in range(1, 8)}
+    cols["c0"] = rng.normal(2e-6, 1e-5, T)            # 크기만 작은 진짜 우위
+    tiny = pd.DataFrame(cols, index=IDX)
+    assert pbo(tiny)["pbo"] < 0.3, (
+        "크기가 작을 뿐 정상인 설정들을 전부 퇴화로 몰아 순위가 무의미해진다")

@@ -37,6 +37,7 @@ import math
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -147,3 +148,36 @@ def test_a_too_short_series_returns_zeros_not_an_error():
                         pd.Series([0.0], index=idx),
                         pd.Series([0.0], index=idx))
     assert m.sharpe == 0.0 and m.max_drawdown == 0.0
+
+
+# ── 분산이 사실상 0인 계열 (감사 146) ─────────────────────────
+#
+# `returns.std() > 0`으로 막으면 부동소수 잡음이 통과한다.
+# np.full(100, 0.001).std(ddof=1) == 2.18e-19 이므로 샤프가 1e15가 된다.
+# 그 값이 오디션 성적표·검증 리포트·사이트로 그대로 나간다.
+
+
+def test_a_constant_return_series_has_no_sharpe():
+    idx = pd.date_range("2026-01-01", periods=100, freq="D")
+    r = pd.Series(0.001, index=idx)
+    eq = pd.Series(100.0 * (1.001 ** np.arange(101)),
+                   index=pd.date_range("2025-12-31", periods=101, freq="D"))
+    m = compute_metrics(eq, r, pd.Series(1.0, index=idx),
+                        periods_per_year=PPY,
+                        positions_are_decision_time=False)
+    assert m.sharpe == 0.0, (
+        f"매 봉 똑같이 오르는 계열의 샤프가 {m.sharpe:.3e} — 분산이 없으면 "
+        "샤프를 계산할 수 없다(판정 불가는 0으로 둔다)")
+    assert abs(m.total_return - (eq.iloc[-1] / eq.iloc[0] - 1)) < 1e-9, (
+        "다른 지표까지 망가뜨리면 안 된다")
+
+
+def test_a_small_but_real_series_still_gets_a_sharpe():
+    """대조군 — 크기만 작은 정상 계열을 퇴화로 오판하면 안 된다."""
+    idx = pd.date_range("2026-01-01", periods=200, freq="D")
+    r = pd.Series(np.random.default_rng(3).normal(1e-6, 1e-5, 200), index=idx)
+    eq = pd.Series(100.0 * (1 + r).cumprod().to_numpy(), index=idx)
+    m = compute_metrics(eq, r, pd.Series(1.0, index=idx),
+                        periods_per_year=PPY,
+                        positions_are_decision_time=False)
+    assert m.sharpe != 0.0, "크기가 작을 뿐 정상인 계열을 퇴화로 오판한다"

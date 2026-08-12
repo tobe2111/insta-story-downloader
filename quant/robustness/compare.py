@@ -22,6 +22,8 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
+from quant.utils.numerics import degenerate_spread
+
 
 def _clean(returns) -> np.ndarray:
     r = np.asarray(returns, dtype=float)
@@ -32,7 +34,9 @@ def _sharpe(r: np.ndarray, ppy: int) -> float:
     if len(r) < 2:
         return 0.0
     sd = r.std()
-    return float(r.mean() / sd * np.sqrt(ppy)) if sd > 0 else 0.0
+    if degenerate_spread(sd, float(np.abs(r).mean())):   # 감사 146
+        return 0.0
+    return float(r.mean() / sd * np.sqrt(ppy))
 
 
 def _block_indices(n: int, rng: np.random.Generator, block: int) -> np.ndarray:

@@ -23,13 +23,19 @@ from typing import Any, Sequence, Type
 import numpy as np
 import pandas as pd
 
+from quant.utils.numerics import REL_EPS
+
 
 def _sharpe_cols(block: np.ndarray) -> np.ndarray:
     """블록(시간×설정)의 설정별 주기 샤프. 표준편차 0이면 0."""
     mu = block.mean(axis=0)
     sd = block.std(axis=0, ddof=1)
     out = np.zeros(block.shape[1])
-    ok = sd > 0
+    # ⚠️ `sd > 0`이면 통과시키면 안 된다(감사 146). 한 설정의 수익이 거의
+    #    상수면 표준편차가 1e-19이 되어 샤프가 1e15로 튀고, 그 설정이 어떤
+    #    조합에서도 IS 1등이 된다 — PBO가 통째로 그 잡음에 좌우된다.
+    scale = np.abs(block).mean(axis=0)
+    ok = np.isfinite(sd) & (sd > REL_EPS * np.maximum(scale, 1e-300))
     out[ok] = mu[ok] / sd[ok]
     return out
 
