@@ -822,6 +822,31 @@ MUTATIONS = [
      "    end_year = PUBLISHED_END_YEAR if end_year is None else int(end_year)",
      "tests/test_the_event_calendar_does_not_expire_silently.py"),
 
+    # 감사 156 — CPCV(조합 퍼지 교차검증). 챔피언을 뽑는 자리.
+    ("CPCV 검증에 미래 데이터를 준다(경로 성적이 룩어헤드로 부풀어 오름)",
+     "quant/optimize/cpcv.py",
+     "                             periods_per_year=periods_per_year).run(df.iloc[:hi])",
+     "                             periods_per_year=periods_per_year).run(df)",
+     "tests/test_cpcv_really_holds_out.py"),
+
+    ("CPCV 엠바고를 없앤다(검증 구간과 맞닿은 학습 경계에서 정보가 샌다)",
+     "quant/optimize/cpcv.py",
+     "            if seg[0] > 0 and (seg[0] - 1) in test_idx:\n                lo += embargo",
+     "            if False:\n                lo += embargo",
+     "tests/test_cpcv_really_holds_out.py"),
+
+    ("CPCV 경로 배정을 한 경로로 뭉갠다(분포가 사라져 과적합 탐지가 무의미)",
+     "quant/optimize/cpcv.py",
+     "            path_returns[occurrence[g]].append(grp_ret)",
+     "            path_returns[0].append(grp_ret)",
+     "tests/test_cpcv_really_holds_out.py"),
+
+    ("CPCV 목적함수 방향을 무시한다(작을수록 좋은 지표를 크게 고른다)",
+     "quant/optimize/cpcv.py",
+     "        sign = -1.0 if objective in LOWER_IS_BETTER else 1.0",
+     "        sign = 1.0",
+     "tests/test_cpcv_really_holds_out.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
