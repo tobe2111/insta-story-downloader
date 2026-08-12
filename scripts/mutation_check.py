@@ -107,6 +107,84 @@ MUTATIONS = [
      "        if False:\n            high = df[\"high\"].to_numpy()",
      "tests/test_intrabar_stops.py"),
 
+    # ── 감사 121·122 — 킬스위치와 같은 병(순수 함수는 옳고 배선은 무방비) ──
+    #
+    # 둘 다 처음엔 전체 1,580개 검사가 통과했다. 게이트·상한을 부르는
+    # 한 줄을 지워도 아무도 몰랐다.
+    ("미검증 엣지 변동성 게이트를 무시하고 목표를 20%로 올린다",
+     "quant/live/daily.py",
+     "    tgt_vol, vol_proven, vol_why = target_vol_now(state_dir)",
+     "    tgt_vol, vol_proven, vol_why = 0.20, True, \"게이트무시\"",
+     "tests/test_risk_limits_are_wired_to_the_batch.py"),
+
+    ("한 종목 과집중 상한(3/n)을 푼다",
+     "quant/live/daily.py",
+     "        cap = 3.0 / n\n"
+     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "        cap = 1e9\n"
+     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "tests/test_risk_limits_are_wired_to_the_batch.py"),
+
+    # ── 위험 한도(돈이 실제로 움직이는 경로) ──
+    ("레버리지 금지선(총노출 상한)을 푼다",
+     "quant/risk/portfolio_vol.py",
+     "MAX_GROSS_EXPOSURE = 1.0",
+     "MAX_GROSS_EXPOSURE = 10.0",
+     "tests/test_portfolio_vol.py"),
+
+    ("엣지 미입증 상태의 목표 변동성 상한 게이트를 끈다",
+     "quant/risk/portfolio_vol.py",
+     "    if not proven and not override:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "    if False:\n        base = min(base, VERIFY_TARGET_VOL)",
+     "tests/test_portfolio_vol.py"),
+
+    # (코인 미완성 봉은 아래 '코인도 진행 중인 봉으로 신호를 내게 되돌린다'가
+    #  이미 같은 장치를 찌른다 — 중복 항목은 넣지 않는다. 항목 수를 부풀리면
+    #  '몇 개를 지키고 있나'라는 이 도구의 유일한 숫자가 거짓이 된다.)
+    ("주식 미완결·유령 일봉 제거를 끈다(멱등 가드 무력화의 원인)",
+     "quant/data/stock.py",
+     "                out = self._drop_unclosed(self._validate(df))",
+     "                out = self._validate(df)",
+     "tests/test_bar_completeness.py"),
+
+    ("지정가 주문을 봉이 안 닿아도 체결시킨다(백테스트 낙관)",
+     "quant/broker/paper.py",
+     "        crossed = (bar_low <= limit_price) if side == \"buy\" \\\n"
+     "            else (bar_high >= limit_price)",
+     "        crossed = True",
+     "tests/test_limit_order.py"),
+
+    ("소유자 전역 스위치의 '일시정지' 판정을 끈다",
+     "quant/utils/settings.py",
+     "    return bool(s.get(\"trading_paused\")), min(1.0, max(0.0, scale))",
+     "    return False, min(1.0, max(0.0, scale))",
+     "tests/test_owner_gate_covers_all_paths.py"),
+
+    # ── 의회(실제로 매매하는 혼합 전략)의 관문 ──
+    ("결승전을 통과하지 않은 후보도 의회에 입성시킨다",
+     "quant/live/retrain.py",
+     "        promoted_spec=decision[\"champion\"] if decision[\"promoted\"] else None)",
+     "        promoted_spec=decision[\"champion\"])",
+     "tests/test_parliament.py"),
+
+    ("의회 다양성 강제(상관 상한)를 끈다 — 같은 베팅에 두 자리",
+     "quant/live/parliament.py",
+     "                if c == c and c > CORR_CAP:",
+     "                if False:",
+     "tests/test_parliament.py"),
+
+    ("상관을 못 재면 '무상관'으로 본다(감사 53 되돌리기 — 실패가 곧 통과)",
+     "quant/live/parliament.py",
+     "                    c = 1.0",
+     "                    c = 0.0",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("의석 비중 급변 방지(EMA)를 끈다 — 하루 만에 전액 이동",
+     "quant/live/parliament.py",
+     "            w = (1 - EMA_STEP) * prev + EMA_STEP * target",
+     "            w = target",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
@@ -858,11 +936,20 @@ def run(test):
 # 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
 BASELINE_OK = 0
 
+# 부분 실행 — `python scripts/mutation_check.py 의회` 처럼 설명·검사 이름의
+# 일부를 주면 그 항목만 돈다. 새 항목을 만들 때 전체(100건 이상)를 다시
+# 돌리지 않기 위한 것이므로, **부분 실행 결과를 '전부 통과'로 보고하지 말 것.**
+FILTER = sys.argv[1] if len(sys.argv) > 1 else ""
+if FILTER:
+    print(f"⚠️ 부분 실행: '{FILTER}' — 전체 결과가 아니다\n")
+
 print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
 caught = missed = skipped = broken = 0
 _baseline: dict = {}
 for desc, path, old, new, test in MUTATIONS:
+    if FILTER and FILTER not in desc and FILTER not in test:
+        continue
     p = pathlib.Path(path)
     src = p.read_text(encoding="utf-8")
     if src.count(old) != 1:
