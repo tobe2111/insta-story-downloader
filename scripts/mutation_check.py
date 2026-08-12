@@ -1629,6 +1629,25 @@ MUTATIONS = [
      "        if False:",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # 감사 184 — 모든 성적이 나오는 자리. 결함 3건.
+    ("신호와 봉이 어긋나도 그냥 계산한다(그럴듯한 오답이 나와 사람이 못 잡는다)",
+     "quant/backtest/engine.py",
+     "        if not desired.index.equals(df.index):",
+     "        if False:",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
+    ("파산 바닥을 없앤다(음수 자산에 음수를 곱해 날아간 계좌가 +100%가 된다)",
+     "quant/backtest/engine.py",
+     "            if not ruined and cash_equity <= 0.0:",
+     "            if False:",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
+    ("진입가를 체결가가 아니라 결정가로 적는다(손절선이 뜻대로 안 걸린다)",
+     "quant/backtest/engine.py",
+     "                    pending_entry = use_next_open",
+     "                    pending_entry = False",
+     "tests/test_the_engine_that_makes_every_number.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

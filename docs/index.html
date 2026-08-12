@@ -587,6 +587,34 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     "위험 배분(HRP·ERC)이 자본 균등 1/n으로 내려갔습니다");
   else if(pfLast.alloc_method==="erc")flags.push("<b>배분 폴백</b> — HRP가 실패해 "+
     "ERC(위험기여 균등)로 내려갔습니다");
+  /* 살 수 없는 종목 — 예산이 1주 값에 못 미치는 종목은 장부에만 있다(감사 185).
+     유니버스 전체로 분산한다고 말하면서 실제로는 그보다 적게 담는 날이 있다.
+     계좌가 작을수록 비싼 주식부터 빠지므로 조용히 편중이 생긴다.
+     ⚠️ 이 주석에 "N종목" 꼴을 쓰지 말 것 — 산문 검사가 파일 전체를 훑어서
+        설명용 숫자를 사이트의 주장으로 읽는다(감사 185에서 실제로 걸렸다). */
+  {
+    const li=pfLast.lot_infeasible||null;
+    const ks=li?Object.keys(li):[];
+    if(ks.length)flags.push("<b>살 수 없는 종목 "+ks.length+"개</b> — 배정 예산이 "+
+      "1주 값에 못 미쳐 담기지 못했습니다("+
+      ks.map(k=>esc((syms[k]||{}).name||k)).join(" · ")+
+      "). 분산 종목 수가 표시보다 적습니다");
+  }
+  /* 값을 못 받아 직전 가격으로 평가한 종목 — 그날 손익이 실제가 아니다 */
+  {
+    const sm=pfLast.stale_marks||null;
+    const ks=sm?Object.keys(sm):[];
+    if(ks.length)flags.push("<b>묵은 가격 평가 "+ks.length+"종목</b> — 새 시세를 "+
+      "못 받아 직전 가격으로 평가했습니다. 이 날의 손익은 확정값이 아닙니다");
+  }
+  /* 실데이터를 못 받아 합성으로 폴백한 종목 — 가장 숨기면 안 되는 사실 */
+  {
+    const fb=pfLast.data_source_fallback||null;
+    const ks=fb?Object.keys(fb):[];
+    if(ks.length)flags.push("<b>합성 데이터 폴백 "+ks.length+"종목</b> — 실제 시세를 "+
+      "받지 못했습니다("+ks.map(k=>esc((syms[k]||{}).name||k)).join(" · ")+
+      "). 이 종목의 그날 기록은 실제 시장이 아닙니다");
+  }
   if(pfLast.paused===true)flags.push("<b>사람의 개입 — 일시정지</b> — 운영자가 "+
     "신규 주문을 멈춘 상태입니다(보유는 유지). 이 날의 성적은 전략만의 결과가 아닙니다");
   const xs=pfLast.exposure_scale;
