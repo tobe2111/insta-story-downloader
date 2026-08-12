@@ -672,6 +672,55 @@ MUTATIONS = [
      "        return MarketSpec(min_qty=1.0, qty_step=1.0, min_notional=1.0)",
      "tests/test_live_orders_are_hardened.py"),
 
+    # 감사 149 — 분모가 사실상 0인 종목이 포트폴리오를 통째로 가져간다.
+    ("역분산 배분의 퇴화 판정을 되돌린다(거래정지 종목이 비중 100%)",
+     "quant/portfolio/allocation.py",
+     "        ok &= var > REL_EPS * float(np.max(var[ok]))",
+     "        pass",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("역변동성 배분의 퇴화 판정을 되돌린다",
+     "quant/portfolio/allocation.py",
+     "    inv = inv.where(vol.gt(floor, axis=0), np.nan)",
+     "    inv = inv",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("오디션 배분의 과집중 상한을 없앤다(한 종목이 전부를 가져갈 수 있다)",
+     "quant/portfolio/allocation.py",
+     "    cap = min(1.0, mult / n)",
+     "    cap = 1.0",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("HRP에서 퇴화 열 제외를 끈다(군집 분산이 그 열을 가장 안전하다고 본다)",
+     "quant/live/hrp.py",
+     "        if len(_keep) < 2:\n            return None                      # 쓸 수 있는 열이 둘 미만이면 폴백\n        returns = returns[_keep]",
+     "        if len(_keep) < 2:\n            return None                      # 쓸 수 있는 열이 둘 미만이면 폴백",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    # ⚠️ ERC의 `R = R[_keep]`은 변이로 넣지 않는다 — **행동이 같다.**
+    #    바로 아래 `capped.update({c: 0.0 for c in _dropped})`가 어차피 그
+    #    종목을 0으로 덮어써서, 열을 빼든 안 빼든 결과가 같다. 두 줄 중
+    #    실제로 판정을 바꾸는 건 아래쪽이고 그건 따로 걸어 두었다.
+    #    (열 제외 자체는 반복법이 헛돌지 않게 하는 값어치가 있어 남긴다.)
+
+    ("퇴화 종목의 키를 슬라이스에서 지운다(호출자가 기본 1/n을 준다)",
+     "quant/live/daily.py",
+     "        capped.update({c: 0.0 for c in _dropped})   # 퇴화 열은 명시적 0",
+     "        pass",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("오디션 HRP의 열 순서 고정을 푼다(감사 147의 형제)",
+     "quant/portfolio/allocation.py",
+     "    win = win[sorted(win.columns, key=str)]",
+     "    pass",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("HRP 비중 합 검사를 없앤다(전 종목 0인 배분이 폴백 없이 그대로 나간다)",
+     "quant/live/hrp.py",
+     "        if abs(sum(out.values()) - 1.0) > 1e-6:",
+     "        if False:",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

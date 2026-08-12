@@ -1005,6 +1005,19 @@ def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
         R = pd.DataFrame(cols).dropna()
         if len(R) < 40:
             return None
+        # 퇴화 열(거래정지·고정 시세)을 뺀다(감사 149). 반복법은 위험 기여를
+        # 균등화하는데, 분산이 1e-38인 열은 기여가 사실상 0이라 반복이
+        # 그 열의 비중을 무한히 키운다 — 실측으로 상한(3/n)을 꽉 채웠다.
+        # ⚠️ 키를 지우면 안 된다. 호출 쪽이 `slices.get(key, 1.0/n)`이라
+        #    빠진 키는 오히려 **기본 슬라이스**를 받는다. 0.0으로 남긴다.
+        from quant.utils.numerics import REL_EPS
+        _v = R.var()
+        _keep = [c for c in R.columns
+                 if np.isfinite(_v[c]) and _v[c] > REL_EPS * float(_v.max())]
+        _dropped = [c for c in R.columns if c not in _keep]
+        if len(_keep) < 2:
+            return None
+        R = R[_keep]
         cov = R.cov().values
         k = len(R.columns)
         w = np.ones(k) / k
@@ -1019,6 +1032,7 @@ def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
         raw = {c: float(budget * wi) for c, wi in zip(R.columns, w)}
         cap = 3.0 / n_total                    # 한 종목 과집중 방지
         capped = {c: min(v, cap) for c, v in raw.items()}
+        capped.update({c: 0.0 for c in _dropped})   # 퇴화 열은 명시적 0
         return capped
     except Exception:  # noqa: BLE001 — 배분 실패가 매매를 막으면 안 된다(균등 폴백)
         return None

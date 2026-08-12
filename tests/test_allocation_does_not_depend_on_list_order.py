@@ -154,3 +154,42 @@ def test_cluster_risk_is_measured_by_its_safest_achievable_mix():
         "군집 분산을 균등가중으로 재고 있다")
     assert w["lo"] > 0.8 and w["hi"] < 0.01, (
         f"군집 안 배분도 역분산이어야 한다 — lo {w['lo']:.3f} · hi {w['hi']:.3f}")
+
+
+# ── 형제: 오디션이 쓰는 HRP도 같은 병이었다 (감사 149) ────────
+
+
+def test_the_audition_hrp_is_order_free_too():
+    """⚠️ 감사 147에서 `quant/live/hrp.py`만 고치고 **이 파일을 못 찾았다.**
+
+    `quant/portfolio/allocation.py`에도 같은 알고리즘이 따로 구현돼 있고,
+    오디션·포트폴리오 백테스트가 그쪽을 쓴다. 실거래 배분은 순서에 안
+    흔들리는데 오디션 배분은 흔들리면, 승격된 전략이 실전에서 다르게 돈다.
+
+    형제 찾기(FROZEN_IDEAS ⑭)를 같은 날 두 번 놓친 자리다 — 알고리즘 이름을
+    기준으로 찾았어야 했는데 파일 이름으로 찾았다.
+    """
+    import quant.portfolio.allocation as A
+
+    df = _panel()
+    base = A._hrp_weights(df[PERMS[0]])
+    assert not base.empty, "전제가 깨졌다 — 정상 입력에서 답을 못 냈다"
+    for perm in PERMS[1:]:
+        got = A._hrp_weights(df[perm])
+        worst = max(abs(float(base[k]) - float(got[k])) for k in base.index)
+        assert worst < 1e-12, (
+            f"열 순서 {','.join(perm)}에서 비중이 최대 {worst:.4f} 달라진다")
+
+
+def test_both_hrp_implementations_prefer_the_same_cluster():
+    """두 구현이 같은 데이터에서 같은 쪽을 고르는가 — 갈라지면 그게 다음 결함이다."""
+    import quant.portfolio.allocation as A
+
+    df = _panel()
+    live = hrp_weights(df)
+    audition = A._hrp_weights(df)
+    assert live, "전제가 깨졌다"
+    loud_live = live["E"] + live["F"]
+    loud_aud = float(audition["E"]) + float(audition["F"])
+    assert loud_live < 0.05 and loud_aud < 0.05, (
+        f"고변동 군집 비중이 갈린다 — 실거래 {loud_live:.4f} vs 오디션 {loud_aud:.4f}")

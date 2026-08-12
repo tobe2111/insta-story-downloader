@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from quant.utils.logging import get_logger
+from quant.utils.numerics import REL_EPS
 
 log = get_logger("hrp")
 
@@ -49,6 +50,25 @@ def hrp_weights(returns: pd.DataFrame) -> dict | None:
         #    한 줄 옮겨 넣는 것만으로 어제와 다른 포트폴리오가 나간다.
         #    재현성이 이 시스템의 전제다 — 순서를 이름으로 못 박는다.
         returns = returns[sorted(returns.columns, key=str)]
+        # 퇴화 열(거래정지·고정 시세)을 먼저 뺀다(감사 149). 군집 분산은
+        # 역분산으로 들었을 때의 분산이라, 분산이 1e-38인 열이 섞이면 그
+        # 군집이 **가장 안전한 자산**으로 보여 예산을 독식한다. 아래
+        # `np.maximum(..., 1e-16)` 클램프는 무한대만 막을 뿐 1e16 대 1e4의
+        # 격차는 그대로 통과시킨다 — 감사 146과 같은 병이다.
+        #
+        # ⚠️ '분산이 없다'와 '데이터가 없다'는 다르다. 값이 고정된 열은 빼고
+        #    나머지로 배분하면 되지만, 분산이 NaN인 열은 **그 종목 시세를
+        #    아예 못 받았다**는 뜻이다. 그건 조용히 넘기면 안 되는 사고라
+        #    통째로 폴백시킨다(감사 135 계열 — 데이터 실패를 감추지 않는다).
+        _v = returns.var()
+        if not np.isfinite(_v.to_numpy()).all():
+            return None                      # 시세 결측 — 배분 이전의 문제다
+        _keep = [c for c in returns.columns
+                 if _v[c] > REL_EPS * float(_v.max())]
+        _dropped = [c for c in returns.columns if c not in _keep]
+        if len(_keep) < 2:
+            return None                      # 쓸 수 있는 열이 둘 미만이면 폴백
+        returns = returns[_keep]
         cov = returns.cov()
         corr = returns.corr().clip(-1.0, 1.0)
         if not np.isfinite(cov.to_numpy()).all():
@@ -80,7 +100,19 @@ def hrp_weights(returns: pd.DataFrame) -> dict | None:
         w = w / w.sum()
         if not np.isfinite(w.to_numpy()).all():
             return None
-        return {str(k): float(v) for k, v in w.items()}
+        out = {str(k): float(v) for k, v in w.items()}
+        # 걸러낸 퇴화 열은 0으로 되돌려 넣는다 — 키가 통째로
+        # 사라지면 호출자가 기본 슬라이스(1/n)를 주게 되어
+        # 오히려 거래정지 종목에 예산이 간다.
+        out.update({str(c): 0.0 for c in _dropped})
+        # ⚠️ 합이 1이 아니면 배분이 아니다(감사 149). 호출자는 `if not w`로만
+        #    검사하는데 **값이 전부 0인 dict는 참(truthy)이다** — 그러면
+        #    ERC·균등 폴백으로 넘어가지 않고 전 종목 비중 0이 그대로 나간다
+        #    (하루 통째로 관망). 여기서 명시적으로 실패로 돌린다.
+        if abs(sum(out.values()) - 1.0) > 1e-6:
+            log.warning("HRP 비중 합이 %.6f — 폴백", sum(out.values()))
+            return None
+        return out
     except Exception as exc:  # noqa: BLE001 — 배분 실패가 매매를 막으면 안 된다
         log.warning("HRP 계산 실패: %s", exc)
         return None
