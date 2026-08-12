@@ -1761,6 +1761,19 @@ MUTATIONS = [
      "    last = history[-1] if history and isinstance(history[-1], dict) else {}",
      "tests/test_the_daily_summary_reports_the_day_that_ended.py"),
 
+    # 감사 194 — 유니버스 정의. 결함 없음, 계약 고정.
+    ("같은 종목을 유니버스에 두 번 넣는다(그 종목 비중이 두 배가 된다)",
+     "quant/markets.py",
+     '    ("crypto", "ETH/USDT"),',
+     '    ("crypto", "BTC/USDT"),',
+     "tests/test_the_universe_says_what_it_is.py"),
+
+    ("설명 없는 종목을 유니버스에 넣는다(사이트가 종목코드를 그대로 노출한다)",
+     "quant/markets.py",
+     '    ("crypto", "XRP/USDT"),',
+     '    ("crypto", "DOGE/USDT"),',
+     "tests/test_the_universe_says_what_it_is.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
