@@ -23,7 +23,7 @@ from typing import Any, Sequence, Type
 import numpy as np
 import pandas as pd
 
-from quant.utils.numerics import REL_EPS
+from quant.utils.numerics import SHARPE_REL_EPS
 
 
 def _sharpe_cols(block: np.ndarray) -> np.ndarray:
@@ -35,7 +35,7 @@ def _sharpe_cols(block: np.ndarray) -> np.ndarray:
     #    상수면 표준편차가 1e-19이 되어 샤프가 1e15로 튀고, 그 설정이 어떤
     #    조합에서도 IS 1등이 된다 — PBO가 통째로 그 잡음에 좌우된다.
     scale = np.abs(block).mean(axis=0)
-    ok = np.isfinite(sd) & (sd > REL_EPS * np.maximum(scale, 1e-300))
+    ok = np.isfinite(sd) & (sd > SHARPE_REL_EPS * np.maximum(scale, 1e-300))
     out[ok] = mu[ok] / sd[ok]
     return out
 

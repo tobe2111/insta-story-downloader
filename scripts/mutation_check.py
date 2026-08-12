@@ -567,7 +567,7 @@ MUTATIONS = [
 
     ("PBO의 분산 퇴화 판정을 되돌린다(평평한 구간이 IS 1등을 훔침)",
      "quant/robustness/pbo.py",
-     "    ok = np.isfinite(sd) & (sd > REL_EPS * np.maximum(scale, 1e-300))",
+     "    ok = np.isfinite(sd) & (sd > SHARPE_REL_EPS * np.maximum(scale, 1e-300))",
      "    ok = sd > 0",
      "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
 
@@ -898,6 +898,26 @@ MUTATIONS = [
      "    gs = grid_search(df, strategy_cls, param_grid)\n"
      "    result = {\"oos_metrics\": gs[\"best_metrics\"], \"segments\": [], \"equity\": None}",
      "tests/test_the_heatmap_axes_do_not_lie.py"),
+
+    # 감사 159 — 문턱 하나로 두 질문을 재고 있었다.
+    ("몬테카를로 샤프의 퇴화 판정을 되돌린다(상수 계열이 샤프 8e12)",
+     "quant/robustness/monte_carlo.py",
+     "        sharpe[i] = (0.0 if degenerate_spread(std, np.abs(sample).mean())\n"
+     "                     else sample.mean() / std * np.sqrt(periods_per_year))",
+     "        sharpe[i] = sample.mean() / std * np.sqrt(periods_per_year) if std > 0 else 0.0",
+     "tests/test_two_thresholds_two_questions.py"),
+
+    ("샤프 문턱을 잡음 문턱으로 되돌린다(예금형 계열이 간발의 차로 통과)",
+     "quant/utils/numerics.py",
+     "SHARPE_REL_EPS = 1e-6",
+     "SHARPE_REL_EPS = 1e-12",
+     "tests/test_two_thresholds_two_questions.py"),
+
+    ("잡음 문턱을 샤프 문턱까지 올린다(조용한 자산이 배분에서 지워진다)",
+     "quant/utils/numerics.py",
+     "REL_EPS = 1e-12",
+     "REL_EPS = 1e-6",
+     "tests/test_two_thresholds_two_questions.py"),
 
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
