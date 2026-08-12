@@ -59,6 +59,46 @@ def _log():
     return get_logger("settings")
 
 
+_TRUE = {"true", "1", "yes", "y", "on", "t"}
+_FALSE = {"false", "0", "no", "n", "off", "f", ""}
+
+
+def _as_bool(value, default: bool, key: str) -> bool:
+    """설정의 불린 값을 **글자 그대로** 읽는다(감사 195).
+
+    ⚠️ 예전에는 `bool(raw.get(key, default))` 한 줄이었다. 파이썬에서
+       **비어 있지 않은 문자열은 전부 참**이라, 손으로 고친 설정 파일에
+       `"false"`·`"no"`·`"0"`을 적으면 전부 **켜진다.** 실측:
+
+           risk_override_ack = "false"  →  True   ← 켜졌다
+           risk_override_ack = "no"     →  True
+           social_post       = "false"  →  True   (계속 게시한다)
+
+       `risk_override_ack`는 **"실수로 켜지지 않게" 따로 둔 키**다. 엣지가
+       미입증인 상태에서 목표 변동성 상한을 푸는 스위치인데, 끄려고 적은
+       글자가 켜는 결과를 낸다. `config/settings.json`은 깃에 커밋되는
+       파일이라 어드민 UI 말고 **사람이 직접 고치는 일이 실제로 있다.**
+
+    모르는 값은 **추측하지 않고** 기본값으로 두되 경고를 남긴다 —
+    이 파일의 규칙 그대로다(죽지는 않되 숨기지도 않는다).
+    """
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in _TRUE:
+        return True
+    if text in _FALSE:
+        return False
+    _log().warning(
+        "설정 %s의 값을 이해하지 못해 기본값 %s로 둡니다: %r "
+        "— 의도한 설정이 무시되고 있습니다", key, default, value)
+    return default
+
+
 def load_settings(path: str = SETTINGS_PATH) -> dict:
     """설정을 읽어 검증·클램프한다. 없거나 깨지면 기본값(정상 운용)."""
     out = dict(DEFAULTS)
@@ -66,7 +106,8 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
         if isinstance(raw, dict):
-            out["trading_paused"] = bool(raw.get("trading_paused", False))
+            out["trading_paused"] = _as_bool(
+                raw.get("trading_paused", False), False, "trading_paused")
             try:
                 scale = float(raw.get("exposure_scale", 1.0))
             except (TypeError, ValueError):
@@ -79,7 +120,8 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
                 scale = 1.0
             # [0,1] 클램프 — 오타(예: 10)가 10배 레버리지가 되면 안 된다
             out["exposure_scale"] = min(1.0, max(0.0, scale))
-            out["social_post"] = bool(raw.get("social_post", True))
+            out["social_post"] = _as_bool(
+                raw.get("social_post", True), True, "social_post")
             out["note"] = str(raw.get("note", ""))[:500]
             tv = raw.get("portfolio_target_vol")
             if tv is not None and str(tv).strip() != "":
@@ -88,7 +130,8 @@ def load_settings(path: str = SETTINGS_PATH) -> dict:
                         MAX_TARGET_VOL, max(MIN_TARGET_VOL, float(tv)))
                 except (TypeError, ValueError):
                     out["portfolio_target_vol"] = None
-            out["risk_override_ack"] = bool(raw.get("risk_override_ack", False))
+            out["risk_override_ack"] = _as_bool(
+                raw.get("risk_override_ack", False), False, "risk_override_ack")
     except FileNotFoundError:
         pass                       # 파일 없음 = 아직 아무것도 안 바꿈(정상)
     except (OSError, ValueError) as exc:

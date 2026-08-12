@@ -1774,6 +1774,19 @@ MUTATIONS = [
      '    ("crypto", "DOGE/USDT"),',
      "tests/test_the_universe_says_what_it_is.py"),
 
+    # 감사 195 — 끄려고 적은 글자가 켜는 결과를 냈다.
+    ("설정 불린을 파이썬 truthiness로 읽는다('false'라고 적으면 켜진다)",
+     "quant/utils/settings.py",
+     "    if isinstance(value, bool):\n        return value",
+     "    if True:\n        return bool(value)",
+     "tests/test_the_switch_means_what_it_says.py"),
+
+    ("모르는 설정 값을 참으로 추측한다(위험 상한 해제가 오타로 켜진다)",
+     "quant/utils/settings.py",
+     "    if text in _FALSE:\n        return False",
+     "    if False:\n        return False",
+     "tests/test_the_switch_means_what_it_says.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
