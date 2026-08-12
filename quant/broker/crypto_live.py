@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.base import Broker, Order, Position, safe_amount, normalize_side
 from quant.utils.logging import get_logger
 
 log = get_logger("broker.crypto_live")
@@ -125,6 +125,7 @@ class CryptoLiveBroker(Broker):
             return None
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        side = normalize_side(side)   # 모르는 방향이 매도가 되면 안 된다(감사 192)
         log.warning("[LIVE:%s] %s %s %.6f @ ~%.2f 실제 주문 전송",
                     self.exchange, side.upper(), symbol, quantity, price)
         result = self.client.create_order(symbol, "market", side, quantity)

@@ -1591,11 +1591,10 @@ MUTATIONS = [
      "tests/test_the_display_only_cards_tell_the_truth.py"),
 
     # 감사 182 — 전수조사 마지막 파일(kiwoom_live) + 형제(kr_live). 결함 3건.
-    ("키움: 모르는 주문 방향을 매도로 흘린다('BUY'라고 쓰면 팔린다)",
+    ("키움: 주문 방향 정규화를 건너뛴다('BUY'라고 쓰면 팔린다)",
      "quant/broker/kiwoom_live.py",
-     '        if side not in ("buy", "sell"):\n'
-     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
-     "        pass",
+     "        side = normalize_side(side)",
+     "        side = str(side)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("키움: 보유목록 키가 없어도 '0주 보유'라 답한다(목표만큼 다시 사서 두 배가 된다)",
@@ -1610,11 +1609,10 @@ MUTATIONS = [
      "        if False:",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
-    ("KIS: 모르는 주문 방향을 매도로 흘린다(형제 쪽만 살아 있으면 더 나쁘다)",
+    ("KIS: 주문 방향 정규화를 건너뛴다(형제 쪽만 살아 있으면 더 나쁘다)",
      "quant/broker/kr_live.py",
-     '        if side not in ("buy", "sell"):\n'
-     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
-     "        pass",
+     "        side = normalize_side(side)",
+     "        side = str(side)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("KIS: 보유목록(output1)이 없어도 '0주 보유'라 답한다",
@@ -1727,6 +1725,27 @@ MUTATIONS = [
      "        d = nearest_earnings_date(symbol, asof, state_dir, fetch=fetch)",
      "        d = next_earnings_date(symbol, asof, state_dir, fetch=fetch)",
      "tests/test_a_failed_lookup_does_not_become_a_fact.py"),
+
+    # 감사 192 — 주문 방향 판정을 한 곳으로 모았다(감사 182의 형제 둘 더).
+    ("공용 판정에서 모르는 방향을 통과시킨다(모든 브로커가 한꺼번에 무방비)",
+     "quant/broker/base.py",
+     '    if s not in ("buy", "sell"):\n'
+     '        raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
+     "    if False:\n        pass",
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
+
+    ("페이퍼 브로커가 방향을 확인하지 않는다(모든 기록이 여기서 나온다)",
+     "quant/broker/paper.py",
+     "        side = normalize_side(side)   # 모르는 방향이 매도가 되면 안 된다(감사 192)",
+     "        side = str(side)",
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
+
+    ("지정가 체결 판정 전에 방향을 확인하지 않는다(안 닿아도 체결된다)",
+     "quant/broker/paper.py",
+     "        side = normalize_side(side)\n"
+     '        crossed = (bar_low <= limit_price) if side == "buy" \\',
+     '        crossed = (bar_low <= limit_price) if side == "buy" \\',
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
 
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.

@@ -29,6 +29,34 @@ def safe_amount(value, default: float = 0.0, allow_negative: bool = False) -> fl
     return v
 
 
+def normalize_side(side) -> str:
+    """주문 방향을 'buy'/'sell'로 정규화한다. 아는 방향이 아니면 거절.
+
+    ⚠️ **모르는 방향의 기본값이 '매도'였다**(감사 182·192). 브로커마다
+
+        signed = quantity if side == "buy" else -quantity
+        api_id = TR_BUY   if side == "buy" else TR_SELL
+
+    처럼 적혀 있어서, 정확히 `"buy"`가 아닌 **무엇이든** — `"BUY"`·`"Buy"`·
+    `"long"`·오타 — 조용히 매도가 된다. 사는 줄 알고 팔린다.
+
+    감사 182에서 국내 실거래 브로커 둘(kiwoom·KIS)에 검사를 넣었는데,
+    **같은 모양이 `paper.py`와 `retry.py`에도 있었다**(감사 192). 파일마다
+    복사해 넣으면 다음에 또 한 곳을 빠뜨린다 — 판정을 여기 하나로 모으고
+    모두가 이걸 부른다(㉞ '같은 판정을 두 곳에서 쓰면 언젠가 갈라진다').
+
+    `paper.py`는 8마일 챌린지의 **모든 기록이 나오는 브로커**다. 여기서
+    방향이 뒤집히면 장부·사이트·방송이 전부 그 위에 쌓인다.
+
+    대소문자와 앞뒤 공백은 받아 준다 — 기본값이 파괴적인 쪽이면 안 될 뿐,
+    사람이 흔히 치는 표기까지 막을 이유는 없다.
+    """
+    s = str(side).strip().lower()
+    if s not in ("buy", "sell"):
+        raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")
+    return s
+
+
 @dataclass
 class Order:
     symbol: str
