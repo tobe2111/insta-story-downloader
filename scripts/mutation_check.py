@@ -641,6 +641,37 @@ MUTATIONS = [
      "    cvar = var",
      "tests/test_risk_portfolio.py"),
 
+    # 감사 148 — 무인 실거래 경로만 견고화가 빠져 있었다.
+    ("무인 실거래 배치의 견고화 래퍼를 벗긴다(재시도·체결확인·규격 전부 사라짐)",
+     "quant/live/daily_live.py",
+     "    return RobustBroker(broker, retries=3, backoff=2.0,",
+     "    return broker\n    return RobustBroker(broker, retries=3, backoff=2.0,",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("실거래 체결 확인을 끈다(접수를 체결로 보고)",
+     "quant/live/daily_live.py",
+     "                        confirm_fills=True, fill_timeout=90.0,",
+     "                        confirm_fills=False, fill_timeout=90.0,",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("장부에서 실제 체결 수량 칸을 뺀다(접수만으로 '샀다'가 된다)",
+     "quant/live/daily_live.py",
+     '                if order.status not in ("skipped",) and filled <= 0:',
+     "                if False:",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("국내주식 주문 규격 선언을 지운다(1주 미만이 그대로 브로커까지 내려감)",
+     "quant/broker/kr_live.py",
+     "        return MarketSpec(min_qty=1.0, qty_step=1.0)",
+     "        return MarketSpec()",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("미국주식을 정수 주로 잘라 버린다(소수점 예산이 통째로 사라짐)",
+     "quant/broker/us_live.py",
+     "        return MarketSpec(min_notional=1.0)",
+     "        return MarketSpec(min_qty=1.0, qty_step=1.0, min_notional=1.0)",
+     "tests/test_live_orders_are_hardened.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

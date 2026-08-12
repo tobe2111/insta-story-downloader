@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 
 from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
 
@@ -77,6 +78,19 @@ class AlpacaBroker(Broker):
             if getattr(exc, "status", None) == 404:
                 return Position(symbol, 0.0, 0.0)     # 진짜로 보유 없음
             raise
+
+    def market_spec(self, symbol: str) -> MarketSpec:
+        """미국주식 주문 규격 — 소수점 주 허용, 1달러 하한 (감사 148).
+
+        Alpaca는 소수점 주(fractional share)를 지원하므로 정수 내림이 없다.
+        따라서 min_qty·qty_step은 0(제한 없음)이고, 대신 **금액 하한**을 둔다.
+
+        min_notional 1.0은 거래소 규칙이라기보다 **우리가 두는 하한**이다.
+        1달러어치 주문은 체결돼도 수수료·스프레드가 기대수익을 넘어서고,
+        무엇보다 20종목에 나눈 예산이 그 수준이라면 문제는 주문이 아니라
+        유니버스다 — 조용히 사지 말고 걸러서 이유를 남기는 편이 낫다.
+        """
+        return MarketSpec(min_notional=1.0)
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
         body = {

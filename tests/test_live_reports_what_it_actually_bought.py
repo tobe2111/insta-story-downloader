@@ -29,28 +29,43 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from quant.broker.base import Order, Position  # noqa: E402
+from quant.broker.base import Broker, Order, Position  # noqa: E402
+from quant.broker.specs import MarketSpec  # noqa: E402
 
 
-class _TinyAccountBroker:
-    """8만원짜리 계좌 — 국내주식 1주 값에 한참 못 미친다."""
+class _TinyAccountBroker(Broker):
+    """8만원짜리 계좌 — 국내주식 1주 값에 한참 못 미친다.
+
+    ⚠️ 처음 판은 `target_weight`를 통째로 흉내 냈다. 감사 148에서 실거래
+       배치가 RobustBroker를 거치게 되자 그 지름길이 깨졌다 — 래퍼는
+       `market_order`를 부르는데 이 가짜에는 그게 없었다.
+
+       깨진 게 오히려 다행이다. 지름길로 흉내 낸 검사는 **실제 주문 경로를
+       한 번도 지나가지 않는다.** 이제 진짜 브로커와 같은 모양(잔고·포지션·
+       시장가주문·주문규격)만 구현하고, 비중→수량 계산과 규격 반올림은
+       운영 코드가 하게 둔다.
+    """
 
     def __init__(self, price: float = 100_800.0, cash: float = 80_000.0):
         self.price = price
         self.cash = cash
+        self.qty = 0.0
 
     def get_cash(self) -> float:
         return self.cash
 
     def get_position(self, symbol: str) -> Position:
-        return Position(symbol, 0.0, 0.0)
+        return Position(symbol, self.qty, 0.0)
 
-    def target_weight(self, symbol, weight, price, equity, **kw):
-        qty = weight * equity / price
-        # 실제 어댑터와 같은 규칙: 정수로 자르고 0이면 skipped
-        if int(qty) <= 0:
-            return Order(symbol, "buy", 0.0, price, status="skipped")
-        return Order(symbol, "buy", float(int(qty)), price, status="accepted")
+    def market_spec(self, symbol: str) -> MarketSpec:
+        return MarketSpec(min_qty=1.0, qty_step=1.0)   # 국내주식 = 정수 주
+
+    def market_order(self, symbol, side, quantity, price) -> Order:
+        qty = int(quantity)
+        if qty <= 0:
+            return Order(symbol, side, 0.0, price, status="skipped")
+        self.qty += qty if side == "buy" else -qty
+        return Order(symbol, side, float(qty), price, status="accepted")
 
 
 def _frame(price: float):
@@ -107,8 +122,15 @@ def _run(tmp_path, monkeypatch, broker, price: float = 100_800.0):
                             "trading_paused": False, "exposure_scale": 1.0,
                             "social_post": True, "note": "",
                             "portfolio_target_vol": None})
+    # 가짜 시계 — 체결확인 90초를 실시간으로 기다리지 않는다(감사 148).
+    _t = [0.0]
+
+    def _sleep(s):
+        _t[0] += float(s)
+
     out = L.run_daily_live([("kr_stock", "069500.KS")], paper=True,
-                           state_dir=str(tmp_path), broker=broker)
+                           state_dir=str(tmp_path), broker=broker,
+                           _clock={"sleep": _sleep, "now": lambda: _t[0]})
     assert not out.get("skipped"), (
         f"종목이 스킵됐다 — 이 검사는 아무것도 확인하지 못한다: {out}")
     assert out.get("orders"), (
@@ -123,8 +145,10 @@ def test_zero_share_orders_are_not_counted_as_purchases(tmp_path, monkeypatch,
     assert out["zero_qty"], (
         "1주 값이 계좌 전액을 넘는데 0주 기록이 없다 — 왜 안 샀는지 알 수 없다")
     printed = capsys.readouterr().out
-    assert "주문 0건" in printed, (
-        f"한 주도 안 샀는데 주문 건수를 0으로 말하지 않는다:\n{printed}")
+    # 감사 148에서 '주문 N건'을 '접수 N건 · 체결 N건'으로 나눴다 —
+    # 주식은 접수와 체결이 별개라 한 숫자로는 말할 수 없다.
+    assert "접수 0건" in printed and "체결 0건" in printed, (
+        f"한 주도 안 샀는데 건수를 0으로 말하지 않는다:\n{printed}")
     assert "미집행" in printed, "0주로 잘린 사실을 사람이 읽을 수 없다"
 
 
@@ -144,7 +168,12 @@ def test_a_normal_purchase_is_still_counted(tmp_path, monkeypatch, capsys):
     out = _run(tmp_path, monkeypatch,
                _TinyAccountBroker(price=1_000.0, cash=80_000.0), price=1_000.0)
     assert not out.get("zero_qty"), f"살 수 있는데 0주로 셌다: {out['zero_qty']}"
-    assert "주문 1건" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "접수 1건" in printed, printed
+    # 체결까지 확인돼야 한다 — 접수만 세면 감사 148 이전으로 되돌아간다.
+    assert "체결 1건" in printed, printed
+    assert not out.get("unfilled"), f"실제로 샀는데 미체결로 잡혔다: {out['unfilled']}"
+    assert any(float(o["filled"]) > 0 for o in out["orders"]), out["orders"]
 
 
 def test_the_broker_adapter_really_floors_to_whole_shares():

@@ -53,9 +53,53 @@ def make_kr_broker(name: str | None = None, paper: bool = True):
         "'kiwoom'(키움) 중 선택하세요 (--broker 또는 QUANT_KR_BROKER).")
 
 
+def _harden(broker, *, sleep=None, now=None):
+    """실거래 브로커를 RobustBroker로 감싼다 (감사 148).
+
+    ⚠️ **자동으로 매일 도는 이 경로에만 견고화가 빠져 있었다.**
+
+        cli `trade`  (사람이 '실전' 두 글자를 입력)      → RobustBroker ✅
+        cli `webhook`(사람이 'yes'를 입력)               → RobustBroker ✅
+        `live-daily` (kr-live.yml이 매일 무인 실행)      → 생 KISBroker ❌
+
+    사람이 지켜보는 경로에는 재시도·체결확인·규격검사가 다 있고, **아무도
+    안 보는 경로에만 없었다.** 순서가 반대다.
+
+    이 래퍼가 없으면 세 가지가 동시에 빠진다.
+
+        1. 재시도 — HTTP 오류 한 번에 그 종목은 그날 통째로 건너뛴다.
+        2. 체결 확인 — KIS 시장가는 접수 응답이 status='accepted',
+           filled_quantity=0으로 온다. kr_live.py는 "실제 체결은
+           RobustBroker의 confirm_fills가 측정한다"고 적어 두었는데,
+           **그 래퍼가 이 경로엔 없어서 아무도 측정하지 않았다.**
+           결과: 접수만 되고 한 주도 안 체결된 날도 장부에는 '주문 N건'.
+           감사 138이 0주 잘림을 고쳤지만, 접수-미체결은 그대로 남아 있었다.
+        3. 규격 — min_qty·qty_step이 0이라 1주 미만도 그대로 내려간다.
+
+    이미 감싼 브로커는 두 번 감싸지 않는다(테스트 주입 포함).
+    fill_timeout 90초는 cli `trade`의 주식 설정과 같은 값으로 맞춘다 —
+    같은 시장에 다른 규약을 쓰면 그 자체가 다음 결함이다.
+
+    sleep·now는 **검사용 주입구**다. 실제 시계로 두면 미체결 한 건을 확인하는
+    데 90초를 그대로 기다리게 되어, 배선을 확인하는 검사가 검사 시간을 분
+    단위로 늘린다. 주입 없이 부르면 진짜 시계를 쓴다(운영 경로 무영향).
+    """
+    import time as _t
+
+    from quant.broker import RobustBroker
+
+    if isinstance(broker, RobustBroker):
+        return broker
+    return RobustBroker(broker, retries=3, backoff=2.0,
+                        confirm_fills=True, fill_timeout=90.0,
+                        fill_poll_interval=3.0,
+                        sleep=sleep or _t.sleep, now=now or _t.time)
+
+
 def run_daily_live(targets=None, *, paper: bool = True,
                    state_dir: str = STATE_DIR, broker=None,
-                   broker_name: str | None = None) -> dict:
+                   broker_name: str | None = None,
+                   _clock=None) -> dict:
     """국내주식 대상 하루 1회 실거래 사이클. 반환: 집행 요약 dict.
 
     broker 주입은 테스트용(미주입 시 KISBroker). 시장이 열려 있는지는
@@ -85,11 +129,14 @@ def run_daily_live(targets=None, *, paper: bool = True,
 
     if broker is None:
         broker = make_kr_broker(broker_name, paper=paper)
+    broker = _harden(broker, sleep=(_clock or {}).get('sleep'),
+                     now=(_clock or {}).get('now'))
 
     from quant.data import get_provider
     n = len(targets)
     orders, decisions, skipped = [], {}, []
     zero_qty: list = []          # 1주 미만이라 0주로 잘린 주문(감사 138)
+    unfilled: list = []          # 접수됐지만 체결 0인 주문(감사 148)
     for market, symbol in targets:
         try:
             df = get_provider(market).get_ohlcv(symbol, "1d", limit=400)
@@ -127,10 +174,20 @@ def run_daily_live(targets=None, *, paper: bool = True,
                 code, weight / n, price, equity,
                 rebalance_band_rel=_rebalance_band_rel(market, state_dir))
             if order is not None:
+                # ⚠️ qty는 '내려고 한 수량', filled는 '실제로 채워진 수량'이다
+                #    (감사 148). 둘을 한 칸에 담으면 접수-미체결이 체결로
+                #    읽힌다 — 감사 138이 0주 잘림에 대해 고쳤던 것과 같은 병이
+                #    접수 단계에 그대로 남아 있었다.
+                filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)
                 orders.append({"symbol": symbol, "side": order.side,
-                               "qty": order.quantity, "price": order.price,
+                               "qty": order.quantity, "filled": filled,
+                               "price": order.price,
                                "status": order.status,
                                "order_id": order.order_id})
+                if order.status not in ("skipped",) and filled <= 0:
+                    unfilled.append({"symbol": symbol, "side": order.side,
+                                     "qty": order.quantity,
+                                     "status": order.status})
                 # ⚠️ 국내주식은 정수 주만 산다. 목표 금액이 1주 값에 못 미치면
                 #    브로커가 int(quantity)=0으로 잘라 status='skipped'를
                 #    돌려준다 — **한 주도 안 샀는데 orders에는 한 줄이 남는다.**
@@ -155,6 +212,10 @@ def run_daily_live(targets=None, *, paper: bool = True,
                # 접수된 주문 중 **실제로 0주**였던 것들. 이게 없으면
                # "주문 N건"이 곧 "N종목을 샀다"로 읽힌다(감사 138).
                "zero_qty": zero_qty,
+               # 접수는 됐는데 체결이 0인 주문. 주식 시장가는 접수와 체결이
+               # 별개라 이 칸이 없으면 "주문 N건"이 곧 "N종목을 샀다"로
+               # 읽힌다 — zero_qty(감사 138)와 같은 병의 다른 단계다.
+               "unfilled": unfilled,
                "exposure_scale": exposure}
     try:
         import datetime as _dt
@@ -173,9 +234,13 @@ def run_daily_live(targets=None, *, paper: bool = True,
     #    국내주식은 1주 미만이 0주로 잘리므로, 둘을 합쳐 세면
     #    한 주도 안 산 날에도 "주문 5건"으로 보고된다.
     placed = len(orders) - len(zero_qty)
-    print(f"[{summary['mode']}] 결정 {len(decisions)}종목 · 주문 {placed}건"
+    filled_n = sum(1 for o in orders if float(o.get("filled") or 0.0) > 0)
+    print(f"[{summary['mode']}] 결정 {len(decisions)}종목 · 접수 {placed}건 "
+          f"· 체결 {filled_n}건"
           + (f" · 1주 미만이라 미집행 {len(zero_qty)}종목"
              f"({', '.join(z['symbol'] for z in zero_qty)})" if zero_qty else "")
+          + (f" · 접수됐지만 미체결 {len(unfilled)}종목"
+             f"({', '.join(u['symbol'] for u in unfilled)})" if unfilled else "")
           + (f" · 스킵 {len(skipped)}" if skipped else ""))
     return summary
 

@@ -18,6 +18,7 @@ import os
 import time
 
 from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json  # noqa: F401  (get_json: 대칭성)
 from quant.utils.logging import get_logger
 
@@ -115,6 +116,14 @@ class KiwoomBroker(Broker):
         return Position(symbol, 0.0, 0.0)
 
     # --- 주문 ---
+    def market_spec(self, symbol: str) -> MarketSpec:
+        """국내주식 주문 규격 — 정수 주만, 최소 1주 (감사 148).
+
+        KIS와 같은 시장(KRX)이므로 같은 규격이다. 형제를 둘 다 고친다 —
+        증권사를 갈아탄 날 한쪽만 규격이 살아 있으면 그게 더 나쁘다(⑭).
+        """
+        return MarketSpec(min_qty=1.0, qty_step=1.0)
+
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
         qty = int(quantity)  # 국내주식은 정수 수량
         if qty <= 0:

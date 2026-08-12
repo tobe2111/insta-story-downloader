@@ -15,6 +15,7 @@ import os
 import time
 
 from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
 
@@ -136,6 +137,25 @@ class KISBroker(Broker):
                     safe_amount(item.get("pchs_avg_pric", 0.0)),   # 매입평균가격
                 )
         return Position(symbol, 0.0, 0.0)
+
+    # --- 주문 규격 ---
+    def market_spec(self, symbol: str) -> MarketSpec:
+        """국내주식 주문 규격 — 정수 주만, 최소 1주 (감사 148).
+
+        감사 139에서 `RobustBroker._spec_for()`가 브로커에게 규격을 묻도록
+        고쳤는데, 정작 **답할 줄 아는 브로커가 코인 하나뿐이었다.** 주식
+        브로커 둘은 이 메서드가 없어 `min_qty=qty_step=0`인 기본 규격으로
+        떨어졌다 — 즉 주식 쪽은 규격 검사가 여전히 꺼져 있었다.
+
+        규격이 없으면 0.4주짜리 주문이 그대로 브로커까지 내려가고, 여기서
+        `int(0.4)=0`으로 잘려 'skipped'로 돌아온다. 사고는 아니지만 **왜
+        안 샀는지가 한 단계 늦게, 다른 이름으로** 드러난다. 규격을 선언하면
+        RobustBroker가 주문 전에 걸러 이유를 남긴다.
+
+        가격 틱(호가단위)은 0으로 둔다 — 시장가 주문은 ORD_UNPR=0이라
+        틱이 의미 없고, 잘못 선언하면 오히려 지정가 확장 때 발목을 잡는다.
+        """
+        return MarketSpec(min_qty=1.0, qty_step=1.0)
 
     # --- 주문 ---
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
