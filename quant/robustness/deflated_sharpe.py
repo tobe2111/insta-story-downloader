@@ -18,6 +18,8 @@ from statistics import NormalDist
 import numpy as np
 import pandas as pd
 
+from quant.utils.numerics import degenerate_spread
+
 _EULER = 0.5772156649015329  # 오일러-마스케로니 상수
 _ND = NormalDist()
 
@@ -31,7 +33,10 @@ def _moments(returns: pd.Series | np.ndarray) -> tuple[int, float, float, float]
         return T, 0.0, 0.0, 3.0
     mu = r.mean()
     sd = r.std(ddof=1)
-    if sd <= 0:
+    # ⚠️ `sd <= 0`으로 막으면 안 된다(감사 146). 값이 전부 같아도 표준편차는
+    #    정확히 0이 아니라 1e-19 언저리로 나오고, 그러면 샤프가 4.6e15가
+    #    되어 DSR이 1.0("확실한 실력")으로 찍힌다. 크기에 견주어 본다.
+    if degenerate_spread(sd, np.abs(r).mean()):
         return T, 0.0, 0.0, 3.0
     sr = mu / sd
     z = (r - mu) / sd

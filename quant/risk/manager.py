@@ -64,7 +64,9 @@ class RiskManager:
             # 실현변동성이 0(예: 거래정지로 종가 고정)이면 target/0=+inf → clip이
             # 최대 레버리지(3배)로 만들어, 변동성 폭발 직전에 최대 노출이 되는
             # 정반대 결과가 난다. 0은 NaN으로 바꿔 노출 0으로 처리한다.
-            realized = realized.replace(0.0, np.nan)
+            # 정확히 0만 막으면 부동소수 잡음이 통과한다(감사 146).
+            # 연율 변동성이므로 크기를 안다 — 1e-9 미만은 실재하지 않는다.
+            realized = realized.where(realized > 1e-9, np.nan)
             if cfg.vol_model == "har":
                 # HAR-RV 예측과 실현변동성의 50/50 수축 — 예측의 이점(선행성)은
                 # 취하되 회귀 추정 오차에는 실현변동성이 닻이 되어 준다.

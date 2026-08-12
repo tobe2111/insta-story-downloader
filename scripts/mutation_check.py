@@ -1,6 +1,15 @@
 """변이 시험 — 안전장치를 일부러 망가뜨려, 계약 검사가 정말 잡는지 확인한다.
 
-    python scripts/mutation_check.py
+    python scripts/mutation_check.py                # 전수(무겁다 — 야간 잡)
+    python scripts/mutation_check.py --dry-run      # 목록 정합성만(몇 초 — CI)
+    python scripts/mutation_check.py 의회            # 부분 실행(설명·검사 이름)
+
+⚠️ **2026-08-12 감사 125까지 이 도구는 CI에서 한 번도 돌지 않았다.**
+   121개 항목을 쌓아 두고 손으로 부를 때만 돌렸다 — 다른 모든 안전장치를
+   지키는 도구가 정작 아무도 안 지키는 상태였다. 이 저장소가 이미 겪은 병과
+   같다(verify 명령이 있었지만 어떤 워크플로도 실행하지 않았던 것).
+   지금은 두 갈래로 돈다: PR마다 `--dry-run`(ci.yml), 야간에 전수
+   (.github/workflows/mutation-sweep.yml).
 
 왜 필요한가(2026-08-11 감사 58): 계약 검사가 초록이라는 것은 '검사가
 통과했다'는 뜻이지 '장치가 동작한다'는 뜻이 아니다. 이 프로젝트의 검사
@@ -78,6 +87,653 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    # ── 감사 120 — 변이 사각지대 18개 파일 소거 ──
+    #
+    # ⚠️ 이 항목이 감사 120을 낳았다. 처음엔 test_killswitch.py를 가리켰고
+    #    통과했다 — 그래서 **전체 검사**로 다시 돌렸더니 1,580개가 전부
+    #    통과했다. 낙폭 자동 브레이크를 통째로 지워도 아무도 몰랐다.
+    #    킬스위치 검사가 셋이나 있었지만 전부 `_kill_switch_scale`을 순수
+    #    함수로 부르거나 소스 문자열을 볼 뿐, "낙폭이 커지면 노출이 준다"를
+    #    확인하지 않았다. 부품 검사와 배선 검사는 다른 것이다.
+    ("킬스위치 단계 축소를 무효화한다(낙폭에도 노출 유지)",
+     "quant/live/daily.py",
+     "    risk_scale = _kill_switch_scale(float(st.get(\"risk_scale\", 1.0)), drawdown)",
+     "    risk_scale = 1.0",
+     "tests/test_killswitch_is_wired_to_the_brake.py"),
+
+    # 이 항목도 처음엔 test_license_gate.py를 가리켜 통과했다. 전체로
+    # 돌리니 test_dist_guard_generation.py가 잡았다 — 장치는 지켜지고
+    # 있었고 **가리킨 곳이 틀렸다.** 못 잡음으로 세면 없는 결함을 만든다.
+    ("배포판 실거래 잠금 표식 판정을 끈다",
+     "quant/utils/dist.py",
+     "        return bool(getattr(_dist_build, \"DISTRIBUTION\", False))",
+     "        return False",
+     "tests/test_dist_guard_generation.py"),
+
+    ("봉내 스톱 판정을 끈다(손절이 봉 안에서 안 걸림)",
+     "quant/backtest/engine.py",
+     "        if self.intrabar_stops:\n            high = df[\"high\"].to_numpy()",
+     "        if False:\n            high = df[\"high\"].to_numpy()",
+     "tests/test_intrabar_stops.py"),
+
+    # ── 감사 121·122 — 킬스위치와 같은 병(순수 함수는 옳고 배선은 무방비) ──
+    #
+    # 둘 다 처음엔 전체 1,580개 검사가 통과했다. 게이트·상한을 부르는
+    # 한 줄을 지워도 아무도 몰랐다.
+    ("미검증 엣지 변동성 게이트를 무시하고 목표를 20%로 올린다",
+     "quant/live/daily.py",
+     "    tgt_vol, vol_proven, vol_why = target_vol_now(state_dir)",
+     "    tgt_vol, vol_proven, vol_why = 0.20, True, \"게이트무시\"",
+     "tests/test_risk_limits_are_wired_to_the_batch.py"),
+
+    ("한 종목 과집중 상한(3/n)을 푼다",
+     "quant/live/daily.py",
+     "        cap = 3.0 / n\n"
+     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "        cap = 1e9\n"
+     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "tests/test_risk_limits_are_wired_to_the_batch.py"),
+
+    # ── 위험 한도(돈이 실제로 움직이는 경로) ──
+    #
+    # (레버리지 금지선과 미입증 목표 변동성 잠금은 아래 '무레버리지 상한을
+    #  3배로 푼다'·'엣지 미입증인데 목표 변동성 잠금을 푼다'가 **같은 줄**을
+    #  이미 찌른다. 2026-08-12에 여기 중복으로 넣었다가 목록을 세어 보고
+    #  지웠다 — 중복 금지 규칙을 만든 바로 그 회차에 내가 어겼다.)
+
+    # (코인 미완성 봉은 아래 '코인도 진행 중인 봉으로 신호를 내게 되돌린다'가
+    #  이미 같은 장치를 찌른다 — 중복 항목은 넣지 않는다. 항목 수를 부풀리면
+    #  '몇 개를 지키고 있나'라는 이 도구의 유일한 숫자가 거짓이 된다.)
+    ("주식 미완결·유령 일봉 제거를 끈다(멱등 가드 무력화의 원인)",
+     "quant/data/stock.py",
+     "                out = self._drop_unclosed(self._validate(df))",
+     "                out = self._validate(df)",
+     "tests/test_bar_completeness.py"),
+
+    ("지정가 주문을 봉이 안 닿아도 체결시킨다(백테스트 낙관)",
+     "quant/broker/paper.py",
+     "        crossed = (bar_low <= limit_price) if side == \"buy\" \\\n"
+     "            else (bar_high >= limit_price)",
+     "        crossed = True",
+     "tests/test_limit_order.py"),
+
+    ("소유자 전역 스위치의 '일시정지' 판정을 끈다",
+     "quant/utils/settings.py",
+     "    return bool(s.get(\"trading_paused\")), min(1.0, max(0.0, scale))",
+     "    return False, min(1.0, max(0.0, scale))",
+     "tests/test_owner_gate_covers_all_paths.py"),
+
+    # ── 의회(실제로 매매하는 혼합 전략)의 관문 ──
+    ("결승전을 통과하지 않은 후보도 의회에 입성시킨다",
+     "quant/live/retrain.py",
+     "        promoted_spec=decision[\"champion\"] if decision[\"promoted\"] else None)",
+     "        promoted_spec=decision[\"champion\"])",
+     "tests/test_parliament.py"),
+
+    ("의회 다양성 강제(상관 상한)를 끈다 — 같은 베팅에 두 자리",
+     "quant/live/parliament.py",
+     "                if c == c and c > CORR_CAP:",
+     "                if False:",
+     "tests/test_parliament.py"),
+
+    ("상관을 못 재면 '무상관'으로 본다(감사 53 되돌리기 — 실패가 곧 통과)",
+     "quant/live/parliament.py",
+     "                    c = 1.0",
+     "                    c = 0.0",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("의석 비중 급변 방지(EMA)를 끈다 — 하루 만에 전액 이동",
+     "quant/live/parliament.py",
+     "            w = (1 - EMA_STEP) * prev + EMA_STEP * target",
+     "            w = target",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    # ── 오디션·학습의 미래 차단(가장 비싸고 조용한 계열) ──
+    ("크로스에셋 정렬을 최근접으로 바꾼다(미래 벤치마크가 과거 봉에 붙는다)",
+     "quant/data/crossasset.py",
+     "    return pd.Series(feature.reindex(target, method=\"ffill\").to_numpy(),",
+     "    return pd.Series(feature.reindex(target, method=\"nearest\").to_numpy(),",
+     # ⚠️ 처음엔 test_alpha5_crossasset.py를 가리켰고 통과했다. 그 파일의
+     #    정렬 검사는 '벤치가 df보다 일찍 끝나는' 경우만 본다 — 최근접이든
+     #    전진충전이든 끝 이후에는 같은 값이라 차이가 안 난다. **가운데
+     #    구멍**을 보는 test_lookahead_external.py가 잡는다.
+     "tests/test_lookahead_external.py"),
+
+    ("풀링 학습의 상한을 없앤다(미래 종목의 행까지 학습에 섞는다)",
+     "quant/strategies/ml.py",
+     "        sel = dates < cut",
+     "        sel = dates == dates",
+     "tests/test_alpha12_pooled.py"),
+
+    # 감사 128 — 실제로 이 모습이었다. 정수 epoch 비교라 단위가 어긋나도
+    # 조용히 통과했고, 미래 행이 모든 학습 블록에 들어갔다.
+    ("풀 날짜를 정수 epoch로 되돌린다(단위 어긋남 → 미래 행이 전부 통과)",
+     "quant/strategies/ml.py",
+     "                idx = pd.DatetimeIndex(pdf.index).normalize().to_numpy(\n"
+     "                    dtype=\"datetime64[ns]\")",
+     "                idx = pd.DatetimeIndex(pdf.index).normalize().asi8",
+     "tests/test_alpha12_pooled.py"),
+
+    # 감사 129 — 풀링을 살리자 드러난 세 번째 결함. 스냅샷 폴더를 프레임
+    # **끝** 날짜로 한 번만 고르면, 같은 과거 봉이라도 뒤에 미래가 얼마나
+    # 붙어 있느냐에 따라 풀이 달라진다 — 인과성이 깨진다(링 검사 54봉).
+    ("스냅샷 풀을 프레임 끝 날짜로 한 번만 고른다(미래를 자르면 과거가 바뀐다)",
+     "quant/strategies/ml.py",
+     "                        rows = self._pool_at(feats.columns, df.index[hi])",
+     "                        rows = self._pool_at(feats.columns, df.index[-1])",
+     "tests/test_lookahead_challenger_ring.py"),
+
+    # 감사 127 — 풀링이 통째로 죽어 있어도 아무도 몰랐다.
+    # ⚠️ 이 항목의 원본 문자열은 감사 129에서 호출부를 리팩터링하며 한 번
+    #    어긋났고, **CI의 `--dry-run`이 즉시 잡았다**(감사 125가 만들어진
+    #    바로 그 이유). 항목을 옮기지 말고 갱신할 것.
+    ("풀링을 조용히 끈다(넣으나 마나 같아진다)",
+     "quant/strategies/ml.py",
+     "                    rows = pool_rows",
+     "                    rows = None",
+     "tests/test_alpha12_pooled.py"),
+
+    ("스냅샷 풀이 당일 폴더까지 읽는다(채우는 중이라 verify 재현이 깨진다)",
+     "quant/utils/repro.py",
+     "    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])",
+     "    days = sorted(d for d in os.listdir(base) if d <= cutoff[:10])",
+     "tests/test_alpha12_pooled.py"),
+
+    ("메타라벨과 풀링의 동시 사용 금지를 푼다",
+     "quant/strategies/ml.py",
+     "        if pool is not None and meta:",
+     "        if False:",
+     "tests/test_alpha12_pooled.py"),
+
+    ("스톱 발동 후 재진입 금지를 끈다(스톱이 무의미해진다)",
+     "quant/strategies/stop_guard.py",
+     "                if stopped:\n                    w[t] = 0.0",
+     "                if False:\n                    w[t] = 0.0",
+     "tests/test_alpha11_kelly_stop.py"),
+
+    # ── 검증 리포트·요약·상수(변이가 한 번도 닿지 않던 파일들) ──
+    ("돌지 못한 검증을 '신뢰할 만함'으로 넘긴다",
+     "quant/reporting/validation_report.py",
+     "    elif \"unknown\" in vset:",
+     "    elif False:",
+     "tests/test_validation_report.py"),
+
+    ("실패한 단계를 '측정 실패' 대신 숫자로 채운다(안 잰 값을 잰 것처럼)",
+     "quant/reporting/validation_report.py",
+     "        if key in failed:",
+     "        if False:",
+     "tests/test_validation_report.py"),
+
+    ("날짜 롤오버 가드를 없앤다(일일 요약이 사이클마다 중복 전송)",
+     "quant/live/summary.py",
+     "    if last_date is None or last_date == t:\n        return t, None",
+     "    if False:\n        return t, None",
+     "tests/test_live_summary.py"),
+
+    ("정규장이 있는 시장의 실거래 브로커 매핑을 지운다",
+     "quant/markets.py",
+     "    \"kr_stock\": \"kr_live\",",
+     "    \"kr_stock\": None,",
+     "tests/test_markets_constants.py"),
+
+    ("보유 포지션을 장부에 저장하지 않는다(다음 실행이 빈 계좌로 시작)",
+     "quant/live/daily.py",
+     "    st[\"positions\"] = {\n"
+     "        p.symbol: {\"quantity\": p.quantity, \"avg_price\": p.avg_price}\n"
+     "        for p in broker._positions.values() if abs(p.quantity) > 0}",
+     "    st[\"positions\"] = {}",
+     "tests/test_daily_paper.py"),
+
+    ("VIX를 100으로 나누지 않고 그대로 피처에 넣는다(스케일 100배)",
+     "quant/data/crossasset.py",
+     "                out[\"x_vix\"] = _align(vix / 100.0, out.index)\n"
+     "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
+     "                out[\"x_vix\"] = _align(vix, out.index)\n"
+     "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
+     "tests/test_alpha6_vix_kimchi_calguard.py"),
+
+    # 감사 139 — 거래소 규격 검사가 통째로 꺼져 있었다(아무도 안 물었다).
+    ("주문 직전에 거래소 규격을 묻지 않는다(최소금액 미만도 그대로 전송)",
+     "quant/broker/retry.py",
+     "        spec = self._spec_for(symbol)",
+     "        spec = self.spec",
+     "tests/test_exchange_specs_actually_bind.py"),
+
+    ("코인 어댑터가 규격을 안 알려 준다",
+     "quant/broker/crypto_live.py",
+     "            return from_ccxt_market(m) if m else None",
+     "            return None",
+     "tests/test_exchange_specs_actually_bind.py"),
+
+    # 감사 138 — 접수 건수와 실제로 산 건수를 한 숫자로 합쳐 말했다.
+    ("0주로 잘린 주문도 '주문 N건'에 넣는다(안 샀는데 샀다고 보고)",
+     "quant/live/daily_live.py",
+     "    placed = len(orders) - len(zero_qty)",
+     "    placed = len(orders)",
+     "tests/test_live_reports_what_it_actually_bought.py"),
+
+    ("0주가 된 이유(목표 금액 vs 1주 값)를 안 남긴다",
+     "quant/live/daily_live.py",
+     "                if order.status == \"skipped\":",
+     "                if False:",
+     "tests/test_live_reports_what_it_actually_bought.py"),
+
+    # 감사 137 — 실계좌에서 1주도 못 사는 보유를 장부가 인정하는가.
+    ("미룬 종목을 장부에서 숨긴다(못 사는 종목을 조용히 넘김)",
+     "quant/live/daily.py",
+     "              \"lot_infeasible\": deferred_lots or None,",
+     "              \"lot_infeasible\": None,",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("정수 주 내림을 끈다(못 사는 수량을 산 것으로 기록)",
+     "quant/live/daily.py",
+     "        lots = math.floor(abs(w) * equity / float(px))",
+     "        lots = abs(w) * equity / float(px)",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("미룬 예산을 재배분하지 않는다(총노출이 목표보다 낮아짐)",
+     "quant/live/daily.py",
+     "    if freed > 1e-12:",
+     "    if False:",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("주문과 장부가 다시 각자 계산하게 되돌린다",
+     "quant/live/daily.py",
+     "        tw = fitted_w[key]             # 예산까지 반영한 최종 목표 비중",
+     "        tw = _target_w(key, w)",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    ("국내주식도 소수점 매매가 되는 것으로 친다",
+     "quant/live/daily.py",
+     "FRACTIONAL_MARKETS = {\"crypto\", \"synthetic\", \"us_stock\"}",
+     "FRACTIONAL_MARKETS = {\"crypto\", \"synthetic\", \"us_stock\", \"kr_stock\"}",
+     "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
+
+    # 감사 136 — 장부 키를 바꾸고 소비처를 안 찾아 경보가 죽어 있었다.
+    ("회전율 경보가 없는 키를 0으로 읽게 되돌린다(경보가 영원히 안 울린다)",
+     "quant/live/flag_watch.py",
+     "        vals = [r[\"turnover\"].get(\"traded\") for r in recent]",
+     "        vals = [r[\"turnover\"].get(\"ratio\") or 0.0 for r in recent]",
+     "tests/test_flag_watch.py"),
+
+    # 감사 135 — 제공자는 소스를 적고 있었는데 읽는 곳이 한 곳도 없었다.
+    ("시세 소스를 장부에서 뺀다(무조정가 폴백을 아무도 모르게)",
+     "quant/live/daily.py",
+     "              \"data_source\": sources or None,",
+     "              \"data_source\": None,",
+     "tests/test_data_source_is_recorded.py"),
+
+    ("보조 소스를 1차와 구분하지 않는다(무조정가가 조정가인 척)",
+     "quant/live/daily.py",
+     "        if want and name != want:",
+     "        if False:",
+     "tests/test_data_source_is_recorded.py"),
+
+    # ── 모든 판정의 분모(성과 지표)와 안전장치 본체 ──
+    #
+    # 이 세 파일은 변이가 한 번도 닿지 않았다(감사 140). 샤프·MDD가 틀리면
+    # 오디션 승격·엣지 입증 게이트·사이트의 모든 숫자가 **동시에** 틀린다.
+    ("샤프지수 연율화를 뺀다(전 판정의 분모가 √252배 작아진다)",
+     "quant/backtest/metrics.py",
+     "        else excess.mean() / _sd * np.sqrt(periods_per_year)",
+     "        else excess.mean() / _sd",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("최대낙폭을 고점 대비가 아니라 시작 대비로 잰다",
+     "quant/backtest/metrics.py",
+     "    cummax = equity.cummax()\n    drawdown = equity / cummax - 1.0",
+     "    cummax = equity.cummax()\n    drawdown = equity / equity.iloc[0] - 1.0",
+     "tests/test_backtest.py"),
+
+    ("CAGR 복리 구간 수를 한 칸 늘린다(수익률 부풀림)",
+     "quant/backtest/metrics.py",
+     "    intervals = max(1, len(equity) - 1)",
+     "    intervals = max(1, len(equity))",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("일일 손실 킬스위치 문턱 판정을 끈다",
+     "quant/live/killswitch.py",
+     "            if daily <= -self.daily_max_loss:",
+     "            if False:",
+     "tests/test_killswitch.py"),
+
+    ("킬스위치 할트를 즉시 풀어 준다(중단 기간이 사라진다)",
+     "quant/live/killswitch.py",
+     "            if today < self.halted_until:\n                return True",
+     "            if False:\n                return True",
+     "tests/test_killswitch.py"),
+
+    ("서킷브레이커 최대낙폭 트립을 끈다",
+     "quant/live/circuit_breaker.py",
+     "            if dd <= -cfg.max_drawdown:",
+     "            if False:",
+     "tests/test_circuit_breaker.py"),
+
+    # ── 사이징·비용(오디션 성적과 실제 노출을 동시에 좌우) ──
+    ("실현변동성 0을 NaN으로 바꾸는 가드를 뺀다(거래정지 종목이 최대 레버리지)",
+     "quant/risk/manager.py",
+     "            realized = realized.where(realized > 1e-9, np.nan)",
+     "            realized = realized",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("변동성 타깃 레버리지 상한(3배)을 푼다",
+     "quant/risk/manager.py",
+     "            scale = (cfg.target_vol / realized).clip(upper=3.0).fillna(0.0)",
+     "            scale = (cfg.target_vol / realized).clip(upper=1e9).fillna(0.0)",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("최대 포지션 한도를 걸지 않는다",
+     "quant/risk/manager.py",
+     "        sized = (target * scale).clip(-cfg.max_position, cfg.max_position)",
+     "        sized = (target * scale)",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("회전 비용에서 슬리피지를 뺀다(백테스트가 낙관적으로 바뀐다)",
+     "quant/backtest/costs.py",
+     "        return (self.fee + self.slippage + self.impact_coef * vol) * turnover",
+     "        return (self.fee + self.impact_coef * vol) * turnover",
+     "tests/test_costs.py"),
+
+    ("펀딩비 이상치 상한을 푼다(거래소 오류값이 성적을 통째로 왜곡)",
+     "quant/backtest/costs.py",
+     "        return max(-self._FUNDING_RATE_CAP, min(self._FUNDING_RATE_CAP, v))",
+     "        return v",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    # ── 승격 판정의 심장(오디션 결승) ──
+    #
+    # 이 파일이 "새 챔피언으로 바꿀 것인가"를 최종 결정한다. 문턱 세 개가
+    # 모두 통과해야 교체인데, 셋 다 변이가 닿은 적이 없었다(감사 142).
+    ("승격에서 t-검정 조건을 뺀다(통계 없이 교체)",
+     "quant/live/champion_challenger.py",
+     "        swap = bool(n >= self.min_obs and mean > self.edge and t_stat > self.t_threshold)",
+     "        swap = bool(n >= self.min_obs and mean > self.edge)",
+     "tests/test_promotion_gates_actually_gate.py"),
+
+    ("관망 봉까지 t-검정 표본에 넣는다(0으로 표본을 부풀려 판단 왜곡)",
+     "quant/live/champion_challenger.py",
+     "        diff = (rh - rc)[active].dropna()",
+     "        diff = (rh - rc).dropna()",
+     "tests/test_promotion_gates_actually_gate.py"),
+
+    ("결승전이 지정 구간을 무시하고 전 기간을 본다",
+     "quant/live/champion_challenger.py",
+     "            rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]",
+     "            rc, rh = rc, rh",
+     "tests/test_promotion_gates_actually_gate.py"),
+
+    # ── 장 시간 가드(닫힌 시장에 주문을 내지 않게) ──
+    ("주말 휴장 판정을 끈다(토·일에도 개장으로 봄)",
+     "quant/live/market_hours.py",
+     "    if local.weekday() >= 5:            # 토(5)·일(6) 휴장\n        return False",
+     "    if False:                           # 토(5)·일(6) 휴장\n        return False",
+     "tests/test_fill_and_hours.py"),
+
+    ("정규장 시간 판정을 통과시킨다(새벽에도 개장)",
+     "quant/live/market_hours.py",
+     "    return open_t <= local.time() <= close_t",
+     "    return True",
+     "tests/test_fill_and_hours.py"),
+
+    ("시장 시간대 변환을 없앤다(UTC 시각을 현지 시각으로 착각)",
+     "quant/live/market_hours.py",
+     "    return now.astimezone(ZoneInfo(tzname))",
+     "    return now",
+     "tests/test_fill_and_hours.py"),
+
+    # 감사 143 — 동작을 고치고 설명을 안 고쳐 장부가 낡은 말을 했다.
+    ("미완성 봉 기록이 다시 '결정에 쓴 봉'이라고 말하게 되돌린다",
+     "quant/data/barclock.py",
+     "            \"note\": \"체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — \"",
+     "            \"note\": \"결정 시점에 아직 만들어지는 중이던 봉 — \"",
+     "tests/test_signal_frame.py"),
+
+    # ── 워크포워드 검증(‘신뢰할 만함’ 판정의 근거) ──
+    ("최적화 구간이 검증 구간까지 미리 본다(워크포워드의 존재 이유가 사라짐)",
+     "quant/optimize/walkforward.py",
+     "        is_slice = df.iloc[start : start + is_window]",
+     "        is_slice = df.iloc[start : start + is_window + gap + oos_window]",
+     "tests/test_walkforward_really_holds_out.py"),
+
+    ("엠바고 갭을 없앤다(학습 직후 봉이 검증에 바로 들어간다)",
+     "quant/optimize/walkforward.py",
+     "        oos_start = start + is_window + gap        # 엠바고 갭만큼 띄운다",
+     "        oos_start = start + is_window              # 엠바고 갭만큼 띄운다",
+     "tests/test_walkforward_really_holds_out.py"),
+
+    ("워밍업 구간까지 OOS 성과로 센다(관망 봉이 성적을 희석)",
+     "quant/optimize/walkforward.py",
+     "        oos_ret = res.returns.iloc[-oos_window:]",
+     "        oos_ret = res.returns",
+     "tests/test_walkforward_really_holds_out.py"),
+
+    # ── PBO(과적합 확률) — '선택 절차가 노이즈를 고르는가'의 답 ──
+    ("IS 1등 대신 OOS 1등을 고른다(PBO가 구조적으로 0이 된다)",
+     "quant/robustness/pbo.py",
+     "        best = int(np.argmax(sr_is))                 # IS 1등 설정",
+     "        best = int(np.argmax(sr_oos))                # IS 1등 설정",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    ("PBO 판정 부호를 뒤집는다(과적합을 건전으로 보고)",
+     "quant/robustness/pbo.py",
+     "        \"pbo\": float((lam <= 0).mean()),",
+     "        \"pbo\": float((lam >= 0).mean()),",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    ("조합 대칭 교차검증을 조합 하나로 줄인다(CSCV의 핵심이 사라짐)",
+     "quant/robustness/pbo.py",
+     "    for is_idx in combinations(range(S), S // 2):",
+     "    for is_idx in [tuple(range(S // 2))]:",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    # ── DSR·PSR(엣지 입증 게이트가 읽는 값) ──
+    ("다중검정 보정을 빼고 벤치마크를 0으로 둔다(운 좋은 승자를 실력으로)",
+     "quant/robustness/deflated_sharpe.py",
+     "    sr_star = expected_max_sharpe(n_trials, trials_sharpe_std) if n_trials > 1 else 0.0",
+     "    sr_star = 0.0",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("왜도·첨도 보정을 뺀다(가끔 크게 터지는 전략이 안전한 전략과 같은 점수)",
+     "quant/robustness/deflated_sharpe.py",
+     "    denom = np.sqrt(max(1e-12, 1.0 - skew * sr + (kurt - 1.0) / 4.0 * sr ** 2))",
+     "    denom = 1.0",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("기대 최대 샤프의 두 계수를 뒤바꾼다",
+     "quant/robustness/deflated_sharpe.py",
+     "        (1.0 - _EULER) * _ND.inv_cdf(1.0 - 1.0 / N)\n"
+     "        + _EULER * _ND.inv_cdf(1.0 - 1.0 / (N * np.e))",
+     "        _EULER * _ND.inv_cdf(1.0 - 1.0 / N)\n"
+     "        + (1.0 - _EULER) * _ND.inv_cdf(1.0 - 1.0 / (N * np.e))",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    # 감사 146 — 부동소수 잡음이 0 판정을 뚫는다.
+    ("분산 퇴화 판정을 다시 `sd <= 0`으로 되돌린다(상수 계열이 DSR 1.0)",
+     "quant/robustness/deflated_sharpe.py",
+     "    if degenerate_spread(sd, np.abs(r).mean()):",
+     "    if sd <= 0:",
+     "tests/test_deflated_sharpe_matches_the_paper.py"),
+
+    ("샤프의 분산 퇴화 판정을 되돌린다(상수 수익이 천문학적 샤프)",
+     "quant/backtest/metrics.py",
+     "    _degenerate = degenerate_spread(_sd, float(returns.abs().mean()))",
+     "    _degenerate = _sd <= 0",
+     "tests/test_performance_metrics_are_exact.py"),
+
+    ("A/B 비교의 분산 퇴화 판정을 되돌린다(상수 팔이 모든 재추출에서 압승)",
+     "quant/robustness/compare.py",
+     "    if degenerate_spread(sd, float(np.abs(r).mean())):   # 감사 146",
+     "    if sd <= 0:",
+     "tests/test_compare.py"),
+
+    ("PBO의 분산 퇴화 판정을 되돌린다(평평한 구간이 IS 1등을 훔침)",
+     "quant/robustness/pbo.py",
+     "    ok = np.isfinite(sd) & (sd > REL_EPS * np.maximum(scale, 1e-300))",
+     "    ok = sd > 0",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    # 감사 147 — A등급(돈이 움직임) 파일의 핵심 규칙에 처음 칼을 댄다.
+    ("HRP 이분 배분을 뒤집는다(변동성 큰 군집에 예산을 더 준다)",
+     "quant/live/hrp.py",
+     "            alpha = 1.0 - v_l / (v_l + v_r)",
+     "            alpha = v_l / (v_l + v_r)",
+     "tests/test_alpha8_hrp_regime.py"),
+
+    # ⚠️ '준대각화를 뺀다'는 변이는 넣지 않는다 — 우리 조건에서 **행동이
+    #    거의 같다.** 군집 분산을 역분산으로 재는 순간 섞인 군집도 순수 군집과
+    #    비슷한 값을 내서, 잎 순서를 버려도 저변동 군집 예산이 0.801 → 0.783
+    #    (2%p)밖에 안 움직인다. 행동이 같은 변이를 '놓침'으로 세면 검사를
+    #    존재하지 않는 피해에 못 박게 된다(FROZEN_IDEAS ㉚).
+    ("HRP 입력 열 순서 고정을 푼다(종목 목록 순서가 배분을 바꾼다)",
+     "quant/live/hrp.py",
+     "        returns = returns[sorted(returns.columns, key=str)]",
+     "        pass",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("HRP 군집분산을 역분산이 아닌 균등가중으로 잰다(위험 패리티가 사라짐)",
+     "quant/live/hrp.py",
+     "    ivp = 1.0 / np.maximum(np.diag(sub), 1e-16)",
+     "    ivp = np.ones(len(sub), dtype=float)",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("켈리 공식에서 손익비 나눗셈을 뺀다(비율이 b배 부풀어 과대 베팅)",
+     "quant/risk/kelly.py",
+     "    f = (p * b - (1.0 - p)) / b",
+     "    f = p * b - (1.0 - p)",
+     "tests/test_kelly.py"),
+
+    ("부분 켈리를 풀 켈리로 바꾼다(추정 오차에 장기 성장률이 무너진다)",
+     "quant/risk/kelly.py",
+     "    return min(top, frac * f)",
+     "    return min(top, f)",
+     "tests/test_kelly.py"),
+
+    ("켈리 최소 표본 요건을 없앤다(거래 3번의 승률로 사이징)",
+     "quant/risk/kelly.py",
+     "    if n < max(1, int(min_trades)) or frac <= 0.0 or top <= 0.0:",
+     "    if frac <= 0.0 or top <= 0.0:",
+     "tests/test_kelly.py"),
+
+    # ⚠️ 'arange(lo, i-1) → arange(lo, i)'는 변이로 넣지 않는다 — **룩어헤드가
+    #    아니다.** 그 한 봉의 타깃은 rv[i]이고 예측 시점 i에 이미 확정돼 있다.
+    #    값은 0.0039 달라지지만 접두사 안정성은 그대로 0.0이다(FROZEN_IDEAS ㉚).
+    ("HAR 변동성을 전 구간으로 학습한다(예측이 미래를 본다)",
+     "quant/risk/volforecast.py",
+     "        rows = np.arange(lo, i - 1)",
+     "        rows = np.arange(lo, n - 1)",
+     "tests/test_vol_forecast_cannot_see_the_future.py"),
+
+    ("HAR 예측의 안전 클립을 사실상 푼다(예측이 후행의 1/1000까지 내려가 비중 폭주)",
+     "quant/risk/volforecast.py",
+     "    pred_var = pred_var.clip(lower=base_var * 0.25, upper=base_var * 4.0)",
+     "    pred_var = pred_var.clip(lower=base_var * 1e-6, upper=base_var * 1e6)",
+     "tests/test_vol_forecast_cannot_see_the_future.py"),
+
+    ("VaR 분위수 보간을 선형으로 되돌린다(손실을 과소평가)",
+     "quant/risk/portfolio.py",
+     '    q = float(r.quantile(1.0 - alpha, interpolation="lower"))',
+     "    q = float(r.quantile(1.0 - alpha))",
+     "tests/test_risk_portfolio.py"),
+
+    ("CVaR를 VaR와 같은 값으로 만든다(꼬리 평균 손실이 사라짐)",
+     "quant/risk/portfolio.py",
+     "    cvar = -float(tail.mean()) if len(tail) else var",
+     "    cvar = var",
+     "tests/test_risk_portfolio.py"),
+
+    # 감사 148 — 무인 실거래 경로만 견고화가 빠져 있었다.
+    ("무인 실거래 배치의 견고화 래퍼를 벗긴다(재시도·체결확인·규격 전부 사라짐)",
+     "quant/live/daily_live.py",
+     "    return RobustBroker(broker, retries=3, backoff=2.0,",
+     "    return broker\n    return RobustBroker(broker, retries=3, backoff=2.0,",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("실거래 체결 확인을 끈다(접수를 체결로 보고)",
+     "quant/live/daily_live.py",
+     "                        confirm_fills=True, fill_timeout=90.0,",
+     "                        confirm_fills=False, fill_timeout=90.0,",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("장부에서 실제 체결 수량 칸을 뺀다(접수만으로 '샀다'가 된다)",
+     "quant/live/daily_live.py",
+     '                if order.status not in ("skipped",) and filled <= 0:',
+     "                if False:",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("국내주식 주문 규격 선언을 지운다(1주 미만이 그대로 브로커까지 내려감)",
+     "quant/broker/kr_live.py",
+     "        return MarketSpec(min_qty=1.0, qty_step=1.0)",
+     "        return MarketSpec()",
+     "tests/test_live_orders_are_hardened.py"),
+
+    ("미국주식을 정수 주로 잘라 버린다(소수점 예산이 통째로 사라짐)",
+     "quant/broker/us_live.py",
+     "        return MarketSpec(min_notional=1.0)",
+     "        return MarketSpec(min_qty=1.0, qty_step=1.0, min_notional=1.0)",
+     "tests/test_live_orders_are_hardened.py"),
+
+    # 감사 149 — 분모가 사실상 0인 종목이 포트폴리오를 통째로 가져간다.
+    ("역분산 배분의 퇴화 판정을 되돌린다(거래정지 종목이 비중 100%)",
+     "quant/portfolio/allocation.py",
+     "        ok &= var > REL_EPS * float(np.max(var[ok]))",
+     "        pass",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("역변동성 배분의 퇴화 판정을 되돌린다",
+     "quant/portfolio/allocation.py",
+     "    inv = inv.where(vol.gt(floor, axis=0), np.nan)",
+     "    inv = inv",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("오디션 배분의 과집중 상한을 없앤다(한 종목이 전부를 가져갈 수 있다)",
+     "quant/portfolio/allocation.py",
+     "    cap = min(1.0, mult / n)",
+     "    cap = 1.0",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("HRP에서 퇴화 열 제외를 끈다(군집 분산이 그 열을 가장 안전하다고 본다)",
+     "quant/live/hrp.py",
+     "        if len(_keep) < 2:\n            return None                      # 쓸 수 있는 열이 둘 미만이면 폴백\n        returns = returns[_keep]",
+     "        if len(_keep) < 2:\n            return None                      # 쓸 수 있는 열이 둘 미만이면 폴백",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    # ⚠️ ERC의 `R = R[_keep]`은 변이로 넣지 않는다 — **행동이 같다.**
+    #    바로 아래 `capped.update({c: 0.0 for c in _dropped})`가 어차피 그
+    #    종목을 0으로 덮어써서, 열을 빼든 안 빼든 결과가 같다. 두 줄 중
+    #    실제로 판정을 바꾸는 건 아래쪽이고 그건 따로 걸어 두었다.
+    #    (열 제외 자체는 반복법이 헛돌지 않게 하는 값어치가 있어 남긴다.)
+
+    ("퇴화 종목의 키를 슬라이스에서 지운다(호출자가 기본 1/n을 준다)",
+     "quant/live/daily.py",
+     "        capped.update({c: 0.0 for c in _dropped})   # 퇴화 열은 명시적 0",
+     "        pass",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    ("오디션 HRP의 열 순서 고정을 푼다(감사 147의 형제)",
+     "quant/portfolio/allocation.py",
+     "    win = win[sorted(win.columns, key=str)]",
+     "    pass",
+     "tests/test_allocation_does_not_depend_on_list_order.py"),
+
+    ("HRP 비중 합 검사를 없앤다(전 종목 0인 배분이 폴백 없이 그대로 나간다)",
+     "quant/live/hrp.py",
+     "        if abs(sum(out.values()) - 1.0) > 1e-6:",
+     "        if False:",
+     "tests/test_a_halted_symbol_cannot_take_the_book.py"),
+
+    # ── 어드민·웹 경로 ──
+    ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
+     "quant/web/server.py",
+     "        return hmac.compare_digest(supplied, token)",
+     "        return True",
+     "tests/test_web.py"),
+
+    ("합성 폴백 데이터 배너를 끈다(가짜 데이터를 진짜처럼)",
+     "quant/web/app.py",
+     '    if any(getattr(df, "attrs", {}).get("synthetic_fallback") for df in dfs):',
+     "    if False:",
+     "tests/test_web.py"),
+
     ("종목 수 비율을 다시 회전율로 써서 비용을 계산한다",
      "docs/index.html",
      "    const withT=hs.filter(r=>typeof r.turnover.traded===\"number\");",
@@ -801,6 +1457,72 @@ def _purge_bytecode(path: pathlib.Path) -> None:
             pass
 
 
+def _assert_no_duplicates() -> None:
+    """같은 장치를 두 번 찌르는 항목이 없는가 — 도구 자신의 네 번째 결함.
+
+    2026-08-12: '레버리지 금지선'과 '미입증 목표 변동성 잠금'을 넣었는데
+    둘 다 이미 있던 항목과 **같은 파일의 같은 줄**을 찌르는 것이었다.
+    항목 수는 이 도구가 내놓는 유일한 숫자다("N개 장치를 지키고 있다").
+    중복이 섞이면 그 숫자가 조용히 부풀고, 부푼 숫자는 안심을 만든다.
+
+    주의: 앞으로 이 검사에 걸리면 **항목을 지우는 것이 정답**이다.
+    두 항목이 정말 다른 장치를 찌른다면 원본 문자열이 달라야 한다.
+    """
+    seen: dict = {}
+    dups = []
+    for desc, path, old, _new, _test in MUTATIONS:
+        k = (path, old)
+        if k in seen:
+            dups.append(f"  · {desc}\n    ↔ {seen[k]}\n    ({path})")
+        seen[k] = desc
+    if dups:
+        print("💥 변이 항목이 같은 줄을 두 번 찌른다 — 목록을 정리할 것:\n"
+              + "\n".join(dups))
+        sys.exit(2)
+
+
+_assert_no_duplicates()
+
+
+def _dry_run() -> None:
+    """--dry-run — pytest를 돌리지 않고 **목록 자체가 살아 있는지**만 본다.
+
+    왜 필요한가(2026-08-12 감사 125): 이 도구는 **CI에서 한 번도 돌지
+    않았다.** 다른 모든 안전장치를 지키는 도구가 정작 아무도 안 돌린다.
+    그래서 원본 문자열이 리팩터링에 밀려 안 맞게 되면(⏭️ 건너뜀) 그 장치는
+    조용히 무방비가 되고, 아무도 모른다.
+
+    전체 변이 시험은 100건이 넘어 PR마다 돌리기엔 무겁다. 그래서 둘로
+    나눈다 — 이 검사는 몇 초 만에 끝나고 PR마다 돌며, 진짜 변이 시험은
+    야간에 돈다. 여기서 잡는 것은 '조용한 드리프트' 하나뿐이지만, 그것이
+    이 도구가 죽는 가장 흔한 방식이다.
+    """
+    bad = []
+    for desc, path, old, _new, test in MUTATIONS:
+        p = pathlib.Path(path)
+        if not p.exists():
+            bad.append(f"  · {desc}\n    대상 파일 없음: {path}")
+            continue
+        n = p.read_text(encoding="utf-8").count(old)
+        if n != 1:
+            bad.append(f"  · {desc}\n    원본 문자열이 {n}회({path}) — "
+                       f"코드가 바뀌었다. 변이 문자열을 갱신할 것")
+        if not pathlib.Path(test).exists():
+            bad.append(f"  · {desc}\n    검사 파일 없음: {test}")
+    if bad:
+        print(f"💥 변이 목록이 코드와 어긋난다({len(bad)}건) — "
+              f"그만큼의 안전장치가 지금 무방비다:\n" + "\n".join(bad))
+        sys.exit(1)
+    print(f"✅ 변이 항목 {len(MUTATIONS)}건이 모두 코드와 맞물려 있다"
+          f"(대상 파일·원본 문자열·검사 파일 확인). "
+          f"실제 변이 시험은 야간 잡에서 돈다.")
+    sys.exit(0)
+
+
+if "--dry-run" in sys.argv[1:]:
+    _dry_run()
+
+
 def run(test):
     # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
@@ -816,11 +1538,20 @@ def run(test):
 # 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
 BASELINE_OK = 0
 
+# 부분 실행 — `python scripts/mutation_check.py 의회` 처럼 설명·검사 이름의
+# 일부를 주면 그 항목만 돈다. 새 항목을 만들 때 전체(100건 이상)를 다시
+# 돌리지 않기 위한 것이므로, **부분 실행 결과를 '전부 통과'로 보고하지 말 것.**
+FILTER = sys.argv[1] if len(sys.argv) > 1 else ""
+if FILTER:
+    print(f"⚠️ 부분 실행: '{FILTER}' — 전체 결과가 아니다\n")
+
 print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
 caught = missed = skipped = broken = 0
 _baseline: dict = {}
 for desc, path, old, new, test in MUTATIONS:
+    if FILTER and FILTER not in desc and FILTER not in test:
+        continue
     p = pathlib.Path(path)
     src = p.read_text(encoding="utf-8")
     if src.count(old) != 1:
@@ -852,4 +1583,9 @@ for desc, path, old, new, test in MUTATIONS:
         missed += 1
 print("─" * 110)
 print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
-sys.exit(1 if (missed or broken) else 0)
+# ⚠️ 2026-08-12 감사 126 — 이 줄이 문서와 어긋나 있었다.
+#    머리말은 "건너뜀은 통과가 아니다"라고 적어 놓고, 종료코드는
+#    `1 if (missed or broken)`이라 **건너뜀을 통과로 취급**했다.
+#    즉 116개 항목의 원본 문자열이 전부 안 맞게 돼도 이 도구는 0을 준다.
+#    오늘 내내 잡아 온 '말과 행동의 불일치'가 감사 도구 자신에게 있었다.
+sys.exit(1 if (missed or broken or skipped) else 0)

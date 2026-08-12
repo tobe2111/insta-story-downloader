@@ -111,11 +111,58 @@ def test_kelly_cap_binds_after_scaling():
 
 
 def test_guards_are_applied_after_the_scaler_in_source():
+    """옛 실수가 되살아나지 않았는지만 본다(부정형).
+
+    ⚠️ 예전에는 `def _applied(k: str, w: float)`가 소스에 있는지도 확인했다.
+       "기록되는 총노출도 감쇠·상한을 반영한다"는 뜻이었지만, 실제로 본 것은
+       **함수 이름의 존재**였다. 2026-08-12에 주문과 기록이 같은 값을 쓰도록
+       계산을 한 곳(_target_w → _fit_to_budget)으로 모으자 — 즉 그 주장을
+       **더 강하게 만들었는데** — 이 검사가 깨졌다.
+       확인해야 할 것(감쇠·상한이 기록에 반영되는가)은 아래 행동 검사로 옮겼다.
+    """
     src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
-    assert "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)" in src
-    assert "kelly_caps.get(key)" in src
     # 비중에 직접 곱하거나 잘라 넣던 옛 코드가 되살아나면 안 된다
     assert "weights[key] = float(weights[key] * ef)" not in src
     assert "np.clip(weights[key], -kcap, kcap)" not in src
-    # 기록되는 총노출도 감쇠·상한을 반영해야 한다
-    assert "def _applied(k: str, w: float)" in src
+
+
+def test_the_recorded_exposure_reflects_the_damping(tmp_path, monkeypatch):
+    """감쇠(킬스위치×어드민 배수)가 **장부의 총노출**에 반영되는가.
+
+    소스에 무엇이 적혀 있는지가 아니라, 진짜 배치를 두 번 돌려 값을 비교한다.
+    감쇠 0.5면 총노출도 정확히 절반이어야 한다 — 부등호로 두면 스케일러가
+    되돌려 키우던 옛 결함(2026-08-11)이 조금 남아도 통과한다.
+    """
+    import json
+
+    from quant.live.daily import run_daily_portfolio
+    from quant.live.retrain import save_champions
+    import quant.utils.settings as us
+
+    def _run(scale: float) -> float:
+        d = tmp_path / f"s{scale}"
+        monkeypatch.setattr(
+            us, "load_settings",
+            lambda path=us.SETTINGS_PATH: {"trading_paused": False,
+                                           "exposure_scale": scale,
+                                           "social_post": True, "note": "",
+                                           "portfolio_target_vol": None})
+        save_champions({f"synthetic:D{i}": {"strategy": "ma_cross",
+                                            "params": {"fast": 10, "slow": 30},
+                                            "promotions": 0}
+                        for i in range(3)}, str(d))
+        p = d / "paper"
+        p.mkdir(parents=True, exist_ok=True)
+        (p / "portfolio_ALL.json").write_text(json.dumps({
+            "market": "portfolio", "symbol": "ALL",
+            "start_cash": 1_000_000.0, "cash": 1_000_000.0, "positions": {},
+            "base_prices": {}, "last_bar": None, "history": [],
+        }), encoding="utf-8")
+        return run_daily_portfolio(
+            [("synthetic", f"D{i}") for i in range(3)], lookback=200,
+            state_dir=str(d), require_real_data=False)["weight"]
+
+    full = _run(1.0)
+    assert full > 0, "평시 노출이 0이면 이 비교가 헛것이 된다"
+    assert abs(_run(0.5) - full * 0.5) < 1e-4, (
+        "노출 배수를 절반으로 줄였는데 기록된 총노출이 절반이 아니다")

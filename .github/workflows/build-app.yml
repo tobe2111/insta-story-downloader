@@ -90,7 +90,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy pyyaml scikit-learn yfinance ccxt pyinstaller
+          # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
+          # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
+          pip install -r requirements.txt pyinstaller
 
       - name: 배포판 표식 포함 (실거래 잠금)
         # 배포판 표식 — 실거래 명령을 소스 설치 전용으로 잠근다.

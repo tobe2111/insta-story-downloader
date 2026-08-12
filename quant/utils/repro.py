@@ -62,7 +62,97 @@ def env_fingerprint() -> str:
     lock = _lock_sha()
     if lock:
         parts.append(f"lock:{lock}")
+    # ⚠️ lock 해시는 **파일 내용**의 해시일 뿐이다(감사 130). 그 파일대로
+    #    설치됐다는 뜻이 아니다 — 실제로 돈을 굴리는 배치들은 버전 없이
+    #    `pip install pandas …`로 그날 최신을 받고 있었고, 그래서 검사
+    #    환경(pandas 3)과 실전(pandas 2.3)이 서로 다른 세계였다.
+    #    해시만 찍으면 읽는 사람이 '고정돼 있다'고 오해한다. 어긋나면 말한다.
+    bad = lock_violations()
+    if bad:
+        parts.append(f"deps!{len(bad)}")
     return "|".join(parts)
+
+
+# ── 선언한 의존성 vs 실제로 설치된 것 (감사 130) ──────────────
+#
+# 규칙을 여기 한 곳에만 둔다 — 검사가 자기 파서를 따로 쓰면 둘이 어긋나고,
+# 그러면 '검사는 초록인데 현실은 다르다'가 또 생긴다(FROZEN_IDEAS ①).
+
+_CORE_MODULES = {"pandas": "pandas", "numpy": "numpy",
+                 "scikit-learn": "sklearn", "pytest": "pytest",
+                 "pyyaml": "yaml"}
+
+
+def _ver_tuple(text: str) -> tuple:
+    """'2.3.3rc1' → (2, 3, 3). 숫자가 아닌 꼬리는 버린다."""
+    out = []
+    for part in str(text).split("."):
+        m = re.match(r"\d+", part)
+        if not m:
+            break
+        out.append(int(m.group()))
+    return tuple(out) or (0,)
+
+
+def version_satisfies(version: str, specs) -> bool:
+    """'2.3.3'이 [('>=', '2.0'), ('<', '3')] 범위 안인가."""
+    v = _ver_tuple(version)
+    for op, bound in specs:
+        b = _ver_tuple(bound)
+        n = max(len(v), len(b))
+        a, c = v + (0,) * (n - len(v)), b + (0,) * (n - len(b))
+        if op == ">=" and not a >= c:
+            return False
+        if op == ">" and not a > c:
+            return False
+        if op == "<=" and not a <= c:
+            return False
+        if op == "<" and not a < c:
+            return False
+        if op == "==" and a != c:
+            return False
+        if op == "!=" and a == c:
+            return False
+    return True
+
+
+def declared_requirements(path: str = "requirements.txt") -> dict:
+    """requirements.txt → {이름(소문자): [(연산자, 버전), …]}."""
+    out: dict = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return out
+    for raw in lines:
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        m = re.match(r"^([A-Za-z0-9_.\-]+)\s*(.*)$", line)
+        if not m:
+            continue
+        out[m.group(1).lower()] = re.findall(
+            r"(>=|<=|==|!=|>|<)\s*([0-9][0-9A-Za-z.\-]*)", m.group(2))
+    return out
+
+
+def lock_violations(path: str = "requirements.txt") -> list:
+    """설치된 핵심 라이브러리 중 선언 범위를 벗어난 것들의 설명 목록."""
+    declared = declared_requirements(path)
+    bad = []
+    for name, mod in _CORE_MODULES.items():
+        specs = declared.get(name)
+        if not specs:
+            continue
+        try:
+            m = __import__(mod)
+            got = getattr(m, "__version__", None) or getattr(m, "version", None)
+        except Exception:  # noqa: BLE001 — 없는 선택 의존성은 위반이 아니다
+            continue
+        if got and not version_satisfies(str(got), specs):
+            spec_txt = ",".join(f"{o}{v}" for o, v in specs)
+            bad.append(f"{name} {got} ∉ {spec_txt}")
+    return bad
 
 
 def _lock_sha() -> str:
@@ -103,6 +193,20 @@ def load_snapshot(state_dir: str, asof: str, market: str, symbol: str):
         return pd.read_csv(f, index_col=0, parse_dates=True)
 
 
+def snapshot_pool_day(state_dir: str, cutoff: str) -> str | None:
+    """cutoff보다 **엄격히 이전**인 최신 스냅샷 폴더명(없으면 None).
+
+    폴더 고르는 규칙을 한 곳에 둔다 — 호출자가 '어느 날의 풀인가'를 알아야
+    같은 폴더를 두 번 읽지 않고 캐시할 수 있다(감사 129에서 학습 블록마다
+    풀을 다시 고르게 바꾸면서 필요해졌다).
+    """
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return None
+    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])
+    return days[-1] if days else None
+
+
 def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
     """cutoff(YYYY-MM-DD)보다 '이전' 날짜 중 최신 스냅샷 폴더의 전 종목 df 목록.
 
@@ -113,13 +217,10 @@ def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
     달라 verify 재현이 깨진다(하루 지연은 학습 풀에 무해).
     """
     import pandas as pd
-    base = os.path.join(state_dir, SNAP_DIR)
-    if not os.path.isdir(base):
+    day = snapshot_pool_day(state_dir, cutoff)
+    if day is None:
         return []
-    days = sorted(d for d in os.listdir(base) if d < cutoff[:10])
-    if not days:
-        return []
-    day_dir = os.path.join(base, days[-1])
+    day_dir = os.path.join(state_dir, SNAP_DIR, day)
     out = []
     for name in sorted(os.listdir(day_dir)):
         if not name.endswith(".csv.gz"):

@@ -1,0 +1,93 @@
+name: Mutation Sweep
+
+# 변이 시험 야간 전수 — 안전장치를 하나씩 일부러 망가뜨리고, 해당 계약
+# 검사가 정말 실패하는지 확인한다. 실패해야 그 검사가 살아 있는 것이다.
+#
+# 왜 이 워크플로가 생겼나(2026-08-12 감사 125):
+#   scripts/mutation_check.py는 2026-08-11에 만들어져 지금까지 121개 항목을
+#   쌓았는데, **어떤 워크플로도 이것을 돌리지 않았다.** 다른 모든 안전장치를
+#   지키는 도구가 정작 아무도 안 돌리는 상태였다. 그러면
+#     · 리팩터링으로 원본 문자열이 안 맞게 되면(⏭️ 건너뜀) 그 장치는 조용히
+#       무방비가 되고
+#     · 행동 검사가 문자열 검사로 퇴화해도 아무도 모른다
+#   이것은 이 저장소가 이미 한 번 겪은 병이다 — verify 명령이 처음부터
+#   있었지만 어떤 워크플로도 실행하지 않아, 사이트가 "누구든 검증할 수
+#   있다"고 말하는 동안 그 검증은 한 번도 돌아본 적이 없었다.
+#   돌지 않는 검증은 깨져도 아무도 모르고, 깨진 줄 모르는 검증은 장식이다.
+#
+# PR마다 도는 빠른 판(`--dry-run`)은 ci.yml에 있다 — 목록이 코드와 맞물려
+# 있는지만 몇 초 만에 본다. 진짜 변이 시험(항목마다 pytest 2회)은 무거워서
+# 여기서 야간에 돈다.
+#
+# 스케줄 잡의 실패는 PR을 게이트하지 않는다(조기 경보 용도).
+
+on:
+  schedule:
+    # 16:00 UTC = 새벽 1시 KST. 다른 야간 배치(19:00 UTC 검증,
+    # 20:30 UTC 페이퍼)와 겹치지 않게 앞에 둔다.
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+# 저장소를 읽기만 한다 — 이 잡은 아무것도 커밋하지 않는다.
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    # 실측 기준(로컬) 항목당 10~40초 × 121건. 러너는 더 느리므로 넉넉히.
+    # 매달림 방어(감사 77) — 무제한이면 몇 시간을 태우고 로그도 안 남는다.
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash          # 명시적 bash → -e -o pipefail
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
+          # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
+          pip install -r requirements.txt cryptography
+
+      # ⚠️ 이 도구는 실행 중 소스 파일을 잠깐 고쳤다가 되돌린다. 중단되면
+      #    변조된 채로 남을 수 있으므로, 러너를 버리는 이 잡에서만 돌린다
+      #    (아무것도 커밋하지 않는 이유이기도 하다).
+      - name: 변이 전수 (놓침·건너뜀·검사 고장이 하나라도 있으면 실패)
+        run: python3 scripts/mutation_check.py | tee mutation.txt
+
+      - name: 결과 보존
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-${{ github.run_id }}
+          path: mutation.txt
+          if-no-files-found: ignore
+
+      - name: 실패 경보 (디스코드/텔레그램)
+        # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.
+        # 파이썬 의존성 없이 curl만 사용(의존성 설치 전에 죽어도 동작).
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          MSG="🚨 [Quant] 변이 전수 실패 ($(date -u +%F)) — 안전장치 중 일부가 지금 아무도 안 지키고 있다. 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료 (설정된 채널 없으면 무시)"

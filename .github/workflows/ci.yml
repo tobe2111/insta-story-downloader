@@ -43,10 +43,20 @@ jobs:
           # 테스트는 데이터 소스 없으면 합성 데이터로 폴백하므로 핵심 의존성만 설치
           # cryptography는 '선택' 의존성이지만 Ed25519 라이선스 경로도 CI에서
           # 검증하기 위해 설치한다(없으면 해당 테스트는 자동 skip).
-          pip install pandas numpy pyyaml scikit-learn pytest cryptography
+          # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
+          # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
+          pip install -r requirements.txt cryptography
 
       - name: Syntax check (py_compile)
         run: python -m py_compile $(find quant examples tests -name "*.py")
+
+      # 변이 목록이 코드와 맞물려 있는가 — 몇 초짜리 구조 검사(감사 125).
+      # 안전장치를 지키는 변이 항목의 '원본 문자열'이 리팩터링에 밀려 안
+      # 맞게 되면, 그 항목은 조용히 건너뛰어지고 그 장치는 무방비가 된다.
+      # 진짜 변이 시험(항목마다 pytest 2회)은 무거워서 야간 잡
+      # (mutation-sweep.yml)이 돈다 — 여기서는 목록이 살아 있는지만 본다.
+      - name: 변이 목록 정합성 (mutation_check --dry-run)
+        run: python3 scripts/mutation_check.py --dry-run
 
       - name: Run tests
         run: pytest -q

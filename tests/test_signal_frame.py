@@ -149,3 +149,39 @@ def test_live_and_audition_now_see_the_same_kind_of_bar():
     sig = dl._signal_frame("crypto", df)
     assert bar_status("crypto", sig.index[-1]) is None, (
         "신호 프레임의 마지막 봉이 아직 진행 중이다 — 오디션 조건과 다르다")
+
+
+# ── 장부의 설명이 지금 동작과 맞는가 (감사 143) ────────────────
+#
+# 감사 71에서 "완성된 정보로 판단하고, 지금 가격에 체결한다"로 고쳤는데,
+# bar_partial에 붙는 설명은 여전히 "결정 시점에 …"이라고 말하고 있었다.
+# 숫자는 맞았다(마지막 원본 봉은 실제로 미완성이다). 그런데 **무엇의
+# 숫자인지**가 틀렸다 — 장부를 읽는 사람은 미완성 봉으로 판단했다고 읽는다.
+# 동작을 고쳤으면 그 동작을 설명하는 문장도 같이 고쳐야 한다.
+
+
+def test_the_partial_bar_note_describes_execution_not_the_decision():
+    import datetime as _dt
+
+    from quant.data.barclock import bar_status
+    note = bar_status("crypto", "2026-08-12", "1d",
+                      _dt.datetime(2026, 8, 12, 19, 0))["note"]
+    assert "결정 시점" not in note, (
+        f"판단에 쓴 봉이라고 말한다 — 감사 71 이후로는 사실이 아니다:\n  {note}")
+    assert "체결" in note and "평가" in note, (
+        f"이 값이 무엇의 완성도인지 밝히지 않는다:\n  {note}")
+    assert "신호" in note, (
+        f"신호는 확정 봉만 본다는 사실을 함께 말해야 오해가 안 생긴다:\n  {note}")
+
+
+def test_the_decision_frame_really_excludes_that_bar():
+    """설명이 사실인지 확인 — 말만 바꾸고 동작이 다르면 더 나쁘다."""
+    import pandas as pd
+
+    from quant.live.daily import _signal_frame
+    idx = pd.date_range("2026-08-01", periods=12, freq="D")
+    df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
+                       "close": 1.0, "volume": 1.0}, index=idx)
+    out = _signal_frame("crypto", df)
+    assert len(out) < len(df), "코인의 진행 중인 봉이 신호 프레임에 남아 있다"
+    assert out.index[-1] < df.index[-1]

@@ -92,16 +92,54 @@ def test_killswitch_flag_and_escalation(tmp_path, monkeypatch):
     assert spy3.sent == []
 
 
+# ⚠️ 이 절의 픽스처는 2026-08-12 감사 136까지 `{"ratio": …}`를 썼다.
+#    같은 날 감사 119에서 장부의 그 키를 `symbols_ratio`로 바꾸고 진짜
+#    회전율 `traded`를 추가했는데, **경보와 이 검사만 옛 이름에 남았다.**
+#    경보는 없는 키를 `or 0.0`으로 읽어 늘 0 — 한 번도 울릴 수 없었고,
+#    검사는 낡은 픽스처로 그 죽음을 초록으로 봤다.
+#    → 픽스처는 **장부가 실제로 쓰는 키**에서 파생시킨다(아래 계약 검사).
+
+def test_the_alert_reads_the_key_the_ledger_actually_writes(tmp_path):
+    """경보가 읽는 키와 장부가 쓰는 키가 같은가 — 이름이 갈리면 조용히 죽는다."""
+    from quant.live.daily import run_daily_portfolio
+    from quant.live.retrain import save_champions
+    d = str(tmp_path)
+    save_champions({f"synthetic:T{i}": {"strategy": "ma_cross",
+                                        "params": {"fast": 10, "slow": 30},
+                                        "promotions": 0} for i in range(3)}, d)
+    targets = [("synthetic", f"T{i}") for i in range(3)]
+    run_daily_portfolio(targets, lookback=200, state_dir=d,
+                        require_real_data=False)
+    import json
+    p = tmp_path / "paper" / "portfolio_ALL.json"
+    st = json.loads(p.read_text("utf-8"))
+    st["last_bar"] = "1999-01-01"
+    p.write_text(json.dumps(st), encoding="utf-8")
+    rec = run_daily_portfolio(targets, lookback=200, state_dir=d,
+                              require_real_data=False)
+    assert "traded" in (rec.get("turnover") or {}), (
+        f"장부의 회전율 키가 바뀌었다: {sorted(rec.get('turnover') or {})} — "
+        "flag_watch가 읽는 이름과 맞춰야 한다")
+    # 설명(주석·독스트링)에는 옛 이름이 나온다 — 그건 사고 경위를 적은
+    # 것이지 코드가 아니다. **실행되는 줄**만 본다(오늘 여러 번 이 함정에
+    # 걸렸다: 검사가 자기 설명문에 걸려 빨개진다).
+    import re as _re
+    src = (ROOT / "quant" / "live" / "flag_watch.py").read_text("utf-8")
+    code = _re.sub(r'"""(?:.|\n)*?"""', "", src)
+    code = "\n".join(ln.split("#", 1)[0] for ln in code.splitlines())
+    assert 'get("ratio")' not in code, "경보가 아직 옛 키를 읽는다"
+
+
 def test_turnover_cost_alert(tmp_path, monkeypatch):
     """회전율이 높아 비용이 기대수익을 넘으면 경보한다."""
-    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"ratio": 0.37},
+    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"traded": 0.37},
            "vol_target": {"target": 0.12}} for d in range(1, 21)]
     st = {"paper": {"portfolio:ALL": {"history": hi}}}
     new, spy = _run(tmp_path, monkeypatch, st)
     assert "turnover_cost" in new
     assert any("회전율 경보" in m for m in spy.sent)
     # 회전율이 낮으면 조용하다
-    lo = [dict(r, turnover={"ratio": 0.03}) for r in hi]
+    lo = [dict(r, turnover={"traded": 0.03}) for r in hi]
     new2, _ = _run(tmp_path, monkeypatch,
                    {"paper": {"portfolio:ALL": {"history": lo}}})
     assert "turnover_cost" not in new2
@@ -109,11 +147,25 @@ def test_turnover_cost_alert(tmp_path, monkeypatch):
 
 def test_turnover_alert_needs_sample(tmp_path, monkeypatch):
     """표본이 얇으면 판정하지 않는다 — 소표본 경보는 소음이다."""
-    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"ratio": 0.9}}
+    hi = [{"date": f"2026-08-{d:02d}", "turnover": {"traded": 0.9}}
           for d in range(1, 6)]
     new, _ = _run(tmp_path, monkeypatch,
                   {"paper": {"portfolio:ALL": {"history": hi}}})
     assert "turnover_cost" not in new
+
+
+def test_old_records_without_the_amount_do_not_dilute_the_alert(tmp_path,
+                                                                monkeypatch):
+    """감사 91 이전 기록에는 금액 기준 회전율이 없다 — 0으로 치지 않는다.
+
+    0으로 세면 옛 기록이 평균을 끌어내려 경보가 조용해진다.
+    '모르면 숫자를 만들지 않는다'(감사 119)를 여기서도 지킨다.
+    """
+    old = [{"date": f"2026-07-{d:02d}", "turnover": {"symbols_ratio": 0.9},
+            "vol_target": {"target": 0.12}} for d in range(1, 21)]
+    new, _ = _run(tmp_path, monkeypatch,
+                  {"paper": {"portfolio:ALL": {"history": old}}})
+    assert "turnover_cost" not in new, "옛 기록만으로 판정했다"
 
 
 def test_overfit_and_dsr_alerts(tmp_path, monkeypatch):

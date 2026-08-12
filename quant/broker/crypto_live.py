@@ -97,6 +97,29 @@ class CryptoLiveBroker(Broker):
         qty = safe_amount(bal.get("total", {}).get(base, 0.0), allow_negative=True)
         return Position(symbol, qty, 0.0)
 
+    def market_spec(self, symbol: str):
+        """그 종목의 거래소 주문 규격(최소수량·수량스텝·최소금액).
+
+        RobustBroker가 주문 직전에 물어본다(감사 139). 예전에는 아무도
+        묻지 않아 규격 검사가 통째로 꺼져 있었고, 최소 주문금액에 못 미치는
+        주문을 그대로 보냈다가 거절당하고 재시도까지 반복했다.
+
+        조회 실패는 None — 호출자가 기본 규격으로 진행한다(규격을 몰라서
+        매매를 멈추지는 않는다. 다만 그때는 거래소가 거절할 수 있다).
+        """
+        from quant.broker.specs import from_ccxt_market
+        try:
+            markets = getattr(self.client, "markets", None)
+            if not markets:
+                load = getattr(self.client, "load_markets", None)
+                if load is None:
+                    return None
+                markets = load()
+            m = (markets or {}).get(symbol)
+            return from_ccxt_market(m) if m else None
+        except Exception:  # noqa: BLE001 — 규격 조회 실패가 주문을 막지 않는다
+            return None
+
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
         log.warning("[LIVE:%s] %s %s %.6f @ ~%.2f 실제 주문 전송",
                     self.exchange, side.upper(), symbol, quantity, price)

@@ -71,8 +71,24 @@ def _current_flags(status: dict) -> dict[str, str]:
         recent = hist[-20:]
         if len(recent) < 10:
             continue                       # 표본이 얇으면 판정하지 않는다
-        ratios = [float(r["turnover"].get("ratio") or 0.0) for r in recent]
-        avg = sum(ratios) / len(ratios)
+        # ⚠️ 이 경보는 2026-08-12 감사 119부터 **죽어 있었다**(감사 136).
+        #    그때 장부의 `turnover.ratio`(= 체결 종목 수 ÷ 후보 수)를
+        #    `symbols_ratio`로 이름을 바꾸고 진짜 회전율 `traded`를
+        #    추가했는데, **소비처를 찾지 않았다.** 여기 `.get("ratio")`가
+        #    없는 키를 읽어 `or 0.0`으로 0이 되고, 비용이 늘 0이라 경보가
+        #    한 번도 울릴 수 없었다 — 조용히 0을 읽는 코드는 고장을
+        #    '이상 없음'처럼 보이게 한다.
+        #    (FROZEN_IDEAS ⑭ 고친 결함은 형제를 찾기 전까지 고친 게 아니다.
+        #     그 계명을 적은 회차에 내가 어겼다.)
+        #
+        #    비용은 '몇 종목을 건드렸나'가 아니라 '얼마어치를 사고팔았나'에
+        #    비례하므로 `traded`(Σ|Δ적용노출|)만 쓴다. 없는 날은 **세지
+        #    않는다** — 0으로 치면 옛 기록이 경보를 희석한다.
+        vals = [r["turnover"].get("traded") for r in recent]
+        vals = [float(v) for v in vals if isinstance(v, (int, float))]
+        if len(vals) < 10:
+            continue           # 금액 기준 표본이 얇으면 판정하지 않는다
+        avg = sum(vals) / len(vals)
         # 가중평균 왕복 비용 43bp(코인 30·미국 12·한국 실측 93 기준 근사)
         annual_cost = avg * 252 * 0.0043
         vt = (hist[-1].get("vol_target") or {}) if hist else {}
@@ -84,6 +100,26 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"{expected * 100:.0f}%를 넘습니다. 비용이 엣지를 먹는 구조 — "
                 f"밴드·쿨다운을 더 넓히거나 고비용 시장(한국주식) 비중을 "
                 f"재검토해야 합니다.")
+
+    # ③-2 실현 불가 보유 — 소수점 매매가 없는 시장(국내주식)에서 배정금액이
+    #     1주 값에 못 미치면, 장부의 그 줄은 실계좌에서 재현할 수 없다.
+    #     기록만 남기고 아무도 안 읽으면 감사 135의 반복이다 — 읽는 사람을 둔다.
+    #     구조적 조건이라 매일 바뀌지 않으므로, 플래그 키에 종목 수를 넣어
+    #     '수가 바뀔 때'만 다시 알린다(같은 상태로 매일 울리면 아무도 안 본다).
+    for key, p in (status.get("paper") or {}).items():
+        if not key.startswith("portfolio:"):
+            continue
+        hist = p.get("history") or []
+        bad = ((hist[-1].get("lot_infeasible") if hist else None) or {})
+        if not bad:
+            continue
+        names = ", ".join(sorted(bad))
+        flags[f"lot_infeasible:{len(bad)}"] = (
+            f"⚠️ 실현 불가 보유 {len(bad)}종목: {names} — 소수점 매매가 없는 "
+            f"시장인데 배정금액이 1주 값에 못 미칩니다(예: "
+            f"{next(iter(bad.values()))['budget']:,.0f}원 배정 / 1주 "
+            f"{next(iter(bad.values()))['price']:,.0f}원). 이 줄들은 실계좌에서 "
+            f"재현할 수 없습니다 — 유니버스 조정이나 정수 주 강제를 검토하세요.")
 
     # ④ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
     #    사건이다. 단계가 더 내려가면(0.75→0.5) 키가 바뀌어 다시 알리고,

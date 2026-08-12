@@ -398,6 +398,13 @@ class MLStrategy(Strategy):
         # 로드해 verify가 같은 풀을 재구성할 수 있다. 리스트 주입은 테스트용.
         # 룩어헤드 차단: 각 재학습 블록의 학습 상한 날짜 '이전' 풀 행만 쓴다.
         self.pool = pool
+        # 풀 구성 결과의 흔적 — 조용한 실패가 감사 127을 몇 주 숨겼다.
+        # None이면 성공(또는 아직 안 돌림), 문자열이면 그날의 실패 사유.
+        self.pool_error_: str | None = None
+        self.pool_rows_: int = 0
+        # 스냅샷 폴더 단위 캐시 — 블록마다 풀을 다시 고르되(감사 129)
+        # 같은 폴더를 여러 번 읽지 않는다.
+        self._pool_cache: dict = {}
         # 피처 가지치기 — 블록마다 전체 피처로 1차 학습해 중요도 상위 K개만
         # 남기고 재학습한다(0=끔). 피처가 세대를 거듭해 늘면(fs6+) 중복·잡음
         # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
@@ -443,19 +450,39 @@ class MLStrategy(Strategy):
             w = np.clip(np.round(w / self.weight_step) * self.weight_step, -1.0, 1.0)
         return w
 
-    def _build_pool(self, cols, span: int, last_bar) -> tuple | None:
-        """풀 표본 (날짜i8, X, y)를 만든다 — 타깃 피처 열 순서에 정렬.
+    def _pool_at(self, cols, cutoff) -> tuple | None:
+        """그 **학습 블록 시점에 존재하던** 스냅샷으로 풀을 만든다 (감사 129).
+
+        예전에는 프레임 **맨 끝** 날짜로 폴더를 한 번만 골랐다. 그러면 같은
+        과거 봉이라도 뒤에 미래 데이터가 얼마나 붙어 있느냐에 따라 풀이
+        달라진다 — 미래를 잘라내면 과거 신호가 바뀐다. 이 저장소가 가장
+        엄격하게 지키는 성질(인과성)이 정확히 그렇게 깨졌고, 링 인과성
+        검사가 54봉이 바뀐다고 잡았다.
+
+        (감사 127에서 풀링을 살리기 전까지는 풀 자체가 죽어 있어 이 결함도
+         보이지 않았다 — 죽은 장치가 또 하나를 가려 주고 있었다.)
+
+        블록마다 폴더를 다시 고르되 **폴더 단위로 캐시**한다. 인접 블록은
+        대개 같은 폴더를 쓰므로 실제 읽기 횟수는 폴더 수만큼이다.
+        """
+        from quant.utils.repro import load_snapshot_pool, snapshot_pool_day
+        day = snapshot_pool_day("state", str(cutoff)[:10])
+        if day is None:
+            return None
+        key = (day, tuple(cols))
+        if key not in self._pool_cache:
+            self._pool_cache[key] = self._build_pool(
+                cols, load_snapshot_pool("state", str(cutoff)[:10]))
+        return self._pool_cache[key]
+
+    def _build_pool(self, cols, frames) -> tuple | None:
+        """풀 표본 (날짜, X, y)를 만든다 — 타깃 피처 열 순서에 정렬.
 
         각 풀 프레임에 타깃과 같은 피처·라벨 규칙을 적용하고, 타깃에 없는
-        컬럼은 버리고 없는 값은 0(정보 없음)으로 채운다. 실패는 조용히
-        건너뛴다(풀은 보너스 표본 — 실패가 학습을 막으면 안 된다).
+        컬럼은 버리고 없는 값은 0(정보 없음)으로 채운다. 실패해도 학습은
+        계속하되(풀은 보너스 표본) **죽었다는 사실은 남긴다**(감사 127).
         """
         try:
-            if isinstance(self.pool, list):
-                frames = self.pool
-            else:
-                from quant.utils.repro import load_snapshot_pool
-                frames = load_snapshot_pool("state", str(last_bar)[:10])
             dates, xs, ys = [], [], []
             for pdf in frames:
                 if pdf is None or len(pdf) < 80 or "close" not in pdf:
@@ -469,34 +496,64 @@ class MLStrategy(Strategy):
                     lab[pdf["close"].shift(-1).isna()] = np.nan
                     py = lab.to_numpy()
                 base_cols = [c for c in pf.columns if c in FEATURE_NAMES]
-                ok = pf[base_cols].notna().all(axis=1).to_numpy()
-                ok &= np.isfinite(py) if py.dtype.kind == "f" else True
-                ok &= ~np.isnan(py)
+                # ⚠️ 제자리 연산(&=) 금지 — pandas 3.0의 to_numpy()는 **읽기
+                #    전용** 배열을 돌려준다. 예전 코드는 여기서
+                #    `ValueError: output array is read-only`를 냈고, 아래
+                #    `except Exception: return None`이 그것을 삼켜
+                #    **풀링(패널) 학습이 통째로 죽어 있었다**(감사 127).
+                #    풀을 넣든 안 넣든 신호가 한 봉도 다르지 않았는데,
+                #    오디션 링에는 '풀링 후보'가 매일 두 개씩 올라갔다.
+                #    isfinite는 NaN도 걸러내므로 ~isnan은 필요 없다.
+                ok = np.asarray(pf[base_cols].notna().all(axis=1), dtype=bool)
+                ok = ok & np.isfinite(np.asarray(py, dtype=float))
                 if not ok.any():
                     continue
                 pX = pf.reindex(columns=cols).fillna(0.0).to_numpy()
-                idx = pd.DatetimeIndex(pdf.index).normalize().asi8
+                # ⚠️ 정수 epoch로 바꾸지 않는다(감사 128). 예전에는 `.asi8`를
+                #    썼는데 pandas 3.0의 asi8은 **마이크로초**를 돌려주고,
+                #    비교 상대인 `pd.Timestamp.value`는 **나노초**였다.
+                #    1000배 차이라 `dates < cut`이 **언제나 전부 참** —
+                #    학습 상한 필터가 통째로 없는 것과 같았고, 미래 종목의
+                #    행이 모든 학습 블록에 섞여 들어갔다. 룩어헤드다.
+                #    단위가 붙은 datetime64로 두면 numpy가 알아서 맞춘다.
+                idx = pd.DatetimeIndex(pdf.index).normalize().to_numpy(
+                    dtype="datetime64[ns]")
                 dates.append(idx[ok])
                 xs.append(pX[ok])
                 ys.append(py[ok])
             if not xs:
+                self.pool_error_ = "풀 프레임에서 쓸 수 있는 표본이 없다"
                 return None
+            self.pool_error_ = None
+            self.pool_rows_ = int(sum(len(d) for d in dates))
             return (np.concatenate(dates), np.vstack(xs), np.concatenate(ys))
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            # ⚠️ 조용히 넘어가지 않는다(감사 127). 이 자리의 침묵이 위 결함을
+            #    몇 주 동안 숨겼다. 풀이 없어도 학습은 계속하되(보너스 표본이
+            #    맞다), **죽었다는 사실은 남긴다.**
+            from quant.utils.logging import get_logger
+            get_logger("strategies.ml").warning(
+                "풀링 표본 구성 실패 — 풀 없이 학습한다: %s: %s",
+                type(exc).__name__, exc)
+            self.pool_error_ = f"{type(exc).__name__}: {exc}"[:200]
             return None
 
     def _merge_pool(self, X_tr, y_tr, sw_tr, pool_rows, cutoff):
         """학습 상한(cutoff) '이전' 풀 행을 학습 표본 뒤에 붙인다."""
         dates, Xp, yp = pool_rows
-        cut = pd.Timestamp(cutoff).normalize().value
+        # ⚠️ 정수 epoch 비교 금지(감사 128) — 단위가 어긋나도 조용히 통과한다.
+        #    datetime64끼리 비교하면 numpy가 단위를 맞춰 준다.
+        cut = np.datetime64(pd.Timestamp(cutoff).normalize(), "ns")
         sel = dates < cut
         if not sel.any():
             return X_tr, y_tr, sw_tr
         X2 = np.vstack([X_tr, Xp[sel]])
         y2 = np.concatenate([y_tr, yp[sel].astype(int)])
         if sw_tr is not None:
-            # 풀 행의 시간감쇠는 달력일 기준(일봉이라 봉 나이와 사실상 동일)
-            days = (cut - dates[sel]) / 86_400_000_000_000
+            # 풀 행의 시간감쇠는 달력일 기준(일봉이라 봉 나이와 사실상 동일).
+            # 여기도 같은 이유로 timedelta64로 나눈다 — 상수 나눗셈은 단위가
+            # 바뀌는 순간 조용히 1000배 틀린 가중치를 만든다.
+            days = ((cut - dates[sel]) / np.timedelta64(1, "D")).astype(float)
             sw2 = np.concatenate([
                 sw_tr, np.power(0.5, days / self.weight_halflife)])
         else:
@@ -574,8 +631,11 @@ class MLStrategy(Strategy):
         probs = np.full(n, np.nan)     # 봉별 예측확률 — 신뢰도 곡선(보정 검증)용
         model = None
         active_cols = None             # 가지치기 시 이 블록 모델이 쓰는 피처 열
-        pool_rows = (self._build_pool(feats.columns, span, df.index[-1])
-                     if self.pool is not None else None)
+        # 주입형(리스트)은 호출자가 준 프레임이 전부라 한 번만 만들면 된다.
+        # 스냅샷형("peers")은 **블록마다** 그 시점의 폴더로 다시 고른다
+        # (감사 129 — 프레임 끝 날짜로 한 번만 고르면 인과성이 깨진다).
+        pool_rows = (self._build_pool(feats.columns, self.pool)
+                     if isinstance(self.pool, list) else None)
 
         # 재학습 구간(블록) 단위로 학습→배치 예측: 행마다 예측하던 것보다 훨씬 빠르다.
         i = self.train_window
@@ -607,10 +667,13 @@ class MLStrategy(Strategy):
                         age = (hi - 1) - np.arange(lo, hi)[mask]
                         sw = np.power(0.5, age / self.weight_halflife)
                     X_tr, y_tr, sw_tr = X[lo:hi][mask], yt, sw
-                    if pool_rows is not None:
+                    rows = pool_rows
+                    if rows is None and self.pool is not None:
+                        rows = self._pool_at(feats.columns, df.index[hi])
+                    if rows is not None:
                         # 풀링: 학습 상한 날짜 이전의 타 종목 표본을 합친다
                         X_tr, y_tr, sw_tr = self._merge_pool(
-                            X_tr, y_tr, sw_tr, pool_rows, df.index[hi])
+                            X_tr, y_tr, sw_tr, rows, df.index[hi])
                     model = _wrapped()
                     _fit(model, X_tr, y_tr, sw_tr)
                     self._record_importances(model)

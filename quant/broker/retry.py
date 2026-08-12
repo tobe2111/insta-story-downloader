@@ -48,6 +48,10 @@ class RobustBroker(Broker):
         self.spec = spec or MarketSpec(
             min_qty=min_qty, qty_step=qty_step, min_notional=min_notional
         )
+        # 명시적으로 받은 규격이 있으면 그것이 최우선(테스트·수동 지정).
+        # 없으면 주문할 때마다 브로커에게 그 종목 규격을 묻는다(감사 139).
+        self._spec_given = spec is not None or bool(
+            min_qty or qty_step or min_notional)
         self.partial_retries = max(0, partial_retries)
         self.notifier = notifier
         self._sleep = sleep
@@ -77,8 +81,37 @@ class RobustBroker(Broker):
         )
 
     # --- 수량 정규화 ---
-    def _round_qty(self, qty: float) -> float:
-        return self.spec.round_qty(qty)
+    def _spec_for(self, symbol: str) -> MarketSpec:
+        """그 종목의 거래소 규격 — 주입된 spec이 없으면 브로커에게 묻는다.
+
+        ⚠️ 2026-08-12 감사 139까지 이 물음이 없었다. `from_ccxt_market()`은
+           2026년 초부터 있었는데 **부르는 곳이 한 곳도 없었고**, CLI는
+           RobustBroker를 spec 없이 만들어 min_qty·qty_step·min_notional이
+           전부 0이었다 — 즉 **거래소 규격 검사가 통째로 꺼져 있었다.**
+
+           결과(실전 전환 시): 8만원을 20종목에 나누면 종목당 약 4,000원
+           (≈$2.9)인데 주요 코인 거래소의 최소 주문금액은 보통 $5~10이다.
+           미리 걸러내지 못하니 주문을 보냈다가 거절당하고, 재시도 3회까지
+           같은 실패를 반복한다. 수량 스텝(BTC 0.00001 등)도 마찬가지다.
+
+           감사 135(제공자가 적은 소스를 아무도 안 읽음)와 같은 계열 —
+           만들어 놓고 배선하지 않은 장치.
+        """
+        if self._spec_given:
+            return self.spec
+        fn = getattr(self.inner, "market_spec", None)
+        if fn is None:
+            return self.spec
+        try:
+            got = fn(symbol)
+        except Exception:  # noqa: BLE001 — 규격 조회 실패가 주문을 막지 않는다
+            log.warning("[ROBUST] %s 규격 조회 실패 — 기본 규격으로 진행", symbol)
+            return self.spec
+        return got or self.spec
+
+    def _round_qty(self, qty: float, symbol: str = "") -> float:
+        return self._spec_for(symbol).round_qty(qty) if symbol \
+            else self.spec.round_qty(qty)
 
     @staticmethod
     def _filled_of(order: Order, want: float) -> float:
@@ -89,8 +122,9 @@ class RobustBroker(Broker):
         return want if order.status in _FILLED_STATES else 0.0
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
-        qty = self._round_qty(quantity)
-        if qty <= 0 or not self.spec.is_tradeable(qty, price):
+        spec = self._spec_for(symbol)
+        qty = spec.round_qty(quantity)
+        if qty <= 0 or not spec.is_tradeable(qty, price):
             log.info("[ROBUST] %s %s 수량(%.8f)이 규격 미만 → 건너뜀",
                      side, symbol, quantity)
             return Order(symbol, side, 0.0, price, status="skipped", filled_quantity=0.0)
@@ -99,8 +133,8 @@ class RobustBroker(Broker):
         last_order_id = ""
         # 첫 주문 + 부분체결 시 잔량 재주문(partial_retries회까지)
         for _ in range(self.partial_retries + 1):
-            want = self._round_qty(qty - filled_total)
-            if want <= 0 or not self.spec.is_tradeable(want, price):
+            want = spec.round_qty(qty - filled_total)
+            if want <= 0 or not spec.is_tradeable(want, price):
                 break
             # 체결 확인용: 제출 직전 포지션(변화량으로 실제 체결을 측정).
             base_qty = self._safe_pos(symbol) if self.confirm_fills else None
