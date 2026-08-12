@@ -411,6 +411,37 @@ MUTATIONS = [
      "            if False:",
      "tests/test_circuit_breaker.py"),
 
+    # ── 사이징·비용(오디션 성적과 실제 노출을 동시에 좌우) ──
+    ("실현변동성 0을 NaN으로 바꾸는 가드를 뺀다(거래정지 종목이 최대 레버리지)",
+     "quant/risk/manager.py",
+     "            realized = realized.replace(0.0, np.nan)",
+     "            realized = realized",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("변동성 타깃 레버리지 상한(3배)을 푼다",
+     "quant/risk/manager.py",
+     "            scale = (cfg.target_vol / realized).clip(upper=3.0).fillna(0.0)",
+     "            scale = (cfg.target_vol / realized).clip(upper=1e9).fillna(0.0)",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("최대 포지션 한도를 걸지 않는다",
+     "quant/risk/manager.py",
+     "        sized = (target * scale).clip(-cfg.max_position, cfg.max_position)",
+     "        sized = (target * scale)",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    ("회전 비용에서 슬리피지를 뺀다(백테스트가 낙관적으로 바뀐다)",
+     "quant/backtest/costs.py",
+     "        return (self.fee + self.slippage + self.impact_coef * vol) * turnover",
+     "        return (self.fee + self.impact_coef * vol) * turnover",
+     "tests/test_costs.py"),
+
+    ("펀딩비 이상치 상한을 푼다(거래소 오류값이 성적을 통째로 왜곡)",
+     "quant/backtest/costs.py",
+     "        return max(-self._FUNDING_RATE_CAP, min(self._FUNDING_RATE_CAP, v))",
+     "        return v",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
