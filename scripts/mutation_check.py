@@ -509,6 +509,25 @@ MUTATIONS = [
      "        oos_ret = res.returns",
      "tests/test_walkforward_really_holds_out.py"),
 
+    # ── PBO(과적합 확률) — '선택 절차가 노이즈를 고르는가'의 답 ──
+    ("IS 1등 대신 OOS 1등을 고른다(PBO가 구조적으로 0이 된다)",
+     "quant/robustness/pbo.py",
+     "        best = int(np.argmax(sr_is))                 # IS 1등 설정",
+     "        best = int(np.argmax(sr_oos))                # IS 1등 설정",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    ("PBO 판정 부호를 뒤집는다(과적합을 건전으로 보고)",
+     "quant/robustness/pbo.py",
+     "        \"pbo\": float((lam <= 0).mean()),",
+     "        \"pbo\": float((lam >= 0).mean()),",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
+    ("조합 대칭 교차검증을 조합 하나로 줄인다(CSCV의 핵심이 사라짐)",
+     "quant/robustness/pbo.py",
+     "    for is_idx in combinations(range(S), S // 2):",
+     "    for is_idx in [tuple(range(S // 2))]:",
+     "tests/test_pbo_knows_overfitting_when_it_sees_it.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
