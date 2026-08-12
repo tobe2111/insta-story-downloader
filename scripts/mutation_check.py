@@ -919,6 +919,27 @@ MUTATIONS = [
      "REL_EPS = 1e-6",
      "tests/test_two_thresholds_two_questions.py"),
 
+    # 감사 160 — 과대확신을 한쪽에서만 봤다.
+    ("과대확신을 상승 쪽에서만 본다(하락 쪽 과대확신이 조용히 통과)",
+     "quant/robustness/calibration.py",
+     '        gap = (r["mean_prob"] - r["frac_positive"] if r["mean_prob"] >= 0.5\n'
+     '               else r["frac_positive"] - r["mean_prob"])',
+     '        gap = (r["mean_prob"] - r["frac_positive"]\n'
+     '               if r["mean_prob"] > 0.5 else -1.0)',
+     "tests/test_overconfidence_has_two_directions.py"),
+
+    ("과대확신 문턱을 없앤다(잘 보정된 모델까지 매일 경보)",
+     "quant/robustness/calibration.py",
+     "        if gap > 0.1:",
+     "        if gap > -1.0:",
+     "tests/test_overconfidence_has_two_directions.py"),
+
+    ("브라이어 점수의 제곱을 뺀다(오차 방향이 상쇄돼 나쁜 모델이 좋아 보인다)",
+     "quant/robustness/calibration.py",
+     "    return sum((p - t) ** 2 for t, p in pairs) / len(pairs)",
+     "    return sum((p - t) for t, p in pairs) / len(pairs)",
+     "tests/test_overconfidence_has_two_directions.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
