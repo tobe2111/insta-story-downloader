@@ -1309,6 +1309,29 @@ MUTATIONS = [
      "        if False:\n            payload.update(ctx)",
      "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
 
+    # 감사 172 — 이미지가 정상 공개된 순간 SNS 게시가 죽었다.
+    ("이미지 공개 확인을 본문 디코드로 되돌린다(PNG를 받는 순간 게시가 죽는다)",
+     "quant/reporting/social_post.py",
+     "    from quant.utils.http import url_ok\n"
+     "    fetch = http_get or (lambda u: url_ok(u, timeout=20))",
+     "    from quant.utils.http import get_text\n"
+     "    fetch = http_get or (lambda u: get_text(u, timeout=20))",
+     "tests/test_the_image_check_does_not_kill_the_post.py"),
+
+    ("공개 확인이 응답 코드를 안 본다(404도 '공개됨'으로 읽는다)",
+     "quant/utils/http.py",
+     "            return 200 <= int(getattr(resp, \"status\", 200) or 200) < 300",
+     "            return True",
+     "tests/test_the_image_check_does_not_kill_the_post.py"),
+
+    ("첫 이미지만 확인하고 나머지를 건너뛴다(카드 8장 중 1장만 본다)",
+     "quant/reporting/social_post.py",
+     "        if not ok:\n"
+     '            raise RuntimeError(f"이미지가 공개되지 않음(배포 지연/실패?): {u}")',
+     "        if False:\n"
+     '            raise RuntimeError(f"이미지가 공개되지 않음(배포 지연/실패?): {u}")',
+     "tests/test_the_image_check_does_not_kill_the_post.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
