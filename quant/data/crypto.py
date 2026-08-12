@@ -97,7 +97,14 @@ class CryptoDataProvider(DataProvider):
             if end_ts.tzinfo is not None:
                 end_ts = end_ts.tz_convert("UTC").tz_localize(None)
             df = df[df.index <= end_ts]
-        return self._validate(df)
+        out = self._validate(df)
+        # ⚠️ 여기엔 빈 결과 검사가 **아예 없었다**(감사 163, 주식 쪽 형제).
+        #    거래소가 빈 리스트를 주거나(상장폐지·심볼 오타·점검) end 컷이
+        #    다 잘라내면 0봉 프레임이 그대로 '성공'으로 올라가, 보조 거래소를
+        #    안 거치고 합성 폴백 표식도 없이 반환됐다.
+        if out.empty:
+            raise ValueError("검증 후 빈 결과")
+        return out
 
     @staticmethod
     def _fallback(symbol, timeframe, start, end, limit) -> pd.DataFrame:

@@ -12,6 +12,7 @@ from typing import Optional
 
 import pandas as pd
 
+from quant.data.base import PRICE_COLUMNS as _PRICE_COLS
 from quant.data.base import DataProvider
 from quant.utils.logging import get_logger
 
@@ -55,6 +56,17 @@ class StockDataProvider(DataProvider):
                 if df is None or df.empty:
                     raise ValueError("빈 결과")
                 out = self._drop_unclosed(self._validate(df))
+                # ⚠️ **비었는지는 검증 '뒤에도' 봐야 한다**(감사 163).
+                #    위의 검사는 소스가 준 원본만 본다. 그런데 프레임을
+                #    비울 수 있는 것은 그 뒤에 있다 — `_validate`의 dropna와
+                #    `_drop_unclosed`의 미완결 봉 제거다. 둘이 다 지워도
+                #    여기까지 '성공'으로 내려와 source를 붙이고 반환했다.
+                #    그러면 보조 소스 2개를 건너뛰고, 합성 폴백 표식도 안
+                #    붙어서 **아무도 데이터가 없다는 걸 모른다.** 3중 소스
+                #    체인은 소스 하나가 흔들려도 기록이 안 비게 하려고 만든
+                #    것인데, 그 목적이 통째로 무력화된다.
+                if out.empty:
+                    raise ValueError("검증 후 빈 결과")
                 out.attrs["source"] = name
                 if name != "yfinance":
                     log.info("%s: 보조 소스(%s)로 시세 수신 (%d봉)",
@@ -141,24 +153,24 @@ class StockDataProvider(DataProvider):
         """야후 chart API를 표준 라이브러리로 직접 호출한다 (일봉 전용)."""
         if _TF_MAP.get(timeframe, "1d") != "1d":
             raise ValueError("yahoo-http 폴백은 일봉만 지원")
-        import json
         import urllib.parse
-        import urllib.request
+
+        # 공용 HTTP 헬퍼로 받는다(감사 178) — 응답 크기 상한 32MB,
+        # 교차 호스트 리다이렉트 방어, 비밀 가리기를 함께 받는다.
+        from quant.utils.http import get_json
 
         rng = ("3mo" if limit <= 60 else "1y" if limit <= 240
                else "2y" if limit <= 480 else "5y" if limit <= 1200 else "max")
         url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
                f"{urllib.parse.quote(symbol)}?interval=1d&range={rng}")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.load(resp)
+        data = get_json(url, {"User-Agent": "Mozilla/5.0"}, timeout=15)
         r = data["chart"]["result"][0]
         q = r["indicators"]["quote"][0]
         df = pd.DataFrame(
             {"open": q["open"], "high": q["high"], "low": q["low"],
              "close": q["close"], "volume": q["volume"]},
             index=pd.to_datetime(r["timestamp"], unit="s").normalize(),
-        ).dropna()
+        ).dropna(subset=_PRICE_COLS)   # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
 
     def _via_stooq(self, symbol, timeframe, start, end, limit) -> pd.DataFrame:
@@ -169,17 +181,17 @@ class StockDataProvider(DataProvider):
         if "." in sym:                     # 069500.KS 등 접미사 티커는 미지원
             raise ValueError("stooq 폴백은 미국 티커만 지원")
         import io
-        import urllib.request
+
+        from quant.utils.http import get_text          # 상한·방어 공유(감사 178)
 
         url = f"https://stooq.com/q/d/l/?s={sym}.us&i=d"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            text = resp.read().decode("utf-8", errors="replace")
+        text = get_text(url, {"User-Agent": "Mozilla/5.0"}, timeout=15)
         df = pd.read_csv(io.StringIO(text))
         if "Close" not in df.columns:
             raise ValueError("stooq 응답 형식 오류")
         df = df.rename(columns=str.lower).set_index(pd.to_datetime(df["Date"]))
-        df = df[["open", "high", "low", "close", "volume"]].dropna()
+        df = df[["open", "high", "low", "close", "volume"]].dropna(
+            subset=_PRICE_COLS)        # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
 
 

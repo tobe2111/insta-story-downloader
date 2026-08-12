@@ -40,7 +40,14 @@ def atomic_write_json(path: str | os.PathLike, obj: Any, indent: int = 2) -> Non
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)
-    tmp = p.with_name(p.name + ".tmp")
+    # ⚠️ 임시 이름에 **프로세스 번호**를 붙인다(감사 170). 고정 이름 ".tmp"를
+    #    쓰면 같은 파일을 동시에 쓰는 두 프로세스가 **같은 임시 파일**을 밟는다
+    #    — A가 쓰는 중에 B가 덮어쓰고, A가 os.replace를 하면 반쪽이 섞인 내용이
+    #    원자적으로 '완성본'이 된다. 원자성이 지켜지는데 내용이 깨지는,
+    #    가장 알아채기 어려운 형태다.
+    #    (오늘 배치는 깃허브 액션에서 한 번에 하나씩 도니 지금 새는 곳은
+    #     아니다. 학습 루프를 로컬에서 함께 돌리면 바로 닿는다.)
+    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")
     try:
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(text)

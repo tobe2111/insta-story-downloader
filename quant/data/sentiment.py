@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import json
-from urllib.request import urlopen
 
 import pandas as pd
 
@@ -44,9 +43,14 @@ def fear_greed_history(timeout: float = 10.0) -> pd.Series:
 
     네트워크 실패 시 빈 Series를 반환한다(백테스트가 죽지 않도록 graceful).
     """
+    # ⚠️ 공용 HTTP 헬퍼를 쓴다(감사 178). 예전에는 urlopen으로 직접 받고
+    #    `resp.read()`로 **본문 전체를 상한 없이** 읽었다. quant/utils/http.py는
+    #    바로 그 위험(악의적·오작동 서버의 초대형 응답 → 메모리 고갈)을 막으려고
+    #    32MB 상한을 두고 있는데, 이 경로만 그 방어를 지나치고 있었다.
+    #    덤으로 교차 호스트 리다이렉트 방어와 비밀 가리기도 함께 받는다.
     try:
-        with urlopen(_FNG_URL, timeout=timeout) as resp:  # noqa: S310
-            payload = json.loads(resp.read().decode("utf-8"))
+        from quant.utils.http import get_json
+        payload = get_json(_FNG_URL, timeout=int(timeout))
         s = _parse_fng(payload)
         log.info("공포탐욕지수 %d일치 수신", len(s))
         return s

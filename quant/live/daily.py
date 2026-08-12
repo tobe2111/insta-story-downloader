@@ -405,6 +405,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
         #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
         "hit_n": acc.get("n"),
+        # 채점에서 뺀 보합 봉 수(감사 168). 방향이 없던 봉은 방향 예측을
+        # 채점할 수 없어 분모에서 빼는데, 몇 봉을 뺐는지 안 남기면
+        # '보합이 없었다'와 구별되지 않는다.
+        "hit_flat": acc.get("n_flat"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
         "reason": reason,
         # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
@@ -1360,6 +1364,27 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
     n = len(targets)
 
+    # ⚠️ 평가에 쓸 시세는 **오늘 받은 것 + 마지막으로 알던 것**이다(감사 152).
+    #    오늘 데이터를 못 받은 종목은 prices에 없는데, 포지션은 위에서 그대로
+    #    복원된다. 그러면 `PaperBroker.equity`가 그 종목을 **매입가**로 값을
+    #    매긴다 — 즉 "산 뒤로 한 푼도 안 움직였다"고 치는 것이다.
+    #
+    #    그 자산 숫자가 그대로 (1) 장부의 자산·수익률 (2) 킬스위치가 읽는
+    #    낙폭 (3) 사이트에 나가는 TWR로 흘러간다. 폭락한 종목이 하필 그날
+    #    데이터 장애를 만나면 **손실이 장부에서 사라지고 브레이크도 안 걸린다.**
+    #
+    #    마지막으로 알던 시장가로 평가한다. 그것도 틀린 값이지만 '손실 0'보다
+    #    훨씬 덜 틀리고, 무엇보다 아래 stale_marks로 **그 사실이 드러난다**.
+    stale_marks = {}
+    for key, pos in st.get("positions", {}).items():
+        if key in prices or abs(float(pos.get("quantity", 0.0))) <= 0:
+            continue
+        lp = pos.get("last_price")
+        if lp:
+            stale_marks[key] = {"price": float(lp),
+                                "as_of": pos.get("last_price_bar")}
+    marks = {**{k: v["price"] for k, v in stale_marks.items()}, **prices}
+
     # 운영 설정(어드민 대시보드) — 일시정지·노출 배수. 파일이 없으면 정상 운용.
     from quant.utils.settings import load_settings
     settings = load_settings()
@@ -1380,7 +1405,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if fopen is None:
             continue
         broker.fee = _fill_cost(key.split(":")[0])
-        eq_now = broker.equity({**prices, key: fopen})
+        eq_now = broker.equity({**marks, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
         order = broker.target_weight(
             key, float(pend["weight"]) * sl, fopen, eq_now,
@@ -1399,7 +1424,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         pending.pop(key, None)
 
     # ② 오늘의 결정 — 코인은 즉시 체결, 주식은 다음 시가 대기열로
-    equity = broker.equity(prices)
+    equity = broker.equity(marks)
 
     # 자동 킬스위치 — 계좌 낙폭 단계별 노출 축소·단계 복귀(히스테리시스).
     #
@@ -1426,8 +1451,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         eff_scale = 0.0
 
     # 위험 배분 슬라이스 — HRP(상관 추정 오차에 강함) → ERC → 균등 폴백 사다리
+    # ⚠️ **`or` 폴백은 '전부 0인 배분'을 못 걸러낸다**(감사 183). 파이썬에서
+    #    값이 전부 0인 dict는 **참(truthy)**이다. 배분기가 `{"A":0.0,"B":0.0}`을
+    #    돌려주면 `hrp or erc or 균등`이 폴백으로 넘어가지 않고 그대로 채택된다
+    #    — 전 종목 비중 0, 하루 통째로 관망인데 장부에는 "hrp로 배분함"이라
+    #    적힌다. 조용한 무동작이라 알아채는 데 며칠 걸린다.
+    #
+    #    `hrp.py` 안에 같은 뜻의 검사가 있었지만 거기서는 정규화 뒤라 어떤
+    #    입력으로도 안 걸렸다 — 방어를 위험한 자리가 아니라 만든 자리에 둔
+    #    셈이다. 받아들이는 쪽으로 옮긴다.
+    from quant.live.hrp import is_allocation
+
     hrp = _hrp_slices(rets_map, n)
+    hrp = hrp if is_allocation(hrp) else None
     erc = None if hrp else _erc_slices(rets_map, n)
+    erc = erc if is_allocation(erc) else None
     slices = hrp or erc or {k: 1.0 / n for k in weights}
     alloc_method = "hrp" if hrp else ("erc" if erc else "equal")
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
@@ -1564,7 +1602,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if skipped_cool:
         log.info("쿨다운으로 재조정 보류 %d건: %s",
                  len(skipped_cool), ", ".join(skipped_cool))
-    equity = broker.equity(prices)
+    equity = broker.equity(marks)
 
     # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
     # 펀딩비, 한국주식만 KRX 수급) '가능한 최대치 대비 몇 개가 실제로
@@ -1658,6 +1696,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   "proven": vol_proven,
                   "reason": vol_why,
               },
+              # 오늘 시세를 못 받아 **마지막으로 알던 가격**으로 평가한 종목
+              # (감사 152). 이게 없으면 매입가로 평가돼 손실이 0으로 보이고,
+              # 그 자산이 킬스위치가 읽는 낙폭과 사이트 TWR로 그대로 간다.
+              "stale_marks": (
+                  {k: {"price": round(v["price"], 6), "as_of": v["as_of"]}
+                   for k, v in stale_marks.items()} or None),
               # 잔돈으로 판단해 생략한 주문 — 비용만 남기는 매매는 안 한다
               "skipped_dust": skipped_dust or None,
               # 쿨다운으로 보류한 재조정 — 왜 오늘 안 고쳤는지의 답
@@ -1743,8 +1787,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 그 분포의 몇 %에 드는지 잰다(날짜 시드 → 재현 가능).
     record["random_pctile"] = random_strategy_percentile(
         st["history"] + [record], record["twr_pct"], seed=f"rand:{bar}")
+    # last_price를 함께 남긴다 — 내일 이 종목 시세를 못 받으면 이 값으로
+    # 평가한다(감사 152). 없으면 매입가로 떨어져 손실이 0으로 보인다.
     st["positions"] = {
-        p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price}
+        p.symbol: {"quantity": p.quantity, "avg_price": p.avg_price,
+                   "last_price": marks.get(p.symbol, p.avg_price),
+                   "last_price_bar": (
+                       str(bar) if p.symbol in prices
+                       else (st.get("positions", {}).get(p.symbol, {})
+                             .get("last_price_bar")))}
         for p in broker._positions.values() if abs(p.quantity) > 0}
     st.update({"cash": broker.get_cash(), "last_bar": bar})
     st["history"] = cap_history(chrono(st["history"] + [record]))

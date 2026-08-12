@@ -114,8 +114,18 @@ class KISBroker(Broker):
         return data
 
     def get_cash(self) -> float:
+        """예수금. **필드가 없으면 0이 아니라 오류다**(감사 182 — 형제 교정).
+
+        현금 0은 보수적으로 보이지만 아니다. 상위 로직은 현금으로 평가금액을
+        만들고 거기에 목표 비중을 곱한다. 0으로 읽히면 평가금액이 쪼그라들어
+        **보유분을 팔라는 지시**가 나온다. '모름'은 숫자가 아니다.
+        """
         data = self._balance()
-        summary = data.get("output2", [{}])
+        if "output2" not in data:
+            raise RuntimeError(
+                f"잔고 응답에 요약(output2)이 없습니다 — KIS 응답 형식 변경 "
+                f"가능성. 받은 키: {sorted(data)[:20]}")
+        summary = data.get("output2") or []
         if summary:
             return safe_amount(summary[0].get("dnca_tot_amt", 0.0))  # 예수금 총액
         return 0.0
@@ -127,9 +137,19 @@ class KISBroker(Broker):
         원래 들고 있던 몫을 구분하지 않는다. 이미 보유 중인 종목이 운용
         유니버스(AUTO_TARGETS)에 있으면 그 물량도 목표 비중 맞추기의 대상이
         된다. 실거래는 **이 봇 전용 계좌**에서만 쓸 것.
+
+        ⚠️ **보유 목록 키가 없으면 '0주'가 아니라 오류다**(감사 182). 감사 55와
+        같은 결함이다 — 그때는 us_live가 401·429·500·타임아웃을 전부 '0주
+        보유'로 읽었다. 실거래에서 보유를 0으로 읽으면 상위 로직이 목표
+        비중만큼 **다시 사서** 포지션이 두 배가 된다.
+        키가 **있는데** 그 안에 이 종목이 없으면 그건 진짜로 '보유 없음'이다.
         """
         data = self._balance()
-        for item in data.get("output1", []):
+        if "output1" not in data:
+            raise RuntimeError(
+                f"잔고 응답에 보유목록(output1)이 없습니다 — KIS 응답 형식 "
+                f"변경 가능성. 받은 키: {sorted(data)[:20]}")
+        for item in data.get("output1") or []:
             if item.get("pdno") == symbol:
                 return Position(
                     symbol,
@@ -159,6 +179,12 @@ class KISBroker(Broker):
 
     # --- 주문 ---
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        # ⚠️ **모르는 방향의 기본값이 '매도'였다**(감사 182 — 형제 교정).
+        #    `self._TR_BUY if side == "buy" else self._TR_SELL` 한 줄이라,
+        #    정확히 "buy"가 아닌 **무엇이든** 조용히 매도가 되어 나갔다.
+        side = str(side).strip().lower()
+        if side not in ("buy", "sell"):
+            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")
         qty = int(quantity)  # 국내주식은 정수 수량
         if qty <= 0:
             return Order(symbol, side, 0.0, price, status="skipped")

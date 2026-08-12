@@ -66,7 +66,7 @@ def fetch_funding_history(
 
 
 def attach_funding(df: pd.DataFrame, symbol: str,
-                   exchange: str = "binance") -> pd.DataFrame:
+                   exchange: str = "binance", fetch=None) -> pd.DataFrame:
     """OHLCV 데이터프레임에 'funding' 컬럼(봉당 펀딩률)을 붙여 반환한다.
 
     ML 피처(x_funding)용 — 가격에서 유도할 수 없는 포지셔닝 정보를 컬럼으로
@@ -75,9 +75,13 @@ def attach_funding(df: pd.DataFrame, symbol: str,
     실패(ccxt 미설치·네트워크·현물 심볼)하면 컬럼 없이 원본을 그대로 반환한다
     — 피처는 '있으면 쓰는' 선택적 맥락이지 필수가 아니다.
     """
+    # fetch 주입 — 형제인 attach_open_interest·attach_krx_flows는 처음부터
+    # 받고 있었는데 여기만 없어서 **네트워크 없이는 검사할 수 없었다**(감사
+    # 173). 검사할 수 없는 코드는 검사되지 않는다.
     try:
-        hist = fetch_funding_history(symbol, exchange=exchange,
-                                     limit=1000)
+        get = fetch or (lambda s: fetch_funding_history(s, exchange=exchange,
+                                                        limit=1000))
+        hist = get(symbol)
         if hist is None or hist.empty:
             return df
         out = df.copy()

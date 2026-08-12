@@ -101,13 +101,46 @@ class KiwoomBroker(Broker):
         return data
 
     def get_cash(self) -> float:
+        """예수금. **필드가 없으면 0이 아니라 오류다**(감사 182).
+
+        이 클래스는 첫 줄부터 "응답 필드명은 개정될 수 있다"고 적어 두고
+        필드명을 오버라이드 가능한 속성으로 뒀다. 즉 **이름이 어긋나는 일이
+        실제로 일어난다는 전제**로 만들어졌다. 그런데 어긋났을 때의 답이
+        `0`이었다.
+
+        현금 0은 '보수적'으로 보이지만 그렇지 않다 — 상위 로직은 현금으로
+        평가금액을 만들고 거기에 목표 비중을 곱한다. 현금이 0으로 읽히면
+        평가금액이 쪼그라들어 **보유분을 팔라는 지시**가 나온다. 필드명
+        하나가 바뀐 날 계좌가 통째로 청산될 수 있다.
+
+        '모름'은 숫자가 아니다. 그대로 올려보내 호출부가 매매를 건너뛰게 한다.
+        """
         data = self._balance()
+        if self.CASH_FIELD not in data:
+            raise RuntimeError(
+                f"잔고 응답에 예수금 필드({self.CASH_FIELD})가 없습니다 — "
+                f"키움 API 개정 가능성. 받은 키: {sorted(data)[:20]}")
         # 콤마 제거 후 안전 변환(inf/nan/음수 방어).
         return safe_amount(str(data.get(self.CASH_FIELD, 0)).replace(",", ""))
 
     def get_position(self, symbol: str) -> Position:
+        """보유 수량. **보유 목록 키가 없으면 '0주'가 아니라 오류다**(감사 182).
+
+        ⚠️ 이건 감사 55와 **같은 결함**이다. 그때는 us_live가 401·429·500·
+           타임아웃을 전부 '0주 보유'로 읽었다. 여기서는 응답은 멀쩡히 왔는데
+           **보유 목록 키 이름이 달라졌을 때** 같은 일이 벌어진다.
+
+           실거래에서 보유를 0으로 읽으면 상위 로직은 목표 비중만큼 **다시
+           사서** 포지션이 두 배가 된다. 20종목이면 스무 번.
+
+        키가 **있는데** 그 안에 이 종목이 없으면 그건 진짜로 '보유 없음'이다.
+        """
         data = self._balance()
-        for item in data.get(self.HOLDINGS_KEY, []) or []:
+        if self.HOLDINGS_KEY not in data:
+            raise RuntimeError(
+                f"잔고 응답에 보유목록 키({self.HOLDINGS_KEY})가 없습니다 — "
+                f"키움 API 개정 가능성. 받은 키: {sorted(data)[:20]}")
+        for item in data.get(self.HOLDINGS_KEY) or []:
             code = str(item.get(self.CODE_FIELD, "")).lstrip("A")  # 'A005930' → '005930'
             if code == symbol:
                 qty = safe_amount(str(item.get(self.QTY_FIELD, 0)).replace(",", ""))
@@ -125,6 +158,16 @@ class KiwoomBroker(Broker):
         return MarketSpec(min_qty=1.0, qty_step=1.0)
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        # ⚠️ **모르는 방향의 기본값이 '매도'였다**(감사 182). 예전에는
+        #    `self.TR_BUY if side == "buy" else self.TR_SELL` 한 줄이라,
+        #    "BUY"·"Buy"·"long"·오타 — 정확히 "buy"가 아닌 **무엇이든**
+        #    조용히 매도 주문이 되어 나갔다. 사는 줄 알고 팔린다.
+        #
+        #    기본값은 절대 파괴적인 쪽이면 안 된다. 대소문자는 받아 주되,
+        #    아는 두 방향이 아니면 주문을 만들지 않고 거절한다.
+        side = str(side).strip().lower()
+        if side not in ("buy", "sell"):
+            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")
         qty = int(quantity)  # 국내주식은 정수 수량
         if qty <= 0:
             return Order(symbol, side, 0.0, price, status="skipped")

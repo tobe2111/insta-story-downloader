@@ -27,7 +27,20 @@ class PaperBroker(Broker):
         return self._positions.get(symbol, Position(symbol, 0.0, 0.0))
 
     def equity(self, marks: dict[str, float]) -> float:
-        """현금 + 평가액. marks: {symbol: 현재가}"""
+        """현금 + 평가액. marks: {symbol: 현재가}
+
+        ⚠️ **marks에 없는 종목은 매입가로 평가된다** — 즉 "산 뒤로 한 푼도
+           안 움직였다"고 치는 것이다. 편해 보이지만 위험한 기본값이라
+           호출자는 반드시 전 보유 종목의 시세를 채워 넘겨야 한다.
+
+           실제로 그러지 못한 자리가 있었다(감사 152). 포트폴리오 배치는
+           데이터를 못 받은 종목을 prices에서 빼는데 포지션은 그대로
+           복원했고, 그 결과 그 종목의 손익이 통째로 0이 됐다. 그 자산이
+           장부의 수익률·킬스위치가 읽는 낙폭·사이트 TWR로 흘러가므로,
+           **폭락한 종목이 하필 그날 데이터 장애를 만나면 손실이 사라지고
+           브레이크도 안 걸린다.** 지금은 호출자가 마지막으로 알던 시장가로
+           채우고 그 사실을 장부(stale_marks)에 남긴다.
+        """
         val = self._cash
         for sym, p in self._positions.items():
             val += p.quantity * marks.get(sym, p.avg_price)

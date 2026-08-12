@@ -27,10 +27,12 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
                            절대값보다 '갑작스러운 증가'를 볼 것.
         spikes           : |종가 등락률| > spike_threshold(기본 20%)인 봉 수.
                            분할·배당 미조정의 전형적 흔적 — 단, 실제 폭락일 수도 있다.
-        zero_volume      : 거래량이 0 이하인 봉 수 (거래정지·수집 오류 의심).
+        zero_volume      : 거래량이 0 이하이거나 **결측**인 봉 수
+                           (거래정지·수집 오류 의심. 지수·환율은 거래량이
+                           원래 없으므로 전 구간이 여기 잡히는 것이 정상).
         duplicate_index  : 중복된 타임스탬프 수.
         nonpositive_price: O/H/L/C 중 0 이하가 있는 봉 수.
-        ohlc_violations  : high < low 이거나 close가 [low, high] 밖인 봉 수.
+        ohlc_violations  : high < low 이거나 **open·close**가 [low, high] 밖인 봉 수.
     """
     findings = {
         "gaps": 0, "spikes": 0, "zero_volume": 0,
@@ -58,14 +60,34 @@ def scan_ohlcv(df: pd.DataFrame, spike_threshold: float = 0.2) -> dict:
         findings["spikes"] = int((pct > spike_threshold).sum())
 
     if "volume" in df.columns:
-        findings["zero_volume"] = int((df["volume"] <= 0).sum())
+        # 결측도 함께 센다(감사 163). `_validate`는 이제 거래량이 없다고
+        # 가격 봉을 지우지 않는다 — 지수·환율은 거래량 자체가 없기 때문이다.
+        # 그래서 결측 거래량이 프레임에 남는데, `<= 0`은 NaN을 False로 봐서
+        # 그 사실이 보고서에서 통째로 안 보이게 된다. 무결성 위반은 아니므로
+        # (SEVERE_KEYS 아님) 매매를 막지는 않고, 사람이 볼 줄에만 남긴다.
+        vol = df["volume"]
+        findings["zero_volume"] = int((vol.isna() | (vol <= 0)).sum())
 
     price_cols = [c for c in ("open", "high", "low", "close") if c in df.columns]
     if price_cols:
         findings["nonpositive_price"] = int((df[price_cols] <= 0).any(axis=1).sum())
 
-    if all(c in df.columns for c in ("high", "low", "close")):
-        bad = (df["high"] < df["low"]) | (df["close"] > df["high"]) | (df["close"] < df["low"])
+    if all(c in df.columns for c in ("high", "low")):
+        # ⚠️ **시가도 봐야 한다**(감사 161). 예전에는 close만 밴드 검사를
+        #    했다. 그런데 이 시스템은 주식 체결을 **다음 봉 시가**로 한다
+        #    (`_first_bar_after`가 `float(r["open"])`을 그대로 체결가로 쓴다).
+        #    즉 무결성 관문이 **체결에 쓰는 바로 그 값**을 안 보고 있었다.
+        #
+        #    실측: 밴드가 99~101인 봉의 시가만 5000으로 바꿔도
+        #        ohlc_violations 0 · is_severe False  → 관문 통과
+        #    같은 크기로 종가를 망가뜨리면 1건·True로 잡힌다.
+        #
+        #    is_severe는 페이퍼·포트폴리오 배치 양쪽의 입구 관문이라,
+        #    통과하면 그 값이 그대로 체결가가 되고 장부에 남는다.
+        bad = df["high"] < df["low"]
+        for col in ("open", "close"):
+            if col in df.columns:
+                bad = bad | (df[col] > df["high"]) | (df[col] < df["low"])
         findings["ohlc_violations"] = int(bad.sum())
 
     return findings
@@ -92,7 +114,7 @@ def quality_report(df: pd.DataFrame, findings: dict | None = None,
         f"  거래량 0         : {f['zero_volume']}건",
         f"  중복 타임스탬프  : {f['duplicate_index']}건",
         f"  0 이하 가격      : {f['nonpositive_price']}건",
-        f"  OHLC 모순        : {f['ohlc_violations']}건 (high<low 또는 close가 밴드 밖)",
+        f"  OHLC 모순        : {f['ohlc_violations']}건 (high<low 또는 시가·종가가 밴드 밖)",
     ]
     if is_severe(f):
         lines.append("  ⚠️ 무결성 위반이 있습니다 — 이 데이터로 만든 백테스트 결과를 "

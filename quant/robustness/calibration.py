@@ -89,10 +89,28 @@ def calibration_summary(y_true: Any, y_prob: Any, bins: int = 10) -> str:
     for r in rows:
         if r["count"] == 0:
             continue
-        gap = r["mean_prob"] - r["frac_positive"]
+        # ⚠️ 과대확신은 **양방향**이다(감사 160). 예전에는 `mean_prob > 0.5`인
+        #    구간만 봤다. 그러면 "20% 상승"이라 말해 놓고 실제로 45%가 오른
+        #    구간이 조용히 통과한다 — 그건 **하락 쪽 과대확신**이고, 이
+        #    시스템은 그 확률로 숏·축소 방향 사이징도 한다.
+        #
+        #    실측(같은 크기의 오차 0.23):
+        #        예측 0.78 · 실제 0.55  → 과대확신 (잡힘)
+        #        예측 0.22 · 실제 0.45  → 조용히 통과 (안 잡힘)
+        #    브라이어 점수는 둘 다 0.3004로 **똑같이 나쁘다**.
+        #
+        #    라이브 가드(quant/live/calibration_guard.py)는 윌슨 신뢰구간을
+        #    써서 처음부터 양방향을 봤다. 같은 질문에 두 곳이 다르게 답하고
+        #    있었던 셈이다(FROZEN_IDEAS ㉞).
+        #
+        #    '확신'은 0.5에서 얼마나 멀어졌는가다. 예측이 그 방향으로 실제보다
+        #    더 멀리 갔으면 과대확신이다.
+        gap = (r["mean_prob"] - r["frac_positive"] if r["mean_prob"] >= 0.5
+               else r["frac_positive"] - r["mean_prob"])
         flag = ""
-        if r["mean_prob"] > 0.5 and gap > 0.1:
-            flag = "  ← 과대확신"
+        if gap > 0.1:
+            flag = ("  ← 과대확신(상승)" if r["mean_prob"] >= 0.5
+                    else "  ← 과대확신(하락)")
             overconfident += 1
         lines.append(
             f"  [{r['lo']:.1f},{r['hi']:.1f})   {r['mean_prob']:>7.3f}   "

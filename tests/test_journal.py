@@ -145,6 +145,6 @@ def test_journal_can_actually_read_the_portfolio_ledger():
             {"equity": 80500.0, "weight": 0.4},
             {"equity": 81000.0, "weight": 0.4},
             {"equity": 80900.0, "weight": 0.0}]
-    rev = build_review(hist, periods_per_year=365)
+    rev = build_review(hist)   # periods_per_year는 죽은 인자라 제거됐다(감사 174)
     assert rev["num_trades"] >= 1, "통합 계좌 형식에서 라운드트립을 못 뽑는다"
     assert rev["n_points"] == len(hist)

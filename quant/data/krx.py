@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as _dt
 
+import numpy as np
 import pandas as pd
 
 from quant.utils.logging import get_logger
@@ -68,7 +69,19 @@ def attach_krx_flows(df: pd.DataFrame, symbol: str,
                 continue
             s5 = flows[col].rolling(5).sum()
             mu = s5.rolling(60).mean()
-            sd = s5.rolling(60).std().replace(0.0, pd.NA)
+            # ⚠️ `pd.NA`가 아니라 `np.nan`이어야 한다(감사 173).
+            #    `replace(0.0, pd.NA)`는 계열을 **object dtype**으로 바꾸고,
+            #    바로 다음 줄의 `.astype(float)`가 NAType에서 터진다:
+            #        TypeError: float() argument must be ... not 'NAType'
+            #    그 예외를 아래 `except Exception`이 삼켜서 **수급 피처
+            #    두 개가 통째로 사라진다** — 그 구간만이 아니라 그 종목의
+            #    그날 전체가 없어진다. 로그 한 줄 말고는 흔적이 없다.
+            #
+            #    표준편차가 정확히 0이 되는 때: 5일 합이 60일 내내 같을 때
+            #    (수급이 0으로만 기록되는 저유동 종목·장기 거래정지·API가
+            #    결측을 0으로 채우는 경우). 흔치 않지만 하필 그런 종목에서
+            #    맥락 피처가 조용히 사라지는 것이 제일 나쁘다.
+            sd = s5.rolling(60).std().replace(0.0, np.nan)
             z = ((s5 - mu) / sd).astype(float).clip(-4.0, 4.0)
             out[feat] = pd.Series(z.reindex(target, method="ffill").to_numpy(),
                                   index=out.index)

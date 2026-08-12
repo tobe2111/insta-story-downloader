@@ -20,6 +20,9 @@ class Trade:
     side: str            # 'long' | 'short'
     return_pct: float    # 거래 손익률 (사이징·비용 반영)
     bars_held: int
+    # 자료가 끝나는 시점에 **아직 들고 있던** 포지션인가(감사 176).
+    # True면 return_pct는 미실현 평가손익이지 라운드트립 결과가 아니다.
+    is_open: bool = False
 
 
 def extract_trades(equity: pd.Series, positions: pd.Series) -> list[Trade]:
@@ -51,7 +54,8 @@ def extract_trades(equity: pd.Series, positions: pd.Series) -> list[Trade]:
         # 그걸 이 거래에 넣으면 플립 봉이 두 거래에 이중 계상된다 → eq[start] 사용.
         flipped = start > 0 and pos[start - 1] != 0
         entry_eq = eq[start] if (start == 0 or flipped) else eq[start - 1]
-        exit_eq = eq[end + 1] if end + 1 < n else eq[end]  # 데이터 끝이면 미실현
+        still_open = end + 1 >= n          # 자료 끝까지 들고 있었다
+        exit_eq = eq[end] if still_open else eq[end + 1]
         ret = (exit_eq / entry_eq - 1.0) if entry_eq else 0.0
         trades.append(Trade(
             entry_time=str(idx[start]),
@@ -59,16 +63,34 @@ def extract_trades(equity: pd.Series, positions: pd.Series) -> list[Trade]:
             side="long" if side_sign > 0 else "short",
             return_pct=float(ret),
             bars_held=int(end - start + 1),
+            is_open=bool(still_open),
         ))
     return trades
 
 
 def trade_stats(trades: list[Trade]) -> dict:
-    """거래 목록에서 거래 단위 통계를 계산한다."""
-    if not trades:
-        return {"num_trades": 0, "win_rate": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
-                "expectancy": 0.0, "profit_factor": 0.0, "avg_bars_held": 0.0}
+    """**청산이 끝난** 거래만으로 거래 단위 통계를 계산한다.
 
+    ⚠️ 아직 안 판 포지션은 라운드트립이 아니다(감사 176). 예전에는 자료
+       끝까지 들고 있던 포지션도 '완결 거래'로 세어 승률·기대손익에 넣었다.
+       그 값은 실현손익이 아니라 **평가손익**이다.
+
+       방향이 나쁘다. 상승장에서는 들고 있는 포지션이 대개 이익 중이라
+       승률과 기대손익이 **위로** 부풀고, 하락장에서는 반대로 눌린다 —
+       즉 "지금 잘 되고 있으면 과거 성적도 좋아 보인다". 성과 지표가
+       현재 포지션의 평가손익에 따라 흔들리면 그건 성과 지표가 아니다.
+
+       분모에서 빼되 숨기지 않는다 — `num_open`으로 몇 건을 뺐는지 함께
+       돌려준다(감사 168의 `n_flat`과 같은 원리).
+    """
+    closed = [t for t in trades if not getattr(t, "is_open", False)]
+    n_open = len(trades) - len(closed)
+    if not closed:
+        return {"num_trades": 0, "win_rate": 0.0, "avg_win": 0.0, "avg_loss": 0.0,
+                "expectancy": 0.0, "profit_factor": 0.0, "avg_bars_held": 0.0,
+                "num_open": n_open}
+
+    trades = closed
     rets = [t.return_pct for t in trades]
     wins = [r for r in rets if r > 0]
     losses = [r for r in rets if r < 0]
@@ -87,6 +109,8 @@ def trade_stats(trades: list[Trade]) -> dict:
         "expectancy": sum(rets) / len(rets),   # 거래 1회당 평균 기대손익
         "profit_factor": pf,
         "avg_bars_held": sum(t.bars_held for t in trades) / len(trades),
+        # 통계에서 뺀 '아직 안 판' 거래 수 — 안 보이면 '없었다'와 구별되지 않는다
+        "num_open": n_open,
     }
 
 

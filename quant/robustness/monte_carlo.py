@@ -15,6 +15,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from quant.utils.numerics import degenerate_spread
+
 
 def _block_bootstrap(r: np.ndarray, rng: np.random.Generator, block: int) -> np.ndarray:
     n = len(r)
@@ -54,7 +56,13 @@ def bootstrap_metrics(
     for i in range(n_sims):
         sample = _block_bootstrap(r, rng, block)
         std = sample.std()
-        sharpe[i] = sample.mean() / std * np.sqrt(periods_per_year) if std > 0 else 0.0
+        # ⚠️ `std > 0`으로 막으면 안 된다(감사 159). 값이 사실상 같은 계열도
+        #    표준편차가 정확히 0이 아니라 1e-16 언저리로 나온다. 실측:
+        #    매일 정확히 +0.005%씩 오르는 계열(예금형 ETF·MMF)의 샤프
+        #    중앙값이 **8,130,000,000,000**이었다. 그 값이 신뢰구간 표로
+        #    그대로 나간다. 감사 146(샤프)·149(배분)와 같은 병이다.
+        sharpe[i] = (0.0 if degenerate_spread(std, np.abs(sample).mean())
+                     else sample.mean() / std * np.sqrt(periods_per_year))
         equity = np.cumprod(1.0 + sample)
         total_ret[i] = equity[-1] - 1.0
         peak = np.maximum.accumulate(equity)

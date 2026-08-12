@@ -18,6 +18,8 @@
 """
 from __future__ import annotations
 
+import math
+
 from quant.live.explain import _wilson_ci
 
 # 개입(보정값 병기)을 확정하는 최소 표본 — 관찰 플래그(사이트)와 같은 30건.
@@ -25,6 +27,32 @@ from quant.live.explain import _wilson_ci
 # 틀렸다'는 주장이라 더 강한 증거를 요구한다.
 MIN_INTERVENE_SAMPLES = 30
 BIN_WIDTH = 0.10
+
+
+def _bin_of(prob: float, bins: int) -> int:
+    """확률이 몇 번째 구간에 드는가 — **표를 만들 때와 적용할 때가 같아야 한다.**
+
+    ⚠️ 감사 150 이전에는 두 곳이 달랐다. 표는 `min(int(p*bins), bins-1)`로
+       p=1.0을 마지막 구간에 넣어 **증거로 세었는데**, 적용은
+       `lo <= p < hi`라 p=1.0이 **어느 구간에도 안 걸렸다.**
+
+           예측 0.97 · 실제 적중률 0.50 · 표본 80 → 어긋남 확정
+           prob 0.970 → 보정 0.50 (개입)
+           prob 0.999 → 보정 0.50 (개입)
+           prob 1.000 → 보정 1.00 (개입 없음)   ← 가장 과신한 값만 빠져나간다
+
+       "100% 오른다"는 모델의 말이 경험 보정을 통째로 피해 간다. 하필 가장
+       위험한 값이다. 판정을 한 함수로 모아 두 곳이 갈라질 수 없게 한다.
+
+    범위 밖(음수·1 초과)은 양 끝 구간으로 잡는다 — 모르는 값을 만들지 않는다.
+    """
+    try:
+        p = float(prob)
+    except (TypeError, ValueError):
+        return 0
+    if not math.isfinite(p):
+        return 0
+    return max(0, min(int(p * bins), bins - 1))
 
 
 def collect_pairs(histories: list) -> list:
@@ -57,7 +85,7 @@ def calibration_table(histories: list, bin_width: float = BIN_WIDTH,
     bins = max(1, round(1.0 / bin_width))
     sums = [[0.0, 0.0, 0] for _ in range(bins)]      # [예측합, 상승합, 수]
     for p, hit in pairs:
-        k = min(int(p * bins), bins - 1)             # p=1.0은 마지막 구간
+        k = _bin_of(p, bins)
         sums[k][0] += p
         sums[k][1] += hit
         sums[k][2] += 1
@@ -89,7 +117,11 @@ def recalibrated_prob(prob: float | None, histories: list,
     if table is None:
         table = calibration_table(histories)
     p = float(prob)
+    if not math.isfinite(p):
+        return prob, False
+    bins = max(1, round(1.0 / BIN_WIDTH))
+    k = _bin_of(p, bins)                    # 표와 **같은** 구간 판정(감사 150)
     for row in table:
-        if row["confirmed"] and row["lo"] <= p < row["hi"]:
+        if row["confirmed"] and _bin_of(row["lo"], bins) == k:
             return row["actual"], True
     return p, False

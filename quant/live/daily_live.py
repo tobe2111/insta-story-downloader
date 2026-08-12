@@ -19,8 +19,10 @@
 """
 from __future__ import annotations
 
+import datetime as _dt
 import os
 
+from quant.live.journal import record_order
 from quant.live.retrain import STATE_DIR, champion_strategy
 from quant.utils.logging import get_logger
 
@@ -194,6 +196,22 @@ def run_daily_live(targets=None, *, paper: bool = True,
                     unfilled.append({"symbol": symbol, "side": order.side,
                                      "qty": order.quantity,
                                      "status": order.status})
+                # 주문 단위 감사 로그(감사 150). `journal.record_order`는
+                # 모듈 설명에 "두 가지를 한다"고 적혀 있는 그 첫 번째인데
+                # **운영 코드에서 부르는 곳이 한 곳도 없었다** — 검사에서만
+                # 불렸다. 아래 kr.json은 하루 한 줄 요약이고 400일치만
+                # 남기지만, 이쪽은 append-only라 증권사 체결 내역과
+                # order_id로 대사할 수 있는 유일한 기록이다.
+                record_order(
+                    os.path.join(state_dir, "live", "orders.jsonl"),
+                    {"symbol": symbol, "side": order.side,
+                     "quantity": order.quantity, "filled": filled,
+                     "price": order.price, "status": order.status,
+                     "order_id": order.order_id},
+                    {"ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                     "mode": "paper" if paper else "real",
+                     "broker": type(broker).__name__,
+                     "weight": round(weight / n, 6), "equity": round(equity, 2)})
                 # ⚠️ 국내주식은 정수 주만 산다. 목표 금액이 1주 값에 못 미치면
                 #    브로커가 int(quantity)=0으로 잘라 status='skipped'를
                 #    돌려준다 — **한 주도 안 샀는데 orders에는 한 줄이 남는다.**
@@ -224,7 +242,6 @@ def run_daily_live(targets=None, *, paper: bool = True,
                "unfilled": unfilled,
                "exposure_scale": exposure}
     try:
-        import datetime as _dt
         import json
         from quant.utils.jsonio import atomic_write_json
         path = os.path.join(state_dir, "live", "kr.json")

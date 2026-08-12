@@ -149,3 +149,92 @@ def test_the_brake_state_is_carried_into_the_next_day(tmp_path):
                     .read_text("utf-8"))
     assert st.get("risk_scale") == 0.0, (
         "킬스위치 단계가 장부에 저장되지 않는다 — 히스테리시스가 죽는다")
+
+
+# ── ③ 위험 예산을 '감쇠 전' 비중으로 재는가 (감사 183) ─────────
+
+
+def _seed_wide(tmp_path, *, n: int, equity_now: float, peak: float | None = None):
+    """종목이 많은 장부 — **변동성 스케일러가 실제로 도는** 유일한 설정.
+
+    ⚠️ `ex_ante_vol`은 **비중이 0이 아닌 종목이 둘 이상**이어야 추정한다
+       (공분산이라 하나로는 분산 효과를 못 잰다). 그런데 위 두 검사가 쓰는
+       2종목 합성 장부에서는 마지막 봉에 롱이 걸리는 종목이 대개 하나뿐이라
+       **추정불가 → 배수 1.0**이 된다. 즉 그 harness로는 스케일러가 아예
+       안 돌아서, 스케일러에 관한 어떤 결함도 드러나지 않는다(감사 183에서
+       실측). 8종목이면 추정이 되고 배수가 0.12~0.26 구간에 들어온다.
+    """
+    import json
+
+    from quant.live.retrain import save_champions
+
+    d = str(tmp_path)
+    targets = [("synthetic", f"S{i}") for i in range(n)]
+    save_champions({f"synthetic:S{i}": {"strategy": "momentum", "params": {},
+                                        "promotions": 0} for i in range(n)}, d)
+    p = tmp_path / "paper"
+    p.mkdir(parents=True, exist_ok=True)
+    (p / "portfolio_ALL.json").write_text(json.dumps({
+        "market": "portfolio", "symbol": "ALL",
+        "start_cash": 80_000.0, "cash": equity_now,
+        "positions": {}, "base_prices": {}, "last_bar": None,
+        "history": ([{"date": "2026-01-01", "equity": peak}] if peak else []),
+    }), encoding="utf-8")
+    return targets, d
+
+
+def _run_wide(tmp_path, **kw) -> dict:
+    from quant.live.daily import run_daily_portfolio
+
+    targets, d = _seed_wide(tmp_path, n=8, **kw)
+    return run_daily_portfolio(targets, lookback=250, state_dir=d,
+                               require_real_data=False)
+
+
+def test_the_risk_budget_is_measured_before_the_brake_not_after(tmp_path,
+                                                                monkeypatch):
+    """변동성 배수를 **감쇠된 비중**으로 계산하면 브레이크가 통째로 사라진다.
+
+    킬스위치가 비중을 절반으로 줄이면, 그 절반짜리 비중으로 사전 변동성을
+    재는 순간 스케일러는 "위험이 절반"이라 판단해 배수를 두 배로 올린다.
+    최종 노출이 감쇠 전과 **똑같아진다** — 감쇠는 했는데 아무 일도 안 한 것이다.
+    (2026-08-11 감사에서 실제로 있었던 결함이다.)
+
+    ⚠️ 위의 두 검사로는 이 결함을 못 잡는다(감사 183에서 실측). 이유가 둘:
+       ① 2종목 장부에서는 비중이 0 아닌 종목이 하나뿐이라 **사전추정 자체가
+          안 된다**(배수 1.0 고정) — 무엇을 넣어도 같은 답이다.
+       ② 목표 변동성이 기본값이면 배수가 `MAX_VOL_SCALE` 천장에 붙는다.
+          **한도에 눌려 있는 값으로는 순서를 검사할 수 없다.**
+       그래서 종목을 8개로 넓히고 목표를 낮춰 배수를 중간 구간에 둔다.
+    """
+    import quant.risk.portfolio_vol as PV
+
+    monkeypatch.setattr(PV, "target_vol_now",
+                        lambda state_dir="state": (0.002, False, "테스트"))
+
+    healthy = _run_wide(tmp_path / "ok", equity_now=80_000.0)
+    hurt = _run_wide(tmp_path / "dd", equity_now=65_600.0, peak=80_000.0)
+
+    # 전제 확인 — 하나라도 깨지면 이 검사는 '0 == 0'을 보는 헛것이 된다
+    assert hurt["risk_scale"] == 0.5, hurt["risk_scale"]
+    assert healthy["weight"] > 0, "대조군이 깨졌다 — 평시 노출이 0이다"
+    assert healthy["vol_target"]["ex_ante"], (
+        "사전추정이 안 됐다 — 스케일러가 안 도는 설정이라 순서를 못 잰다")
+    assert 0.0 < healthy["vol_target"]["scale"] < 1.0, (
+        f"배수가 한도에 눌려 있다({healthy['vol_target']['scale']}) — "
+        "이 상태로는 순서를 검사할 수 없다")
+
+    # 핵심 불변식 — **감쇠가 예산을 건드리면 안 된다.** 브레이크를 밟았다고
+    # 위험 예산이 커지면 그건 브레이크가 아니다. 노출(weight)은 장부에
+    # 소수 4자리로 반올림돼 있어 반올림 오차가 섞이므로, 반올림에 휘둘리지
+    # 않는 배수 자체로 잰다.
+    assert hurt["vol_target"]["scale"] == healthy["vol_target"]["scale"], (
+        f"감쇠했더니 위험 예산이 달라졌다 — 감쇠된 비중으로 변동성을 재고 "
+        f"있다: 평시 배수 {healthy['vol_target']['scale']} → "
+        f"낙폭 배수 {hurt['vol_target']['scale']}")
+    assert abs(hurt["vol_target"]["applied"]
+               - healthy["vol_target"]["applied"] * 0.5) < 1e-4, (
+        f"최종 적용 배수가 절반이 아니다: {healthy['vol_target']['applied']} "
+        f"→ {hurt['vol_target']['applied']}")
+    assert abs(hurt["weight"] - healthy["weight"] * 0.5) < 1e-4, (
+        f"노출이 절반이 아니다: {healthy['weight']} → {hurt['weight']}")

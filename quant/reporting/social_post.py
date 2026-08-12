@@ -65,18 +65,33 @@ def _wait_public(urls: list[str], *, tries: int = 30, delay: int = 10,
 
     커밋 → Cloudflare 배포까지 1~2분 걸린다. Meta API는 URL을 즉시 받아가므로
     404인 채로 게시를 시작하면 컨테이너가 ERROR가 된다.
+
+    ⚠️ 예전에는 `get_text`로 확인했다(감사 172). 그런데 여기 오는 URL은
+       **PNG 카드**다. `get_text`는 본문을 UTF-8로 디코드하므로 PNG를 받는
+       순간 `UnicodeDecodeError`가 나고, 그건 `RuntimeError`가 아니라
+       `ValueError`라 아래 `except`를 그대로 빠져나간다 — **이미지가 정상
+       공개된 순간 게시가 통째로 죽었다.** 성공 경로가 곧 실패 경로였다.
+
+       아무도 못 잡은 이유가 분명하다: 이 함수를 부르는 검사가 하나도 없다.
+       기존 SNS 검사 8건이 **전부 `wait_public=False`** 로 이 단계를 꺼 놓고
+       돌았다(FROZEN_IDEAS ㉜ — 아무도 안 보는 경로).
+
+       이제 본문을 해석하지 않는 `url_ok`로 확인한다.
     """
-    from quant.utils.http import get_text
-    fetch = http_get or (lambda u: get_text(u, timeout=20))
+    from quant.utils.http import url_ok
+    fetch = http_get or (lambda u: url_ok(u, timeout=20))
     for u in urls:
         ok = False
         for _ in range(tries):
             try:
-                fetch(u)
-                ok = True
-                break
-            except RuntimeError:
-                sleep(delay)
+                # 주입된 fetch는 '성공하면 아무거나 반환, 실패하면 예외'라는
+                # 기존 계약을 쓴다. url_ok는 False를 돌려주므로 둘 다 받는다.
+                if fetch(u) is not False:
+                    ok = True
+                    break
+            except Exception:  # noqa: BLE001 — 어떤 실패든 재시도 대상이다
+                pass
+            sleep(delay)
         if not ok:
             raise RuntimeError(f"이미지가 공개되지 않음(배포 지연/실패?): {u}")
 

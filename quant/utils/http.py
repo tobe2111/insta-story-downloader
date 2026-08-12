@@ -60,9 +60,22 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802
         new = super().redirect_request(req, fp, code, msg, headers, newurl)
         if new is not None:
-            same_host = (urllib.parse.urlsplit(req.full_url).netloc
-                         == urllib.parse.urlsplit(newurl).netloc)
-            if not same_host:
+            old = urllib.parse.urlsplit(req.full_url)
+            nxt = urllib.parse.urlsplit(newurl)
+            # ⚠️ **호스트만 보면 안 된다**(감사 170). 예전에는 netloc만
+            #    비교해서, 같은 호스트로의 **스킴 강등**(https → http)이
+            #    "같은 곳이니 괜찮다"로 통과했다. 실측:
+            #
+            #        https://api.example.com/v1 → http://api.example.com/v2
+            #            Authorization·X-Api-Key 그대로 유지 → **평문 전송**
+            #
+            #    여기 실려 나가는 것은 실거래 자격증명이다(알파카 APCA 키,
+            #    KIS appkey/appsecret, 웹훅 토큰). 리다이렉트 한 번으로
+            #    도청 가능한 채널에 키가 나간다.
+            #
+            #    업그레이드(http → https)는 흔하고 안전하므로 막지 않는다.
+            downgrade = old.scheme == "https" and nxt.scheme != "https"
+            if old.netloc != nxt.netloc or downgrade:
                 for h in [k for k in new.headers if k.lower() in _SENSITIVE_HEADERS]:
                     del new.headers[h]
         return new
@@ -95,7 +108,12 @@ def _request(
                                    f"{_redact_url(url)}")
             return raw.decode()
     except urllib.error.HTTPError as exc:  # 서버가 반환한 오류 본문도 파싱해 전달
-        detail = exc.read().decode(errors="replace")[:2000]
+        # ⚠️ **본문도 가려야 한다**(감사 170). URL은 가리면서 서버가 돌려준
+        #    본문은 그대로 실었다. 그런데 API 오류 응답은 요청 URL을 되울리는
+        #    일이 흔하다 — `{"error":"Invalid API key","request":"...apikey=..."}`.
+        #    그러면 이 모듈이 URL에서 애써 가린 키가 바로 옆 칸으로 다시
+        #    새어 나가 로그에 남는다. 가릴 거면 두 통로를 다 가려야 한다.
+        detail = _redact_url(exc.read().decode(errors="replace")[:2000])
         raise HttpError(f"HTTP {exc.code} {_redact_url(url)}: {detail}",
                         status=exc.code) from exc
     except urllib.error.URLError as exc:  # DNS·연결거부·타임아웃 등 네트워크 오류
@@ -105,8 +123,9 @@ def _request(
         raise HttpError(f"네트워크 오류 {_redact_url(url)}: {exc.reason}") from exc
 
 
-def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
-    raw = _request("GET", url, headers)
+def get_json(url: str, headers: dict[str, str] | None = None,
+             timeout: int = 30) -> dict[str, Any]:
+    raw = _request("GET", url, headers, timeout=timeout)
     return json.loads(raw) if raw else {}
 
 
@@ -121,6 +140,31 @@ def post_json(
 ) -> dict[str, Any]:
     raw = _request("POST", url, headers, body)
     return json.loads(raw) if raw else {}
+
+
+def url_ok(url: str, timeout: int = 20,
+           headers: dict[str, str] | None = None) -> bool:
+    """URL이 지금 공개적으로 응답하는가 — **본문을 해석하지 않는다.**
+
+    ⚠️ 이미지 같은 바이너리를 `get_text`로 확인하면 안 된다(감사 172).
+       `get_text`는 본문을 UTF-8로 디코드하는데, PNG의 첫 바이트 0x89는
+       UTF-8 시작 바이트가 아니라 **UnicodeDecodeError**가 난다. 그건
+       `RuntimeError`가 아니라 `ValueError`라, 호출부가 쳐 놓은
+       `except RuntimeError` 재시도 그물을 그대로 빠져나간다.
+
+       결과가 고약하다 — 이미지가 **정상적으로 공개된 순간** 확인 단계가
+       죽는다. 성공 경로가 곧 실패 경로다.
+
+    반환: 2xx면 True, 그 외(4xx·5xx·네트워크 오류)면 False. 예외를 던지지
+    않으므로 호출부는 '되면 True'만 보면 된다.
+    """
+    req = urllib.request.Request(url, method="GET", headers=headers or {})
+    try:
+        with _opener.open(req, timeout=timeout) as resp:
+            resp.read(1)          # 헤더만 주는 서버 대비 — 딱 1바이트
+            return 200 <= int(getattr(resp, "status", 200) or 200) < 300
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
 
 
 def post_text(

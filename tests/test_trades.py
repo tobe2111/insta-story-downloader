@@ -80,7 +80,9 @@ def test_result_trades_integration():
     result = Backtester(get_strategy("ma_cross")).run(df)
     trades = result.trades()
     stats = result.trade_stats()
-    assert stats["num_trades"] == len(trades)
+    # 미청산 포지션은 라운드트립이 아니라 통계에서 빠진다(감사 176).
+    # 뺀 만큼은 num_open으로 드러나므로 둘을 더하면 전체와 같아야 한다.
+    assert stats["num_trades"] + stats["num_open"] == len(trades)
     assert 0.0 <= stats["win_rate"] <= 1.0
     frame = trades_to_frame(trades)
     if trades:

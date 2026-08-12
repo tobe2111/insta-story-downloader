@@ -95,10 +95,23 @@ class PortfolioBacktester:
         held = weights.shift(1).fillna(0.0)
         port_ret_gross = (held * returns).sum(axis=1)
 
-        # 회전율 기반 거래비용
+        # 회전율 기반 거래비용.
+        #
+        # ⚠️ 비용은 **체결되는 봉**에 부과한다(감사 153). weights[t]는 t에
+        #    정한 목표이고 실제로 들고 있는 건 held[t] = weights[t-1]이다.
+        #    즉 weights[t-1] → weights[t]로 갈아타는 거래는 t와 t+1 사이에
+        #    일어나고, 그 비용은 t+1에 부과되어야 한다.
+        #
+        #    예전에는 turnover[t]를 그대로 t에 뺐다 — 아직 갈아타지도 않은
+        #    봉에서 비용을 먼저 냈고, 마지막 봉의 '표본 밖에서 체결될 거래'
+        #    비용까지 냈다. shift로 held와 같은 시계에 맞춘다.
+        #
+        #    크기는 작다(실측 600봉 4종목: 총수익 -34.65% → -34.56%,
+        #    샤프 -1.4011 → -1.3962). **결과가 조금 좋아지는 방향**이므로
+        #    '성능 개선'으로 읽으면 안 된다 — 정렬을 맞춘 것뿐이다.
         turnover = (weights - weights.shift(1)).abs().sum(axis=1)
         turnover.iloc[0] = weights.iloc[0].abs().sum()
-        cost = self.cost * turnover.fillna(0.0)
+        cost = self.cost * turnover.shift(1).fillna(0.0)
 
         port_ret = (port_ret_gross - cost).rename("returns")
         equity = ((1 + port_ret).cumprod() * self.initial_capital).rename("equity")

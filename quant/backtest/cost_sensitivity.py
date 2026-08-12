@@ -88,7 +88,9 @@ def break_even_cost(
     이 성질을 이용해 total_return이 0을 통과하는 수수료를 좁혀 나간다.
 
     반환: {
-        'break_even_fee'       : 손익분기 편도 수수료,
+        'break_even_fee'       : 손익분기 **편도 수수료**,
+        'slippage_ratio'       : 이 탐색이 쓴 슬리피지 배수(수수료 대비),
+        'break_even_total_cost': 손익분기 **편도 총비용** = fee × (1+slippage_ratio),
         'base_return_at_zero_fee': 수수료 0에서의 총수익률,
         'turnover_per_bar'     : 봉당 평균 회전율,
         'unprofitable_at_zero' : 수수료 0에서도 손실이면 True(엣지 자체가 없음),
@@ -97,6 +99,14 @@ def break_even_cost(
     특이 케이스:
         · 수수료 0에서도 손실 → break_even_fee=0.0, unprofitable_at_zero=True
         · hi에서도 이익      → break_even_fee=hi, capped=True (상한에서 잘림)
+
+    ⚠️ **`break_even_fee`만 들고 시장 비용과 비교하면 안 된다**(감사 180).
+       이 탐색은 수수료를 올릴 때 슬리피지도 `slippage_ratio`배로 함께
+       올린다. 그러니 여기서 나온 수수료는 '수수료만'이 아니라 **총비용
+       fee×(1+ratio)의 대리 변수**다. 실제 시장은 수수료와 슬리피지의
+       비율이 제각각이라(미국주식은 슬리피지가 수수료의 5배) 편도 수수료
+       끼리 비교하면 **비용을 크게 과소평가한다.** 그래서 총비용을 함께
+       돌려준다 — 비교는 `break_even_total_cost` 쪽으로 할 것.
     """
     base = _run_at_fee(df, strategy_factory, 0.0, slippage_ratio, periods_per_year)
     base_ret = float(base.metrics.total_return)
@@ -104,6 +114,8 @@ def break_even_cost(
 
     result = {
         "break_even_fee": 0.0,
+        "slippage_ratio": float(slippage_ratio),
+        "break_even_total_cost": 0.0,
         "base_return_at_zero_fee": base_ret,
         "turnover_per_bar": turnover,
         "unprofitable_at_zero": False,
@@ -123,6 +135,7 @@ def break_even_cost(
     # hi에서도 여전히 이익이면 손익분기가 hi 밖 → 상한으로 잘라 보고한다.
     if ret_at(hi) > 0.0:
         result["break_even_fee"] = hi
+        result["break_even_total_cost"] = hi * (1.0 + slippage_ratio)
         result["capped"] = True
         return result
 
@@ -135,18 +148,34 @@ def break_even_cost(
         else:
             hi_b = mid
     result["break_even_fee"] = 0.5 * (lo + hi_b)
+    result["break_even_total_cost"] = result["break_even_fee"] * (1.0 + slippage_ratio)
     return result
 
 
 def cost_sensitivity_report(sweep: list[dict], break_even: dict) -> str:
     """손익분기 비용 분석을 사람이 읽을 한국어 요약으로.
 
-    핵심 프레이밍: 손익분기 수수료가 실전 거래 비용보다 낮으면 그 전략은
+    핵심 프레이밍: 손익분기 비용이 실전 거래 비용보다 낮으면 그 전략은
     비용을 못 이긴다 — 고회전 전략의 환상. MARKET_COST_PRESETS와 대조해
     "이 시장에선 마이너스"를 구체적으로 짚어 준다.
+
+    ⚠️ **대조는 총비용(수수료+슬리피지)끼리 해야 한다**(감사 180). 예전에는
+       `preset["fee"] > break_even_fee`로 **수수료만** 비교했다. 그런데
+       탐색은 수수료를 올릴 때 슬리피지도 함께 올리고(총비용 = fee×1.5),
+       실제 시장은 그 비율이 제각각이다. 특히 미국주식은 수수료 0.01%에
+       슬리피지 0.05% — **비용의 5/6가 비교에서 통째로 빠졌다.**
+
+       실측(손익분기 편도 0.03% 전략):
+           예전:  "실전에선 마이너스: crypto, upbit, kr_stock" — us_stock 누락
+           실제:  us_stock 총비용 0.06% > 손익분기 총비용 0.045% → **적자**
+
+       미국주식은 이 저장소가 실제로 굴리는 시장이다. 비용을 못 이기는
+       전략을 "주요 시장 프리셋보다는 손익분기가 높다"고 안심시켜 왔다.
     """
     lines: list[str] = []
     be = break_even["break_even_fee"]
+    ratio = float(break_even.get("slippage_ratio", 0.5))
+    be_total = float(break_even.get("break_even_total_cost", be * (1.0 + ratio)))
     base_ret = break_even["base_return_at_zero_fee"]
     turnover = break_even["turnover_per_bar"]
 
@@ -164,30 +193,35 @@ def cost_sensitivity_report(sweep: list[dict], break_even: dict) -> str:
         )
     elif break_even["capped"]:
         lines.append(f"손익분기 수수료        : >{be:>9.4%} (상한에서 잘림)")
+        lines.append(f"손익분기 편도 총비용   : >{be_total:>9.4%} (수수료+슬리피지)")
         lines.append(
             "비교적 비용에 견고한 편이다. 그래도 이는 과거 데이터 위의 얘기이며 "
             "미래 수익을 보장하지 않는다."
         )
     else:
         lines.append(f"손익분기 편도 수수료   : {be:>10.4%}")
+        lines.append(f"손익분기 편도 총비용   : {be_total:>10.4%} (수수료+슬리피지)")
         lines.append(
-            "이 수수료를 넘으면 백테스트상의 엣지가 사라진다(총수익 0 이하). "
+            "이 비용을 넘으면 백테스트상의 엣지가 사라진다(총수익 0 이하). "
             "손익분기가 실전 비용보다 낮다면 고회전 전략의 환상일 뿐이다."
         )
         # 실제 시장 프리셋과 대조 — 어느 시장에서 마이너스가 되는지 구체화.
+        # 비교는 **총비용끼리**. 시장마다 수수료:슬리피지 비율이 다르므로
+        # 수수료만 맞대면 슬리피지가 큰 시장(미국주식)이 통째로 빠진다.
         losers: list[str] = []
         for name, preset in MARKET_COST_PRESETS.items():
-            if preset["fee"] > be:
-                losers.append(f"{name}(편도 {preset['fee']:.4%})")
+            total = float(preset["fee"]) + float(preset.get("slippage", 0.0))
+            if total > be_total:
+                losers.append(f"{name}(총 {total:.4%})")
         if losers:
             lines.append(
                 "실전에선 마이너스가 되는 시장: " + ", ".join(losers)
-                + f" > 손익분기 {be:.4%}"
+                + f" > 손익분기 총비용 {be_total:.4%}"
             )
         else:
             lines.append(
-                "주요 시장 프리셋의 편도 수수료보다는 손익분기가 높다 — "
-                "다만 슬리피지·시장충격·펀딩까지 더하면 얘기가 달라진다."
+                "주요 시장 프리셋의 편도 총비용보다는 손익분기가 높다 — "
+                "다만 시장충격·펀딩·거래세까지 더하면 얘기가 달라진다."
             )
 
     if sweep:

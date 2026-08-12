@@ -86,7 +86,17 @@ class ChampionChallenger:
         n = int(len(diff))
         mean = float(diff.mean()) if n else 0.0
         std = float(diff.std(ddof=1)) if n > 1 else 0.0
-        t_stat = mean / (std / math.sqrt(n)) if (std > 0 and n > 1) else 0.0
+        # ⚠️ `std > 0`은 부동소수에서 믿을 수 없는 판정이다(감사 146·149·159).
+        #    여기서는 **도달 경로를 만들지 못했다** — 차이가 상수가 되려면
+        #    두 전략이 보유한 봉에서 수익이 상수여야 하는데, 그런 계열은
+        #    사이저가 비중을 0으로 만들어 active 표본이 비어 버린다(n=0).
+        #    그래도 이 t 통계량이 **챔피언 승격을 결정하는 자리**라, 같은
+        #    병이 다른 경로로 들어올 여지를 남기지 않는다. 재현 못 한 결함에
+        #    대한 예방이지 고친 결함이 아니라는 점을 분명히 적어 둔다.
+        from quant.utils.numerics import degenerate_spread
+        degenerate = degenerate_spread(std, float(diff.abs().mean()) if n else 0.0)
+        t_stat = (0.0 if (degenerate or n <= 1)
+                  else mean / (std / math.sqrt(n)))
 
         swap = bool(n >= self.min_obs and mean > self.edge and t_stat > self.t_threshold)
         result = {

@@ -216,3 +216,41 @@ def test_a_real_fill_is_recorded_as_filled(monkeypatch, tmp_path):
     assert any(float(o["filled"]) > 0 for o in out["orders"]), (
         "포지션이 실제로 늘었는데 체결 수량이 0으로 기록된다 — "
         "confirm_fills가 배선되지 않았다")
+
+
+# ── 주문 감사 로그가 실제로 쌓이는가 (감사 150) ───────────────
+
+
+def test_every_order_lands_in_the_append_only_log(monkeypatch, tmp_path):
+    """`journal.record_order`는 모듈 설명의 '두 가지' 중 첫 번째인데
+    **운영 코드에서 부르는 곳이 한 곳도 없었다** — 검사에서만 불렸다.
+
+    kr.json은 하루 한 줄 요약이고 400일치만 남긴다. 이 JSONL은 append-only라
+    증권사 체결 내역과 order_id로 대사할 수 있는 유일한 기록이다.
+    """
+    from quant.live.journal import load_orders
+
+    out = _run(monkeypatch, tmp_path, FakeKR(fills=True))
+    if not out.get("orders"):
+        pytest.skip("이 시세에서는 밴드에 걸려 주문 자체가 안 나갔다")
+
+    rows = load_orders(tmp_path / "live" / "orders.jsonl")
+    assert rows, "주문이 나갔는데 감사 로그가 비어 있다"
+    for field in ("symbol", "side", "quantity", "filled", "status",
+                  "order_id", "ts", "mode", "broker", "weight", "equity"):
+        assert field in rows[0], f"감사 로그에 {field}가 없다 — 대사에 못 쓴다"
+    assert rows[0]["mode"] == "paper"
+    assert float(rows[0]["filled"]) > 0
+
+
+def test_the_log_only_appends(monkeypatch, tmp_path):
+    """두 번 돌리면 두 줄 — 덮어쓰면 감사 추적이 아니다."""
+    from quant.live.journal import load_orders
+
+    b = FakeKR(fills=True)
+    if not _run(monkeypatch, tmp_path, b).get("orders"):
+        pytest.skip("주문이 안 나갔다")
+    first = len(load_orders(tmp_path / "live" / "orders.jsonl"))
+    _run(monkeypatch, tmp_path, FakeKR(fills=True))
+    second = len(load_orders(tmp_path / "live" / "orders.jsonl"))
+    assert second > first, f"{first} → {second}: 로그가 덮어써지고 있다"
