@@ -153,17 +153,17 @@ class StockDataProvider(DataProvider):
         """야후 chart API를 표준 라이브러리로 직접 호출한다 (일봉 전용)."""
         if _TF_MAP.get(timeframe, "1d") != "1d":
             raise ValueError("yahoo-http 폴백은 일봉만 지원")
-        import json
         import urllib.parse
-        import urllib.request
+
+        # 공용 HTTP 헬퍼로 받는다(감사 178) — 응답 크기 상한 32MB,
+        # 교차 호스트 리다이렉트 방어, 비밀 가리기를 함께 받는다.
+        from quant.utils.http import get_json
 
         rng = ("3mo" if limit <= 60 else "1y" if limit <= 240
                else "2y" if limit <= 480 else "5y" if limit <= 1200 else "max")
         url = ("https://query1.finance.yahoo.com/v8/finance/chart/"
                f"{urllib.parse.quote(symbol)}?interval=1d&range={rng}")
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.load(resp)
+        data = get_json(url, {"User-Agent": "Mozilla/5.0"}, timeout=15)
         r = data["chart"]["result"][0]
         q = r["indicators"]["quote"][0]
         df = pd.DataFrame(
@@ -181,12 +181,11 @@ class StockDataProvider(DataProvider):
         if "." in sym:                     # 069500.KS 등 접미사 티커는 미지원
             raise ValueError("stooq 폴백은 미국 티커만 지원")
         import io
-        import urllib.request
+
+        from quant.utils.http import get_text          # 상한·방어 공유(감사 178)
 
         url = f"https://stooq.com/q/d/l/?s={sym}.us&i=d"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            text = resp.read().decode("utf-8", errors="replace")
+        text = get_text(url, {"User-Agent": "Mozilla/5.0"}, timeout=15)
         df = pd.read_csv(io.StringIO(text))
         if "Close" not in df.columns:
             raise ValueError("stooq 응답 형식 오류")

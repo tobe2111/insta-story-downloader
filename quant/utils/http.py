@@ -123,8 +123,9 @@ def _request(
         raise HttpError(f"네트워크 오류 {_redact_url(url)}: {exc.reason}") from exc
 
 
-def get_json(url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
-    raw = _request("GET", url, headers)
+def get_json(url: str, headers: dict[str, str] | None = None,
+             timeout: int = 30) -> dict[str, Any]:
+    raw = _request("GET", url, headers, timeout=timeout)
     return json.loads(raw) if raw else {}
 
 

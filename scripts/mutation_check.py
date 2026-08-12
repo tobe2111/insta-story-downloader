@@ -1448,6 +1448,27 @@ MUTATIONS = [
      "        cmp = score",
      "tests/test_the_best_marker_points_at_the_best.py"),
 
+    # 감사 178 — 세 곳이 공용 HTTP 문을 지나지 않았다.
+    ("응답 크기 상한을 없앤다(초대형 응답이 그대로 메모리에 올라온다)",
+     "quant/utils/http.py",
+     "            raw = resp.read(_MAX_RESPONSE_BYTES + 1)\n"
+     "            if len(raw) > _MAX_RESPONSE_BYTES:",
+     "            raw = resp.read()\n"
+     "            if False:",
+     "tests/test_every_download_goes_through_the_same_door.py"),
+
+    ("공포탐욕 파서가 중복 날짜를 안 지운다(같은 날이 두 번 들어간다)",
+     "quant/data/sentiment.py",
+     "    return s[~s.index.duplicated(keep=\"last\")]",
+     "    return s",
+     "tests/test_every_download_goes_through_the_same_door.py"),
+
+    ("합성 데이터가 종목별 시드를 안 쓴다(전 종목이 같은 계열이 된다)",
+     "quant/data/synthetic.py",
+     "        rng = np.random.default_rng(self.seed + _symbol_seed(symbol))",
+     "        rng = np.random.default_rng(self.seed)",
+     "tests/test_every_download_goes_through_the_same_door.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

@@ -184,18 +184,28 @@ def test_a_healthy_source_is_still_used_first():
 
 
 def _fake_urlopen(monkeypatch, body: bytes):
+    """가짜 응답을 물린다.
+
+    ⚠️ 감사 178부터 이 소스들은 `urllib.request.urlopen`이 아니라 공용
+       헬퍼(`quant.utils.http`)의 `_opener`를 지난다 — 응답 크기 상한과
+       리다이렉트 방어를 함께 받기 위해서다. 그래서 가짜도 그쪽에 물린다.
+    """
     import io
-    import urllib.request
+
+    import quant.utils.http as H
 
     class _Resp(io.BytesIO):
+        status = 200
+
         def __enter__(self):
             return self
 
         def __exit__(self, *a):
             return False
 
-    monkeypatch.setattr(urllib.request, "urlopen",
-                        lambda *a, **kw: _Resp(body))
+    monkeypatch.setattr(
+        H, "_opener",
+        type("_O", (), {"open": lambda s, r, timeout=None: _Resp(body)})())
 
 
 def test_the_yahoo_http_source_keeps_bars_without_volume(monkeypatch):
