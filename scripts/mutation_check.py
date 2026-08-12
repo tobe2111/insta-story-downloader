@@ -224,11 +224,13 @@ MUTATIONS = [
      "tests/test_lookahead_challenger_ring.py"),
 
     # 감사 127 — 풀링이 통째로 죽어 있어도 아무도 몰랐다.
+    # ⚠️ 이 항목의 원본 문자열은 감사 129에서 호출부를 리팩터링하며 한 번
+    #    어긋났고, **CI의 `--dry-run`이 즉시 잡았다**(감사 125가 만들어진
+    #    바로 그 이유). 항목을 옮기지 말고 갱신할 것.
     ("풀링을 조용히 끈다(넣으나 마나 같아진다)",
      "quant/strategies/ml.py",
-     "        pool_rows = (self._build_pool(feats.columns, span, df.index[-1])\n"
-     "                     if self.pool is not None else None)",
-     "        pool_rows = None",
+     "                    rows = pool_rows",
+     "                    rows = None",
      "tests/test_alpha12_pooled.py"),
 
     ("스냅샷 풀이 당일 폴더까지 읽는다(채우는 중이라 verify 재현이 깨진다)",
