@@ -1404,6 +1404,25 @@ MUTATIONS = [
      "    return str(exc)",
      "tests/test_an_alarm_with_nowhere_to_go_is_not_delivered.py"),
 
+    # 감사 176 — 아직 안 판 포지션이 '완결 거래'로 세어졌다.
+    ("미청산 포지션을 완결 거래로 센다(평가손익이 승률·기대손익에 섞인다)",
+     "quant/backtest/trades.py",
+     "    closed = [t for t in trades if not getattr(t, \"is_open\", False)]",
+     "    closed = list(trades)",
+     "tests/test_an_open_position_is_not_a_finished_trade.py"),
+
+    ("미청산 표시를 안 남긴다(무엇을 뺐는지 알 수 없다)",
+     "quant/backtest/trades.py",
+     "            is_open=bool(still_open),",
+     "            is_open=False,",
+     "tests/test_an_open_position_is_not_a_finished_trade.py"),
+
+    ("복기 보고서가 뺀 거래를 말하지 않는다",
+     "quant/live/journal.py",
+     '    if review.get("num_open"):',
+     "    if False:",
+     "tests/test_an_open_position_is_not_a_finished_trade.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

@@ -122,6 +122,9 @@ def review_report(review: dict) -> str:
         f"이익팩터       : {pf_s}",
         f"평균 보유      : {review['avg_bars_held']:.1f}봉",
     ]
+    if review.get("num_open"):
+        lines.append(f"(아직 안 판 포지션 {review['num_open']}건은 위 통계에서 "
+                     "뺐습니다 — 평가손익이지 실현손익이 아닙니다.)")
     # 정직한 판정 — 표본·기대손익·비용 관점
     if n < 30:
         lines.append(f"⚠️ 거래 {n}건은 통계적으로 부족합니다 — 승률·이익팩터는 아직 "
