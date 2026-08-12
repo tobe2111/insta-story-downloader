@@ -3,17 +3,33 @@ name: Dead Man's Switch
 # 조용한 실패 감시 — 가장 위험한 실패는 '실행되지 않은 실패'다.
 # 배치 잡이 죽으면 자체 실패 경보가 울리지만, 크론이 아예 안 돌면(러너 장애·
 # 스케줄 누락·저장소 설정 변경) 어떤 경보도 없다 — 장부가 조용히 멈춘다.
-# 그래서 독립된 감시 잡이 매일 아침(08:30 KST, 모든 배치·재시도가 끝난 뒤)
-# "지난 26시간 안에 야간 재학습·매일 페이퍼 기록 커밋이 실제로 존재하는가"를
-# 결과물로 확인한다. 실행 여부가 아니라 기록의 존재를 보는 이유: 우리가 지키
+# 그래서 독립된 감시 잡이 매일 아침(10:30 KST, 모든 배치·재시도가 끝난 뒤)
+# "지난 24시간 안에 야간 재학습·매일 페이퍼·SNS 콘텐츠 커밋이 실제로 존재하는가"
+# 를 결과물로 확인한다. 실행 여부가 아니라 기록의 존재를 보는 이유: 우리가 지키
 # 려는 것은 잡의 가동이 아니라 장부의 연속성이다.
 #
+# ⚠️ 창과 시각을 2026-08-12에 고쳤다(감사 104) — 그 전에는 **SNS 항목이
+#    하루짜리 누락을 구조적으로 못 잡았다.**
+#      SNS 커밋:  22:45 UTC 실행 → 약 23:19 UTC 커밋
+#      감시 실행: 23:30 UTC 예약 → 실측 23:56~00:01 UTC (크론 지연)
+#      26시간 창 시작: 약 21:56 UTC (전날)
+#    즉 **어제 SNS 커밋(23:19)이 창 안에 1.3시간 여유로 들어온다.** 오늘
+#    SNS 게시가 죽어도 어제 것으로 통과한다 — 실제로 2026-08-11 밤 게시가
+#    numpy 오류로 죽었는데 감시는 초록이 될 상황이었다. 감시가 감시를 못 한다.
+#    고침: 실행을 01:30 UTC(10:30 KST)로 늦추고 창을 24시간으로 좁혔다.
+#      → 창 시작 ≈ 01:56 UTC 당일. 어제 커밋(23:19 전날)은 창 **밖**,
+#        오늘 커밋(20:1x~23:19)은 창 **안**(여유 18~21시간).
+#      → 크론이 1시간 지연돼도 판정이 뒤집히지 않는다.
+#
 # 한계(정직): 이 감시 잡 자체도 GitHub Actions 위에 있다 — GitHub 전체 장애
-# 는 못 잡는다(그날은 배치도 같이 멈추므로 다음 실행에서 26시간 창에 걸린다).
+# 는 못 잡는다(그날은 배치도 같이 멈추므로 다음 실행에서 24시간 창에 걸린다).
 
 on:
   schedule:
-    - cron: "30 23 * * *"   # 08:30 KST — 본실행(05:00~) + 재시도(07:00~) 종료 후
+    # 10:30 KST — 마지막 배치(SNS 22:45 UTC)보다 2시간 이상 뒤.
+    # ⚠️ 이 값을 앞당기면 위에 적은 하루짜리 맹점이 되살아난다.
+    #    tests/test_deadman_window.py가 크론과 창을 함께 검사한다.
+    - cron: "30 1 * * *"
   workflow_dispatch:
 
 permissions:
@@ -32,9 +48,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 300   # 26시간 창의 커밋을 충분히 담는 깊이
+          fetch-depth: 300   # 24시간 창의 커밋을 충분히 담는 깊이
 
-      - name: 장부 연속성 확인 (지난 26시간)
+      - name: 장부 연속성 확인 (지난 24시간)
         id: probe
         env:
           QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
@@ -43,7 +59,7 @@ jobs:
           # pipefail 아래에서 grep이 매치를 찾는 순간 상류가 SIGPIPE로 죽어
           # 파이프라인이 '실패'가 된다("찾았기 때문에 못 찾았다"는 오탐 —
           # 2026-08-09 첫 실행의 실제 사고). 변수로 받아 히어스트링으로 검사.
-          LOG="$(git log --since="26 hours ago" --pretty=%s)"
+          LOG="$(git log --since="24 hours ago" --pretty=%s)"
           MISSING=""
           if ! grep -q "야간 재학습 기록" <<< "$LOG"; then
             MISSING="야간재학습"
@@ -85,7 +101,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MISSING: ${{ steps.probe.outputs.missing }}
         run: |
-          MSG="🚨 [Quant] dead man's switch — 지난 26시간 내 [${MISSING:-확인 불가}] 기록 커밋 없음. 새벽 배치가 실행되지 않았거나 푸시에 실패했습니다. 확인: https://github.com/${{ github.repository }}/actions"
+          MSG="🚨 [Quant] dead man's switch — 지난 24시간 내 [${MISSING:-확인 불가}] 기록 커밋 없음. 새벽 배치가 실행되지 않았거나 푸시에 실패했습니다. 확인: https://github.com/${{ github.repository }}/actions"
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             curl -s -H "Content-Type: application/json" \
               -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true

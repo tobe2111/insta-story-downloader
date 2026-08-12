@@ -78,6 +78,24 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("deadman을 23:30 UTC로 되돌린다(하루 누락 맹점 부활)",
+     ".github/workflows/deadman.yml",
+     '    - cron: "30 1 * * *"',
+     '    - cron: "30 23 * * *"',
+     "tests/test_deadman_window.py"),
+
+    ("deadman 창을 26시간으로 되돌린다(어제 커밋이 오늘을 덮음)",
+     ".github/workflows/deadman.yml",
+     'LOG="$(git log --since="24 hours ago" --pretty=%s)"',
+     'LOG="$(git log --since="26 hours ago" --pretty=%s)"',
+     "tests/test_deadman_window.py"),
+
+    ("배치 커밋 표식을 [skip ci]로 되돌린다(사이트 배포 정지)",
+     ".github/workflows/social-post.yml",
+     'git commit -m "SNS 게시 콘텐츠: $(date -u +%F) [skip actions]"',
+     'git commit -m "SNS 게시 콘텐츠: $(date -u +%F) [skip ci]"',
+     "tests/test_deadman_window.py"),
+
     ("재현 경보를 산문 매칭으로 되돌린다(통과 줄에 헛울림)",
      "scripts/verify_gate.py",
      '        if "✔" in ln:',

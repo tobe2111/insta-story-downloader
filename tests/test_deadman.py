@@ -1,13 +1,14 @@
 """Dead man's switch 계약 검사 — '실행되지 않은 실패'를 잡는 감시가 존재한다.
 
 핵심 계약:
-  ① 독립 워크플로가 모든 배치·재시도 종료 후(23:30 UTC) 매일 돈다
+  ① 독립 워크플로가 모든 배치·재시도 종료 후 매일 돈다
   ② 잡의 가동이 아니라 '장부 기록 커밋의 존재'를 확인한다(재학습+페이퍼 둘 다)
   ③ 누락 시 디스코드/텔레그램 경보 — 파이썬 의존성 없이 curl만 사용
   ④ 수동 실행(workflow_dispatch)으로 언제든 점검 가능
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -18,14 +19,26 @@ YML = (ROOT / ".github" / "workflows" / "deadman.yml").read_text(encoding="utf-8
 
 
 def test_runs_daily_after_all_batches_and_retries():
-    assert '"30 23 * * *"' in YML          # 본실행 20:30 + 재시도 22:00 이후
+    # ⚠️ 예전에는 여기서 크론 문자열 '"30 23 * * *"'를 그대로 못 박았다.
+    #    값을 고정하기만 하고 **그 값이 실제로 통하는지**는 아무도 안 봤다 —
+    #    그래서 SNS 항목이 하루짜리 누락을 구조적으로 못 잡는 상태가 살아
+    #    있었다(감사 104). 여기서는 '매일 한 번 · 수동 실행 가능'만 보고,
+    #    시각과 창이 실제로 맞물리는지는 tests/test_deadman_window.py가
+    #    시각 산술로 검사한다.
+    import yaml
+    wf = yaml.safe_load(YML)
+    sched = (wf.get(True) or wf.get("on") or {})["schedule"]
+    assert len(sched) == 1, f"감시는 하루 한 번이어야 한다: {sched}"
+    assert re.fullmatch(r"\d+ \d+ \* \* \*", sched[0]["cron"]), sched
     assert "workflow_dispatch" in YML
 
 
 def test_checks_ledger_commits_not_job_status():
     assert "야간 재학습 기록" in YML        # 재학습 커밋 존재 확인
     assert "매일 자동 페이퍼 기록" in YML   # 페이퍼 커밋 존재 확인
-    assert "26 hours ago" in YML            # 하루 + 재시도 여유 창
+    assert "SNS 게시 콘텐츠" in YML         # SNS 콘텐츠 커밋 존재 확인
+    # 창 길이도 값을 못 박지 않는다 — 시각과 함께 맞물려야 의미가 있다.
+    assert re.search(r'--since="\d+ hours ago"', YML)
 
 
 def test_alerts_via_discord_and_telegram_with_curl_only():

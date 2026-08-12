@@ -87,6 +87,7 @@ OFF_SCREEN_OK = {
     "earnings_guard": "실적 가드 발동 종목 — 발동한 날만 값이 생기고, 그때는 아래 검사가 요구한다",
     "drawdown_pct": "낙폭 — 킬스위치 문구와 자산 곡선으로 같은 사실이 보인다",
     "random_pctile": "무작위 대비 백분위 — index의 별도 카드에서 읽는다",
+    "kelly_caps": "종목별 켈리 상한 — 걸렸을 때의 효과가 applied·weight에 이미 반영돼 보인다",
 }
 
 

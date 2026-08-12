@@ -548,6 +548,23 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     if(dg.length)flags.push("<b>피처 드리프트 "+dg.length+"종목</b> — 최근 분포가 "+
       "학습 시점과 통계적으로 다릅니다(표본 잡음 범위를 넘음). 판단 신뢰도에 주의");
   }
+  /* 모델 입력의 건강 — 조용한 저하의 대표 사례(감사 105).
+     장부는 feature_health로 "선택 피처가 몇 개나 붙었나"를 매일 남기는데
+     화면 어디에도 없었다. 2026-08-11 기록은 optional_max=0 — 11개 선택
+     피처가 **전부** 안 붙은 상태였다. 모델은 그대로 돌고 사이트도 평소와
+     같아, 판단 재료가 빈약해진 사실을 아무도 알 수 없었다. */
+  const fh=pfLast.feature_health;
+  if(fh&&typeof fh.optional_max==="number"&&fh.optional_possible){
+    if(fh.optional_max===0)flags.push("<b>선택 피처 전멸</b> — 보조 지표 "+
+      fh.optional_possible+"개가 <b>한 종목도</b> 붙지 않았습니다(외부 데이터 "+
+      "수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
+    else if(fh.optional_max<fh.optional_possible/2)flags.push("<b>피처 결손</b> — "+
+      "보조 지표가 최대 "+fh.optional_max+"/"+fh.optional_possible+"개만 붙었습니다");
+  }
+  /* 데이터 품질 — 갭·스파이크가 많으면 판단 재료 자체가 흔들린다 */
+  const dq=pfLast.data_quality;
+  if(dq&&(dq.spikes>0||dq.zero_volume>0))flags.push("<b>데이터 품질</b> — 이상 급변 "+
+    (dq.spikes||0)+"건 · 거래량 0 "+(dq.zero_volume||0)+"건이 원천 데이터에 있었습니다");
   /* 배분 폴백도 경고다(감사 98) — 조용히 내려가면 아무도 모른다 */
   if(pfLast.alloc_method==="equal")flags.push("<b>배분 폴백</b> — 상관 추정이 안 돼 "+
     "위험 배분(HRP·ERC)이 자본 균등 1/n으로 내려갔습니다");
