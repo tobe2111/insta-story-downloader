@@ -27,11 +27,13 @@ from quant.strategies.ml import (  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
-_ALL_SOURCES = {
-    "funding": 0.0001, "oi": 1e6,
-    "x_btc": 0.5, "x_spy": 0.5, "x_tnx": 0.5, "x_usdkrw": 0.5, "x_vixts": 0.5,
-    "x_fred_dgs10": 0.5, "x_fred_t10y2y": 0.5, "x_fred_bamlh0a0hym2": 0.5,
-}
+# ⚠️ 목록에서 **파생**한다. 예전에는 여기에 이름을 손으로 적었는데, 그
+#    이름들이 실제로는 만들어지지 않는 유령이었다(감사 106) — 픽스처가
+#    목록과 같은 거짓말을 하고 있어서 검사가 초록인 채로 계측기가 매일
+#    "선택 피처 0/11"을 기록했다. 이제 목록이 바뀌면 픽스처도 따라간다.
+_DERIVED = {"x_funding", "x_funding_chg", "x_oi_chg5"}   # 원본 컬럼에서 파생
+_ALL_SOURCES = {"funding": 0.0001, "oi": 1e6}
+_ALL_SOURCES.update({c: 0.5 for c in OPTIONAL_FEATURES if c not in _DERIVED})
 
 
 def _df(extra=None):

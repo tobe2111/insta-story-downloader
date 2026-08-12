@@ -554,7 +554,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      피처가 **전부** 안 붙은 상태였다. 모델은 그대로 돌고 사이트도 평소와
      같아, 판단 재료가 빈약해진 사실을 아무도 알 수 없었다. */
   const fh=pfLast.feature_health;
-  if(fh&&typeof fh.optional_max==="number"&&fh.optional_possible){
+  /* ⚠️ 계측기 자체가 2026-08-12까지 고장나 있었다(감사 106) — 존재하지
+     않는 컬럼 이름을 세느라 매일 0/11을 기록했다. 그 시절 기록을 오늘의
+     사실처럼 말하면 안 되므로, 유령 이름이 남아 있는 기록은 구분한다.
+     (과거 기록은 고치지 않는다.) */
+  const fhOld=fh&&(fh.missing_everywhere||[]).indexOf("x_fred_dgs10")>=0;
+  if(fhOld)flags.push("<b>피처 계측 교정 전 기록</b> — 이 날의 피처 건강 수치는 "+
+    "계측기 오류(존재하지 않는 컬럼 이름을 셈)로 0으로 남아 있습니다. "+
+    "2026-08-12에 고쳤고 그 이후 기록부터 유효합니다");
+  else if(fh&&typeof fh.optional_max==="number"&&fh.optional_possible){
     if(fh.optional_max===0)flags.push("<b>선택 피처 전멸</b> — 보조 지표 "+
       fh.optional_possible+"개가 <b>한 종목도</b> 붙지 않았습니다(외부 데이터 "+
       "수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
