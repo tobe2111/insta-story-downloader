@@ -292,6 +292,19 @@ MUTATIONS = [
      "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
      "tests/test_alpha6_vix_kimchi_calguard.py"),
 
+    # 감사 139 — 거래소 규격 검사가 통째로 꺼져 있었다(아무도 안 물었다).
+    ("주문 직전에 거래소 규격을 묻지 않는다(최소금액 미만도 그대로 전송)",
+     "quant/broker/retry.py",
+     "        spec = self._spec_for(symbol)",
+     "        spec = self.spec",
+     "tests/test_exchange_specs_actually_bind.py"),
+
+    ("코인 어댑터가 규격을 안 알려 준다",
+     "quant/broker/crypto_live.py",
+     "            return from_ccxt_market(m) if m else None",
+     "            return None",
+     "tests/test_exchange_specs_actually_bind.py"),
+
     # 감사 138 — 접수 건수와 실제로 산 건수를 한 숫자로 합쳐 말했다.
     ("0주로 잘린 주문도 '주문 N건'에 넣는다(안 샀는데 샀다고 보고)",
      "quant/live/daily_live.py",
