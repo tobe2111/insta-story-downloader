@@ -276,6 +276,22 @@ MUTATIONS = [
      "    \"kr_stock\": None,",
      "tests/test_markets_constants.py"),
 
+    ("보유 포지션을 장부에 저장하지 않는다(다음 실행이 빈 계좌로 시작)",
+     "quant/live/daily.py",
+     "    st[\"positions\"] = {\n"
+     "        p.symbol: {\"quantity\": p.quantity, \"avg_price\": p.avg_price}\n"
+     "        for p in broker._positions.values() if abs(p.quantity) > 0}",
+     "    st[\"positions\"] = {}",
+     "tests/test_daily_paper.py"),
+
+    ("VIX를 100으로 나누지 않고 그대로 피처에 넣는다(스케일 100배)",
+     "quant/data/crossasset.py",
+     "                out[\"x_vix\"] = _align(vix / 100.0, out.index)\n"
+     "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
+     "                out[\"x_vix\"] = _align(vix, out.index)\n"
+     "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
+     "tests/test_alpha6_vix_kimchi_calguard.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

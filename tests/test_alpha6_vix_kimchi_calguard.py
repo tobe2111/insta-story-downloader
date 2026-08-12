@@ -55,6 +55,15 @@ def test_vix_attached_for_us_and_kr_as_level():
     assert 0.0 < float(out["x_vix"].iloc[-1]) < 1.5
     out_kr = attach_cross_asset(_df(), "kr_stock", "005930.KS", fetch=fetch)
     assert "x_vix" in out_kr.columns
+    # ⚠️ 한국 주식 쪽은 **열이 있는지만** 봤다(감사 134). 같은 피처를 두
+    #    분기에 따로 적어 놓고 한쪽만 값을 확인한 것이라, kr 분기에서
+    #    /100을 빼도 아무도 못 잡았다 — 모델 입력이 100배로 들어간다.
+    #    같은 규칙을 두 곳에 적으면 반드시 한 곳이 뒤처진다(FROZEN_IDEAS ①).
+    assert 0.0 < float(out_kr["x_vix"].iloc[-1]) < 1.5, (
+        f"한국 주식 x_vix 스케일이 다르다: {float(out_kr['x_vix'].iloc[-1])}")
+    # 두 시장이 같은 지수를 같은 스케일로 본다
+    assert abs(float(out["x_vix"].iloc[-1])
+               - float(out_kr["x_vix"].iloc[-1])) < 1e-9
 
 
 def test_vix_failure_silently_skipped():

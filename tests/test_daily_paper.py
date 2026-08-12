@@ -205,6 +205,20 @@ def test_portfolio_account_runs_and_is_idempotent(tmp_path):
                      .read_text(encoding="utf-8"))
     assert len(st2["history"]) == 2
 
+    # ⚠️ '계좌가 이어진다'를 **주석으로만** 적어 두고 기록 개수만 세고
+    #    있었다(감사 133). 보유를 장부에 저장하지 않게 만들어도 이 검사는
+    #    통과했다 — 그러면 매일 빈 계좌로 시작해 현금만 줄어든 채로 남고,
+    #    장부에는 있지도 않은 손실이 매일 찍힌다. 계좌 연속성은 이 실험의
+    #    가장 기본 전제다. 이어지는지 **숫자로** 본다.
+    assert st["positions"], "첫날 아무것도 안 샀다 — 아래 연속성 검사가 헛돈다"
+    assert st2["positions"], (
+        "이튿날 보유가 사라졌다 — 계좌가 이어지지 않는다(빈 계좌로 재시작)")
+    eq1 = float(st["history"][0]["equity"])
+    eq2 = float(st2["history"][1]["equity"])
+    assert abs(eq2 - eq1) / eq1 < 0.10, (
+        f"같은 봉 데이터인데 자산이 {eq1:,.0f} → {eq2:,.0f}로 튀었다 — "
+        "보유가 이월되지 않아 생긴 유령 손익일 수 있다")
+
 
 def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
     import quant.data as qd
