@@ -1687,6 +1687,20 @@ MUTATIONS = [
      "        idx.extend(int(rng.integers(0, n)) for _ in range(block))",
      "tests/test_the_resampling_does_not_forget_the_beginning.py"),
 
+    # 감사 189 — 드리프트 경보. 결함 없음, 계약 고정.
+    ("드리프트 판정에서 표본 크기 보정을 끈다(잡음의 절반이 '드리프트'가 된다)",
+     "quant/robustness/drift.py",
+     "        ref = psi_null(int(n_ref), int(n_new), bins)",
+     "        ref = {}",
+     "tests/test_the_drift_alarm_knows_its_own_noise.py"),
+
+    ("계산 불가를 0(안정)으로 위장한다(경보가 조용히 꺼진다)",
+     "quant/robustness/drift.py",
+     "    if exp[0] == exp[-1]:                    # 상수 피처 — 분포 비교 불가\n"
+     '        return float("nan")',
+     "    if exp[0] == exp[-1]:\n        return 0.0",
+     "tests/test_the_drift_alarm_knows_its_own_noise.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
