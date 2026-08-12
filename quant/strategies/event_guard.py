@@ -70,18 +70,21 @@ class EventGuard(Strategy):
                 #    빈 답을 준다 — 가드가 조용히 꺼진 채 전략은 "오늘은
                 #    이벤트 없음(매매 허용)"이라고 **매일** 말하게 된다.
                 #    꺼진 안전장치보다 나쁜 것은 꺼진 줄 모르는 안전장치다.
-                from quant.events import (CALENDAR_END, calendar_is_stale,
-                                          calendar_runway_days)
-                stale = calendar_is_stale(last) if last else False
-                if stale:
-                    left = calendar_runway_days(last)
+                from quant.events import (ESTIMATED_PAD_DAYS, PUBLISHED_END,
+                                          is_projected_day)
+                projected = is_projected_day(last) if last else False
+                if projected:
+                    # 공표 목록 밖 — 추정 일정으로 판단하고 있다(감사 155).
+                    # 가드는 계속 돌지만 근거의 급이 다르므로 그걸 밝힌다.
+                    # 예전에는 여기서 집합이 비어 가드가 **영구 정지**했고,
+                    # 그 사실조차 안 보였다.
                     self.last_gate_ = {
-                        "open": True, "date": str(last), "stale_calendar": True,
+                        "open": True, "date": str(last), "projected": True,
                         "reason": (
-                            f"⚠️ 이벤트 달력이 {CALENDAR_END}까지뿐 "
-                            + (f"(남은 {left}일)" if left >= 0
-                               else f"({-left}일 지남 — 필터가 꺼져 있다)")
-                            + " — '이벤트 없음'이 아니라 **모름**이다. 달력 갱신 필요")}
+                            f"오늘은 해당 이벤트 없음 — 다만 공표 일정이 "
+                            f"{PUBLISHED_END}까지뿐이라 **추정 달력**으로 "
+                            f"판단했다(±{ESTIMATED_PAD_DAYS}일로 넓게 가림). "
+                            "연준 공표 일정을 FOMC_DATES에 갱신할 것")}
                 else:
                     self.last_gate_ = {
                         "open": True, "date": str(last),

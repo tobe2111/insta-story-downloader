@@ -101,7 +101,13 @@ def test_event_dates_pad_and_membership():
     assert not is_event_day(date(2026, 3, 25))
     assert is_event_day(date(2026, 3, 18), pad_days=0)
     assert not is_event_day(date(2026, 3, 17), pad_days=0)
-    assert len(event_dates(0)) == 81             # 2018~2027 정례 79 + 2020 긴급 2
+    # ⚠️ 감사 155에서 event_dates가 **공표 + 추정**을 함께 담게 됐다.
+    #    개수를 못 박으려면 공표만 보는 published_event_dates를 쓴다.
+    #    (예전엔 event_dates가 공표만 담았고, 그래서 2027년 뒤로는 집합이
+    #     통째로 비어 FOMC 가드가 조용히 영구 정지했다.)
+    from quant.events import published_event_dates
+    assert len(published_event_dates(0)) == 81   # 2018~2027 정례 79 + 2020 긴급 2
+    assert len(event_dates(0)) > 81, "추정 일정이 안 들어갔다 — 가드가 언젠가 꺼진다"
 
 
 def test_event_guard_gates_event_window():

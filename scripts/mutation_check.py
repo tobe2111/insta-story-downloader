@@ -792,22 +792,34 @@ MUTATIONS = [
      "tests/test_costs_are_charged_when_the_trade_happens.py"),
 
     # 감사 154 — 이벤트 달력이 조용히 만료된다.
-    ("달력 만료 판정을 없앤다(끝난 뒤에도 '이벤트 없음·매매 허용'이라 말한다)",
+    ("추정 일정을 빼서 달력을 공표분에서 끊는다(2027년 뒤 가드가 영구 정지)",
+     "quant/events.py",
+     "    for y in range(PUBLISHED_END_YEAR + 1, end + 1):",
+     "    for y in []:",
+     "tests/test_the_event_calendar_does_not_expire_silently.py"),
+
+    ("공표 끝을 목록이 아니라 손으로 적은 값으로 되돌린다(목록과 어긋난다)",
+     "quant/events.py",
+     "PUBLISHED_END = date.fromisoformat(max(FOMC_DATES))",
+     "PUBLISHED_END = date(2027, 12, 31)",
+     "tests/test_the_event_calendar_does_not_expire_silently.py"),
+
+    ("추정 일정도 공표와 같은 좁은 패딩으로 가린다(며칠 어긋나면 그냥 뚫린다)",
+     "quant/events.py",
+     "ESTIMATED_PAD_DAYS = 3",
+     "ESTIMATED_PAD_DAYS = 1",
+     "tests/test_the_event_calendar_does_not_expire_silently.py"),
+
+    ("추정으로 판단했다는 사실을 판단문에서 지운다(근거의 급이 안 보인다)",
      "quant/strategies/event_guard.py",
-     "                stale = calendar_is_stale(last) if last else False",
-     "                stale = False",
+     "                projected = is_projected_day(last) if last else False",
+     "                projected = False",
      "tests/test_the_event_calendar_does_not_expire_silently.py"),
 
-    ("달력 끝을 목록이 아니라 손으로 적은 값으로 되돌린다(목록과 어긋난다)",
+    ("마이너 달력의 끝을 오늘이 아니라 공표 끝에 묶는다(옵션만기 가드가 먼저 꺼진다)",
      "quant/events.py",
-     "CALENDAR_END = date.fromisoformat(max(FOMC_DATES))",
-     "CALENDAR_END = date(2027, 12, 31)",
-     "tests/test_the_event_calendar_does_not_expire_silently.py"),
-
-    ("마이너 달력의 끝을 주요 달력과 따로 고정한다(옵션만기 가드가 먼저 꺼진다)",
-     "quant/events.py",
-     "    end_year = CALENDAR_END_YEAR if end_year is None else int(end_year)",
-     "    end_year = 2026 if end_year is None else int(end_year)",
+     "    end_year = _horizon() if end_year is None else int(end_year)",
+     "    end_year = PUBLISHED_END_YEAR if end_year is None else int(end_year)",
      "tests/test_the_event_calendar_does_not_expire_silently.py"),
 
     # ── 어드민·웹 경로 ──
