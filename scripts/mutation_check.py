@@ -1496,6 +1496,43 @@ MUTATIONS = [
      "    if True:",
      "tests/test_the_reports_do_not_flatter_us.py"),
 
+    # 감사 180 — 우리를 검사하는 도구들. 손익분기 대조에서 결함 1건.
+    ("손익분기 대조를 수수료끼리만 한다(슬리피지가 비용의 5/6인 미국주식이 빠진다)",
+     "quant/backtest/cost_sensitivity.py",
+     "            if total > be_total:",
+     '            if float(preset["fee"]) > be_total:',
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
+    ("엣지 없는 전략에도 손익분기를 붙인다('이 정도까지는 된다'로 읽힌다)",
+     "quant/backtest/cost_sensitivity.py",
+     "    if base_ret <= 0.0:",
+     "    if False:",
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
+    ("교차검증에서 '겹침 없음'을 통과로 만든다(검증 못 한 걸 일치라 부른다)",
+     "quant/data/crosscheck.py",
+     '             "n_exceed": 0, "ok": False}',
+     '             "n_exceed": 0, "ok": True}',
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
+    ("레짐 임계값을 전체 구간에서 뽑는다(오늘 라벨이 내일 데이터로 정해진다)",
+     "quant/robustness/regime.py",
+     "    thresh = vol.expanding(min_periods=vol_window * 2).quantile(vol_quantile)",
+     "    thresh = pd.Series(vol.quantile(vol_quantile), index=vol.index)",
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
+    ("이력이 짧은 초반 레짐을 강세로 채운다(중립이어야 할 자리가 매수 신호가 된다)",
+     "quant/robustness/regime.py",
+     '    trend_up = reg["trend"].map({"bull": 1.0, "bear": 0.0}).fillna(0.5)',
+     '    trend_up = reg["trend"].map({"bull": 1.0, "bear": 0.0}).fillna(1.0)',
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
+    ("HTML 리포트의 최대낙폭을 0으로 찍는다(리포트만 보면 무손실로 보인다)",
+     "quant/reporting/html_report.py",
+     '        ("최대낙폭", f"{m.max_drawdown:.2%}"),',
+     '        ("최대낙폭", f"{0.0:.2%}"),',
+     "tests/test_the_tools_that_check_us_are_checked_too.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
