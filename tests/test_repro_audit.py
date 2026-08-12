@@ -23,6 +23,11 @@ from quant.live.retrain import verify_retrain  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 WF = (ROOT / ".github" / "workflows" / "nightly-validate.yml").read_text("utf-8")
+# 판단 로직은 2026-08-11 감사 103에서 YAML 밖으로 옮겼다 — YAML 안에 있으면
+# 검사를 쓸 수 없고, 실제로 그래서 '통과 줄의 설명문'에 걸려 매일 헛울리는
+# 결함이 살아 있었다. 여기서는 배선만 보고, **동작**은 test_verify_gate.py가
+# 실제로 돌려서 확인한다.
+GATE = (ROOT / "scripts" / "verify_gate.py").read_text("utf-8")
 
 
 # ── ①② 워크플로 배선 ─────────────────────────────────────────
@@ -35,13 +40,14 @@ def test_nightly_workflow_actually_runs_verify():
 
 def test_empty_verify_output_is_treated_as_failure():
     """감사가 조용히 죽으면 '통과'로 읽히면 안 된다."""
-    assert "재현 감사 출력 없음" in WF
+    assert "재현 감사 출력 없음" in GATE
+    assert "verify_gate.py" in WF          # 워크플로가 그 판단을 실제로 부른다
     assert "timeout-minutes" in WF
 
 
 def test_mismatch_triggers_an_alert():
-    assert "재현성 감사 불일치" in WF
-    assert "get_notifier()" in WF
+    assert "재현성 감사 불일치" in GATE
+    assert "get_notifier()" in GATE
 
 
 # ── ③④ 표본 감사 ─────────────────────────────────────────────

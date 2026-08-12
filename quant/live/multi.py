@@ -217,6 +217,11 @@ class MultiTrader:
             weights = {k: v * exposure for k, v in weights.items()}
 
         failed: list[str] = []
+        # 기록할 노출은 '목표'가 아니라 **실제로 주문이 나간 종목**의 합이다
+        # (2026-08-11 감사 93 — 91·92와 같은 계열). 가격이 없어 건너뛰거나
+        # 주문이 예외로 실패한 종목까지 세면, 장부가 들지도 않은 포지션을
+        # 노출로 말한다 — 하필 데이터·브로커가 흔들리는 날에 과대 보고한다.
+        placed: dict[str, float] = {}
         for s, w in weights.items():
             price = prices.get(s)
             if not price:
@@ -230,6 +235,8 @@ class MultiTrader:
                 log.error("주문 실패(%s): %s", s, exc)
                 failed.append(f"{s}({type(exc).__name__})")
                 continue
+            # order is None = 밴드 안(이미 목표 근처) — 노출은 유지되므로 센다.
+            placed[s] = float(w)
             if order is not None and self.notifier is not None:
                 self.notifier.send(
                     f"[{self.mode}] {order.side.upper()} {s} "
@@ -248,7 +255,7 @@ class MultiTrader:
         self.history.append({
             "time": str(pd.Timestamp.utcnow()),
             "equity": equity,
-            "weight": float(sum(abs(v) for v in weights.values())),
+            "weight": float(sum(abs(v) for v in placed.values())),
             "price": 0.0,
         })
         self._persist(prices)

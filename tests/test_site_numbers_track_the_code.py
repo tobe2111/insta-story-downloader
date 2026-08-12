@@ -181,3 +181,39 @@ def test_the_live_flag_reads_the_target_from_the_ledger():
     text = (DOCS / "index.html").read_text(encoding="utf-8")
     assert "vt.target" in text, (
         "index가 목표 변동성을 장부에서 읽지 않고 산문에 박기 시작했다")
+
+
+# ── 카드도 코드에서 읽는가 (감사 113) ──────────────────────────
+#
+# 감사 89에서 **캡션**은 종목 수·시작금을 코드에서 읽게 고쳤다. 그런데
+# **SNS 카드는 그대로 산문**이었다 — 또 형제를 안 찾았다(FROZEN_IDEAS ⑭).
+# 게다가 'N종목 분산'은 후보 수지 실제 보유가 아니라, 절반이 관망인 날에도
+# 그만큼 퍼져 있는 것처럼 읽혔다(감사 91과 같은 계열).
+
+CARD = (DOCS / "sns_card.html").read_text(encoding="utf-8")
+
+
+def _card_body() -> str:
+    """JS 주석은 뺀다 — 화면에 나가는 글만 본다."""
+    return re.sub(r"^\s*//.*$", "", CARD, flags=re.M)
+
+
+def test_the_card_reads_the_start_cash_from_the_ledger():
+    body = _card_body()
+    assert "startTxt" in body and "port.start_cash" in body, (
+        "카드가 시작금을 장부에서 읽지 않는다")
+    assert "시작 8만원" not in body, "시작금이 산문에 박혀 있다"
+
+
+def test_the_card_separates_holdings_from_the_universe():
+    body = _card_body()
+    assert "'종목 보유 / 후보 '" in body, (
+        "카드가 '실제 보유'와 '후보'를 구별하지 않는다 — 절반이 관망인 날도 "
+        "전 종목에 퍼져 있는 것처럼 읽힌다")
+    assert "종목 분산" not in body, "'N종목 분산'이 남아 있다"
+
+
+def test_the_card_counts_holdings_from_the_ledger():
+    body = _card_body()
+    assert "var held=" in body and "nCash" in body, (
+        "보유 종목 수를 장부에서 세지 않는다")

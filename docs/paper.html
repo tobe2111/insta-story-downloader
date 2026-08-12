@@ -78,9 +78,11 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
 <h1>8마일 챌린지 — 매일 자동 페이퍼</h1>
-<p class="sub">통합 계좌는 <b>가상 자금 80,000원</b>(영화 '8마일' 오마주)으로 시작해, 현재 20종목에
-위험균등 분산하며, 클라우드가 매일 새벽(한국시간)
-챔피언 전략으로 자동 모의 매매한 결과입니다. 여러분은 아무것도 하지 않아도
+<p class="sub">통합 계좌는 <b>가상 자금 80,000원</b>(영화 '8마일' 오마주)으로 시작해 여러 종목에
+위험 분산하며, 클라우드가 매일 새벽(한국시간)
+챔피언 전략으로 자동 모의 매매한 결과입니다.
+<br>⚠️ 아래 <b>종목별 참고 계좌</b>는 종목마다 따로 굴리는 <b>별개의 1만원 계좌</b>입니다 —
+합계가 8만원을 넘는 것이 정상이며, 통합 계좌의 보유량이 아닙니다. 여러분은 아무것도 하지 않아도
 됩니다. <b>가짜 돈</b>이며, 좋은 결과도 미래 수익을 보장하지 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
 <p class="note">⚖️ <b>2026-08-05(v0.5.0)부로 회계 기준을 보수적으로 변경했습니다
@@ -90,7 +92,10 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 <br>챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로
 재평가되며, 확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).
 날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.
-"그냥 보유"는 같은 돈으로 첫날 사서 들고만 있었을 때입니다 — 전략이 이 값을
+"그냥 보유"는 <b>첫 기록일에 같은 돈(8만원)으로 전 종목을 균등 매수해
+그대로 들고만 있었을 때</b>의 자산입니다. 아무것도 안 하고 현금으로 뒀다는
+뜻이 아니라 <b>시장에 그냥 맡겨 뒀다면</b>이라는 뜻이라, 시장이 빠진 날은
+이 값도 8만원 아래로 내려갑니다 — 전략이 이 값을
 꾸준히 못 이기면 전략의 의미가 없으므로 함께 보여드립니다.
 💝 <b>매칭 입금</b>: 방송 후원금 자체를 운용하는 것이 아니라, 후원과 동일한
 금액만큼 운영자가 '가상 원금'을 늘리는 이벤트입니다(대가·지분 없음). 원금과
@@ -176,7 +181,7 @@ function spark(hist,markers,dmarkers,baseSeries,base0){
       fill="${up?"var(--ok)":"var(--bad)"}"/>
     <text x="${W-padR+(padR-6)/2+2}" y="${ly+4}" font-size="10" font-weight="700"
       fill="#0a0b0e" text-anchor="middle">${Math.round(v[v.length-1]).toLocaleString()}</text>`;
-  return out+`</svg><div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 그냥 보유했다면
+  return out+`</svg><div class="legend">─ 전략(자동 매매)<i style="background:var(--dim)"></i>┄ 첫날 균등 매수 후 보유
     <span style="color:var(--accent)">◆</span> 챔피언 교체
     <span style="color:var(--ok)">▲</span> 매칭 입금(원금 증액)</div>`;
 }
@@ -284,8 +289,24 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const ret=p.principal!=null?((p.equity/p.principal-1)*100):(p.return_pct??0);
     const cls=ret>=0?"pos":"neg";
     const mdd=(typeof p.mdd_pct==="number")?p.mdd_pct:null;
+    /* ⚠️ 같은 표를 통합 계좌와 종목 계좌가 함께 쓴다. 열 이름이 그냥
+       '자산·비중'이면 **같은 페이지 안에서 두 뜻**이 된다 — 통합 카드의
+       비중은 총노출(62.6%)이고 종목 카드의 비중은 참고 계좌 안의 비중이다.
+       감사 100·107을 고치면서 이 형제를 찾지 않았다(FROZEN_IDEAS ⑭ 위반).
+       카드 종류에 따라 이름을 바꾼다(2026-08-12 감사 110). */
+    const isPf = k.startsWith("portfolio");
+
+    /* 배분 방식은 산문에 박지 않는다(2026-08-11 감사 98). 코드는
+       HRP → ERC → 균등 **폴백 사다리**라, 상관 추정에 쓸 데이터가 모자란
+       날은 조용히 아래 칸으로 내려간다. 장부는 그 흔적을 alloc_method로
+       남기는데(주석에도 "폴백 흔적"이라 적혀 있다) 화면은 언제나 "HRP"라
+       말하고 있었다 — 폴백이 일어난 날에만 거짓말을 하는, 가장 잡기
+       어려운 종류다. 장부에서 읽는다. */
+    const AMN={hrp:"HRP·계층적 리스크 패리티",erc:"ERC·위험기여 균등 (HRP 폴백)",
+      equal:"자본 균등 1/n (HRP·ERC 폴백)"};
+    const am=(((p.history||[])[(p.history||[]).length-1])||{}).alloc_method;
     const champ=k.startsWith("portfolio")
-      ?rest.length+"종목 위험 분산(HRP·계층적 리스크 패리티) (각 종목의 챔피언 전략 추종)"
+      ?rest.length+"종목 위험 분산("+(AMN[am]||"방식 기록 없음")+") (각 종목의 챔피언 전략 추종)"
       :(st.champions&&st.champions[k])
         ?esc((st.champions[k].strategy||"")+" "+JSON.stringify(st.champions[k].params)):"기본(ml·logreg)";
     // 8마일 챌린지(통합 계좌, 8만원 → 1억): 원금·손익 분해 + 목표 게이지
@@ -311,7 +332,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       const base0=p.start_cash||10000;
       const b=base0*hist[hist.length-1].price/hist[0].price;
       const alpha=(p.equity-b)/base0*100;
-      benchTxt=`<div><span class="lbl">그냥 보유했다면</span><b>${won(b)}</b></div>
+      benchTxt=`<div><span class="lbl" title="첫 기록일에 같은 돈으로 전 종목을 균등 매수해 그대로 보유했을 때">첫날 균등 매수 후 보유했다면</span><b>${won(b)}</b></div>
         <div><span class="lbl">전략 − 보유 (초과성과)</span>
         <b class="${alpha>=0?"pos":"neg"}">${pct(alpha)}</b></div>`;
     }
@@ -335,7 +356,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       ${bigChart(k,p,hist)}
       <div class="sub" style="margin-top:10px;font-size:12.5px">현재 챔피언: <code>${champ}</code></div>
       ${hist.length&&hist[hist.length-1].reason?`<div class="sub" style="font-size:12.5px;margin-top:4px">오늘 새벽 판단: ${esc(hist[hist.length-1].reason)}</div>`:""}
-      <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th><th>자산</th><th>누적</th><th>비중</th><th>적중률(60일)</th></tr>${rows}</table></div>
+      <div class="tablewrap"><table><tr><th>거래일</th><th>일간</th>
+        <th>${isPf?"계좌 자산":"참고계좌 자산"}</th><th>누적</th>
+        <th title="${isPf?"통합 계좌가 실제로 들고 있는 비중의 합(총노출)":"그 종목만 굴리는 참고 계좌 안에서의 비중"}">${isPf?"총노출":"참고계좌 비중"}</th>
+        <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>
       ${weeklyTable(hist,p.start_cash||10000)}
     </div>`};
   // 통합 계좌는 큰 카드로, 개별 종목은 증권사 시세표 스타일의 한 표로 압축
@@ -370,9 +394,29 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <td>${last.weight!=null?(last.weight*100).toFixed(0)+"%":"–"}</td>
       <td>${hr}</td><td>${mini(hist)}</td>
       <td style="text-align:left;font-size:12px;color:var(--muted);min-width:280px">${esc(String(last.reason||champ))}</td></tr>`};
-  const tbl=rest.length?`<div class="card"><h2>종목별 현황 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
+  /* ⚠️ 이 표의 자산·일간·누적·최대낙폭·비중은 **그 종목만 굴리는 독립
+     계좌**(각 1만원 시작)의 숫자다. 8마일 통합 계좌(8만원)와 다른 계좌인데
+     그 사실이 어디에도 없어서, 20종목 × 1만원 = 20만원이 8만원짜리 실험
+     페이지에 그대로 보였다. 만든 사람조차 "8만원인데 왜 20만원이지?"라고
+     물었다(2026-08-12 감사 107) — 만든 사람이 헷갈리면 읽는 사람은
+     반드시 헷갈린다. 합계를 먼저 밝히고 표를 보여준다. */
+  const symEq=rest.reduce((a,k)=>{const h=(st.paper[k]||{}).history||[];
+    const e=(h[h.length-1]||{}).equity; return a+(typeof e==="number"?e:0)},0);
+  const tbl=rest.length?`<div class="card"><h2>종목별 참고 계좌 <span style="font-size:12px;color:var(--muted);font-weight:400">매일 새벽 확정 기록</span></h2>
+    <p class="sub" style="margin:2px 0 10px;font-size:12.5px">
+      아래는 <b>종목마다 따로 굴리는 참고용 계좌</b>입니다 — 각각
+      <b>${won(10000)}으로 시작</b>해 그 종목만 매매한 결과라,
+      ${rest.length}개를 합치면 ${won(symEq)}가 됩니다.
+      <b>8마일 챌린지 본 계좌(${won(80000)} 시작)와는 별개의 장부</b>이며,
+      여기 자산·비중이 통합 계좌의 보유량은 아닙니다.
+      통합 계좌가 실제로 얼마를 들고 있는지는 위 카드의 <b>총노출</b>과
+      <a href="index.html">첫 화면의 '통합 노출' 열</a>을 보세요.</p>
     <div class="tablewrap"><table>
-    <tr><th style="text-align:left">종목</th><th>자산</th><th>일간</th><th>누적</th><th>최대낙폭</th><th>비중</th><th>적중률</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
+    <tr><th style="text-align:left">종목</th>
+      <th title="그 종목만 굴리는 참고 계좌의 자산(1만원 시작)">참고계좌 자산</th>
+      <th>일간</th><th>누적</th><th>최대낙폭</th>
+      <th title="참고 계좌 안에서의 비중 — 통합 계좌 보유량이 아닙니다">참고계좌 비중</th>
+      <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th><th>추이(30일)</th><th style="text-align:left">새벽 판단</th></tr>
     ${rest.map(row).join("")}</table></div></div>`:"";
   // 왜 이 종목들인가 — 선정 원칙과 종목별 이유(status.json의 단일 출처)
   let why="";
@@ -471,7 +515,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         틀린 날을 먼저 보여드립니다. 그날 새벽의 판단 근거도 그대로 —
         사후에 지우거나 꾸밀 수 없는 구조(git 장부)입니다.</p>
         <div class="tablewrap"><table>
-        <tr><th style="text-align:left">날짜</th><th>일간</th><th>자산</th><th style="text-align:left">그날 가장 아팠던 종목과 새벽 판단</th></tr>
+        <tr><th style="text-align:left">날짜</th><th>일간</th><th>통합 계좌 자산</th><th style="text-align:left">그날 가장 아팠던 종목과 새벽 판단</th></tr>
         ${rowsW}</table></div></div>`;
     }
   }

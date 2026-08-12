@@ -36,6 +36,18 @@ def _fmt_won(v: float) -> str:
     return f"{v:,.0f}원"
 
 
+def _held_on(status: dict, key: str, date: str) -> bool:
+    """그날 그 종목을 **실제로 들고 있었나** (종목 장부의 비중 > 0).
+
+    기록이 없으면 False — 확인 못 한 것을 "샀다"고 방송하지 않는다.
+    """
+    hist = ((status.get("paper") or {}).get(key) or {}).get("history") or []
+    for rec in reversed(hist):
+        if rec.get("date") == date:
+            return float(rec.get("weight") or 0.0) > 0
+    return False
+
+
 def _today_numbers(status: dict) -> dict:
     """status.json에서 캡션에 쓸 그날의 숫자를 뽑는다 (없는 값은 None)."""
     port = (status.get("paper") or {}).get("portfolio:ALL") or {}
@@ -46,10 +58,17 @@ def _today_numbers(status: dict) -> dict:
     recent = [r for r in (status.get("retrain_recent") or [])
               if r.get("asof") == date]
     swaps = sum(1 for r in recent if r.get("promoted"))
-    # 배분 상위 종목 — "오늘 AI가 어디에 실었나"의 하이라이트
-    alloc = last.get("alloc") or {}
+    # 배분 상위 종목 — "오늘 AI가 어디에 실었나"의 하이라이트.
+    # ⚠️ alloc은 **배분 예산**이라 모델이 관망한 종목에도 붙어 있다. 그대로
+    #    쓰면 그날 한 주도 안 산 종목이 "오늘 배분 상위"로 나간다(감사 91).
+    #    장부의 applied(종목별 실제 적용 노출)를 쓰고, 그게 없는 옛 기록은
+    #    그날 종목 장부의 비중이 0인 종목을 뺀다.
     names = status.get("symbols") or {}
-    top = sorted(alloc.items(), key=lambda kv: -kv[1])[:3]
+    applied = last.get("applied") or {}
+    src = applied or (last.get("alloc") or {})
+    keep = (list(src) if applied
+            else [k for k in src if _held_on(status, k, date)])
+    top = sorted(((k, src[k]) for k in keep), key=lambda kv: -kv[1])[:3]
     top_names = [names.get(k, {}).get("name") or k.split(":")[-1]
                  for k, v in top if v > 0]
     return {
@@ -63,6 +82,11 @@ def _today_numbers(status: dict) -> dict:
         "twr_pct": last.get("twr_pct"),
         "gross": last.get("weight"),
         "risk_scale": last.get("risk_scale", 1.0),
+        # 사람의 개입 — 장부에는 "숨기지 않고 기록한다"고 남기면서 방송에는
+        # 없었다(감사 96). 이 시스템에서 사람이 결과를 바꿀 수 있는 유일한
+        # 통로다. 빼면 '전부 자동'이라는 주장 자체가 거짓이 된다.
+        "paused": bool(last.get("paused")),
+        "exposure_scale": last.get("exposure_scale"),
         "n_symbols": (last.get("champion") or {}).get("symbols"),
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
@@ -76,7 +100,7 @@ def _day_pct_from_history(hist: list, port: dict) -> float | None:
     if not hist:
         return None
     try:
-        from quant.live.daily import day_return_pct
+        from quant.live.ledger_basics import day_return_pct
         return day_return_pct(hist, port.get("deposits") or [],
                               start_cash=float(port.get("start_cash")
                                                or hist[0].get("principal")
@@ -132,12 +156,21 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     tops = " · ".join(x["top_names"]) if x["top_names"] else "전 종목 관망"
     # 종목 수와 시작금은 산문에 박지 않는다 — 설정이 바뀌면 SNS만 조용히
     # 거짓말을 하게 된다(사이트에 같은 결함이 있어 이미 계약 검사로 막았다).
-    from quant.live.daily import PORTFOLIO_START_CASH
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH
     from quant.markets import AUTO_TARGETS
     n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
     start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
     kill = ("" if x["risk_scale"] >= 1.0 else
             f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
+    # 사람이 손을 댄 날은 그 사실도 같은 글에 나간다(감사 96).
+    hands = []
+    if x.get("paused"):
+        hands.append("신규 주문 일시정지(보유 유지)")
+    xs = x.get("exposure_scale")
+    if isinstance(xs, (int, float)) and abs(float(xs) - 1.0) > 1e-9:
+        hands.append(f"노출 배수 {float(xs):.0%}")
+    owner = ("\n✋ 사람의 개입 — " + " · ".join(hands)
+             + ". 이 날의 성적은 전략만의 결과가 아닙니다") if hands else ""
 
     # "오늘 AI가 한 일" — 교체가 있으면 교체가 뉴스, 없으면 유지가 뉴스다
     if not x["retrain_total"]:
@@ -162,7 +195,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"\n"
         f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
         f"📈 총노출 {gross} · {n_sym}종목 분산(코인·한국·미국)\n"
-        f"🎯 오늘 배분 상위: {tops}{kill}\n"
+        f"🎯 오늘 배분 상위: {tops}{kill}{owner}\n"
         f"\n"
         f"🤖 {work}\n"
         f"\n"
@@ -180,14 +213,19 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"\n"
         f"📊 8마일 챌린지 {day} · {date}\n"
         f"💰 {eq} (누적 {ret}{day_line}) · 노출 {gross}\n"
-        f"🎯 배분 상위: {tops}{kill}\n"
+        f"🎯 배분 상위: {tops}{kill}{owner}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
     )
     if len(th) > THREADS_TEXT_LIMIT:      # 링크·고지는 지키고 하이라이트를 줄인다
+        # ⚠️ 킬스위치와 사람의 개입은 '하이라이트'가 아니라 **고지**다
+        #    (2026-08-11 감사 97). 둘이 배분 상위 줄에 붙어 있던 탓에
+        #    길이가 넘치면 같이 잘려 나갔다 — 쓸 말이 많은 날(교체가 많고
+        #    종목명이 긴 날)일수록 경고가 사라지는 구조였다. 주석은 원래
+        #    "고지는 지킨다"고 적혀 있었는데 코드가 그러지 않았다.
         th = (
             f"📊 8마일 챌린지 {day} · {date}\n"
-            f"💰 {eq} (누적 {ret})\n"
+            f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\n"
             f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"
         )

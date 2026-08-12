@@ -78,6 +78,154 @@ import pathlib, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
+    ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
+     "docs/paper.html",
+     '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',
+     '<th>적중률(60일)</th></tr>${rows}</table></div>',
+     "tests/test_hit_rate_carries_its_sample.py"),
+
+    ("적중률에서 표본 수를 뗀다(n=3 우연이 실력처럼)",
+     "quant/live/daily.py",
+     '        "hit_n": acc.get("n"),',
+     '        "hit_n": None,',
+     "tests/test_hit_rate_carries_its_sample.py"),
+
+    ("카드 표에서 통합/종목 계좌 구분을 지운다(같은 이름 두 뜻)",
+     "docs/paper.html",
+     '<th title="${isPf?"통합 계좌가 실제로 들고 있는 비중의 합(총노출)":"그 종목만 굴리는 참고 계좌 안에서의 비중"}">${isPf?"총노출":"참고계좌 비중"}</th>',
+     '<th>비중</th>',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("벤치마크 라벨에서 '무엇을 보유했나'를 지운다",
+     "docs/index.html",
+     '⋯ 첫날 전 종목 균등 매수 후 그대로 보유했다면',
+     '⋯ 그냥 보유했다면',
+     "tests/test_benchmark_label_says_what_it_is.py"),
+
+    ("전략이 미래 종가를 앞당겨 본다(성적 부풀리기)",
+     "quant/strategies/breakout.py",
+     '        close = df["close"].to_numpy()',
+     '        close = df["close"].shift(-1).ffill().to_numpy()',
+     "tests/test_leakage.py"),
+
+    ("룩어헤드 검사에서 미래 교란을 뺀다(1봉 누수 눈감기)",
+     "tests/test_leakage.py",
+     "        _compare_perturbed(full, make_strategy, name, cut)",
+     "        pass",
+     "tests/test_lookahead_challenger_ring.py"),
+
+    ("두 계좌 구분을 지운다(20만원이 8만원처럼 보임)",
+     "docs/paper.html",
+     '<div class="card"><h2>종목별 참고 계좌',
+     '<div class="card"><h2>종목별 현황',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("피처 계측 목록을 유령 이름으로 되돌린다",
+     "quant/strategies/ml.py",
+     '    "x_btc_ret5", "x_spy_ret5",            # 크로스에셋 — 코인/미국 조류',
+     '    "x_btc", "x_spy",                      # 크로스에셋 — 코인/미국 조류',
+     "tests/test_feature_health_measures_real_columns.py"),
+
+    ("deadman을 23:30 UTC로 되돌린다(하루 누락 맹점 부활)",
+     ".github/workflows/deadman.yml",
+     '    - cron: "30 1 * * *"',
+     '    - cron: "30 23 * * *"',
+     "tests/test_deadman_window.py"),
+
+    ("deadman 창을 26시간으로 되돌린다(어제 커밋이 오늘을 덮음)",
+     ".github/workflows/deadman.yml",
+     'LOG="$(git log --since="24 hours ago" --pretty=%s)"',
+     'LOG="$(git log --since="26 hours ago" --pretty=%s)"',
+     "tests/test_deadman_window.py"),
+
+    ("배치 커밋 표식을 [skip ci]로 되돌린다(사이트 배포 정지)",
+     ".github/workflows/social-post.yml",
+     'git commit -m "SNS 게시 콘텐츠: $(date -u +%F) [skip actions]"',
+     'git commit -m "SNS 게시 콘텐츠: $(date -u +%F) [skip ci]"',
+     "tests/test_deadman_window.py"),
+
+    ("재현 경보를 산문 매칭으로 되돌린다(통과 줄에 헛울림)",
+     "scripts/verify_gate.py",
+     '        if "✔" in ln:',
+     '        if "✔" in ln and "불일치" not in ln:',
+     "tests/test_verify_gate.py"),
+
+    ("캡션이 다시 매매 엔진(numpy)을 끌어오게 한다",
+     "quant/reporting/social.py",
+     "    from quant.live.ledger_basics import PORTFOLIO_START_CASH",
+     "    from quant.live.daily import PORTFOLIO_START_CASH",
+     "tests/test_social_path_stays_light.py"),
+
+    ("사이트 자바스크립트에 문법 오류를 심는다",
+     "docs/index.html",
+     '  const applied=(pfLast.applied)||null;',
+     '  const applied=(pfLast.applied)||;',
+     "tests/test_site_scripts_parse.py"),
+
+    ("종목계좌 비중을 통합 노출인 것처럼 되돌린다",
+     "docs/index.html",
+     '<th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>',
+     '<th>비중</th>',
+     "tests/test_two_kinds_of_weight_are_labeled.py"),
+
+    ("드리프트 등급을 대표본 관행 문턱으로 되돌린다",
+     "quant/robustness/drift.py",
+     '    if n_ref and n_new:\n        ref = psi_null(int(n_ref), int(n_new), bins)',
+     '    if False:\n        ref = psi_null(int(n_ref), int(n_new), bins)',
+     "tests/test_drift_alarm_is_calibrated.py"),
+
+    ("사이트가 배분 방식을 다시 산문에 박는다(폴백 은폐)",
+     "docs/paper.html",
+     '?rest.length+"종목 위험 분산("+(AMN[am]||"방식 기록 없음")+") (각 종목의 챔피언 전략 추종)"',
+     '?rest.length+"종목 위험 분산(HRP·계층적 리스크 패리티) (각 종목의 챔피언 전략 추종)"',
+     "tests/test_ledger_fields_reach_the_screen.py"),
+
+    ("카드가 누적을 '오늘'이라 부르던 때로 되돌린다",
+     "docs/sns_card.html",
+     "  var hd=dayp;",
+     "  var hd=ret;",
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("사람의 개입(일시정지·노출 배수)을 캡션에서 뺀다",
+     "quant/reporting/social.py",
+     '    if x.get("paused"):\n        hands.append("신규 주문 일시정지(보유 유지)")',
+     '    if False:\n        hands.append("신규 주문 일시정지(보유 유지)")',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("길이 초과 시 짧은 판이 고지까지 잘라내게 되돌린다",
+     "quant/reporting/social.py",
+     'f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"\n'
+     '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
+     'f"💰 {eq} (누적 {ret})\\n"\n'
+     '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
+     "tests/test_broadcast_tells_the_whole_truth.py"),
+
+    ("SNS 카드에서 신뢰구간을 뺀다(소표본을 확정처럼 방송)",
+     "docs/sns_card.html",
+     "        +'<span style=\"font-size:24px;color:var(--muted);font-weight:600\"> (95% '\n"
+     "        +(ci[0]*100).toFixed(0)+'~'+(ci[1]*100).toFixed(0)+'%)</span></span></div>'}).join(\"\");",
+     "        +'</span></div>'}).join(\"\");",
+     "tests/test_card_shows_uncertainty.py"),
+
+    ("주문이 실패한 종목까지 노출로 기록한다(다종목)",
+     "quant/live/multi.py",
+     '"weight": float(sum(abs(v) for v in placed.values())),',
+     '"weight": float(sum(abs(v) for v in weights.values())),',
+     "tests/test_recorded_exposure_is_what_was_ordered.py"),
+
+    ("체결 기록에서 배분 슬라이스를 다시 빼먹는다(주문≠장부)",
+     "quant/live/daily.py",
+     '"weight": round(float(pend["weight"]) * sl, 4),',
+     '"weight": round(float(pend["weight"]), 4),',
+     "tests/test_fill_records_match_the_orders.py"),
+
+    ("배분 예산을 매수 비중이라 부른다(관망 종목 방송)",
+     "quant/reporting/social.py",
+     "    keep = (list(src) if applied\n"
+     "            else [k for k in src if _held_on(status, k, date)])",
+     "    keep = list(src)",
+     "tests/test_alloc_is_not_a_purchase.py"),
+
     ("킬스위치 감쇠를 스케일러 앞으로 되돌린다(오늘 고친 결함 재현)",
      "quant/live/daily.py",
      "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)",
@@ -108,8 +256,10 @@ MUTATIONS = [
      "if False and not self._same_site_ok(parsed):",
      "tests/test_web_csrf.py"),
 
+    # chrono는 2026-08-11 감사 102에서 의존성 없는 ledger_basics로 옮겼다
+    # (SNS 게시 경로가 numpy를 끌어오지 않게). daily는 재수출만 한다.
     ("장부 정렬(chrono)을 없앤다",
-     "quant/live/daily.py",
+     "quant/live/ledger_basics.py",
      'return sorted(history or [], key=lambda r: str(r.get("date", "")))',
      "return list(history or [])",
      "tests/test_ledger_integrity.py"),
@@ -576,9 +726,9 @@ MUTATIONS = [
     # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
     # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
     ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
-     "docs/paper.html",
-     "20종목에",
-     "25종목에",
+     "docs/index.html",
+     '매일 새벽 확정 기록 · 20종목',
+     '매일 새벽 확정 기록 · 25종목',
      "tests/test_site_numbers_track_the_code.py"),
 
     # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면

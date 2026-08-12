@@ -34,7 +34,14 @@ STATUS = {
          "alloc": {"crypto:BTC/USDT": 0.08, "us_stock_NVDA": 0.0,
                    "kr_stock:005930.KS": 0.05},
          "champion": {"symbols": 20}},
-    ]}},
+    ]},
+        # 종목 장부 — 캡션은 "그날 실제로 든 종목"만 말한다(감사 91). 예산만
+        # 보고 이름을 부르면 관망한 종목까지 방송된다.
+        "crypto:BTC/USDT": {"history": [{"date": "2026-08-05",
+                                         "weight": 0.19}]},
+        "kr_stock:005930.KS": {"history": [{"date": "2026-08-05",
+                                            "weight": 0.12}]},
+    },
     "retrain_recent": [
         {"asof": "2026-08-05", "promoted": True},
         {"asof": "2026-08-05", "promoted": False},

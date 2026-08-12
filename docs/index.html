@@ -303,9 +303,9 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 
     <!-- 성과 차트 (넓게) -->
     <section class="card c8">
-      <h2>통합 계좌 <span class="tag" id="chart-tag">전략 vs 그냥 보유 · 매일 새벽 확정</span></h2>
+      <h2>통합 계좌 <span class="tag" id="chart-tag">전략 vs 첫날 균등 매수 후 보유 · 매일 새벽 확정</span></h2>
       <div id="mainchart" style="height:300px;margin-top:12px"></div>
-      <div class="sub" style="margin-top:8px">─ 계좌 자산 · ┄ 원금 · ⋯ 그냥 보유했다면
+      <div class="sub" style="margin-top:8px">─ 계좌 자산 · ┄ 원금 · ⋯ 첫날 전 종목 균등 매수 후 그대로 보유했다면
         · <span style="color:var(--accent)">●</span> 챔피언 교체</div>
     </section>
 
@@ -322,8 +322,10 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <h2>종목별 현황 <span class="tag">매일 새벽 확정 기록 · 20종목</span></h2>
       <div class="tw"><table id="symtable">
         <thead><tr><th>종목</th><th>현재가</th><th>일간</th><th>누적</th>
-          <th>비중</th><th>적중률</th><th style="text-align:left">새벽 판단</th></tr></thead>
-        <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
+          <th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>
+          <th title="8만원 통합 계좌가 실제로 들고 있는 비중(배분 슬라이스·변동성 타깃·킬스위치 반영)">통합 노출</th>
+          <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간) · n이 작으면 흐리게 표시">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
+        <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
     </section>
 
@@ -529,6 +531,58 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
+  /* 사람의 개입은 숨기지 않는다(2026-08-11 감사 96).
+     장부는 어드민 일시정지·노출 배수를 "숨기지 않고 기록한다"고 적어 두고
+     실제로 기록하는데, **사이트 어디에도 표시되지 않았다.** 이 시스템에서
+     사람이 결과를 손으로 바꿀 수 있는 유일한 통로가 그 둘이다. 손을 댄 날의
+     성적은 전략만의 결과가 아니므로, 그 사실이 성적과 같은 화면에 있어야
+     한다 — 회의적인 독자가 가장 먼저 물을 질문이기도 하다. */
+  /* 드리프트 — 모델이 배운 시장과 지금 시장이 다른가(감사 99).
+     등급은 장부에서 읽는다. 여기서 PSI 숫자를 문턱과 직접 비교하면
+     대표본 관행(0.25)을 쓰게 되는데, 최근 60거래일 기준으로는 아무 일이
+     없어도 29%가 그 문턱을 넘는다. 판단은 기록하는 쪽에서 이미 했다. */
+  {
+    const dg=Object.entries(paper).filter(([k])=>!k.startsWith("portfolio"))
+      .map(([_k,p])=>(((p.history||[])[(p.history||[]).length-1])||{}).drift_grade)
+      .filter(g=>typeof g==="string"&&g.indexOf("드리프트")>=0);
+    if(dg.length)flags.push("<b>피처 드리프트 "+dg.length+"종목</b> — 최근 분포가 "+
+      "학습 시점과 통계적으로 다릅니다(표본 잡음 범위를 넘음). 판단 신뢰도에 주의");
+  }
+  /* 모델 입력의 건강 — 조용한 저하의 대표 사례(감사 105).
+     장부는 feature_health로 "선택 피처가 몇 개나 붙었나"를 매일 남기는데
+     화면 어디에도 없었다. 2026-08-11 기록은 optional_max=0 — 11개 선택
+     피처가 **전부** 안 붙은 상태였다. 모델은 그대로 돌고 사이트도 평소와
+     같아, 판단 재료가 빈약해진 사실을 아무도 알 수 없었다. */
+  const fh=pfLast.feature_health;
+  /* ⚠️ 계측기 자체가 2026-08-12까지 고장나 있었다(감사 106) — 존재하지
+     않는 컬럼 이름을 세느라 매일 0/11을 기록했다. 그 시절 기록을 오늘의
+     사실처럼 말하면 안 되므로, 유령 이름이 남아 있는 기록은 구분한다.
+     (과거 기록은 고치지 않는다.) */
+  const fhOld=fh&&(fh.missing_everywhere||[]).indexOf("x_fred_dgs10")>=0;
+  if(fhOld)flags.push("<b>피처 계측 교정 전 기록</b> — 이 날의 피처 건강 수치는 "+
+    "계측기 오류(존재하지 않는 컬럼 이름을 셈)로 0으로 남아 있습니다. "+
+    "2026-08-12에 고쳤고 그 이후 기록부터 유효합니다");
+  else if(fh&&typeof fh.optional_max==="number"&&fh.optional_possible){
+    if(fh.optional_max===0)flags.push("<b>선택 피처 전멸</b> — 보조 지표 "+
+      fh.optional_possible+"개가 <b>한 종목도</b> 붙지 않았습니다(외부 데이터 "+
+      "수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
+    else if(fh.optional_max<fh.optional_possible/2)flags.push("<b>피처 결손</b> — "+
+      "보조 지표가 최대 "+fh.optional_max+"/"+fh.optional_possible+"개만 붙었습니다");
+  }
+  /* 데이터 품질 — 갭·스파이크가 많으면 판단 재료 자체가 흔들린다 */
+  const dq=pfLast.data_quality;
+  if(dq&&(dq.spikes>0||dq.zero_volume>0))flags.push("<b>데이터 품질</b> — 이상 급변 "+
+    (dq.spikes||0)+"건 · 거래량 0 "+(dq.zero_volume||0)+"건이 원천 데이터에 있었습니다");
+  /* 배분 폴백도 경고다(감사 98) — 조용히 내려가면 아무도 모른다 */
+  if(pfLast.alloc_method==="equal")flags.push("<b>배분 폴백</b> — 상관 추정이 안 돼 "+
+    "위험 배분(HRP·ERC)이 자본 균등 1/n으로 내려갔습니다");
+  else if(pfLast.alloc_method==="erc")flags.push("<b>배분 폴백</b> — HRP가 실패해 "+
+    "ERC(위험기여 균등)로 내려갔습니다");
+  if(pfLast.paused===true)flags.push("<b>사람의 개입 — 일시정지</b> — 운영자가 "+
+    "신규 주문을 멈춘 상태입니다(보유는 유지). 이 날의 성적은 전략만의 결과가 아닙니다");
+  const xs=pfLast.exposure_scale;
+  if(typeof xs==="number"&&Math.abs(xs-1)>1e-9)flags.push("<b>사람의 개입 — 노출 배수 "+
+    (xs*100).toFixed(0)+"%</b> — 운영자가 손으로 위험 크기를 조정했습니다");
   document.getElementById("side-flags").innerHTML=
     '<div class="t">🚩 지금 켜진 경고</div>'+
     (flags.length?flags.map(f=>'<div class="flag">'+f+'</div>').join("")
@@ -602,20 +656,34 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '명시적으로 정하고, 엣지가 입증되기 전까지는 게이트가 낮은 목표로 잠급니다.</span>';
   }
 
-  /* --- 종목별 표 --- */
+  /* --- 종목별 표 ---
+     ⚠️ 여기 '비중'은 **그 종목만 굴리는 독립 계좌** 안에서의 비중이다.
+     이 페이지의 주인공은 8만원 통합 계좌인데, 열 이름이 그냥 '비중'이면
+     읽는 사람은 통합 계좌가 애플을 12.4% 들고 있다고 읽는다 — 실제
+     통합 노출은 배분 슬라이스·변동성 타깃·킬스위치를 곱한 1.2%다
+     (2026-08-11 감사 100, 91·92와 같은 계열). 두 숫자를 나란히 놓는다. */
+  const applied=(pfLast.applied)||null;
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};
-      const hr=(typeof last.hit_rate==="number")?(last.hit_rate*100).toFixed(0)+"%":"—";
+      /* 적중률은 표본 수와 함께 보여준다(감사 111) — 포지션을 잡은 봉만
+         세므로 관망이 많은 종목은 n이 아주 작다. n 없이 비율만 보이면
+         n=3짜리 우연이 실력처럼 읽힌다. n<20이면 흐리게 + n 병기. */
+      const hn=(typeof last.hit_n==="number")?last.hit_n:null;
+      const hr=(typeof last.hit_rate!=="number")?"—"
+        :((last.hit_rate*100).toFixed(0)+"%"+(hn==null?"":
+          (hn<20?'<span class="sub" style="font-size:11px"> n='+hn+'</span>':"")));
+      const ap=applied?(applied[r.k]||0):null;
       return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
         '<td class="num">'+((r.w||0)*100).toFixed(1)+'%</td>'+
-        '<td class="num">'+hr+'</td>'+
+        '<td class="num">'+(ap==null?"—":(ap*100).toFixed(2)+"%")+'</td>'+
+        '<td class="num'+(hn!=null&&hn<20?" sub":"")+'">'+hr+'</td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
-    }).join("")||'<tr><td colspan="7" class="sub">기록 대기 중</td></tr>';
+    }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
 
   /* --- 오답 노트 --- */
   if(pf){

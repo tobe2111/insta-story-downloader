@@ -53,13 +53,32 @@ FEATURE_SET = "fs8:+fredmacro"
 # 소스가 죽으면 컬럼이 조용히 사라지는데, 장부에는 여전히 fs8로 기록된다.
 # 그러면 판정 시계가 매일 다른 구조를 재게 된다(2026-08-11 발견) — 그래서
 # '오늘 실제로 몇 개가 붙었는가'를 측정해 기록·경보한다.
+#
+# ⚠️ 이 목록은 **실제로 만들어지는 컬럼 이름**이어야 한다(2026-08-12 감사 106).
+#    전에는 여기 8개가 유령 이름이었다 — `x_btc`(실제 x_btc_ret5),
+#    `x_spy`(x_spy_ret5), `x_tnx`(x_tnx_chg5), `x_usdkrw`(x_usdkrw_ret5),
+#    `x_vixts`(x_vix_ts), 그리고 `x_fred_dgs10`·`x_fred_t10y2y`·
+#    `x_fred_bamlh0a0hym2`는 **어디서도 만들지 않는 이름**이었다.
+#    그래서 건강 계측기가 태어날 때부터 매일 "선택 피처 0/11, 전부 누락"을
+#    기록했다. 아무도 몰랐던 이유는 그 값을 **어느 화면에도 안 보여줬기**
+#    때문이다(감사 105) — 고장난 계측기와 보이지 않는 계측기가 서로를
+#    가려 주고 있었다. tests/test_feature_health_measures_real_columns.py가
+#    이름이 실제로 만들어지는지 매번 확인한다.
 OPTIONAL_FEATURES = [
-    "x_funding", "x_funding_chg",          # 코인 펀딩비
-    "x_oi_chg5",                           # 미결제약정
-    "x_btc", "x_spy", "x_tnx", "x_usdkrw",  # 크로스에셋
-    "x_vixts",                             # VIX 기간구조
-    "x_fred_dgs10", "x_fred_t10y2y", "x_fred_bamlh0a0hym2",  # FRED 거시
+    "x_funding", "x_funding_chg",          # 코인 펀딩비 (_features에서 파생)
+    "x_oi_chg5",                           # 미결제약정 (_features에서 파생)
+    "x_btc_ret5", "x_spy_ret5",            # 크로스에셋 — 코인/미국 조류
+    "x_tnx_chg5", "x_usdkrw_ret5", "x_usd_chg5",   # 금리·환율
+    "x_vix", "x_vix_ts",                   # 변동성 수준·기간구조
+    "x_t10y2y", "x_t10yie_chg5", "x_hy_spread",    # FRED 거시
+    "x_fng", "x_kimchi",                   # 심리·김치프리미엄
+    "x_frgn5", "x_inst5",                  # KRX 수급(한국주식만)
 ]
+
+# 고장난 계측기가 남긴 기록의 지문 — 이 이름이 missing 목록에 있으면 그
+# 기록은 2026-08-12 교정 **이전**의 것이다(사이트가 옛 0/11을 오늘의
+# 사실처럼 말하지 않도록 구분한다). 과거 기록은 고치지 않는다.
+BROKEN_METER_FINGERPRINT = "x_fred_dgs10"
 
 
 def optional_features_from_df(df) -> list[str]:

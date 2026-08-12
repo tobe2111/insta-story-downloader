@@ -152,14 +152,42 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     let ptab="";
     const pkeys=Object.keys(pend).filter(k=>Math.abs(pend[k])>0.0005);
     if(pkeys.length){
-      ptab=`<table><tr><th style="text-align:left">종목</th><th>목표 계좌 비중</th>
+      ptab=`<table><tr><th style="text-align:left">종목</th><th title="8만원 통합 계좌 기준 목표 비중">통합 계좌 목표 비중</th>
         <th>체결 예정</th></tr>`+pkeys.sort((a,b)=>pend[b]-pend[a]).map(k=>
         `<tr><td style="text-align:left"><b>${esc(nm(k))}</b></td>
          <td>${(pend[k]*100).toFixed(2)}%</td>
          <td>다음 장 시가</td></tr>`).join("")+`</table>`;
     }else ptab=`<p style="color:var(--muted);font-size:13px">예약된 주문이 없습니다(전 종목 관망 또는 이미 체결).</p>`;
+
+    /* 손대지 않은 이유 — 장부에는 남는데 화면에 없던 값들(감사 105).
+       "왜 오늘 이 종목은 안 고쳤나"는 체결·예약만큼 중요한 질문이다.
+       비용이 이득보다 크면 **안 하는 것**이 판단이고, 그 판단도 공개한다. */
+    let skipTab="";
+    {
+      const dust=rec.skipped_dust||[], cool=rec.skipped_cooldown||[];
+      const rb=rec.rebalance_band||null;
+      const rows=[];
+      if(dust.length)rows.push(`<tr><td style="text-align:left"><b>잔돈 주문 차단</b></td>
+        <td>${dust.length}종목</td><td style="text-align:left;color:var(--muted)">${
+        esc(dust.map(nm).join(" · "))}</td></tr>`);
+      if(cool.length)rows.push(`<tr><td style="text-align:left"><b>재조정 쿨다운</b></td>
+        <td>${cool.length}종목</td><td style="text-align:left;color:var(--muted)">${
+        esc(cool.map(nm).join(" · "))}</td></tr>`);
+      if(rb)for(const [m,b] of Object.entries(rb)){
+        const nmk={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"}[m]||m;
+        rows.push(`<tr><td style="text-align:left"><b>${esc(nmk)} 재조정 밴드</b></td>
+          <td>${(b.band*100).toFixed(0)}%</td>
+          <td style="text-align:left;color:var(--muted)">왕복비용 ${b.roundtrip_bp}bp(${
+          esc(b.source)}${b.n?` · 표본 ${b.n}건`:""}) 기준 — 이보다 덜 벗어나면 그대로 둡니다</td></tr>`);
+      }
+      if(rows.length)skipTab=`<h2 style="font-size:16px;margin:20px 0 6px">오늘 손대지 않은 이유
+        <span style="font-size:12px;color:var(--muted);font-weight:400">비용이 이득보다 크면 안 하는 것도 판단입니다</span></h2>
+        <table><tr><th style="text-align:left">사유</th><th>대상</th>
+        <th style="text-align:left">설명</th></tr>${rows.join("")}</table>`;
+    }
     out+=`<h2 style="font-size:16px;margin:26px 0 6px">오늘의 체결 <span style="font-size:12px;color:var(--muted);font-weight:400">진입 시점·가격 — 장부 그대로</span></h2>${ftab}
       <h2 style="font-size:16px;margin:20px 0 6px">예약 주문 <span style="font-size:12px;color:var(--muted);font-weight:400">오늘 새벽 결정 → 다음 장 시가 체결</span></h2>${ptab}
+      ${skipTab}
       <p style="font-size:12px;color:var(--muted);margin-top:8px">※ 주식은 "결정한 날 종가에 산 척"하지 않고
       실제로 가능한 체결(다음 세션 개장 시가, 갭 감수)만 인정합니다 — 백테스트 눈속임 방지 규칙.</p>`;
   }

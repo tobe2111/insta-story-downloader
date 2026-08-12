@@ -19,12 +19,23 @@ import re
 
 import numpy as np
 
+# 상수와 순수 계산은 **의존성 없는 모듈**에서 가져와 여기서 다시 내보낸다.
+# SNS 캡션처럼 numpy가 없는 환경에서 도는 코드가 숫자 하나 읽으려고 매매
+# 엔진 전체를 끌어오지 않게 하기 위함이다(2026-08-11 감사 102 — 그렇게
+# 끌어오다가 그날 밤 게시가 ModuleNotFoundError로 죽었다).
+from quant.live.ledger_basics import (          # noqa: F401 — 재수출
+    GOAL_KRW,
+    PORTFOLIO_START_CASH,
+    START_CASH,
+    chrono,
+    day_return_pct,
+)
+
 from quant.live.retrain import STATE_DIR, champion_spec, champion_strategy
 from quant.utils.logging import get_logger
 
 log = get_logger("daily_paper")
 
-START_CASH = 10_000.0
 
 # ── 체결 현실성 규칙 ────────────────────────────────────────────────
 # 새벽 판단 시점(KST 05:30)에 실제로 체결 가능한 첫 시점은 시장마다 다르다:
@@ -103,10 +114,18 @@ def _last_proba(strategy) -> float | None:
     return None
 
 
+# 드리프트 측정 창 — 기준(과거)과 비교(최근)의 길이. 문턱을 외우지 않고
+# **이 크기의 귀무분포**와 견주기 위해 상수로 뽑아 둔다(감사 99).
+DRIFT_N_REF, DRIFT_N_NEW = 250, 60
+
+
 def _drift_psi(df) -> float | None:
     """최근 60일 수익률 분포의 PSI(기준: 그 이전 ~250일) — 레짐 이탈 감지.
 
-    0.25 이상이면 '학습 시점과 시장이 달라졌다'는 경고 신호로 기록·알림한다.
+    ⚠️ 예전 주석은 "0.25 이상이면 경고"라고 적혀 있었다. 그 문턱은 신용평가
+       업계의 **대표본** 관행이라 여기(최근 60거래일)에는 맞지 않는다.
+       드리프트가 전혀 없어도 이 크기에서는 중앙값 0.19가 나오고, 29%가
+       0.25를 넘는다(감사 99). 판단은 `drift_grade()`에 맡긴다.
     표본 부족이면 None(계산불가를 0으로 위장하지 않는다).
     """
     try:
@@ -114,12 +133,29 @@ def _drift_psi(df) -> float | None:
         rets = df["close"].pct_change().dropna()
         if len(rets) < 130:
             return None
-        recent = rets.iloc[-60:]
-        ref = rets.iloc[-310:-60]
+        recent = rets.iloc[-DRIFT_N_NEW:]
+        ref = rets.iloc[-(DRIFT_N_REF + DRIFT_N_NEW):-DRIFT_N_NEW]
         v = psi(list(ref), list(recent))
         return round(float(v), 4) if v == v else None
     except Exception:  # noqa: BLE001 — 감시 실패가 본류를 막으면 안 된다
         return None
+
+
+def drift_grade(value) -> str | None:
+    """PSI 값을 **이 저장소가 쓰는 표본 크기 기준으로** 등급화한다."""
+    if not isinstance(value, (int, float)) or value != value:
+        return None
+    from quant.robustness import interpret_psi
+    return interpret_psi(float(value),
+                         n_ref=DRIFT_N_REF, n_new=DRIFT_N_NEW)
+
+
+def drift_reference() -> dict:
+    """같은 표본 크기에서 '아무 일도 없을 때' 나오는 PSI 분포(잣대)."""
+    from quant.robustness.drift import psi_null
+    ref = dict(psi_null(DRIFT_N_REF, DRIFT_N_NEW))
+    ref["n_ref"], ref["n_new"] = DRIFT_N_REF, DRIFT_N_NEW
+    return ref
 
 
 def _paper_path(market: str, symbol: str, state_dir: str) -> str:
@@ -294,11 +330,18 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     equity = broker.equity({symbol: price})
 
     acc = directional_accuracy(df_sig, signals, window=60)
+    psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
         "equity": round(equity, 2),
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),
+        # ⚠️ 적중률은 **표본 수와 함께** 남긴다(2026-08-12 감사 111).
+        #    포지션을 잡은 봉만 세므로 관망이 많은 종목은 n이 아주 작다.
+        #    n 없이 "적중률 64%"만 보이면 n=3짜리 우연이 실력처럼 읽힌다 —
+        #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
+        #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
+        "hit_n": acc.get("n"),
         "champion": champion_spec(market, symbol, state_dir)["params"],
         "reason": reason,
         # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
@@ -312,8 +355,13 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 예측확률(ML 챔피언일 때) — 신뢰도 곡선("60%라고 한 날 실제 적중률")과
         # 설명 문장 대조의 원천 숫자. 서술은 이 숫자에서 기계 생성된다.
         "prob_up": _last_proba(strategy),
-        # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도
-        "drift_psi": _drift_psi(df),
+        # 드리프트 감시 — 최근 60일 수익률 분포가 기준 분포에서 벗어난 정도.
+        # 숫자만 남기면 읽는 사람이 대표본 문턱(0.25)으로 읽는다. 그래서
+        # **잣대와 등급을 같이** 남긴다 — 장부만 보고도 "이게 잡음인가"에
+        # 답할 수 있어야 한다(감사 99).
+        "drift_psi": psi_v,
+        "drift_grade": drift_grade(psi_v),
+        "drift_ref": drift_reference() if psi_v is not None else None,
         # 실적 가드 발동 흔적(발동 없으면 None) — 왜 비중이 절반인지의 답
         "earnings_guard": earnings_guard,
         # 부분 켈리 상한(1.0=비개입) — OOS 통계가 비중을 제한한 흔적
@@ -527,11 +575,7 @@ def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
 # 한국주식 실측 왕복 비용(가정 14bp + 개장 갭 79bp ≈ 93bp) 기준, 500원
 # 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
 MIN_ORDER_KRW = 500.0
-GOAL_KRW = 100_000_000          # 8마일 챌린지 목표 (8만원 → 1억)
 
-# 8마일 챌린지 — 통합 계좌 시작금. 8종목 × 만원 = 8만원 (영화 8 Mile 오마주).
-# 개별 종목 계좌는 여전히 각자 만원(START_CASH)으로 참고용 기록을 쌓는다.
-PORTFOLIO_START_CASH = 80_000.0
 
 
 def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
@@ -575,23 +619,6 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
           f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
-
-
-def chrono(history: list[dict]) -> list[dict]:
-    """기록을 날짜 오름차순으로 — 파생 수치는 시간순을 전제한다.
-
-    ⚠️ 왜 필요한가(2026-08-11 장부 무결성 검사에서 발견): 한국주식 6종목의
-    기록 배열이 08-05 → **08-07 → 08-06** → 08-10 순으로 어긋나 있었다.
-    원인은 데이터 소스가 한때 아직 닫히지도 않은 08-07 봉을 먼저 내보낸 것
-    (그래서 _drop_unclosed를 추가했다). 값 자체는 그날의 진짜 기록이지만
-    **배열 순서**가 뒤집혀 있어, 하루치 수익률·낙폭·최고·최악일처럼 '직전
-    날'을 참조하는 계산이 엉뚱한 날을 전날로 잡는다.
-
-    저장된 기록은 건드리지 않는다 — "과거를 고치지 않는다"는 약속이 먼저다.
-    대신 읽는 쪽에서 시간순으로 정렬해 계산한다. 값은 그대로고 순서만 바로잡는
-    것이라 재계산이 아니며, 어긋난 배열은 장부에 증거로 남는다.
-    """
-    return sorted(history or [], key=lambda r: str(r.get("date", "")))
 
 
 def twr_index(history: list[dict], deposits: list[dict],
@@ -648,33 +675,6 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력."""
     idx = twr_index(history, deposits, start_cash)
     return round((idx[-1] - 1) * 100, 2) if idx else 0.0
-
-
-def day_return_pct(history: list[dict], deposits: list[dict],
-                   start_cash: float = START_CASH) -> float | None:
-    """마지막 기록일의 **하루치** 수익률(%) — 입금 효과 제거(TWR과 같은 식).
-
-    왜 따로 두는가(2026-08-11 감사에서 발견): 기록의 return_pct는 원금 대비
-    **누적** 수익률인데, SNS 캡션이 그것을 "오늘 X%"라고 읽고 있었다. 지금은
-    누적이 -0.06%라 차이가 안 보이지만, 누적이 +40%가 되면 매일 "오늘 +40%"를
-    방송하게 된다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 거짓말이다.
-    숫자는 산문이 아니라 장부에서 나와야 하므로, 하루치도 장부에 남긴다.
-    """
-    history = chrono(history)
-    if not history:
-        return None
-    flows: dict[str, float] = {}
-    dates = [r["date"] for r in history]
-    for d in deposits or []:
-        target = next((dt for dt in dates if dt >= d["date"]), None)
-        if target is not None:
-            flows[target] = flows.get(target, 0.0) + float(d["amount"])
-    prev = float(history[-2]["equity"]) if len(history) >= 2 else float(start_cash)
-    if prev <= 0:
-        return None
-    last = history[-1]
-    eq = float(last["equity"]) - flows.get(last["date"], 0.0)
-    return round((eq / prev - 1) * 100, 2)
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
@@ -1283,8 +1283,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         if order is None:
             pending.pop(key, None)
             continue                       # 밴드 안 — 고쳐 잡지 않는다
+        # ⚠️ 기록하는 비중은 **실제로 낸 주문**과 같아야 한다(감사 92).
+        #    주문은 바로 위에서 `pend["weight"] * sl`로 나가는데 기록만
+        #    슬라이스를 빼먹고 있었다 — 같은 값을 한 줄 사이에서 두 정의로
+        #    쓴 셈이라, 장부가 실제보다 10~50배 큰 체결 비중을 말했다
+        #    (2026-08-10 069500 체결: 장부 0.165 / 실제 주문 0.0036).
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
-                      "weight": round(float(pend["weight"]), 4),
+                      "weight": round(float(pend["weight"]) * sl, 4),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 
@@ -1461,6 +1466,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         return min(v, cap * slices.get(k, 1.0 / n)) if cap is not None else v
 
     gross = sum(_applied(k, w) for k, w in weights.items())
+    # 종목별 '실제로 적용한' 노출 — 사이트·SNS가 "오늘 뭘 얼마나 샀나"를
+    # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
+    # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
+    # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
+    applied = {k: round(v, 4)
+               for k, v in ((k, _applied(k, w)) for k, w in weights.items())
+               if v > 0}
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
     principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
                  + sum(d["amount"] for d in st.get("deposits", [])))
@@ -1485,7 +1497,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "paused": paused,
               "exposure_scale": float(settings["exposure_scale"]),
               "drawdown_pct": round(drawdown * 100, 2),
+              # ⚠️ alloc은 **배분 예산**이다(관망 종목에도 붙는다).
+              #    "얼마나 샀나"는 아래 applied를 봐야 한다.
               "alloc": {k: round(v, 4) for k, v in slices.items()},
+              "applied": applied or None,
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
               # 포트폴리오 변동성 타깃의 흔적 — 총노출이 왜 이 크기인지의 답.
               # proven=False면 게이트가 검증 목표를 상한으로 잠근 상태다.

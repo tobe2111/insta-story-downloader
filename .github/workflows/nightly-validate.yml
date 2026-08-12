@@ -114,31 +114,13 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          python - <<'PY'
-          try:
-              text = open("verify.txt", encoding="utf-8").read()
-          except OSError:
-              raise SystemExit("verify.txt 없음 — 재현 감사가 실행되지 않았다")
-          lines = text.splitlines()
-          # 결과 줄이 하나도 없으면 감사가 '조용히 죽은' 것이다 — 통과로
-          # 읽으면 안 된다. 돌지 않은 검증이 정확히 이번에 잡은 결함이다.
-          if not any(("✔" in ln or "✘" in ln) for ln in lines):
-              raise SystemExit("재현 감사 출력 없음 — verify가 실행되지 못했다\n"
-                               + text[-2000:])
-          # '스냅샷 없음'·'구버전 기록'은 옛 기록의 정상적 한계라 경보 제외.
-          # 결정이 달라진 것(불일치)만이 진짜 사건이다.
-          bad = [ln for ln in lines if "불일치" in ln or "재현 실패" in ln]
-          if not bad:
-              print("✅ 재현 감사 통과(또는 대상 없음)")
-              raise SystemExit(0)
-          from quant.live.notifications import get_notifier
-          get_notifier().send(
-              "🚨 재현성 감사 불일치 — 같은 스냅샷·같은 코드로 어제 결정이 "
-              "재현되지 않았습니다. 장부의 '조작 불가능' 주장이 걸린 문제라 "
-              "즉시 확인이 필요합니다.\n" + "\n".join(bad[:10]))
-          raise SystemExit("재현 불일치: " + " | ".join(bad[:5]))
-          PY
+        # ⚠️ 판단 로직을 YAML에 두지 않는다(2026-08-11 감사 103). 여기 있던
+        #    `bad = [ln for ln in lines if "불일치" in ln ...]`가 **통과 줄의
+        #    설명문**("… — 불일치 시 조작이 아니라 라이브러리 버전 차이일 수
+        #    있음")에 걸려 ✔인 날에도 매일 경보를 울렸다. YAML 안에 있어서
+        #    검사를 쓸 수 없었던 것이 원인이다.
+        #    scripts/verify_gate.py + tests/test_verify_gate.py로 옮겼다.
+        run: python3 scripts/verify_gate.py verify.txt
 
       # 검증 결과를 장부에 커밋한다 — 아티팩트는 만료되고, 만료되는 증거는
       # 감시가 아니다. 커밋된 값을 flag_watch가 매일 읽어 과최적화를 경보한다.

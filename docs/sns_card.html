@@ -72,31 +72,69 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   var date=last.date||(st.updated||"").slice(0,10);
   var day=hist.length?("D+"+hist.length):"";
   var eq=last.equity!=null?Math.round(last.equity).toLocaleString()+"원":"—";
-  var ret=last.return_pct!=null?last.return_pct:null;
+  var ret=last.return_pct!=null?last.return_pct:null;      // 누적(원금 대비)
   var retTxt=ret!=null?((ret>0?"+":"")+ret.toFixed(2)+"%"):"—";
   var twr=last.twr_pct!=null?((last.twr_pct>0?"+":"")+last.twr_pct.toFixed(2)+"%"):null;
-  var cls=ret==null||Math.abs(ret)<0.005?"flat":(ret>0?"up":"down");
+  // ⚠️ 하루치는 누적과 **절대 섞으면 안 되는 별개의 숫자**다(감사 95).
+  //    2026-08-11에 캡션은 바로잡았는데 카드는 그대로 남아, 누적을
+  //    "오늘 -0.06%"라고 큰 글씨로 찍고 훅까지 그 값으로 골랐다.
+  //    누적이 +40%가 되면 매일 "오늘 +40%"를 방송하게 되는 구조다 —
+  //    이미 한 번 공개 정정한 결함이라 더더욱 남아 있으면 안 된다.
+  var dayp=last.day_pct!=null?last.day_pct:null;
+  var dayTxt=dayp!=null?((dayp>0?"+":"")+dayp.toFixed(2)+"%"):null;
+  var kls=function(v){return v==null||Math.abs(v)<0.005?"flat":(v>0?"up":"down")};
+  var cls=kls(ret), dcls=kls(dayp);
   var alloc=last.alloc||{};var names=st.symbols||{};
   var rs=last.risk_scale!=null?last.risk_scale:1;
+  // 사람의 개입(어드민 일시정지·노출 배수) — 장부에는 남는데 방송에는
+  // 없었다(감사 96). 이 시스템에서 사람이 결과를 바꿀 수 있는 유일한
+  // 통로다. 숨기면 '전부 자동'이라는 주장 자체가 거짓이 된다.
+  var owner=(function(){
+    var out=[];
+    if(last.paused===true)out.push("운영자가 신규 주문을 일시정지했습니다(보유 유지)");
+    var xs=last.exposure_scale;
+    if(typeof xs==="number"&&Math.abs(xs-1)>1e-9)
+      out.push("운영자가 노출 배수를 "+(xs*100).toFixed(0)+"%로 조정했습니다");
+    return out.join(" · ");
+  })();
   var recent=(st.retrain_recent||[]).filter(function(r){return r.asof===date});
   var swaps=recent.filter(function(r){return r.promoted}).length;
   var nCand=recent.reduce(function(a,r){return a+(r.n_candidates||0)},0);
 
-  // 훅 — 그날 실제로 일어난 일이 첫 줄이다 (선택 편향 없는 계정의 정체성)
+  // 훅 — 그날 실제로 일어난 일이 첫 줄이다 (선택 편향 없는 계정의 정체성).
+  // 여기서 보는 건 **하루치**다. 누적으로 고르면 누적이 커질수록 매일
+  // 같은 훅("좋은 날")이 나가고, 정작 크게 잃은 날에도 그 훅이 나간다.
+  var hd=dayp;
   var hook;
   if(rs<1)hook="킬스위치가<br>작동 중입니다.";
-  else if(ret==null)hook="오늘의 장부를<br>공개합니다.";
-  else if(ret<=-1)hook="아픈 날도<br>그대로 올립니다.";
-  else if(ret<0)hook="이 마이너스도<br>기록의 일부입니다.";
-  else if(Math.abs(ret)<0.005)hook="지루한 날도<br>기록입니다.";
-  else if(ret<1)hook="작은 플러스가<br>쌓여야 복리입니다.";
+  else if(hd==null)hook="오늘의 장부를<br>공개합니다.";
+  else if(hd<=-1)hook="아픈 날도<br>그대로 올립니다.";
+  else if(hd<0)hook="이 마이너스도<br>기록의 일부입니다.";
+  else if(Math.abs(hd)<0.005)hook="지루한 날도<br>기록입니다.";
+  else if(hd<1)hook="작은 플러스가<br>쌓여야 복리입니다.";
   else hook="좋은 날이지만,<br>하루로는 증명이 아닙니다.";
 
-  var top=Object.entries(alloc).filter(function(e){return e[1]>0})
+  // ⚠️ alloc은 **배분 예산**이지 매수 비중이 아니다. 모델이 관망한 종목에도
+  //    예산은 붙어 있어서, alloc을 "매수 8%"라 부르면 그날 한 주도 사지 않은
+  //    종목을 샀다고 공개하게 된다(2026-08-11 감사 91 — 실제로 2026-08-10
+  //    QQQ는 장부가 "관망 (현금)", 비중 0인데 alloc은 0.0802였다).
+  //    장부의 applied(종목별 실제 적용 노출)를 쓰고, 그게 없는 옛 기록은
+  //    그날 종목 장부의 비중이 0인 종목을 빼고 '배분'이라 부른다.
+  var applied=last.applied||null;
+  function heldOn(k){                       // 그날 그 종목을 실제로 들었나
+    var h=((st.paper||{})[k]||{}).history||[];
+    for(var i=h.length-1;i>=0;i--)if(h[i].date===date)return (h[i].weight||0)>0;
+    return false;                           // 기록이 없으면 샀다고 말하지 않는다
+  }
+  var src=applied||alloc, wLabel=applied?"노출":"배분";
+  var top=Object.entries(src)
+    .filter(function(e){return e[1]>0 && (applied||heldOn(e[0]))})
     .sort(function(a,b){return b[1]-a[1]}).slice(0,5)
     .map(function(e){var k=e[0];
       return {key:k,name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
-  var nCash=Object.values(alloc).filter(function(v){return !(v>0)}).length;
+  var held={};top.forEach(function(t){held[t.key]=1});
+  var nCash=Object.keys(alloc).filter(function(k){
+    return applied?!(applied[k]>0):!heldOn(k)}).length;
 
   // 대표 종목의 새벽 판단 근거 — 배분 1위 종목 페이퍼 장부의 reason
   var lead=top[0]||null, leadReason=[];
@@ -120,7 +158,25 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
         if(p>=buckets[bi][0]&&p<buckets[bi][1]){
           agg[bi].n++;if(h[i+1].price>h[i].price)agg[bi].up++;break}}
     }});
+  // 시작금·유니버스·실제 보유 수 — 전부 장부에서 읽는다(감사 113).
+  var startCash=(port.start_cash!=null?port.start_cash
+    :((hist[0]||{}).principal!=null?hist[0].principal:80000));
+  var startTxt=(startCash>=10000&&startCash%10000===0)
+    ?(startCash/10000).toLocaleString()+"만원"
+    :Math.round(startCash).toLocaleString()+"원";
+  var universe=Object.keys(alloc).length||(st.symbols?Object.keys(st.symbols).length:0);
+  var held=Math.max(0, universe-nCash);
+
   var calTotal=agg.reduce(function(a,b){return a+b.n},0);
+  // 윌슨 95% 신뢰구간 — paper.html이 쓰는 것과 같은 식이다(감사 94).
+  // 카드에는 이게 없어서 표본 8일짜리 비율이 확정된 사실처럼 나갔다:
+  // "55~60%라 말한 날 8일 · 실제 상승 12%". 사이트는 같은 자리에
+  // "2~47%"를 함께 보이며 "구간을 믿으세요"라고 적는데, 정작 가장 널리
+  // 퍼지는 카드가 그 안전장치를 빼고 있었다. 좋게 보이는 쪽(70% 이상 →
+  // 64%)도 같은 문제다 — 소표본을 증거처럼 방송하게 된다.
+  function wilson(p,n){var z=1.96,d=1+z*z/n,c=(p+z*z/(2*n))/d,
+    h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;
+    return [Math.max(0,c-h),Math.min(1,c+h)]}
 
   var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
     +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'
@@ -141,12 +197,23 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===2){
     html=page("오늘의 숫자",
       '<div class="big" style="margin-top:80px">'+esc(eq)+'</div>'
-      +'<div class="chg '+cls+'">오늘 '+esc(retTxt)
+      +'<div class="chg '+cls+'">누적 '+esc(retTxt)
+      +(dayTxt?' <small style="font-size:34px" class="'+dcls+'">· 오늘 '+esc(dayTxt)+'</small>':"")
       +(twr?' <small style="font-size:34px;color:var(--muted)">· 실력지표(TWR) '+esc(twr)+'</small>':"")+'</div>'
-      +'<div class="sub" style="margin-top:48px">시작 8만원 · 20종목 분산(코인·한국·미국)<br>'
+      // ⚠️ 시작금·종목 수를 산문에 박지 않는다(2026-08-12 감사 113).
+      //    감사 89에서 캡션은 코드에서 읽게 고쳤는데 **카드는 그대로**였다
+      //    — 또 형제를 안 찾았다(FROZEN_IDEAS ⑭).
+      //    그리고 'N종목 분산'은 **후보 수**지 실제 보유가 아니다. 절반이
+      //    관망인 날도 있는데 '분산'이라 적으면 실제보다 넓게 퍼져 있는
+      //    것처럼 읽힌다(감사 91과 같은 계열 — 관망을 보유로 보이게 함).
+      +'<div class="sub" style="margin-top:48px">시작 '+esc(startTxt)
+      +' · 오늘 '+held+'종목 보유 / 후보 '+universe+'종목(코인·한국·미국)<br>'
       +'수수료·거래세 차감 후 · 주식은 다음 시가 체결 기준</div>'
       +(rs<1?'<div class="note">🛑 킬스위치 작동 중 — 낙폭 한도 초과로 노출 '
-        +(rs*100).toFixed(0)+'% 제한. 물러나는 것도 시스템의 일입니다.</div>':""));
+        +(rs*100).toFixed(0)+'% 제한. 물러나는 것도 시스템의 일입니다.</div>':"")
+      // 사람이 손을 댄 날은 그 사실이 성적과 같은 화면에 있어야 한다(감사 96).
+      +(owner?'<div class="note">✋ '+owner+' — 이 날의 성적은 전략만의 결과가 '
+        +'아닙니다.</div>':""));
   }else if(n===3){
     var vt=recent.length?("후보 "+nCand+"명이<br>도전했습니다"):"오늘은 오디션이<br>없었습니다";
     var res=recent.length?(swaps
@@ -160,7 +227,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===4){
     var rows=top.map(function(t){
       return '<div class="row"><b>'+esc(t.name)+'</b>'
-        +'<span class="w">매수 '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
+        +'<span class="w">'+wLabel+' '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
     if(!top.length)rows='<div class="row"><b>전 종목</b><span class="cash">관망 (현금 100%)</span></div>';
     else if(nCash>0)rows+='<div class="row"><b>나머지 '+nCash+'종목</b><span class="cash">관망 (현금)</span></div>';
     html=page("오늘 새벽 AI의 배분",
@@ -176,12 +243,18 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===6){
     var rows6=agg.map(function(a,i){
       if(!a.n)return "";
+      var ci=wilson(a.up/a.n,a.n);
       return '<div class="row" style="font-size:33px"><b>'+buckets[i][2]+'라 말한 날 '+a.n+'일</b>'
-        +'<span class="w">실제 상승 '+(a.up/a.n*100).toFixed(0)+'%</span></div>'}).join("");
+        +'<span class="w">실제 상승 '+(a.up/a.n*100).toFixed(0)+'%'
+        +'<span style="font-size:24px;color:var(--muted);font-weight:600"> (95% '
+        +(ci[0]*100).toFixed(0)+'~'+(ci[1]*100).toFixed(0)+'%)</span></span></div>'}).join("");
     html=page("AI가 말한 확률, 실제로 맞나",
       '<h1 style="font-size:58px">예측은 새벽에,<br>채점은 다음 날</h1>'
       +'<div class="rows" style="margin-top:40px">'+(rows6||'<div class="sub">표본 수집 중입니다.</div>')+'</div>'
-      +'<div class="note">표본 '+calTotal+'일 — 말한 확률과 실제 빈도가 맞는지(보정)를 매일 공개 채점합니다. 어긋나면 어긋난 대로 보입니다.</div>');
+      +'<div class="note">표본 '+calTotal+'일'
+      +(calTotal<30?' — <b>아직 수집 중입니다.</b> 비율보다 괄호 안 95% 구간을 믿으세요.'
+        :' — 비율은 표본이 적으면 흔들립니다. 괄호 안 95% 구간을 함께 보세요.')
+      +' 말한 확률과 실제 빈도가 맞는지(보정)를 매일 공개 채점합니다. 어긋나면 어긋난 대로 보입니다.</div>');
   }else if(n===7){
     html=page("왜 믿을 수 있나",
       '<h1 style="font-size:58px">잘된 날만 골라<br>올리지 않습니다</h1>'
