@@ -23,6 +23,20 @@ def record_order(path: str | Path, order: dict, context: dict | None = None) -> 
 
     order   : 주문 결과 dict(symbol·side·quantity·price·status·order_id 등)
     context : 부가 정보(time·equity·weight·mode 등)
+
+    ⚠️ **여기서 예외가 새면 안 되는 이유**(감사 174): 이 함수는 주문을
+       **보낸 뒤에** 불린다. 여기서 죽으면 돈은 이미 움직였는데 배치가
+       그 자리에서 멈춘다 — 남은 종목은 처리되지 않고, 방금 낸 주문은
+       장부에도 안 남는다. 가장 나쁜 순간의 실패다.
+
+       예전에는 `except OSError`만 잡았다. 독스트링은 "실패해도 예외를
+       삼킨다"라고 적혀 있는데 실제로는 두 종류가 새어 나갔다:
+           직렬화 불가 키(datetime 키 등) → TypeError
+           순환 참조                      → ValueError
+       약속과 코드가 어긋나 있었다(㊾와 같은 계열).
+
+       감사 로그는 곁가지다. 곁가지가 본류를 죽이면 안 된다 — 다만 조용히
+       삼키지는 않고 경고를 남긴다.
     """
     try:
         rec = {**(context or {}), **(order or {})}
@@ -30,8 +44,10 @@ def record_order(path: str | Path, order: dict, context: dict | None = None) -> 
         fp.parent.mkdir(parents=True, exist_ok=True)
         with fp.open("a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
-    except OSError:
-        pass
+    except Exception as exc:  # noqa: BLE001 — 감사 로그가 매매를 죽이면 안 된다
+        from quant.utils.logging import get_logger
+        get_logger("live.journal").warning(
+            "주문 감사 로그 기록 실패(%s) — 매매는 계속합니다", exc)
 
 
 def load_orders(path: str | Path) -> list[dict]:
@@ -51,8 +67,15 @@ def load_orders(path: str | Path) -> list[dict]:
     return out
 
 
-def build_review(history: list[dict], periods_per_year: int = 365) -> dict:
+def build_review(history: list[dict]) -> dict:
     """상태 history(자본·목표비중 시계열)에서 거래 단위 통계를 낸다.
+
+    ⚠️ 예전에는 `periods_per_year` 인자를 받았는데 **본문에서 한 번도 쓰지
+       않았다**(감사 174). 그런데 CLI는 시장에 맞춰(코인 365 / 주식 252)
+       그 값을 성실히 계산해 넘기고 있었다 — 사장님이 시장을 고르면 뭔가
+       달라질 것처럼 보이지만 아무 일도 일어나지 않는 **죽은 손잡이**였다.
+       trade_stats에는 연율화 지표가 없어 쓸 자리 자체가 없다. 지웠다.
+       (감사 135와 같은 계열 — 있는 척하는 손잡이가 없는 것보다 나쁘다.)
 
     history 원소는 {equity, weight, ...} 형태(LiveTrader/MultiTrader가 저장). 이를
     자본곡선·포지션 Series로 만들어 extract_trades→trade_stats로 복기한다.
@@ -113,14 +136,13 @@ def review_report(review: dict) -> str:
     return "\n".join(lines)
 
 
-def review_state_file(state_path: str | Path,
-                      periods_per_year: int = 365) -> dict[str, Any]:
+def review_state_file(state_path: str | Path) -> dict[str, Any]:
     """상태 파일(state.json)을 읽어 거래 복기 통계를 반환한다(없으면 빈 통계)."""
     fp = Path(state_path)
     if not fp.exists():
-        return build_review([], periods_per_year)
+        return build_review([])
     try:
         state = json.loads(fp.read_text(encoding="utf-8"))
     except (ValueError, OSError):
-        return build_review([], periods_per_year)
-    return build_review(state.get("history", []) or [], periods_per_year)
+        return build_review([])
+    return build_review(state.get("history", []) or [])

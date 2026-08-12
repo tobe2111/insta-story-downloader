@@ -799,7 +799,10 @@ def _cmd_journal(args) -> None:
     """봇 상태 파일에서 실거래/페이퍼 성과를 복기한다(거래 단위 통계)."""
     from quant.live.journal import review_report, review_state_file
 
-    review = review_state_file(args.state, periods_per_year=_ppy(args.market))
+    # periods_per_year를 넘기지 않는다 — 복기 통계에는 연율화 지표가 없어서
+    # 그 값이 쓰이는 자리가 없었다(감사 174). 계산해 넘기기만 하면 사장님이
+    # 시장을 고르면 뭔가 달라진다고 오해하게 된다.
+    review = review_state_file(args.state)
     print(f"\n=== 거래 복기: {args.state} ===")
     print(review_report(review))
 def _cmd_costcheck(args) -> None:

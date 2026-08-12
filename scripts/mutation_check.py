@@ -1363,6 +1363,28 @@ MUTATIONS = [
      "        if p < len(bar_index):",
      "tests/test_attached_features_cannot_see_the_future.py"),
 
+    # 감사 174 — 감사 로그가 매매를 죽일 수 있었다.
+    ("주문 감사 로그 실패를 좁게만 삼킨다(직렬화 오류가 배치를 죽인다)",
+     "quant/live/journal.py",
+     "    except Exception as exc:  # noqa: BLE001 — 감사 로그가 매매를 죽이면 안 된다",
+     "    except OSError as exc:",
+     "tests/test_the_audit_log_never_kills_the_batch.py"),
+
+    ("망가진 줄을 만나면 감사 로그 읽기를 통째로 포기한다",
+     "quant/live/journal.py",
+     "        try:\n"
+     "            out.append(json.loads(line))\n"
+     "        except ValueError:\n"
+     "            continue",
+     "        out.append(json.loads(line))",
+     "tests/test_the_audit_log_never_kills_the_batch.py"),
+
+    ("복기가 표본 부족을 무시하고 통계를 낸다",
+     "quant/live/journal.py",
+     "    if len(rows) < 3:",
+     "    if len(rows) < 0:",
+     "tests/test_the_audit_log_never_kills_the_batch.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
