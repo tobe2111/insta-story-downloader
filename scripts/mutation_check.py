@@ -292,6 +292,26 @@ MUTATIONS = [
      "                v3m = _bench_close(\"us_stock\", \"^VIX3M\", fetch=fetch)",
      "tests/test_alpha6_vix_kimchi_calguard.py"),
 
+    # 감사 136 — 장부 키를 바꾸고 소비처를 안 찾아 경보가 죽어 있었다.
+    ("회전율 경보가 없는 키를 0으로 읽게 되돌린다(경보가 영원히 안 울린다)",
+     "quant/live/flag_watch.py",
+     "        vals = [r[\"turnover\"].get(\"traded\") for r in recent]",
+     "        vals = [r[\"turnover\"].get(\"ratio\") or 0.0 for r in recent]",
+     "tests/test_flag_watch.py"),
+
+    # 감사 135 — 제공자는 소스를 적고 있었는데 읽는 곳이 한 곳도 없었다.
+    ("시세 소스를 장부에서 뺀다(무조정가 폴백을 아무도 모르게)",
+     "quant/live/daily.py",
+     "              \"data_source\": sources or None,",
+     "              \"data_source\": None,",
+     "tests/test_data_source_is_recorded.py"),
+
+    ("보조 소스를 1차와 구분하지 않는다(무조정가가 조정가인 척)",
+     "quant/live/daily.py",
+     "        if want and name != want:",
+     "        if False:",
+     "tests/test_data_source_is_recorded.py"),
+
     # ── 어드민·웹 경로 ──
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",

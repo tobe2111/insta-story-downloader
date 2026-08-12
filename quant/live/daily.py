@@ -370,6 +370,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         # 값이 있으면 이 기록의 price는 그날 일봉 종가가 아니다 — 공개
         # 차트와 대조하려는 사람이 오해하지 않도록 장부에 남긴다(감사 56).
         "bar_partial": bar_status(market, df.index[-1], timeframe),
+        # 어느 소스에서 받았는가(감사 135) — 통합 계좌와 같은 규칙.
+        # 주식 보조 소스는 무조정가라 배당·분할 날 값이 미세하게 다르다.
+        "data_source": str(df.attrs.get("source") or "?"),
     }
     # 확률 보정 준비(표시 전용) — '보정 어긋남'이 표본 30건 이상에서 통계로
     # 확정된 확률대에 한해 경험 보정값을 병기한다. 사이징에는 개입하지 않음.
@@ -869,6 +872,23 @@ def _regime_breakdown(history: list, window: int = 20) -> dict | None:
         return None
 
 
+# 시장별 '1차 소스' — 이 이름이 아니면 폴백으로 받은 것이다(감사 135).
+# 주식은 yfinance(auto_adjust=조정가)가 1차이고, 보조 소스(yahoo-http·stooq)는
+# 무조정가라 배당·액면분할 날 수익률에 가짜 점프가 생긴다.
+# 코인은 거래소 id가 그대로 소스명이라 '1차/보조' 구분이 없다.
+PRIMARY_SOURCE = {"us_stock": "yfinance", "kr_stock": "yfinance"}
+
+
+def _source_fallbacks(sources: dict) -> dict:
+    """1차 소스가 아닌 종목만 추린다 — {키: 실제로 쓴 소스}."""
+    out = {}
+    for key, name in sources.items():
+        want = PRIMARY_SOURCE.get(key.split(":")[0])
+        if want and name != want:
+            out[key] = name
+    return out
+
+
 def _hrp_slices(rets_map: dict, n_total: int) -> dict | None:
     """HRP(계층적 리스크 패리티) 슬라이스 — ERC의 상위 호환(추정 오차에 강함).
 
@@ -1129,6 +1149,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
+    sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
@@ -1153,6 +1174,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 bad = {k: v for k, v in q.items() if v}
                 raise RuntimeError(f"데이터 무결성 위반 {bad}")
             data_quality[key] = q
+            # 어느 소스에서 받았는가 — 주식 제공자는 야후가 흔들리면 조용히
+            # 보조 소스(yahoo-http·stooq)로 넘어간다. 보조 소스는 **무조정가**라
+            # 배당·액면분할 날 수익률에 가짜 점프가 생기고, 그 값이 학습
+            # 라벨·백테스트·장부에 그대로 들어간다. 제공자는 이 사실을
+            # attrs["source"]에 적고 있었지만 **읽는 곳이 한 곳도 없었다**
+            # (감사 135) — 기록만 하고 아무도 안 보는 계측기였다.
+            sources[key] = str(df.attrs.get("source") or "?")
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
@@ -1576,6 +1604,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "champion": {"symbols": len(prices), "skipped": skipped,
                            "planned": len(targets),
                            "skipped_why": skipped_why or None},
+              # 어느 소스에서 시세를 받았는가(감사 135). 주식 제공자는 야후가
+              # 흔들리면 조용히 보조 소스로 넘어가는데, 보조 소스는 무조정가라
+              # 배당·분할 날 수익률에 가짜 점프가 생긴다. 그 사실이 장부에
+              # 남지 않으면 "누구든 검증할 수 있다"는 말이 약해진다 —
+              # 공개 차트와 대조하는 사람은 왜 어긋나는지 알 수 없다.
+              "data_source": sources or None,
+              # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
+              # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.
+              "data_source_fallback": _source_fallbacks(sources) or None,
               # 결정에 쓴 마지막 봉이 아직 만들어지는 중이던 종목들(감사 56).
               # 코인은 24시간 시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중인데,
               # 주식과 달리 그 봉을 버리는 장치가 없다. 그 봉의 종가·고저는
