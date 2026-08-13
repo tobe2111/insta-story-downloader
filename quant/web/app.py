@@ -1189,7 +1189,14 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                 pr = sc + sum(dd["amount"] for dd in deposits
                               if _flow_date(dd) and _flow_date(dd) <= r["date"])
                 base_series.append(round(pr, 2))
+            # 낙폭 차트가 쓸 **입금 제거 성장 지수**(감사 224). 원자산으로
+            # 그리면 입금이 고점을 끌어올려 그 직전 손실이 그림에서 사라진다 —
+            # 감사 197에서 KPI는 고쳤는데 차트 오버레이가 남아 있었다.
+            # 계산은 `twr_index` 한 곳에서만 한다(브라우저가 다시 세지 않게).
+            from quant.live.ledger_basics import twr_index as _twr
+            _idx = _twr(hist, deposits, start_cash=sc)
             a.update({"goal": GOAL_KRW,
+                      "spark_twr": [round(x, 6) for x in _idx[-60:]],
                       "principal": round(principal, 2),
                       "pnl": round(float(a["equity"]) - principal, 2),
                       "twr_pct": time_weighted_return(hist, deposits,
@@ -1412,7 +1419,26 @@ def candles_json(key: str, tf: str = "1m", limit: int = 90,
                             "side": "매수 보유" if qty > 0 else "매도 보유"}
             hist = st.get("history", [])
             if hist and position is not None:
-                position["weight"] = hist[-1].get("weight")
+                # ⚠️ 기록의 `weight`는 **오늘 내린 결정**이다(감사 217·223).
+                #    주식은 다음 세션 시가 체결이라, 지금 들고 있는 것은 어제
+                #    결정의 결과다. 조종석은 이 값을 **실제 보유 옆에** 붙여
+                #    "매수 보유 · 비중 X%"로 찍고 있었다. 실측:
+                #        us_stock:META → "매수 보유 · 비중 0%" (실제 1.77주)
+                #    보유가 있다고 말하면서 비중은 0이라고 하는, 그 자체로
+                #    모순인 문장이다. 잔고를 말하고 결정은 따로 밝힌다.
+                _last = hist[-1]
+                _hw = _last.get("held_weight")
+                if _hw is None:
+                    # 옛 기록에는 이 필드가 없다(2026-08-13부터 기록). 짐작하지
+                    # 말고 **그 기록의 값으로 직접 센다** — 수량·가격·자산이
+                    # 다 거기 있다. 없는 값을 지어내는 것과, 있는 값으로
+                    # 계산하는 것은 다르다.
+                    _px = _last.get("price")
+                    _eq = _last.get("equity")
+                    if isinstance(_px, (int, float)) and _eq:
+                        _hw = round(qty * float(_px) / float(_eq), 4)
+                position["weight"] = _hw
+                position["plan"] = _last.get("weight")
         except (ValueError, OSError):
             pass
 
@@ -1785,7 +1811,8 @@ function proChart(o){{
         fill="${{up?"var(--ok)":"var(--bad)"}}"/>
       <text x="${{W-padR+(padR-6)/2+2}}" y="${{ly+4}}" font-size="11" font-weight="700"
         fill="#07080b" text-anchor="middle">${{Math.round(v[v.length-1]).toLocaleString()}}</text>`;
-    if(o.dd){{let peak=v[0];const dd2=v.map(x=>{{peak=Math.max(peak,x);return peak?x/peak-1:0}});
+    if(o.dd){{const dv=(o.twr&&o.twr.length===v.length)?o.twr:v;
+      let peak=dv[0];const dd2=dv.map(x=>{{peak=Math.max(peak,x);return peak?x/peak-1:0}});
       const dmn=Math.min(...dd2,-0.001);
       const DY=val=>H-padB-ddH+( -val/-dmn)*ddH;
       const dline=dd2.map((val,i)=>`${{X(i).toFixed(1)}},${{DY(val).toFixed(1)}}`).join(" ");
@@ -1829,7 +1856,10 @@ function proChart(o){{
     <text x="${{W-padR+(padR-6)/2+2}}" y="${{ly+4}}" font-size="11" font-weight="700"
       fill="#07080b" text-anchor="middle">${{Math.round(v[v.length-1]).toLocaleString()}}</text>`;
   // 드로다운 서브차트(수면 아래)
-  if(o.dd){{let peak=v[0];const dd=v.map(x=>{{peak=Math.max(peak,x);return peak?x/peak-1:0}});
+  /* ⚠️ 낙폭은 **입금 제거 성장 지수** 위에서 잰다(감사 224). 원자산으로
+     그리면 입금이 고점을 끌어올려 그 직전 손실이 그림에서 사라진다. */
+  if(o.dd){{const dv=(o.twr&&o.twr.length===v.length)?o.twr:v;
+    let peak=dv[0];const dd=dv.map(x=>{{peak=Math.max(peak,x);return peak?x/peak-1:0}});
     const dmn=Math.min(...dd,-0.001);
     const DY=val=>H-padB-ddH+( -val/-dmn)*ddH;
     const dline=dd.map((val,i)=>`${{X(i).toFixed(1)}},${{DY(val).toFixed(1)}}`).join(" ");
@@ -1904,7 +1934,7 @@ async function tick(first){{
         <div class="meta" style="margin-top:4px">최대낙폭 ${{hero.mdd_pct}}% · ─ 전략 ┄ 그냥 보유 ◆ 교체 ▲ 입금</div></div>
         <div class="chartwrap">${{proChart({{vals:hero.spark,dates:hero.spark_dates,
           baseSeries:hero.spark_base,
-          w:1280,h:170,axes:true,dd:true,markers:mk,dmarkers:dmk,
+          w:1280,h:170,axes:true,dd:true,twr:hero.spark_twr,markers:mk,dmarkers:dmk,
           bench:(hero.spark_price&&hero.spark_price[0])?hero.spark_price.map(p=>((hero.spark_base&&hero.spark_base[0])||10000)*p/hero.spark_price[0]):null}})}}</div>`;
     }}
     // 통합 계좌 신고가 감지(실시간 평가 기준, 래칫)
@@ -2031,7 +2061,11 @@ async function candleTick(rotate){{
       px.textContent=Number(last[4]).toLocaleString()+" ("+pct(chg)+")";
       px.style.color=cls?"var(--ok)":"var(--bad)";
       document.getElementById("c-pos").textContent=
-        d.position?(d.position.side+(d.position.weight!=null?" · 비중 "+Math.round(d.position.weight*100)+"%":"")):"관망 (현금)";
+        d.position?(d.position.side
+          +(d.position.weight!=null?" · 보유 "+(d.position.weight*100).toFixed(1)+"%":"")
+          +(d.position.plan!=null&&d.position.weight!=null
+              &&Math.abs(d.position.plan-d.position.weight)>0.005
+            ?" → "+(d.position.plan*100).toFixed(1)+"% 예정":"")):"관망 (현금)";
       document.getElementById("c-chips").innerHTML=(d.chips&&d.chips.length)
         ?`<span class="chip" style="border-style:dashed">판단 지표 · 일봉 기준</span>`+
           d.chips.map(c=>`<span class="chip ${{c.state==="pos"?"pos":c.state==="neg"?"neg":""}}">${{esc(c.label)}} <b>${{esc(c.value)}}</b></span>`).join("")

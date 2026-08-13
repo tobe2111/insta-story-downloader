@@ -691,6 +691,26 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 223 — 조종석이 실제 보유 옆에 '오늘의 결정'을 비중이라 붙이던 자리.
+    ("조종석이 보유 대신 오늘의 결정을 비중으로 보여준다(보유 중인데 0%)",
+     "quant/web/app.py",
+     '                position["weight"] = _hw',
+     '                position["weight"] = _last.get("weight")',
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
+    ("옛 기록의 보유 비중을 계산하지 않고 버린다(정보가 있는데 모름으로 둔다)",
+     "quant/web/app.py",
+     "                    if isinstance(_px, (int, float)) and _eq:",
+     "                    if False:",
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
+    # 감사 224 — 낙폭 차트를 원자산으로 그리던 자리(입금이 손실을 지운다).
+    ("조종석에 입금 제거 성장 지수를 안 보낸다(낙폭 차트가 원자산으로 돌아간다)",
+     "quant/web/app.py",
+     '                      "spark_twr": [round(x, 6) for x in _idx[-60:]],',
+     '                      "spark_twr": None,',
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
     # 감사 222 — 소수점 매매가 없는 시장의 소수 주 보유를 밝히는 자리.
     ("실계좌에서 재현 불가한 소수 주 보유를 장부가 숨긴다",
      "quant/live/daily.py",
