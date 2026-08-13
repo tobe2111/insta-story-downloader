@@ -742,6 +742,48 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     return {"key": key, "champion": champions[key], **decision}
 
 
+# 며칠을 건너뛰어야 '주말'이 아니라 '고장'인가 — 정상 주말은 2일, 긴 연휴
+# (설·추석·미국 장기 휴장)까지 감안해 5일을 넘으면 설명이 안 된다. 문턱을
+# 낮게 잡으면 연휴마다 경보가 울리고, 그러면 진짜 신호와 구별되지 않는다
+# (감사 99에서 배운 것 — 매일 울리는 경보는 꺼진 경보와 같다).
+STALE_SKIP_DAYS = 5
+
+
+def stale_targets(skipped: list, state_dir: str = STATE_DIR,
+                  today: str | None = None,
+                  threshold: int = STALE_SKIP_DAYS) -> dict:
+    """건너뛴 종목 중 **주말로 설명되지 않는** 것들 → {키: 며칠째}.
+
+    멱등 가드는 '새 봉이 없으면 건너뛴다'라서, 시세 공급이 얼어붙어도 주말과
+    똑같이 조용하다. 챔피언은 며칠째 재검증되지 않은 채 계속 돈을 굴리는데
+    장부에는 아무 흔적이 없다 — 감사 220이 매매 쪽에서 잡은 것과 같은 병이
+    학습 쪽에 남아 있었다. 마지막으로 실제로 돈 날(last_run_asof)과 오늘의
+    간격으로 잰다.
+    """
+    import datetime as _dt
+
+    if not skipped:
+        return {}
+    try:
+        now = (_dt.date.fromisoformat(today) if today
+               else _dt.date.today())
+    except ValueError:
+        return {}
+    champions = load_champions(state_dir)
+    out: dict[str, int] = {}
+    for key in skipped:
+        asof = (champions.get(key) or {}).get("last_run_asof")
+        if not asof:
+            continue
+        try:
+            days = (now - _dt.date.fromisoformat(str(asof))).days
+        except ValueError:
+            continue
+        if days > threshold:
+            out[key] = days
+    return out
+
+
 def run_retrain_all(targets=None, **kwargs) -> dict:
     """AUTO_TARGETS 전체를 순회 재학습한다 — 한 종목의 실패가 나머지를 막지 않는다.
 
@@ -751,26 +793,35 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     from quant.markets import AUTO_TARGETS
     targets = targets or AUTO_TARGETS
 
-    ok, promoted, failed = [], [], {}
+    ok, promoted, failed, skipped = [], [], {}, []
     for market, symbol in targets:
         key = _key(market, symbol)
         try:
             out = run_retrain(market, symbol, **kwargs)
-            ok.append(key)
+            # 멱등 가드에 걸린 종목은 오디션을 **한 번도 안 열었다**.
+            # 그걸 성공으로 세면 시세가 얼어붙은 날도 장부는 "20/20 성공"이다
+            # (감사 226 — "건너뜀은 통과가 아니다"는 이미 변이 시험의 규칙인데
+            #  정작 배치 건강 기록에서는 지키지 않고 있었다).
+            (skipped if out.get("skipped") else ok).append(key)
             if out.get("promoted"):
                 promoted.append(key)
         except Exception as exc:  # noqa: BLE001
             failed[key] = str(exc)
             log.warning("재학습 실패 %s: %s", key, exc)
             print(f"⚠️ {key}: 재학습 실패 — {exc}")
-    print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 실패 {len(failed)}"
+    print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 건너뜀 "
+          f"{len(skipped)} · 실패 {len(failed)}"
           + (f" ({', '.join(failed)})" if failed else ""))
     # 부분 실패도 장부에 남긴다 — '전부 실패'만 예외로 올리면 19/20이 실패한
     # 날도 잡이 초록이고, 그 종목들은 옛 챔피언을 그대로 쓰면서 아무 흔적도
     # 남지 않는다(2026-08-11 감사).
+    state_dir = kwargs.get("state_dir") or STATE_DIR
     from quant.live.daily import _write_run_health
-    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
-                      "retrain", ok, failed)
-    if targets and not ok:
+    _write_run_health(state_dir, "retrain", ok, failed, skipped=skipped,
+                      stale=stale_targets(skipped, state_dir))
+    # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
+    #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
+    if targets and not ok and not skipped:
         raise RuntimeError(f"전 종목 재학습 실패: {failed}")
-    return {"ok": ok, "failed": failed, "promoted": promoted}
+    return {"ok": ok, "failed": failed, "skipped": skipped,
+            "promoted": promoted}
