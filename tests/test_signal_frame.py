@@ -175,11 +175,27 @@ def test_the_partial_bar_note_describes_execution_not_the_decision():
 
 
 def test_the_decision_frame_really_excludes_that_bar():
-    """설명이 사실인지 확인 — 말만 바꾸고 동작이 다르면 더 나쁘다."""
+    """설명이 사실인지 확인 — 말만 바꾸고 동작이 다르면 더 나쁘다.
+
+    ⚠️ **검사가 달력에 의존하면 안 된다**(2026-08-13). 원래 이 검사는
+    `"2026-08-01"`부터 12봉을 만들어 마지막 봉이 2026-08-12이었다. 그건
+    이 검사를 쓴 그날에만 '진행 중인 오늘 봉'이다. UTC 날짜가 넘어가자
+    마지막 봉이 완성 봉이 되어 뺄 것이 없어졌고, 검사는 **코드가 망가져서가
+    아니라 하루가 지나서** 빨개졌다(assert 12 < 12).
+
+    이런 실패가 나쁜 이유는 실패 자체가 아니라 **다음번**이다 — 한 번
+    "달력 때문이네" 하고 넘기고 나면, 같은 자리에서 진짜 회귀가 났을 때도
+    같은 얼굴로 나타난다. 시계에 의존하는 검사는 언젠가 반드시 무시된다.
+
+    다른 검사들처럼 `_frame()`과 같은 방식으로 **오늘(UTC)을 끝으로** 잡는다.
+    """
+    import datetime as _dt
+
     import pandas as pd
 
     from quant.live.daily import _signal_frame
-    idx = pd.date_range("2026-08-01", periods=12, freq="D")
+    today = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+    idx = pd.date_range(end=today, periods=12, freq="D")
     df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
                        "close": 1.0, "volume": 1.0}, index=idx)
     out = _signal_frame("crypto", df)
