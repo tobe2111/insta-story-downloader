@@ -202,3 +202,66 @@ def test_no_source_string_check_is_satisfied_by_comments_alone():
                         f"(검사는 {need}회 요구)")
     assert not weak, ("주석에 기대는 문자열 검사가 있다 — 진짜 호출이 사라져도 "
                       "통과한다:\n  " + "\n  ".join(weak))
+
+
+# ── 재는 자를 바꾸면 답이 달라진다 (감사 204) ─────────────────────
+#
+# `_signal_frame`은 미완결 봉을 빼는 자리인데, `bar_status`를 부를 때
+# **타임프레임을 안 넘겨 항상 일봉 자로 쟀다.** 같은 파일의 다른 두 자리
+# (장부의 bar_partial, 기록용 bs)는 넘기고 있었는데 여기만 빠졌다(㉞).
+#
+# 실측(봇이 1시간봉으로 돌 때, 3시간 전에 **완성된** 봉):
+#     1h 자 → 1.0 (완성)   /   1d 자 → 0.125 (진행 중)  ← 완성 봉이 버려진다
+
+
+def test_the_ruler_matches_the_bar_it_measures():
+    from quant.data.barclock import bar_elapsed_fraction
+
+    now = _utc("2026-08-13 12:00:00")
+    bar = "2026-08-13 09:00:00"          # 3시간 전에 닫힌 1시간봉
+    assert bar_elapsed_fraction(bar, "1h", now) == 1.0, "완성된 봉인데"
+    assert bar_elapsed_fraction(bar, "1d", now) < 1.0, "전제가 깨졌다"
+
+
+def test_signal_frame_measures_with_the_timeframe_it_was_given():
+    import pandas as pd
+
+    from quant.live.daily import _signal_frame
+
+    now = pd.Timestamp.now().normalize()
+    idx = pd.date_range(end=now - pd.Timedelta(hours=3), periods=12, freq="h")
+    df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
+                       "close": 1.0, "volume": 1.0}, index=idx)
+    # 3시간 전에 닫힌 1시간봉 → 뺄 것이 없다
+    assert len(_signal_frame("crypto", df, "1h")) == len(df)
+    # 대조군 — 같은 프레임을 일봉 자로 재면 마지막 봉을 진행 중으로 본다
+    assert len(_signal_frame("crypto", df, "1d")) == len(df) - 1
+
+
+def test_an_unjudgeable_bar_is_not_called_complete():
+    """'모름'과 '완성됨'을 같은 답으로 내면 감사 71의 보호가 조용히 꺼진다."""
+    from quant.data.barclock import bar_status
+
+    st = bar_status("crypto", "2026-08-13 09:00:00", "2h",
+                    _utc("2026-08-13 12:00:00"))
+    assert st is not None, "모르는 타임프레임을 '완성됨'으로 답했다"
+    assert st.get("undetermined") is True and st.get("elapsed") is None, st
+
+    # 대조군 — 아는 타임프레임에서 진짜 완성된 봉은 None(=완성)이어야 한다
+    assert bar_status("crypto", "2026-08-13 09:00:00", "1h",
+                      _utc("2026-08-13 12:00:00")) is None
+
+
+def test_a_future_bar_says_it_is_from_the_future():
+    """미래 봉을 '0% 진행 중'이라고 적지 않는다 — 그럴듯한 숫자는 사실이 아니다."""
+    from quant.data.barclock import bar_status
+
+    st = bar_status("crypto", "2026-08-14 00:00:00", "1d",
+                    _utc("2026-08-13 12:00:00"))
+    assert st and st.get("future_bar") is True, st
+    assert "미래" in st["note"]
+
+    # 대조군 — 방금 시작한 (진짜) 봉은 미래 표식이 없어야 한다
+    now_bar = bar_status("crypto", "2026-08-13 00:00:00", "1d",
+                         _utc("2026-08-13 12:00:00"))
+    assert now_bar and not now_bar.get("future_bar") and now_bar["elapsed"] == 0.5

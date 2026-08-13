@@ -35,11 +35,64 @@ def sanitize(obj: Any) -> Any:
     return obj
 
 
+def _last_resort(obj: Any) -> Any:
+    """json이 모르는 값을 만났을 때 — **기록을 잃지 않는 쪽**으로 바꾼다.
+
+    ⚠️ 왜 필요한가(감사 200). 이 모듈은 첫 줄부터 "NaN이 저장을 멈추는 것을
+    막는다"고 적어 두고, 독스트링에 그 이유까지 남겼다 —
+    *"allow_nan=False로 raise시키면 cycle의 except가 삼켜 저장이 아예 멈춘다."*
+
+    그런데 **같은 except가 삼키는 다른 예외**는 막지 않고 있었다. 실측:
+
+        float('nan')      → None      (설계대로 막힌다)
+        np.float64('nan') → None      (float의 하위 클래스라 막힌다)
+        np.float32(1.5)   → TypeError  ← 여기서 저장이 통째로 죽는다
+        np.int64(7)       → TypeError
+        np.bool_(True)    → TypeError
+        pandas Timestamp  → TypeError
+        datetime · Path   → TypeError
+
+    `np.float64`가 통과하는 것이 특히 고약하다 — numpy 값이 들어와도 대개
+    괜찮으니 안심하게 되는데, `float32`·`int64`·`bool_` 하나가 섞이는 날
+    **그날 기록이 통째로 사라진다.** 지금은 `daily.py`가 필드마다 `float(...)`
+    로 감싸 두어 실제로 새는 곳은 없다(2026-08-13 실제 실행으로 확인).
+    하지만 그 방어는 필드를 추가하는 사람이 매번 기억해야 하는 종류다.
+
+    막는 방향은 '거절'이 아니라 '보존'이다. 하루치 장부를 잃는 것보다
+    값이 문자열로 남는 편이 낫다 — 다만 **조용히** 바뀌면 안 되므로 경고를
+    남긴다. 숫자·시각은 뜻이 보존되게 바꾸고, 정말 모르는 것만 문자열로.
+    """
+    item = getattr(obj, "item", None)          # numpy 스칼라 → 파이썬 값
+    if callable(item):
+        try:
+            return sanitize(item())
+        except Exception:  # noqa: BLE001
+            pass
+    iso = getattr(obj, "isoformat", None)       # datetime · date · Timestamp
+    if callable(iso):
+        try:
+            return iso()
+        except Exception:  # noqa: BLE001
+            pass
+    if isinstance(obj, (set, frozenset)):
+        return sorted(sanitize(v) for v in obj)
+    from quant.utils.logging import get_logger
+    get_logger("utils.jsonio").warning(
+        "JSON으로 바꿀 수 없는 값을 문자열로 저장합니다(%s) — 기록을 잃지 "
+        "않으려는 최후 수단입니다. 저장하는 쪽에서 형을 맞추세요: %.80r",
+        type(obj).__name__, obj)
+    return str(obj)
+
+
 def atomic_write_json(path: str | os.PathLike, obj: Any, indent: int = 2) -> None:
     """obj를 NaN 안전하게 직렬화해 원자적으로 저장한다(임시파일 + os.replace)."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)
+    # default=_last_resort — sanitize가 못 거른 값에서 저장이 통째로 죽지
+    # 않게 한다(감사 200). 이 모듈이 NaN을 막는 것과 같은 이유다: 예외는
+    # 호출부의 except가 삼키고, 사라지는 것은 그날의 장부다.
+    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent,
+                      default=_last_resort)
     # ⚠️ 임시 이름에 **프로세스 번호**를 붙인다(감사 170). 고정 이름 ".tmp"를
     #    쓰면 같은 파일을 동시에 쓰는 두 프로세스가 **같은 임시 파일**을 밟는다
     #    — A가 쓰는 중에 B가 덮어쓰고, A가 os.replace를 하면 반쪽이 섞인 내용이

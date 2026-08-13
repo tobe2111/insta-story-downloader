@@ -339,10 +339,12 @@ MUTATIONS = [
      "              \"lot_infeasible\": None,",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
+    # 2026-08-13 예산 유연화로 이 줄이 want(원하는 주수) 계산으로 바뀌었다.
+    # 지키는 계약은 그대로 — 소수점 주를 산 것으로 기록하면 안 된다.
     ("정수 주 내림을 끈다(못 사는 수량을 산 것으로 기록)",
      "quant/live/daily.py",
-     "        lots = math.floor(abs(w) * equity / float(px))",
-     "        lots = abs(w) * equity / float(px)",
+     "        want = math.floor(abs(w) * equity / px)",
+     "        want = abs(w) * equity / px",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
     ("미룬 예산을 재배분하지 않는다(총노출이 목표보다 낮아짐)",
@@ -1684,6 +1686,109 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 205: 한 계열 안에서 단위가 섞이던 자리 ──────────────
+    ("미결제약정 필드를 계열마다 고르지 않고 행마다 or로 떨어뜨린다(단위가 섞인다)",
+     "quant/data/openinterest.py",
+     "            v = float(row.get(field))",
+     "            v = float(row.get(\"openInterestAmount\")\n"
+     "                      or row.get(\"openInterestValue\"))",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    # ── 감사 204: 재는 자가 어긋나 완성 봉이 버려지던 자리 ───────
+    ("신호 프레임이 실제 타임프레임 대신 항상 일봉 자로 잰다(완성 봉이 버려진다)",
+     "quant/live/daily.py",
+     "    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:",
+     "    if len(df) < 2 or bar_status(market, df.index[-1]) is None:",
+     "tests/test_bar_completeness.py"),
+
+    ("판정 불가를 '완성됨'과 같은 답으로 낸다(미완결 봉 제거가 조용히 꺼진다)",
+     "quant/data/barclock.py",
+     "    if frac is None:",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
+    ("미래 봉을 '0% 진행 중'이라고 적는다(없는 사실이 장부에 남는다)",
+     "quant/data/barclock.py",
+     "    if frac <= 0.0 and _is_future(last_bar, now):",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
+    # ── 감사 203: 폴백이 요청과 다른 길이의 봉을 내주던 자리 ─────
+    ("모르는 타임프레임을 조용히 일봉으로 떨어뜨린다(24배 긴 봉을 30분봉으로 받는다)",
+     "quant/data/synthetic.py",
+     "        if timeframe not in _TIMEFRAMES:",
+     "        if False:",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("30분봉을 합성 제공자에서 뺀다(시계는 아는데 폴백만 몰라 길이가 갈라진다)",
+     "quant/data/synthetic.py",
+     '    "30m": (timedelta(minutes=30), "30min"),',
+     "",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    # ── 감사 202: 망가진 전략 하나가 나머지를 지우던 자리 ────────
+    ("측정 불가를 'nan'으로 사람에게 보여준다(0인지 실패인지 알 수 없다)",
+     "quant/reporting/attribution.py",
+     "    if not math.isfinite(f):\n        return \"측정 불가\"",
+     "    if False:\n        return \"측정 불가\"",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
+    # ── 감사 201: 표본이 모자란 종목이 '분산'으로 세어지던 자리 ───
+    ("표본 부족 검사를 끈다(10봉짜리 종목이 '분산된 종목'으로 세어진다)",
+     "quant/live/daily.py",
+     "            if len(df_sig) < need:",
+     "            if False:",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
+    ("필요 봉수를 챔피언 파라미터 대신 상수로 둔다(긴 창 전략이 무방비가 된다)",
+     "quant/live/daily.py",
+     "            longest = max(longest, int(abs(v)))",
+     "            longest = 0",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
+    # ── 감사 200: 장부를 쓰는 마지막 관문 ────────────────────────
+    ("직렬화 최후 수단을 끈다(모르는 값 하나에 그날 장부가 통째로 사라진다)",
+     "quant/utils/jsonio.py",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent,\n"
+     "                      default=_last_resort)",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("numpy 스칼라를 문자열로 뭉갠다(사이트가 숫자로 못 읽는다)",
+     "quant/utils/jsonio.py",
+     "    item = getattr(obj, \"item\", None)          # numpy 스칼라 → 파이썬 값",
+     "    item = None",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("잘려나간 구간의 최고점을 요약에 안 접는다(낙폭이 저절로 좋아진다)",
+     "quant/utils/jsonio.py",
+     "        peak = e if peak is None else max(peak, e)",
+     "        peak = e",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    # ── 예산 유연화(사장님 결정 2026-08-13) ──────────────────────
+    # "예산이 있는대로 유연하게" + "비율이 아니라 수익률이 더 높을 것이라
+    # 판단되는 최우선 선택". 세 항목이 그 결정을 지킨다.
+    ("확신도 순서를 버리고 dict 순서로 예산을 채운다(아무 종목이나 먼저 산다)",
+     "quant/live/daily.py",
+     "    lot_keys.sort(key=lambda k: (-abs(float(conv.get(k, targets[k]))), k))",
+     "    pass",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("자기 배정금액을 못 넘게 되돌린다(국내주식을 한 종목도 못 산다)",
+     "quant/live/daily.py",
+     "        if want <= 0 and abs(w) > 0:\n"
+     "            want = 1          # 자기 예산으로 못 사도 1주는 노린다(② 유연화)",
+     "        if False:\n"
+     "            want = 1",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("매도 선집행을 끈다(판 돈이 같은 사이클 매수에 안 쓰인다)",
+     "quant/live/daily.py",
+     "    for key in sorted(weights, key=_sell_first):",
+     "    for key in weights:",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
     ("잔고 필드 검사 자체를 끈다(네 브로커가 한꺼번에 '0'을 답하게 된다)",
      "quant/broker/base.py",
      "    if not isinstance(data, dict) or key not in data:",
@@ -2310,7 +2415,7 @@ MUTATIONS = [
 
     ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
      "quant/live/daily.py",
-     "            df_sig = _signal_frame(market, df)",
+     "            df_sig = _signal_frame(market, df, timeframe)",
      "            df_sig = df",
      "tests/test_signal_frame.py"),
 

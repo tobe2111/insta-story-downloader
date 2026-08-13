@@ -211,3 +211,89 @@ def test_the_krx_zscore_is_clipped(sources):
         v = out[col].to_numpy(dtype=float)
         v = v[np.isfinite(v)]
         assert v.size and np.abs(v).max() <= 4.0 + 1e-9, (col, np.abs(v).max())
+
+
+# ── 한 계열 안에서 단위가 섞이지 않는가 (감사 205) ────────────────
+#
+# `openinterest.py`는 값을 이렇게 읽고 있었다:
+#
+#     v = row.get("openInterestAmount") or row.get("openInterestValue")
+#
+# 파이썬에서 `0.0`은 거짓이라, **미결제약정이 진짜 0인 하루**가 끼면 계약수
+# (Amount) 대신 **달러 명목값(Value)**으로 떨어진다. 두 필드는 자릿수가
+# 4~5자리 다르다. 실측(계약수 1000 → 0 → 1100):
+#
+#     파싱 결과   1,000 → 64,000,000 → 1,100
+#     하루 변화율 **+6,399,900%** → **-100%**
+#
+# 이 값은 ML 피처 `x_oi_chg5`로 들어간다. 하루짜리 0이 모델에 그런 점프를
+# 먹이는 것이다 — **결측보다 나쁘다**(결측은 NaN으로 걸러진다).
+
+
+def _oi(rows):
+    """가짜 ccxt로 실제 파싱 경로를 태운다(손으로 만든 Series를 넣지 않는다)."""
+    import importlib
+    import sys
+    import types
+
+    class _C:
+        def __init__(self, *a, **k):
+            pass
+
+        def fetch_open_interest_history(self, *a, **k):
+            return rows
+
+    saved = sys.modules.get("ccxt")
+    fake = types.ModuleType("ccxt")
+    fake.binanceusdm = _C
+    sys.modules["ccxt"] = fake
+    try:
+        import quant.data.openinterest as OI
+        importlib.reload(OI)
+        return OI.fetch_oi_history("BTC/USDT:USDT")
+    finally:
+        if saved is not None:
+            sys.modules["ccxt"] = saved
+        else:
+            sys.modules.pop("ccxt", None)
+        import quant.data.openinterest as OI2
+        importlib.reload(OI2)
+
+
+def test_a_zero_reading_stays_zero_and_does_not_switch_units():
+    rows = [{"timestamp": 1_754_000_000_000, "openInterestAmount": 1000.0,
+             "openInterestValue": 65_000_000.0},
+            {"timestamp": 1_754_086_400_000, "openInterestAmount": 0.0,
+             "openInterestValue": 64_000_000.0},
+            {"timestamp": 1_754_172_800_000, "openInterestAmount": 1100.0,
+             "openInterestValue": 71_000_000.0}]
+    s = _oi(rows)
+    assert list(s) == [1000.0, 0.0, 1100.0], f"단위가 섞였다: {list(s)}"
+    # 자릿수가 튀지 않는지 직접 본다 — 이게 실제 피해다
+    assert s.max() < 10_000, f"달러 명목값이 섞여 들어왔다: {s.max():,.0f}"
+
+
+def test_a_series_with_only_the_value_field_is_consistent():
+    """대조군 — Amount가 아예 없는 계열은 Value로 **일관되게** 읽는다.
+
+    (없으면 위 검사는 "Value를 절대 안 쓰는" 구현도 통과시키고, 그러면
+    Amount를 안 주는 거래소에서 피처가 통째로 빈다.)
+    """
+    rows = [{"timestamp": 1_754_000_000_000, "openInterestValue": 65_000_000.0},
+            {"timestamp": 1_754_086_400_000, "openInterestValue": 64_000_000.0}]
+    s = _oi(rows)
+    assert list(s) == [65_000_000.0, 64_000_000.0], list(s)
+
+
+def test_rows_missing_the_chosen_field_are_skipped_not_substituted():
+    """계열의 단위를 정한 뒤, 그 필드가 없는 행은 **건너뛴다**(대체하지 않는다)."""
+    rows = [{"timestamp": 1_754_000_000_000, "openInterestAmount": 1000.0},
+            {"timestamp": 1_754_086_400_000, "openInterestValue": 64_000_000.0},
+            {"timestamp": 1_754_172_800_000, "openInterestAmount": 1100.0}]
+    s = _oi(rows)
+    assert list(s) == [1000.0, 1100.0], f"다른 단위가 끼어들었다: {list(s)}"
+
+
+def test_nothing_usable_is_an_empty_series_not_a_crash():
+    assert _oi([{"timestamp": 1, "nope": 1}]).empty
+    assert _oi([]).empty

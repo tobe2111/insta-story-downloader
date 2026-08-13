@@ -1221,8 +1221,13 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
         if le is not None:
             a["live_equity"] = round(le, 2)
             # 기준: 통합 계좌는 원금(8마일 시작금+입금), 개별 계좌는 시작 만원
-            basis = a.get("principal") or 10000
-            a["live_return_pct"] = round((le / basis - 1) * 100, 2)
+            # `or 10000`이면 원금이 **진짜 0**일 때도 10000으로 읽힌다
+            # (감사 205 형제). '없음'과 '0'은 다르다 — 0이면 수익률을
+            # 만들 수 없으니 만들지 않는다.
+            basis = a.get("principal")
+            basis = float(basis) if isinstance(basis, (int, float)) else 10000.0
+            if basis > 0:
+                a["live_return_pct"] = round((le / basis - 1) * 100, 2)
         a.pop("cash", None); a.pop("quantity", None); a.pop("positions", None)
 
     # 어젯밤 재학습 서사 — 방송 상단 '오늘의 소식' 배너와 차트 마커용

@@ -14,6 +14,7 @@ GitHub Actions가 매일 밤 이 모듈을 실행한다:
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 
@@ -59,27 +60,50 @@ FRACTIONAL_MARKETS = {"crypto", "synthetic", "us_stock"}
 
 
 def _fit_to_budget(targets: dict, prices: dict, equity: float,
-                   cap: float = 1.0) -> tuple[dict, dict]:
+                   cap: float = 1.0, conviction: dict | None = None,
+                   ) -> tuple[dict, dict]:
     """목표 비중을 **실제로 살 수 있는** 비중으로 바꾼다 (감사 137 후속).
 
     운영자 결정(2026-08-12): *"금액이 문제면 비싼 건 미루면 되잖아.
     예산에 맞게 투자하면 되지."*
 
+    운영자 결정(2026-08-13): *"예산이 있는대로 유연하게. 1주 값이 그 종목
+    예산을 넘으면 기존 투자한 종목을 매도하고 사도 된다."* 그리고 무엇을
+    포기할지는 — *"이건 비율로 따지는 게 아니야. 수익률이 더 높을 것이라
+    판단되는 최우선 선택을 하는 거지."*
+
+    그래서 정수 주 시장의 예산은 **n등분이 아니라 확신도 순으로 채운다.**
+
     규칙
       ① 소수점 매매가 안 되는 시장(국내주식)은 **정수 주로 내림**한다.
-      ② 1주도 못 사면 그날은 **미룬다**(deferred) — 억지로 사지 않는다.
-      ③ 내림·미룸으로 남은 예산은 **살 수 있는 종목에 재배분**한다.
+      ② 그 시장에 배정된 돈을 **한 주머니(pool)로 모으고, 확신도가 높은
+         종목부터** 채운다. 자기 배정금액으로 1주를 못 사는 종목도 주머니에
+         남은 돈이 있으면 **1주는 산다** — 모자란 만큼은 확신도가 낮은
+         종목이 쓸 돈이었다. 그 종목들의 목표가 0이 되므로 이미 들고 있던
+         물량은 자연히 **매도**된다. 그것이 "팔아서라도 산다"의 실체다.
+      ③ 주머니가 비면 나머지는 **미룬다**(deferred) — 억지로 사지 않는다.
+      ④ 정수 주 시장에서 끝내 남은 돈은 **소수점 시장에 재배분**한다.
          현금으로 놀리면 총노출이 목표보다 낮아져 위험 예산이 샌다.
-      ④ 재배분해도 한 종목 과집중 상한(cap)은 넘지 않는다.
+      ⑤ 재배분해도 한 종목 과집중 상한(cap)은 넘지 않는다.
 
-    자산이 커지면 ②에 걸리는 종목이 저절로 줄어든다 — 8만원에서 시작해
-    원금이 커지며 유니버스가 넓어지는 것 자체가 이 실험의 서사다.
+    ⚠️ **집중도 상한을 따로 두지 않는 이유**(사장님 결정). 주머니 총액이
+       원래 그 시장에 배정된 돈이라 총노출은 그대로다 — 한 종목이 커지면
+       다른 종목이 그만큼 줄어들 뿐, 레버리지가 생기지 않는다. 대신 "오늘
+       국내주식은 사실상 1~2종목"인 날이 생기고, 그 사실은 `lot_infeasible`
+       과 `lot_priority`로 장부에 남는다. 숨기지 않는다.
+
+    ⚠️ 1주 값이 주머니보다 비싼 종목은 **어차피 못 산다.** 실측(2026-08-13,
+       원금 100만원): SK하이닉스 1주 1,504,000원 = 계좌 전체보다 비싸다.
+       유연화로 풀리는 문제가 아니라 원금의 문제다 — 그대로 미루고 적는다.
+
+    conviction: 종목별 확신도(클수록 우선). 없으면 |목표비중|을 쓴다.
+        동점이면 키 이름 순 — 같은 입력이 같은 결과를 내야 한다(재현성).
 
     ⚠️ 주식은 '다음 세션 시가'에 체결되므로 여기서 쓴 오늘 가격과 체결가가
        다르다. 이 계산은 **계획 시점의 실현 가능성** 판단이고, 실제 수량은
        체결 시점에 브로커가 다시 정한다.
 
-    반환: (조정된 목표 비중, 미룬 종목 {키: {budget, price}})
+    반환: (조정된 목표 비중, 미룬 종목 {키: {budget, price, pool_left}})
     """
     import math
     if equity <= 0:
@@ -87,17 +111,41 @@ def _fit_to_budget(targets: dict, prices: dict, equity: float,
     out: dict = {}
     deferred: dict = {}
     freed = 0.0
+
+    # 정수 주 시장과 그 밖을 가른다. 가격을 모르는 종목은 손대지 않는다
+    # (모르면 숫자를 만들지 않는다).
+    lot_keys = []
     for key, w in targets.items():
         px = prices.get(key)
         if key.split(":")[0] in FRACTIONAL_MARKETS or not px or px <= 0:
             out[key] = w
+        else:
+            lot_keys.append(key)
+
+    # 확신도 높은 순 → 같으면 키 순(재현성). 확신도가 없으면 |목표비중|.
+    conv = conviction or {}
+    lot_keys.sort(key=lambda k: (-abs(float(conv.get(k, targets[k]))), k))
+
+    pool = sum(abs(float(targets[k])) for k in lot_keys) * equity
+    for key in lot_keys:
+        w = float(targets[key])
+        px = float(prices[key])
+        want = math.floor(abs(w) * equity / px)
+        if want <= 0 and abs(w) > 0:
+            want = 1          # 자기 예산으로 못 사도 1주는 노린다(② 유연화)
+        lots = min(want, math.floor(pool / px)) if px > 0 else 0
+        if lots <= 0:
+            if abs(w) > 0:
+                deferred[key] = {"budget": round(abs(w) * equity, 2),
+                                 "price": round(px, 2),
+                                 "pool_left": round(pool, 2)}
+            out[key] = 0.0
+            freed += abs(w)
             continue
-        lots = math.floor(abs(w) * equity / float(px))
-        got = lots * float(px) / equity
-        if lots <= 0 and abs(w) > 0:
-            deferred[key] = {"budget": round(abs(w) * equity, 2),
-                             "price": round(float(px), 2)}
-        out[key] = math.copysign(got, w) if got else 0.0
+        spent = lots * px
+        pool -= spent
+        got = spent / equity
+        out[key] = math.copysign(got, w)
         freed += abs(w) - got
     if freed > 1e-12:
         # 재배분 대상 — 원래 사려던 종목 중 '얼마든 더 담을 수 있는' 쪽.
@@ -314,7 +362,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     # 신호는 완성된 봉으로만 — 통합 계좌와 같은 규칙(감사 71).
     # 코인은 UTC 일봉의 '오늘' 봉이 항상 진행 중이라 그대로 쓰면 모델이
     # 미완성 봉(레인지 평균 36% 축소)을 마지막 행으로 받는다.
-    df_sig = _signal_frame(market, df)
+    df_sig = _signal_frame(market, df, timeframe)
     signals = strategy.generate_signals(df_sig)
     weight = float(_risk_for(market).size_positions(df_sig, signals).iloc[-1])
     price = float(df["close"].iloc[-1])      # 체결·평가는 지금 가격
@@ -1074,7 +1122,45 @@ def _smooth_weights(new: dict, prev: dict, alpha: float = SIGNAL_SMOOTH_ALPHA
     return out
 
 
-def _signal_frame(market: str, df):
+def required_bars(spec: dict, floor: int = 30) -> int:
+    """이 챔피언이 신호를 내려면 최소 몇 봉이 필요한가 (감사 201).
+
+    전략 파라미터에서 가장 긴 창(`slow=30`, `train_window=250` 등)을 찾아
+    **그만큼**을 요구한다. 파라미터가 없거나 다 짧으면 floor를 쓴다.
+
+    ⚠️ 처음에는 **그 두 배**를 요구했다가 과했다. 기본 챔피언의
+    `train_window=250`이 500봉 요구가 되어, 300봉을 주는 정상 픽스처까지
+    전부 '표본 부족'으로 막혔다(검사 5건이 빨개져서 알았다). 파라미터는
+    전부 '창 길이'가 아니다 — 학습 구간·재학습 주기처럼 배수를 곱하면
+    뜻이 달라지는 값이 섞여 있다. **선언한 가장 긴 창이 한 번 채워지는
+    것**까지가 근거 있는 요구고, 그 이상은 내 추측이다.
+
+    ⚠️ 왜 필요한가. 예전에는 `df.empty`만 봤다. 그래서 보조 거래소가 10봉만
+    주는 날, 그 종목은 신호가 0으로 나오는데 **장부에는 아무 흔적도 없었다**:
+
+        B0가 400봉일 때 → 장부 "3종목 분산" · 실제 포지션 3개
+        B0가  10봉일 때 → 장부 "3종목 분산" · 실제 포지션 **2개**  ← 거짓말
+
+    감사 59에서 "데이터 실패로 빠진 종목을 계획 수로 세지 말 것"을 고쳤는데,
+    그건 **예외가 난 종목**만 잡는다. 데이터는 멀쩡히 왔는데 **표본이 모자란**
+    종목은 그 그물에 안 걸린다 — 같은 거짓말의 다른 문이다(감사 200에서
+    배운 것과 같은 형태: 무엇을 막는다고 적었으면 그 무엇이 지나는 문을
+    전부 셀 것).
+
+    그리고 이건 이 저장소가 가장 신경 쓰는 **오디션-현실 격차**이기도 하다.
+    챔피언은 400봉으로 선발했는데 실전에서 10봉으로 굴리면, 선발된 조건과
+    굴리는 조건이 다르다(감사 71과 같은 계열).
+    """
+    longest = 0
+    for v in (spec.get("params") or {}).values():
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)) and math.isfinite(float(v)):
+            longest = max(longest, int(abs(v)))
+    return max(floor, longest)
+
+
+def _signal_frame(market: str, df, timeframe: str = "1d"):
     """신호·피처 계산에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
 
     주식 제공자에는 _drop_unclosed가 있어 이미 완성 봉만 온다. 코인은
@@ -1083,9 +1169,22 @@ def _signal_frame(market: str, df):
 
     체결 가격은 이 프레임이 아니라 원본의 마지막 종가(=현재가)를 쓴다 —
     "완성된 정보로 판단하고, 지금 가격에 체결한다".
+
+    ⚠️ **타임프레임을 받는다**(감사 204). 예전에는 `bar_status(market, 봉)`만
+    불러 **항상 일봉 자로 쟀다.** 같은 파일의 다른 두 자리(장부의
+    `bar_partial`, 기록용 `bs`)는 진짜 타임프레임을 넘기고 있었는데 여기만
+    빠져 있었다 — 같은 판정을 세 곳에서 부르면서 하나가 갈라진 것이다(㉞).
+
+    실측(봇이 1시간봉으로 돌 때, 3시간 전에 **완성된** 봉):
+
+        1h 자로 재면  → 1.0   (완성)
+        1d 자로 재면  → 0.125 (진행 중)  ← 멀쩡한 완성 봉이 버려진다
+
+    지금 운영은 일봉이라 새는 곳은 아니지만, `--timeframe`을 바꾸는 순간
+    조용히 틀린다. 기본값을 `"1d"`로 둬 옛 호출부는 그대로 동작한다.
     """
     from quant.data.barclock import bar_status
-    if len(df) < 2 or bar_status(market, df.index[-1]) is None:
+    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:
         return df
     return df.iloc[:-1]
 
@@ -1250,7 +1349,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             #    체결·평가 가격은 그대로 **지금 값**을 쓴다(아래 prices). 즉
             #    "완성된 정보로 판단하고, 지금 가격에 체결한다" — 실제 트레이더가
             #    하는 것과 같다.
-            df_sig = _signal_frame(market, df)
+            df_sig = _signal_frame(market, df, timeframe)
+            # ⚠️ **표본이 모자라면 판단하지 않고, 그 사실을 남긴다**(감사 201).
+            #    예전에는 `df.empty`만 봤다. 보조 거래소가 10봉만 주는 날
+            #    신호는 0으로 나오는데 장부에는 흔적이 없어, "3종목 분산"이라
+            #    적힌 날 실제 포지션은 2개였다. 조용한 0과 판단해서 낸 0은
+            #    다르다 — 전자는 못 한 것이고 후자는 안 한 것이다.
+            need = required_bars(champion_spec(market, symbol, state_dir))
+            if len(df_sig) < need:
+                raise RuntimeError(
+                    f"표본 부족 — {len(df_sig)}봉(필요 {need}봉). 챔피언은 더 긴 "
+                    f"표본으로 선발됐다(오디션-현실 격차)")
             signals = strat.generate_signals(df_sig)
             weights[key] = float(
                 _risk_for(market).size_positions(df_sig, signals).iloc[-1])
@@ -1349,7 +1458,33 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # ① 대기 주문 체결 — 주식은 결정 다음 세션의 '시가'에서만 체결(개장 갭 감수).
     #    평가 마크는 현재 종가 근사(스킵 종목은 평단가) — 체결가만 시가를 쓴다.
     fills = []
-    for key, pend in list(pending.items()):
+    # ⚠️ **매도를 먼저 낸다**(사장님 결정 2026-08-13). 순서를 정하지 않으면
+    #    dict 순서대로 나가고, 그러면 판 돈이 같은 사이클의 매수에 안 쓰인다
+    #    — 현금이 모자라 매수가 잘리거나 다음 날로 밀린다. 예산을 유연하게
+    #    쓰기로 한 이상(한 종목의 1주를 사려고 다른 종목을 파는 이상)
+    #    "먼저 팔고 그 돈으로 산다"가 지켜져야 그 결정이 그날 안에 완성된다.
+    #    비중을 줄이는 쪽(=매도)부터, 줄이는 폭이 큰 순서로.
+    #    ⚠️ 여기서는 아직 그날의 `equity`가 계산되기 전이다(체결이 끝나야
+    #       정해진다). 순서를 정하는 데는 정확한 값이 필요 없으므로 지금
+    #       시점의 평가액 스냅샷을 쓴다 — 못 구하면 정렬을 건드리지 않는다.
+    try:
+        eq_snap = float(broker.equity(marks))
+    except Exception:  # noqa: BLE001
+        eq_snap = 0.0
+
+    def _sell_first(item):
+        k, p = item
+        if eq_snap <= 0:
+            return (0.0, k)
+        try:
+            held = float(broker.get_position(k).quantity)
+        except Exception:  # noqa: BLE001 — 모르면 중립(매수 앞에 두지 않는다)
+            held = 0.0
+        px = (opens_after.get(k) or (None, None))[1] or 0.0
+        held_w = held * px / eq_snap
+        return (abs(float(p.get("weight") or 0.0)) - abs(held_w), k)
+
+    for key, pend in sorted(pending.items(), key=_sell_first):
         fbar, fopen = opens_after.get(key, (None, None))
         if fopen is None:
             continue
@@ -1476,18 +1611,65 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    실제로 그렇게 썼다가 `"planned": len(targets)`가 계획 종목 수 대신
     #    오늘 판단한 종목 수를 세게 됐고, 감사 59에서 고쳤던 결함이 그대로
     #    되살아났다 — 검사가 잡았다(500줄짜리 함수에서 이름 하나가 그렇다).
+    # 확신도 = 슬라이스·변동성 타깃을 곱하기 **전**의 원 신호 크기. 이것이
+    # 이 시스템이 "어느 쪽이 더 오를 것 같은가"에 내놓는 답이고, `_xsec_tilt`도
+    # 같은 값으로 자본을 기울인다. 정수 주 예산은 이 순서로 채운다
+    # (사장님 2026-08-13: "비율로 따지는 게 아니야. 수익률이 더 높을 것이라
+    #  판단되는 최우선 선택을 하는 거지.").
     fitted_w, deferred_lots = _fit_to_budget(
         {k: _target_w(k, w) for k, w in weights.items()},
-        prices, equity, cap=3.0 / n)
+        prices, equity, cap=3.0 / n,
+        conviction={k: abs(float(w)) for k, w in weights.items()})
     if deferred_lots:
         log.info("1주 미만이라 오늘 미룬 종목 %d개: %s",
                  len(deferred_lots), ", ".join(sorted(deferred_lots)))
+    # 자기 배정금액을 넘겨 산 종목 — "무엇을 포기하고 무엇을 샀는지"의 기록.
+    # 예산 유연화는 공짜가 아니다: 이만큼은 확신도가 낮은 종목이 쓸 돈이었고,
+    # 그 종목들은 목표가 0이 되어 이미 들고 있었다면 팔린다. 그 사실이 장부에
+    # 남아야 사이트도 방송도 "왜 오늘 국내주식이 한 종목뿐인가"를 답할 수 있다.
+    lot_priority = {}
+    for k, base in ((k, _target_w(k, w)) for k, w in weights.items()):
+        got = fitted_w.get(k, 0.0)
+        if abs(got) > abs(base) + 1e-12 and prices.get(k):
+            lot_priority[k] = {
+                "budget": round(abs(base) * equity, 2),
+                "spent": round(abs(got) * equity, 2),
+                "price": round(float(prices[k]), 2),
+                "gave_way": sorted(deferred_lots),
+            }
+    if lot_priority:
+        log.info("배정금액을 넘겨 산 종목 %d개(확신도 우선): %s",
+                 len(lot_priority), ", ".join(sorted(lot_priority)))
 
     n_orders_before = len(getattr(broker, "order_log", []))
     skipped_dust = []
     skipped_cool = []
     last_trade = st.get("last_trade") or {}
-    for key, w in weights.items():
+    # 보유 비중을 **한 번만** 조회해 둔다. 두 가지에 쓴다 —
+    #   ① 매도 선집행 순서(아래 정렬)
+    #   ② 쿨다운·잔돈 판정(루프 안)
+    # 예전에는 루프 안에서만 조회했는데, 그러면 순서를 정하려고 한 번 더
+    # 물어야 해서 브로커 호출이 두 배가 된다(레이트리밋).
+    held_ws: dict = {}
+    held_fail: dict = {}
+    for key in weights:
+        if not prices.get(key):
+            continue
+        try:
+            held_ws[key] = (broker.get_position(key).quantity
+                            * float(prices[key]) / equity) if equity > 0 else 0.0
+        except Exception as exc:  # noqa: BLE001
+            held_fail[key] = exc
+
+    # ⚠️ **매도를 먼저 낸다**(사장님 결정 2026-08-13). 예산을 유연하게 쓰기로
+    #    한 이상 — 확신도 높은 종목의 1주를 사려고 낮은 종목을 파는 이상 —
+    #    "먼저 팔고 그 돈으로 산다"가 지켜져야 그 결정이 그날 안에 완성된다.
+    #    순서를 안 정하면 dict 순서대로 나가고, 현금이 모자라 매수가 잘린다.
+    def _sell_first(key: str):
+        return (abs(fitted_w.get(key, 0.0)) - abs(held_ws.get(key, 0.0)), key)
+
+    for key in sorted(weights, key=_sell_first):
+        w = weights[key]
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
         tw = fitted_w[key]             # 예산까지 반영한 최종 목표 비중
@@ -1500,16 +1682,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         #    대응` 예외에 걸리고, 쿨다운(회전율 통제)이 통째로 무력화된다.
         #    조회가 흔들리는 날일수록 더 많이 매매하게 되는 정반대 결과다.
         #    모를 때는 손대지 않는다 — 다만 청산(목표 0)만은 막지 않는다.
-        held_w = 0.0
-        if prices.get(key):
-            try:
-                held_w = (broker.get_position(key).quantity
-                          * float(prices[key]) / equity) if equity > 0 else 0.0
-            except Exception as exc:  # noqa: BLE001
-                if abs(tw) >= 1e-9:            # 청산이 아니면 오늘은 건너뛴다
-                    skipped_why[key] = f"보유 조회 실패 — {type(exc).__name__}"
-                    pending.pop(key, None)
-                    continue
+        held_w = held_ws.get(key, 0.0)
+        exc = held_fail.get(key)
+        if exc is not None and abs(tw) >= 1e-9:   # 청산이 아니면 오늘은 건너뛴다
+            skipped_why[key] = f"보유 조회 실패 — {type(exc).__name__}"
+            pending.pop(key, None)
+            continue
         if _in_cooldown(key, last_trade, bar, tw, held_w,
                         _rebalance_band_rel(market, state_dir)):
             skipped_cool.append(key)
@@ -1706,6 +1884,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 시장(국내주식)에서 배정금액이 1주 값에 못 미치면, 이 기록의
               # 그 줄은 **현실에서 재현할 수 없는 보유**다. 숨기지 않는다.
               "lot_infeasible": deferred_lots or None,
+              # 배정금액을 넘겨 산 종목(감사 200 · 사장님 결정 2026-08-13).
+              # 유연화의 대가를 숨기지 않는다 — 이 돈은 gave_way의 종목이
+              # 쓸 돈이었고, 그 종목들은 오늘 목표가 0이라 팔렸다.
+              "lot_priority": lot_priority or None,
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.
