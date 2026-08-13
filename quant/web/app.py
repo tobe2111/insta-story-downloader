@@ -1073,10 +1073,25 @@ _PRICE_CACHE: dict = {"ts": 0.0, "prices": {}}
 
 
 def _live_prices(keys, ttl: float = 45.0) -> dict:
-    """방송 화면용 현재가 — TTL 캐시로 데이터 소스 호출을 절제한다.
+    """방송·조종석 화면용 현재가 — **원화로 환산해서** 돌려준다.
 
-    실패한 종목은 조용히 빠진다(방송 화면은 '지연' 표기로 정직하게 처리).
-    합성 폴백 가격은 절대 쓰지 않는다 — 방송에 가짜 시세를 내보낼 수는 없다.
+    ⚠️ 감사 231(2026-08-13): 여기는 감사 212가 안 닿은 채 남아 있었다.
+    시세를 **현지 통화 그대로** 돌려주는데, 호출부는 그 값을 원화 장부의
+    현금에 그대로 더한다:
+
+        평가 = 현금(원) + 수량 × 달러가격        ← 단위가 섞인다
+
+    실측(오늘 보유 기준): 올바른 평가 1,327,716원 vs 조종석이 내는 값
+    371,051원 — 계좌를 **27.9%로 축소**해 보여주고, 그 차이가 그대로
+    '실시간 수익률'로 방송된다. 사이트는 감사 212에서 고쳤는데 조종석만
+    옛 회계로 남아 있었다(같은 판정을 두 곳에 둔 대가 — 감사 219).
+
+    환율을 못 받으면 해외 종목은 **빼고 돌려준다.** 그러면 호출부의
+    `missing` 경로가 걸려 실시간 평가 자체를 만들지 않는다 — 1.0으로
+    때우지 않는다는 규칙은 여기서도 같다.
+
+    실패한 종목은 조용히 빠진다(화면은 '확정' 표기로 되돌아간다).
+    합성 폴백 가격은 절대 쓰지 않는다 — 방송에 가짜 시세를 내보낼 수 없다.
     """
     import time
     now = time.time()
@@ -1085,14 +1100,23 @@ def _live_prices(keys, ttl: float = 45.0) -> dict:
     prices: dict = {}
     try:
         from quant.data import get_provider
+        from quant.data.fx import needs_fx, to_krw, usdkrw
+
+        # 환율은 **한 번만** 잡는다 — 종목마다 따로 받으면 같은 화면 안에서
+        # 종목별로 다른 환율이 적용된다(감사 212와 같은 이유).
+        rate = usdkrw()
         for key in keys:
             market, _, symbol = key.partition(":")
             if market == "portfolio":
                 continue
+            if needs_fx(market) and rate is None:
+                continue                       # 환산 못 하면 값을 만들지 않는다
             try:
                 df = get_provider(market).get_ohlcv(symbol, "1d", limit=2)
                 if len(df) and not df.attrs.get("synthetic_fallback"):
-                    prices[key] = float(df["close"].iloc[-1])
+                    px = to_krw(market, float(df["close"].iloc[-1]), rate)
+                    if px is not None:
+                        prices[key] = px
             except Exception:  # noqa: BLE001
                 pass
     except Exception:  # noqa: BLE001
@@ -1110,6 +1134,42 @@ def _briefing_payload(state_dir: str = "state") -> dict | None:
         return b if b and b.get("items") else None
     except Exception:  # noqa: BLE001
         return None
+
+
+# 조종석이 시세를 물어볼 워커 주소 — 배포된 사이트와 **같은 판정 사다리**를
+# 쓰기 위한 중계다. 환경변수로 바꿀 수 있고, 비우면 기능이 꺼진다.
+import os as _os
+
+QUOTES_UPSTREAM = _os.getenv(
+    "QUANT_QUOTES_URL", "https://quant.jiwon-1a2.workers.dev/api/quotes")
+QUOTES_TIMEOUT = 4.0
+
+
+def quotes_proxy(query: str) -> str:
+    """조종석 → 워커 시세 중계 (판정 로직은 여기에 두지 않는다).
+
+    ⚠️ 왜 중계인가: 한국투자증권·Finnhub 키는 Cloudflare 시크릿에만 있고,
+    소스 선택·폴백·라벨 규칙은 워커 한 곳에만 있어야 한다. 같은 규칙을
+    파이썬으로 한 벌 더 쓰면 언젠가 두 화면이 다른 값을 말한다(감사 219).
+
+    실패는 **빈 응답**이다 — 조종석은 그때 확정값만 보여준다. 못 받은 것을
+    옛 값으로 채워 '실시간'이라 쓰는 것이 감사 229에서 고친 결함이다.
+    """
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    if not QUOTES_UPSTREAM:
+        return _json.dumps({"quotes": {}, "off": "QUANT_QUOTES_URL 미설정"})
+    url = QUOTES_UPSTREAM + ("?" + query if query else "")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "quant-cockpit"})
+        with urllib.request.urlopen(req, timeout=QUOTES_TIMEOUT) as r:
+            body = r.read(200_000).decode("utf-8", "replace")
+        _json.loads(body)                   # 형태 검증 — 쓰레기를 흘려보내지 않는다
+        return body
+    except (urllib.error.URLError, OSError, ValueError, TimeoutError) as exc:
+        return _json.dumps({"quotes": {}, "error": str(exc)[:120]})
 
 
 def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
@@ -1204,6 +1264,15 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             waiting = pending_deposits(deposits)
             if waiting:
                 a["pending_deposits"] = waiting
+            # 종목별 보유(수량·평단·평가금액) — 조종석도 사이트와 **같은
+            # 출처**로 준실시간 평가를 한다(사장님 2026-08-13: "실제 투자하는
+            # 프로그램에서도 마찬가지"). 수량은 장부에서, 가격만 시세에서.
+            from quant.live.ledger_basics import holdings_view
+            a["holdings"] = holdings_view(st, float(a["equity"]))
+            a["cash"] = round(float(st.get("cash") or 0.0)
+                              - sum(float(d["amount"]) for d in waiting), 2)
+            if hist[-1].get("fx_usdkrw") is not None:
+                a["fx_usdkrw"] = hist[-1]["fx_usdkrw"]
 
     # 종목별 관련 뉴스(표시 전용) — 브리핑에서 해당 종목 항목을 찾아 붙인다
     briefing = _briefing_payload(state_dir)
@@ -1217,7 +1286,17 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             if hit:
                 a["news"] = {"title": hit["title"], "source": hit.get("source", "")}
 
-    live = _live_prices([a["key"] for a in accounts]) if with_live else {}
+    # ⚠️ 통합 계좌가 **들고 있는 종목**의 시세도 함께 받아야 한다(감사 231).
+    #    예전에는 '계좌 키'만 넘겼는데 통합 계좌 키(portfolio:ALL)는 시세가
+    #    없으므로 건너뛴다. 그 보유 종목의 가격은 "마침 같은 이름의 종목
+    #    계좌가 있어서" 딸려 오던 것이었다 — 그 계좌가 기록이 없어 목록에서
+    #    빠지는 날엔 한 종목 때문에 실시간 평가가 통째로 사라진다.
+    _want = [a["key"] for a in accounts]
+    for a in accounts:
+        for k in (a.get("positions") or {}):
+            if k not in _want:
+                _want.append(k)
+    live = _live_prices(_want) if with_live else {}
     for a in accounts:
         le = None
         if a["market"] == "portfolio" and a.get("positions"):

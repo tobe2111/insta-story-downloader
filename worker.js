@@ -14,8 +14,31 @@
  */
 
 const CACHE_TTL = 15;                 // 초 — 야후 부하와 실시간성의 절충
+const LIVE_TTL = 3;                   // 초 — 실시간 소스(KIS·Finnhub)용
 const MAX_SYMBOLS = 25;
 const SYM_RE = /^[A-Za-z0-9.^=-]{1,12}$/;
+
+/* ── 시세 소스 사다리 (2026-08-13) ───────────────────────────────
+ * 사장님 요청: "신선도를 최대한 실시간으로, 무료 선에서."
+ *
+ *   한국주식 : 한국투자증권 OpenAPI(KIS) — 무료·공식·실시간.
+ *              계좌 + 앱키가 있어야 하므로 시크릿이 있을 때만 켜진다.
+ *              없으면 야후로 폴백(야후 .KS는 약 20분 지연).
+ *   미국주식 : Finnhub 무료 티어(분당 60회) — 있으면 실시간, 없으면 야후.
+ *   환율     : 야후 KRW=X — 초 단위로 볼 이유가 없다.
+ *   코인     : 워커를 거치지 않는다(브라우저가 바이낸스 WebSocket 직결).
+ *
+ * ⚠️ 어떤 소스로 받았는지를 응답에 `source`로 실어 보낸다. 화면이
+ *    "실시간"이라고 쓸지 "지연"이라고 쓸지는 **받은 사실**로 정해야지
+ *    코드에 박아 두면 안 된다 — 감사 229가 정확히 그 반대 경우였다
+ *    (라벨은 준실시간인데 요청이 매번 거부당하고 있었다).
+ *
+ * ⚠️ 앱키·시크릿은 코드에 없다. Cloudflare 시크릿(KIS_APP_KEY,
+ *    KIS_APP_SECRET, FINNHUB_TOKEN)에만 존재한다.
+ */
+const KIS_BASE = "https://openapi.koreainvestment.com:9443";
+const KIS_TOKEN_TTL = 3600 * 20;      // 초 — 발급 토큰은 24시간, 여유 4시간
+const KR_SUFFIX = /\.(KS|KQ)$/;
 
 export default {
   async fetch(request, env, ctx) {
@@ -32,7 +55,7 @@ export default {
       return issueKey(url, env);        // adminGate 통과 후에만 도달
     }
     if (url.pathname === "/api/quotes") {
-      return quotes(url, ctx);
+      return quotes(url, env, ctx);
     }
     return env.ASSETS.fetch(request);
   },
@@ -133,11 +156,164 @@ function json(obj, status = 200, extra = {}, cors = false) {
   });
 }
 
-async function quotes(url, ctx) {
+/** 야후 시세 — 무료·무계정. 미국주식은 준실시간, 한국주식은 약 20분 지연. */
+async function yahooQuote(s) {
+  const r = await fetch(
+    "https://query1.finance.yahoo.com/v8/finance/chart/" +
+    encodeURIComponent(s) + "?range=1d&interval=5m",
+    { headers: { "User-Agent": "Mozilla/5.0 (quant-ticker)" },
+      cf: { cacheTtl: CACHE_TTL } });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const m = d?.chart?.result?.[0]?.meta;
+  if (!m || m.regularMarketPrice == null) return null;
+  const prev = m.chartPreviousClose ?? m.previousClose ?? null;
+  return {
+    price: m.regularMarketPrice,
+    prev_close: prev,
+    change_pct: prev ? (m.regularMarketPrice / prev - 1) * 100 : null,
+    currency: m.currency || null,
+    market_time: m.regularMarketTime || null,
+    // 야후 무료 시세의 지연을 숨기지 않는다 — 화면이 이 값으로 라벨을 정한다
+    source: "yahoo",
+    delayed: KR_SUFFIX.test(s),
+  };
+}
+
+/**
+ * KIS 접근토큰 — 발급은 하루 한 번이면 충분하므로 엣지 캐시에 담아 둔다.
+ * ⚠️ 토큰을 매 요청 발급하면 KIS가 유량 제한으로 막는다(그리고 그 실패는
+ *    조용하다). 캐시 키는 오리진 내부 경로라 외부에서 읽을 수 없다.
+ */
+let kisInflight = null;               // 같은 요청 안의 동시 발급 합치기
+
+async function kisToken(env, ctx) {
+  const cache = caches.default;
+  const key = new Request("https://kis-token.internal/access");
+  const hit = await cache.match(key);
+  if (hit) return (await hit.json()).access_token || null;
+  // ⚠️ 종목별 조회가 Promise.all로 동시에 들어오면 캐시에 아직 아무것도
+  //    없으므로 **전부 각자 발급**한다. 7종목이면 발급 7회 — KIS 유량
+  //    제한에 걸리고, 그 실패는 조용하다(값이 안 오면 야후로 내려갈 뿐).
+  //    동작 검사(tests/worker_ladder_check.mjs)가 실제로 발급 3회를
+  //    잡아냈다. 소스만 읽는 검사는 "캐시를 쓴다"만 보고 통과했었다.
+  if (kisInflight) return kisInflight;
+  kisInflight = (async () => await issueKisToken(env, ctx, cache, key))();
+  try {
+    return await kisInflight;
+  } finally {
+    kisInflight = null;
+  }
+}
+
+async function issueKisToken(env, ctx, cache, key) {
+  const r = await fetch(KIS_BASE + "/oauth2/tokenP", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      appkey: env.KIS_APP_KEY,
+      appsecret: env.KIS_APP_SECRET,
+    }),
+  });
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (!d.access_token) return null;
+  ctx.waitUntil(cache.put(key, json(
+    { access_token: d.access_token }, 200,
+    { "Cache-Control": "public, max-age=" + KIS_TOKEN_TTL })));
+  return d.access_token;
+}
+
+/** 한국투자증권 실시간 현재가 — 무료·공식. 앱키가 없으면 호출되지 않는다. */
+async function kisQuote(s, env, ctx) {
+  const token = await kisToken(env, ctx);
+  if (!token) return null;
+  const code = s.replace(KR_SUFFIX, "");
+  const r = await fetch(
+    KIS_BASE + "/uapi/domestic-stock/v1/quotations/inquire-price" +
+    "?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=" + encodeURIComponent(code),
+    { headers: {
+        "content-type": "application/json",
+        authorization: "Bearer " + token,
+        appkey: env.KIS_APP_KEY,
+        appsecret: env.KIS_APP_SECRET,
+        tr_id: "FHKST01010100",
+      },
+      cf: { cacheTtl: LIVE_TTL } });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const o = d?.output;
+  const px = o && Number(o.stck_prpr);
+  if (!px) return null;
+  const base = Number(o.stck_sdpr) || null;      // 전일 종가(기준가)
+  return {
+    price: px,
+    prev_close: base,
+    change_pct: o.prdy_ctrt != null ? Number(o.prdy_ctrt)
+                                    : (base ? (px / base - 1) * 100 : null),
+    currency: "KRW",
+    market_time: null,
+    source: "kis",
+    delayed: false,
+  };
+}
+
+/** Finnhub 무료 티어 — 분당 60회. 토큰이 없으면 호출되지 않는다. */
+async function finnhubQuote(s, env) {
+  const r = await fetch(
+    "https://finnhub.io/api/v1/quote?symbol=" + encodeURIComponent(s) +
+    "&token=" + encodeURIComponent(env.FINNHUB_TOKEN),
+    { cf: { cacheTtl: LIVE_TTL } });
+  if (!r.ok) return null;
+  const d = await r.json();
+  if (!d || !d.c) return null;
+  return {
+    price: d.c,
+    prev_close: d.pc ?? null,
+    change_pct: d.dp ?? (d.pc ? (d.c / d.pc - 1) * 100 : null),
+    currency: "USD",
+    market_time: d.t || null,
+    source: "finnhub",
+    delayed: false,
+  };
+}
+
+/**
+ * 한 심볼의 시세 — 실시간 소스를 먼저, 실패하면 야후로 내려온다.
+ *
+ * ⚠️ 폴백은 **조용하지 않다.** 어느 소스로 받았는지가 응답의 source에
+ *    남으므로, 실시간 소스가 죽은 날 화면은 "지연"이라고 정직하게 바뀐다.
+ *    조용히 야후로 내려가면서 라벨만 '실시간'이면 그게 감사 229다.
+ */
+async function oneQuote(s, env, ctx) {
+  try {
+    if (KR_SUFFIX.test(s) && env.KIS_APP_KEY && env.KIS_APP_SECRET) {
+      const q = await kisQuote(s, env, ctx);
+      if (q) return q;
+    } else if (!KR_SUFFIX.test(s) && s.indexOf("=") < 0 && env.FINNHUB_TOKEN) {
+      const q = await finnhubQuote(s, env);      // 환율(KRW=X)은 야후로
+      if (q) return q;
+    }
+  } catch (e) { /* 실시간 소스 실패 → 야후로 내려간다 */ }
+  try {
+    return await yahooQuote(s);
+  } catch (e) {
+    return null;                                  // 이 심볼만 포기
+  }
+}
+
+async function quotes(url, env, ctx) {
   const raw = (url.searchParams.get("symbols") || "").slice(0, 400);
   const syms = [...new Set(raw.split(",").map((s) => s.trim())
     .filter((s) => SYM_RE.test(s)))].slice(0, MAX_SYMBOLS);
   if (!syms.length) return json({ error: "symbols 필요" }, 400, {}, true);
+
+  // 실시간 소스가 하나라도 켜져 있으면 캐시를 짧게 — 3초 캐시면 상류
+  // 호출은 초당 1회를 넘지 않으면서 화면은 사실상 실시간으로 흐른다.
+  const live = Boolean((env.KIS_APP_KEY && env.KIS_APP_SECRET)
+                       || env.FINNHUB_TOKEN);
+  const ttl = live ? LIVE_TTL : CACHE_TTL;
 
   // 심볼 순서와 무관하게 같은 캐시를 치도록 정렬 키 사용
   const cacheKey = new Request(
@@ -148,30 +324,13 @@ async function quotes(url, ctx) {
 
   const out = {};
   await Promise.all(syms.map(async (s) => {
-    try {
-      const r = await fetch(
-        "https://query1.finance.yahoo.com/v8/finance/chart/" +
-        encodeURIComponent(s) + "?range=1d&interval=5m",
-        { headers: { "User-Agent": "Mozilla/5.0 (quant-ticker)" },
-          cf: { cacheTtl: CACHE_TTL } });
-      if (!r.ok) return;
-      const d = await r.json();
-      const m = d?.chart?.result?.[0]?.meta;
-      if (!m || m.regularMarketPrice == null) return;
-      const prev = m.chartPreviousClose ?? m.previousClose ?? null;
-      out[s] = {
-        price: m.regularMarketPrice,
-        prev_close: prev,
-        change_pct: prev ? (m.regularMarketPrice / prev - 1) * 100 : null,
-        currency: m.currency || null,
-        market_time: m.regularMarketTime || null,
-      };
-    } catch (e) { /* 심볼 하나의 실패는 무시 — 나머지는 계속 */ }
+    const q = await oneQuote(s, env, ctx);
+    if (q) out[s] = q;
   }));
 
   const resp = json(
-    { quotes: out, cached_at: new Date().toISOString(), ttl: CACHE_TTL },
-    200, { "Cache-Control": "public, max-age=" + CACHE_TTL }, true);
+    { quotes: out, cached_at: new Date().toISOString(), ttl },
+    200, { "Cache-Control": "public, max-age=" + ttl }, true);
   ctx.waitUntil(cache.put(cacheKey, resp.clone()));
   return resp;
 }

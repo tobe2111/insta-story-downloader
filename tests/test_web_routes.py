@@ -46,6 +46,8 @@ EXPECTED = {
     "/broadcast": "render_broadcast",
     "/api/candles": "candles_json",
     "/api/broadcast": "broadcast_json",
+    # 시세 중계(조회 전용) — 판정 사다리는 워커에만 있고 여기는 넘기기만 한다
+    "/api/quotes": "quotes_proxy",
     "/portfolio": "render_portfolio_form",
     "/portfolio/run": "run_portfolio_html",
     "/screener": "render_screener_form",

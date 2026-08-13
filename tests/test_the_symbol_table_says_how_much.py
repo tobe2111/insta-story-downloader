@@ -117,9 +117,10 @@ def test_the_page_says_where_the_live_prices_actually_are():
     sect = IDX[IDX.find('<table id="symtable">'):]
     sect = _visible(sect[:sect.find("</section>")])
     assert "시세띠" in sect
-    assert "15초" in sect and "60초" in sect, "폴링 주기가 화면에 없다"
+    assert "체결 즉시" in sect, "코인 스트림의 신선도가 화면에 없다"
+    assert "15초" in sect, "주식 갱신 주기가 화면에 없다"
     assert "판단·체결·평가에는 쓰지 않습니다" in sect, (
-        "준실시간 시세가 매매에 쓰이는 것으로 오해될 수 있다")
+        "살아 있는 시세가 매매에 쓰이는 것으로 오해될 수 있다")
 
 
 def test_the_stated_cadence_matches_the_code_that_polls():
@@ -128,8 +129,11 @@ def test_the_stated_cadence_matches_the_code_that_polls():
     ⚠️ 같은 사실을 두 곳에 적으면 언젠가 갈라진다 — 여기서는 문구가
        코드보다 오래 남을 수 있으므로 검사가 둘을 묶는다.
     """
-    crypto = re.search(r"setInterval\(pollCrypto,(\d+)\)", IDX)
-    stocks = re.search(r"setInterval\(pollStocks,(\d+)\)", IDX)
-    assert crypto and stocks
-    assert f"코인 {int(crypto.group(1)) // 1000}초" in IDX
-    assert f"주식 {int(stocks.group(1)) // 1000}초" in IDX
+    m = re.search(r"STOCK_MS_OPEN=(\d+)", IDX)
+    assert m, "장중 주식 갱신 주기 상수를 찾지 못했다"
+    assert f"{int(m.group(1)) // 1000}초 간격" in IDX, (
+        "화면에 적은 주식 갱신 주기가 실제 상수와 다르다")
+    # 코인은 주기가 아니라 스트림이다 — '초 간격'으로 적으면 거짓말이 된다
+    assert "wss://stream.binance.com" in IDX, "코인 스트림이 없다"
+    assert not re.search(r"setInterval\(pollCrypto", IDX), (
+        "코인이 아직 폴링이다 — 화면은 '체결 즉시'라고 말한다")

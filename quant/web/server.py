@@ -34,6 +34,7 @@ from quant.web.app import (
     run_portfolio_html,
     run_screener_html,
     run_sweep_html,
+    quotes_proxy,
     run_validate_html,
     state_json,
 )
@@ -155,6 +156,14 @@ class QuantHandler(BaseHTTPRequestHandler):
                            content_type="application/json; charset=utf-8")
             except Exception:  # noqa: BLE001
                 self._send("{}", content_type="application/json; charset=utf-8")
+        elif parsed.path == "/api/quotes":
+            # 조종석 준실시간 시세 — **판정 사다리를 여기서 다시 만들지
+            # 않는다.** 배포된 워커(같은 코드)로 그대로 넘긴다. 같은 판정을
+            # 두 곳에 두면 언젠가 갈라진다(감사 219). 주소가 없으면 빈
+            # 응답이고 조종석은 확정값만 보여준다 — 조용히 틀린 값을
+            # 만들어 내지 않는다.
+            self._send(quotes_proxy(parsed.query),
+                       content_type="application/json; charset=utf-8")
         elif parsed.path == "/api/broadcast":
             params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
             try:

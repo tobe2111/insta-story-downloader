@@ -90,10 +90,17 @@ class _FakeProvider:
         return df
 
 
+# 조종석 시세는 2026-08-13(감사 231)부터 **원화로 환산해서** 나온다.
+# 코인은 달러(USDT) 표시라 이 환율이 곱해진 값이 정답이다.
+_FX = 1412.5
+
+
 def _prices(monkeypatch, synthetic: bool):
     import quant.data as D
+    import quant.data.fx as FX
     A._PRICE_CACHE.update(ts=0.0, prices={})
     monkeypatch.setattr(D, "get_provider", lambda m: _FakeProvider(synthetic))
+    monkeypatch.setattr(FX, "usdkrw", lambda *a, **k: _FX)
     return A._live_prices(["crypto:BTC/USDT"], ttl=0.0)
 
 
@@ -105,7 +112,8 @@ def test_synthetic_prices_never_reach_the_broadcast(monkeypatch):
 
 def test_real_prices_do_reach_the_broadcast(monkeypatch):
     """대조군 — 늘 비면 방송이 영원히 '지연'으로 뜬다."""
-    assert _prices(monkeypatch, synthetic=False) == {"crypto:BTC/USDT": 123.0}
+    assert _prices(monkeypatch, synthetic=False) == {
+        "crypto:BTC/USDT": 123.0 * _FX}
 
 
 # ── ③ 바깥을 바꾸는 라우트가 CSRF 목록에서 새지 않는가 ────────
