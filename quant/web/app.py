@@ -1124,7 +1124,10 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
     accounts = []
     shadow = None                   # 섀도 대조군(진화 없음) — 비교 표시용
     paper_dir = Path(state_dir) / "paper"
-    files = sorted(paper_dir.glob("*.json")) if paper_dir.is_dir() else []
+    from quant.live.ledger_basics import is_archive
+    # 보관된 옛 장부는 계좌 목록에 넣지 않는다 — 같은 키를 덮어쓴다(감사 212).
+    files = ([f for f in sorted(paper_dir.glob("*.json")) if not is_archive(f.name)]
+             if paper_dir.is_dir() else [])
     for fp in files:
         try:
             st = json.loads(fp.read_text(encoding="utf-8"))

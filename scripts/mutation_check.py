@@ -498,6 +498,68 @@ MUTATIONS = [
      "            _d[\"settled_bar\"] = bar",
      "tests/test_a_deposit_is_not_a_loss.py"),
 
+    # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
+    ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
+     "quant/live/daily.py",
+     "            px_krw = to_krw(market, float(df[\"close\"].iloc[-1]), fx_rate)",
+     "            px_krw = float(df[\"close\"].iloc[-1])",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("환율을 모를 때 1.0으로 때운다(고치기 전 상태로 되돌아간다)",
+     "quant/data/fx.py",
+     "    if rate is None:\n        return None\n    return p * float(rate)",
+     "    if rate is None:\n        return p\n    return p * float(rate)",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("원화 종목까지 환율을 곱한다(자산이 1,470배가 된다)",
+     "quant/data/fx.py",
+     "    return market in USD_MARKETS",
+     "    return True",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("말도 안 되는 환율(뒤집힌 계열)을 그대로 받아들인다",
+     "quant/data/fx.py",
+     "    if rate is not None and not (FX_MIN <= rate <= FX_MAX):",
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("환율 조회 실패를 캐시한다(일시적 장애가 프로세스 내내 남는다)",
+     "quant/data/fx.py",
+     "        log.warning(\"원/달러를 확인하지 못했습니다 — 해외 종목을 원화로 \"\n"
+     "                    \"환산할 수 없습니다. 1.0으로 대신하지 않습니다.\")\n"
+     "        return None",
+     "        _MEMO[\"usdkrw\"] = None\n"
+     "        return None",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("계좌를 두 번 다시 열 수 있게 한다(지금 기록이 통째로 사라진다)",
+     "quant/live/ledger_basics.py",
+     "    if old.get(\"currency\") == \"KRW\":",
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    # 보관본이 산 계좌를 덮어쓰던 자리 — 새 계좌를 열었는데 사이트는
+    # 닫힌 옛 계좌를 계속 보여줬다(실측).
+    ("보관된 옛 장부를 살아 있는 계좌로 읽는다(닫힌 계좌가 사이트를 덮는다)",
+     "quant/live/ledger_basics.py",
+     "    return ARCHIVE_MARK in os.path.basename(filename)",
+     "    return False",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("사이트 장부 목록에서 보관본을 걸러내지 않는다",
+     "quant/live/daily.py",
+     "            if not name.endswith(\".json\") or is_archive(name):\n"
+     "                continue",
+     "            if not name.endswith(\".json\"):\n"
+     "                continue",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("옛 장부를 보관하지 않고 덮어쓴다(과거가 사라진다)",
+     "quant/live/ledger_basics.py",
+     "    shutil.copy2(path, archive)          # 옛 장부는 한 글자도 고치지 않는다",
+     "    pass",
+     "tests/test_the_account_speaks_one_currency.py"),
+
     # 잔고 표 — 현금까지 자산과 같은 시점이어야 표의 합이 맞는다.
     # 안 빼면 보유 37,341 + 현금 961,910 = 999,251 ≠ 자산 79,251이 된다.
     ("잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)",

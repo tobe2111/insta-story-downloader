@@ -34,6 +34,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     drawdown_from_index,
     equity_curve_kpis,
     holdings_view,
+    is_archive,
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
@@ -183,6 +184,7 @@ def _first_bar_after(df, bar_ts: str):
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
 from quant.utils.repro import code_sha as _code_sha
 from quant.data.barclock import bar_status
+from quant.data.fx import needs_fx, to_krw, usdkrw
 from quant.utils.repro import data_sha256 as _data_sha256
 from quant.utils.repro import env_fingerprint as _env_fingerprint
 
@@ -543,13 +545,18 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
 # 6.8%→100%)과 회전율 통제를 크게 바꿨고, 피처는 그대로여서 시계가 돌지 않았다.
 # 노출이 15배 다른 두 구간의 수익률은 같은 통계가 아니다 — 원칙의 구멍이었다.
 # 실행 구조를 바꿀 때는 EPOCH를 그날로, TAG를 다음 번호로 올린다.
-STRUCTURE_TAG = "sz2"
-STRUCTURE_EPOCH = "2026-08-11"
-STRUCTURE_WHY = ("포트폴리오 변동성 타깃(총노출 6.8%→100%) + 회전율 통제"
-                 "(비용 비례 밴드·신호 평활·재조정 쿨다운) + 안전장치 복구"
-                 "(킬스위치·어드민 노출 배수·실적 가드·켈리 상한이 변동성"
-                 " 스케일러에 지워지던 것을 스케일 뒤 적용으로 교정, "
-                 "낙폭 기준을 입금 제거 성장 지수로)")
+STRUCTURE_TAG = "krw1"
+STRUCTURE_EPOCH = "2026-08-13"
+STRUCTURE_WHY = ("계좌 통화를 원화로 통일(감사 212) — 그전에는 해외 종목"
+                 " 가격을 환산하지 않아 한 계좌에 원화(한국주식)와 달러"
+                 "(미국주식·코인)가 섞여 있었다. 자산 합계가 진짜 원화가"
+                 " 아니었고 환위험이 통째로 빠져 있었다. 이제 체결·평가를"
+                 " 원/달러로 환산해, 환율 변동이 매일의 재평가로 자산에"
+                 " 반영된다. 신호는 현지 통화 그대로라 전략 동작은 그대로."
+                 " 옛 계좌는 소급 환산이 불가능해(현금까지 단위가 섞였다)"
+                 " 그대로 보관하고 원화 계좌를 새로 열었다."
+                 " 직전 구조(sz2): 포트폴리오 변동성 타깃 + 회전율 통제"
+                 " + 안전장치 복구")
 
 # 신호 평활 계수 — 오늘 목표에 얼마나 무게를 둘 것인가(1.0=평활 없음).
 # 0.5는 2일 지수평활 — 확률의 하루짜리 떨림은 절반으로 줄이되, 진짜 추세
@@ -1230,6 +1237,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
 
+    # 원/달러를 **하루 한 번** 잡아 둔다(감사 212). 종목마다 따로 받으면
+    # 같은 배치 안에서 종목별로 다른 환율이 적용돼 자산이 미세하게 어긋난다.
+    # 못 받으면 None이고, 해외 종목은 그날 값을 매기지 못해 건너뛴다 —
+    # 1.0으로 때우지 않는다.
+    fx_rate = usdkrw()
+    if fx_rate is None and any(needs_fx(m) for m, _ in targets):
+        log.warning("원/달러 미확인 — 해외 종목은 오늘 매매하지 않습니다")
+
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
@@ -1352,7 +1367,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 섞이면 위험 추정이 실제보다 작아진다(같은 이유로 비중이 커진다).
             rets_map[key] = df_sig["close"].pct_change().iloc[-90:]
             # 체결·평가는 지금 가격(진행 중 봉의 종가 = 현재가)으로 한다.
-            prices[key] = float(df["close"].iloc[-1])
+            #
+            # ⚠️ **원화로 환산해서** 담는다(감사 212). 예전에는 달러 표시
+            #    가격을 그대로 더해서, 한 계좌 안에 원화(한국주식)와
+            #    달러(미국주식·코인)가 섞여 있었다. "S&P500 ETF 12.25주 =
+            #    9,466원"이 장부에 남았고(실제로는 1,300만원어치), 자산
+            #    합계는 진짜 원화 금액이 아니었다. 환위험도 통째로 빠져
+            #    있었다 — 원화가 절상되면 실제로는 잃는데 장부는 조용했다.
+            #    신호는 현지 통화 그대로 낸다(전략 동작은 그대로). 환산은
+            #    체결·평가에만 걸어서, 환율 변동이 매일의 재평가로 자산에
+            #    흘러들게 한다.
+            px_krw = to_krw(market, float(df["close"].iloc[-1]), fx_rate)
+            if px_krw is None:
+                # 환율을 모르면 값을 매길 수 없다. 1.0으로 때우지 않는다 —
+                # 그것이 지금 고치고 있는 바로 그 결함이다.
+                raise RuntimeError(
+                    "원/달러를 확인하지 못해 원화로 평가할 수 없다 "
+                    "(해외 종목은 환산 없이 기록하지 않는다)")
+            prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
             last_dates.append(str(df.index[-1])[:10])
@@ -1980,8 +2012,8 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     anchor: date | None = None
     states = []
     for name in files:
-        if not name.endswith(".json"):
-            continue
+        if not name.endswith(".json") or is_archive(name):
+            continue      # 보관된 옛 장부는 살아 있는 계좌가 아니다(감사 212)
         with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
             st = json.load(f)
         if st.get("history"):
@@ -2184,7 +2216,10 @@ def write_docs_status(state_dir: str = STATE_DIR,
     pf_state = None                       # 통합 계좌 원본(세대별 분해 재료)
     if os.path.isdir(paper_dir):
         for name in sorted(os.listdir(paper_dir)):
-            if not name.endswith(".json"):
+            # ⚠️ 보관본을 빼지 않으면 같은 키를 **덮어쓴다**(감사 212).
+            #    `portfolio_ALL.pre-krw.json`이 알파벳순으로 뒤라, 새 원화
+            #    계좌를 열었는데 사이트는 닫힌 옛 계좌를 계속 보여줬다.
+            if not name.endswith(".json") or is_archive(name):
                 continue
             with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
                 st = json.load(f)

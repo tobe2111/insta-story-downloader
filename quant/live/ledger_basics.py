@@ -213,6 +213,99 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     return round((idx[-1] - 1) * 100, 2) if idx else 0.0
 
 
+# 보관된 옛 장부를 알아보는 표시. 파일 이름에 이것이 들어가면 **살아 있는
+# 계좌가 아니다.**
+#
+# ⚠️ 왜 이름으로 가르는가: 보관본은 옛 장부의 **바이트 복사본**이라 안에
+#    "나는 보관본이다"라고 적을 수가 없다 — 적는 순간 과거를 고치는 것이
+#    된다. 그래서 표시는 파일 이름에만 붙인다.
+#
+# ⚠️ 왜 이 함수가 필요한가(만들자마자 실측): 장부를 읽는 세 곳이 전부
+#    `state/paper/*.json`을 통째로 훑는다. 보관본 `portfolio_ALL.pre-krw.json`은
+#    안에 `market: "portfolio"`가 그대로 있고 파일 이름이 알파벳순으로 **뒤에**
+#    와서, 같은 키(`portfolio:ALL`)를 덮어썼다. 그 결과 새 원화 계좌를 열었는데
+#    사이트는 **닫힌 옛 계좌**(7일치·자산 79,251원)를 계속 보여줬다.
+ARCHIVE_MARK = ".pre-"
+
+
+def is_archive(filename: str) -> bool:
+    """보관된 옛 장부인가 — 살아 있는 계좌 목록에서 빼야 한다."""
+    return ARCHIVE_MARK in os.path.basename(filename)
+
+
+def redenominate_to_krw(state_dir: str, principal_krw: float,
+                        *, today: str | None = None) -> dict:
+    """통합 계좌를 **진짜 원화 계좌로** 다시 연다 (감사 212).
+
+    왜 '환산'이 아니라 '다시 여는가': 옛 계좌는 되살릴 수가 없다. 가격만
+    달러였던 게 아니라, 그 가격으로 판 돈이 **현금에 섞여 있다.** 현금
+    41,910'원' 중 얼마가 진짜 원화이고 얼마가 달러였는지 장부에 남아 있지
+    않다. 환율을 소급해 곱하면 그건 환산이 아니라 **과거를 지어내는 것**이다.
+
+    그래서 옛 장부는 손대지 않고 그대로 파일로 남기고(`portfolio_ALL.pre-krw
+    .json`), 새 원화 계좌를 연다. 사이트는 옛 기록을 이전 세대로 계속
+    공개한다 — 실패한 기간을 지우지 않는 것이 이 프로젝트의 약속이다.
+
+    ⚠️ **두 번 돌면 안 된다.** 이미 원화 계좌면 거절한다. 자동 마이그레이션으로
+    만들지 않은 이유도 같다 — 매일 도는 배치가 계좌를 다시 여는 일은
+    한 번의 실수로 전 기록을 날린다. 사람이 한 번 부르는 명령이어야 한다.
+    """
+    import shutil
+    from datetime import date as _date
+
+    from quant.utils.jsonio import atomic_write_json
+
+    principal_krw = float(principal_krw)
+    if principal_krw <= 0:
+        raise ValueError("원금은 0원보다 커야 합니다.")
+
+    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"통합 장부가 없습니다: {path}")
+    with open(path, encoding="utf-8") as f:
+        old = json.load(f)
+    if old.get("currency") == "KRW":
+        raise RuntimeError(
+            "이미 원화 계좌입니다 — 다시 열지 않습니다. 두 번 돌면 "
+            "지금 계좌의 기록이 통째로 사라집니다.")
+
+    archive = os.path.join(state_dir, "paper", "portfolio_ALL.pre-krw.json")
+    if os.path.exists(archive):
+        raise RuntimeError(f"이전 계좌 보관 파일이 이미 있습니다: {archive}")
+    shutil.copy2(path, archive)          # 옛 장부는 한 글자도 고치지 않는다
+
+    day = today or _date.today().isoformat()
+    hist = chrono(old.get("history") or [])
+    new = {
+        "market": old.get("market", "portfolio"),
+        "symbol": old.get("symbol", "ALL"),
+        "currency": "KRW",
+        "start_cash": principal_krw,
+        "cash": principal_krw,
+        "positions": {}, "base_prices": {},
+        "last_bar": None, "history": [], "deposits": [],
+        # 왜 새로 열었는지를 장부 자신이 말한다 — 사이트·조종석이 읽는다.
+        "restarted": {
+            "date": day,
+            "why": ("해외 종목 가격을 원화로 환산하지 않아 한 계좌에 원화와 "
+                    "달러가 섞여 있었습니다(감사 212). 옛 자산 금액은 진짜 "
+                    "원화가 아니었고 환위험도 빠져 있었습니다. 소급 환산은 "
+                    "과거를 지어내는 일이라, 옛 장부는 그대로 보관하고 "
+                    "원화 계좌를 새로 엽니다."),
+            "archive": os.path.basename(archive),
+            "prior_days": len(hist),
+            "prior_last_date": (hist[-1].get("date") if hist else None),
+            # 옛 자산은 단위가 섞인 값이라 원화로 비교할 수 없다. 숫자를
+            # 옮기지 않고 '비교 불가'라고 적는다.
+            "prior_equity_note": "단위 혼재 — 원화로 환산 불가",
+        },
+    }
+    atomic_write_json(path, new)
+    print(f"🔁 통합 계좌를 원화로 다시 열었습니다 — 원금 {principal_krw:,.0f}원")
+    print(f"   옛 장부 보관: {archive} (기록 {len(hist)}일, 고치지 않음)")
+    return new
+
+
 def holdings_view(state: dict, equity: float | None = None) -> list[dict]:
     """종목별 **잔고** — 증권사 잔고 화면과 같은 항목으로 편다.
 
