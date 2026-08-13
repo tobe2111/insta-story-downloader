@@ -142,3 +142,40 @@ def test_partial_bar_field_exists_in_code():
     src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert '"bar_partial"' in src
     assert (ROOT / "quant" / "data" / "barclock.py").exists()
+
+
+# ── 돈이 지금 어디 있는지 화면이 말하는가 (2026-08-13) ────────────
+#
+# 사장님 지적: *"아직 그리고 80000원 전액은 투자를 안한 상태인건가? 어떤
+# 상황이야? 그런 내용들이 홈페이지에서 확인하기 힘들어."*
+#
+# 실제로 사이트 어디에도 **"얼마가 투자됐고 얼마가 현금인지"**가 없었다.
+# 수익률·낙폭·종목표는 다 있는데 그 하나가 빠져서, 답하려면 장부 JSON을
+# 직접 파야 했다. 실측 당시 32%만 투자되고 68%가 현금이었는데 화면에는
+# 그 말이 어디에도 없었다.
+#
+# 이 프로젝트는 "누구든 검증할 수 있다"고 내걸었다. 검증하려는 사람이 가장
+# 먼저 물을 질문에 화면이 답하지 못하면 그 약속이 약해진다. 결함 감사와
+# 별개로, **빠진 사실을 채우는 것도 정직성의 일부**다.
+
+
+def test_the_site_says_how_much_is_invested_and_how_much_is_cash():
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    assert 'id="side-cash"' in html, "자금 배치 카드가 사라졌다"
+    assert "돈이 지금 어디 있나" in html
+    assert "투자 중" in html and "현금" in html, "둘 다 적어야 답이 된다"
+    # 숫자는 장부에서 온다 — 산문에 박아 두면 그날부터 거짓말이 된다
+    assert "pfLast.weight" in html, "투자 비율을 장부의 총노출에서 읽어야 한다"
+    assert "pfLast.equity" in html, "금액을 장부의 자산에서 읽어야 한다"
+
+
+def test_the_site_explains_why_the_cash_is_sitting_there():
+    """'현금이 많다'만 적으면 읽는 사람은 이유를 모른다.
+
+    1주 값에 못 미쳐 못 산 종목, 목표 대비 실제로 담긴 종목 수 —
+    둘 다 이미 장부에 있는 사실이므로 화면이 말할 수 있다.
+    """
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    assert "lot_infeasible" in html
+    assert "1주 값에 못 미쳐" in html, "왜 못 샀는지가 화면에 없다"
+    assert "곳만 담김" in html, "목표 대비 실제로 담긴 수가 화면에 없다"

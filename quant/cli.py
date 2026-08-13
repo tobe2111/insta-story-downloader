@@ -227,7 +227,12 @@ def _cmd_paper_daily(args) -> None:
 
 
 def _cmd_deposit(args) -> None:
-    from quant.live.daily import add_deposit
+    # ⚠️ **가벼운 쪽에서 가져온다**(2026-08-13). `quant.live.daily`에서
+    #    부르면 매매 엔진 전체(numpy·pandas)가 딸려 와서, 의존성이 없는
+    #    워크플로에서 입금이 통째로 죽는다 — 실제로 죽었다:
+    #        ModuleNotFoundError: No module named 'numpy'
+    #    입금 자체는 날짜·JSON·산술이 전부다. 감사 102와 같은 사고다.
+    from quant.live.ledger_basics import add_deposit
 
     out = add_deposit(args.amount, args.memo, state_dir=args.state_dir)
     _notify_extra(f"💝 후원 매칭 입금 +{out['deposit']['amount']:,.0f}원 "

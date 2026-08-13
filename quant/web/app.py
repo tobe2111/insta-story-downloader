@@ -1168,15 +1168,23 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
             from quant.live.daily import (
                 GOAL_KRW, PORTFOLIO_START_CASH, time_weighted_return,
             )
+            from quant.live.ledger_basics import (
+                _flow_date, pending_deposits, principal_of,
+            )
             deposits = st.get("deposits", [])
             sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
-            principal = sc + sum(d["amount"] for d in deposits)
+            # 자산과 같은 시점의 원금 — 반영 전 입금은 빼고 센다(감사 211).
+            # 조종석은 장부보다 자주 열리므로 이 창(입금 직후~다음 배치)에
+            # 정확히 걸린다. 실측: 92만원 입금 직후 손익 -920,749원.
+            principal = principal_of(sc, deposits)
             a = accounts[-1]
             tail = hist[-60:]
             base_series = []
             for r in tail:
-                pr = sc + sum(
-                    dd["amount"] for dd in deposits if dd["date"] <= r["date"])
+                # 곡선의 기준선도 같은 자로 잰다 — 여기만 날짜로 재면 마지막
+                # 점의 기준선과 위 principal이 어긋난다(같은 화면, 다른 원금).
+                pr = sc + sum(dd["amount"] for dd in deposits
+                              if _flow_date(dd) and _flow_date(dd) <= r["date"])
                 base_series.append(round(pr, 2))
             a.update({"goal": GOAL_KRW,
                       "principal": round(principal, 2),
@@ -1186,6 +1194,9 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                       "deposits": deposits[-30:],
                       "random_pctile": hist[-1].get("random_pctile"),
                       "spark_base": base_series})
+            waiting = pending_deposits(deposits)
+            if waiting:
+                a["pending_deposits"] = waiting
 
     # 종목별 관련 뉴스(표시 전용) — 브리핑에서 해당 종목 항목을 찾아 붙인다
     briefing = _briefing_payload(state_dir)
@@ -1457,16 +1468,25 @@ def dispatch_deposit(amount: int, memo: str = "") -> None:
     }, {"ref": "main", "inputs": {"amount": str(int(amount)), "memo": memo}})
 
 
-def _deposit_principal() -> float | None:
-    """현재 통합 계좌 원금(시작금 + 누적 매칭 입금) — 표시용, 실패 시 None."""
+def _deposit_principal() -> tuple[float, float] | None:
+    """통합 계좌 원금 (반영된 원금, 접수 총액) — 표시용, 실패 시 None.
+
+    둘이 다를 수 있다(감사 211): 입금은 즉시 현금이 되지만 **자산**은 다음
+    새벽 배치가 다시 잰다. 그 사이엔 반영분만 손익 계산에 쓴다. 여기서
+    접수 총액만 보여주면 조종석 히어로("원금 8만원")와 이 페이지("현재 원금
+    100만원")가 같은 화면에서 서로 다른 원금을 말하게 된다.
+    """
     import json as _json
     from pathlib import Path
     fp = Path("state") / "paper" / "portfolio_ALL.json"
     try:
         st = _json.loads(fp.read_text(encoding="utf-8"))
         from quant.live.daily import START_CASH
-        return (float(st.get("start_cash", START_CASH))
-                + sum(d["amount"] for d in st.get("deposits", [])))
+        from quant.live.ledger_basics import principal_of
+        sc = float(st.get("start_cash", START_CASH))
+        deps = st.get("deposits", [])
+        return (principal_of(sc, deps),
+                sc + sum(float(d["amount"]) for d in deps))
     except Exception:  # noqa: BLE001
         return None
 
@@ -1482,10 +1502,16 @@ def render_deposit_form(message: str = "") -> str:
     """매칭 입금 폼 — 금액·메모를 조종석에서 바로 입력한다 (pandas 불필요)."""
     import os as _os
     has_token = bool(_os.environ.get("QUANT_GH_TOKEN", "").strip())
-    principal = _deposit_principal()
-    principal_txt = (f'현재 원금 <b>{principal:,.0f}원</b> · 목표 1억원'
-                     if principal is not None else
-                     '아직 통합 계좌 기록이 없습니다 (매일 새벽 자동 생성)')
+    pr = _deposit_principal()
+    if pr is None:
+        principal_txt = '아직 통합 계좌 기록이 없습니다 (매일 새벽 자동 생성)'
+    else:
+        applied, committed = pr
+        principal_txt = f'현재 원금 <b>{applied:,.0f}원</b> · 목표 1억원'
+        if committed > applied:               # 접수됐지만 아직 반영 전
+            principal_txt += (f' (접수 {committed:,.0f}원 — 차액 '
+                              f'{committed - applied:,.0f}원은 다음 새벽 '
+                              '배치에서 자산에 반영됩니다)')
     if has_token:
         setup = ""
     else:

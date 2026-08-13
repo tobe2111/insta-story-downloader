@@ -463,6 +463,70 @@ MUTATIONS = [
      "    if False:",
      "tests/test_the_cockpit_does_not_count_deposits_as_skill.py"),
 
+    # 감사 211 — 197의 거울상. 반영되지 않은 입금을 원금에 더하면 그 금액이
+    # 통째로 **손실**로 보인다(실측 -920,749원).
+    ("반영 전 입금까지 원금에 더한다(입금액이 그대로 손실로 찍힌다)",
+     "quant/live/ledger_basics.py",
+     "    return float(start_cash) + sum(float(d[\"amount\"])\n"
+     "                                   for d in settled_deposits(deposits))",
+     "    return float(start_cash) + sum(float(d[\"amount\"])\n"
+     "                                   for d in deposits or [])",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("정산 도장을 무시하고 전부 반영됐다고 본다",
+     "quant/live/ledger_basics.py",
+     '    return bool(dep.get("settled_bar"))',
+     "    return True",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 도장이 있으면 그 봉으로 귀속해야 한다. 입금 날짜로만 찾으면 봉 날짜가
+    # 달력보다 뒤처진 사이의 입금이 **귀속처를 못 찾아 통째로 무시**되고,
+    # 다음 배치에서 자산만 뛴 것으로 보여 실력이 +1149%로 남는다.
+    ("입금 귀속을 정산된 봉이 아니라 입금 날짜로만 찾는다(TWR이 입금만큼 뛴다)",
+     "quant/live/ledger_basics.py",
+     '    return str(dep.get("settled_bar") or dep.get("date") or "")',
+     '    return str(dep.get("date") or "")',
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 도장을 찍는 자리는 자산을 다시 잰 배치 하나뿐이다. 안 찍으면 입금이
+    # 영원히 '접수됨'으로 남아 원금이 오르지 않는다 — 이번엔 수익 착시.
+    ("배치가 입금 정산 도장을 안 찍는다(반영된 입금이 원금에 영영 안 들어간다)",
+     "quant/live/daily.py",
+     "        if not _d.get(\"settled_bar\"):\n"
+     "            _d[\"settled_bar\"] = bar",
+     "        if False:\n"
+     "            _d[\"settled_bar\"] = bar",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 잔고 표 — 현금까지 자산과 같은 시점이어야 표의 합이 맞는다.
+    # 안 빼면 보유 37,341 + 현금 961,910 = 999,251 ≠ 자산 79,251이 된다.
+    ("잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)",
+     "quant/live/daily.py",
+     "                    float(st.get(\"cash\") or 0.0)\n"
+     "                    - sum(float(d[\"amount\"]) for d in waiting), 2)",
+     "                    float(st.get(\"cash\") or 0.0), 2)",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("시세를 못 받은 종목을 '정상 평가'로 표시한다(손익 0이 사실처럼 보인다)",
+     "quant/live/ledger_basics.py",
+     "        marked = px is not None",
+     "        marked = True",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("잔고의 매입금액을 평가금액과 같게 만든다(평가손익이 항상 0)",
+     "quant/live/ledger_basics.py",
+     "        cost, value = qty * avg, qty * px",
+     "        cost, value = qty * px, qty * px",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("사이트에서 '반영 대기 중인 입금'을 지운다(넣었는데 화면이 그대로다)",
+     "quant/live/daily.py",
+     "                if waiting:\n"
+     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
+     "                if False:\n"
+     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
     # 감시 탭이 서버 값을 쓰지 않고 자기가 계산하면 5초 뒤 덮어쓴다.
     ("감시 탭에 서버가 잰 KPI를 안 실어 보낸다(브라우저가 옛 계산으로 돌아간다)",
      "quant/web/app.py",

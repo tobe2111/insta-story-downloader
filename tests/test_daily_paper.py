@@ -244,10 +244,14 @@ def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
 def test_add_deposit_ledger_and_principal(tmp_path):
     from quant.live.daily import GOAL_KRW, add_deposit
 
-    # 8마일 챌린지: 통합 계좌 시작금 8만원 + 입금 1만원 = 원금 9만원
+    # 8마일 챌린지: 통합 계좌 시작금 8만원 + 입금 1만원 = 접수 원금 9만원
     out = add_deposit(10000, "슈퍼챗 홍길동", state_dir=str(tmp_path),
                       date="2026-08-05")
-    assert out["principal"] == 90000 and out["goal"] == GOAL_KRW
+    # ⚠️ 접수액과 **화면이 쓰는 원금**은 다르다(감사 211). 입금은 즉시 현금이
+    #    되지만 자산은 다음 새벽 배치가 다시 잰다. 그 사이에 원금만 올리면
+    #    입금액이 통째로 손실로 보인다(실측 -920,749원).
+    assert out["committed"] == 90000 and out["goal"] == GOAL_KRW
+    assert out["principal"] == 80000                 # 아직 자산에 안 잡혔다
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
                     .read_text(encoding="utf-8"))
     assert st["cash"] == 90000                       # 현금 증액
@@ -293,6 +297,10 @@ def test_docs_status_challenge_fields(tmp_path):
     st = json.loads(p.read_text(encoding="utf-8"))
     st["history"] = [{"date": "2026-08-05", "equity": 90500,
                       "return_pct": 2.5, "price": 100, "weight": 0.5}]
+    # 이 자산(90,500)은 입금을 **포함해** 다시 잰 값이다 — 배치가 그렇게 재고
+    # 나서 찍는 도장을 여기서도 찍어 준다(감사 211). 이걸 빼먹으면 자산은
+    # 입금 포함, 원금은 입금 제외가 되어 손익이 +10,500으로 부풀어 보인다.
+    st["deposits"][0]["settled_bar"] = "2026-08-05"
     p.write_text(json.dumps(st), encoding="utf-8")
 
     out = dl.write_docs_status(str(tmp_path),
@@ -301,6 +309,32 @@ def test_docs_status_challenge_fields(tmp_path):
     assert pf["principal"] == 90000 and pf["pnl"] == 500
     assert pf["goal"] == dl.GOAL_KRW
     assert pf["deposits"][0]["amount"] == 10000
+    assert "pending_deposits" not in pf          # 반영됐으니 대기 없음
+
+
+def test_docs_status_does_not_book_an_unsettled_deposit_as_loss(tmp_path):
+    """대조군(감사 211) — 아직 반영 안 된 입금은 원금에 들어가면 안 된다.
+
+    위 검사와 **똑같은 장부에서 도장만 뺀다.** 그 하나 차이로 손익이
+    +500원에서 -919,500원이 되는 것이 이 결함의 전부였다.
+    """
+    import quant.live.daily as dl
+
+    dl.add_deposit(920000, "원금 증액", state_dir=str(tmp_path),
+                   date="2026-08-13")
+    p = tmp_path / "paper" / "portfolio_ALL.json"
+    st = json.loads(p.read_text(encoding="utf-8"))
+    st["history"] = [{"date": "2026-08-12", "equity": 79250.68,
+                      "return_pct": -0.94, "price": 98.96, "weight": 0.32}]
+    p.write_text(json.dumps(st), encoding="utf-8")
+
+    pf = dl.write_docs_status(str(tmp_path),
+                              docs_path=str(tmp_path / "s.json"))
+    pf = pf["paper"]["portfolio:ALL"]
+    assert pf["principal"] == 80000, "반영 전 입금이 원금에 섞였다"
+    assert -1000 < pf["pnl"] < 0, f"입금이 손실로 잡혔다 — {pf['pnl']:,.0f}원"
+    # 그리고 **숨기지 않는다** — 사이트가 "접수됨"이라고 말할 재료를 준다
+    assert [d["amount"] for d in pf["pending_deposits"]] == [920000.0]
 
 
 def test_8mile_portfolio_start_cash(tmp_path, monkeypatch):
@@ -310,7 +344,7 @@ def test_8mile_portfolio_start_cash(tmp_path, monkeypatch):
     assert dl.PORTFOLIO_START_CASH == 80_000.0
     # 새 계좌 생성 경로(add_deposit 폴백)가 8만원 기반인지
     out = dl.add_deposit(1000, state_dir=str(tmp_path), date="2026-08-05")
-    assert out["principal"] == 81000
+    assert out["committed"] == 81000          # 접수 총액(현금에는 즉시 반영)
     # 저장된 start_cash를 존중하는지(과거 만원 계좌 하위호환)
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text(encoding="utf-8"))
@@ -318,4 +352,4 @@ def test_8mile_portfolio_start_cash(tmp_path, monkeypatch):
     st["cash"] = 11000.0
     p.write_text(json.dumps(st), encoding="utf-8")
     out2 = dl.add_deposit(500, state_dir=str(tmp_path), date="2026-08-06")
-    assert out2["principal"] == 11500                # 10000 + 1000 + 500
+    assert out2["committed"] == 11500                # 10000 + 1000 + 500

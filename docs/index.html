@@ -318,6 +318,22 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     </div>
 
     <!-- 종목별 현황 (넓게) -->
+    <!-- 잔고 — "지금 어느 종목에 얼마가 들어가 있나"에 답하는 표.
+         증권사 잔고 화면과 같은 항목으로 맞춘다. 비중(%)만으로는 답이
+         안 되기 때문에 만들었다(2026-08-13). -->
+    <section class="card c8" id="balance-card" style="display:none">
+      <h2>잔고 <span class="tag" id="bal-asof">보유 종목</span></h2>
+      <div class="tw"><table id="baltable">
+        <thead><tr><th style="text-align:left">종목</th><th>보유수량</th>
+          <th title="산 가격의 평균(수수료 반영)">평균매입가</th>
+          <th title="장부가 마지막으로 확인한 가격 — 실시간이 아닙니다">현재가</th>
+          <th>매입금액</th><th>평가금액</th><th>평가손익</th><th>수익률</th>
+          <th title="8만원 통합 계좌 자산 대비 — 종목계좌 비중과 다릅니다">통합 비중</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="sub" style="margin-top:8px" id="bal-note"></div>
+    </section>
+
     <section class="card c8">
       <h2>종목별 현황 <span class="tag">매일 새벽 확정 기록 · 20종목</span></h2>
       <div class="tw"><table id="symtable">
@@ -389,6 +405,12 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   <aside class="side">
     <!-- 판정 시계·경고를 먼저 — 20종목 아래로 밀리면 아무도 못 본다 -->
     <div class="sblk" id="side-gen"></div>
+    <!-- 돈이 지금 어디 있는가 — 경고보다도 먼저 나와야 하는 사실.
+         (2026-08-13 사장님 지적: "80000원 전액은 투자를 안한 상태인건가?
+          그런 내용들이 홈페이지에서 확인하기 힘들어." 실제로 사이트 어디에도
+          '얼마가 투자됐고 얼마가 현금인지'가 없어서, 장부 JSON을 직접 파야
+          답할 수 있었다. 검증할 수 있다고 내건 약속과 정면으로 부딪힌다.) -->
+    <div class="sblk" id="side-cash"></div>
     <div class="sblk" id="side-flags"></div>
     <div class="sh"><b>운용 종목</b><span class="cnt" id="sidecnt"></span></div>
     <div id="sidelist">
@@ -499,6 +521,55 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      (const는 선언 전 사용이 오류라 쓰는 곳보다 반드시 앞에 둔다) */
   const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
   const applied=(pfLast.applied)||null;
+  /* --- 사이드바: 돈이 지금 어디 있는가 ---------------------------------
+     ⚠️ 사이트가 이걸 안 보여줬다(2026-08-13). 수익률·낙폭·종목표는 있는데
+        **"얼마가 투자됐고 얼마가 현금인지"**가 없어서, 사장님이 물었을 때
+        장부 JSON을 직접 파야 답할 수 있었다. 실측 당시 32%만 투자되고
+        68%가 현금이었는데 화면 어디에도 그 말이 없었다.
+        총노출(weight)은 곧 '투자 중인 비율'이고 나머지는 현금이다. */
+  {
+    const eq=Number(pfLast.equity)||0;
+    /* ⚠️ 여기는 원래 기록의 weight(=오늘 **목표** 노출)를 "투자 중"이라고
+       불렀다. 둘은 다르다 — 실측 당시 목표는 네 곳 32.2%였는데 계좌가
+       실제로 들고 있던 것은 열 곳 **47.1%**였다. 잔돈·쿨다운·1주 미만으로
+       팔지 못하고 남은 보유가 목표에는 안 잡히기 때문이다.
+       "돈이 어디 있나"에 답하는 것은 목표가 아니라 **잔고**다. */
+    const hold=(pf&&pf.holdings)||[];
+    let heldVal=0; hold.forEach(r=>{heldVal+=Number(r.value)||0});
+    const cashVal=(pf&&pf.cash!=null)?Number(pf.cash):Math.max(0,eq-heldVal);
+    const inv=eq?Math.max(0,Math.min(1,heldVal/eq)):0;
+    const li=pfLast.lot_infeasible||null;
+    const nLot=li?Object.keys(li).length:0;
+    const nPlan=(pfLast.alloc?Object.keys(pfLast.alloc).length:0);
+    const nHeld=(applied?Object.keys(applied).filter(k=>Math.abs(applied[k])>0).length:0);
+    let why=[];
+    if(nLot)why.push("1주 값에 못 미쳐 못 산 종목 "+nLot+"개");
+    if(nPlan&&nHeld<nPlan)why.push("목표를 잡은 "+nPlan+"곳 중 "+nHeld+"곳만 담김");
+    /* 오늘의 목표와 실제 잔고가 다르면 그 사실도 말한다 — 어제까지 사둔
+       것을 잔돈·쿨다운 때문에 못 판 상태가 정상적으로 생긴다. */
+    const tgt=Math.abs(Number(pfLast.weight)||0);
+    if(eq&&Math.abs(inv-tgt)>0.02)
+      why.push("오늘 목표 노출은 "+(tgt*100).toFixed(1)+"% — 차이는 아직 "+
+               "정리되지 않은 기존 보유");
+    /* 접수됐지만 아직 자산에 반영 안 된 입금(감사 211) — 밝히지 않으면
+       "92만원 넣었는데 화면이 그대로다"가 된다. 원금에 미리 더하면
+       그 금액이 통째로 손실로 보이므로, 더하지 않고 **말한다.** */
+    const pend=(pf&&pf.pending_deposits)||[];
+    let pendSum=0; pend.forEach(d=>{pendSum+=Number(d.amount)||0});
+    document.getElementById("side-cash").innerHTML=eq?
+      '<div class="t">💰 돈이 지금 어디 있나</div>'+
+      '<div class="flag"><b>투자 중 '+num(Math.round(heldVal))+'원</b> ('+
+      (inv*100).toFixed(1)+'%) · <b>현금 '+num(Math.round(cashVal))+'원</b> ('+
+      (eq?(cashVal/eq*100).toFixed(1):"0.0")+'%)'+
+      (why.length?'<br><span class="sub">'+esc(why.join(" · "))+'</span>':"")+
+      (pendSum?'<br><span class="sub">⏳ 입금 <b>'+num(Math.round(pendSum))+
+        '원</b> 접수됨 — 다음 새벽 배치에서 원금 <b>'+
+        num(Math.round((Number(pf.principal)||0)+pendSum))+
+        '원</b>으로 자산과 함께 반영됩니다. 지금 원금에만 미리 더하면 '+
+        '그 금액이 통째로 손실로 보이기 때문에 기다립니다.</span>':"")+
+      '</div>':"";
+  }
+
   document.getElementById("sidecnt").textContent=rows.length+"종목";
   document.getElementById("sidelist").innerHTML=rows.map(r=>{
     const wpc=Math.min(100,(r.w||0)*100/0.25*100/100*4);
@@ -717,6 +788,60 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      읽는 사람은 통합 계좌가 애플을 12.4% 들고 있다고 읽는다 — 실제
      통합 노출은 배분 슬라이스·변동성 타깃·킬스위치를 곱한 1.2%다
      (2026-08-11 감사 100, 91·92와 같은 계열). 두 숫자를 나란히 놓는다. */
+  /* ── 잔고 표 ────────────────────────────────────────────────
+     "각 종목에 얼마를 넣었나"에 답한다. 숫자는 전부 장부의 보유 기록
+     (수량·평단·마지막 시세)에서 나오고, 여기서 다시 계산하지 않는다 —
+     화면이 자기 계산을 시작하면 장부와 갈라진다(감사 197에서 겪었다). */
+  if(pf&&(pf.holdings||[]).length){
+    const eqB=Number(pfLast.equity)||0, cashB=Number(pf.cash)||0;
+    let sumCost=0,sumVal=0,stale=0,asof="";
+    const body=pf.holdings.map(r=>{
+      const nm=(syms[r.key]||{}).name||r.key.split(":")[1]||r.key;
+      sumCost+=Number(r.cost)||0; sumVal+=Number(r.value)||0;
+      if(r.marked===false)stale++;
+      if(r.as_of&&r.as_of>asof)asof=String(r.as_of).slice(0,10);
+      const pp=(typeof r.pnl_pct==="number")?r.pnl_pct:null;
+      /* 수량은 종목마다 자릿수가 천차만별이다(리플 2,587주 vs 삼성전자
+         0.000078주). 고정 소수점으로 찍으면 한쪽이 통째로 0이 된다. */
+      const q=Number(r.quantity)||0;
+      const qs=q>=100?num(Math.round(q)):(q>=1?q.toFixed(3):q.toPrecision(3));
+      return '<tr><td style="text-align:left">'+esc(nm)+
+        '<div class="cd">'+esc(r.key.split(":")[1]||r.key)+'</div></td>'+
+        '<td class="num">'+qs+'</td>'+
+        '<td class="num">'+num(Math.round(r.avg_price*100)/100)+'</td>'+
+        '<td class="num">'+num(Math.round(r.last_price*100)/100)+
+          (r.marked===false?'<span class="sub"> ⚠</span>':"")+'</td>'+
+        '<td class="num">'+won(r.cost)+'</td>'+
+        '<td class="num">'+won(r.value)+'</td>'+
+        '<td class="num '+cls(pp==null?0:pp/100)+'">'+
+          (pp==null?"—":(r.pnl>=0?"+":"")+won(r.pnl))+'</td>'+
+        '<td class="num '+cls(pp==null?0:pp/100)+'">'+
+          (pp==null?"—":pct(pp))+'</td>'+
+        '<td class="num">'+((Number(r.weight)||0)*100).toFixed(1)+'%</td></tr>';
+    }).join("")+
+      '<tr><td style="text-align:left"><b>현금</b></td>'+
+      '<td colspan="4" class="sub">아직 어느 종목에도 들어가지 않은 돈</td>'+
+      '<td class="num"><b>'+won(cashB)+'</b></td><td class="num">—</td>'+
+      '<td class="num">—</td><td class="num">'+
+        (eqB?(cashB/eqB*100).toFixed(1):"0.0")+'%</td></tr>'+
+      '<tr><td style="text-align:left"><b>합계</b></td>'+
+      '<td colspan="3"></td><td class="num">'+won(sumCost)+'</td>'+
+      '<td class="num"><b>'+won(sumVal+cashB)+'</b></td>'+
+      '<td class="num '+cls((sumVal-sumCost)/(sumCost||1))+'">'+
+        (sumVal>=sumCost?"+":"")+won(sumVal-sumCost)+'</td>'+
+      '<td class="num">—</td><td class="num">100.0%</td></tr>';
+    document.getElementById("baltable").querySelector("tbody").innerHTML=body;
+    document.getElementById("balance-card").style.display="";
+    document.getElementById("bal-asof").textContent=
+      pf.holdings.length+"종목"+(asof?" · 시세 기준 "+asof:"");
+    /* 이 표가 무엇이고 무엇이 아닌지 밝힌다. */
+    let note="평가금액은 장부가 마지막으로 확인한 가격 기준입니다 — "+
+      "실시간 시세가 아닙니다. 합계는 현금을 포함한 계좌 자산입니다.";
+    if(stale)note+=" ⚠ 표시된 "+stale+"종목은 시세를 받지 못해 매입가로 "+
+      "평가돼 있습니다(손익이 0으로 보입니다).";
+    document.getElementById("bal-note").textContent=note;
+  }
+
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};

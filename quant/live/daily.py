@@ -26,13 +26,17 @@ import numpy as np
 # 끌어오다가 그날 밤 게시가 ModuleNotFoundError로 죽었다).
 from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     GOAL_KRW,
+    add_deposit,
     PORTFOLIO_START_CASH,
     START_CASH,
     chrono,
     day_return_pct,
     drawdown_from_index,
     equity_curve_kpis,
+    holdings_view,
     max_drawdown_from_index,
+    pending_deposits,
+    principal_of,
     time_weighted_return,
     twr_index,
 )
@@ -699,49 +703,6 @@ def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
 # 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
 MIN_ORDER_KRW = 500.0
 
-
-
-def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
-                date: str | None = None) -> dict:
-    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (8마일 챌린지 · 8만원 → 1억).
-
-    ⚠️ 법적 구조(반드시 유지): 시청자의 후원금 자체를 굴리는 것이 아니다.
-    후원은 대가·지분 없는 방송 후원이고, 운영자가 '같은 금액만큼' 가상 계좌
-    원금을 늘리는 이벤트다. 이 구조를 바꾸면(타인 자금 운용) 유사수신·무인가
-    집합투자 위험이 생긴다.
-
-    모든 입금은 장부(deposits)에 기록되어 git 커밋으로 공개된다 — 수익률
-    계산은 원금과 손익을 분리해(TWR) 입금이 실력처럼 보이지 않게 한다.
-    """
-    from datetime import date as _date
-
-    from quant.utils.jsonio import atomic_write_json
-
-    amount = float(amount)
-    if not (0 < amount <= 10_000_000):
-        raise ValueError("입금액은 0원 초과 1,000만원 이하여야 합니다.")
-
-    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            st = json.load(f)
-    else:
-        st = {"market": "portfolio", "symbol": "ALL",
-              "start_cash": PORTFOLIO_START_CASH,
-              "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
-              "last_bar": None, "history": [], "deposits": []}
-
-    entry = {"date": date or _date.today().isoformat(),
-             "amount": round(amount, 2), "memo": str(memo)[:80]}
-    st.setdefault("deposits", []).append(entry)
-    st["cash"] = float(st.get("cash", 0.0)) + amount
-    atomic_write_json(path, st)
-
-    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
-                 + sum(d["amount"] for d in st["deposits"]))
-    print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
-          f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
-    return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
@@ -1780,9 +1741,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
     # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
     applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}
-    # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
-    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
-                 + sum(d["amount"] for d in st.get("deposits", [])))
+    # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다.
+    #
+    # ⚠️ 여기가 입금이 **정산되는 유일한 자리**다(감사 211). 위에서 equity를
+    #    현금+평가액으로 다시 쟀고, 그 현금에는 그동안 들어온 입금이 이미
+    #    포함돼 있다. 즉 이 순간부로 그 돈은 자산의 일부다 — 그 사실을 봉
+    #    이름으로 찍어 둔다. 찍기 **전에** 원금에 더하면 자산은 옛 기록,
+    #    원금만 새 값이 되어 입금액이 통째로 손실로 보인다(실측 -920,749원).
+    #    금액·날짜·메모는 건드리지 않는다.
+    for _d in st.get("deposits", []):
+        if not _d.get("settled_bar"):
+            _d["settled_bar"] = bar
+    principal = principal_of(st.get("start_cash", PORTFOLIO_START_CASH),
+                             st.get("deposits", []))
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
               "return_pct": round((equity / principal - 1) * 100, 2),
@@ -2238,7 +2209,9 @@ def write_docs_status(state_dir: str = STATE_DIR,
             if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
                 deposits = st.get("deposits", [])
                 sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
-                principal = sc + sum(d["amount"] for d in deposits)
+                # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가
+                # 반영하지 않은 입금을 더하면 그 금액이 그대로 손실로 보인다.
+                principal = principal_of(sc, deposits)
                 eq_now = float(status["paper"][key]["equity"] or principal)
                 status["paper"][key].update({
                     "goal": GOAL_KRW,
@@ -2248,6 +2221,25 @@ def write_docs_status(state_dir: str = STATE_DIR,
                                                     start_cash=sc),
                     "deposits": deposits[-30:],
                 })
+                # 접수됐지만 아직 반영 안 된 입금 — 숨기지 않고 밝힌다.
+                # 이게 없으면 "92만원 넣었는데 화면이 그대로다"가 된다.
+                waiting = pending_deposits(deposits)
+                if waiting:
+                    status["paper"][key]["pending_deposits"] = waiting
+                # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
+                # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
+                # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
+                status["paper"][key]["holdings"] = holdings_view(st, eq_now)
+                # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
+                #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이
+                #    이미 들어 있어서, 그대로 실으면 표의 합이 자산을 넘어선다:
+                #        보유 37,341 + 현금 961,910 = 999,251  ≠  자산 79,251
+                #    현금 비중이 1213%로 찍히고 표가 스스로 모순된다.
+                #    접수분은 빼고 싣는다 — 그 돈은 pending_deposits로 따로
+                #    공개되고, 다음 배치가 자산·현금을 함께 다시 잰다.
+                status["paper"][key]["cash"] = round(
+                    float(st.get("cash") or 0.0)
+                    - sum(float(d["amount"]) for d in waiting), 2)
                 rb = _regime_breakdown(hist)
                 if rb:                             # 레짐별 성과 분해(투명성)
                     status["paper"][key]["regime_breakdown"] = rb
