@@ -1369,8 +1369,8 @@ MUTATIONS = [
 
     ("JSON 로그에서 컨텍스트 필드를 빠뜨린다(주문 추적 정보가 사라진다)",
      "quant/utils/logging.py",
-     "        if isinstance(ctx, dict):\n            payload.update(ctx)",
-     "        if False:\n            payload.update(ctx)",
+     "        if isinstance(ctx, dict):\n            for k, v in ctx.items():",
+     "        if False:\n            for k, v in ctx.items():",
      "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
 
     # 감사 172 — 이미지가 정상 공개된 순간 SNS 게시가 죽었다.
@@ -1685,6 +1685,13 @@ MUTATIONS = [
      '        cash = require_field(acct, "cash", "현금", "Alpaca")',
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    # ── 감사 208: 로그가 자기 시각·메시지를 잃던 자리 ────────────
+    ("컨텍스트가 로그의 예약 키를 덮어쓴다(로그가 시각·메시지를 거짓으로 말한다)",
+     "quant/utils/logging.py",
+     "                payload[f\"ctx_{k}\" if k in payload else k] = v",
+     "                payload[k] = v",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
 
     # ── 감사 206·207: 모름을 반대로 처리·지문이 버전에 흔들리던 자리 ─
     ("변동성 필터가 판정 불가 구간을 통과시킨다(못 재는 구간에만 매매가 열린다)",
