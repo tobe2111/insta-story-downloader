@@ -125,13 +125,44 @@ def test_dashboard_without_summary_still_works():
 # ── ③ /monitor JS도 같은 seed를 쓴다 ──────────────────────────
 
 
-def test_monitor_js_seeds_from_summary():
+def test_monitor_feed_carries_the_full_period_numbers(tmp_path):
+    """감시 탭이 5초마다 받는 값도 '전 기간'이어야 한다.
+
+    ⚠️ 이 검사는 원래 app.py 소스에 `sm.max_drawdown`·`sm.peak`·`sm.start`
+       라는 **글자**가 있는지 봤다. 감사 197에서 그 계산을 브라우저에서
+       파이썬으로 옮기면서 글자는 사라졌지만 **계약은 그대로다** —
+       `ledger_basics.equity_curve_kpis`가 요약을 이어받는다.
+
+       구현을 옮겼다고 계약을 지우면 안 되고(감사 190), 글자를 세는 검사는
+       구현이 바뀔 때마다 거짓 경보를 낸다(감사 183). 그래서 **글자 대신
+       실제로 나가는 값**을 본다 — 이쪽이 원래 지키려던 것이다.
+    """
+    import json
+
+    from quant.web.app import state_json
+
+    hist = _curve()
+    truth_pnl, truth_dd = _walk([h["equity"] for h in hist])
+    kept, summ = fold_history(list(hist), cap=30)
+
+    fp = tmp_path / "state.json"
+    fp.write_text(json.dumps({"history": kept, "history_summary": summ}),
+                  encoding="utf-8")
+    kpi = json.loads(state_json([str(fp)]))["kpi"]
+    assert abs(kpi["max_drawdown"] - truth_dd) < 1e-9, "잘린 구간 낙폭이 나갔다"
+    assert abs(kpi["pnl"] - truth_pnl) < 1e-9, "잘린 구간 손익이 나갔다"
+
+    # 대조군 — 요약을 빼면 '좋아진' 숫자가 나온다(결함의 재현). 이게 없으면
+    # 위 단언은 요약을 안 쓰는 구현도 우연히 통과시킬 수 있다.
+    fp2 = tmp_path / "naive.json"
+    fp2.write_text(json.dumps({"history": kept}), encoding="utf-8")
+    naive = json.loads(state_json([str(fp2)]))["kpi"]
+    assert naive["max_drawdown"] > truth_dd
+
+    # 브라우저는 이제 스스로 손익을 계산하지 않는다 — 계산하면 5초마다
+    # 서버의 올바른 값을 덮어쓴다(감사 197에서 실제로 그러고 있었다).
     src = (ROOT / "quant" / "web" / "app.py").read_text(encoding="utf-8")
-    assert "s.history_summary" in src, "JS가 요약을 안 쓰면 5초 뒤 덮어쓴다"
-    assert "sm.max_drawdown" in src and "sm.peak" in src and "sm.start" in src
-    # 예전의 '배열 첫 값에서 시작' 계산이 남아 있으면 안 된다
-    assert "st=eq[0], pnl=st? cur/st-1:0" not in src
-    assert "let peak=st, dd=0;" not in src
+    assert "cur/st-1" not in src, "감시 탭 JS가 다시 손익을 계산하고 있다"
 
 
 # ── ④ 세 러너 모두 요약을 싣는다 ──────────────────────────────

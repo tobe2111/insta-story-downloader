@@ -29,6 +29,11 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     START_CASH,
     chrono,
     day_return_pct,
+    drawdown_from_index,
+    equity_curve_kpis,
+    max_drawdown_from_index,
+    time_weighted_return,
+    twr_index,
 )
 
 from quant.live.retrain import STATE_DIR, champion_spec, champion_strategy
@@ -689,62 +694,6 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
     print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
           f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
     return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
-
-
-def twr_index(history: list[dict], deposits: list[dict],
-              start_cash: float = START_CASH) -> list[float]:
-    """입금 효과를 제거한 누적 성장 지수(시작 1.0) 시계열.
-
-    구간수익 r_t = (자산_t − 그날 입금액) / 자산_{t−1} − 1 을 연쇄 곱한다.
-    입금 날짜가 기록일 사이면 '그 이후 첫 기록일'에 귀속시킨다(보수적).
-
-    수익률뿐 아니라 **낙폭**도 이 지수 위에서 재야 한다(2026-08-11 감사).
-    자산(equity) 고점 대비로 재면 입금이 고점을 끌어올려, 손실이 그대로인데
-    낙폭이 0으로 보인다 — 그러면 킬스위치가 입금 때문에 풀린다.
-    """
-    history = chrono(history)
-    if not history:
-        return []
-    flows: dict[str, float] = {}
-    dates = [r["date"] for r in history]
-    for d in deposits or []:
-        target = next((dt for dt in dates if dt >= d["date"]), None)
-        if target is not None:
-            flows[target] = flows.get(target, 0.0) + float(d["amount"])
-    out: list[float] = []
-    idx, prev = 1.0, float(start_cash)
-    for r in history:
-        eq = float(r["equity"])
-        if prev > 0:
-            idx *= max(0.0, (eq - flows.get(r["date"], 0.0)) / prev)
-        prev = eq
-        out.append(idx)
-    return out
-
-
-def drawdown_from_index(index: list[float]) -> float:
-    """성장 지수 시계열의 현재 낙폭(비율, 0 이하)."""
-    if not index:
-        return 0.0
-    peak = max(index)
-    return (index[-1] / peak - 1) if peak > 0 else 0.0
-
-
-def max_drawdown_from_index(index: list[float]) -> float:
-    """성장 지수 시계열의 최대낙폭(비율, 0 이하)."""
-    peak, mdd = 0.0, 0.0
-    for v in index:
-        peak = max(peak, v)
-        if peak > 0:
-            mdd = min(mdd, v / peak - 1)
-    return mdd
-
-
-def time_weighted_return(history: list[dict], deposits: list[dict],
-                         start_cash: float = START_CASH) -> float:
-    """시간가중 수익률(%) — 입금(원금 증액)의 효과를 제거한 순수 운용 실력."""
-    idx = twr_index(history, deposits, start_cash)
-    return round((idx[-1] - 1) * 100, 2) if idx else 0.0
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,

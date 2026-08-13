@@ -423,6 +423,51 @@ MUTATIONS = [
      "            if False:",
      "tests/test_circuit_breaker.py"),
 
+    # ── 감사 198: 브레이크가 스스로 꺼지던 자리 ──────────────────
+    # 세 항목 모두 "장치가 꺼졌다"가 아니라 "장치가 **조용히** 꺼졌다"를
+    # 지킨다. 원래 상태는 사고가 나기 전까지 아무도 모른다.
+    ("서킷브레이커가 NaN 자산값을 기준선으로 받아들인다(세션 내내 꺼진다)",
+     "quant/live/circuit_breaker.py",
+     "        eq = usable_equity(equity, \"서킷브레이커\")\n"
+     "        if eq is None:\n"
+     "            return self.tripped",
+     "        eq = float(equity)\n"
+     "        if False:\n"
+     "            return self.tripped",
+     "tests/test_the_brakes_do_not_switch_themselves_off.py"),
+
+    ("킬스위치가 NaN 자산값을 그날 기준 자본으로 받아들인다(하루 종일 꺼진다)",
+     "quant/live/killswitch.py",
+     "        eq = usable_equity(equity, \"일일 손실 킬스위치\")\n"
+     "        if eq is None:\n"
+     "            return False",
+     "        eq = float(equity)\n"
+     "        if False:\n"
+     "            return False",
+     "tests/test_the_brakes_do_not_switch_themselves_off.py"),
+
+    ("손실 한도의 분수/퍼센트 검증을 끈다(0.03을 3으로 적으면 영영 발동 안 함)",
+     "quant/live/riskguard.py",
+     "    if not 0.0 < v <= 1.0:",
+     "    if False:",
+     "tests/test_the_brakes_do_not_switch_themselves_off.py"),
+
+    # 감사 197 — 조종석·감시 탭이 입금을 수익으로 세던 자리(실측 +1087.50%).
+    ("두 화면이 입금 효과 제거를 건너뛴다(입금이 실력으로 찍힌다)",
+     "quant/live/ledger_basics.py",
+     "    deposits = state.get(\"deposits\") or []\n"
+     "    if deposits:",
+     "    deposits = state.get(\"deposits\") or []\n"
+     "    if False:",
+     "tests/test_the_cockpit_does_not_count_deposits_as_skill.py"),
+
+    # 감시 탭이 서버 값을 쓰지 않고 자기가 계산하면 5초 뒤 덮어쓴다.
+    ("감시 탭에 서버가 잰 KPI를 안 실어 보낸다(브라우저가 옛 계산으로 돌아간다)",
+     "quant/web/app.py",
+     "        st[\"kpi\"] = equity_curve_kpis(st)",
+     "        st[\"kpi\"] = {}",
+     "tests/test_history_truncation.py"),
+
     # ── 사이징·비용(오디션 성적과 실제 노출을 동시에 좌우) ──
     ("실현변동성 0을 NaN으로 바꾸는 가드를 뺀다(거래정지 종목이 최대 레버리지)",
      "quant/risk/manager.py",
@@ -1487,10 +1532,13 @@ MUTATIONS = [
      "tests/test_every_download_goes_through_the_same_door.py"),
 
     # 감사 179 — 사람이 읽는 네 산출물. 결함 없음, 계약 고정.
+    # 감사 197에서 이 계산이 dashboard.py → ledger_basics.py로 옮겨졌다
+    # (조종석과 감시 탭이 각자 계산하던 것을 한 곳으로 모음). 대상 파일만
+    # 따라 옮긴다 — 지키는 계약은 그대로다.
     ("대시보드가 잘려 나간 과거의 낙폭을 잊는다(위험 지표가 저절로 좋아진다)",
-     "quant/reporting/dashboard.py",
-     '        max_dd = float(summ.get("max_drawdown") or 0.0)',
-     "        max_dd = 0.0",
+     "quant/live/ledger_basics.py",
+     '    max_dd = float(summ.get("max_drawdown") or 0.0)',
+     "    max_dd = 0.0",
      "tests/test_the_reports_do_not_flatter_us.py"),
 
     ("체결 격차의 불리 방향을 뒤집는다(낙관을 보수로 둔갑시킨다)",

@@ -18,6 +18,10 @@ import html
 from pathlib import Path
 from typing import Sequence
 
+# ledger_basics는 표준 라이브러리만 쓴다 — 이 파일의 "의존성 0" 성질이
+# 유지된다. 그 가벼움이 이 판정을 공유할 수 있게 해 준 조건이다(감사 197).
+from quant.live.ledger_basics import equity_curve_kpis
+
 
 def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
                color: str = "#4c7dff", fill: bool = True, elem_id: str = "") -> str:
@@ -78,21 +82,13 @@ def build_dashboard_html(state: dict) -> str:
     # 지나면 스스로 개선되는 위험 지표는 지표가 아니라 위안이다(감사 ㊿).
     summ = state.get("history_summary") or {}
     dropped = int(summ.get("dropped") or 0)
-    if equity:
-        cur = equity[-1]
-        start = summ.get("start")
-        if not isinstance(start, (int, float)) or start != start:
-            start = equity[0]
-        pnl = cur / start - 1.0 if start else 0.0
-        peak = summ.get("peak")
-        if not isinstance(peak, (int, float)) or peak != peak:
-            peak = start
-        max_dd = float(summ.get("max_drawdown") or 0.0)
-        for e in equity:
-            peak = max(peak, e)
-            max_dd = min(max_dd, e / peak - 1.0 if peak else 0.0)
-    else:
-        cur = pnl = max_dd = 0.0
+    # 손익·낙폭 판정은 `ledger_basics.equity_curve_kpis` 한 곳에서만 한다
+    # (감사 197). 예전에는 여기와 감시 탭 JS가 각자 `cur / start - 1.0`을
+    # 계산했고, 둘 다 **입금을 수익으로 셌다**(실측 +1087.50%). 게다가 JS는
+    # 5초마다 이 화면의 값을 덮어쓰므로, 여기만 고쳤다면 화면이 잠깐
+    # 맞았다가 조용히 틀린 값으로 되돌아갔을 것이다.
+    _k = equity_curve_kpis(state)
+    cur, pnl, max_dd = _k["current"], _k["pnl"], _k["max_drawdown"]
 
     last_weight = history[-1].get("weight", 0.0) if history else 0.0
     # 방향 예측 정확도(최근 우선, 없으면 전체) — 자동학습 상태에만 존재할 수 있음

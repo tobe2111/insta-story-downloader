@@ -21,6 +21,7 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from quant.live.riskguard import check_loss_limit, usable_equity
 from quant.utils.logging import get_logger
 
 log = get_logger("live.killswitch")
@@ -36,8 +37,13 @@ class DailyLossKillSwitch:
         """daily_max_loss: 예 0.03 = 하루 -3% 도달 시 발동. None = 미사용(기본).
 
         state_path 지정 시 발동 상태를 JSON으로 영속화한다(원자적 쓰기).
+
+        ⚠️ 한도는 **분수**다 — 0.03이 3%다. 3이라고 적으면 "-300% 도달 시
+        발동"이 되어 이 장치가 **조용히 꺼진다**(감사 198). 시작 로그에는
+        "일일 손실 킬스위치 -300%"라고 찍히고 사장님은 브레이크가 걸려
+        있다고 믿게 된다. 그래서 조용히 넘기지 않고 여기서 세운다.
         """
-        self.daily_max_loss = daily_max_loss
+        self.daily_max_loss = check_loss_limit(daily_max_loss, "일일 손실")
         self.state_path = state_path
         self.notifier = notifier
         self.day: str | None = None                 # 현재 UTC 일자
@@ -58,6 +64,12 @@ class DailyLossKillSwitch:
 
         갓 발동한 사이클에서는 just_tripped=True 이므로, 호출자는 그때 한 번만
         포지션 청산(best-effort)을 수행하면 된다.
+
+        ⚠️ **NaN 자산값을 그날 기준선으로 삼으면 하루 종일 꺼진다**(감사 198).
+        아래 `self.day_start_equity > 0` 비교가 NaN에서는 거짓이라 손실 판정
+        자체를 건너뛰고, 날짜가 안 바뀌었으니 기준선도 다시 잡히지 않는다.
+        실측: 그날 첫 관측이 NaN이면 -50%도 **-99%도 발동하지 않았다.**
+        서킷브레이커와 같은 결함이라 판정을 `riskguard`로 모아 함께 고친다.
         """
         self.just_tripped = False
         if self.daily_max_loss is None:              # 기본: 비활성(하위 호환)
@@ -72,6 +84,13 @@ class DailyLossKillSwitch:
             log.info("일일 킬스위치 할트 해제 (UTC %s) — 매매 재개", today)
             self.halted_until = None
             self.day = None                          # 새 날 기준으로 재시작
+
+        # 숫자가 아닌 자산값은 기준선으로도, 비교값으로도 쓰지 않는다(감사 198).
+        # 할트 확인은 위에서 이미 끝났으므로 '쉬는 중'은 그대로 유지된다.
+        eq = usable_equity(equity, "일일 손실 킬스위치")
+        if eq is None:
+            return False
+        equity = eq
 
         # UTC 일자 경계에서 하루 시작 자본 리셋
         if self.day != today or self.day_start_equity is None:
