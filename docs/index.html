@@ -15,6 +15,10 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/pretendard.css">
 <script src="assets/lightweight-charts.js"></script>
+<!-- 준실시간 평가의 순수 계산 — 인라인 스크립트에서 떼어내 **검사가 실제로
+     실행할 수 있게** 한 자리다(tests/live_marks_check.mjs). 소스 문자열만
+     읽는 검사는 "검사는 초록인데 기능은 죽어 있다"를 못 잡는다(감사 229). -->
+<script src="assets/live-marks.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -1076,61 +1080,44 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
 
      무료 경로의 한계도 그대로 표기한다: 코인만 진짜 실시간(거래소 공개
      API)이고, 주식은 야후 무료 시세라 지연된다. */
-  const USD_MKT=/^(us_stock|crypto):/;
-  function liveValueOf(key,qty){
-    const lv=live[key]; if(!lv||!qty)return null;
-    if(!USD_MKT.test(key))return qty*lv.px;          // 한국주식·업비트 = 원화
-    if(!liveFx)return null;                          // 환율 없으면 값을 안 매긴다
-    return qty*lv.px*liveFx;
-  }
+  /* 계산은 assets/live-marks.js(QuantLive)에 있다 — 인라인 스크립트 안에
+     두면 검사가 **실행**할 수 없고, 소스 문자열만 읽는 검사는 "검사는
+     초록인데 기능은 죽어 있다"를 못 잡는다(감사 229). 여기는 그 결과를
+     화면에 칠하기만 한다. */
   function paintLive(){
     const nodes=document.querySelectorAll(".lvv");
-    if(!nodes.length)return;
-    let anyLive=false,sumLive=0,sumBook=0,ok=true,miss=[];
+    if(!nodes.length||!window.QuantLive)return;
     const all=window.__holdings||[];
-    all.forEach(h=>{
-      const v=liveValueOf(h.key,Number(h.quantity)||0);
-      if(v==null){ok=false;miss.push(h.key.split(":")[1]||h.key);return;}
-      sumLive+=v; sumBook+=Number(h.value)||0; anyLive=true;
-    });
+    const m=QuantLive.markHoldings(all,live,liveFx);
+    const cash=window.__cash||0;
     nodes.forEach(n=>{
       const k=n.getAttribute("data-k");
       if(k==="__total__"){
-        n.innerHTML=(ok&&anyLive)
-          ?'지금 '+won(sumLive+(window.__cash||0))
-          :'';
+        n.innerHTML=m.complete?'지금 '+won(m.sumLive+cash):'';
         return;
       }
-      const h=(window.__holdings||[]).find(x=>x.key===k);
-      const v=h?liveValueOf(k,Number(h.quantity)||0):null;
+      const v=m.rows[k];
       n.innerHTML=(v==null)?"":'지금 '+won(v);
     });
     const note=document.getElementById("live-note");
     if(!note)return;
-    if(ok&&anyLive){
-      /* 소스 구성을 **세어서** 말한다 — "코인은 실시간, 주식은 지연"을
-         문장에 박아 두면 KIS 키가 붙어 한국주식이 실시간이 된 날에도
-         화면은 계속 지연이라고 말한다(감사 229의 교훈). */
-      let nLive=0,nLate=0;
-      all.forEach(h=>{const lv=live[h.key];if(!lv)return;
-        if(lv.delayed)nLate++;else nLive++;});
-      const freshness=nLate===0?'모든 보유 종목이 <b>실시간</b> 시세입니다'
-        :(nLive===0?'보유 종목이 <b>지연 시세</b>로 평가돼 있습니다'
-          :'실시간 '+nLive+'종목 · 지연 '+nLate+'종목');
-      note.innerHTML='참고 · 지금 <b>'+won(sumLive+(window.__cash||0))+'</b>'+
-        ' <span class="'+cls((sumLive-sumBook)/(sumBook||1))+'">'+
-        (sumLive>=sumBook?"+":"")+won(sumLive-sumBook)+'</span> — '+freshness+
+    if(m.complete){
+      const fr=QuantLive.freshness(all,live);
+      const diff=m.sumLive-m.sumBook;
+      note.innerHTML='참고 · 지금 <b>'+won(m.sumLive+cash)+'</b>'+
+        ' <span class="'+cls(diff/(m.sumBook||1))+'">'+
+        (diff>=0?"+":"")+won(diff)+'</span> — '+fr.text+
         (liveFx?' · 원/달러 '+num(Math.round(liveFx*100)/100)+'원 적용':"")+
         '. 위 확정값과 다를 수 있으며, <b>수익률·낙폭·판단에는 쓰지 않습니다</b>.';
-    }else if(miss.length&&miss.length<all.length){
-      /* ⚠️ 일부만 못 받았을 때 합계를 그냥 지우면, 화면은 아무 말 없이
-         조용해진다 — 오늘 하루 고친 결함이 전부 그 모양이었다(감사 213·
-         220·226). 부분 합계는 계좌를 실제보다 작게 보이게 하므로 내지
-         않되, **왜 안 내는지는 말한다.** */
+    }else if(m.missing.length&&m.marked>0){
+      /* ⚠️ 일부만 못 받았을 때 합계를 그냥 지우면 화면이 아무 말 없이
+         조용해진다 — 오늘 고친 결함이 전부 그 모양이었다(감사 213·220·226).
+         부분 합계는 계좌를 실제보다 작게 보이게 하므로 내지 않되,
+         **왜 안 내는지는 말한다.** */
       note.innerHTML='<span class="sub">준실시간 합계는 표시하지 않습니다 — '+
-        esc(miss.join(", "))+' 시세를 아직 받지 못했습니다('+
-        (all.length-miss.length)+'/'+all.length+'종목만 수신). 일부만 더한 '+
-        '합계는 계좌를 실제보다 작게 보이게 합니다.</span>';
+        esc(m.missing.join(", "))+' 시세를 아직 받지 못했습니다('+
+        m.marked+'/'+m.total+'종목만 수신). 일부만 더한 합계는 계좌를 '+
+        '실제보다 작게 보이게 합니다.</span>';
     }else{
       note.innerHTML='';       // 아직 한 건도 못 받았다 — 확정값만 보여준다
     }
@@ -1233,16 +1220,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      **보일 때 · 장중에만** 부르면 같은 무료 한도(10만 요청/일)로 주기를
      네 배 촘촘하게 쓸 수 있다 — 신선도를 공짜로 사는 셈이다. */
   const STOCK_MS_OPEN=15000, STOCK_MS_CLOSED=300000;
-  function marketOpenish(){
-    /* 한국 09:00~15:40 / 미국 22:20~05:10 (KST, 서머타임 폭 포함).
-       경계는 넉넉하게 — 조금 더 부르는 것이 장 초반을 놓치는 것보다 낫다. */
-    const kst=new Date(Date.now()+9*3600*1000);
-    const d=kst.getUTCDay(), h=kst.getUTCHours()+kst.getUTCMinutes()/60;
-    if(d===0)return false;                       // 일요일(KST) — 양쪽 다 휴장
-    if(d>=1&&d<=5&&h>=9&&h<15.7)return true;     // 한국장
-    if((d>=1&&d<=5&&h>=22.3)||(d>=2&&d<=6&&h<5.2))return true;  // 미국장
-    return false;
-  }
+  /* 장중 판정도 QuantLive에 있다 — 시각을 인자로 받아야 검사가 특정
+     순간을 재현할 수 있다(`Date.now()`를 안에서 부르면 영영 못 잰다). */
+  const marketOpenish=()=>!window.QuantLive
+    ||QuantLive.marketOpenish(Date.now());
   let stockTimer=null;
   function scheduleStocks(){
     if(stockTimer)clearTimeout(stockTimer);

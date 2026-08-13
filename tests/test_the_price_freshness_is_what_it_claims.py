@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 ROOT = Path(__file__).resolve().parent.parent
 IDX = (ROOT / "docs" / "index.html").read_text("utf-8")
 WORKER = (ROOT / "worker.js").read_text("utf-8")
+LIVE = (ROOT / "docs" / "assets" / "live-marks.js").read_text("utf-8")
 
 
 # ── ① 워커: 소스 사다리 ───────────────────────────────────────
@@ -122,7 +123,10 @@ def test_polling_stops_when_nobody_is_looking():
 
 def test_polling_slows_down_when_the_markets_are_closed():
     """장이 닫히면 값이 안 변한다 — 그 시간을 아껴 장중을 촘촘히 쓴다."""
-    assert "function marketOpenish()" in IDX
+    assert "function marketOpenish(nowMs)" in LIVE, (
+        "장중 판정이 시각을 인자로 받지 않는다 — 검사가 특정 순간을 못 잰다")
+    assert "QuantLive.marketOpenish(Date.now())" in IDX, (
+        "화면이 장중 판정을 스스로 다시 쓴다")
     op = int(re.search(r"STOCK_MS_OPEN=(\d+)", IDX).group(1))
     cl = int(re.search(r"STOCK_MS_CLOSED=(\d+)", IDX).group(1))
     assert op < cl, "장중이 장 밖보다 느리다"
@@ -161,11 +165,12 @@ def test_the_freshness_sentence_is_counted_not_hardcoded():
     """"코인은 실시간, 주식은 지연"을 문장에 박으면, KIS를 붙여 한국주식이
     실시간이 된 날에도 화면은 계속 지연이라고 말한다(감사 229의 교훈).
     """
+    assert "lv.delayed" in LIVE, "지연 여부를 세지 않는다"
+    assert "fresh += 1" in LIVE and "late += 1" in LIVE, "세지 않고 단정한다"
     fn = IDX[IDX.find("function paintLive()"):]
     fn = fn[:fn.find("function drawTick()")]
-    assert "lv.delayed" in fn, "지연 여부를 세지 않는다"
-    assert "nLive" in fn and "nLate" in fn
-    assert "실시간 '+nLive" in fn or "실시간 " in fn
+    assert "QuantLive.freshness(all,live)" in fn, (
+        "화면이 신선도 문구를 스스로 만든다 — 세는 자리는 하나여야 한다")
 
 
 def test_the_ticker_label_comes_from_the_response():
@@ -195,3 +200,30 @@ def test_the_worker_ladder_behaves(tmp_path):
     r = subprocess.run([node, str(ROOT / "tests" / "worker_ladder_check.mjs")],
                        capture_output=True, text=True, cwd=str(ROOT))
     assert r.returncode == 0, (r.stdout + r.stderr)
+
+
+def test_the_live_marks_behave(tmp_path):
+    """준실시간 평가 계산을 **실행해서** 확인한다(환산·부분수신·장중 판정).
+
+    ⚠️ 위 검사들이 문자열을 보는 동안, 이 하네스는 값을 본다. 오늘 워커
+       하네스가 실제 결함(토큰 재발급)을 잡은 뒤 같은 방식을 화면 계산에도
+       붙였다 — 돈이 걸린 식은 전부 값으로 확인한다.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node") or "/opt/node22/bin/node"
+    if not Path(node).exists():
+        import pytest
+        pytest.skip("node 없음 — 평가 계산 실행 검사 생략")
+    r = subprocess.run([node, str(ROOT / "tests" / "live_marks_check.mjs")],
+                       capture_output=True, text=True, cwd=str(ROOT))
+    assert r.returncode == 0, (r.stdout + r.stderr)
+
+
+def test_the_page_loads_the_calculation_module():
+    """모듈을 안 싣고 함수만 부르면 화면이 조용히 아무것도 안 한다."""
+    assert 'src="assets/live-marks.js"' in IDX, (
+        "계산 모듈을 페이지가 싣지 않는다")
+    i, j = IDX.find("assets/live-marks.js"), IDX.find("function paintLive()")
+    assert 0 < i < j, "모듈을 쓰는 곳보다 뒤에서 싣는다"
