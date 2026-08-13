@@ -467,6 +467,15 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         #    결정과 잔고를 둘 다 남긴다.
         "held_weight": (round(pos.quantity * price / equity, 4)
                         if pos and equity else 0.0),
+        # 소수점 매매가 없는 시장(한국 주식)에서 소수 주를 들고 있으면
+        # **실계좌에서 재현할 수 없다**(감사 222). 참고 계좌는 1만원으로
+        # 시작하는데 한국 주식은 1주가 10만~150만원이라, 정수 주를 강제하면
+        # 대부분 영영 빈 계좌가 되어 종목별 비교 자체가 사라진다. 그래서
+        # 막지 않고 **밝힌다** — 통합 계좌의 lot_infeasible과 같은 태도다.
+        "fractional_lot": (
+            bool(pos and pos.quantity
+                 and market not in FRACTIONAL_MARKETS
+                 and abs(pos.quantity - round(pos.quantity)) > 1e-9)),
         "equity": round(equity, 2),
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),

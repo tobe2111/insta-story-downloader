@@ -26,6 +26,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+ROOT = Path(__file__).resolve().parent.parent
+
 
 def _ohlc(closes, highs=None, lows=None) -> pd.DataFrame:
     c = pd.Series([float(v) for v in closes],
@@ -340,3 +342,119 @@ def test_a_lagging_market_is_warned_about(monkeypatch, tmp_path, caplog):
     assert any("신선도가 어긋납니다" in r.getMessage() for r in caplog.records), (
         "한 시장만 3일 뒤처졌는데 경고가 없다\n"
         + "\n".join(r.getMessage()[:100] for r in caplog.records[-5:]))
+
+
+# ── 실계좌에서 재현할 수 없는 보유는 밝히는가 (감사 222) ───────
+
+def test_a_fractional_korean_lot_is_disclosed(monkeypatch, tmp_path):
+    """한국 주식은 소수점 매매가 없다 — 소수 주 보유는 재현 불가다.
+
+    참고 계좌는 1만원으로 시작하는데 한국 주식은 1주가 10만~150만원이라,
+    실측 3개 계좌가 전부 소수 주를 들고 있었다:
+
+        LG화학    0.002475주 @ 275,500원
+        KODEX200  0.005396주 @ 103,250원
+        KB금융    0.012305주 @ 166,000원
+
+    정수 주를 강제하면 대부분 영영 빈 계좌가 되어 **종목별 비교 자체가
+    사라진다.** 그래서 막지 않고 밝힌다 — 통합 계좌의 `lot_infeasible`과
+    같은 태도다. 숨기는 것과 못 하는 것은 다르다.
+    """
+    import datetime as _dt
+    import json
+
+    import quant.live.daily as dl
+
+    class _P:
+        """두 번째 호출은 하루 더 뻗은 프레임 — 주식은 '다음 세션 시가'
+        체결이라, 끝 날짜가 같으면 대기 주문이 영영 안 채워진다."""
+
+        def __init__(self):
+            self.calls = 0
+
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(5)
+            n = 300 + self.calls
+            self.calls += 1
+            c = 200_000 * np.exp(np.cumsum(rng.normal(0.0008, 0.015, n)))
+            end = (pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+                   + pd.Timedelta(days=self.calls - 1))
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    _prov = _P()
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _prov)
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+
+    d = str(tmp_path)
+    # 1만원 계좌가 20만원짜리 주식을 산다 → 반드시 소수 주가 된다.
+    # 주식은 다음 시가 체결이라 두 번 돌려야 보유가 생긴다.
+    for _ in range(2):
+        p = tmp_path / "paper" / "kr_stock_TEST.json"
+        if p.exists():
+            st = json.loads(p.read_text("utf-8"))
+            st["last_bar"] = "1999-01-01"
+            p.write_text(json.dumps(st), encoding="utf-8")
+        dl.run_daily_paper("kr_stock", "TEST", state_dir=d,
+                           require_real_data=False)
+
+    st = json.loads((tmp_path / "paper" / "kr_stock_TEST.json").read_text("utf-8"))
+    qty = float(st.get("quantity") or 0)
+    assert qty > 0, "보유가 안 생겼다 — 검사가 헛돈다"
+    assert abs(qty - round(qty)) > 1e-9, f"소수 주가 아니다({qty})"
+    assert st["history"][-1]["fractional_lot"] is True, (
+        "실계좌에서 재현할 수 없는 보유인데 장부가 말하지 않는다")
+
+
+def test_a_crypto_fraction_is_not_flagged(monkeypatch, tmp_path):
+    """대조군 — 코인·미국 주식은 소수점 매매가 정상이다. 여기까지 경고하면
+    경고가 의미를 잃는다."""
+    import datetime as _dt
+    import json
+
+    import quant.live.daily as dl
+
+    class _P:
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(5)
+            n = 300
+            c = 60_000 * np.exp(np.cumsum(rng.normal(0.0008, 0.02, n)))
+            end = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+    dl.run_daily_paper("crypto", "BTC/USDT", state_dir=str(tmp_path),
+                       require_real_data=False)
+    st = json.loads((tmp_path / "paper" / "crypto_BTC_USDT.json")
+                    .read_text("utf-8"))
+    assert float(st["quantity"]) > 0 and float(st["quantity"]) < 1
+    assert st["history"][-1]["fractional_lot"] is False, (
+        "코인 소수 보유까지 경고하면 경고가 의미를 잃는다")
+
+
+def test_the_site_shows_the_fractional_warning():
+    html = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "fractional_lot" in html, "사이트가 재현 불가 보유를 읽지 않는다"
+    assert "소수 주" in html and "재현할 수 없습니다" in html

@@ -691,6 +691,17 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 222 — 소수점 매매가 없는 시장의 소수 주 보유를 밝히는 자리.
+    ("실계좌에서 재현 불가한 소수 주 보유를 장부가 숨긴다",
+     "quant/live/daily.py",
+     '        "fractional_lot": (\n'
+     "            bool(pos and pos.quantity\n"
+     "                 and market not in FRACTIONAL_MARKETS",
+     '        "fractional_lot": (\n'
+     "            bool(False\n"
+     "                 and market not in FRACTIONAL_MARKETS",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
     # 감사 221 — 배치 시각을 미국장 마감 뒤로 옮긴 자리(연중 안전).
     ("배치 시각을 미국장 마감 전으로 되돌린다(겨울에 미국 신호가 한 세션 뒤처진다)",
      ".github/workflows/daily-paper.yml",
