@@ -455,6 +455,17 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
+        # ⚠️ 위 `weight`는 **오늘 내린 결정**이다. 주식은 '다음 세션 시가'
+        #    체결이라, 기록 시점에 계좌가 실제로 들고 있는 것은 어제 결정의
+        #    결과다. 둘을 같은 이름으로 부르면 화면이 거짓말을 한다 —
+        #    실측(2026-08-13, 20개 참고 계좌 중 8개가 어긋남):
+        #        us_stock:META  기록 비중 0.0000 / 실제 보유 0.1027
+        #        us_stock:SPY   기록 비중 0.0000 / 실제 보유 0.0591
+        #    "비중 0%"라고 적힌 계좌가 10%를 들고 있었다. 오늘 아침 통합
+        #    계좌 카드에서 고친 것과 **같은 결함**이다(목표를 잔고라 부르기).
+        #    결정과 잔고를 둘 다 남긴다.
+        "held_weight": (round(pos.quantity * price / equity, 4)
+                        if pos and equity else 0.0),
         "equity": round(equity, 2),
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),

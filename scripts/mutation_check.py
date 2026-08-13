@@ -691,6 +691,14 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 217 — 표시되는 '비중'이 잔고가 아니라 오늘의 결정이던 자리.
+    ("종목 계좌가 실제 보유 비중을 기록하지 않는다(매도 예정 종목이 '0%'로 보인다)",
+     "quant/live/daily.py",
+     '        "held_weight": (round(pos.quantity * price / equity, 4)\n'
+     "                        if pos and equity else 0.0),",
+     '        "held_weight": round(weight, 4),',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
     # 감사 216 — 환산은 했는데 **어떤 환율로 했는지**를 안 남기던 자리.
     ("그날 적용한 환율을 장부에 안 남긴다(나중에 아무도 검산할 수 없다)",
      "quant/live/daily.py",
@@ -2567,8 +2575,8 @@ MUTATIONS = [
 
     ("종목계좌 비중을 통합 노출인 것처럼 되돌린다",
      "docs/index.html",
-     '<th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>',
-     '<th>비중</th>',
+     '>종목계좌 비중<br><span class="sub" style="font-weight:400">현재 보유</span></th>',
+     '>비중</th>',
      "tests/test_two_kinds_of_weight_are_labeled.py"),
 
     ("드리프트 등급을 대표본 관행 문턱으로 되돌린다",

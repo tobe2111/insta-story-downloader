@@ -153,7 +153,12 @@ def test_the_sidebar_names_the_account_too():
 def test_the_sidebar_also_offers_the_portfolio_number():
     """참고 계좌 비중만 보이면 '그래서 진짜 얼마?'에 답이 없다."""
     idx = (ROOT / "docs" / "index.html").read_text("utf-8")
-    body = idx.split('getElementById("sidelist")', 1)[1][:900]
+    # ⚠️ 원래 뒤 900자만 잘라 봤다. 주석 한 문단이 늘자 계약은 그대로인데
+    #    창 밖으로 밀려 빨개졌다 — 글자 위치에 기대는 검사의 전형적인 고장
+    #    (감사 183·199·204·211·212·213에 이어 또). 렌더 블록이 **끝나는
+    #    자리**까지를 범위로 잡는다.
+    body = idx.split('getElementById("sidelist")', 1)[1]
+    body = body.split('getElementById("side-swaps")', 1)[0]
     assert "applied[r.k]" in body, "사이드바가 통합 노출을 함께 보이지 않는다"
 
 
@@ -263,3 +268,78 @@ def test_the_applied_rate_is_recorded_in_the_ledger(monkeypatch, tmp_path):
                               docs_path=str(tmp_path / "s.json"))["paper"]["portfolio:ALL"]
     assert pf["fx_usdkrw"] == 1412.5, "사이트로 안 나간다"
     assert pf["currency"] == "KRW"
+
+
+# ── 표시되는 '비중'은 계획이 아니라 잔고인가 (감사 217) ────────
+
+def test_the_symbol_table_shows_what_is_held_not_what_was_decided():
+    """기록의 `weight`는 **오늘 내린 결정**이다 — 잔고가 아니다.
+
+    주식은 '다음 세션 시가' 체결이라, 기록 시점에 계좌가 실제로 들고 있는
+    것은 **어제 결정의 결과**다. 둘을 같은 이름으로 부르면 화면이 거짓말을
+    한다. 실측(2026-08-13, 참고 계좌 20개 중 **8개**가 어긋남):
+
+        us_stock:META   기록 비중 0.0000 / 실제 보유 0.1027
+        us_stock:SPY    기록 비중 0.0000 / 실제 보유 0.0591
+        kr_stock:069500 기록 비중 0.0000 / 실제 보유 0.0555
+
+    "비중 0%"라고 적힌 계좌가 10%를 들고 있었다. 같은 날 아침 통합 계좌
+    카드에서 고친 것과 **정확히 같은 결함**이 다른 표에 남아 있던 것이다
+    (목표를 잔고라 부르기).
+    """
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "held_weight" in idx, (
+        "사이트가 실제 보유 비중을 읽지 않는다 — 오늘의 결정을 '비중'이라 "
+        "부르면 매도 예정인 종목이 '0%'로 보인다")
+    assert "예정" in idx, "오늘의 결정을 따로 밝히지 않는다"
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert '"held_weight"' in src, "장부에 실제 보유 비중이 안 남는다"
+
+
+def test_the_held_weight_is_actually_recorded(monkeypatch, tmp_path):
+    """말만이 아니라 **기록에 실제로** 남고, 결정과 다를 수 있어야 한다."""
+    import json
+
+    import datetime as _dt
+    import numpy as np
+    import pandas as pd
+
+    import quant.live.daily as dl
+
+    class _P:
+        def __init__(self, df):
+            self._df = df
+
+        def get_ohlcv(self, *a, **k):
+            return self._df.copy()
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.5, index=df.index)
+
+    rng = np.random.default_rng(11)
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0005, 0.02, 300)))
+    end = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+    ix = pd.date_range(end=end, periods=300, freq="D")
+    df = pd.DataFrame({"open": close * .99, "high": close * 1.03,
+                       "low": close * .97, "close": close,
+                       "volume": 1e6}, index=ix)
+
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P(df))
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+
+    # 첫날: 결정은 났지만 주식은 아직 체결 전 → 보유 0
+    dl.run_daily_paper("us_stock", "AAA", state_dir=str(tmp_path),
+                       require_real_data=False)
+    p = tmp_path / "paper" / "us_stock_AAA.json"
+    rec = json.loads(p.read_text("utf-8"))["history"][-1]
+    assert rec["held_weight"] == 0.0, (
+        f"체결 전인데 보유가 잡혔다 — {rec['held_weight']}")
+    assert rec["weight"] > 0, "오늘의 결정이 기록되지 않았다"
+    assert rec["weight"] != rec["held_weight"], (
+        "결정과 잔고가 같게 기록됐다 — 둘을 구분하는 것이 이 필드의 목적이다")
