@@ -389,6 +389,12 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   <aside class="side">
     <!-- 판정 시계·경고를 먼저 — 20종목 아래로 밀리면 아무도 못 본다 -->
     <div class="sblk" id="side-gen"></div>
+    <!-- 돈이 지금 어디 있는가 — 경고보다도 먼저 나와야 하는 사실.
+         (2026-08-13 사장님 지적: "80000원 전액은 투자를 안한 상태인건가?
+          그런 내용들이 홈페이지에서 확인하기 힘들어." 실제로 사이트 어디에도
+          '얼마가 투자됐고 얼마가 현금인지'가 없어서, 장부 JSON을 직접 파야
+          답할 수 있었다. 검증할 수 있다고 내건 약속과 정면으로 부딪힌다.) -->
+    <div class="sblk" id="side-cash"></div>
     <div class="sblk" id="side-flags"></div>
     <div class="sh"><b>운용 종목</b><span class="cnt" id="sidecnt"></span></div>
     <div id="sidelist">
@@ -499,6 +505,31 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      (const는 선언 전 사용이 오류라 쓰는 곳보다 반드시 앞에 둔다) */
   const pfLast=(pf&&(pf.history||[]).length)?pf.history[pf.history.length-1]:{};
   const applied=(pfLast.applied)||null;
+  /* --- 사이드바: 돈이 지금 어디 있는가 ---------------------------------
+     ⚠️ 사이트가 이걸 안 보여줬다(2026-08-13). 수익률·낙폭·종목표는 있는데
+        **"얼마가 투자됐고 얼마가 현금인지"**가 없어서, 사장님이 물었을 때
+        장부 JSON을 직접 파야 답할 수 있었다. 실측 당시 32%만 투자되고
+        68%가 현금이었는데 화면 어디에도 그 말이 없었다.
+        총노출(weight)은 곧 '투자 중인 비율'이고 나머지는 현금이다. */
+  {
+    const eq=Number(pfLast.equity)||0;
+    const inv=Math.max(0,Math.min(1,Math.abs(Number(pfLast.weight)||0)));
+    const li=pfLast.lot_infeasible||null;
+    const nLot=li?Object.keys(li).length:0;
+    const nPlan=(pfLast.alloc?Object.keys(pfLast.alloc).length:0);
+    const nHeld=(applied?Object.keys(applied).filter(k=>Math.abs(applied[k])>0).length:0);
+    let why=[];
+    if(nLot)why.push("1주 값에 못 미쳐 못 산 종목 "+nLot+"개");
+    if(nPlan&&nHeld<nPlan)why.push("목표를 잡은 "+nPlan+"곳 중 "+nHeld+"곳만 담김");
+    document.getElementById("side-cash").innerHTML=eq?
+      '<div class="t">💰 돈이 지금 어디 있나</div>'+
+      '<div class="flag"><b>투자 중 '+num(Math.round(eq*inv))+'원</b> ('+
+      (inv*100).toFixed(1)+'%) · <b>현금 '+num(Math.round(eq*(1-inv)))+'원</b> ('+
+      ((1-inv)*100).toFixed(1)+'%)'+
+      (why.length?'<br><span class="sub">'+esc(why.join(" · "))+'</span>':"")+
+      '</div>':"";
+  }
+
   document.getElementById("sidecnt").textContent=rows.length+"종목";
   document.getElementById("sidelist").innerHTML=rows.map(r=>{
     const wpc=Math.min(100,(r.w||0)*100/0.25*100/100*4);

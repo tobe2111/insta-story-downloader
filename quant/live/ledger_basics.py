@@ -23,6 +23,9 @@ numpy·pandas를 막아 놓고 캡션 생성을 돌려 그 사실을 강제한�
 
 from __future__ import annotations
 
+import json
+import os
+
 # 개별 종목 계좌 시작금 — 종목마다 독립 계좌로 참고용 기록을 쌓는다.
 START_CASH = 10_000.0
 
@@ -206,3 +209,64 @@ def equity_curve_kpis(state: dict) -> dict:
             pnl = idx[-1] - 1.0
             max_dd = min(max_dd, max_drawdown_from_index(idx))
     return {"current": cur, "pnl": pnl, "max_drawdown": max_dd}
+
+
+# ── 매칭 입금 ────────────────────────────────────────────────────
+# ⚠️ 원래 `daily.py`에 있었다. 여기로 옮긴 이유(2026-08-13): **입금 워크플로가
+#    numpy 때문에 죽었다.**
+#
+#        python -m quant deposit --amount 920000 ...
+#        → ModuleNotFoundError: No module named 'numpy'
+#
+#    이 함수는 numpy를 한 줄도 쓰지 않는다(날짜·JSON·산술이 전부). 그런데
+#    `daily.py`에 얹혀 있어서, 부르는 순간 매매 엔진 전체가 딸려 왔다.
+#
+#    **감사 102와 똑같은 사고다.** 그때는 SNS 캡션이 숫자 하나를 읽으려고
+#    `daily.py`를 임포트해 밤중에 게시가 죽었고, 그래서 이 파일이 생겼다.
+#    교훈을 적어 두고 파일까지 만들어 놓고도, 정작 **다음에 추가된 함수는
+#    또 무거운 쪽에 놓였다.** 규칙은 만드는 것보다 지키는 것이 어렵다.
+#
+#    판단 기준은 간단하다: **numpy·pandas를 쓰지 않는 함수는 여기 둔다.**
+#    `quant.live.daily`가 그대로 재수출하므로 기존 import 경로는 안 바뀐다.
+
+def add_deposit(amount: float, memo: str = "", *, state_dir: str = "state",
+                date: str | None = None) -> dict:
+    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (8마일 챌린지 · 8만원 → 1억).
+
+    ⚠️ 법적 구조(반드시 유지): 시청자의 후원금 자체를 굴리는 것이 아니다.
+    후원은 대가·지분 없는 방송 후원이고, 운영자가 '같은 금액만큼' 가상 계좌
+    원금을 늘리는 이벤트다. 이 구조를 바꾸면(타인 자금 운용) 유사수신·무인가
+    집합투자 위험이 생긴다.
+
+    모든 입금은 장부(deposits)에 기록되어 git 커밋으로 공개된다 — 수익률
+    계산은 원금과 손익을 분리해(TWR) 입금이 실력처럼 보이지 않게 한다.
+    """
+    from datetime import date as _date
+
+    from quant.utils.jsonio import atomic_write_json
+
+    amount = float(amount)
+    if not (0 < amount <= 10_000_000):
+        raise ValueError("입금액은 0원 초과 1,000만원 이하여야 합니다.")
+
+    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+    else:
+        st = {"market": "portfolio", "symbol": "ALL",
+              "start_cash": PORTFOLIO_START_CASH,
+              "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
+              "last_bar": None, "history": [], "deposits": []}
+
+    entry = {"date": date or _date.today().isoformat(),
+             "amount": round(amount, 2), "memo": str(memo)[:80]}
+    st.setdefault("deposits", []).append(entry)
+    st["cash"] = float(st.get("cash", 0.0)) + amount
+    atomic_write_json(path, st)
+
+    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
+                 + sum(d["amount"] for d in st["deposits"]))
+    print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
+          f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
+    return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}

@@ -26,6 +26,7 @@ import numpy as np
 # 끌어오다가 그날 밤 게시가 ModuleNotFoundError로 죽었다).
 from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     GOAL_KRW,
+    add_deposit,
     PORTFOLIO_START_CASH,
     START_CASH,
     chrono,
@@ -699,49 +700,6 @@ def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
 # 주문의 기대 비용은 약 4.7원이다. 청산 주문에는 적용하지 않는다.
 MIN_ORDER_KRW = 500.0
 
-
-
-def add_deposit(amount: float, memo: str = "", *, state_dir: str = STATE_DIR,
-                date: str | None = None) -> dict:
-    """후원 '매칭' 입금 — 통합 계좌의 원금을 늘린다 (8마일 챌린지 · 8만원 → 1억).
-
-    ⚠️ 법적 구조(반드시 유지): 시청자의 후원금 자체를 굴리는 것이 아니다.
-    후원은 대가·지분 없는 방송 후원이고, 운영자가 '같은 금액만큼' 가상 계좌
-    원금을 늘리는 이벤트다. 이 구조를 바꾸면(타인 자금 운용) 유사수신·무인가
-    집합투자 위험이 생긴다.
-
-    모든 입금은 장부(deposits)에 기록되어 git 커밋으로 공개된다 — 수익률
-    계산은 원금과 손익을 분리해(TWR) 입금이 실력처럼 보이지 않게 한다.
-    """
-    from datetime import date as _date
-
-    from quant.utils.jsonio import atomic_write_json
-
-    amount = float(amount)
-    if not (0 < amount <= 10_000_000):
-        raise ValueError("입금액은 0원 초과 1,000만원 이하여야 합니다.")
-
-    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            st = json.load(f)
-    else:
-        st = {"market": "portfolio", "symbol": "ALL",
-              "start_cash": PORTFOLIO_START_CASH,
-              "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
-              "last_bar": None, "history": [], "deposits": []}
-
-    entry = {"date": date or _date.today().isoformat(),
-             "amount": round(amount, 2), "memo": str(memo)[:80]}
-    st.setdefault("deposits", []).append(entry)
-    st["cash"] = float(st.get("cash", 0.0)) + amount
-    atomic_write_json(path, st)
-
-    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
-                 + sum(d["amount"] for d in st["deposits"]))
-    print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
-          f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
-    return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
 
 
 def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
