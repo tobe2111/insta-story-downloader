@@ -1686,6 +1686,13 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 202: 망가진 전략 하나가 나머지를 지우던 자리 ────────
+    ("측정 불가를 'nan'으로 사람에게 보여준다(0인지 실패인지 알 수 없다)",
+     "quant/reporting/attribution.py",
+     "    if not math.isfinite(f):\n        return \"측정 불가\"",
+     "    if False:\n        return \"측정 불가\"",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
     # ── 감사 201: 표본이 모자란 종목이 '분산'으로 세어지던 자리 ───
     ("표본 부족 검사를 끈다(10봉짜리 종목이 '분산된 종목'으로 세어진다)",
      "quant/live/daily.py",

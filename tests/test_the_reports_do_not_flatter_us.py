@@ -203,3 +203,120 @@ def test_the_html_report_survives_a_flat_market():
                        "volume": 1e6}, index=idx)
     res = Backtester(get_strategy("ma_cross")).run(df)
     assert isinstance(build_report_html(res, title="flat"), str)
+
+
+# ── 망가진 전략 하나가 나머지를 지우지 않는가 (감사 202) ──────────
+#
+# `attribution.py`는 **운영 경로에 배선되어 있지 않다**(export와 검사에서만
+# 쓰인다). 그래서 live 결함이 아니라 공개 API의 구멍으로 적는다 — 감사 196에서
+# "실제 경로를 지나는지부터 확인할 것"을 배운 대로 확인하고 그대로 적는다.
+#
+# 실측(고치기 전): 전략 하나의 샤프가 NaN이면
+#   · `max(nan, 0.0)`이 nan → 합계 nan → `total > 0`이 거짓
+#   · **전 전략의 기여도 힌트가 사라진다**
+#   · 리포트에는 "샤프 nan · 총수익 nan%"가 사람에게 그대로 나간다
+#   · NaN이 섞인 정렬은 순서가 뒤죽박죽이 된다
+
+
+def _rows(sharpes: dict) -> dict:
+    import math as _m
+    out = {n: {"sharpe": s, "total_return": s, "contribution_hint": None}
+           for n, s in sharpes.items()}
+    pos = {n: (max(float(r["sharpe"]), 0.0)
+               if _m.isfinite(float(r["sharpe"])) else 0.0)
+           for n, r in out.items()}
+    tot = sum(pos.values())
+    if tot > 0:
+        for n in out:
+            out[n]["contribution_hint"] = pos[n] / tot
+    return out
+
+
+def test_the_real_attribution_gives_hints_to_the_strategies_that_earned_them():
+    """**실제 `strategy_attribution`을 돌려** 힌트가 붙는지 본다.
+
+    ⚠️ 이 검사를 처음엔 손으로 만든 dict로 썼다가 변이가 빠져나갔다 —
+       계산 코드를 안 지나기 때문이다. 이 파일이 위쪽에서 스스로 경고해 둔
+       바로 그 함정이고, 감사 179에서 배운 것이다.
+
+    ⚠️ 그리고 확인한 것: **NaN 샤프는 실제 경로로 도달 불가다.** 관망·NaN
+       신호·한 봉짜리 신호를 실제 `Backtester`에 태워도 샤프는 0.0이나
+       유한값이다(엔진이 위쪽에서 막는다). 그래서 `strategy_attribution`의
+       `isfinite` 필터에는 변이 항목을 붙이지 않았다 — 잡을 수 없는 항목은
+       안전장치가 아니라 소음이다(감사 183과 같은 자리).
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quant.reporting.attribution import strategy_attribution
+
+    idx = pd.date_range("2025-01-01", periods=120, freq="D")
+    rng = np.random.default_rng(4)
+    c = 100 * np.exp(np.cumsum(rng.normal(0.001, 0.02, 120)))
+    df = pd.DataFrame({"open": c * .99, "high": c * 1.02, "low": c * .98,
+                       "close": c, "volume": 1e6}, index=idx)
+
+    class _Long:
+        name = "매수보유"
+
+        def generate_signals(self, d):
+            return pd.Series(1.0, index=d.index)
+
+    class _Flat:
+        name = "관망"
+
+        def generate_signals(self, d):
+            return pd.Series(0.0, index=d.index)
+
+    out = strategy_attribution(df, {"매수보유": _Long(), "관망": _Flat()})
+    assert out["매수보유"]["sharpe"] > 0, out
+    assert out["매수보유"]["contribution_hint"] == 1.0, out
+    assert out["관망"]["contribution_hint"] == 0.0, out
+
+    # 대조군 — 모두가 0 이하면 힌트를 만들 근거가 없으니 전부 None이어야 한다.
+    # (없으면 위 단언은 "무조건 힌트를 지어내는" 구현도 통과시킨다.)
+    only_flat = strategy_attribution(df, {"관망": _Flat()})
+    assert only_flat["관망"]["contribution_hint"] is None, only_flat
+
+
+def test_the_report_keeps_hints_for_the_strategies_that_have_them():
+    """리포트 쪽 — 값이 없는 줄 하나가 나머지 줄의 힌트를 지우면 안 된다."""
+    from quant.reporting.attribution import attribution_report
+    text = attribution_report(_rows({"좋은전략": 1.5, "망가진전략": float("nan"),
+                                     "보통전략": 0.4}))
+    assert text.count("기여 힌트") == 3, f"힌트가 사라졌다:\n{text}"
+
+    none_text = attribution_report(_rows({"A": -0.5, "B": -1.0}))
+    assert "기여 힌트" not in none_text, none_text
+
+
+def test_a_number_we_could_not_measure_says_so():
+    """화면에 'nan'을 내보내지 않는다 — 0인지 실패인지 읽는 사람이 모른다."""
+    from quant.reporting.attribution import attribution_report
+    text = attribution_report(_rows({"좋은전략": 1.5, "망가진전략": float("nan")}))
+    assert "nan" not in text.lower(), text
+    assert "측정 불가" in text, text
+    assert "1.50" in text, "멀쩡한 숫자까지 뭉갰다"
+
+
+def test_the_ranking_is_stable_when_a_value_is_missing():
+    """측정 불가는 맨 뒤로, 같은 값이면 이름 순 — 순서가 흔들리면 대조가 안 된다."""
+    from quant.reporting.attribution import attribution_report
+    nan = float("nan")
+    body = [ln for ln in attribution_report(
+        _rows({"C": 0.4, "A": nan, "B": 1.5})).splitlines()
+        if ln.startswith("  ")]
+    assert body[0].startswith("  B") and body[1].startswith("  C"), body
+    assert body[2].startswith("  A"), f"측정 불가가 맨 뒤가 아니다: {body}"
+
+
+def test_an_empty_weight_frame_is_not_a_crash():
+    """빈 프레임에서 리포트가 죽으면 그날 요약 전체가 사라진다."""
+    import pandas as pd
+
+    from quant.reporting.attribution import ensemble_weight_report
+
+    class _E:
+        last_weights_ = pd.DataFrame()
+
+    assert "가중치 정보가 없습니다" in ensemble_weight_report(_E())
