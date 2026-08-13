@@ -24,9 +24,25 @@ class _JsonFormatter(logging.Formatter):
             "logger": record.name,
             "msg": record.getMessage(),
         }
+        # ⚠️ **컨텍스트가 예약 키를 덮어쓰면 안 된다**(감사 208). 예전에는
+        #    `payload.update(ctx)`라, `msg`·`time`·`level`·`logger`라는 이름의
+        #    필드를 넘기면 **진짜 메시지와 시각이 통째로 바뀌었다.** 실측:
+        #
+        #        log_event(log, "진짜 메시지", msg="가짜 메시지", time="가짜 시각")
+        #        →  {"time": "가짜 시각", "msg": "가짜 메시지", ...}
+        #
+        #    로그가 "언제 무슨 일이 있었는지"를 거짓으로 말하는 것이다 —
+        #    감사 추적용 기록에서는 가장 나쁜 종류의 실패다. 게다가 유일한
+        #    호출부(`champion_challenger.py`)는 `**result`로 **임의의 dict를
+        #    통째로 펼친다** — 부르는 쪽은 무엇이 예약 키인지 알 수 없고,
+        #    `"time"`은 이 저장소 장부가 어디서나 쓰는 이름이다.
+        #
+        #    덮어쓰지도, 버리지도 않는다. 충돌하는 키만 `ctx_` 접두어를 붙여
+        #    **둘 다 남긴다** — 값을 잃는 것도 조용한 손실이기 때문이다.
         ctx = getattr(record, "ctx", None)
         if isinstance(ctx, dict):
-            payload.update(ctx)
+            for k, v in ctx.items():
+                payload[f"ctx_{k}" if k in payload else k] = v
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 
