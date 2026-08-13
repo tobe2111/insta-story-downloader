@@ -14,6 +14,7 @@ GitHub Actions가 매일 밤 이 모듈을 실행한다:
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 
@@ -1121,6 +1122,44 @@ def _smooth_weights(new: dict, prev: dict, alpha: float = SIGNAL_SMOOTH_ALPHA
     return out
 
 
+def required_bars(spec: dict, floor: int = 30) -> int:
+    """이 챔피언이 신호를 내려면 최소 몇 봉이 필요한가 (감사 201).
+
+    전략 파라미터에서 가장 긴 창(`slow=30`, `train_window=250` 등)을 찾아
+    **그만큼**을 요구한다. 파라미터가 없거나 다 짧으면 floor를 쓴다.
+
+    ⚠️ 처음에는 **그 두 배**를 요구했다가 과했다. 기본 챔피언의
+    `train_window=250`이 500봉 요구가 되어, 300봉을 주는 정상 픽스처까지
+    전부 '표본 부족'으로 막혔다(검사 5건이 빨개져서 알았다). 파라미터는
+    전부 '창 길이'가 아니다 — 학습 구간·재학습 주기처럼 배수를 곱하면
+    뜻이 달라지는 값이 섞여 있다. **선언한 가장 긴 창이 한 번 채워지는
+    것**까지가 근거 있는 요구고, 그 이상은 내 추측이다.
+
+    ⚠️ 왜 필요한가. 예전에는 `df.empty`만 봤다. 그래서 보조 거래소가 10봉만
+    주는 날, 그 종목은 신호가 0으로 나오는데 **장부에는 아무 흔적도 없었다**:
+
+        B0가 400봉일 때 → 장부 "3종목 분산" · 실제 포지션 3개
+        B0가  10봉일 때 → 장부 "3종목 분산" · 실제 포지션 **2개**  ← 거짓말
+
+    감사 59에서 "데이터 실패로 빠진 종목을 계획 수로 세지 말 것"을 고쳤는데,
+    그건 **예외가 난 종목**만 잡는다. 데이터는 멀쩡히 왔는데 **표본이 모자란**
+    종목은 그 그물에 안 걸린다 — 같은 거짓말의 다른 문이다(감사 200에서
+    배운 것과 같은 형태: 무엇을 막는다고 적었으면 그 무엇이 지나는 문을
+    전부 셀 것).
+
+    그리고 이건 이 저장소가 가장 신경 쓰는 **오디션-현실 격차**이기도 하다.
+    챔피언은 400봉으로 선발했는데 실전에서 10봉으로 굴리면, 선발된 조건과
+    굴리는 조건이 다르다(감사 71과 같은 계열).
+    """
+    longest = 0
+    for v in (spec.get("params") or {}).values():
+        if isinstance(v, bool):
+            continue
+        if isinstance(v, (int, float)) and math.isfinite(float(v)):
+            longest = max(longest, int(abs(v)))
+    return max(floor, longest)
+
+
 def _signal_frame(market: str, df):
     """신호·피처 계산에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
 
@@ -1298,6 +1337,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             #    "완성된 정보로 판단하고, 지금 가격에 체결한다" — 실제 트레이더가
             #    하는 것과 같다.
             df_sig = _signal_frame(market, df)
+            # ⚠️ **표본이 모자라면 판단하지 않고, 그 사실을 남긴다**(감사 201).
+            #    예전에는 `df.empty`만 봤다. 보조 거래소가 10봉만 주는 날
+            #    신호는 0으로 나오는데 장부에는 흔적이 없어, "3종목 분산"이라
+            #    적힌 날 실제 포지션은 2개였다. 조용한 0과 판단해서 낸 0은
+            #    다르다 — 전자는 못 한 것이고 후자는 안 한 것이다.
+            need = required_bars(champion_spec(market, symbol, state_dir))
+            if len(df_sig) < need:
+                raise RuntimeError(
+                    f"표본 부족 — {len(df_sig)}봉(필요 {need}봉). 챔피언은 더 긴 "
+                    f"표본으로 선발됐다(오디션-현실 격차)")
             signals = strat.generate_signals(df_sig)
             weights[key] = float(
                 _risk_for(market).size_positions(df_sig, signals).iloc[-1])

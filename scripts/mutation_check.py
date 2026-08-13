@@ -1686,6 +1686,19 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 201: 표본이 모자란 종목이 '분산'으로 세어지던 자리 ───
+    ("표본 부족 검사를 끈다(10봉짜리 종목이 '분산된 종목'으로 세어진다)",
+     "quant/live/daily.py",
+     "            if len(df_sig) < need:",
+     "            if False:",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
+    ("필요 봉수를 챔피언 파라미터 대신 상수로 둔다(긴 창 전략이 무방비가 된다)",
+     "quant/live/daily.py",
+     "            longest = max(longest, int(abs(v)))",
+     "            longest = 0",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
     # ── 감사 200: 장부를 쓰는 마지막 관문 ────────────────────────
     ("직렬화 최후 수단을 끈다(모르는 값 하나에 그날 장부가 통째로 사라진다)",
      "quant/utils/jsonio.py",
