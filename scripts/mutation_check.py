@@ -691,6 +691,19 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 218 — 캡션이 코드 상수의 시작금을 방송에 내보내던 자리.
+    ("SNS 캡션이 지금 원금 대신 코드 상수를 말한다(방송에 낡은 금액이 나간다)",
+     "quant/reporting/social.py",
+     '    _p = x.get("principal")',
+     '    _p = None',
+     "tests/test_social_path_stays_light.py"),
+
+    ("계좌를 다시 연 사실을 캡션이 숨긴다(기록 0일이 고장으로 읽힌다)",
+     "quant/reporting/social.py",
+     '    if rs.get("date") and not x.get("equity"):',
+     "    if False:",
+     "tests/test_social_path_stays_light.py"),
+
     # 감사 217 — 표시되는 '비중'이 잔고가 아니라 오늘의 결정이던 자리.
     ("종목 계좌가 실제 보유 비중을 기록하지 않는다(매도 예정 종목이 '0%'로 보인다)",
      "quant/live/daily.py",

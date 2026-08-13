@@ -235,3 +235,60 @@ def test_the_deposit_workflow_installs_what_it_needs():
     assert use is not None, "전제가 깨졌다 — 입금을 실행하는 단계가 없다"
     assert install < use, (
         f"설치({install}번 단계)가 실행({use}번 단계)보다 뒤에 있다")
+
+
+# ── 캡션이 지금 계좌를 말하는가 (감사 218) ─────────────────────
+
+def test_the_caption_reads_the_principal_from_the_ledger():
+    """시작금을 **코드 상수**에서 읽으면 방송에 거짓말이 나간다.
+
+    상수(`PORTFOLIO_START_CASH`)는 새 계좌를 만들 때의 기본값(8만원)이지
+    지금 계좌의 원금이 아니다. 매칭 입금으로 100만원이 되고 계좌가 원화로
+    다시 열린 뒤에도 캡션은 **"가짜 돈 8만원으로 시작해"**라고 나갈
+    참이었다. 사이트 산문은 같은 이유로 이미 고쳤는데 캡션만 남아 있었다 —
+    방송에 나가는 글이라 사이트보다 오히려 더 위험하다.
+    """
+    from quant.reporting.social import build_captions
+
+    st = {"updated": "2026-08-13T21:00:00Z",
+          "paper": {"portfolio:ALL": {
+              "start_cash": 1_000_000.0, "principal": 1_000_000.0,
+              "history": [{"date": "2026-08-13", "equity": 1_002_000.0,
+                           "return_pct": 0.2, "day_pct": 0.2,
+                           "weight": 0.4, "risk_scale": 1.0}]}},
+          "symbols": {}, "retrain_recent": []}
+    cap = build_captions(st, site_url="https://example.com")["instagram"]
+    assert "100만원" in cap, f"캡션이 지금 원금을 말하지 않는다\n{cap[:300]}"
+    assert "8만원" not in cap, "낡은 시작금이 방송에 나간다"
+
+
+def test_the_caption_says_the_account_was_reopened_instead_of_showing_dashes():
+    """기록 0일에 "자산 —"만 나가면 읽는 사람은 고장으로 읽는다."""
+    from quant.reporting.social import build_captions
+
+    st = {"updated": "2026-08-13T21:00:00Z",
+          "paper": {"portfolio:ALL": {
+              "start_cash": 1_000_000.0, "principal": 1_000_000.0,
+              "restarted": {"date": "2026-08-13", "why": "통화 통일"},
+              "history": []}},
+          "symbols": {}, "retrain_recent": []}
+    cap = build_captions(st, site_url="https://example.com")["instagram"]
+    assert "다시 열었습니다" in cap and "2026-08-13" in cap, (
+        f"계좌를 다시 연 사실을 말하지 않는다\n{cap[:300]}")
+    assert "지우지 않고" in cap, "이전 기록을 어떻게 했는지 밝히지 않는다"
+
+
+def test_a_normal_day_does_not_mention_a_restart():
+    """대조군 — 평소에 재개설 문구가 붙으면 그것도 거짓이다."""
+    from quant.reporting.social import build_captions
+
+    st = {"updated": "2026-08-14T21:00:00Z",
+          "paper": {"portfolio:ALL": {
+              "start_cash": 1_000_000.0, "principal": 1_000_000.0,
+              "restarted": {"date": "2026-08-13", "why": "통화 통일"},
+              "history": [{"date": "2026-08-14", "equity": 1_001_000.0,
+                           "return_pct": 0.1, "day_pct": 0.1,
+                           "weight": 0.4, "risk_scale": 1.0}]}},
+          "symbols": {}, "retrain_recent": []}
+    cap = build_captions(st, site_url="https://example.com")["instagram"]
+    assert "다시 열었습니다" not in cap, "기록이 있는데 재개설 문구가 붙는다"
