@@ -381,3 +381,79 @@ def test_the_site_does_not_call_the_target_weight_a_balance():
     before_tgt = card.split("const tgt=")[0]
     assert "pfLast.weight" not in before_tgt, (
         "'돈이 어디 있나' 카드가 아직 목표 노출을 잔고로 쓰고 있다")
+
+
+# ── 주간 리포트도 같은 자로 재는가 (감사 219) ──────────────────
+
+def test_the_weekly_report_does_not_call_a_deposit_profit(tmp_path):
+    """주간 요약이 입금 귀속 규칙의 **자기 복사본**을 갖고 있었다.
+
+    감사 211에서 "입금은 날짜가 아니라 배치가 찍은 봉(settled_bar)으로
+    귀속한다"로 바꾸며 `_flows_by_date` 한 곳에 모았는데, 주간 요약만
+    옛 코드를 그대로 들고 있었고 **이미 갈라져 있었다.** 실측:
+
+        주간 요약  : +1149.06%   ← 92만원 입금이 '수익'으로
+        장부(TWR) :    -0.94%
+
+    이 숫자는 매주 월요일 아침 주간 리포트로 나간다. 같은 판정을 두 곳에서
+    하면 언젠가 갈라진다 — 이번엔 '언젠가'가 이틀이었다.
+    """
+    from quant.live.daily import weekly_summary
+    from quant.live.ledger_basics import twr_index
+
+    (tmp_path / "paper").mkdir()
+    st = {"market": "portfolio", "symbol": "ALL", "currency": "KRW",
+          "start_cash": 80_000.0, "cash": 0.0, "positions": {},
+          "deposits": [{"date": "2026-08-13", "amount": 920_000.0,
+                        "memo": "", "settled_bar": "2026-08-12"}],
+          "history": [{"date": "2026-08-11", "equity": 80_000.0},
+                      {"date": "2026-08-12", "equity": 999_250.0}]}
+    (tmp_path / "paper" / "portfolio_ALL.json").write_text(
+        json.dumps(st), encoding="utf-8")
+
+    wk = weekly_summary(str(tmp_path))["markets"]["portfolio:ALL"]
+    idx = twr_index(st["history"], st["deposits"], start_cash=80_000.0)
+    twr = (idx[-1] - 1) * 100
+    assert abs(wk["week_return_pct"] - twr) < 0.05, (
+        f"주간 리포트 {wk['week_return_pct']:+.2f}% vs 장부 {twr:+.2f}% — "
+        "입금이 주간 수익으로 둔갑했다")
+    assert -3 < wk["week_return_pct"] < 3
+
+
+def test_the_weekly_report_still_measures_a_real_gain(tmp_path):
+    """대조군 — 입금을 빼느라 진짜 수익까지 지우면 리포트가 무의미하다."""
+    from quant.live.daily import weekly_summary
+
+    (tmp_path / "paper").mkdir()
+    st = {"market": "portfolio", "symbol": "ALL", "currency": "KRW",
+          "start_cash": 100_000.0, "cash": 0.0, "positions": {},
+          "deposits": [],
+          "history": [{"date": "2026-08-11", "equity": 100_000.0},
+                      {"date": "2026-08-12", "equity": 110_000.0}]}
+    (tmp_path / "paper" / "portfolio_ALL.json").write_text(
+        json.dumps(st), encoding="utf-8")
+    wk = weekly_summary(str(tmp_path))["markets"]["portfolio:ALL"]
+    assert wk["week_return_pct"] == pytest.approx(10.0, abs=0.05), wk
+
+
+def test_only_one_place_attributes_a_deposit_to_a_bar():
+    """귀속 규칙을 손으로 다시 쓰는 자리가 생기면 언젠가 또 갈라진다."""
+    import ast
+
+    offenders = []
+    for rel in ("quant/live/daily.py", "quant/web/app.py",
+                "quant/reporting/social.py"):
+        p = ROOT / rel
+        if not p.exists():
+            continue
+        for node in ast.walk(ast.parse(p.read_text("utf-8"))):
+            if not isinstance(node, ast.Compare):
+                continue
+            txt = ast.unparse(node)
+            # `<무언가>["date"] >= d["date"]` 꼴 — 정산 봉을 안 보는 옛 규칙
+            if '"date"' in txt and ">=" in txt and "_flow_date" not in txt \
+                    and txt.count('["date"]') >= 2:
+                offenders.append(f"{rel}:{node.lineno} — {txt}")
+    assert not offenders, (
+        "입금 귀속을 손으로 다시 계산하는 자리가 있다 — `_flows_by_date`를 "
+        "쓸 것:\n  " + "\n  ".join(offenders))

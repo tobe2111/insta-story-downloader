@@ -19,7 +19,7 @@ def _text() -> str:
 def test_workflow_exists_with_schedule_and_dispatch():
     text = _text()
     assert "schedule:" in text
-    assert 'cron: "0 19 * * *"' in text          # 19:00 UTC = 새벽 4시 KST
+    assert 'cron: "15 20 * * *"' in text        # 20:15 UTC = 05:15 KST (감사 221)
     assert "workflow_dispatch:" in text          # 수동 실행 가능
 
 

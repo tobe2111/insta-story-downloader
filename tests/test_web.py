@@ -357,7 +357,13 @@ def test_candles_api_shape_and_synthetic_refusal(tmp_path, monkeypatch):
     assert len(out["candles"]) == 30 and out["last"] == 100.5
     assert out["candles"][0][0] == "09:00"          # 시:분 라벨
     assert out["position"]["side"] == "매수 보유"
-    assert out["position"]["weight"] == 0.64
+    # ⚠️ 여기는 원래 0.64(=기록의 `weight`)를 기대했다. 그 값은 **오늘 내린
+    #    결정**이고, 화면이 "매수 보유 · 비중 X%"로 붙이던 숫자다. 주식은
+    #    다음 세션 시가 체결이라 지금 들고 있는 것은 어제 결정의 결과다 —
+    #    실측에서 "매수 보유 · 비중 0%"(실제 1.77주 보유)가 나왔다(감사 223).
+    #    이제 보유를 보여주고, 오늘의 결정은 `plan`으로 따로 준다.
+    assert out["position"]["weight"] == round(0.5 * 100.5 / 10100, 4)
+    assert out["position"]["plan"] == 0.64
 
     _CANDLE_CACHE.clear()
     monkeypatch.setattr(qd, "get_provider", lambda m, **k: _Stub(True))

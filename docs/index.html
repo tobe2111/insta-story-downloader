@@ -561,6 +561,9 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
          '비중'은 **잔고**여야 하고, 오늘의 결정은 따로 말한다. */
       w:(last.held_weight!=null?last.held_weight:(last.weight||0)),
       plan:(last.held_weight!=null?(last.weight||0):null),
+      /* 소수점 매매가 없는 시장에서 소수 주를 들고 있으면 실계좌에서
+         재현할 수 없다(감사 222) — 숨기지 않고 표시한다. */
+      frac:!!last.fractional_lot,
       reason:last.reason||""};
   }).sort((a,b)=>(b.w||0)-(a.w||0));
   /* 통합 계좌의 마지막 기록 — 사이드바·경고·종목표가 함께 쓴다.
@@ -941,6 +944,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
         '<td class="num">'+((r.w||0)*100).toFixed(1)+'%'+
+          (r.frac?'<div class="cd" title="소수점 매매가 없는 시장인데 소수 주를 들고 있습니다 — 실계좌에서는 이대로 재현할 수 없습니다">⚠ 소수 주</div>':"")+
           ((r.plan!=null&&Math.abs(r.plan-(r.w||0))>0.005)
             ?'<div class="cd">→ '+((r.plan)*100).toFixed(1)+'% 예정</div>':"")+
         '</td>'+

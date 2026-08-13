@@ -1,6 +1,6 @@
 name: Nightly Validate
 
-# 야간 실데이터 회귀 — 매일 19:00 UTC(= 새벽 4시 KST)에 실데이터로 검증 3종
+# 야간 실데이터 회귀 — 매일 20:15 UTC(= 05:15 KST)에 실데이터로 검증 3종
 # (워크포워드+DSR · PBO · CPCV)을 돌린다.
 #
 # 왜 폴백 검사가 먼저인가: 데이터 제공자는 네트워크/API 실패 시 합성 데이터로
@@ -13,7 +13,7 @@ name: Nightly Validate
 
 on:
   schedule:
-    - cron: "0 19 * * *"
+    - cron: "15 20 * * *"
   workflow_dispatch:
 
 # 최소 권한 명시 — 미지정이면 저장소 기본값(조직 설정에 따라

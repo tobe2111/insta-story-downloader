@@ -26,6 +26,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+ROOT = Path(__file__).resolve().parent.parent
+
 
 def _ohlc(closes, highs=None, lows=None) -> pd.DataFrame:
     c = pd.Series([float(v) for v in closes],
@@ -238,3 +240,221 @@ def test_a_duplicated_timestamp_is_collapsed_to_one_bar():
     assert out.index.is_unique
     # 마지막 값을 남긴다(재전송이 정정본인 경우가 많다)
     assert float(out.loc["2026-01-02", "close"]) == 99.0
+
+
+# ── 배치 시각과 시장 마감이 어긋나면 드러나는가 (감사 220) ─────
+
+def test_the_ledger_records_how_stale_each_market_bar_was(monkeypatch, tmp_path):
+    """시장별 '판단에 쓴 봉의 나이'가 장부에 남아야 한다.
+
+    배치는 05:30 KST(20:30 UTC)에 돈다. 미국장 마감은
+        여름(EDT) 05:00 KST → 30분 여유, 정상
+        겨울(EST) 06:00 KST → **장이 아직 열려 있다**
+
+    겨울에는 오늘 봉이 미완성이라 버려지고, 미국 신호만 **한 세션 전** 봉으로
+    내려간다. 11월~3월 다섯 달을 그렇게 도는데 어디에도 표시가 없었다 —
+    한국·코인은 최신인데 미국만 뒤처지니 종목 간 비교도 어긋난다.
+
+    이건 코드 버그가 아니라 **일정 문제**다. 코드가 할 수 있는 일은 그
+    사실을 숨기지 않는 것이다 — 로그만 남기면 아무도 안 보므로 장부에 적는다.
+    """
+    import datetime as _dt
+    import json
+
+    import quant.live.daily as dl
+    from quant.live.retrain import save_champions
+
+    class _P:
+        def __init__(self, lag):
+            self.lag = lag
+
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(len(symbol) * 13)
+            n = 300
+            c = 100 * np.exp(np.cumsum(rng.normal(0.0005, 0.015, n)))
+            end = (pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+                   - pd.Timedelta(days=self.lag))
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    d = str(tmp_path)
+    save_champions({"synthetic:AAA": {"strategy": "ma_cross",
+                                      "params": {"fast": 10, "slow": 30},
+                                      "promotions": 0}}, d)
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: 1400.0)
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P(0))
+    dl.run_daily_portfolio([("synthetic", "AAA")], state_dir=d,
+                           require_real_data=False)
+    rec = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                     .read_text("utf-8"))["history"][-1]
+    assert rec.get("bar_age_days") is not None, (
+        "판단 봉의 나이가 장부에 안 남는다 — 배치 시각이 어긋나도 아무도 "
+        "모른다")
+    assert rec["bar_age_days"].get("synthetic") == 0
+
+
+def test_a_lagging_market_is_warned_about(monkeypatch, tmp_path, caplog):
+    """한 시장만 뒤처지면 **경고가 나가야** 한다 — 조용하면 없는 것과 같다."""
+    import datetime as _dt
+    import logging
+
+    import quant.live.daily as dl
+    from quant.live.retrain import save_champions
+
+    class _P:
+        def __init__(self, lag):
+            self.lag = lag
+
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(len(symbol) * 13)
+            n = 300
+            c = 100 * np.exp(np.cumsum(rng.normal(0.0005, 0.015, n)))
+            end = (pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+                   - pd.Timedelta(days=self.lag))
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    # 코인은 최신, 미국은 3일 묵은 봉 — 겨울 배치의 축소판
+    def _prov(market):
+        return _P(0) if market == "crypto" else _P(3)
+
+    d = str(tmp_path)
+    save_champions({k: {"strategy": "ma_cross",
+                        "params": {"fast": 10, "slow": 30}, "promotions": 0}
+                    for k in ("crypto:AAA", "us_stock:BBB")}, d)
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: 1400.0)
+    monkeypatch.setattr("quant.data.get_provider", _prov)
+
+    logger = logging.getLogger("quant")
+    handler = caplog.handler          # 이 저장소의 로거는 propagate=False다
+    logger.addHandler(handler)
+    try:
+        with caplog.at_level(logging.WARNING):
+            dl.run_daily_portfolio([("crypto", "AAA"), ("us_stock", "BBB")],
+                                   state_dir=d, require_real_data=False)
+    finally:
+        logger.removeHandler(handler)
+
+    assert any("신선도가 어긋납니다" in r.getMessage() for r in caplog.records), (
+        "한 시장만 3일 뒤처졌는데 경고가 없다\n"
+        + "\n".join(r.getMessage()[:100] for r in caplog.records[-5:]))
+
+
+# ── 실계좌에서 재현할 수 없는 보유는 밝히는가 (감사 222) ───────
+
+def test_a_fractional_korean_lot_is_disclosed(monkeypatch, tmp_path):
+    """한국 주식은 소수점 매매가 없다 — 소수 주 보유는 재현 불가다.
+
+    참고 계좌는 1만원으로 시작하는데 한국 주식은 1주가 10만~150만원이라,
+    실측 3개 계좌가 전부 소수 주를 들고 있었다:
+
+        LG화학    0.002475주 @ 275,500원
+        KODEX200  0.005396주 @ 103,250원
+        KB금융    0.012305주 @ 166,000원
+
+    정수 주를 강제하면 대부분 영영 빈 계좌가 되어 **종목별 비교 자체가
+    사라진다.** 그래서 막지 않고 밝힌다 — 통합 계좌의 `lot_infeasible`과
+    같은 태도다. 숨기는 것과 못 하는 것은 다르다.
+    """
+    import datetime as _dt
+    import json
+
+    import quant.live.daily as dl
+
+    class _P:
+        """두 번째 호출은 하루 더 뻗은 프레임 — 주식은 '다음 세션 시가'
+        체결이라, 끝 날짜가 같으면 대기 주문이 영영 안 채워진다."""
+
+        def __init__(self):
+            self.calls = 0
+
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(5)
+            n = 300 + self.calls
+            self.calls += 1
+            c = 200_000 * np.exp(np.cumsum(rng.normal(0.0008, 0.015, n)))
+            end = (pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+                   + pd.Timedelta(days=self.calls - 1))
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    _prov = _P()
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _prov)
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+
+    d = str(tmp_path)
+    # 1만원 계좌가 20만원짜리 주식을 산다 → 반드시 소수 주가 된다.
+    # 주식은 다음 시가 체결이라 두 번 돌려야 보유가 생긴다.
+    for _ in range(2):
+        p = tmp_path / "paper" / "kr_stock_TEST.json"
+        if p.exists():
+            st = json.loads(p.read_text("utf-8"))
+            st["last_bar"] = "1999-01-01"
+            p.write_text(json.dumps(st), encoding="utf-8")
+        dl.run_daily_paper("kr_stock", "TEST", state_dir=d,
+                           require_real_data=False)
+
+    st = json.loads((tmp_path / "paper" / "kr_stock_TEST.json").read_text("utf-8"))
+    qty = float(st.get("quantity") or 0)
+    assert qty > 0, "보유가 안 생겼다 — 검사가 헛돈다"
+    assert abs(qty - round(qty)) > 1e-9, f"소수 주가 아니다({qty})"
+    assert st["history"][-1]["fractional_lot"] is True, (
+        "실계좌에서 재현할 수 없는 보유인데 장부가 말하지 않는다")
+
+
+def test_a_crypto_fraction_is_not_flagged(monkeypatch, tmp_path):
+    """대조군 — 코인·미국 주식은 소수점 매매가 정상이다. 여기까지 경고하면
+    경고가 의미를 잃는다."""
+    import datetime as _dt
+    import json
+
+    import quant.live.daily as dl
+
+    class _P:
+        def get_ohlcv(self, symbol, tf="1d", limit=500, **k):
+            rng = np.random.default_rng(5)
+            n = 300
+            c = 60_000 * np.exp(np.cumsum(rng.normal(0.0008, 0.02, n)))
+            end = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+            ix = pd.date_range(end=end, periods=n, freq="D")
+            return pd.DataFrame({"open": c * .99, "high": c * 1.02,
+                                 "low": c * .98, "close": c,
+                                 "volume": 1e7}, index=ix)
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+    dl.run_daily_paper("crypto", "BTC/USDT", state_dir=str(tmp_path),
+                       require_real_data=False)
+    st = json.loads((tmp_path / "paper" / "crypto_BTC_USDT.json")
+                    .read_text("utf-8"))
+    assert float(st["quantity"]) > 0 and float(st["quantity"]) < 1
+    assert st["history"][-1]["fractional_lot"] is False, (
+        "코인 소수 보유까지 경고하면 경고가 의미를 잃는다")
+
+
+def test_the_site_shows_the_fractional_warning():
+    html = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "fractional_lot" in html, "사이트가 재현 불가 보유를 읽지 않는다"
+    assert "소수 주" in html and "재현할 수 없습니다" in html

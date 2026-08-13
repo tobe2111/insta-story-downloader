@@ -29,7 +29,7 @@ on:
     # 10:30 KST — 마지막 배치(SNS 22:45 UTC)보다 2시간 이상 뒤.
     # ⚠️ 이 값을 앞당기면 위에 적은 하루짜리 맹점이 되살아난다.
     #    tests/test_deadman_window.py가 크론과 창을 함께 검사한다.
-    - cron: "30 1 * * *"
+    - cron: "30 3 * * *"
   workflow_dispatch:
 
 permissions:

@@ -691,6 +691,71 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 223 — 조종석이 실제 보유 옆에 '오늘의 결정'을 비중이라 붙이던 자리.
+    ("조종석이 보유 대신 오늘의 결정을 비중으로 보여준다(보유 중인데 0%)",
+     "quant/web/app.py",
+     '                position["weight"] = _hw',
+     '                position["weight"] = _last.get("weight")',
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
+    ("옛 기록의 보유 비중을 계산하지 않고 버린다(정보가 있는데 모름으로 둔다)",
+     "quant/web/app.py",
+     "                    if isinstance(_px, (int, float)) and _eq:",
+     "                    if False:",
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
+    # 감사 224 — 낙폭 차트를 원자산으로 그리던 자리(입금이 손실을 지운다).
+    ("조종석에 입금 제거 성장 지수를 안 보낸다(낙폭 차트가 원자산으로 돌아간다)",
+     "quant/web/app.py",
+     '                      "spark_twr": [round(x, 6) for x in _idx[-60:]],',
+     '                      "spark_twr": None,',
+     "tests/test_the_cockpit_tells_the_same_story.py"),
+
+    # 감사 222 — 소수점 매매가 없는 시장의 소수 주 보유를 밝히는 자리.
+    ("실계좌에서 재현 불가한 소수 주 보유를 장부가 숨긴다",
+     "quant/live/daily.py",
+     '        "fractional_lot": (\n'
+     "            bool(pos and pos.quantity\n"
+     "                 and market not in FRACTIONAL_MARKETS",
+     '        "fractional_lot": (\n'
+     "            bool(False\n"
+     "                 and market not in FRACTIONAL_MARKETS",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 감사 221 — 배치 시각을 미국장 마감 뒤로 옮긴 자리(연중 안전).
+    ("배치 시각을 미국장 마감 전으로 되돌린다(겨울에 미국 신호가 한 세션 뒤처진다)",
+     ".github/workflows/daily-paper.yml",
+     '    - cron: "15 22 * * *"',
+     '    - cron: "30 20 * * *"',
+     "tests/test_the_batch_runs_after_the_markets_it_trades.py"),
+
+    ("SNS 게시를 배치보다 앞으로 되돌린다(어제 숫자가 오늘 것으로 방송된다)",
+     ".github/workflows/social-post.yml",
+     '    - cron: "45 23 * * *"',
+     '    - cron: "45 21 * * *"',
+     "tests/test_the_batch_runs_after_the_markets_it_trades.py"),
+
+    # 감사 220 — 배치 시각과 시장 마감이 어긋나면 한 시장만 뒤처지던 자리.
+    ("시장별 판단 봉의 나이를 장부에 안 남긴다(겨울에 미국만 뒤처져도 모른다)",
+     "quant/live/daily.py",
+     '              "bar_age_days": bar_age or None,',
+     '              "bar_age_days": None,',
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    ("한 시장만 뒤처져도 경고하지 않는다",
+     "quant/live/daily.py",
+     "    if stale_gap >= 2:",
+     "    if False:",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 감사 219 — 주간 리포트가 입금 귀속의 옛 복사본을 들고 있던 자리.
+    # 실측: 주간 요약 +1149.06% / 장부 TWR -0.94%
+    ("주간 요약이 입금 귀속을 손으로 다시 계산한다(입금이 주간 수익으로 둔갑)",
+     "quant/live/daily.py",
+     '        flows = _flows_by_date(window, st.get("deposits") or [])',
+     "        flows = {}",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
     # 감사 218 — 캡션이 코드 상수의 시작금을 방송에 내보내던 자리.
     ("SNS 캡션이 지금 원금 대신 코드 상수를 말한다(방송에 낡은 금액이 나간다)",
      "quant/reporting/social.py",
@@ -2552,7 +2617,7 @@ MUTATIONS = [
 
     ("deadman을 23:30 UTC로 되돌린다(하루 누락 맹점 부활)",
      ".github/workflows/deadman.yml",
-     '    - cron: "30 1 * * *"',
+     '    - cron: "30 3 * * *"',
      '    - cron: "30 23 * * *"',
      "tests/test_deadman_window.py"),
 

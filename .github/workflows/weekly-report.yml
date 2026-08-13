@@ -13,7 +13,7 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: "0 23 * * 0"     # 일요일 23:00 UTC = 월요일 08:00 KST
+    - cron: "30 0 * * 1"   # 월요일 00:30 UTC = 월요일 09:30 KST
   workflow_dispatch:
 
 # 최소 권한 명시 — 미지정이면 저장소 기본값(조직 설정에 따라

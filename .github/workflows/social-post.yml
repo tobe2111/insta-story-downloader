@@ -1,7 +1,7 @@
 name: Social Post
 
 # 매일 SNS 자동 게시 — 스레드·인스타그램에 그날의 성적표를 올린다.
-# 매일 22:45 UTC(= 아침 7:45 KST, daily-paper 본실행·재시도가 모두 끝난 뒤):
+# 매일 23:45 UTC(= 아침 8:45 KST, daily-paper 본실행·재시도가 모두 끝난 뒤):
 #   1. 캡션·메타 생성 (docs/social/<날짜>/)
 #   2. 헤드리스 크롬으로 카드·사이트 페이지 3장 캡처
 #   3. main에 커밋 → Cloudflare가 이미지를 공개 URL로 배포
@@ -16,7 +16,7 @@ name: Social Post
 
 on:
   schedule:
-    - cron: "45 22 * * *"   # 아침 7:45 KST
+    - cron: "45 23 * * *"   # 아침 8:45 KST
   workflow_dispatch:
 
 permissions:
