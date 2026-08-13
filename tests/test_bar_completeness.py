@@ -224,18 +224,61 @@ def test_the_ruler_matches_the_bar_it_measures():
 
 
 def test_signal_frame_measures_with_the_timeframe_it_was_given():
+    """같은 프레임도 자(타임프레임)에 따라 답이 달라야 한다.
+
+    ⚠️ 이 검사는 **하루 중 세 시간만 빨개지는** 검사였다(2026-08-13 발견).
+    시각을 고정하지 않고 `pd.Timestamp.now().normalize()`(오늘 자정)에서
+    3시간을 뺐는데, 그러면 마지막 봉은 늘 **어제 21:00**이다. 판정은
+    UTC 현재시각을 쓰므로 21:00 UTC를 넘기는 순간 그 일봉은 24시간이 지나
+    '완성'으로 바뀌고 검사가 무너진다.
+
+    하필 그 창(21:00~24:00 UTC)이 야간 배치가 도는 시간대다. 가끔 빨간
+    검사는 "무시해도 되는 것"이 되고, 그러면 진짜 신호도 함께 묻힌다.
+
+    고친 방법은 오늘 화면 쪽 `marketOpenish`와 같다 — **시각을 인자로
+    넘긴다.** 벽시계에 매달린 판정은 재현할 수 없고, 재현할 수 없는 것은
+    검사할 수 없다.
+    """
+    import datetime as dt
+
     import pandas as pd
 
     from quant.live.daily import _signal_frame
 
-    now = pd.Timestamp.now().normalize()
-    idx = pd.date_range(end=now - pd.Timedelta(hours=3), periods=12, freq="h")
+    # 고정된 순간 — 어느 시각에 돌려도 같은 답이 나온다
+    now = dt.datetime(2026, 8, 13, 12, 0)
+    idx = pd.date_range(end=pd.Timestamp(now) - pd.Timedelta(hours=3),
+                        periods=12, freq="h")
     df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
                        "close": 1.0, "volume": 1.0}, index=idx)
     # 3시간 전에 닫힌 1시간봉 → 뺄 것이 없다
-    assert len(_signal_frame("crypto", df, "1h")) == len(df)
+    assert len(_signal_frame("crypto", df, "1h", now)) == len(df)
     # 대조군 — 같은 프레임을 일봉 자로 재면 마지막 봉을 진행 중으로 본다
-    assert len(_signal_frame("crypto", df, "1d")) == len(df) - 1
+    assert len(_signal_frame("crypto", df, "1d", now)) == len(df) - 1
+
+
+def test_the_bar_ruler_does_not_depend_on_the_wall_clock():
+    """같은 입력이면 **언제 돌려도** 같은 답 — 하루 중 세 시간만 빨간 검사 금지.
+
+    이 검사가 있으면, 누가 `now` 인자를 다시 떼어내는 순간 빨개진다.
+    """
+    import datetime as dt
+
+    import pandas as pd
+
+    from quant.live.daily import _signal_frame
+
+    frame = None
+    seen = set()
+    for hour in (0, 3, 9, 15, 21, 23):          # 하루를 훑는다
+        now = dt.datetime(2026, 8, 13, hour, 30)
+        idx = pd.date_range(end=pd.Timestamp(now) - pd.Timedelta(hours=3),
+                            periods=12, freq="h")
+        frame = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0,
+                              "close": 1.0, "volume": 1.0}, index=idx)
+        seen.add(len(_signal_frame("crypto", frame, "1d", now)))
+    assert seen == {11}, (
+        f"시각에 따라 답이 달라진다: {sorted(seen)} — 벽시계에 매달린 판정이다")
 
 
 def test_an_unjudgeable_bar_is_not_called_complete():

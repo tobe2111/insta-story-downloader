@@ -336,6 +336,11 @@ MUTATIONS = [
      "    if (d === 0) return false;                       // 일요일(KST) — 양쪽 휴장",
      "    return true;",
      "tests/test_the_price_freshness_is_what_it_claims.py"),
+    ("넘겨받은 시각을 무시하고 벽시계를 본다 — 하루 중 세 시간만 빨간 검사",
+     "quant/live/daily.py",
+     'def _signal_frame(market: str, df, timeframe: str = "1d", now=None):',
+     'def _signal_frame(market: str, df, timeframe: str = "1d", now=None):\n    now = None',
+     "tests/test_bar_completeness.py"),
 
     # ── 오디션·학습의 미래 차단(가장 비싸고 조용한 계열) ──
     ("크로스에셋 정렬을 최근접으로 바꾼다(미래 벤치마크가 과거 봉에 붙는다)",
@@ -2331,8 +2336,8 @@ MUTATIONS = [
     # ── 감사 204: 재는 자가 어긋나 완성 봉이 버려지던 자리 ───────
     ("신호 프레임이 실제 타임프레임 대신 항상 일봉 자로 잰다(완성 봉이 버려진다)",
      "quant/live/daily.py",
-     "    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:",
-     "    if len(df) < 2 or bar_status(market, df.index[-1]) is None:",
+     "    if len(df) < 2 or bar_status(market, df.index[-1], timeframe, now) is None:",
+     "    if len(df) < 2 or bar_status(market, df.index[-1], \"1d\", now) is None:",
      "tests/test_bar_completeness.py"),
 
     ("판정 불가를 '완성됨'과 같은 답으로 낸다(미완결 봉 제거가 조용히 꺼진다)",
