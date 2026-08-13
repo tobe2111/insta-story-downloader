@@ -233,6 +233,38 @@ def is_archive(filename: str) -> bool:
     return ARCHIVE_MARK in os.path.basename(filename)
 
 
+def ledger_files(state_dir: str, *, include_archives: bool = False) -> list:
+    """살아 있는 페이퍼 장부 파일 경로(이름순). 보관본은 기본으로 뺀다.
+
+    ⚠️ 왜 함수로 묶는가(2026-08-13 감사 228): 위 주석은 "장부를 읽는 **세
+    곳**"이라고 적혀 있었다. 실제로는 **여섯 곳**이었고, 감사 227에서 네
+    곳까지 맞춘 뒤에도 하나가 더 남아 있었다 — 하필 그 하나가
+    `portfolio_vol.edge_proven()`, 즉 **목표 변동성을 연 12%에서 20%로
+    올릴지 판정하는 자리**였다.
+
+    보관본이 표본에 섞이면 같은 기록이 두 번 세어져 표본 수 n만 부풀고
+    적중률은 그대로다. 그런데 윌슨 신뢰구간의 하한은 n이 커질수록 올라간다:
+
+        적중 55.0%, n=200 → 95% 하한 48.08%  (미입증)
+        적중 55.0%, n=400 → 95% 하한 50.10%  (**입증**)
+
+    즉 사본 하나가 "동전과 구별 불가"를 "엣지 입증"으로 뒤집고, 그 판정이
+    곧바로 노출을 키운다. 우리가 그토록 걸러낸 '운 좋은 승자'를 표본
+    복사로 만들어내는 셈이다.
+
+    사람이 여섯 자리를 기억해서 지킬 일이 아니다 — 목록을 만드는 자리를
+    하나로 두고, 검사가 '이 함수 말고 장부 디렉터리를 훑는 곳이 있는가'를
+    직접 찾아내게 한다.
+    """
+    paper_dir = os.path.join(state_dir, "paper")
+    if not os.path.isdir(paper_dir):
+        return []
+    return [os.path.join(paper_dir, name)
+            for name in sorted(os.listdir(paper_dir))
+            if name.endswith(".json")
+            and (include_archives or not is_archive(name))]
+
+
 def redenominate_to_krw(state_dir: str, principal_krw: float,
                         *, today: str | None = None,
                         state_file: str = "portfolio_ALL.json") -> dict:

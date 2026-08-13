@@ -112,7 +112,6 @@ def edge_proven(state_dir: str = "state") -> tuple[bool, str]:
     이유로 노출을 키우면, 우리가 그토록 걸러낸 '운 좋은 승자'가 된다.
     """
     try:
-        import glob
         import json
 
         from quant.live.calibration_guard import collect_pairs
@@ -125,8 +124,14 @@ def edge_proven(state_dir: str = "state") -> tuple[bool, str]:
         if gen["days"] < gen["target_days"]:
             return False, (f"판정 시계 진행 중 — {gen['feature_set']} "
                            f"{gen['days']}일차/{gen['target_days']}일")
+        # ⚠️ 보관본(*.pre-*.json)을 빼야 한다(감사 228). 사본이 섞이면 같은
+        #    기록이 두 번 세어져 표본 n만 부풀고, 윌슨 하한은 n이 커질수록
+        #    올라간다 — 적중 55%에서 n=200(하한 48.1%, 미입증)이 n=400(하한
+        #    50.1%, **입증**)으로 뒤집힌다. 표본 복사로 엣지를 만들어내는 것이고,
+        #    그 판정이 곧장 목표 변동성을 12%→20%로 올린다.
+        from quant.live.ledger_basics import ledger_files
         hists = []
-        for f in glob.glob(os.path.join(state_dir, "paper", "*.json")):
+        for f in ledger_files(state_dir):
             try:
                 with open(f, encoding="utf-8") as fh:
                     st = json.load(fh)

@@ -90,23 +90,107 @@ def test_the_live_portfolio_ledger_is_still_excluded(tmp_path):
     assert _all_paper_histories(str(tmp_path)) == []
 
 
-def test_every_paper_directory_scan_filters_archives():
-    """네 자리가 같은 규칙을 쓴다 — 한 곳만 빠지면 그 경로로 새어 들어온다.
+_LISTING_CALLS = {"listdir", "scandir", "glob", "iglob", "iterdir"}
 
-    ⚠️ 문자열이 아니라 **동작**으로 못 박고 싶지만, '이 저장소에 장부
-       스캔이 몇 군데인가'는 구조적 사실이라 여기서만 소스를 본다. 대신
-       주석·문서열이 아니라 실제 호출만 보도록 `ast`로 파싱한다(감사 183
-       이후 여덟 번째 같은 함정을 피한다).
+
+def _modules_that_list_the_paper_dir():
+    """장부 디렉터리를 **직접** 훑는 모듈을 소스에서 찾아낸다.
+
+    ⚠️ 왜 목록을 손으로 적지 않는가(감사 228): 처음에는 아는 자리 세 개를
+       적어 뒀다. 그래서 **제가 놓친 네 번째**(`portfolio_vol.edge_proven`)를
+       이 검사가 잡아주지 못했다 — 아는 것만 열거하는 완전성 검사는 완전성을
+       검사하지 않는다. 이제 검사가 저장소를 직접 뒤진다.
+
+    주석·독스트링은 애초에 AST에 없다(감사 183 이후 같은 함정 여덟 번).
     """
     import ast
 
     root = Path(__file__).resolve().parent.parent
-    scans = {"quant/live/daily.py": 3,        # listdir 2 + glob 1
-             "quant/reporting/fill_gap.py": 1,
-             "quant/web/app.py": 1}
-    for rel, _ in scans.items():
-        tree = ast.parse((root / rel).read_text("utf-8"))
-        names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
-        attrs = {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
-        assert "is_archive" in (names | attrs), (
-            f"{rel}: 장부 디렉터리를 훑으면서 아카이브 가드를 쓰지 않는다")
+    found: dict = {}
+    for path in sorted((root / "quant").rglob("*.py")):
+        tree = ast.parse(path.read_text("utf-8"))
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            inner = list(ast.walk(fn))
+            lists = any(
+                isinstance(n, ast.Call)
+                and ((isinstance(n.func, ast.Attribute)
+                      and n.func.attr in _LISTING_CALLS)
+                     or (isinstance(n.func, ast.Name)
+                         and n.func.id in _LISTING_CALLS))
+                for n in inner)
+            paper = any(isinstance(n, ast.Constant) and n.value == "paper"
+                        for n in inner)
+            if lists and paper:
+                found.setdefault(str(path.relative_to(root)), []).append(fn.name)
+    return found
+
+
+def test_the_paper_directory_is_listed_in_exactly_one_place():
+    """장부 목록을 만드는 자리는 하나다 — 여섯 곳이면 언젠가 하나가 갈라진다.
+
+    실제로 갈라졌다: 감사 212가 세 곳에 가드를 넣고 주석에 "세 곳"이라
+    적었는데 실제로는 여섯 곳이었고, 감사 227이 네 곳까지 맞춘 뒤에도 하나가
+    남아 있었다. 하필 그 하나가 목표 변동성을 12%→20%로 올릴지 판정하는
+    자리(`portfolio_vol.edge_proven`)였다.
+    """
+    found = _modules_that_list_the_paper_dir()
+    extra = {k: v for k, v in found.items()
+             if k != "quant/live/ledger_basics.py"}
+    assert not extra, (
+        "장부 디렉터리를 직접 훑는 자리가 ledger_files 말고 또 있다 — "
+        "보관본 필터가 그 경로에서 빠질 수 있다:\n  "
+        + "\n  ".join(f"{k}: {', '.join(v)}" for k, v in extra.items()))
+    assert "quant/live/ledger_basics.py" in found, (
+        "목록을 만드는 자리 자체가 사라졌다 — 검사가 헛돌고 있다")
+
+
+# ── 감사 228 — 사본이 '엣지 입증'을 만들어낸다 ─────────────────
+
+
+def _edge_history(n: int, hit_rate: float):
+    """적중률이 정확히 hit_rate인 (prob_up, 다음 봉 방향) 기록을 만든다."""
+    recs, price = [], 100.0
+    for i in range(n + 1):
+        up = i < round(n * hit_rate)          # 앞쪽 i건은 예측대로 오른다
+        recs.append({"date": f"2026-01-{i % 28 + 1:02d}", "price": price,
+                     "prob_up": 0.9})
+        price = price * 1.01 if up else price * 0.99
+    return recs
+
+
+def test_a_duplicate_ledger_cannot_manufacture_a_proven_edge(tmp_path,
+                                                             monkeypatch):
+    """보관본이 표본에 섞이면 n만 두 배가 되고 윌슨 하한이 올라간다.
+
+        적중 55.0%, n=200 → 95% 하한 48.08%  (미입증)
+        적중 55.0%, n=400 → 95% 하한 50.10%  (**입증**)
+
+    즉 사본 하나가 "동전과 구별 불가"를 "엣지 입증"으로 뒤집고, 그 판정이
+    곧장 목표 변동성을 연 12%에서 20%로 올린다 — 우리가 그토록 걸러낸
+    '운 좋은 승자'를 표본 복사로 만들어내는 셈이다.
+    """
+    from quant.live import daily as D
+    from quant.risk import portfolio_vol as V
+
+    monkeypatch.setattr(D, "_generation_info",
+                        lambda sd: {"days": 999, "target_days": 90,
+                                    "feature_set": "fs8"})
+    paper = tmp_path / "paper"
+    paper.mkdir()
+    hist = _edge_history(200, 0.55)
+    (paper / "us_stock_SPY.json").write_text(json.dumps(
+        {"market": "us_stock", "symbol": "SPY", "history": hist}), "utf-8")
+
+    proven, why = V.edge_proven(str(tmp_path))
+    assert proven is False, why           # 대조군 — 원본만으로는 미입증
+    assert "n=200" in why
+
+    # 재액면 보관본을 그대로 옆에 둔다(감사 212가 실제로 만드는 파일)
+    (paper / "us_stock_SPY.pre-krw.json").write_text(json.dumps(
+        {"market": "us_stock", "symbol": "SPY", "history": hist}), "utf-8")
+    proven2, why2 = V.edge_proven(str(tmp_path))
+    assert proven2 is False, (
+        f"사본이 엣지를 만들어냈다 — 노출이 12%→20%로 올라간다: {why2}")
+    assert "n=200" in why2, f"표본이 사본만큼 부풀었다: {why2}"
