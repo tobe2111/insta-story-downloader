@@ -114,8 +114,23 @@ def test_site_claim_matches_the_code_for_closed_bar_signals():
     """사이트가 "완성된 봉으로 판단한다"고 말하면 코드가 실제로 그래야 한다."""
     src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "def _signal_frame(" in src
-    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다
-    assert src.count("_signal_frame(market, df)") >= 2
+    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다.
+    #
+    # ⚠️ 여기는 원래 `src.count("_signal_frame(market, df)") >= 2`였다.
+    #    감사 204에서 타임프레임을 인자로 넘기게 고치자 **글자가 달라져서**
+    #    빨개졌다 — 계약은 그대로인데 문자열만 어긋난 것이다(감사 183·199에서
+    #    반복해서 겪은 자리). 글자 대신 **호출 자체**를 센다.
+    import ast
+
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id == "_signal_frame"]
+    assert len(calls) >= 2, f"신호 프레임을 쓰는 경로가 {len(calls)}곳뿐이다"
+    # 그리고 **재는 자(타임프레임)를 넘겨야 한다**(감사 204). 안 넘기면
+    # 항상 일봉으로 재서, 1시간봉으로 돌 때 완성된 봉이 버려진다.
+    for c in calls:
+        assert len(c.args) >= 3, (
+            f"daily.py:{c.lineno} — _signal_frame에 타임프레임을 안 넘긴다")
     assert "strat.generate_signals(df_sig)" in src
     assert "strategy.generate_signals(df_sig)" in src
     # 체결 가격은 여전히 현재가(원본 프레임의 마지막 종가)여야 한다

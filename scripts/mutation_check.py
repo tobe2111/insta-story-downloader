@@ -1686,6 +1686,25 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 204: 재는 자가 어긋나 완성 봉이 버려지던 자리 ───────
+    ("신호 프레임이 실제 타임프레임 대신 항상 일봉 자로 잰다(완성 봉이 버려진다)",
+     "quant/live/daily.py",
+     "    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:",
+     "    if len(df) < 2 or bar_status(market, df.index[-1]) is None:",
+     "tests/test_bar_completeness.py"),
+
+    ("판정 불가를 '완성됨'과 같은 답으로 낸다(미완결 봉 제거가 조용히 꺼진다)",
+     "quant/data/barclock.py",
+     "    if frac is None:",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
+    ("미래 봉을 '0% 진행 중'이라고 적는다(없는 사실이 장부에 남는다)",
+     "quant/data/barclock.py",
+     "    if frac <= 0.0 and _is_future(last_bar, now):",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
     # ── 감사 203: 폴백이 요청과 다른 길이의 봉을 내주던 자리 ─────
     ("모르는 타임프레임을 조용히 일봉으로 떨어뜨린다(24배 긴 봉을 30분봉으로 받는다)",
      "quant/data/synthetic.py",
@@ -2388,7 +2407,7 @@ MUTATIONS = [
 
     ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
      "quant/live/daily.py",
-     "            df_sig = _signal_frame(market, df)",
+     "            df_sig = _signal_frame(market, df, timeframe)",
      "            df_sig = df",
      "tests/test_signal_frame.py"),
 

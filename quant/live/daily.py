@@ -362,7 +362,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     # 신호는 완성된 봉으로만 — 통합 계좌와 같은 규칙(감사 71).
     # 코인은 UTC 일봉의 '오늘' 봉이 항상 진행 중이라 그대로 쓰면 모델이
     # 미완성 봉(레인지 평균 36% 축소)을 마지막 행으로 받는다.
-    df_sig = _signal_frame(market, df)
+    df_sig = _signal_frame(market, df, timeframe)
     signals = strategy.generate_signals(df_sig)
     weight = float(_risk_for(market).size_positions(df_sig, signals).iloc[-1])
     price = float(df["close"].iloc[-1])      # 체결·평가는 지금 가격
@@ -1160,7 +1160,7 @@ def required_bars(spec: dict, floor: int = 30) -> int:
     return max(floor, longest)
 
 
-def _signal_frame(market: str, df):
+def _signal_frame(market: str, df, timeframe: str = "1d"):
     """신호·피처 계산에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
 
     주식 제공자에는 _drop_unclosed가 있어 이미 완성 봉만 온다. 코인은
@@ -1169,9 +1169,22 @@ def _signal_frame(market: str, df):
 
     체결 가격은 이 프레임이 아니라 원본의 마지막 종가(=현재가)를 쓴다 —
     "완성된 정보로 판단하고, 지금 가격에 체결한다".
+
+    ⚠️ **타임프레임을 받는다**(감사 204). 예전에는 `bar_status(market, 봉)`만
+    불러 **항상 일봉 자로 쟀다.** 같은 파일의 다른 두 자리(장부의
+    `bar_partial`, 기록용 `bs`)는 진짜 타임프레임을 넘기고 있었는데 여기만
+    빠져 있었다 — 같은 판정을 세 곳에서 부르면서 하나가 갈라진 것이다(㉞).
+
+    실측(봇이 1시간봉으로 돌 때, 3시간 전에 **완성된** 봉):
+
+        1h 자로 재면  → 1.0   (완성)
+        1d 자로 재면  → 0.125 (진행 중)  ← 멀쩡한 완성 봉이 버려진다
+
+    지금 운영은 일봉이라 새는 곳은 아니지만, `--timeframe`을 바꾸는 순간
+    조용히 틀린다. 기본값을 `"1d"`로 둬 옛 호출부는 그대로 동작한다.
     """
     from quant.data.barclock import bar_status
-    if len(df) < 2 or bar_status(market, df.index[-1]) is None:
+    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:
         return df
     return df.iloc[:-1]
 
@@ -1336,7 +1349,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             #    체결·평가 가격은 그대로 **지금 값**을 쓴다(아래 prices). 즉
             #    "완성된 정보로 판단하고, 지금 가격에 체결한다" — 실제 트레이더가
             #    하는 것과 같다.
-            df_sig = _signal_frame(market, df)
+            df_sig = _signal_frame(market, df, timeframe)
             # ⚠️ **표본이 모자라면 판단하지 않고, 그 사실을 남긴다**(감사 201).
             #    예전에는 `df.empty`만 봤다. 보조 거래소가 10봉만 주는 날
             #    신호는 0으로 나오는데 장부에는 흔적이 없어, "3종목 분산"이라

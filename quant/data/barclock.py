@@ -57,6 +57,15 @@ def bar_elapsed_fraction(last_bar, timeframe: str = "1d",
     """
     secs = _TF_SECONDS.get(timeframe)
     if secs is None:
+        # ⚠️ **'모름'과 '완성됨'이 같은 답이면 안 된다**(감사 204). 호출부는
+        #    None을 "완성된 봉"으로 읽고 미완결 봉 제거를 건너뛴다 — 즉 모르는
+        #    타임프레임 하나로 감사 71의 보호가 **조용히 꺼진다.** 24시간
+        #    시장에서 그건 항상 진행 중인 봉을 그대로 쓴다는 뜻이다.
+        #    판정 불가는 소리를 내고, 아래 bar_status가 보수적으로 처리한다.
+        from quant.utils.logging import get_logger
+        get_logger("data.barclock").warning(
+            "봉 완성도를 잴 수 없습니다 — 모르는 타임프레임 %r (아는 것: %s)",
+            timeframe, ", ".join(sorted(_TF_SECONDS)))
         return None
     try:
         start = dt.datetime.fromisoformat(str(last_bar).replace("Z", "+00:00"))
@@ -73,6 +82,20 @@ def bar_elapsed_fraction(last_bar, timeframe: str = "1d",
     return min(1.0, elapsed / secs)
 
 
+def _is_future(last_bar, now: dt.datetime | None = None) -> bool:
+    """이 봉의 시작 시각이 아직 오지 않았는가."""
+    try:
+        start = dt.datetime.fromisoformat(str(last_bar).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return False
+    if start.tzinfo is not None:
+        start = start.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    cur = now or dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    if cur.tzinfo is not None:
+        cur = cur.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return start > cur
+
+
 def bar_status(market: str, last_bar, timeframe: str = "1d",
                now: dt.datetime | None = None) -> dict | None:
     """장부에 남길 '결정 봉 완성도' 기록. 완성됐거나 판정 불가면 None.
@@ -84,8 +107,27 @@ def bar_status(market: str, last_bar, timeframe: str = "1d",
     if market not in CONTINUOUS_MARKETS:
         return None
     frac = bar_elapsed_fraction(last_bar, timeframe, now)
-    if frac is None or frac >= 1.0:
+    if frac is None:
+        # 판정 불가 — 24시간 시장에서는 **진행 중으로 취급하는 편이 안전하다**
+        # (감사 204). 마지막 봉은 거의 항상 진행 중이고, 완성으로 오판하면
+        # 미완결 봉이 그대로 모델에 들어간다(감사 71이 막으려던 바로 그것).
+        # elapsed는 숫자를 지어내지 않고 None으로 둔다 — 0.0이라고 적으면
+        # '방금 시작한 봉'이라는 없는 사실이 장부에 남는다.
+        return {"elapsed": None, "timeframe": timeframe, "undetermined": True,
+                "note": "이 봉이 얼마나 만들어졌는지 판정하지 못했다(모르는 "
+                        "타임프레임이거나 시각을 읽지 못함). 완성으로 단정하지 "
+                        "않고 진행 중으로 보수적으로 처리했다."}
+    if frac >= 1.0:
         return None
+    if frac <= 0.0 and _is_future(last_bar, now):
+        # ⚠️ **미래 봉을 '0% 진행 중'이라고 적지 않는다**(감사 204). 그건
+        #    그럴듯한 숫자지 사실이 아니다 — 데이터 소스가 아직 오지 않은
+        #    봉을 준 것이고, 그 자체가 사건이다(감사 181에서 status.json에
+        #    미래 날짜가 실렸던 것과 같은 계열).
+        return {"elapsed": 0.0, "timeframe": timeframe, "future_bar": True,
+                "note": "마지막 봉의 시각이 **미래**다 — 아직 시작도 하지 않은 "
+                        "봉을 받았다. 데이터 소스나 시계가 어긋난 것이며, 이 "
+                        "봉의 값은 확정값이 아니다."}
     return {"elapsed": round(float(frac), 4), "timeframe": timeframe,
             # ⚠️ 2026-08-12 감사 143 — 이 문구가 낡아 있었다. 감사 71에서
             #    "완성된 정보로 판단하고, 지금 가격에 체결한다"로 고친 뒤에도
