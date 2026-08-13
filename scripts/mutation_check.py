@@ -691,6 +691,28 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 216 — 환산은 했는데 **어떤 환율로 했는지**를 안 남기던 자리.
+    ("그날 적용한 환율을 장부에 안 남긴다(나중에 아무도 검산할 수 없다)",
+     "quant/live/daily.py",
+     '              "fx_usdkrw": (round(float(fx_rate), 4)\n'
+     "                            if fx_rate is not None else None),",
+     '              "fx_usdkrw": None,',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("적용 환율을 사이트로 내보내지 않는다",
+     "quant/live/daily.py",
+     '                if hist and hist[-1].get("fx_usdkrw") is not None:\n'
+     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     '                if False:\n'
+     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("계좌 통화를 사이트로 내보내지 않는다(어느 단위인지 화면이 말 못 한다)",
+     "quant/live/daily.py",
+     '                status["paper"][key]["currency"] = st.get("currency")',
+     '                pass',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
     # 감사 215 — 통합 계좌만 원화로 열고 섀도 대조군을 빠뜨린 자리.
     ("정리 안 된(단위 혼재) 장부 위에서도 배치를 돌린다(자산이 환율 배수만큼 뛴다)",
      "quant/live/daily.py",

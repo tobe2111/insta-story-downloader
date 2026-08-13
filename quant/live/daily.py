@@ -1830,6 +1830,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "code_sha": _code_sha(),
               "env": _env_fingerprint(),
               "accounting": ACCOUNTING_VERSION,
+              # 그날 적용한 원/달러 — **환산을 검산할 수 있어야 한다**(감사 216).
+              # 감사 212에서 해외 종목을 원화로 환산하게 고쳤는데, 정작 어떤
+              # 환율을 썼는지는 어디에도 안 남겼다. 사이트는 "원화로 환산했다"고
+              # 말하면서 얼마로 했는지는 말하지 않았던 셈이라, 누구도 그 숫자를
+              # 다시 계산해 볼 수 없었다. "누구든 검증할 수 있다"는 이 프로젝트의
+              # 약속에서 검산 못 하는 변환은 그냥 믿어 달라는 말이다.
+              "fx_usdkrw": (round(float(fx_rate), 4)
+                            if fx_rate is not None else None),
               # 킬스위치·배분의 흔적 — 그날 왜 노출이 줄었는지 장부로 남는다
               "risk_scale": risk_scale,
               # 어드민 개입의 흔적 — 일시정지·노출 배수는 숨기지 않고 기록한다
@@ -2310,6 +2318,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
                 # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
                 # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
+                status["paper"][key]["currency"] = st.get("currency")
+                # 마지막 기록에 남은 적용 환율 — 잔고 표가 "1,412.5원/$ 적용"
+                # 이라고 밝힐 수 있어야 검산이 가능하다(감사 216).
+                if hist and hist[-1].get("fx_usdkrw") is not None:
+                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]
                 status["paper"][key]["holdings"] = holdings_view(st, eq_now)
                 # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
                 #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이
