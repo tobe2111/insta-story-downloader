@@ -1686,6 +1686,14 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 205: 한 계열 안에서 단위가 섞이던 자리 ──────────────
+    ("미결제약정 필드를 계열마다 고르지 않고 행마다 or로 떨어뜨린다(단위가 섞인다)",
+     "quant/data/openinterest.py",
+     "            v = float(row.get(field))",
+     "            v = float(row.get(\"openInterestAmount\")\n"
+     "                      or row.get(\"openInterestValue\"))",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
     # ── 감사 204: 재는 자가 어긋나 완성 봉이 버려지던 자리 ───────
     ("신호 프레임이 실제 타임프레임 대신 항상 일봉 자로 잰다(완성 봉이 버려진다)",
      "quant/live/daily.py",
