@@ -121,6 +121,7 @@ def test_symbol_count_comes_from_the_ledger():
 
 
 def test_start_cash_comes_from_config():
+    """장부에 원금이 없으면 코드 기본값으로 되돌아간다(옛 기록 하위호환)."""
     from quant.live.daily import PORTFOLIO_START_CASH
     hist = [_rec("2026-01-01", 80_000, day_pct=0.0)]
     ig = social.build_captions(_status(hist))["instagram"]
@@ -128,9 +129,31 @@ def test_start_cash_comes_from_config():
 
 
 def test_no_hardcoded_counts_in_source():
+    """캡션이 **내보내는 글자**에 숫자가 박혀 있으면 안 된다.
+
+    ⚠️ 원래 소스 전체를 문자열로 훑었다. 그래서 이 결함을 고치면서 **왜
+    고쳤는지 적은 주석**("…기본값(8만원)이지…")에 걸려 빨개졌다 — 계약은
+    지켜졌는데 설명이 검사를 깨뜨린 것이다. 감사 183·199·204·211·212·213·
+    217에 이어 **일곱 번째** 같은 함정이다.
+
+    주석은 애초에 AST에 없다. 파싱해서 **실제 문자열 리터럴만** 본다 —
+    그게 화면·방송에 나가는 것이고, 검사가 지키려던 것도 그것뿐이다.
+    """
+    import ast
+
     src = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
-    assert "20종목" not in src
-    assert "8만원" not in src
+    tree = ast.parse(src)
+    docstrings = {ast.get_docstring(n) for n in ast.walk(tree)
+                  if isinstance(n, (ast.Module, ast.ClassDef,
+                                    ast.FunctionDef, ast.AsyncFunctionDef))}
+    emitted = [n.value for n in ast.walk(tree)
+               if isinstance(n, ast.Constant) and isinstance(n.value, str)
+               and n.value not in docstrings]
+    for bad in ("20종목", "8만원"):
+        hits = [t for t in emitted if bad in t]
+        assert not hits, (
+            f"캡션이 내보내는 글자에 '{bad}'가 박혀 있다 — 설정이 바뀌면 "
+            f"SNS만 조용히 거짓말을 한다:\n  " + "\n  ".join(hits[:3]))
 
 
 # ── ④ 정직 고지(회귀 방지) ────────────────────────────────────

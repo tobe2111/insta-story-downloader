@@ -63,7 +63,7 @@ def _seed(tmp_path, *, equity_now: float, peak: float | None = None) -> str:
     p = tmp_path / "paper"
     p.mkdir(parents=True, exist_ok=True)
     (p / "portfolio_ALL.json").write_text(json.dumps({
-        "market": "portfolio", "symbol": "ALL",
+        "market": "portfolio", "symbol": "ALL", "currency": "KRW",
         "start_cash": 80_000.0, "cash": equity_now,
         "positions": {}, "base_prices": {}, "last_bar": None,
         "history": hist,
@@ -175,7 +175,7 @@ def _seed_wide(tmp_path, *, n: int, equity_now: float, peak: float | None = None
     p = tmp_path / "paper"
     p.mkdir(parents=True, exist_ok=True)
     (p / "portfolio_ALL.json").write_text(json.dumps({
-        "market": "portfolio", "symbol": "ALL",
+        "market": "portfolio", "symbol": "ALL", "currency": "KRW",
         "start_cash": 80_000.0, "cash": equity_now,
         "positions": {}, "base_prices": {}, "last_bar": None,
         "history": ([{"date": "2026-01-01", "equity": peak}] if peak else []),

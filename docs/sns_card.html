@@ -164,6 +164,13 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   var startTxt=(startCash>=10000&&startCash%10000===0)
     ?(startCash/10000).toLocaleString()+"만원"
     :Math.round(startCash).toLocaleString()+"원";
+  /* 카드 문구는 **지금 원금**을 말해야 한다(2026-08-13). 시작금과 원금은
+     매칭 입금 뒤로 다른 숫자다 — "8만원이 어디까지"라고 계속 말하면
+     원금이 100만원이 된 날부터 카드가 계좌와 다른 말을 한다. */
+  var principal=(port.principal!=null?port.principal:startCash);
+  var prinTxt=(principal>=10000&&principal%10000===0)
+    ?(principal/10000).toLocaleString()+"만원"
+    :Math.round(principal).toLocaleString()+"원";
   var universe=Object.keys(alloc).length||(st.symbols?Object.keys(st.symbols).length:0);
   var held=Math.max(0, universe-nCash);
 
@@ -191,7 +198,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   if(n===1){
     html=page("AI 퀀트 공개 실험 — 오늘의 성적표",
       '<h1 style="font-size:92px;margin-top:40px">'+hook+'</h1>'
-      +'<div class="sub" style="margin-top:60px">가짜 돈 8만원으로 시작한 공개 실험, '
+      +'<div class="sub" style="margin-top:60px">가짜 돈 '+prinTxt+'으로 굴리는 공개 실험, '
       +esc(day)+'일째.<br>매일 새벽 AI가 스스로 배우고, 결정하고, 기록합니다.<br>'
       // ⚠️ 무조건 '사람의 개입은 없습니다'라고 단언하면 안 된다
       //    (2026-08-12 감사 115). 이 시스템에는 운영자가 결과를 바꿀 수
@@ -279,7 +286,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
     html=page("내일 새벽에 계속",
       '<h1 style="font-size:70px;margin-top:40px">내일 새벽,<br>다음 판단이 올라옵니다</h1>'
       +'<div class="sub" style="margin-top:52px">팔로우하면 매일의 성적표를 받아봅니다.<br>'
-      +'8만원이 어디까지 가는지 — 과정 전체를 함께 보세요.</div>'
+      +prinTxt+'이 어디까지 가는지 — 과정 전체를 함께 보세요.</div>'
       +'<div class="note">전체 장부·실시간 현황·검증 방법<div class="url">quant.jiwon-1a2.workers.dev</div></div>');
   }
   document.getElementById("root").outerHTML=html;

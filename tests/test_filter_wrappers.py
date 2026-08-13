@@ -334,3 +334,41 @@ def test_event_guard_explains_the_size_not_just_the_direction():
     assert abs(w - raw * 0.5) < 1e-9, "테스트 전제가 깨졌다"
     assert "관망" not in txt, f"절반으로 줄였는데 '관망'이라 말한다:\n{txt}"
     assert "50%" in txt
+
+
+# ── 모르는 구간에서 들어가지 않는가 (감사 214) ─────────────────
+
+def test_liquidity_holds_back_where_the_turnover_is_unknown():
+    """거래대금을 **모르는** 구간은 진입 보류다 — '문제없음'이 아니다.
+
+    이동평균 워밍업 구간과 거래량 결측 구간에서는 거래대금이 NaN이다.
+    거기서 진입을 허용하면, 유동성 필터를 씌운 이유(마른 구간을 피한다)가
+    가장 정보가 없는 자리에서 정확히 무너진다. `NaN >= 기준`이 False라
+    막히는 것처럼 보이지만, 그건 우연이지 계약이 아니다 — 못 박는다.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quant.strategies.base import Strategy
+    from quant.strategies.liquidity import LiquidityFilter
+
+    class _Always(Strategy):
+        name, allow_short = "always", False
+
+        def generate_signals(self, df):
+            return pd.Series(1.0, index=df.index)
+
+    idx = pd.date_range("2026-01-01", periods=10, freq="D")
+    close = pd.Series(100.0, index=idx)
+    vol = pd.Series(1e9, index=idx)
+    vol.iloc[5] = np.nan                       # 거래량 결측 한 봉
+    df = pd.DataFrame({"open": close, "high": close, "low": close,
+                       "close": close, "volume": vol}, index=idx)
+
+    out = LiquidityFilter(_Always(), window=3, min_dollar_vol=1.0
+                          ).generate_signals(df)
+    # 워밍업(앞 2봉)과 결측이 섞인 구간은 0이어야 한다
+    assert out.iloc[0] == 0.0 and out.iloc[1] == 0.0, list(out)
+    assert out.iloc[5] == 0.0, f"거래대금을 모르는 봉에서 진입했다 — {list(out)}"
+    # 대조군: 거래대금이 충분히 알려진 구간은 통과해야 한다
+    assert out.iloc[3] == 1.0 and out.iloc[9] == 1.0, list(out)

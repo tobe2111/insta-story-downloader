@@ -108,6 +108,7 @@ def _run_with_outage(tmp_path, monkeypatch, crashed_to: float | None):
         pos["last_price_bar"] = "2025-10-25"
     state = {"cash": 0.0, "positions": {"kr_stock:AAA": pos},
              "base_prices": {}, "history": [], "start_cash": 1000.0,
+             "currency": "KRW",
              "last_bar": None}
     import json
     # 상태 파일은 state_dir/paper/<state_file>에 있다.
@@ -176,7 +177,8 @@ def test_a_normal_day_records_no_stale_marks(tmp_path, monkeypatch):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "cash": 1000.0, "positions": {}, "base_prices": {}, "history": [],
-        "start_cash": 1000.0, "last_bar": None}), encoding="utf-8")
+        "start_cash": 1000.0, "currency": "KRW",
+        "last_bar": None}), encoding="utf-8")
     rec = D.run_daily_portfolio(
         targets=[("kr_stock", "AAA"), ("kr_stock", "BBB")],
         state_dir=str(tmp_path), state_file="portfolio.json")
@@ -232,6 +234,7 @@ def test_yesterdays_price_is_saved_so_tomorrow_can_use_it(tmp_path,
         "cash": 0.0,
         "positions": {"kr_stock:AAA": {"quantity": 10.0, "avg_price": 100.0}},
         "base_prices": {}, "history": [], "start_cash": 1000.0,
+             "currency": "KRW",
         "last_bar": None}), encoding="utf-8")
 
     kw = dict(targets=[("kr_stock", "AAA"), ("kr_stock", "BBB")],

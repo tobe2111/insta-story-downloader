@@ -455,6 +455,17 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
+        # ⚠️ 위 `weight`는 **오늘 내린 결정**이다. 주식은 '다음 세션 시가'
+        #    체결이라, 기록 시점에 계좌가 실제로 들고 있는 것은 어제 결정의
+        #    결과다. 둘을 같은 이름으로 부르면 화면이 거짓말을 한다 —
+        #    실측(2026-08-13, 20개 참고 계좌 중 8개가 어긋남):
+        #        us_stock:META  기록 비중 0.0000 / 실제 보유 0.1027
+        #        us_stock:SPY   기록 비중 0.0000 / 실제 보유 0.0591
+        #    "비중 0%"라고 적힌 계좌가 10%를 들고 있었다. 오늘 아침 통합
+        #    계좌 카드에서 고친 것과 **같은 결함**이다(목표를 잔고라 부르기).
+        #    결정과 잔고를 둘 다 남긴다.
+        "held_weight": (round(pos.quantity * price / equity, 4)
+                        if pos and equity else 0.0),
         "equity": round(equity, 2),
         "return_pct": round((equity / START_CASH - 1) * 100, 2),
         "hit_rate": acc.get("hit_rate"),
@@ -1232,10 +1243,29 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         with open(path, encoding="utf-8") as f:
             st = json.load(f)
     else:
-        st = {"market": mkt_tag, "symbol": sym_tag,
+        st = {"market": mkt_tag, "symbol": sym_tag, "currency": "KRW",
               "start_cash": PORTFOLIO_START_CASH,
               "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
+
+    # ⚠️ **단위가 섞인 장부 위에서 돌면 안 된다**(감사 215).
+    #
+    # 감사 212에서 체결·평가를 원화로 환산하게 고쳤는데, 그 전에 쌓인 장부는
+    # 보유 단가가 달러다. 그 위에서 이 함수를 돌리면 같은 수량이 원화
+    # 가격으로 재평가되어 **자산이 1,470배로 뛴다** — 그리고 그 폭등이
+    # 수익으로 기록된다.
+    #
+    # 실제로 통합 계좌만 다시 열고 **섀도 대조군을 빠뜨렸다.** 섀도는
+    # "오디션이 가치를 더하는가"를 증명하는 유일한 대조군인데, 그쪽만
+    # 폭등하면 그 비교가 통째로 거짓이 된다. 사람이 기억해서 지킬 일이
+    # 아니므로 코드가 거절한다.
+    if st.get("currency") != "KRW" and (st.get("positions") or st.get("history")):
+        raise RuntimeError(
+            f"{state_file}: 통화가 원화로 정리되지 않은 장부입니다"
+            " — 이 위에서 돌리면 보유 평가액이 환율 배수만큼 뛰어 그 폭등이"
+            " 수익으로 기록됩니다(감사 212·215)."
+            f" `python -m quant redenominate --principal <원금> --state-file"
+            f" {state_file}` 로 먼저 정리하세요.")
 
     # 원/달러를 **하루 한 번** 잡아 둔다(감사 212). 종목마다 따로 받으면
     # 같은 배치 안에서 종목별로 다른 환율이 적용돼 자산이 미세하게 어긋난다.
@@ -1495,8 +1525,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         #    슬라이스를 빼먹고 있었다 — 같은 값을 한 줄 사이에서 두 정의로
         #    쓴 셈이라, 장부가 실제보다 10~50배 큰 체결 비중을 말했다
         #    (2026-08-10 069500 체결: 장부 0.165 / 실제 주문 0.0036).
+        # 수량·금액도 남긴다(2026-08-13). 예전에는 체결가와 결과 비중만
+        # 적어서, "언제 얼마에 샀나"는 알아도 **얼마어치**를 샀는지는 장부
+        # 어디에도 없었다 — 거래내역을 만들 수가 없었다. 주문 객체가 이미
+        # 수량을 들고 있었는데 버리고 있었다.
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]) * sl, 4),
+                      "side": order.side,
+                      "quantity": round(float(order.quantity), 10),
+                      "amount": round(float(order.quantity) * float(fopen), 2),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 
@@ -1714,7 +1751,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for o in getattr(broker, "order_log", [])[n_orders_before:]:
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
-                      "side": o.side, "type": "즉시"})
+                      "side": o.side,
+                      "quantity": round(float(o.quantity), 10),
+                      "amount": round(float(o.quantity) * float(o.price), 2),
+                      "type": "즉시"})
     # 쿨다운 기준일 갱신 — 오늘 실제로 고쳐 잡은 종목만
     for f in fills:
         last_trade[f["key"]] = str(bar)[:10]
@@ -1801,6 +1841,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "code_sha": _code_sha(),
               "env": _env_fingerprint(),
               "accounting": ACCOUNTING_VERSION,
+              # 그날 적용한 원/달러 — **환산을 검산할 수 있어야 한다**(감사 216).
+              # 감사 212에서 해외 종목을 원화로 환산하게 고쳤는데, 정작 어떤
+              # 환율을 썼는지는 어디에도 안 남겼다. 사이트는 "원화로 환산했다"고
+              # 말하면서 얼마로 했는지는 말하지 않았던 셈이라, 누구도 그 숫자를
+              # 다시 계산해 볼 수 없었다. "누구든 검증할 수 있다"는 이 프로젝트의
+              # 약속에서 검산 못 하는 변환은 그냥 믿어 달라는 말이다.
+              "fx_usdkrw": (round(float(fx_rate), 4)
+                            if fx_rate is not None else None),
               # 킬스위치·배분의 흔적 — 그날 왜 노출이 줄었는지 장부로 남는다
               "risk_scale": risk_scale,
               # 어드민 개입의 흔적 — 일시정지·노출 배수는 숨기지 않고 기록한다
@@ -2261,9 +2309,31 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 waiting = pending_deposits(deposits)
                 if waiting:
                     status["paper"][key]["pending_deposits"] = waiting
+                # 계좌를 다시 연 사실 — 사이트 제목이 이걸 읽어 "언제 왜
+                # 새로 시작했는지"를 스스로 말한다(감사 212). 안 내보내면
+                # 첫 화면이 옛 이야기를 계속 한다.
+                if st.get("restarted"):
+                    status["paper"][key]["restarted"] = st["restarted"]
+                # 거래내역 — "언제 얼마에 얼마어치를 샀나". 잔고가 '지금'을
+                # 말한다면 이쪽은 '어떻게 여기까지 왔나'를 말한다(증권사도
+                # 잔고와 거래내역을 따로 둔다). 기록마다 흩어져 있는 체결을
+                # 한 줄로 펴서 최근 것부터 싣는다.
+                trades = []
+                for rec in reversed(hist):
+                    for f in rec.get("fills") or []:
+                        trades.append({**f, "date": rec.get("date")})
+                    if len(trades) >= 60:
+                        break
+                if trades:
+                    status["paper"][key]["trades"] = trades[:60]
                 # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
                 # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
                 # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
+                status["paper"][key]["currency"] = st.get("currency")
+                # 마지막 기록에 남은 적용 환율 — 잔고 표가 "1,412.5원/$ 적용"
+                # 이라고 밝힐 수 있어야 검산이 가능하다(감사 216).
+                if hist and hist[-1].get("fx_usdkrw") is not None:
+                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]
                 status["paper"][key]["holdings"] = holdings_view(st, eq_now)
                 # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
                 #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이

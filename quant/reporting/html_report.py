@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from quant.backtest.engine import BacktestResult
+from quant.reporting.scale import axis_span, plot_points
 
 
 def _sparkline(series: pd.Series, width: int = 800, height: int = 200,
@@ -19,13 +20,13 @@ def _sparkline(series: pd.Series, width: int = 800, height: int = 200,
     vals = series.to_numpy(dtype=float)
     if len(vals) < 2:
         return "<svg></svg>"
-    lo, hi = float(vals.min()), float(vals.max())
-    rng = hi - lo or 1.0
-    n = len(vals)
-    pts = [
-        (i / (n - 1) * width, height - (v - lo) / rng * height)
-        for i, v in enumerate(vals)
-    ]
+    span = axis_span(vals)
+    if span is None:            # 그릴 값이 없다 — 가짜 평평한 선을 그리지 않는다
+        return "<svg></svg>"
+    lo, hi, rng = span
+    pts = plot_points(vals, width, height, lo, rng)
+    if not pts:
+        return "<svg></svg>"
     line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
     area = ""
     if fill:
@@ -49,16 +50,14 @@ def _overlay(strategy: pd.Series, benchmark: pd.Series,
     b = benchmark.to_numpy(dtype=float)
     if len(a) < 2:
         return "<svg></svg>"
-    lo = min(float(a.min()), float(b.min()))
-    hi = max(float(a.max()), float(b.max()))
-    rng = hi - lo or 1.0
+    span = axis_span(list(a) + list(b))
+    if span is None:
+        return "<svg></svg>"
+    lo, hi, rng = span
 
     def _poly(vals):
-        n = len(vals)
-        return " ".join(
-            f"{i / (n - 1) * width:.1f},{height - (v - lo) / rng * height:.1f}"
-            for i, v in enumerate(vals)
-        )
+        return " ".join(f"{x:.1f},{y:.1f}"
+                        for x, y in plot_points(vals, width, height, lo, rng))
 
     return (
         f'<svg viewBox="0 0 {width} {height}" width="100%" '
@@ -77,8 +76,10 @@ def _price_marker_chart(df, positions, width: int = 760, height: int = 200) -> s
     n = len(close)
     if n < 2:
         return "<svg></svg>"
-    lo, hi = float(close.min()), float(close.max())
-    rng = (hi - lo) or 1.0
+    span = axis_span(close)
+    if span is None:
+        return "<svg></svg>"
+    lo, hi, rng = span
 
     def _x(i):
         return i / (n - 1) * width
@@ -86,7 +87,8 @@ def _price_marker_chart(df, positions, width: int = 760, height: int = 200) -> s
     def _y(i):
         return height - (close[i] - lo) / rng * height
 
-    line = " ".join(f"{_x(i):.1f},{_y(i):.1f}" for i in range(n))
+    line = " ".join(f"{x:.1f},{y:.1f}"
+                    for x, y in plot_points(close, width, height, lo, rng))
     markers = []
     for i in range(1, n):
         prev, cur = pos[i - 1], pos[i]

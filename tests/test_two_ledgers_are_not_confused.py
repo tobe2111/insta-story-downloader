@@ -85,8 +85,17 @@ def test_the_lead_paragraph_warns_before_the_reader_scrolls():
 
 
 def test_the_headline_start_cash_is_still_the_portfolio_one():
-    """혼동을 없애려다 8만원 주장까지 흐리면 안 된다."""
-    assert "80,000원" in PAPER
+    """혼동을 없애려다 **통합 계좌 원금** 주장까지 흐리면 안 된다.
+
+    ⚠️ 원래 이 검사는 `"80,000원" in PAPER`였다. 그 글자를 지키는 것이
+    목적이 아니라 "머리말이 통합 계좌의 원금을 분명히 말한다"가 계약이다.
+    원금이 매칭 입금으로 바뀌고 계좌가 원화로 다시 열리자(감사 212) 글자만
+    낡았다 — 이제 금액은 장부에서 읽으므로, **읽는지**를 본다.
+    """
+    assert 'id="hd-principal"' in PAPER, "머리말에 원금 자리가 없다"
+    assert "port.principal" in PAPER, (
+        "머리말이 원금을 장부에서 읽지 않는다 — 산문에 박으면 원금이 바뀐 "
+        "날부터 페이지가 계좌와 다른 말을 한다")
 
 
 def test_the_symbol_start_cash_is_not_hardcoded_wrongly():
@@ -144,7 +153,12 @@ def test_the_sidebar_names_the_account_too():
 def test_the_sidebar_also_offers_the_portfolio_number():
     """참고 계좌 비중만 보이면 '그래서 진짜 얼마?'에 답이 없다."""
     idx = (ROOT / "docs" / "index.html").read_text("utf-8")
-    body = idx.split('getElementById("sidelist")', 1)[1][:900]
+    # ⚠️ 원래 뒤 900자만 잘라 봤다. 주석 한 문단이 늘자 계약은 그대로인데
+    #    창 밖으로 밀려 빨개졌다 — 글자 위치에 기대는 검사의 전형적인 고장
+    #    (감사 183·199·204·211·212·213에 이어 또). 렌더 블록이 **끝나는
+    #    자리**까지를 범위로 잡는다.
+    body = idx.split('getElementById("sidelist")', 1)[1]
+    body = body.split('getElementById("side-swaps")', 1)[0]
     assert "applied[r.k]" in body, "사이드바가 통합 노출을 함께 보이지 않는다"
 
 
@@ -154,3 +168,178 @@ def test_no_bare_weight_label_anywhere_on_the_landing_page():
     shown = re.sub(r"/\*(?:.|\n)*?\*/", "", idx)
     bad = re.findall(r">비중\s*(?:'|<)", shown)
     assert not bad, f"어느 계좌의 것인지 알 수 없는 '비중' 라벨: {len(bad)}곳"
+
+
+# ── 한 화면에 두 통화가 섞이지 않는가 (감사 216) ───────────────
+
+def test_the_page_never_shows_two_currencies_under_one_name():
+    """같은 페이지에 **단위가 다른 '현재가'** 두 개가 라벨 없이 있으면 안 된다.
+
+    감사 212 뒤 통합 계좌는 원화로 환산되고, 종목별 참고 계좌는 그 종목이
+    거래되는 통화 그대로다(각 계좌는 단일 통화라 그 자체로는 옳다). 그래서
+    오늘 밤 배치 뒤 같은 화면에 이렇게 나온다:
+
+        종목별 현황  ·  S&P500 ETF 현재가        772.49   ← 달러
+        잔고        ·  S&P500 ETF 현재가   1,081,486원   ← 원화
+
+    **1,400배 차이 나는 같은 이름의 두 숫자**다. 어느 쪽도 틀리지 않았지만,
+    구분해 주지 않으면 읽는 사람에게는 그냥 모순이다 — 정직성이 유일한
+    자산인 사이트에서 가장 비싼 종류의 혼란이다.
+
+    고치는 방법은 계좌를 억지로 하나로 만드는 것이 아니라(참고 계좌는
+    현지 통화로 재는 것이 맞다) **각 표가 자기 단위를 말하는 것**이다.
+    """
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+
+    # 종목별 현황 표는 현지 통화임을 밝힌다
+    i = idx.find('<table id="symtable">')
+    assert i > 0
+    head = idx[i:i + 1200]
+    assert "현지 통화" in head, (
+        "종목별 현황의 '현재가'가 어느 통화인지 말하지 않는다 — 잔고 표와 "
+        "1,400배 차이 나는 숫자가 같은 이름으로 나란히 놓인다")
+
+    # 잔고 표는 원화 환산임을 밝힌다
+    j = idx.find('id="balance-card"')
+    assert j > 0
+    bal = idx[j:j + 1200]
+    assert "원화 환산" in bal, "잔고 표가 원화 기준임을 말하지 않는다"
+
+
+def test_the_site_discloses_the_exchange_rate_it_used():
+    """환산을 **검산할 수 있어야** 한다.
+
+    "원화로 환산했다"고만 말하고 환율을 안 밝히면 그냥 믿어 달라는 말이다.
+    이 프로젝트는 "누구든 검증할 수 있다"를 내걸었다.
+    """
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "fx_usdkrw" in idx, "사이트가 적용 환율을 읽지 않는다"
+    assert "원/달러" in idx, "적용 환율을 화면에 말하지 않는다"
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert '"fx_usdkrw"' in src, "장부에 적용 환율이 남지 않는다"
+
+
+def test_the_applied_rate_is_recorded_in_the_ledger(monkeypatch, tmp_path):
+    """말만 하는 게 아니라 **그날 기록에 실제로** 남아야 한다."""
+    import json
+
+    import pandas as pd
+
+    import quant.live.daily as dl
+
+    class _P:
+        def __init__(self, df):
+            self._df = df
+
+        def get_ohlcv(self, *a, **k):
+            return self._df.copy()
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.9, index=df.index)
+
+    import datetime as _dt
+
+    import numpy as np
+    rng = np.random.default_rng(3)
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0004, 0.02, 300)))
+    end = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+    ix = pd.date_range(end=end, periods=300, freq="D")
+    df = pd.DataFrame({"open": close * .99, "high": close * 1.03,
+                       "low": close * .97, "close": close,
+                       "volume": 1e6}, index=ix)
+
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: 1412.5)
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P(df))
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+    dl.run_daily_portfolio([("crypto", "AAA")], state_dir=str(tmp_path),
+                           require_real_data=False)
+    st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
+                    .read_text("utf-8"))
+    assert st["history"][-1]["fx_usdkrw"] == 1412.5, (
+        "그날 쓴 환율이 기록에 안 남는다 — 나중에 아무도 검산할 수 없다")
+
+    pf = dl.write_docs_status(str(tmp_path),
+                              docs_path=str(tmp_path / "s.json"))["paper"]["portfolio:ALL"]
+    assert pf["fx_usdkrw"] == 1412.5, "사이트로 안 나간다"
+    assert pf["currency"] == "KRW"
+
+
+# ── 표시되는 '비중'은 계획이 아니라 잔고인가 (감사 217) ────────
+
+def test_the_symbol_table_shows_what_is_held_not_what_was_decided():
+    """기록의 `weight`는 **오늘 내린 결정**이다 — 잔고가 아니다.
+
+    주식은 '다음 세션 시가' 체결이라, 기록 시점에 계좌가 실제로 들고 있는
+    것은 **어제 결정의 결과**다. 둘을 같은 이름으로 부르면 화면이 거짓말을
+    한다. 실측(2026-08-13, 참고 계좌 20개 중 **8개**가 어긋남):
+
+        us_stock:META   기록 비중 0.0000 / 실제 보유 0.1027
+        us_stock:SPY    기록 비중 0.0000 / 실제 보유 0.0591
+        kr_stock:069500 기록 비중 0.0000 / 실제 보유 0.0555
+
+    "비중 0%"라고 적힌 계좌가 10%를 들고 있었다. 같은 날 아침 통합 계좌
+    카드에서 고친 것과 **정확히 같은 결함**이 다른 표에 남아 있던 것이다
+    (목표를 잔고라 부르기).
+    """
+    idx = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "held_weight" in idx, (
+        "사이트가 실제 보유 비중을 읽지 않는다 — 오늘의 결정을 '비중'이라 "
+        "부르면 매도 예정인 종목이 '0%'로 보인다")
+    assert "예정" in idx, "오늘의 결정을 따로 밝히지 않는다"
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert '"held_weight"' in src, "장부에 실제 보유 비중이 안 남는다"
+
+
+def test_the_held_weight_is_actually_recorded(monkeypatch, tmp_path):
+    """말만이 아니라 **기록에 실제로** 남고, 결정과 다를 수 있어야 한다."""
+    import json
+
+    import datetime as _dt
+    import numpy as np
+    import pandas as pd
+
+    import quant.live.daily as dl
+
+    class _P:
+        def __init__(self, df):
+            self._df = df
+
+        def get_ohlcv(self, *a, **k):
+            return self._df.copy()
+
+    class _Buy:
+        name, allow_short = "fixed", False
+
+        def generate_signals(self, df):
+            return pd.Series(0.5, index=df.index)
+
+    rng = np.random.default_rng(11)
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0005, 0.02, 300)))
+    end = pd.Timestamp(_dt.datetime.now(_dt.timezone.utc).date())
+    ix = pd.date_range(end=end, periods=300, freq="D")
+    df = pd.DataFrame({"open": close * .99, "high": close * 1.03,
+                       "low": close * .97, "close": close,
+                       "volume": 1e6}, index=ix)
+
+    monkeypatch.setattr("quant.data.get_provider", lambda m: _P(df))
+    monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _Buy())
+    monkeypatch.setattr(dl, "champion_spec",
+                        lambda *a, **k: {"strategy": "fixed", "params": {}})
+
+    # 첫날: 결정은 났지만 주식은 아직 체결 전 → 보유 0
+    dl.run_daily_paper("us_stock", "AAA", state_dir=str(tmp_path),
+                       require_real_data=False)
+    p = tmp_path / "paper" / "us_stock_AAA.json"
+    rec = json.loads(p.read_text("utf-8"))["history"][-1]
+    assert rec["held_weight"] == 0.0, (
+        f"체결 전인데 보유가 잡혔다 — {rec['held_weight']}")
+    assert rec["weight"] > 0, "오늘의 결정이 기록되지 않았다"
+    assert rec["weight"] != rec["held_weight"], (
+        "결정과 잔고가 같게 기록됐다 — 둘을 구분하는 것이 이 필드의 목적이다")

@@ -28,16 +28,31 @@ def compare_sources(
     column    : 비교할 컬럼 (기본 'close').
 
     반환:
-        n_common      : 겹치는 봉 수 (0이면 비교 불가).
-        max_rel_diff  : 최대 상대 차이 |a-b| / |a| — 겹침 없으면 NaN.
-        mean_rel_diff : 평균 상대 차이 — 겹침 없으면 NaN.
-        n_exceed      : tolerance를 넘는 봉 수.
-        ok            : 겹침이 있고 최대 차이가 tolerance 이내면 True.
-                        겹침이 없으면 False — '검증 못 함'은 '통과'가 아니다.
+        n_common        : 겹치는 봉 수 (0이면 비교 불가).
+        max_rel_diff    : 최대 상대 차이 |a-b| / max(|a|,|b|) — 없으면 NaN.
+        mean_rel_diff   : 평균 상대 차이 — 없으면 NaN.
+        n_exceed        : tolerance를 넘는 봉 수.
+        n_unverifiable  : 두 값이 모두 0이라 비교할 수 없던 봉 수.
+        ok              : 겹침이 있고, 비교 못 한 봉이 없고, 최대 차이가
+                          tolerance 이내면 True. 겹침이 없으면 False —
+                          '검증 못 함'은 '통과'가 아니다.
+
+    ⚠️ 분모가 왜 `max(|a|,|b|)`인가 (감사 210): 예전에는 `|a|`였다. 즉
+    **첫 번째 인자를 기준**으로 삼았고, 그래서 같은 두 소스를 순서만 바꿔
+    넣으면 판정이 뒤집혔다:
+
+        a=100, b=110, tolerance=0.095
+          |100-110| / 100 = 0.100  → ok=False
+          |110-100| / 110 = 0.0909 → ok=True     ← 같은 데이터, 다른 결론
+
+    "두 소스가 어긋나는가"는 어느 쪽을 먼저 적었는지와 무관해야 한다.
+    `max`는 대칭이고, 값이 1을 넘지 않으며, 한쪽이 0일 때도 터지지 않는다
+    (0 vs 5 → 1.0으로 '완전히 다름'). 둘 다 0인 봉만 비교가 불가능한데,
+    그건 통과가 아니라 **비교 못 함**으로 따로 센다.
     """
     nan = float("nan")
     empty = {"n_common": 0, "max_rel_diff": nan, "mean_rel_diff": nan,
-             "n_exceed": 0, "ok": False}
+             "n_exceed": 0, "n_unverifiable": 0, "ok": False}
     if df_a is None or df_b is None or len(df_a) == 0 or len(df_b) == 0:
         return empty
     if column not in df_a.columns or column not in df_b.columns:
@@ -48,13 +63,19 @@ def compare_sources(
     if len(pair) == 0:
         return empty
 
-    # 상대 차이는 a 기준 — 0 나눗셈은 발생 시 inf로 드러나게 두어 오염을 숨기지 않는다.
-    rel = (pair["a"] - pair["b"]).abs() / pair["a"].abs()
-    max_diff = float(rel.max())
+    # 대칭 분모 — 인자 순서가 판정을 바꾸면 안 된다.
+    denom = pd.concat([pair["a"].abs(), pair["b"].abs()], axis=1).max(axis=1)
+    blind = denom == 0.0                    # 둘 다 0 → 비교 자체가 불가능
+    rel = (pair["a"] - pair["b"]).abs() / denom.where(~blind)
+    n_blind = int(blind.sum())
+    valid = rel.dropna()
+    max_diff = float(valid.max()) if len(valid) else nan
     return {
         "n_common": int(len(pair)),
         "max_rel_diff": max_diff,
-        "mean_rel_diff": float(rel.mean()),
+        "mean_rel_diff": float(valid.mean()) if len(valid) else nan,
         "n_exceed": int((rel > tolerance).sum()),
-        "ok": bool(max_diff <= tolerance),
+        "n_unverifiable": n_blind,
+        # 비교 못 한 봉이 하나라도 있으면 통과라고 말하지 않는다.
+        "ok": bool(n_blind == 0 and len(valid) and max_diff <= tolerance),
     }

@@ -74,6 +74,15 @@ def _today_numbers(status: dict) -> dict:
     return {
         "date": date,
         "equity": last.get("equity"),
+        # ⚠️ 시작금을 **코드 상수**에서 읽으면 안 된다(감사 218). 그 상수는
+        #    새 계좌를 만들 때의 기본값(8만원)이지 지금 계좌의 원금이 아니다.
+        #    매칭 입금으로 원금이 100만원이 되고 계좌가 원화로 다시 열린
+        #    뒤에도 캡션은 "가짜 돈 8만원으로 시작해"라고 나갈 참이었다 —
+        #    사이트 산문은 같은 이유로 이미 고쳤는데 **캡션만 남아 있었다.**
+        #    방송에 나가는 글이라 사이트보다 오히려 더 위험하다.
+        "principal": port.get("principal"),
+        "start_cash": port.get("start_cash"),
+        "restarted": port.get("restarted"),
         # 누적(원금 대비)과 하루치는 절대 섞으면 안 된다 — 훅은 하루치를 쓴다.
         # 옛 기록에는 day_pct가 없어 그때는 history로 직접 계산한다.
         "return_pct": last.get("return_pct"),
@@ -169,7 +178,21 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     n_held = x.get("n_held")
     spread = (f"오늘 {n_held}종목 보유 / 후보 {n_sym}종목"
               if isinstance(n_held, int) else f"{n_sym}종목 후보")
-    start_won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
+    # 장부의 원금이 먼저, 없을 때만 코드 기본값(감사 218).
+    _p = x.get("principal")
+    if not isinstance(_p, (int, float)) or _p <= 0:
+        _p = PORTFOLIO_START_CASH
+    start_won = (f"{_p / 10_000:,.0f}만원" if _p >= 10_000 and _p % 10_000 == 0
+                 else f"{_p:,.0f}원")
+    # 계좌를 다시 연 날은 그 사실이 먼저다(감사 218). 기록이 0일인데
+    # "자산 —"만 나가면 읽는 사람은 고장으로 읽는다 — 사실은 새 출발이다.
+    rs = x.get("restarted") or {}
+    restart_line = ""
+    if rs.get("date") and not x.get("equity"):
+        restart_line = (
+            f"\n🔁 {rs['date']} 계좌를 원화 기준으로 다시 열었습니다 — "
+            f"첫 기록은 다음 새벽 배치부터입니다. 이전 기록은 지우지 않고 "
+            f"그대로 공개합니다.")
     kill = ("" if x["risk_scale"] >= 1.0 else
             f"\n🛑 킬스위치 — 낙폭 한도 초과로 노출 {x['risk_scale']:.0%} 제한")
     # 사람이 손을 댄 날은 그 사실도 같은 글에 나간다(감사 96).
@@ -205,7 +228,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"\n"
         f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
         f"📈 총노출 {gross} · {spread}(코인·한국·미국)\n"
-        f"🎯 오늘 배분 상위: {tops}{kill}{owner}\n"
+        f"🎯 오늘 배분 상위: {tops}{kill}{owner}{restart_line}\n"
         f"\n"
         f"🤖 {work}\n"
         f"\n"

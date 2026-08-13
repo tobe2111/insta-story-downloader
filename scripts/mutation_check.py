@@ -261,8 +261,8 @@ MUTATIONS = [
 
     ("스톱 발동 후 재진입 금지를 끈다(스톱이 무의미해진다)",
      "quant/strategies/stop_guard.py",
-     "                if stopped:\n                    w[t] = 0.0",
-     "                if False:\n                    w[t] = 0.0",
+     "            if stopped:\n                w[t] = 0.0",
+     "            if False:\n                w[t] = 0.0",
      "tests/test_alpha11_kelly_stop.py"),
 
     # ── 검증 리포트·요약·상수(변이가 한 번도 닿지 않던 파일들) ──
@@ -497,6 +497,294 @@ MUTATIONS = [
      "        if False:\n"
      "            _d[\"settled_bar\"] = bar",
      "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # ── 얇은 파일 전수조사 (감사 214) ────────────────────────────
+    # 변이 1건 이하였던 23개 파일. "검사가 있다"와 "검사가 무언가를
+    # 지킨다"는 다르다 — 여기 있던 파일들은 앞의 것만 사실이었다.
+
+    # stop_guard — 실측: 숏 88봉 → 0봉. 스톱을 씌우면 숏이 통째로 사라졌다.
+    ("스톱 래퍼가 숏 허용을 물려받지 않는다(감싸는 순간 숏이 전부 사라진다)",
+     "quant/strategies/stop_guard.py",
+     "        self.allow_short = base.allow_short",
+     "        pass",
+     "tests/test_the_stop_guard_does_not_eat_half_the_strategy.py"),
+
+    ("스톱이 롱에서 발동하지 않는다(가드가 이름만 남는다)",
+     "quant/strategies/stop_guard.py",
+     "                hit = c < extreme * (1.0 - self.trail)",
+     "                hit = False",
+     "tests/test_the_stop_guard_does_not_eat_half_the_strategy.py"),
+
+    ("숏은 스톱 없이 방치한다(한쪽만 지키는 '가드')",
+     "quant/strategies/stop_guard.py",
+     "                hit = c > extreme * (1.0 + self.trail)",
+     "                hit = False",
+     "tests/test_the_stop_guard_does_not_eat_half_the_strategy.py"),
+
+
+    # 유동성 필터 — 거래대금이 마른 구간을 막는 것이 존재 이유다.
+
+    ("거래대금을 모르는 구간(NaN)에서 진입을 허용한다",
+     "quant/strategies/liquidity.py",
+     "        allowed = allowed.where(dollar_vol.notna(), 0.0)",
+     "        allowed = allowed.where(dollar_vol.notna(), 1.0)",
+     "tests/test_filter_wrappers.py"),
+
+    # ADX 필터 — 추세가 약할 때 매매를 막는다.
+
+    # 신호 정규화 — 모든 전략이 지나가는 문.
+
+    ("목표 비중의 [-1,1] 상한을 없앤다(자본 이상으로 실린다)",
+     "quant/strategies/base.py",
+     '        return signal.clip(-1.0, 1.0).rename("target")',
+     '        return signal.rename("target")',
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    # 전략별 방향 규칙 — 반대로 매매하면 그것이 가장 큰 손실이다.
+
+
+
+
+
+
+    ("평균회귀의 중심선 복귀 청산을 없앤다(들어가면 안 나온다)",
+     "quant/strategies/mean_reversion.py",
+     "            elif position == 1 and c[i] >= m[i]:\n                position = 0                # 중심선 복귀 → 롱 청산",
+     "            elif False:\n                position = 0                # 중심선 복귀 → 롱 청산",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    # 이벤트 가드 — 판단한 쪽이 설명을 남긴다(감사 70).
+    ("이벤트 창에서 비중을 줄이지 않는다(가드가 이름만 남는다)",
+     "quant/strategies/event_guard.py",
+     "            [self.factor if getattr(ix, \"date\", lambda: None)() in guarded\n             else 1.0 for ix in df.index],",
+     "            [1.0 for ix in df.index],",
+     "tests/test_briefing_events.py"),
+
+    # 탐색 — 방향을 잘못 잡으면 최악을 최고로 뽑는다.
+
+    ("잘못된 파라미터 조합에서 탐색이 통째로 죽는다",
+     "quant/optimize/grid.py",
+     "        except (ValueError, TypeError):\n            continue  # 잘못된 조합 (예: fast >= slow) 은 건너뜀",
+     "        except (ValueError, TypeError):\n            raise  # 잘못된 조합 (예: fast >= slow) 은 건너뜀",
+     "tests/test_optimize.py"),
+
+
+    # 데이터 계약 — 가격 없는 봉만 버린다(감사 163).
+
+
+
+    # 스크리너 — 재무를 못 받은 종목을 후보로 세면 안 된다.
+
+    # 튜닝 — 정직성 안내문이 사라지면 룩어헤드 여부를 아무도 못 읽는다.
+
+    # 얇았던 파일들 — 기존 항목과 **다른 계약**을 하나씩 더 건다(감사 214).
+
+    # 조종석 렌더 — 여기는 변이가 한 건도 없었다.
+    ("조종석이 잘려나간 과거의 손익·낙폭 보정을 건너뛴다(위험 지표가 저절로 좋아진다)",
+     "quant/reporting/dashboard.py",
+     "    _k = equity_curve_kpis(state)",
+     '    _k = {"current": 0.0, "pnl": 0.0, "max_drawdown": 0.0}',
+     "tests/test_the_cockpit_does_not_count_deposits_as_skill.py"),
+
+    ("조종석이 그릴 값이 없는데도 곡선을 그린다",
+     "quant/reporting/dashboard.py",
+     "    span = axis_span(vals)\n    if span is None:",
+     "    span = axis_span(vals) or (0.0, 1.0, 1.0)\n    if False:",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    # 안전장치 기준값 — NaN·inf를 기준선으로 삼으면 조용히 꺼진다.
+    ("안전장치가 NaN·inf 자산값을 기준선으로 받아들인다(브레이크가 조용히 꺼진다)",
+     "quant/live/riskguard.py",
+     "    if not math.isfinite(v):\n        log.error(",
+     "    if False:\n        log.error(",
+     "tests/test_the_brakes_do_not_switch_themselves_off.py"),
+
+    # 공포탐욕 — 0~100을 0~1로 맞추지 않으면 피처 스케일이 100배 틀어진다.
+    ("공포탐욕지수를 0~1로 정규화하지 않는다(피처 크기가 100배가 된다)",
+     "quant/data/sentiment.py",
+     '    return (s / 100.0).to_frame("fear_greed")',
+     '    return s.to_frame("fear_greed")',
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 전략 청산 규칙 — 진입만 검사하면 '들어가면 안 나오는' 전략을 못 잡는다.
+    ("RSI 롱 청산(중심선 복귀)을 없앤다(한 번 사면 안 판다)",
+     "quant/strategies/rsi.py",
+     "            elif pos > 0 and v >= 50:      # 롱: 중심선 복귀 시 청산",
+     "            elif False:      # 롱: 중심선 복귀 시 청산",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("스토캐스틱 숏 청산을 없앤다(롱만 대칭으로 빠져나온다)",
+     "quant/strategies/stochastic.py",
+     "            elif pos < 0 and v <= 50:      # 숏: 중심선 복귀 시 청산(대칭)",
+     "            elif False:      # 숏: 중심선 복귀 시 청산(대칭)",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 파라미터 검증 — fast >= slow는 교차 자체가 성립하지 않는다.
+    ("이동평균의 fast/slow 순서 검증을 끈다(교차가 성립하지 않는 조합이 통과한다)",
+     "quant/strategies/moving_average.py",
+     '        if fast >= slow:\n            raise ValueError("fast는 slow보다 작아야 합니다.")',
+     "        if False:\n            raise ValueError(\"fast는 slow보다 작아야 합니다.\")",
+     "tests/test_optimize.py"),
+
+    ("MACD의 fast/slow 순서 검증을 끈다",
+     "quant/strategies/macd.py",
+     '        if fast >= slow:\n            raise ValueError("fast는 slow보다 작아야 합니다.")',
+     "        if False:\n            raise ValueError(\"fast는 slow보다 작아야 합니다.\")",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 모멘텀 숏 — 문턱을 대칭으로 쓰지 않으면 관망 구간이 사라진다.
+    ("모멘텀의 숏 문턱에서 부호를 뺀다(중립 구간이 사라져 늘 어느 한쪽에 실린다)",
+     "quant/strategies/momentum.py",
+     "        signal[past_return < -self.threshold] = -1.0",
+     "        signal[past_return < self.threshold] = -1.0",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 켈트너 — 돌파 상태를 유지하지 않으면 밴드 안에서 매번 관망으로 튄다.
+    ("켈트너가 돌파 상태를 이어가지 않는다(밴드 안에서 매일 청산·재진입한다)",
+     "quant/strategies/keltner.py",
+     "        signal = signal.ffill().fillna(0.0)",
+     "        signal = signal.fillna(0.0)",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # ADX — 방향성 0인 봉의 NaN이 period봉 동안 전파돼 과도하게 게이팅한다.
+    ("ADX에서 방향성 0인 봉의 NaN을 0으로 채우지 않는다(추세강도가 며칠씩 0이 된다)",
+     "quant/strategies/adx.py",
+     "          / (plus_di + minus_di).replace(0, np.nan)).fillna(0.0)",
+     "          / (plus_di + minus_di).replace(0, np.nan))",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 스크리너 — top_n을 넘기지 않으면 상위 선별이 통째로 사라진다.
+    ("스크리너가 상위 N 제한을 넘기지 않는다(후보 전체가 편입된다)",
+     "quant/portfolio/screener.py",
+     "    weights = rank_factors(ratios, factors, top_n=top_n)",
+     "    weights = rank_factors(ratios, factors)",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 리포트 매매 마커 — 언제 사고팔았는지가 곡선 위에서 사라지면 안 된다.
+    ("리포트 차트에서 매매 시점 마커를 지운다(언제 사고팔았는지가 안 보인다)",
+     "quant/reporting/html_report.py",
+     "    line = \" \".join(f\"{x:.1f},{y:.1f}\"\n"
+     "                    for x, y in plot_points(close, width, height, lo, rng))",
+     "    line = \"\"\n"
+     "    _ = plot_points(close, width, height, lo, rng)",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 코인 보조 거래소 — 단일 거래소 의존이 야간 자동화의 최약점이었다.
+    ("코인이 기본 거래소만 시도한다(점검·지역차단 하나로 그날 기록이 빈다)",
+     "quant/data/crypto.py",
+     "        attempts += [(ex, None) for ex in _FALLBACK_EXCHANGES\n"
+     "                     if ex != self.exchange_id]",
+     "        pass",
+     "tests/test_data_fallback.py"),
+
+    # 데이터 계약 — 중복 타임스탬프가 남으면 같은 봉이 두 번 계산된다.
+    ("중복 타임스탬프를 지우지 않는다(같은 봉이 두 번 수익률로 들어간다)",
+     "quant/data/base.py",
+     "        df = df[~df.index.duplicated(keep=\"last\")].sort_index()",
+     "        df = df.sort_index()",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 튜닝 — 정직성 안내문이 사라지면 룩어헤드 여부를 읽을 방법이 없다.
+    ("워크포워드 튜닝 결과에서 정직성 안내문을 뺀다",
+     "quant/optimize/tuning.py",
+     '    return {**result, "note": HONESTY_NOTE}',
+     "    return result",
+     "tests/test_optimize.py"),
+
+    # 감사 218 — 캡션이 코드 상수의 시작금을 방송에 내보내던 자리.
+    ("SNS 캡션이 지금 원금 대신 코드 상수를 말한다(방송에 낡은 금액이 나간다)",
+     "quant/reporting/social.py",
+     '    _p = x.get("principal")',
+     '    _p = None',
+     "tests/test_social_path_stays_light.py"),
+
+    ("계좌를 다시 연 사실을 캡션이 숨긴다(기록 0일이 고장으로 읽힌다)",
+     "quant/reporting/social.py",
+     '    if rs.get("date") and not x.get("equity"):',
+     "    if False:",
+     "tests/test_social_path_stays_light.py"),
+
+    # 감사 217 — 표시되는 '비중'이 잔고가 아니라 오늘의 결정이던 자리.
+    ("종목 계좌가 실제 보유 비중을 기록하지 않는다(매도 예정 종목이 '0%'로 보인다)",
+     "quant/live/daily.py",
+     '        "held_weight": (round(pos.quantity * price / equity, 4)\n'
+     "                        if pos and equity else 0.0),",
+     '        "held_weight": round(weight, 4),',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    # 감사 216 — 환산은 했는데 **어떤 환율로 했는지**를 안 남기던 자리.
+    ("그날 적용한 환율을 장부에 안 남긴다(나중에 아무도 검산할 수 없다)",
+     "quant/live/daily.py",
+     '              "fx_usdkrw": (round(float(fx_rate), 4)\n'
+     "                            if fx_rate is not None else None),",
+     '              "fx_usdkrw": None,',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("적용 환율을 사이트로 내보내지 않는다",
+     "quant/live/daily.py",
+     '                if hist and hist[-1].get("fx_usdkrw") is not None:\n'
+     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     '                if False:\n'
+     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    ("계좌 통화를 사이트로 내보내지 않는다(어느 단위인지 화면이 말 못 한다)",
+     "quant/live/daily.py",
+     '                status["paper"][key]["currency"] = st.get("currency")',
+     '                pass',
+     "tests/test_two_ledgers_are_not_confused.py"),
+
+    # 감사 215 — 통합 계좌만 원화로 열고 섀도 대조군을 빠뜨린 자리.
+    ("정리 안 된(단위 혼재) 장부 위에서도 배치를 돌린다(자산이 환율 배수만큼 뛴다)",
+     "quant/live/daily.py",
+     '    if st.get("currency") != "KRW" and (st.get("positions") or st.get("history")):',
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("새로 만드는 장부에 원화 표시를 안 남긴다(다음 배치가 스스로를 거절한다)",
+     "quant/live/daily.py",
+     '        st = {"market": mkt_tag, "symbol": sym_tag, "currency": "KRW",',
+     '        st = {"market": mkt_tag, "symbol": sym_tag,',
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    # 감사 213 — 값 하나가 결측이면 차트가 통째로 사라지던 자리.
+    # (`hi - lo or 1.0`은 NaN을 못 막는다 — NaN은 참이다)
+    ("차트 범위 계산에서 결측·무한값을 거르지 않는다(차트가 조용히 사라진다)",
+     "quant/reporting/scale.py",
+     "        if math.isfinite(f):\n            out.append(f)",
+     "        out.append(f)",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("그릴 값이 없어도 가짜 평평한 범위를 돌려준다(없는 데이터가 생긴다)",
+     "quant/reporting/scale.py",
+     "    if not vals:\n        return None",
+     "    if not vals:\n        return (0.0, 1.0, 1.0)",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("좌표 생성에서 결측 봉을 건너뛰지 않는다(점 하나가 nan이면 선이 통째로 버려진다)",
+     "quant/reporting/scale.py",
+     "        if not math.isfinite(f):\n            continue",
+     "        if False:\n            continue",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("히트맵이 모르는 값을 색으로 칠한다('중립'으로 읽힌다)",
+     "quant/reporting/heatmap.py",
+     '        return "hsl(0 0% 72%)"          # 회색 = 값 없음(중립 아님)',
+     '        t = 0.5',
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    # 감사 210 — 교차 검증 판정이 인자 순서에 따라 뒤집히던 자리.
+    ("교차 검증 분모를 첫 인자 기준으로 되돌린다(순서만 바꿔도 판정이 뒤집힌다)",
+     "quant/data/crosscheck.py",
+     '    denom = pd.concat([pair["a"].abs(), pair["b"].abs()], axis=1).max(axis=1)',
+     '    denom = pair["a"].abs()',
+     "tests/test_two_sources_agree_regardless_of_order.py"),
+
+    ("비교 못 한 봉이 있어도 '통과'라고 말한다(검증 못 함은 통과가 아니다)",
+     "quant/data/crosscheck.py",
+     '        "ok": bool(n_blind == 0 and len(valid) and max_diff <= tolerance),',
+     '        "ok": bool(len(valid) and max_diff <= tolerance),',
+     "tests/test_two_sources_agree_regardless_of_order.py"),
 
     # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
     ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
@@ -1704,8 +1992,8 @@ MUTATIONS = [
 
     ("교차검증에서 '겹침 없음'을 통과로 만든다(검증 못 한 걸 일치라 부른다)",
      "quant/data/crosscheck.py",
-     '             "n_exceed": 0, "ok": False}',
-     '             "n_exceed": 0, "ok": True}',
+     '             "n_exceed": 0, "n_unverifiable": 0, "ok": False}',
+     '             "n_exceed": 0, "n_unverifiable": 0, "ok": True}',
      "tests/test_the_tools_that_check_us_are_checked_too.py"),
 
     ("레짐 임계값을 전체 구간에서 뽑는다(오늘 라벨이 내일 데이터로 정해진다)",
@@ -2300,8 +2588,8 @@ MUTATIONS = [
 
     ("종목계좌 비중을 통합 노출인 것처럼 되돌린다",
      "docs/index.html",
-     '<th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>',
-     '<th>비중</th>',
+     '>종목계좌 비중<br><span class="sub" style="font-weight:400">현재 보유</span></th>',
+     '>비중</th>',
      "tests/test_two_kinds_of_weight_are_labeled.py"),
 
     ("드리프트 등급을 대표본 관행 문턱으로 되돌린다",

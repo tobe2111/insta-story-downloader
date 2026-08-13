@@ -237,7 +237,8 @@ def test_sells_go_out_before_buys(tmp_path, monkeypatch):
     #    오늘 목표가 아닌 종목(B0·B2)을 미리 들고 있게 만들어, 같은
     #    사이클에 매도와 매수가 함께 나는 상황을 확정적으로 만든다.
     (p / "portfolio_ALL.json").write_text(json.dumps({
-        "market": "portfolio", "symbol": "ALL", "start_cash": 100_000.0,
+        "market": "portfolio", "symbol": "ALL", "currency": "KRW",
+        "start_cash": 100_000.0,
         "cash": 60_000.0,
         "positions": {"synthetic:B0": {"quantity": 200.0, "avg_price": 100.0,
                                        "last_price": 100.0,
