@@ -199,6 +199,25 @@ def _current_flags(status: dict) -> dict[str, str]:
             f"실패 종목은 그날 기록이 없고 이전 판단을 그대로 씁니다."
             + (f"\n첫 오류: {err}" if err else ""))
 
+    # ⑦-② 며칠째 건너뛰는 종목 — 멱등 가드는 '새 봉이 없으면 조용히
+    #      건너뛴다'라서, 시세 공급이 얼어붙어도 주말과 똑같이 침묵한다.
+    #      그동안 챔피언은 재검증 없이 계속 돈을 굴린다(감사 226).
+    #      주말·연휴로 설명되는 정체는 애초에 stale에 담기지 않는다 —
+    #      매일 울리는 경보는 꺼진 경보와 같기 때문이다(감사 99).
+    for kind, r in (status.get("run_health") or {}).items():
+        stale = r.get("stale") or {}
+        if not stale:
+            continue
+        label = {"paper": "페이퍼", "retrain": "재학습"}.get(kind, kind)
+        worst = int(r.get("max_stale_days") or max(stale.values()))
+        names = ", ".join(f"{k}({v}일)" for k, v in
+                          sorted(stale.items(), key=lambda kv: -kv[1])[:5])
+        flags[f"run_stale:{kind}:{r.get('date')}:{len(stale)}"] = (
+            f"⚠️ {label} 정체: {len(stale)}종목이 최장 {worst}일째 새 봉을 "
+            f"받지 못해 건너뛰고 있습니다 — {names}. 주말·연휴로는 설명되지 "
+            f"않는 간격이라 시세 공급 장애일 가능성이 큽니다. 건너뛴 종목은 "
+            f"오디션을 한 번도 열지 못한 채 옛 챔피언으로 계속 운용됩니다.")
+
     # ⑧ 종목 스킵 — 데이터 장애로 빠진 종목은 그날 관망(포지션 유지)이라
     #    조용히 지나간다. 하지만 20종목 중 다섯만 남은 날은 '20종목 분산'이
     #    아니라 5종목 집중이고, 그건 완전히 다른 위험이다(2026-08-11).

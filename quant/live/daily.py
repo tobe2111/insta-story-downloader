@@ -297,7 +297,10 @@ def _all_paper_histories(state_dir: str) -> list:
     import glob as _glob
     out = []
     for pth in sorted(_glob.glob(os.path.join(state_dir, "paper", "*.json"))):
-        if "portfolio" in os.path.basename(pth).lower():
+        name = os.path.basename(pth)
+        # 아카이브는 과거 장부의 사본이라 그대로 합치면 같은 표본을 두 번
+        # 센다 — 확률대 적중률이 실제보다 촘촘해 보인다(감사 227).
+        if "portfolio" in name.lower() or is_archive(name):
             continue
         try:
             with open(pth, encoding="utf-8") as f:
@@ -2037,33 +2040,50 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
     from quant.markets import AUTO_TARGETS
     targets = targets or AUTO_TARGETS
 
-    ok, failed, records = [], {}, {}
+    ok, failed, records, skipped = [], {}, {}, []
     for market, symbol in targets:
         key = f"{market}:{symbol}"
         try:
             records[key] = run_daily_paper(market, symbol, **kwargs)
-            ok.append(key)
+            # 멱등 가드에 걸린 종목은 '성공'이 아니라 '건너뜀'이다(감사 226).
+            (skipped if records[key].get("skipped") else ok).append(key)
         except Exception as exc:  # noqa: BLE001
             failed[key] = str(exc)
             log.warning("페이퍼 실패 %s: %s", key, exc)
             print(f"⚠️ {key}: 페이퍼 실패 — {exc}")
-    print(f"\n요약: 성공 {len(ok)} · 실패 {len(failed)}"
+    print(f"\n요약: 성공 {len(ok)} · 건너뜀 {len(skipped)} · 실패 {len(failed)}"
           + (f" ({', '.join(failed)})" if failed else ""))
     # 부분 실패를 장부에 남긴다 — 예전에는 20종목 중 19개가 실패해도 잡이
     # 초록이고 콘솔에만 남았다(2026-08-11 감사). 전부 실패해야 예외였다.
     # 사이트·경보가 읽을 수 있게 기록해야 '조용한 절반 마비'가 보인다.
     _write_run_health(kwargs.get("state_dir") or STATE_DIR,
-                      "paper", ok, failed)
-    if targets and not ok:
+                      "paper", ok, failed, skipped=skipped)
+    # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
+    #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
+    if targets and not ok and not skipped:
         raise RuntimeError(f"전 종목 페이퍼 실패: {failed}")
-    return {"ok": ok, "failed": failed, "records": records}
+    return {"ok": ok, "failed": failed, "skipped": skipped,
+            "records": records}
 
 
-def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None:
+def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
+                      skipped: list | None = None,
+                      stale: dict | None = None) -> None:
     """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
 
     '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
     종목은 그날 판단·기록이 통째로 없는데도 아무 흔적이 남지 않았다.
+
+    ⚠️ **건너뜀은 통과가 아니다**(2026-08-13 감사 226). 이 규칙은 이미 변이
+    시험에 적혀 있는데, 정작 배치 건강 기록에서는 지키지 않고 있었다:
+    멱등 가드에 걸려 아무 일도 안 한 종목이 `ok`에 그대로 쌓여, 장부는
+    "성공 20 · 실패 0"이라고 말한다. 시세 공급이 얼어붙어 며칠째 같은 봉을
+    받고 있어도 화면은 매일 초록이다 — 주말과 구별이 안 된다.
+
+    그래서 세 칸으로 나눈다: **실제로 돈 것(ok) · 실패(failed) ·
+    건너뛴 것(skipped)**. 그리고 주말로 설명되지 않는 정체(stale)는 따로
+    센다 — 며칠이나 묵었는지는 건너뛴 쪽만 아는 사실이라, 판단한 자리에서
+    같이 남긴다.
     """
     from datetime import date as _date
 
@@ -2077,11 +2097,17 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict) -> None
                 cur = json.load(f)
         except (OSError, ValueError):
             cur = {}
-    cur[kind] = {"date": _date.today().isoformat(),
-                 "ok": len(ok), "failed": len(failed),
-                 "failed_keys": sorted(failed)[:20],
-                 "errors": {k: str(v)[:200] for k, v in
-                            list(failed.items())[:5]}}
+    entry = {"date": _date.today().isoformat(),
+             "ok": len(ok), "failed": len(failed),
+             "skipped": len(skipped or []),
+             "skipped_keys": sorted(skipped or [])[:20],
+             "failed_keys": sorted(failed)[:20],
+             "errors": {k: str(v)[:200] for k, v in
+                        list(failed.items())[:5]}}
+    if stale:
+        entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
+        entry["max_stale_days"] = int(max(stale.values()))
+    cur[kind] = entry
     atomic_write_json(path, cur)
 
 
@@ -2447,6 +2473,19 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 status["validation"] = json.load(f)
         except (OSError, ValueError):
             pass
+
+    # 의석 현황 — "최대 3석 분산 운용"이 지금 실제인가(감사 225).
+    # 사이트는 이 구조를 현재형으로 약속하고 있었는데 장부는 전 계좌 1석이다.
+    # 판단한 쪽(재학습)이 숫자를 남기고 보여주는 쪽은 읽기만 한다 — 오늘 하루
+    # 종일 나온 그 처방을 여기에도 적용한다.
+    try:
+        from quant.live.parliament import seat_census
+        from quant.live.retrain import load_champions
+        census = seat_census(load_champions(state_dir))
+        if census["accounts"]:
+            status["parliament"] = census
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
 
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO

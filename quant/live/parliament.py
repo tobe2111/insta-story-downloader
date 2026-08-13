@@ -138,6 +138,45 @@ def parliament_summary(entry: dict) -> str | None:
     return " + ".join(f"{m['strategy']} {m['weight']:.0%}" for m in ms)
 
 
+def seat_census(champions: dict | None) -> dict:
+    """전 계좌 의석 현황 — "3석 분산 운용"이 사실인지 약속인지 답하는 한 자리.
+
+    ⚠️ 왜 이게 필요한가(2026-08-13 감사 225): 사이트는 "통과자 최대 3개가
+    의석을 나눠 갖는다 … 단일 전략 붕괴가 계좌 붕괴가 되는 구조를 없앤
+    것"이라고 **현재형으로** 적고 있었다. 그런데 실제 장부는 20계좌 전부가
+    **1석**이다 — 한 번도 2석이 된 적이 없다.
+
+    구조가 잠들어 있는 이유는 명확하다: 의석은 오직 2단계 오디션을 통과한
+    승격자만 얻는데, 승격은 139회 중 1회 일어났고 그 1회조차 챔피언의
+    파라미터 변형이라 상관 게이트(CORR_CAP)가 즉시 한 석으로 합쳤다.
+    설계가 틀린 것은 아니다 — 틀린 것은 **잠든 구조를 작동 중인 것처럼
+    말한 문장**이다.
+
+    그리고 하필 `parliament_summary`는 2석 이상일 때만 문장을 내놓는다.
+    즉 이 장치는 **작동할 때만 자기를 알리고, 잠들어 있을 때는 침묵한다** —
+    사장님이 보시기엔 아무 말이 없으니 잘 돌아가는 것으로 읽힌다. 그래서
+    잠든 상태 자체를 숫자로 내보내고, 사이트 문장이 그 숫자를 읽게 한다.
+    """
+    counts: dict[str, int] = {}
+    for key, entry in (champions or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        try:
+            counts[key] = len(members_of(entry))
+        except (KeyError, TypeError):
+            continue          # 구버전/손상 항목 — 셀 수 없으면 세지 않는다
+    multi = sum(1 for v in counts.values() if v >= 2)
+    return {
+        "accounts": len(counts),
+        "single_seat": len(counts) - multi,
+        "multi_seat": multi,
+        "max_seats": max(counts.values(), default=0),
+        "cap": PARLIAMENT_K,
+        # 지금 실제로 분산 운용 중인가 — 문장이 아니라 이 불리언이 답한다
+        "diversified": multi > 0,
+    }
+
+
 class ParliamentStrategy:
     """의회 혼합 전략 — 의원 신호의 비중 가중합.
 
