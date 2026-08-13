@@ -3,11 +3,355 @@
   "symbol": "SHADOW",
   "currency": "KRW",
   "start_cash": 1000000.0,
-  "cash": 1000000.0,
-  "positions": {},
-  "base_prices": {},
-  "last_bar": null,
-  "history": [],
+  "cash": 780672.5849400043,
+  "positions": {
+    "crypto:ETH/USDT": {
+      "quantity": 0.0009845351161740584,
+      "avg_price": 2672619.148095703,
+      "last_price": 2672619.148095703,
+      "last_price_bar": "2026-08-13"
+    },
+    "crypto:XRP/USDT": {
+      "quantity": 24.074862370571363,
+      "avg_price": 1428.0749326171874,
+      "last_price": 1428.0749326171874,
+      "last_price_bar": "2026-08-13"
+    },
+    "crypto:BTC/USDT": {
+      "quantity": 0.0009126633326462405,
+      "avg_price": 89883874.80322266,
+      "last_price": 89883874.80322266,
+      "last_price_bar": "2026-08-13"
+    },
+    "crypto:SOL/USDT": {
+      "quantity": 0.9261779735297473,
+      "avg_price": 107920.08442382813,
+      "last_price": 107920.08442382813,
+      "last_price_bar": "2026-08-13"
+    }
+  },
+  "base_prices": {
+    "crypto:BTC/USDT": 89883874.80322266,
+    "crypto:ETH/USDT": 2672619.148095703,
+    "crypto:SOL/USDT": 107920.08442382813,
+    "crypto:BNB/USDT": 864748.8061523438,
+    "crypto:XRP/USDT": 1428.0749326171874,
+    "us_stock:SPY": 1101835.881330371,
+    "us_stock:QQQ": 1036947.8539779782,
+    "us_stock:NVDA": 319128.4335219115,
+    "us_stock:MSFT": 703810.6323069334,
+    "us_stock:AAPL": 432388.58150839806,
+    "us_stock:AMZN": 375546.0363596678,
+    "us_stock:META": 842751.141461134,
+    "us_stock:TSLA": 481539.7162167728,
+    "kr_stock:005930.KS": 268000.0,
+    "kr_stock:000660.KS": 1593000.0,
+    "kr_stock:035420.KS": 226500.0,
+    "kr_stock:005380.KS": 418500.0,
+    "kr_stock:051910.KS": 275500.0,
+    "kr_stock:105560.KS": 168100.0
+  },
+  "last_bar": "2026-08-13",
+  "history": [
+    {
+      "date": "2026-08-13",
+      "price": 100.0,
+      "weight": 0.484,
+      "equity": 999671.5,
+      "return_pct": -0.03,
+      "principal": 1000000.0,
+      "pnl": -328.5,
+      "hit_rate": null,
+      "fills": [
+        {
+          "key": "crypto:ETH/USDT",
+          "price": 2672619.148096,
+          "bar": "2026-08-13 00:00:00",
+          "side": "buy",
+          "quantity": 0.0009845351,
+          "amount": 2631.29,
+          "type": "즉시"
+        },
+        {
+          "key": "crypto:XRP/USDT",
+          "price": 1428.074933,
+          "bar": "2026-08-13 00:00:00",
+          "side": "buy",
+          "quantity": 24.0748623706,
+          "amount": 34380.71,
+          "type": "즉시"
+        },
+        {
+          "key": "crypto:BTC/USDT",
+          "price": 89883874.803223,
+          "bar": "2026-08-13 00:00:00",
+          "side": "buy",
+          "quantity": 0.0009126633,
+          "amount": 82033.72,
+          "type": "즉시"
+        },
+        {
+          "key": "crypto:SOL/USDT",
+          "price": 107920.084424,
+          "bar": "2026-08-13 00:00:00",
+          "side": "buy",
+          "quantity": 0.9261779735,
+          "amount": 99953.21,
+          "type": "즉시"
+        }
+      ],
+      "pending_next_open": {
+        "us_stock:META": 0.0228,
+        "us_stock:AMZN": 0.0738,
+        "kr_stock:105560.KS": 0.1681
+      },
+      "code_sha": "ed7d1ce68a50",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "fx_usdkrw": 1416.46,
+      "bar_age_days": {
+        "crypto": 0,
+        "us_stock": 0,
+        "kr_stock": 0
+      },
+      "risk_scale": 1.0,
+      "paused": false,
+      "exposure_scale": 1.0,
+      "drawdown_pct": 0.0,
+      "alloc": {
+        "crypto:BTC/USDT": 0.0438,
+        "crypto:ETH/USDT": 0.0194,
+        "crypto:SOL/USDT": 0.0381,
+        "crypto:BNB/USDT": 0.0874,
+        "crypto:XRP/USDT": 0.0265,
+        "us_stock:SPY": 0.1482,
+        "us_stock:QQQ": 0.073,
+        "us_stock:NVDA": 0.0213,
+        "us_stock:MSFT": 0.0314,
+        "us_stock:AAPL": 0.146,
+        "us_stock:AMZN": 0.0269,
+        "us_stock:META": 0.0178,
+        "us_stock:TSLA": 0.0111,
+        "kr_stock:005930.KS": 0.0071,
+        "kr_stock:000660.KS": 0.0082,
+        "kr_stock:035420.KS": 0.0184,
+        "kr_stock:005380.KS": 0.0164,
+        "kr_stock:051910.KS": 0.0218,
+        "kr_stock:105560.KS": 0.0762
+      },
+      "applied": {
+        "crypto:BTC/USDT": 0.0822,
+        "crypto:ETH/USDT": 0.0026,
+        "crypto:SOL/USDT": 0.1001,
+        "crypto:XRP/USDT": 0.0344,
+        "us_stock:AMZN": 0.0738,
+        "us_stock:META": 0.0228,
+        "kr_stock:105560.KS": 0.1681
+      },
+      "alloc_method": "hrp",
+      "vol_target": {
+        "target": 0.12,
+        "ex_ante": 0.00281,
+        "scale": 42.7342,
+        "damp": 1.0,
+        "applied": 42.7342,
+        "proven": false,
+        "reason": "판정 시계 진행 중 — fs8:+fredmacro/krw1 0일차/90일"
+      },
+      "stale_marks": null,
+      "skipped_dust": [
+        "crypto:BNB/USDT",
+        "kr_stock:000660.KS",
+        "kr_stock:005380.KS",
+        "kr_stock:005930.KS",
+        "kr_stock:035420.KS",
+        "kr_stock:051910.KS",
+        "us_stock:AAPL",
+        "us_stock:MSFT",
+        "us_stock:NVDA",
+        "us_stock:QQQ",
+        "us_stock:SPY",
+        "us_stock:TSLA"
+      ],
+      "skipped_cooldown": null,
+      "turnover": {
+        "filled": 4,
+        "universe": 20,
+        "symbols_ratio": 0.2,
+        "traded": null
+      },
+      "feature_health": {
+        "optional_max": 8,
+        "optional_possible": 17,
+        "union": 12,
+        "missing_everywhere": [
+          "x_funding",
+          "x_funding_chg",
+          "x_oi_chg5",
+          "x_frgn5",
+          "x_inst5"
+        ],
+        "thinnest": {
+          "key": "crypto:BTC/USDT",
+          "n": 4
+        }
+      },
+      "earnings_guard": null,
+      "kelly_caps": null,
+      "xsec_tilt": {
+        "crypto:BTC/USDT": 1.036,
+        "crypto:ETH/USDT": 0.75,
+        "crypto:SOL/USDT": 1.107,
+        "crypto:BNB/USDT": 1.0,
+        "crypto:XRP/USDT": 0.893,
+        "us_stock:SPY": 1.0,
+        "us_stock:QQQ": 1.0,
+        "us_stock:NVDA": 1.0,
+        "us_stock:MSFT": 1.0,
+        "us_stock:AAPL": 1.0,
+        "us_stock:AMZN": 1.179,
+        "us_stock:META": 0.821,
+        "us_stock:TSLA": 1.0,
+        "kr_stock:005930.KS": 1.0,
+        "kr_stock:000660.KS": 1.0,
+        "kr_stock:035420.KS": 1.0,
+        "kr_stock:005380.KS": 1.0,
+        "kr_stock:051910.KS": 0.964,
+        "kr_stock:105560.KS": 1.25
+      },
+      "data_quality": {
+        "gaps": 2694,
+        "spikes": 5,
+        "zero_volume": 0
+      },
+      "champion": {
+        "symbols": 19,
+        "skipped": [
+          "kr_stock:069500.KS"
+        ],
+        "planned": 20,
+        "skipped_why": {
+          "kr_stock:069500.KS": "표본 부족 — 17봉(필요 250봉). 챔피언은 더 긴 표본으로 선발됐다(오디션-현실 격차)"
+        }
+      },
+      "lot_infeasible": {
+        "kr_stock:051910.KS": {
+          "budget": 24793.97,
+          "price": 275500.0,
+          "pool_left": 61463.7
+        }
+      },
+      "lot_priority": {
+        "crypto:BTC/USDT": {
+          "budget": 66172.14,
+          "spent": 82156.77,
+          "price": 89883874.8,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        },
+        "crypto:ETH/USDT": {
+          "budget": 2122.52,
+          "spent": 2635.23,
+          "price": 2672619.15,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        },
+        "crypto:SOL/USDT": {
+          "budget": 80626.82,
+          "spent": 100103.13,
+          "price": 107920.08,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        },
+        "crypto:XRP/USDT": {
+          "budget": 27733.05,
+          "spent": 34432.28,
+          "price": 1428.07,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        },
+        "us_stock:AMZN": {
+          "budget": 59425.95,
+          "spent": 73780.96,
+          "price": 375546.04,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        },
+        "us_stock:META": {
+          "budget": 18363.09,
+          "spent": 22798.9,
+          "price": 842751.14,
+          "gave_way": [
+            "kr_stock:051910.KS"
+          ]
+        }
+      },
+      "data_source": {
+        "crypto:BTC/USDT": "okx",
+        "crypto:ETH/USDT": "okx",
+        "crypto:SOL/USDT": "okx",
+        "crypto:BNB/USDT": "okx",
+        "crypto:XRP/USDT": "okx",
+        "us_stock:SPY": "yfinance",
+        "us_stock:QQQ": "yfinance",
+        "us_stock:NVDA": "yfinance",
+        "us_stock:MSFT": "yfinance",
+        "us_stock:AAPL": "yfinance",
+        "us_stock:AMZN": "yfinance",
+        "us_stock:META": "yfinance",
+        "us_stock:TSLA": "yfinance",
+        "kr_stock:069500.KS": "yfinance",
+        "kr_stock:005930.KS": "yfinance",
+        "kr_stock:000660.KS": "yfinance",
+        "kr_stock:035420.KS": "yfinance",
+        "kr_stock:005380.KS": "yfinance",
+        "kr_stock:051910.KS": "yfinance",
+        "kr_stock:105560.KS": "yfinance"
+      },
+      "data_source_fallback": null,
+      "bar_partial": {
+        "crypto:BTC/USDT": 0.9621,
+        "crypto:ETH/USDT": 0.9621,
+        "crypto:SOL/USDT": 0.9622,
+        "crypto:BNB/USDT": 0.9622,
+        "crypto:XRP/USDT": 0.9622
+      },
+      "rebalance_band": {
+        "crypto": {
+          "band": 0.15,
+          "source": "가정",
+          "roundtrip_bp": 30.0,
+          "n": 0,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "kr_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "roundtrip_bp": 28.0,
+          "n": 21,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "us_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "roundtrip_bp": 12.0,
+          "n": 25,
+          "min_samples": 10,
+          "clipped": "하한"
+        }
+      },
+      "twr_pct": -0.03,
+      "day_pct": -0.03,
+      "random_pctile": null
+    }
+  ],
   "deposits": [],
   "restarted": {
     "date": "2026-08-13",
@@ -16,5 +360,50 @@
     "prior_days": 7,
     "prior_last_date": "2026-08-12",
     "prior_equity_note": "단위 혼재 — 원화로 환산 불가"
+  },
+  "risk_scale": 1.0,
+  "prev_weights": {
+    "crypto:BTC/USDT": 0.035352,
+    "crypto:ETH/USDT": 0.002564,
+    "crypto:SOL/USDT": 0.049526,
+    "crypto:BNB/USDT": 0.0,
+    "crypto:XRP/USDT": 0.024524,
+    "us_stock:SPY": 0.0,
+    "us_stock:QQQ": 0.0,
+    "us_stock:NVDA": 0.0,
+    "us_stock:MSFT": 0.0,
+    "us_stock:AAPL": 0.0,
+    "us_stock:AMZN": 0.051673,
+    "us_stock:META": 0.024181,
+    "us_stock:TSLA": 0.0,
+    "kr_stock:005930.KS": 0.0,
+    "kr_stock:000660.KS": 0.0,
+    "kr_stock:035420.KS": 0.0,
+    "kr_stock:005380.KS": 0.0,
+    "kr_stock:051910.KS": 0.026675,
+    "kr_stock:105560.KS": 0.062858
+  },
+  "pending": {
+    "us_stock:META": {
+      "weight": 0.022799,
+      "slice": 1.0,
+      "decided_bar": "2026-08-13 00:00:00"
+    },
+    "us_stock:AMZN": {
+      "weight": 0.073781,
+      "slice": 1.0,
+      "decided_bar": "2026-08-13 00:00:00"
+    },
+    "kr_stock:105560.KS": {
+      "weight": 0.1681,
+      "slice": 1.0,
+      "decided_bar": "2026-08-13 00:00:00"
+    }
+  },
+  "last_trade": {
+    "crypto:ETH/USDT": "2026-08-13",
+    "crypto:XRP/USDT": "2026-08-13",
+    "crypto:BTC/USDT": "2026-08-13",
+    "crypto:SOL/USDT": "2026-08-13"
   }
 }

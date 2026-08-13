@@ -1,8 +1,8 @@
 {
-  "cash": 9484.297084356314,
-  "quantity": 0.005395828368078441,
-  "avg_price": 98862.10917411745,
-  "last_bar": "2026-08-12 00:00:00",
+  "cash": 10061.00407287742,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -166,6 +166,50 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 107270.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10061.0,
+      "return_pct": 0.61,
+      "hit_rate": 0.6666666666666666,
+      "hit_n": 63,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: GK 변동성(고저가 기반) 일 4.1% / 10일 수익률 +22.4% / 50일선 이격 -10.0%(선 아래)",
+      "fill": {
+        "price": 107030.0,
+        "bar": "2026-08-13 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-12 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "63d6aed9a5da16f179cba63c2c16ae48e56874d27bfaca6e05c7717145e876d6",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.15146839630741235,
+      "drift_psi": 1.4933,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
@@ -173,6 +217,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-12 00:00:00"
+    "decided_bar": "2026-08-13 00:00:00"
   }
 }

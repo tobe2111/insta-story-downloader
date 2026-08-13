@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-12 00:00:00",
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -180,11 +180,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 418500.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.41935483870967744,
+      "hit_n": 31,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 미국 S&P500 5일 흐름 +1.2% / 장단기 금리차(경기 신호) +0.48 / 50일선 이격 -13.7%(선 아래)",
+      "fill": {
+        "price": 419500.0,
+        "bar": "2026-08-13 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-12 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "879dd00363c1765a0e2af9a476be9d6ecc29526fc65cc0daea813733b173d9df",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.2640200783892444,
+      "drift_psi": 1.0582,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-12 00:00:00"
+    "decided_bar": "2026-08-13 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "005380.KS",

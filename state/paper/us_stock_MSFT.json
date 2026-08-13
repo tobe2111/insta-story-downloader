@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-12 00:00:00",
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -185,11 +185,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 496.8800048828125,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.4528301886792453,
+      "hit_n": 106,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: VIX 기간구조(공포의 급성도) 0.79(깊은 콘탱고(안정)) / VIX 변동성지수(옵션시장 공포) 15(안도 구간) / RSI(7) 55(중립)",
+      "fill": {
+        "price": 493.265015,
+        "bar": "2026-08-13 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-12 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "b19444a3d13c69262530c8601f2a75a0ae66759f7427d113d7993ea0a892fb5b",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.061061459408705956,
+      "drift_psi": 0.608,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-12 00:00:00"
+    "decided_bar": "2026-08-13 00:00:00"
   },
   "market": "us_stock",
   "symbol": "MSFT",

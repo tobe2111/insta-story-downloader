@@ -1,8 +1,8 @@
 {
-  "cash": 8260.35137584475,
-  "quantity": 6.4252997457116505,
-  "avg_price": 272.7650146484375,
-  "last_bar": "2026-08-12 00:00:00",
+  "cash": 7545.952414189576,
+  "quantity": 9.09699551327113,
+  "avg_price": 271.14090085774836,
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -185,11 +185,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 265.1300048828125,
+      "weight": 0.1722,
+      "held_weight": 0.2422,
+      "fractional_lot": false,
+      "equity": 9957.84,
+      "return_pct": -0.42,
+      "hit_rate": 0.5131578947368421,
+      "hit_n": 76,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +17% — 로지스틱회귀 모델이 내일 상승확률을 약 72%로 추정(기준 55% 초과) · 판단 재료: 변동성(20일) 일 4.1% / RSI(14) 68(과열권) / 5일 수익률 -2.6% · 사이징: 신호 원비중 37% → 변동성 타깃 조절 후 17% · 참고: 전 종목 합산으로 모델이 72%±10%p라 말한 36건의 실제 상승 비율 44% (95% 신뢰구간 30%~60% · 이 종목 단독 표본은 2건으로 축적 중)",
+      "fill": {
+        "price": 267.234985,
+        "bar": "2026-08-13 00:00:00",
+        "weight": 0.2438,
+        "decided_bar": "2026-08-12 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "f217b281032968523a6d9240ef2569afd0cb0d80b644a95f9a3477e8d8357ef4",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7158094390631465,
+      "drift_psi": 0.9509,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.2438,
-    "decided_bar": "2026-08-12 00:00:00"
+    "weight": 0.1722,
+    "decided_bar": "2026-08-13 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AMZN",

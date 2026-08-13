@@ -2,7 +2,7 @@
   "cash": 9316.0,
   "quantity": 0.0024747961549482895,
   "avg_price": 276000.0,
-  "last_bar": "2026-08-12 00:00:00",
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -180,11 +180,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 275500.0,
+      "weight": 0.0889,
+      "held_weight": 0.0682,
+      "fractional_lot": true,
+      "equity": 9997.81,
+      "return_pct": -0.02,
+      "hit_rate": 0.48214285714285715,
+      "hit_n": 56,
+      "hit_flat": 3,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 66%로 추정(기준 55% 초과) · 판단 재료: 하이일드 스프레드(신용 스트레스) 2.71%p(신용시장 안정) / 60일 모멘텀 -26.1% / 20일 모멘텀 +4.2% · 사이징: 신호 원비중 24% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 66%±10%p라 말한 52건의 실제 상승 비율 40% (95% 신뢰구간 28%~54% · 이 종목 단독 표본은 3건으로 축적 중)",
+      "fill": {
+        "price": 277000.0,
+        "bar": "2026-08-13 00:00:00",
+        "weight": 0.0819,
+        "decided_bar": "2026-08-12 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "a4015c71821ee3dd00749a2015552decb8e841ba788a5d6abb5916a067f53957",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6591101318236621,
+      "drift_psi": 0.9601,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0819,
-    "decided_bar": "2026-08-12 00:00:00"
+    "weight": 0.0889,
+    "decided_bar": "2026-08-13 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "051910.KS",

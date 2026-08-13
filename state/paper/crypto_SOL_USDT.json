@@ -2,7 +2,7 @@
   "cash": 8740.077814341208,
   "quantity": 17.150162329147843,
   "avg_price": 74.13503318436354,
-  "last_bar": "2026-08-12 00:00:00",
+  "last_bar": "2026-08-13 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -204,6 +204,49 @@
       "kelly_cap": null,
       "bar_partial": {
         "elapsed": 0.8896,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx"
+    },
+    {
+      "date": "2026-08-13",
+      "price": 76.19,
+      "weight": 0.1651,
+      "held_weight": 0.1301,
+      "fractional_lot": false,
+      "equity": 10046.75,
+      "return_pct": 0.47,
+      "hit_rate": 0.5833333333333334,
+      "hit_n": 12,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +17% — 로지스틱회귀 모델이 내일 상승확률을 약 70%로 추정(기준 55% 초과) · 판단 재료: 볼린저 위치 0.80(상단 접근) / 10일 수익률 +3.6% / 5일 수익률 +0.2% · 사이징: 신호 원비중 33% → 변동성 타깃 조절 후 17% · 참고: 전 종목 합산으로 모델이 70%±10%p라 말한 38건의 실제 상승 비율 42% (95% 신뢰구간 28%~58% · 이 종목 단독 표본은 6건으로 축적 중)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "ed7d1ce68a50",
+      "data_sha256": "4ed08fcc6214f22411e544ece84a6eef879341250472a48d057114f99a2993e3",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7002391516641124,
+      "drift_psi": 0.7766,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.9616,
         "timeframe": "1d",
         "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
       },
