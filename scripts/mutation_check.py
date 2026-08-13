@@ -1686,6 +1686,19 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 203: 폴백이 요청과 다른 길이의 봉을 내주던 자리 ─────
+    ("모르는 타임프레임을 조용히 일봉으로 떨어뜨린다(24배 긴 봉을 30분봉으로 받는다)",
+     "quant/data/synthetic.py",
+     "        if timeframe not in _TIMEFRAMES:",
+     "        if False:",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("30분봉을 합성 제공자에서 뺀다(시계는 아는데 폴백만 몰라 길이가 갈라진다)",
+     "quant/data/synthetic.py",
+     '    "30m": (timedelta(minutes=30), "30min"),',
+     "",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
     # ── 감사 202: 망가진 전략 하나가 나머지를 지우던 자리 ────────
     ("측정 불가를 'nan'으로 사람에게 보여준다(0인지 실패인지 알 수 없다)",
      "quant/reporting/attribution.py",

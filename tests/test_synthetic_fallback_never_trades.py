@@ -217,3 +217,67 @@ def test_the_webhook_cli_uses_the_guarded_lookup():
     src = (ROOT / "quant" / "cli.py").read_text(encoding="utf-8")
     block = src.split("def price_fn")[1].split("\n\n")[0]
     assert "last_real_price" in block, "웹훅이 가드 없는 시세 조회로 되돌아갔다"
+
+
+# ── 요청한 길이의 봉이 오는가 (감사 203) ──────────────────────────
+#
+# 합성 제공자는 **폴백 경로**다 — 진짜 시세가 죽은 날 쓰인다. 그래서 여기서
+# 조용히 다른 길이의 봉을 내보내면, 하필 가장 나쁜 날에 모델이 24배 긴 봉을
+# 요청한 봉인 줄 알고 받는다(ATR·변동성·라벨이 전부 그 위에서 만들어진다).
+#
+# 실측(고치기 전): `30m`을 요청하면 **아무 말 없이 일봉**이 나왔다.
+# `barclock`은 30분봉을 아는데 여기만 몰랐고, 원인은 타임프레임 정보가
+# dict 두 개로 나뉘어 있어 **둘 다 빠뜨린 것**이었다(㉞).
+
+
+def test_the_bar_length_is_the_one_that_was_asked_for():
+    from quant.data.synthetic import SyntheticDataProvider
+    import pandas as pd
+
+    p = SyntheticDataProvider()
+    want = {"1m": "1min", "5m": "5min", "15m": "15min", "30m": "30min",
+            "1h": "1h", "4h": "4h", "1d": "1D"}
+    for tf, freq in want.items():
+        df = p.get_ohlcv("BTC/USDT", tf, limit=5)
+        step = df.index[1] - df.index[0]
+        assert step == pd.Timedelta(freq), f"{tf}를 요청했는데 간격이 {step}"
+
+
+def test_an_unknown_timeframe_is_refused_not_silently_daily():
+    """'모름'은 기본값이 아니다 — 조용히 일봉으로 떨어뜨리면 안 된다."""
+    import pytest
+
+    from quant.data.synthetic import SyntheticDataProvider
+
+    p = SyntheticDataProvider()
+    for bad in ("3d", "1w", "완전한오타", ""):
+        with pytest.raises(ValueError, match="타임프레임"):
+            p.get_ohlcv("X", bad, limit=5)
+
+    # 대조군 — 아는 것은 그대로 통과해야 한다(무엇이든 거절하면 폴백이 죽는다)
+    assert len(p.get_ohlcv("X", "1d", limit=5)) == 5
+
+
+def test_the_synthetic_provider_knows_every_timeframe_the_clock_does():
+    """`barclock`이 아는 봉을 합성이 모르면, 폴백에서 길이가 갈라진다.
+
+    두 곳이 같은 지식을 따로 들고 있는 자리라 언젠가 갈라진다(㉞).
+    실제로 갈라져 있었다 — `30m`이 여기만 없었다.
+    """
+    from quant.data.barclock import _TF_SECONDS
+    from quant.data.synthetic import _TIMEFRAMES
+
+    missing = sorted(set(_TF_SECONDS) - set(_TIMEFRAMES))
+    assert not missing, f"시계는 아는데 합성이 모르는 봉: {missing}"
+
+
+def test_a_nonsense_bar_count_is_refused():
+    """0봉·음수봉은 IndexError가 아니라 뜻이 통하는 거절이어야 한다."""
+    import pytest
+
+    from quant.data.synthetic import SyntheticDataProvider
+
+    p = SyntheticDataProvider()
+    for bad in (0, -3):
+        with pytest.raises(ValueError, match="1 이상"):
+            p.get_ohlcv("X", "1d", limit=bad)
