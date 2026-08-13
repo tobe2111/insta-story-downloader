@@ -339,10 +339,12 @@ MUTATIONS = [
      "              \"lot_infeasible\": None,",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
+    # 2026-08-13 예산 유연화로 이 줄이 want(원하는 주수) 계산으로 바뀌었다.
+    # 지키는 계약은 그대로 — 소수점 주를 산 것으로 기록하면 안 된다.
     ("정수 주 내림을 끈다(못 사는 수량을 산 것으로 기록)",
      "quant/live/daily.py",
-     "        lots = math.floor(abs(w) * equity / float(px))",
-     "        lots = abs(w) * equity / float(px)",
+     "        want = math.floor(abs(w) * equity / px)",
+     "        want = abs(w) * equity / px",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
     ("미룬 예산을 재배분하지 않는다(총노출이 목표보다 낮아짐)",
@@ -1683,6 +1685,29 @@ MUTATIONS = [
      '        cash = require_field(acct, "cash", "현금", "Alpaca")',
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    # ── 예산 유연화(사장님 결정 2026-08-13) ──────────────────────
+    # "예산이 있는대로 유연하게" + "비율이 아니라 수익률이 더 높을 것이라
+    # 판단되는 최우선 선택". 세 항목이 그 결정을 지킨다.
+    ("확신도 순서를 버리고 dict 순서로 예산을 채운다(아무 종목이나 먼저 산다)",
+     "quant/live/daily.py",
+     "    lot_keys.sort(key=lambda k: (-abs(float(conv.get(k, targets[k]))), k))",
+     "    pass",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("자기 배정금액을 못 넘게 되돌린다(국내주식을 한 종목도 못 산다)",
+     "quant/live/daily.py",
+     "        if want <= 0 and abs(w) > 0:\n"
+     "            want = 1          # 자기 예산으로 못 사도 1주는 노린다(② 유연화)",
+     "        if False:\n"
+     "            want = 1",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("매도 선집행을 끈다(판 돈이 같은 사이클 매수에 안 쓰인다)",
+     "quant/live/daily.py",
+     "    for key in sorted(weights, key=_sell_first):",
+     "    for key in weights:",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
 
     ("잔고 필드 검사 자체를 끈다(네 브로커가 한꺼번에 '0'을 답하게 된다)",
      "quant/broker/base.py",
