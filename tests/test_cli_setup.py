@@ -155,20 +155,31 @@ def test_when_the_promise_cannot_be_kept_it_is_not_made(run_setup, tmp_path,
 
     이게 결함 ㊾의 본체다. 위의 '일치' 검사는 정상 경로만 지나가므로,
     약속과 현실을 잇는 배선이 끊겨도(예: 무조건 600이라고 출력) 초록이다.
-    여기서는 chmod를 실제로 실패시켜 **약속을 지킬 수 없는 상황**을 만든다.
+    여기서는 저장이 느슨하게 끝나게 만들어 **약속을 지킬 수 없는 상황**을 만든다.
     """
     envf = tmp_path / ".env"
     envf.write_text("ALPACA_API_KEY=OLD\n", encoding="utf-8")
     os.chmod(envf, 0o644)                       # 남이 읽을 수 있는 상태
 
-    real_chmod = os.chmod
+    # ⚠️ 예전에는 여기서 **chmod를 실패시켜** '약속을 못 지키는 상황'을
+    #    만들었다. 감사 190에서 저장 방식이 바뀌어(0o600 임시 파일 →
+    #    os.replace) chmod를 아예 안 쓰게 됐고, 그래서 chmod를 막아도
+    #    파일이 느슨해지지 않는다 — 이 검사의 **전제가 사라진 것**이지
+    #    계약이 사라진 건 아니다.
+    #
+    #    지키려는 계약은 그대로다: **권한을 확인하지 못했으면 "확인됨"이라
+    #    말하지 않는다.** 그래서 이제는 저장 자체가 느슨하게 끝나는 상황을
+    #    만든다(윈도우처럼 POSIX 권한이 의미 없는 환경도 이 경로로 온다).
+    import quant.utils.envfile as _E
 
-    def refuse(path, mode, *a, **k):
-        if Path(path).name == ".env":
-            raise OSError("권한 변경 거부 (모의)")
-        return real_chmod(path, mode, *a, **k)
+    real_write = _E._write_private
 
-    monkeypatch.setattr(os, "chmod", refuse)
+    def loose(fp, text):
+        real_write(fp, text)
+        if Path(fp).name == ".env":
+            os.chmod(fp, 0o644)                 # 조여지지 않은 채로 남는다
+
+    monkeypatch.setattr(_E, "_write_private", loose)
 
     envf2, out, _ = run_setup(["y", "KEY-ABC", "SEC-XYZ", "", "", "", "", ""])
 

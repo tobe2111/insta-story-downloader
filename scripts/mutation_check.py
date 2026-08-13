@@ -1591,11 +1591,10 @@ MUTATIONS = [
      "tests/test_the_display_only_cards_tell_the_truth.py"),
 
     # 감사 182 — 전수조사 마지막 파일(kiwoom_live) + 형제(kr_live). 결함 3건.
-    ("키움: 모르는 주문 방향을 매도로 흘린다('BUY'라고 쓰면 팔린다)",
+    ("키움: 주문 방향 정규화를 건너뛴다('BUY'라고 쓰면 팔린다)",
      "quant/broker/kiwoom_live.py",
-     '        if side not in ("buy", "sell"):\n'
-     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
-     "        pass",
+     "        side = normalize_side(side)",
+     "        side = str(side)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("키움: 보유목록 키가 없어도 '0주 보유'라 답한다(목표만큼 다시 사서 두 배가 된다)",
@@ -1610,11 +1609,10 @@ MUTATIONS = [
      "        if False:",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
-    ("KIS: 모르는 주문 방향을 매도로 흘린다(형제 쪽만 살아 있으면 더 나쁘다)",
+    ("KIS: 주문 방향 정규화를 건너뛴다(형제 쪽만 살아 있으면 더 나쁘다)",
      "quant/broker/kr_live.py",
-     '        if side not in ("buy", "sell"):\n'
-     '            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
-     "        pass",
+     "        side = normalize_side(side)",
+     "        side = str(side)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("KIS: 보유목록(output1)이 없어도 '0주 보유'라 답한다",
@@ -1700,6 +1698,107 @@ MUTATIONS = [
      '        return float("nan")',
      "    if exp[0] == exp[-1]:\n        return 0.0",
      "tests/test_the_drift_alarm_knows_its_own_noise.py"),
+
+    # 감사 190 — 실거래 키 파일을 제자리에서 자르고 있었다.
+    ("비밀 파일을 원자 교체 없이 제자리에서 자른다(쓰기 실패 시 API 키가 사라진다)",
+     "quant/utils/envfile.py",
+     "        os.replace(tmp, fp)",
+     "        os.replace(fp, fp)",
+     "tests/test_a_failed_write_does_not_eat_the_keys.py"),
+
+    ("비밀 파일을 평범한 권한으로 만든다(같은 기계의 다른 사용자가 키를 읽는다)",
+     "quant/utils/envfile.py",
+     "        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)",
+     "        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644)",
+     "tests/test_a_failed_write_does_not_eat_the_keys.py"),
+
+    # 감사 191 — 조회 실패를 '오늘 받아온 사실'로 도장 찍고 있었다.
+    ("실적 캘린더 조회 실패를 신선한 캐시로 적는다(가드가 발표일에 꺼져 있다)",
+     "quant/data/earnings.py",
+     '                 "fetched": today.isoformat() if ok\n'
+     '                 else (entry or {}).get("fetched", "")}',
+     '                 "fetched": today.isoformat()}',
+     "tests/test_a_failed_lookup_does_not_become_a_fact.py"),
+
+    ("실적 가드 창을 발표 이전으로만 좁힌다(갭이 가장 큰 다음 날이 무방비)",
+     "quant/data/earnings.py",
+     "        d = nearest_earnings_date(symbol, asof, state_dir, fetch=fetch)",
+     "        d = next_earnings_date(symbol, asof, state_dir, fetch=fetch)",
+     "tests/test_a_failed_lookup_does_not_become_a_fact.py"),
+
+    # 감사 192 — 주문 방향 판정을 한 곳으로 모았다(감사 182의 형제 둘 더).
+    ("공용 판정에서 모르는 방향을 통과시킨다(모든 브로커가 한꺼번에 무방비)",
+     "quant/broker/base.py",
+     '    if s not in ("buy", "sell"):\n'
+     '        raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")',
+     "    if False:\n        pass",
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
+
+    ("페이퍼 브로커가 방향을 확인하지 않는다(모든 기록이 여기서 나온다)",
+     "quant/broker/paper.py",
+     "        side = normalize_side(side)   # 모르는 방향이 매도가 되면 안 된다(감사 192)",
+     "        side = str(side)",
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
+
+    ("지정가 체결 판정 전에 방향을 확인하지 않는다(안 닿아도 체결된다)",
+     "quant/broker/paper.py",
+     "        side = normalize_side(side)\n"
+     '        crossed = (bar_low <= limit_price) if side == "buy" \\',
+     '        crossed = (bar_low <= limit_price) if side == "buy" \\',
+     "tests/test_one_place_decides_which_way_the_order_goes.py"),
+
+    # 감사 193 — 일일 요약이 막 시작한 날을 요약하고 있었다.
+    ("일일 요약이 끝난 날 대신 시작한 날을 보고한다(늘 '사이클 0회'로 찍힌다)",
+     "quant/live/summary.py",
+     "    return t, build_daily_summary(state, today=last_date)",
+     "    return t, build_daily_summary(state, today=t)",
+     "tests/test_the_daily_summary_reports_the_day_that_ended.py"),
+
+    ("요약이 그 날이 아니라 전체 마지막 기록을 읽는다(어제 요약에 오늘 자산)",
+     "quant/live/summary.py",
+     "    last = same_day[-1] if same_day else (\n"
+     "        history[-1] if history and isinstance(history[-1], dict) else {})",
+     "    last = history[-1] if history and isinstance(history[-1], dict) else {}",
+     "tests/test_the_daily_summary_reports_the_day_that_ended.py"),
+
+    # 감사 194 — 유니버스 정의. 결함 없음, 계약 고정.
+    ("같은 종목을 유니버스에 두 번 넣는다(그 종목 비중이 두 배가 된다)",
+     "quant/markets.py",
+     '    ("crypto", "ETH/USDT"),',
+     '    ("crypto", "BTC/USDT"),',
+     "tests/test_the_universe_says_what_it_is.py"),
+
+    ("설명 없는 종목을 유니버스에 넣는다(사이트가 종목코드를 그대로 노출한다)",
+     "quant/markets.py",
+     '    ("crypto", "XRP/USDT"),',
+     '    ("crypto", "DOGE/USDT"),',
+     "tests/test_the_universe_says_what_it_is.py"),
+
+    # 감사 195 — 끄려고 적은 글자가 켜는 결과를 냈다.
+    ("설정 불린을 파이썬 truthiness로 읽는다('false'라고 적으면 켜진다)",
+     "quant/utils/settings.py",
+     "    if isinstance(value, bool):\n        return value",
+     "    if True:\n        return bool(value)",
+     "tests/test_the_switch_means_what_it_says.py"),
+
+    ("모르는 설정 값을 참으로 추측한다(위험 상한 해제가 오타로 켜진다)",
+     "quant/utils/settings.py",
+     "    if text in _FALSE:\n        return False",
+     "    if False:\n        return False",
+     "tests/test_the_switch_means_what_it_says.py"),
+
+    # 감사 196 — 거시 피드. 사이트 파괴 결함은 없었고(아래층이 막는다) 원천 방어 추가.
+    ("FRED 값의 nan·inf를 그대로 피처로 넘긴다(학습·예측이 오염된다)",
+     "quant/data/macro.py",
+     "        if not math.isfinite(val):\n            continue",
+     "        if False:\n            continue",
+     "tests/test_the_macro_feed_does_not_poison_the_model.py"),
+
+    ("거시 프레임을 뒤에서 앞으로도 채운다(발표 전 날짜에 미래 값이 샌다)",
+     "quant/data/macro.py",
+     "    df = pd.DataFrame(cols).sort_index().ffill()",
+     "    df = pd.DataFrame(cols).sort_index().ffill().bfill()",
+     "tests/test_the_macro_feed_does_not_poison_the_model.py"),
 
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.

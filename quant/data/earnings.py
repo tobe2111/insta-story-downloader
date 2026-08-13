@@ -68,12 +68,31 @@ def _known_dates(symbol: str, today: _dt.date, state_dir: str,
         except ValueError:
             fresh = False
     if not fresh:
+        ok = True
         try:
             dates = fetch(symbol)
-        except Exception as exc:  # noqa: BLE001 — 조회 실패 = 가드 미발동(무해)
+        except Exception as exc:  # noqa: BLE001
+            # ⚠️ **실패를 '오늘 받아온 것'으로 도장 찍으면 안 된다**(감사 191).
+            #    예전에는 실패해도 `fetched`에 오늘을 적었다. 그러면 다음
+            #    실행에서 `fresh`가 참이 되어 **7일 동안 재시도를 안 한다.**
+            #    첫 조회가 실패했다면 `dates`는 빈 목록이므로, 그 일주일은
+            #    "이 종목엔 실적 발표가 없다"로 굳는다 — 실측:
+            #
+            #        08-12 조회 실패 → 캐시 {dates: [], fetched: 08-12}
+            #        08-13 (실제 발표일) 조회 정상인데 부르지도 않음 → 가드 1.0
+            #
+            #    가드가 지키려는 바로 그 날에 꺼져 있다. 발표일은 갭이 가장
+            #    큰 날이라 이건 '무해한 미발동'이 아니다.
+            #
+            #    실패했으면 **옛 날짜(fetched)를 그대로 둔다** — 그래야 내일
+            #    다시 시도한다. 옛 캐시의 dates는 살려 쓰되 신선하다고
+            #    말하지 않는다. '못 받았다'와 '없다'는 다르다.
+            ok = False
             log.warning("실적 캘린더 조회 실패 %s: %s", symbol, exc)
             dates = (entry or {}).get("dates", [])   # 옛 캐시라도 쓴다
-        entry = {"dates": dates, "fetched": today.isoformat()}
+        entry = {"dates": dates,
+                 "fetched": today.isoformat() if ok
+                 else (entry or {}).get("fetched", "")}
         cache[symbol] = entry
         try:
             from quant.utils.jsonio import atomic_write_json

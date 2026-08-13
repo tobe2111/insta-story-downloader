@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.base import Broker, Order, Position, safe_amount, normalize_side
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
@@ -93,6 +93,7 @@ class AlpacaBroker(Broker):
         return MarketSpec(min_notional=1.0)
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        side = normalize_side(side)   # 알파카가 거절하기 전에 우리가 먼저 막는다(감사 192)
         body = {
             "symbol": symbol,
             "qty": round(quantity, 6),

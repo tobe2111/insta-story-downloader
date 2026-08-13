@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, normalize_side
 from quant.utils.logging import get_logger
 
 log = get_logger("broker.paper")
@@ -47,6 +47,7 @@ class PaperBroker(Broker):
         return val
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        side = normalize_side(side)   # 모르는 방향이 매도가 되면 안 된다(감사 192)
         cost = quantity * price
         fee = cost * self.fee
         pos = self.get_position(symbol)
@@ -110,6 +111,7 @@ class PaperBroker(Broker):
            대체하지 못한다. 미체결 주문은 status='open'으로 반환만 하고
            다음 봉으로 이월하지 않는다(호출자가 재주문 여부를 결정).
         """
+        side = normalize_side(side)
         crossed = (bar_low <= limit_price) if side == "buy" \
             else (bar_high >= limit_price)
         frac = min(1.0, max(0.0, fill_fraction))

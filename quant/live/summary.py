@@ -61,16 +61,26 @@ def _positions_text(state: dict) -> str:
 def build_daily_summary(state: dict, today: str | None = None) -> str:
     """상태 dict에서 한국어 한 문단 일일 요약을 만든다(누락 키에 안전).
 
-    포함: 오늘 사이클 수 · 최근 적중률 · 자산 · 포지션 · 마지막 에러.
+    today: **요약 대상 날짜**(보내는 날이 아니라). 롤오버 알림은 끝난 날을
+    넘긴다 — 감사 193 참고.
+
+    포함: 그 날의 사이클 수 · 최근 적중률 · 자산 · 포지션 · 마지막 에러.
     어떤 키가 없어도 예외 없이 'N/A' 등으로 대체한다.
     """
     state = state if isinstance(state, dict) else {}
     day = today or _today_utc()
     history = state.get("history")
     history = history if isinstance(history, list) else []
-    cycles = sum(1 for h in history
-                 if isinstance(h, dict) and str(h.get("time", "")).startswith(day))
-    last = history[-1] if history and isinstance(history[-1], dict) else {}
+    same_day = [h for h in history
+                if isinstance(h, dict) and str(h.get("time", "")).startswith(day)]
+    cycles = len(same_day)
+    # ⚠️ **그 날의 마지막 기록을 쓴다**(감사 193). 예전에는 `history[-1]`,
+    #    즉 **전체에서 가장 최근** 기록을 썼다. 요약은 날짜가 바뀐 직후에
+    #    보내지므로 그 시점의 마지막 기록은 이미 **다음 날 것**이다 —
+    #    "07-04 요약"이라고 적어 놓고 07-05의 자산·적중률을 실었다.
+    #    그 날에 기록이 하나도 없으면 전체 마지막으로 폴백한다(없는 것보다 낫다).
+    last = same_day[-1] if same_day else (
+        history[-1] if history and isinstance(history[-1], dict) else {})
     hit = last.get("recent_hit_rate", last.get("hit_rate"))
     err = state.get("last_error")
     return (
@@ -92,7 +102,15 @@ def maybe_daily_summary(state: dict, last_date: str | None,
     t = today or _today_utc()
     if last_date is None or last_date == t:
         return t, None
-    return t, build_daily_summary(state, today=t)
+    # ⚠️ **끝난 날을 요약한다**(감사 193). 예전에는 `today=t`를 넘겨 **막 시작한
+    #    날**을 요약했다. 이 함수는 날짜가 바뀐 **직후** 불리므로 새 날에는
+    #    기록이 0~1건뿐이다 — 실측: 08-12에 3사이클을 돌고 롤오버했는데
+    #    "일일 요약(2026-08-13): 오늘 사이클 1회"가 나갔다.
+    #
+    #    하루를 마감하는 보고인데 **아직 시작도 안 한 날**을 보고한 셈이다.
+    #    어제가 아무리 바빴어도 늘 0~1회로 찍혀, 이 알림을 받는 사람은
+    #    "봇이 거의 안 돌았다"고 읽는다.
+    return t, build_daily_summary(state, today=last_date)
 
 
 def load_last_summary_date(state_path: str | None) -> str | None:

@@ -17,7 +17,8 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.base import (Broker, Order, Position,
+                               normalize_side, safe_amount)
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json  # noqa: F401  (get_json: 대칭성)
 from quant.utils.logging import get_logger
@@ -165,9 +166,7 @@ class KiwoomBroker(Broker):
         #
         #    기본값은 절대 파괴적인 쪽이면 안 된다. 대소문자는 받아 주되,
         #    아는 두 방향이 아니면 주문을 만들지 않고 거절한다.
-        side = str(side).strip().lower()
-        if side not in ("buy", "sell"):
-            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")
+        side = normalize_side(side)
         qty = int(quantity)  # 국내주식은 정수 수량
         if qty <= 0:
             return Order(symbol, side, 0.0, price, status="skipped")

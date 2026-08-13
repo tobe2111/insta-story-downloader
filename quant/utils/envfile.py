@@ -81,7 +81,8 @@ def write_private(fp: str | Path, text: str) -> bool:
     """비밀을 담은 파일을 0o600으로 '먼저' 만든 뒤 내용을 쓴다.
 
     쓰고 나서 조이면 그 사이 짧은 순간 같은 기계의 다른 사용자가 읽는다.
-    이미 있던 파일은 O_CREAT의 mode가 적용되지 않으므로 뒤에서 한 번 조인다.
+    0o600 임시 파일에 쓴 뒤 원자적으로 갈아 끼우므로, 이미 있던 파일이
+    느슨한 권한이었더라도 교체와 함께 조여진다(감사 190).
 
     반환값은 **'저장 후 실제로 본인만 읽기인가'** 다 — 호출자는 이 값을 보고
     사용자에게 사실대로 말해야 한다. 확인하지 않은 보안을 약속하면 안 된다
@@ -93,27 +94,59 @@ def write_private(fp: str | Path, text: str) -> bool:
     사용자가 읽어 그대로 쓸 수 있다 — 그게 곧 무단 복제다.
     """
     fp = Path(fp)
-    existed = fp.exists()
+    # 예전에는 '이미 있던 파일은 O_CREAT의 mode가 안 먹으니' 뒤에서 chmod로
+    # 조였다. 지금은 0o600 임시 파일을 만들어 `os.replace`로 갈아 끼우므로
+    # 결과 파일이 처음부터 0o600이다 — 뒤에서 조일 자리가 없다(감사 190).
     _write_private(fp, text)
-    if existed:
-        try:
-            os.chmod(fp, 0o600)
-        except OSError:
-            pass                     # 삼키되 숨기지 않는다 — 반환값이 말한다
     return is_private(fp)
 
 
 def _write_private(fp: Path, text: str) -> None:
-    """0o600으로 '먼저' 만든 뒤 내용을 쓴다 — 노출되는 순간을 없앤다."""
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-    fd = os.open(fp, flags, 0o600)
+    """0o600 임시 파일에 먼저 쓰고 **원자적으로 갈아 끼운다**.
+
+    두 가지를 동시에 지킨다.
+
+    ① **노출되는 순간을 없앤다** — 파일을 처음부터 0o600으로 만든다.
+       평범하게 쓰고 나서 chmod로 조이면 그 사이 짧은 순간 같은 기계의
+       다른 사용자가 키를 읽는다(감사 ㊾).
+
+    ② **실패해도 원본을 잃지 않는다**(감사 190). 예전에는 대상 파일을
+       `O_TRUNC`로 **제자리에서 잘랐다.** 쓰기가 중간에 실패하면
+       (디스크 가득·중단) 그 자리에 빈 파일만 남는다. 실측:
+
+           원본 .env : BINANCE_KEY=... · KIS_APP_SECRET=...
+           쓰기 실패 후: ''            ← 실거래 키가 통째로 사라진다
+
+       감사 162에서 **캐시**에는 원자적 쓰기를 넣었는데, 정작 실거래
+       API 키가 든 이 파일은 제자리 자르기였다. 형제를 안 찾은 자리다(⑭).
+       임시 파일에 다 쓰고 `os.replace`로 바꾸면, 실패했을 때 원본이
+       그대로 남는다. 갈아 끼운 파일은 이미 0o600이라 뒤에서 조일 필요도
+       없어진다.
+
+    ⚠️ `os.replace`는 심볼릭 링크를 **따라가지 않고 링크 자체를 바꾼다.**
+       예전(O_TRUNC)은 링크가 가리키는 파일에 썼다. 비밀 파일이 링크를
+       통해 다른 곳을 가리키게 만드는 공격을 막는 쪽이라 이 차이는 의도된
+       것이다.
+    """
+    tmp = fp.with_name(fp.name + f".tmp{os.getpid()}")
     try:
-        f = os.fdopen(fd, "w", encoding="utf-8")
-    except BaseException:        # fdopen이 실패했을 때만 fd 소유권이 남는다
-        os.close(fd)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except BaseException:    # fdopen이 실패했을 때만 fd 소유권이 남는다
+            os.close(fd)
+            raise
+        with f:                  # 성공했으면 파일 객체가 fd를 닫는다(이중 close 금지)
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())  # 갈아 끼우기 전에 내용이 디스크에 닿게
+        os.replace(tmp, fp)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
         raise
-    with f:                      # 성공했으면 파일 객체가 fd를 닫는다(이중 close 금지)
-        f.write(text)
 
 
 def update_env_file(path: str | Path, updates: dict[str, str]) -> bool:
@@ -146,13 +179,7 @@ def update_env_file(path: str | Path, updates: dict[str, str]) -> bool:
     for k, v in updates.items():
         if k not in seen:
             lines.append(f"{k}={v}")
-    existed = fp.exists()
+    # 0o600 임시 파일 → os.replace 이므로 결과 파일이 처음부터 0o600이다.
+    # 예전 버전이 0o644로 남겨 둔 파일도 이 교체로 함께 조여진다(감사 190).
     _write_private(fp, "\n".join(lines) + "\n")
-    if existed:
-        # 이미 있던 파일은 os.open이 권한을 바꾸지 않는다(O_CREAT의 mode는
-        # 새로 만들 때만 적용). 예전 버전이 0o644로 남겨둔 파일을 조인다.
-        try:
-            os.chmod(fp, 0o600)
-        except OSError:
-            pass                 # 삼키되 숨기지 않는다 — 아래 반환값이 말한다
     return is_private(fp)

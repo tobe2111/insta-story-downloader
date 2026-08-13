@@ -14,7 +14,7 @@ import math
 import time
 from typing import Callable
 
-from quant.broker.base import Broker, Order, Position
+from quant.broker.base import Broker, Order, Position, normalize_side
 from quant.broker.specs import MarketSpec
 from quant.utils.logging import get_logger
 
@@ -122,6 +122,9 @@ class RobustBroker(Broker):
         return want if order.status in _FILLED_STATES else 0.0
 
     def market_order(self, symbol: str, side: str, quantity: float, price: float) -> Order:
+        # 체결 확인이 `side == "buy"`로 증감 방향을 정한다 — 여기서 정규화하지
+        # 않으면 'BUY'가 매도로 읽혀 확인 로직까지 반대로 돈다(감사 192).
+        side = normalize_side(side)
         spec = self._spec_for(symbol)
         qty = spec.round_qty(quantity)
         if qty <= 0 or not spec.is_tradeable(qty, price):

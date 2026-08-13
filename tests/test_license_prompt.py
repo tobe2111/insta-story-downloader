@@ -82,10 +82,20 @@ def test_it_warns_when_it_cannot_protect_the_key(buyer, tmp_path, monkeypatch):
     path.write_text("owner: old\nkey: old\n", encoding="utf-8")
     os.chmod(path, 0o644)
 
-    real = os.chmod
-    monkeypatch.setattr(os, "chmod", lambda p, m, *a, **k: (
-        (_ for _ in ()).throw(OSError("거부(모의)"))
-        if Path(p).name == L._LICENSE_FILE else real(p, m, *a, **k)))
+    # ⚠️ 예전에는 chmod를 실패시켜 이 상황을 만들었다. 감사 190에서 저장이
+    #    '0o600 임시 파일 → os.replace'로 바뀌어 chmod를 안 쓰게 됐고, 막아도
+    #    파일이 느슨해지지 않는다 — 전제가 사라진 것이지 계약이 사라진 건
+    #    아니다. 이제는 저장이 느슨하게 끝나는 상황을 직접 만든다.
+    import quant.utils.envfile as _E
+
+    real_write = _E._write_private
+
+    def loose(fp, text):
+        real_write(fp, text)
+        if Path(fp).name == L._LICENSE_FILE:
+            os.chmod(fp, 0o644)
+
+    monkeypatch.setattr(_E, "_write_private", loose)
 
     ok, path2, out = buyer([OWNER, _good_key()])
     assert ok is True

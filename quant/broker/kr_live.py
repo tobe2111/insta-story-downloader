@@ -14,7 +14,8 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import Broker, Order, Position, safe_amount
+from quant.broker.base import (Broker, Order, Position,
+                               normalize_side, safe_amount)
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
@@ -182,9 +183,7 @@ class KISBroker(Broker):
         # ⚠️ **모르는 방향의 기본값이 '매도'였다**(감사 182 — 형제 교정).
         #    `self._TR_BUY if side == "buy" else self._TR_SELL` 한 줄이라,
         #    정확히 "buy"가 아닌 **무엇이든** 조용히 매도가 되어 나갔다.
-        side = str(side).strip().lower()
-        if side not in ("buy", "sell"):
-            raise ValueError(f"알 수 없는 주문 방향: {side!r} (buy/sell만 허용)")
+        side = normalize_side(side)
         qty = int(quantity)  # 국내주식은 정수 수량
         if qty <= 0:
             return Order(symbol, side, 0.0, price, status="skipped")
