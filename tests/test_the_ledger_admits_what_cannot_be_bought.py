@@ -47,6 +47,26 @@ def test_a_korean_stock_is_floored_to_whole_shares():
     assert abs(out["kr_stock:069500.KS"] - 0.2016) < 1e-6, out
 
 
+def test_whole_shares_when_the_budget_is_what_binds():
+    """내림이 **실제로 결정하는** 경우 — 주머니가 아니라 자기 예산이 한계일 때.
+
+    ⚠️ 위 검사만으로는 내림이 지켜지는지 알 수 없다(2026-08-13 변이 시험이
+       잡았다). 거기서는 주머니 잔액(정수)이 먼저 한계에 걸려, 내림을 꺼도
+       결과가 우연히 정수로 남는다. 내림이 답을 정하는 경우를 따로 만든다:
+
+           주머니 350,000원 (=3주까지 가능) · 이 종목 배정 250,000원 (=2주)
+
+       배정이 먼저 걸리므로 여기서 소수점이 나오면 내림이 죽은 것이다.
+    """
+    out, _ = _fit_to_budget(
+        {"kr_stock:069500.KS": 0.25, "kr_stock:105560.KS": 0.10},
+        {"kr_stock:069500.KS": 103_250.0, "kr_stock:105560.KS": 166_000.0},
+        1_000_000.0, conviction={"kr_stock:069500.KS": 9.0})
+    lots = out["kr_stock:069500.KS"] * 1_000_000.0 / 103_250.0
+    assert abs(lots - round(lots)) < 1e-9, f"정수 주가 아니다: {lots}"
+    assert round(lots) == 2, f"2주여야 한다: {lots}"
+
+
 def test_fractional_markets_are_untouched():
     """코인·미국주식은 소수점 매매가 되므로 그대로 둔다."""
     assert "kr_stock" not in FRACTIONAL_MARKETS

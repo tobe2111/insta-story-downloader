@@ -87,13 +87,43 @@ def test_interrupted_replace_keeps_original_and_cleans_tmp(tmp_path):
     assert not list(tmp_path.glob("*.tmp"))
 
 
-def test_unserializable_object_leaves_no_partial_file(tmp_path):
+def test_an_unexpected_value_does_not_cost_us_the_day(tmp_path):
+    """모르는 값이 섞여도 **그날 기록을 잃지 않는다**(감사 200).
+
+    ⚠️ 이 검사는 원래 "직렬화 불가면 TypeError여야 한다"였다. 감사 200에서
+       그 전제를 **의도적으로 뒤집었다** — 예외는 호출부의 `except`가 삼키고,
+       사라지는 것은 그날의 장부이기 때문이다. 이 모듈이 NaN을 막는 이유와
+       똑같다(모듈 독스트링: *"raise시키면 cycle의 except가 삼켜 저장이 아예
+       멈춘다"*). 그래서 지금은 값을 문자열로 살려 두고 경고를 남긴다.
+
+       지키던 **계약**(부분 파일을 남기지 않는다 · 원본을 손상시키지 않는다)은
+       그대로이므로 지우지 않고, 아래 검사가 그 계약을 이어받는다.
+    """
+    p = tmp_path / "state.json"
+    _write_state(p)
+    jio.atomic_write_json(p, {"history": [], "bad": object()})
+    saved = json.loads(p.read_text(encoding="utf-8"))
+    assert isinstance(saved["bad"], str), saved   # 살아남았다
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_a_write_that_really_fails_still_leaves_no_partial_file(tmp_path):
+    """쓰기가 **진짜로** 실패하는 경우의 계약은 그대로다.
+
+    최후 수단조차 실패하는 값(repr이 터지는 객체)으로 원래 상황을 다시
+    만든다 — 구현이 바뀌면 상황을 만드는 방법도 바뀌어야 하지만, 지키는
+    것은 같다(감사 190과 같은 처리).
+    """
+    class _Boom:
+        def __repr__(self):
+            raise RuntimeError("repr조차 실패")
+
     p = tmp_path / "state.json"
     original = _write_state(p)
     try:
-        jio.atomic_write_json(p, {"bad": object()})   # 직렬화 불가 → dumps에서 실패
-        assert False, "직렬화 불가면 예외여야 함"
-    except TypeError:
+        jio.atomic_write_json(p, {"bad": _Boom()})
+        assert False, "최후 수단도 실패하면 예외로 올라와야 함"
+    except Exception:
         pass
     assert json.loads(p.read_text(encoding="utf-8")) == original
     assert not list(tmp_path.glob("*.tmp"))

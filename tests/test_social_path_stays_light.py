@@ -154,3 +154,84 @@ def test_the_workflow_still_has_no_install_step():
     assert "pip install" not in runs, (
         "게시 워크플로에 의존성 설치가 생겼다 — 이 파일의 전제(가벼운 경로)를 "
         "다시 판단할 것")
+
+
+# ── 입금 경로도 같은 그물에 (2026-08-13) ─────────────────────────
+#
+# 사장님이 92만원 매칭 입금을 실행했는데 워크플로가 죽었다:
+#
+#     python -m quant deposit --amount 920000 ...
+#     → ModuleNotFoundError: No module named 'numpy'
+#
+# **감사 102와 똑같은 사고다.** 그때 SNS 게시가 죽어서 이 검사 파일과
+# `ledger_basics.py`가 생겼는데, 정작 그 뒤에 추가된 `add_deposit`은 또
+# 무거운 `daily.py`에 놓였다. 그리고 `deposit.yml`에는 의존성 설치 단계가
+# 아예 없었다.
+#
+# 규칙을 만드는 것보다 지키는 것이 어렵다 — 그래서 **그물을 넓힌다.**
+# 사람이 기억해야 하는 규칙은 언젠가 잊히지만, 검사는 안 잊는다.
+
+
+def test_deposit_works_without_the_heavy_stack():
+    """입금은 날짜·JSON·산술이 전부다 — numpy가 있어야 할 이유가 없다."""
+    r = _run(
+        "import json, pathlib, tempfile\n"
+        "d = pathlib.Path(tempfile.mkdtemp())\n"
+        "(d / 'paper').mkdir()\n"
+        "(d / 'paper' / 'portfolio_ALL.json').write_text(json.dumps({\n"
+        "    'market': 'portfolio', 'symbol': 'ALL', 'start_cash': 80000.0,\n"
+        "    'cash': 80000.0, 'positions': {}, 'base_prices': {},\n"
+        "    'last_bar': None, 'history': [], 'deposits': []}),\n"
+        "    encoding='utf-8')\n"
+        "from quant.live.ledger_basics import add_deposit\n"
+        "out = add_deposit(920000, '테스트', state_dir=str(d))\n"
+        "assert out['committed'] == 1_000_000, out\n"
+        "st = json.loads((d / 'paper' / 'portfolio_ALL.json')"
+        ".read_text(encoding='utf-8'))\n"
+        "assert st['cash'] == 1_000_000 and len(st['deposits']) == 1, st\n"
+        "print('OK')\n")
+    assert r.returncode == 0 and "OK" in r.stdout, (
+        "입금이 numpy 없이는 되지 않는다 — 입금 워크플로에는 그런 것이 "
+        f"없다(2026-08-13 실제로 죽었다)\n{r.stderr[-1500:]}")
+
+
+def test_the_deposit_command_does_not_reach_for_the_engine():
+    """CLI의 입금 명령이 무거운 모듈을 부르지 않는가.
+
+    `quant.live.daily`에서 가져오면 매매 엔진 전체가 딸려 온다. 함수를
+    옮겨 놔도 부르는 쪽이 옛 경로를 쓰면 그대로 죽는다 — 실제로 그랬다.
+    """
+    src = (ROOT / "quant" / "cli.py").read_text(encoding="utf-8")
+    i = src.index("def _cmd_deposit(")
+    body = src[i:i + 800]
+    assert "from quant.live.ledger_basics import add_deposit" in body, body[:300]
+    assert "from quant.live.daily import add_deposit" not in body
+
+
+def test_the_deposit_workflow_installs_what_it_needs():
+    """워크플로에 의존성 설치 단계가 있는가 — 이게 아예 없었다.
+
+    입금 자체는 가벼워졌지만, 같은 잡의 `write_docs_status()`는 사이트를
+    통째로 다시 만드는 일이라 pandas·numpy가 진짜로 필요하다. 둘 다
+    고쳐야 끝난다.
+
+    ⚠️ 이 검사를 처음엔 **글자 위치**로 비교했다가 제 발에 걸렸다 — 고친
+       이유를 설명하려고 워크플로 주석에 적어 둔 `python -m quant deposit`
+       한 줄이 실행 단계보다 앞에 있어서 "설치가 뒤에 있다"고 잘못 잡았다.
+       감사 183·199·204에서 반복해 겪은 자리다. **글자가 아니라 구조를
+       봐야 하면 파싱한다.**
+    """
+    import yaml
+
+    wf = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "deposit.yml").read_text("utf-8"))
+    steps = wf["jobs"]["deposit"]["steps"]
+    runs = [str(s.get("run") or "") for s in steps]
+    install = next((i for i, r in enumerate(runs)
+                    if "pip install" in r and "requirements.txt" in r), None)
+    use = next((i for i, r in enumerate(runs)
+                if "quant deposit" in r or "write_docs_status" in r), None)
+    assert install is not None, "입금 워크플로에 의존성 설치 단계가 없다"
+    assert use is not None, "전제가 깨졌다 — 입금을 실행하는 단계가 없다"
+    assert install < use, (
+        f"설치({install}번 단계)가 실행({use}번 단계)보다 뒤에 있다")

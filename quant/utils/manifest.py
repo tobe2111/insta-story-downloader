@@ -25,10 +25,45 @@ def data_checksum(index_first, index_last, n_rows, close_first, close_last) -> s
     중간 행 변조까지 잡는 완전한 무결성 검증이 아니다. 인덱스는 str()로 넘기면
     (예: str(df.index[0])) 라이브러리 버전에 따른 repr 차이를 피할 수 있다.
     """
-    payload = "|".join(repr(v) for v in
+    payload = "|".join(_stable(v) for v in
                        (index_first, index_last, int(n_rows),
                         close_first, close_last))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _stable(v) -> str:
+    """라이브러리 버전이 바뀌어도 같은 값이면 같은 글자 (감사 207).
+
+    ⚠️ 예전에는 `repr(v)`를 그대로 썼다. 그런데 pandas에서 꺼낸 종가는
+    `np.float64`이고, **numpy 2.x에서 그 repr이 바뀌었다**:
+
+        float      repr → '100.0'
+        np.float64 repr → 'np.float64(100.0)'      (numpy 1.x에서는 '100.0')
+
+    즉 **numpy를 올리는 것만으로 같은 데이터의 지문이 달라진다.** 재현
+    실패를 추적하라고 만든 도구가 "데이터가 바뀌었다"는 거짓 신호를 내는
+    것이다 — 이 도구가 유일하게 하는 일이 그 판정인데.
+
+    이 함수의 독스트링은 **인덱스에 대해서는 그 위험을 이미 알고 있었다**
+    ("인덱스는 str()로 넘기면 라이브러리 버전에 따른 repr 차이를 피할 수
+    있다"). 같은 위험이 종가에도 있는데 거기만 적혀 있었다 — 감사 200과
+    같은 형태다: 무엇을 막는다고 적었으면 그 무엇이 지나는 문을 전부 셀 것.
+
+    숫자는 파이썬 float로 정규화해 적고(`1`과 `1.0`도 같은 값으로 본다),
+    나머지는 문자열로 적는다.
+    """
+    if isinstance(v, bool):
+        return str(v)
+    item = getattr(v, "item", None)          # numpy 스칼라 → 파이썬 값
+    if callable(item):
+        try:
+            v = item()
+        except Exception:  # noqa: BLE001
+            pass
+    if isinstance(v, (int, float)):
+        f = float(v)
+        return "nan" if f != f else repr(f)   # 1 과 1.0 을 같은 글자로
+    return str(v)
 
 
 def build_manifest(config: dict, df_meta: dict, results: dict,

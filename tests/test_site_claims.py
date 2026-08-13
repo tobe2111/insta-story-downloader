@@ -114,12 +114,35 @@ def test_site_claim_matches_the_code_for_closed_bar_signals():
     """사이트가 "완성된 봉으로 판단한다"고 말하면 코드가 실제로 그래야 한다."""
     src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "def _signal_frame(" in src
-    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다
-    assert src.count("_signal_frame(market, df)") >= 2
+    # 두 경로(종목별·통합) 모두 신호를 완성 봉 프레임으로 낸다.
+    #
+    # ⚠️ 여기는 원래 `src.count("_signal_frame(market, df)") >= 2`였다.
+    #    감사 204에서 타임프레임을 인자로 넘기게 고치자 **글자가 달라져서**
+    #    빨개졌다 — 계약은 그대로인데 문자열만 어긋난 것이다(감사 183·199에서
+    #    반복해서 겪은 자리). 글자 대신 **호출 자체**를 센다.
+    import ast
+
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+             and n.func.id == "_signal_frame"]
+    assert len(calls) >= 2, f"신호 프레임을 쓰는 경로가 {len(calls)}곳뿐이다"
+    # 그리고 **재는 자(타임프레임)를 넘겨야 한다**(감사 204). 안 넘기면
+    # 항상 일봉으로 재서, 1시간봉으로 돌 때 완성된 봉이 버려진다.
+    for c in calls:
+        assert len(c.args) >= 3, (
+            f"daily.py:{c.lineno} — _signal_frame에 타임프레임을 안 넘긴다")
     assert "strat.generate_signals(df_sig)" in src
     assert "strategy.generate_signals(df_sig)" in src
-    # 체결 가격은 여전히 현재가(원본 프레임의 마지막 종가)여야 한다
-    assert 'prices[key] = float(df["close"].iloc[-1])' in src
+    # 체결 가격은 여전히 현재가(원본 프레임의 **마지막** 종가)여야 한다.
+    #
+    # ⚠️ 여기도 원래 줄 전체를 글자로 박아 뒀다가 감사 212에서 빨개졌다
+    #    — 원화 환산이 붙어 글자가 달라졌을 뿐 계약은 그대로였다(감사
+    #    183·199·204·211에 이어 다섯 번째 같은 함정). 글자 대신 **무엇을
+    #    읽는지**를 본다: 신호 프레임(df_sig)이 아니라 원본 df의 마지막 종가.
+    assert 'float(df["close"].iloc[-1])' in src, (
+        "체결가가 원본 프레임의 마지막 종가에서 나오지 않는다")
+    assert 'float(df_sig["close"].iloc[-1])' not in src, (
+        "체결가를 신호 프레임(확정 봉)에서 읽으면 어제 종가로 체결하는 것이다")
 
 
 def test_partial_bar_field_exists_in_code():
@@ -127,3 +150,40 @@ def test_partial_bar_field_exists_in_code():
     src = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert '"bar_partial"' in src
     assert (ROOT / "quant" / "data" / "barclock.py").exists()
+
+
+# ── 돈이 지금 어디 있는지 화면이 말하는가 (2026-08-13) ────────────
+#
+# 사장님 지적: *"아직 그리고 80000원 전액은 투자를 안한 상태인건가? 어떤
+# 상황이야? 그런 내용들이 홈페이지에서 확인하기 힘들어."*
+#
+# 실제로 사이트 어디에도 **"얼마가 투자됐고 얼마가 현금인지"**가 없었다.
+# 수익률·낙폭·종목표는 다 있는데 그 하나가 빠져서, 답하려면 장부 JSON을
+# 직접 파야 했다. 실측 당시 32%만 투자되고 68%가 현금이었는데 화면에는
+# 그 말이 어디에도 없었다.
+#
+# 이 프로젝트는 "누구든 검증할 수 있다"고 내걸었다. 검증하려는 사람이 가장
+# 먼저 물을 질문에 화면이 답하지 못하면 그 약속이 약해진다. 결함 감사와
+# 별개로, **빠진 사실을 채우는 것도 정직성의 일부**다.
+
+
+def test_the_site_says_how_much_is_invested_and_how_much_is_cash():
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    assert 'id="side-cash"' in html, "자금 배치 카드가 사라졌다"
+    assert "돈이 지금 어디 있나" in html
+    assert "투자 중" in html and "현금" in html, "둘 다 적어야 답이 된다"
+    # 숫자는 장부에서 온다 — 산문에 박아 두면 그날부터 거짓말이 된다
+    assert "pfLast.weight" in html, "투자 비율을 장부의 총노출에서 읽어야 한다"
+    assert "pfLast.equity" in html, "금액을 장부의 자산에서 읽어야 한다"
+
+
+def test_the_site_explains_why_the_cash_is_sitting_there():
+    """'현금이 많다'만 적으면 읽는 사람은 이유를 모른다.
+
+    1주 값에 못 미쳐 못 산 종목, 목표 대비 실제로 담긴 종목 수 —
+    둘 다 이미 장부에 있는 사실이므로 화면이 말할 수 있다.
+    """
+    html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+    assert "lot_infeasible" in html
+    assert "1주 값에 못 미쳐" in html, "왜 못 샀는지가 화면에 없다"
+    assert "곳만 담김" in html, "목표 대비 실제로 담긴 수가 화면에 없다"

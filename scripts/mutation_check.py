@@ -339,10 +339,12 @@ MUTATIONS = [
      "              \"lot_infeasible\": None,",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
+    # 2026-08-13 예산 유연화로 이 줄이 want(원하는 주수) 계산으로 바뀌었다.
+    # 지키는 계약은 그대로 — 소수점 주를 산 것으로 기록하면 안 된다.
     ("정수 주 내림을 끈다(못 사는 수량을 산 것으로 기록)",
      "quant/live/daily.py",
-     "        lots = math.floor(abs(w) * equity / float(px))",
-     "        lots = abs(w) * equity / float(px)",
+     "        want = math.floor(abs(w) * equity / px)",
+     "        want = abs(w) * equity / px",
      "tests/test_the_ledger_admits_what_cannot_be_bought.py"),
 
     ("미룬 예산을 재배분하지 않는다(총노출이 목표보다 낮아짐)",
@@ -460,6 +462,132 @@ MUTATIONS = [
      "    deposits = state.get(\"deposits\") or []\n"
      "    if False:",
      "tests/test_the_cockpit_does_not_count_deposits_as_skill.py"),
+
+    # 감사 211 — 197의 거울상. 반영되지 않은 입금을 원금에 더하면 그 금액이
+    # 통째로 **손실**로 보인다(실측 -920,749원).
+    ("반영 전 입금까지 원금에 더한다(입금액이 그대로 손실로 찍힌다)",
+     "quant/live/ledger_basics.py",
+     "    return float(start_cash) + sum(float(d[\"amount\"])\n"
+     "                                   for d in settled_deposits(deposits))",
+     "    return float(start_cash) + sum(float(d[\"amount\"])\n"
+     "                                   for d in deposits or [])",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("정산 도장을 무시하고 전부 반영됐다고 본다",
+     "quant/live/ledger_basics.py",
+     '    return bool(dep.get("settled_bar"))',
+     "    return True",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 도장이 있으면 그 봉으로 귀속해야 한다. 입금 날짜로만 찾으면 봉 날짜가
+    # 달력보다 뒤처진 사이의 입금이 **귀속처를 못 찾아 통째로 무시**되고,
+    # 다음 배치에서 자산만 뛴 것으로 보여 실력이 +1149%로 남는다.
+    ("입금 귀속을 정산된 봉이 아니라 입금 날짜로만 찾는다(TWR이 입금만큼 뛴다)",
+     "quant/live/ledger_basics.py",
+     '    return str(dep.get("settled_bar") or dep.get("date") or "")',
+     '    return str(dep.get("date") or "")',
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 도장을 찍는 자리는 자산을 다시 잰 배치 하나뿐이다. 안 찍으면 입금이
+    # 영원히 '접수됨'으로 남아 원금이 오르지 않는다 — 이번엔 수익 착시.
+    ("배치가 입금 정산 도장을 안 찍는다(반영된 입금이 원금에 영영 안 들어간다)",
+     "quant/live/daily.py",
+     "        if not _d.get(\"settled_bar\"):\n"
+     "            _d[\"settled_bar\"] = bar",
+     "        if False:\n"
+     "            _d[\"settled_bar\"] = bar",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
+    ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
+     "quant/live/daily.py",
+     "            px_krw = to_krw(market, float(df[\"close\"].iloc[-1]), fx_rate)",
+     "            px_krw = float(df[\"close\"].iloc[-1])",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("환율을 모를 때 1.0으로 때운다(고치기 전 상태로 되돌아간다)",
+     "quant/data/fx.py",
+     "    if rate is None:\n        return None\n    return p * float(rate)",
+     "    if rate is None:\n        return p\n    return p * float(rate)",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("원화 종목까지 환율을 곱한다(자산이 1,470배가 된다)",
+     "quant/data/fx.py",
+     "    return market in USD_MARKETS",
+     "    return True",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("말도 안 되는 환율(뒤집힌 계열)을 그대로 받아들인다",
+     "quant/data/fx.py",
+     "    if rate is not None and not (FX_MIN <= rate <= FX_MAX):",
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("환율 조회 실패를 캐시한다(일시적 장애가 프로세스 내내 남는다)",
+     "quant/data/fx.py",
+     "        log.warning(\"원/달러를 확인하지 못했습니다 — 해외 종목을 원화로 \"\n"
+     "                    \"환산할 수 없습니다. 1.0으로 대신하지 않습니다.\")\n"
+     "        return None",
+     "        _MEMO[\"usdkrw\"] = None\n"
+     "        return None",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("계좌를 두 번 다시 열 수 있게 한다(지금 기록이 통째로 사라진다)",
+     "quant/live/ledger_basics.py",
+     "    if old.get(\"currency\") == \"KRW\":",
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    # 보관본이 산 계좌를 덮어쓰던 자리 — 새 계좌를 열었는데 사이트는
+    # 닫힌 옛 계좌를 계속 보여줬다(실측).
+    ("보관된 옛 장부를 살아 있는 계좌로 읽는다(닫힌 계좌가 사이트를 덮는다)",
+     "quant/live/ledger_basics.py",
+     "    return ARCHIVE_MARK in os.path.basename(filename)",
+     "    return False",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("사이트 장부 목록에서 보관본을 걸러내지 않는다",
+     "quant/live/daily.py",
+     "            if not name.endswith(\".json\") or is_archive(name):\n"
+     "                continue",
+     "            if not name.endswith(\".json\"):\n"
+     "                continue",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("옛 장부를 보관하지 않고 덮어쓴다(과거가 사라진다)",
+     "quant/live/ledger_basics.py",
+     "    shutil.copy2(path, archive)          # 옛 장부는 한 글자도 고치지 않는다",
+     "    pass",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    # 잔고 표 — 현금까지 자산과 같은 시점이어야 표의 합이 맞는다.
+    # 안 빼면 보유 37,341 + 현금 961,910 = 999,251 ≠ 자산 79,251이 된다.
+    ("잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)",
+     "quant/live/daily.py",
+     "                    float(st.get(\"cash\") or 0.0)\n"
+     "                    - sum(float(d[\"amount\"]) for d in waiting), 2)",
+     "                    float(st.get(\"cash\") or 0.0), 2)",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("시세를 못 받은 종목을 '정상 평가'로 표시한다(손익 0이 사실처럼 보인다)",
+     "quant/live/ledger_basics.py",
+     "        marked = px is not None",
+     "        marked = True",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("잔고의 매입금액을 평가금액과 같게 만든다(평가손익이 항상 0)",
+     "quant/live/ledger_basics.py",
+     "        cost, value = qty * avg, qty * px",
+     "        cost, value = qty * px, qty * px",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("사이트에서 '반영 대기 중인 입금'을 지운다(넣었는데 화면이 그대로다)",
+     "quant/live/daily.py",
+     "                if waiting:\n"
+     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
+     "                if False:\n"
+     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
+     "tests/test_a_deposit_is_not_a_loss.py"),
 
     # 감시 탭이 서버 값을 쓰지 않고 자기가 계산하면 5초 뒤 덮어쓴다.
     ("감시 탭에 서버가 잰 KPI를 안 실어 보낸다(브라우저가 옛 계산으로 돌아간다)",
@@ -1367,8 +1495,8 @@ MUTATIONS = [
 
     ("JSON 로그에서 컨텍스트 필드를 빠뜨린다(주문 추적 정보가 사라진다)",
      "quant/utils/logging.py",
-     "        if isinstance(ctx, dict):\n            payload.update(ctx)",
-     "        if False:\n            payload.update(ctx)",
+     "        if isinstance(ctx, dict):\n            for k, v in ctx.items():",
+     "        if False:\n            for k, v in ctx.items():",
      "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
 
     # 감사 172 — 이미지가 정상 공개된 순간 SNS 게시가 죽었다.
@@ -1683,6 +1811,136 @@ MUTATIONS = [
      '        cash = require_field(acct, "cash", "현금", "Alpaca")',
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    # ── 감사 209: 멈춘 시세가 최대 노출을 받던 자리 ──────────────
+    ("멈춘 시세(수익률 대부분 0) 가드를 끈다(거래정지 종목이 100% 비중을 받는다)",
+     "quant/risk/manager.py",
+     "            realized = realized.where(zero_share < 0.8, np.nan)",
+     "            realized = realized",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
+    # ── 감사 208: 로그가 자기 시각·메시지를 잃던 자리 ────────────
+    ("컨텍스트가 로그의 예약 키를 덮어쓴다(로그가 시각·메시지를 거짓으로 말한다)",
+     "quant/utils/logging.py",
+     "                payload[f\"ctx_{k}\" if k in payload else k] = v",
+     "                payload[k] = v",
+     "tests/test_the_wrappers_and_utils_keep_their_contracts.py"),
+
+    # ── 감사 206·207: 모름을 반대로 처리·지문이 버전에 흔들리던 자리 ─
+    ("변동성 필터가 판정 불가 구간을 통과시킨다(못 재는 구간에만 매매가 열린다)",
+     "quant/strategies/regime.py",
+     "            hot = (vol > self.max_daily_vol) | vol.isna()",
+     "            hot = vol > self.max_daily_vol",
+     "tests/test_regime.py"),
+
+    ("데이터 지문을 repr로 적는다(numpy를 올리면 같은 데이터의 지문이 바뀐다)",
+     "quant/utils/manifest.py",
+     "    payload = \"|\".join(_stable(v) for v in",
+     "    payload = \"|\".join(repr(v) for v in",
+     "tests/test_manifest.py"),
+
+    # ── 감사 205: 한 계열 안에서 단위가 섞이던 자리 ──────────────
+    ("미결제약정 필드를 계열마다 고르지 않고 행마다 or로 떨어뜨린다(단위가 섞인다)",
+     "quant/data/openinterest.py",
+     "            v = float(row.get(field))",
+     "            v = float(row.get(\"openInterestAmount\")\n"
+     "                      or row.get(\"openInterestValue\"))",
+     "tests/test_attached_features_cannot_see_the_future.py"),
+
+    # ── 감사 204: 재는 자가 어긋나 완성 봉이 버려지던 자리 ───────
+    ("신호 프레임이 실제 타임프레임 대신 항상 일봉 자로 잰다(완성 봉이 버려진다)",
+     "quant/live/daily.py",
+     "    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:",
+     "    if len(df) < 2 or bar_status(market, df.index[-1]) is None:",
+     "tests/test_bar_completeness.py"),
+
+    ("판정 불가를 '완성됨'과 같은 답으로 낸다(미완결 봉 제거가 조용히 꺼진다)",
+     "quant/data/barclock.py",
+     "    if frac is None:",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
+    ("미래 봉을 '0% 진행 중'이라고 적는다(없는 사실이 장부에 남는다)",
+     "quant/data/barclock.py",
+     "    if frac <= 0.0 and _is_future(last_bar, now):",
+     "    if False:",
+     "tests/test_bar_completeness.py"),
+
+    # ── 감사 203: 폴백이 요청과 다른 길이의 봉을 내주던 자리 ─────
+    ("모르는 타임프레임을 조용히 일봉으로 떨어뜨린다(24배 긴 봉을 30분봉으로 받는다)",
+     "quant/data/synthetic.py",
+     "        if timeframe not in _TIMEFRAMES:",
+     "        if False:",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    ("30분봉을 합성 제공자에서 뺀다(시계는 아는데 폴백만 몰라 길이가 갈라진다)",
+     "quant/data/synthetic.py",
+     '    "30m": (timedelta(minutes=30), "30min"),',
+     "",
+     "tests/test_synthetic_fallback_never_trades.py"),
+
+    # ── 감사 202: 망가진 전략 하나가 나머지를 지우던 자리 ────────
+    ("측정 불가를 'nan'으로 사람에게 보여준다(0인지 실패인지 알 수 없다)",
+     "quant/reporting/attribution.py",
+     "    if not math.isfinite(f):\n        return \"측정 불가\"",
+     "    if False:\n        return \"측정 불가\"",
+     "tests/test_the_reports_do_not_flatter_us.py"),
+
+    # ── 감사 201: 표본이 모자란 종목이 '분산'으로 세어지던 자리 ───
+    ("표본 부족 검사를 끈다(10봉짜리 종목이 '분산된 종목'으로 세어진다)",
+     "quant/live/daily.py",
+     "            if len(df_sig) < need:",
+     "            if False:",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
+    ("필요 봉수를 챔피언 파라미터 대신 상수로 둔다(긴 창 전략이 무방비가 된다)",
+     "quant/live/daily.py",
+     "            longest = max(longest, int(abs(v)))",
+     "            longest = 0",
+     "tests/test_a_thin_sample_is_not_a_decision.py"),
+
+    # ── 감사 200: 장부를 쓰는 마지막 관문 ────────────────────────
+    ("직렬화 최후 수단을 끈다(모르는 값 하나에 그날 장부가 통째로 사라진다)",
+     "quant/utils/jsonio.py",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent,\n"
+     "                      default=_last_resort)",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("numpy 스칼라를 문자열로 뭉갠다(사이트가 숫자로 못 읽는다)",
+     "quant/utils/jsonio.py",
+     "    item = getattr(obj, \"item\", None)          # numpy 스칼라 → 파이썬 값",
+     "    item = None",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("잘려나간 구간의 최고점을 요약에 안 접는다(낙폭이 저절로 좋아진다)",
+     "quant/utils/jsonio.py",
+     "        peak = e if peak is None else max(peak, e)",
+     "        peak = e",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    # ── 예산 유연화(사장님 결정 2026-08-13) ──────────────────────
+    # "예산이 있는대로 유연하게" + "비율이 아니라 수익률이 더 높을 것이라
+    # 판단되는 최우선 선택". 세 항목이 그 결정을 지킨다.
+    ("확신도 순서를 버리고 dict 순서로 예산을 채운다(아무 종목이나 먼저 산다)",
+     "quant/live/daily.py",
+     "    lot_keys.sort(key=lambda k: (-abs(float(conv.get(k, targets[k]))), k))",
+     "    pass",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("자기 배정금액을 못 넘게 되돌린다(국내주식을 한 종목도 못 산다)",
+     "quant/live/daily.py",
+     "        if want <= 0 and abs(w) > 0:\n"
+     "            want = 1          # 자기 예산으로 못 사도 1주는 노린다(② 유연화)",
+     "        if False:\n"
+     "            want = 1",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
+
+    ("매도 선집행을 끈다(판 돈이 같은 사이클 매수에 안 쓰인다)",
+     "quant/live/daily.py",
+     "    for key in sorted(weights, key=_sell_first):",
+     "    for key in weights:",
+     "tests/test_the_budget_buys_the_best_idea_first.py"),
 
     ("잔고 필드 검사 자체를 끈다(네 브로커가 한꺼번에 '0'을 답하게 된다)",
      "quant/broker/base.py",
@@ -2310,7 +2568,7 @@ MUTATIONS = [
 
     ("코인도 진행 중인 봉으로 신호를 내게 되돌린다",
      "quant/live/daily.py",
-     "            df_sig = _signal_frame(market, df)",
+     "            df_sig = _signal_frame(market, df, timeframe)",
      "            df_sig = df",
      "tests/test_signal_frame.py"),
 

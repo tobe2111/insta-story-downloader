@@ -315,3 +315,70 @@ def test_the_json_switch_reads_the_environment(value, want, monkeypatch):
 
     monkeypatch.setenv("QUANT_LOG_JSON", value)
     assert _json_enabled() is want
+
+
+# ── 로그가 자기 시각·메시지를 잃지 않는가 (감사 208) ──────────────
+#
+# `_JsonFormatter`는 `payload.update(ctx)`였다. 그래서 컨텍스트에 `msg`나
+# `time`이라는 이름이 있으면 **진짜 메시지와 시각이 통째로 바뀌었다.** 실측:
+#
+#     log_event(log, "진짜 메시지", msg="가짜 메시지", time="가짜 시각")
+#     →  {"time": "가짜 시각", "msg": "가짜 메시지", ...}
+#
+# 로그가 "언제 무슨 일이 있었는지"를 거짓으로 말하는 것이다 — 감사 추적용
+# 기록에서는 가장 나쁜 실패다. 게다가 유일한 호출부는 `**result`로 **임의의
+# dict를 통째로 펼친다** — 부르는 쪽은 무엇이 예약 키인지 알 수 없고,
+# `"time"`은 이 저장소 장부가 어디서나 쓰는 이름이다.
+
+
+def _fmt(msg: str, ctx: dict) -> dict:
+    import json
+    import logging
+
+    from quant.utils.logging import _JsonFormatter
+
+    rec = logging.LogRecord("quant.t", logging.INFO, __file__, 1, msg, (), None)
+    rec.ctx = ctx
+    return json.loads(_JsonFormatter().format(rec))
+
+
+def test_a_context_field_cannot_rewrite_the_message_or_the_time():
+    got = _fmt("진짜 메시지", {"msg": "가짜 메시지", "time": "가짜 시각",
+                              "logger": "가짜 로거", "level": "가짜 레벨"})
+    assert got["msg"] == "진짜 메시지", got
+    assert got["time"] != "가짜 시각", got
+    assert got["logger"] == "quant.t" and got["level"] == "INFO", got
+
+
+def test_the_colliding_value_is_kept_not_thrown_away():
+    """덮어쓰지도 버리지도 않는다 — 값을 잃는 것도 조용한 손실이다."""
+    got = _fmt("진짜 메시지", {"msg": "가짜 메시지", "time": "가짜 시각"})
+    assert got["ctx_msg"] == "가짜 메시지", got
+    assert got["ctx_time"] == "가짜 시각", got
+
+
+def test_ordinary_context_fields_are_untouched():
+    """대조군 — 충돌하지 않는 필드는 접두어 없이 그대로 나가야 한다.
+
+    이게 없으면 위 검사들은 "모든 필드에 ctx_를 붙이는" 구현도 통과시키고,
+    그러면 JSON 로그를 읽는 쪽의 키가 전부 바뀐다.
+    """
+    got = _fmt("order_filled", {"order_id": "A1", "side": "buy", "qty": 0.1})
+    assert got["order_id"] == "A1" and got["side"] == "buy" and got["qty"] == 0.1
+    assert not [k for k in got if k.startswith("ctx_")], got
+
+
+def test_a_non_dict_context_is_ignored():
+    """경계 — ctx가 dict가 아니면 무시하고 로그는 계속 나가야 한다."""
+    for bad in (None, "문자열", 42, ["a"]):
+        got = _fmt("x", bad) if isinstance(bad, dict) else None
+        if got is None:
+            import json
+            import logging
+
+            from quant.utils.logging import _JsonFormatter
+            rec = logging.LogRecord("quant.t", logging.INFO, __file__, 1,
+                                    "x", (), None)
+            rec.ctx = bad
+            got = json.loads(_JsonFormatter().format(rec))
+        assert got["msg"] == "x", (bad, got)

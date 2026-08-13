@@ -90,8 +90,15 @@ class _Last:
         return pd.Series(0.9, index=df.index)
 
 
+FX = 1400.0        # 검사용 고정 원/달러 (감사 212)
+
+
 def _run_portfolio(monkeypatch, tmp_path, df, market="crypto"):
     strat = _Last()
+    # 원/달러를 고정한다(감사 212). 안 하면 가짜 제공자가 내주는 100 근처
+    # 값이 '환율'로 들어오는데, fx가 상식 범위 밖이라 거절해서 해외 종목이
+    # 통째로 빠진다 — 이 파일이 보려는 것(신호 프레임)과 무관한 이유로.
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: FX)
     monkeypatch.setattr("quant.data.get_provider", lambda m: _P(df))
     monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: strat)
     monkeypatch.setattr(dl, "champion_spec",
@@ -114,10 +121,13 @@ def test_signal_sees_closed_bars_but_price_is_the_live_mark(monkeypatch,
     assert len(seen) == len(df) - 1, "모델이 진행 중인 봉을 봤다"
     assert seen.index[-1] == df.index[-2]
 
-    # 체결·평가는 지금 값(진행 중 봉의 종가)이어야 한다 — 어제 종가가 아니라
+    # 체결·평가는 지금 값(진행 중 봉의 종가)이어야 한다 — 어제 종가가 아니라.
+    # 단위는 원화다(감사 212): 코인은 USDT 표시라 원/달러를 곱해 기록한다.
     assert rec["fills"], "코인은 즉시 체결이어야 한다"
-    assert rec["fills"][0]["price"] == round(float(df["close"].iloc[-1]), 6), (
-        "체결가가 지금 가격이 아니다 — 어제 종가로 체결하면 실현 불가")
+    assert rec["fills"][0]["price"] == round(
+        float(df["close"].iloc[-1]) * FX, 6), (
+        "체결가가 '지금 가격 × 원/달러'가 아니다 — 어제 종가로 체결하면 "
+        "실현 불가이고, 환산을 빼면 달러 금액이 원화 계좌에 섞인다")
 
 
 def test_stock_path_is_unchanged(monkeypatch, tmp_path):
