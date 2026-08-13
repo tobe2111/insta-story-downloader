@@ -253,7 +253,8 @@ def _cmd_redenominate(args) -> None:
         if input("계속하려면 '원화'를 입력하세요: ").strip() != "원화":
             print("취소했습니다.")
             return
-    out = redenominate_to_krw(args.state_dir, args.principal)
+    out = redenominate_to_krw(args.state_dir, args.principal,
+                              state_file=args.state_file)
     _notify_extra(f"🔁 통합 계좌를 원화 기준으로 다시 열었습니다 — 원금 "
                   f"{out['start_cash']:,.0f}원 (감사 212: 해외 종목 환율 미반영)")
 
@@ -1016,6 +1017,9 @@ def build_parser() -> argparse.ArgumentParser:
     rd.add_argument("--principal", type=float, required=True,
                     help="새 원화 계좌의 원금(원)")
     rd.add_argument("--state-dir", default="state", dest="state_dir")
+    rd.add_argument("--state-file", default="portfolio_ALL.json",
+                    dest="state_file",
+                    help="섀도 대조군은 portfolio_SHADOW.json (감사 215)")
     rd.add_argument("--yes", action="store_true",
                     help="확인 없이 실행 (워크플로용)")
     rd.set_defaults(func=_cmd_redenominate)

@@ -338,3 +338,65 @@ def test_every_reader_of_the_ledger_folder_skips_archives():
     assert not offenders, (
         "장부 폴더를 훑으면서 보관본을 안 거르는 곳이 있다 — 닫힌 계좌가 "
         "산 계좌를 덮어쓴다:\n  " + "\n  ".join(offenders))
+
+
+# ── 단위가 섞인 장부 위에서는 돌지 않는다 (감사 215) ───────────
+
+def test_the_batch_refuses_a_ledger_that_was_never_redenominated(tmp_path):
+    """정리 안 된 장부 위에서 돌면 **자산이 환율 배수만큼 뛴다.**
+
+    감사 212에서 체결·평가를 원화로 바꿨는데, 그 전에 쌓인 장부는 보유
+    단가가 달러다. 같은 수량을 원화 가격으로 다시 매기면 평가액이 1,470배가
+    되고, 그 폭등이 **수익으로 기록된다.**
+
+    ⚠️ 실제로 통합 계좌만 다시 열고 **섀도 대조군을 빠뜨렸다.** 섀도는
+    "오디션이 가치를 더하는가"를 증명하는 유일한 대조군인데, 그쪽만 폭등하면
+    그 비교가 통째로 거짓이 된다. 사람이 기억해서 지킬 일이 아니라
+    코드가 거절해야 한다.
+    """
+    (tmp_path / "paper").mkdir()
+    stale = {"market": "portfolio", "symbol": "ALL",      # currency 없음
+             "start_cash": 80_000.0, "cash": 41_909.59,
+             "positions": {"us_stock:SPY": {"quantity": 12.0,
+                                            "avg_price": 774.7,
+                                            "last_price": 772.49}},
+             "base_prices": {}, "last_bar": None,
+             "history": [{"date": "2026-08-12", "equity": 79_250.68}]}
+    (tmp_path / "paper" / "portfolio_ALL.json").write_text(
+        json.dumps(stale), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="원화로 정리되지 않은"):
+        _run(monkeypatch=None, tmp_path=tmp_path, market="us_stock") \
+            if False else dl.run_daily_portfolio(
+                [("synthetic", "DEMO")], state_dir=str(tmp_path),
+                require_real_data=False)
+
+
+def test_a_fresh_ledger_is_stamped_as_won_from_the_start(monkeypatch, tmp_path):
+    """대조군 — 새로 만드는 장부는 처음부터 원화다(막히면 안 된다)."""
+    _, st, _ = _run(monkeypatch, tmp_path, "kr_stock")
+    assert st["currency"] == "KRW"
+    assert st["history"], "새 장부인데 기록이 안 남았다"
+
+
+def test_the_shadow_control_arm_can_be_redenominated_too(tmp_path):
+    """섀도도 같은 명령으로 정리할 수 있어야 한다 — 빠뜨린 자리다."""
+    from quant.live.ledger_basics import redenominate_to_krw
+
+    (tmp_path / "paper").mkdir()
+    old = {"market": "portfolio_shadow", "symbol": "SHADOW",
+           "start_cash": 80_000.0, "cash": 1_000.0,
+           "positions": {"us_stock:SPY": {"quantity": 1.0, "avg_price": 774.7}},
+           "history": [{"date": "2026-08-12", "equity": 79_000.0}]}
+    (tmp_path / "paper" / "portfolio_SHADOW.json").write_text(
+        json.dumps(old), encoding="utf-8")
+
+    new = redenominate_to_krw(str(tmp_path), 1_000_000.0,
+                              today="2026-08-13",
+                              state_file="portfolio_SHADOW.json")
+    assert new["currency"] == "KRW" and new["symbol"] == "SHADOW"
+    kept = json.loads((tmp_path / "paper" / "portfolio_SHADOW.pre-krw.json")
+                      .read_text("utf-8"))
+    assert kept == old, "섀도 옛 장부가 바뀌었다"
+    # 통합 계좌 보관본과 이름이 겹치지 않아야 한다
+    assert not (tmp_path / "paper" / "portfolio_ALL.pre-krw.json").exists()

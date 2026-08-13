@@ -691,6 +691,19 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 215 — 통합 계좌만 원화로 열고 섀도 대조군을 빠뜨린 자리.
+    ("정리 안 된(단위 혼재) 장부 위에서도 배치를 돌린다(자산이 환율 배수만큼 뛴다)",
+     "quant/live/daily.py",
+     '    if st.get("currency") != "KRW" and (st.get("positions") or st.get("history")):',
+     "    if False:",
+     "tests/test_the_account_speaks_one_currency.py"),
+
+    ("새로 만드는 장부에 원화 표시를 안 남긴다(다음 배치가 스스로를 거절한다)",
+     "quant/live/daily.py",
+     '        st = {"market": mkt_tag, "symbol": sym_tag, "currency": "KRW",',
+     '        st = {"market": mkt_tag, "symbol": sym_tag,',
+     "tests/test_the_account_speaks_one_currency.py"),
+
     # 감사 213 — 값 하나가 결측이면 차트가 통째로 사라지던 자리.
     # (`hi - lo or 1.0`은 NaN을 못 막는다 — NaN은 참이다)
     ("차트 범위 계산에서 결측·무한값을 거르지 않는다(차트가 조용히 사라진다)",

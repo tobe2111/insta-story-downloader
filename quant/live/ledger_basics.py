@@ -234,7 +234,8 @@ def is_archive(filename: str) -> bool:
 
 
 def redenominate_to_krw(state_dir: str, principal_krw: float,
-                        *, today: str | None = None) -> dict:
+                        *, today: str | None = None,
+                        state_file: str = "portfolio_ALL.json") -> dict:
     """통합 계좌를 **진짜 원화 계좌로** 다시 연다 (감사 212).
 
     왜 '환산'이 아니라 '다시 여는가': 옛 계좌는 되살릴 수가 없다. 가격만
@@ -259,9 +260,12 @@ def redenominate_to_krw(state_dir: str, principal_krw: float,
     if principal_krw <= 0:
         raise ValueError("원금은 0원보다 커야 합니다.")
 
-    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    # ⚠️ 섀도 대조군도 같은 처리가 필요하다(감사 215). 통합 계좌만 원화로
+    #    열고 섀도를 두면, 대조군만 단위가 섞인 채 굴러 "오디션이 가치를
+    #    더하는가"라는 비교가 통째로 거짓이 된다. 실제로 빠뜨렸었다.
+    path = os.path.join(state_dir, "paper", state_file)
     if not os.path.exists(path):
-        raise FileNotFoundError(f"통합 장부가 없습니다: {path}")
+        raise FileNotFoundError(f"장부가 없습니다: {path}")
     with open(path, encoding="utf-8") as f:
         old = json.load(f)
     if old.get("currency") == "KRW":
@@ -269,7 +273,8 @@ def redenominate_to_krw(state_dir: str, principal_krw: float,
             "이미 원화 계좌입니다 — 다시 열지 않습니다. 두 번 돌면 "
             "지금 계좌의 기록이 통째로 사라집니다.")
 
-    archive = os.path.join(state_dir, "paper", "portfolio_ALL.pre-krw.json")
+    stem = state_file[:-5] if state_file.endswith(".json") else state_file
+    archive = os.path.join(state_dir, "paper", f"{stem}{ARCHIVE_MARK}krw.json")
     if os.path.exists(archive):
         raise RuntimeError(f"이전 계좌 보관 파일이 이미 있습니다: {archive}")
     shutil.copy2(path, archive)          # 옛 장부는 한 글자도 고치지 않는다

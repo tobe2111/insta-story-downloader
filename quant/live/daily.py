@@ -1232,10 +1232,29 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         with open(path, encoding="utf-8") as f:
             st = json.load(f)
     else:
-        st = {"market": mkt_tag, "symbol": sym_tag,
+        st = {"market": mkt_tag, "symbol": sym_tag, "currency": "KRW",
               "start_cash": PORTFOLIO_START_CASH,
               "cash": PORTFOLIO_START_CASH, "positions": {}, "base_prices": {},
               "last_bar": None, "history": []}
+
+    # ⚠️ **단위가 섞인 장부 위에서 돌면 안 된다**(감사 215).
+    #
+    # 감사 212에서 체결·평가를 원화로 환산하게 고쳤는데, 그 전에 쌓인 장부는
+    # 보유 단가가 달러다. 그 위에서 이 함수를 돌리면 같은 수량이 원화
+    # 가격으로 재평가되어 **자산이 1,470배로 뛴다** — 그리고 그 폭등이
+    # 수익으로 기록된다.
+    #
+    # 실제로 통합 계좌만 다시 열고 **섀도 대조군을 빠뜨렸다.** 섀도는
+    # "오디션이 가치를 더하는가"를 증명하는 유일한 대조군인데, 그쪽만
+    # 폭등하면 그 비교가 통째로 거짓이 된다. 사람이 기억해서 지킬 일이
+    # 아니므로 코드가 거절한다.
+    if st.get("currency") != "KRW" and (st.get("positions") or st.get("history")):
+        raise RuntimeError(
+            f"{state_file}: 통화가 원화로 정리되지 않은 장부입니다"
+            " — 이 위에서 돌리면 보유 평가액이 환율 배수만큼 뛰어 그 폭등이"
+            " 수익으로 기록됩니다(감사 212·215)."
+            f" `python -m quant redenominate --principal <원금> --state-file"
+            f" {state_file}` 로 먼저 정리하세요.")
 
     # 원/달러를 **하루 한 번** 잡아 둔다(감사 212). 종목마다 따로 받으면
     # 같은 배치 안에서 종목별로 다른 환율이 적용돼 자산이 미세하게 어긋난다.
