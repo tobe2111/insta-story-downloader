@@ -1645,16 +1645,49 @@ MUTATIONS = [
      "        side = str(side)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # 감사 199에서 이 판정이 base.require_field로 모였다(형제가 넷이었다).
+    # 항목은 브로커마다 남긴다 — 한 브로커가 공통 판정을 안 부르게 되는
+    # 것이 정확히 감사 182에서 일어난 사고다.
     ("키움: 보유목록 키가 없어도 '0주 보유'라 답한다(목표만큼 다시 사서 두 배가 된다)",
      "quant/broker/kiwoom_live.py",
-     "        if self.HOLDINGS_KEY not in data:",
-     "        if False:",
+     '        holdings = require_field(data, self.HOLDINGS_KEY, "보유목록 키", "키움")',
+     "        holdings = data.get(self.HOLDINGS_KEY)",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("키움: 예수금 필드가 없어도 '현금 0'이라 답한다(평가금액이 꺼져 청산 지시가 난다)",
      "quant/broker/kiwoom_live.py",
-     "        if self.CASH_FIELD not in data:",
-     "        if False:",
+     '        raw = require_field(data, self.CASH_FIELD, "예수금 필드", "키움")',
+     "        raw = data.get(self.CASH_FIELD, 0)",
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("코인: 가용 잔고 키가 없어도 '현금 0'이라 답한다(청산 지시가 난다)",
+     "quant/broker/crypto_live.py",
+     '        free = require_field(bal, "free", "가용 잔고", f"거래소({self.exchange})")',
+     '        free = bal.get("free", {})',
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("코인: 총 잔고 키가 없어도 '0개 보유'라 답한다(목표만큼 다시 사서 두 배가 된다)",
+     "quant/broker/crypto_live.py",
+     '        total = require_field(bal, "total", "총 잔고", f"거래소({self.exchange})")',
+     '        total = bal.get("total", {})',
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("알파카: 총자산 필드가 없어도 '0원'이라 답한다(전 종목 청산 지시가 난다)",
+     "quant/broker/us_live.py",
+     '        return safe_amount(require_field(acct, "equity", "총자산", "Alpaca"))',
+     '        return safe_amount(acct.get("equity", 0.0))',
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("알파카: 현금 필드가 없어도 '0원'이라 답한다",
+     "quant/broker/us_live.py",
+     '        cash = require_field(acct, "cash", "현금", "Alpaca")',
+     '        cash = acct.get("cash", 0.0)',
+     "tests/test_a_renamed_field_cannot_empty_the_account.py"),
+
+    ("잔고 필드 검사 자체를 끈다(네 브로커가 한꺼번에 '0'을 답하게 된다)",
+     "quant/broker/base.py",
+     "    if not isinstance(data, dict) or key not in data:",
+     "    if False:",
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("KIS: 주문 방향 정규화를 건너뛴다(형제 쪽만 살아 있으면 더 나쁘다)",
@@ -1665,14 +1698,14 @@ MUTATIONS = [
 
     ("KIS: 보유목록(output1)이 없어도 '0주 보유'라 답한다",
      "quant/broker/kr_live.py",
-     '        if "output1" not in data:',
-     "        if False:",
+     '        holdings = require_field(data, "output1", "보유목록", "KIS") or []',
+     '        holdings = data.get("output1") or []',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     ("KIS: 요약(output2)이 없어도 '현금 0'이라 답한다",
      "quant/broker/kr_live.py",
-     '        if "output2" not in data:',
-     "        if False:",
+     '        summary = require_field(data, "output2", "요약", "KIS") or []',
+     '        summary = data.get("output2") or []',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
     # 감사 184 — 모든 성적이 나오는 자리. 결함 3건.

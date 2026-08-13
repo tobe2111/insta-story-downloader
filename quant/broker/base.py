@@ -57,6 +57,40 @@ def normalize_side(side) -> str:
     return s
 
 
+def require_field(data, key: str, what: str, api: str):
+    """잔고 응답에서 **'없으면 0으로 읽으면 안 되는' 필드**를 꺼낸다.
+
+    ⚠️ 왜 0이 위험한가(감사 182 · 199). 현금·총자산이 0으로 읽히면
+    보수적으로 보이지만 정반대다. 상위 로직은 그 값으로 평가금액을 만들고
+    거기에 목표 비중을 곱한다 — 0이면 모든 종목의 목표가 0주가 되어
+    **계좌를 통째로 청산하라는 지시**가 나간다. 보유 수량이 0으로 읽히면
+    반대로 목표 비중만큼 **다시 사서** 포지션이 두 배가 된다(감사 55).
+
+    실측(감사 199, 실거래 브로커 둘):
+
+        Alpaca  equity 키만 어긋남 → 총자산 0      (전량 청산)
+        Alpaca  cash   키만 어긋남 → 현금   0
+        ccxt    free   키만 어긋남 → 현금   0
+        ccxt    total  키 없음     → 보유   0주    (두 배 매수)
+
+    키가 **있는데** 그 안에 이 종목·통화가 없으면 그건 진짜로 '없음'이다.
+    구분해야 하는 건 **응답의 모양이 어긋난 경우**뿐이다.
+
+    감사 182에서 국내 브로커 둘(키움·KIS)에 이 검사를 넣었는데, 같은 모양이
+    `crypto_live.py`와 `us_live.py`에도 있었다(감사 199). 파일마다 복사해
+    넣으면 다음에 또 한 곳을 빠뜨린다 — 판정을 여기 하나로 모으고 모두가
+    이걸 부른다(㉞ '같은 판정을 두 곳에서 쓰면 언젠가 갈라진다').
+
+    '모름'은 숫자가 아니다. 그대로 올려보내 호출부가 매매를 건너뛰게 한다.
+    """
+    if not isinstance(data, dict) or key not in data:
+        got = sorted(data)[:20] if isinstance(data, dict) else type(data).__name__
+        raise RuntimeError(
+            f"{api} 잔고 응답에 {what}({key})이(가) 없습니다 — API 개정 "
+            f"가능성. 받은 키: {got}")
+    return data[key]
+
+
 @dataclass
 class Order:
     symbol: str

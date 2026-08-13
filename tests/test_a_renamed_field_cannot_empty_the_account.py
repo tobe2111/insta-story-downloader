@@ -285,3 +285,112 @@ def test_the_token_is_refreshed_before_it_expires(kiwoom, monkeypatch):
     import time as _t
     assert kiwoom._token_expiry <= _t.time() + 3600 - 300 + 1, (
         "만료 직전 여유(5분)를 안 두면 경계에서 401이 난다")
+
+
+# ── 형제 둘이 더 있었다 — 코인·미국주식 (감사 199) ─────────────
+#
+# 감사 182에서 국내 브로커 둘에 이 검사를 넣으면서 "형제를 둘 다 고친다"고
+# 적었다. 그런데 형제는 넷이었다. `crypto_live.py`와 `us_live.py`가 같은
+# 자리에서 같은 답(0)을 하고 있었고, 그 사이 감사 192에서 두 파일의
+# `normalize_side`는 고쳤으면서 **바로 몇 줄 위의 이 자리는 안 봤다.**
+#
+# 그래서 판정을 `broker/base.require_field` 하나로 모았다. 아래 검사는
+# **네 브로커 전부**가 같은 답을 하는지 본다 — 한 곳만 고쳐진 상태가
+# 넷 다 안 고쳐진 것보다 알아채기 어렵기 때문이다.
+
+
+@pytest.fixture()
+def ccxt_broker():
+    import quant.broker.crypto_live as CL
+
+    def _make(balance):
+        class _Client:
+            def fetch_balance(self):
+                return balance
+        return CL.CryptoLiveBroker(client=_Client(), quote="USDT")
+    return _make
+
+
+@pytest.fixture()
+def alpaca(monkeypatch):
+    import quant.broker.us_live as U
+
+    monkeypatch.setenv("ALPACA_API_KEY", "k")
+    monkeypatch.setenv("ALPACA_SECRET", "s")
+
+    def _make(account):
+        monkeypatch.setattr(U, "get_json", lambda *a, **k: account)
+        return U.AlpacaBroker(paper=True)
+    return _make
+
+
+def test_a_renamed_ccxt_balance_key_is_an_error_not_zero(ccxt_broker):
+    """`free`·`total`이 없으면 '잔고 0'이 아니라 '모름'이다."""
+    with pytest.raises(RuntimeError, match="free"):
+        ccxt_broker({"balances": {"USDT": 5000}, "total": {}}).get_cash()
+    with pytest.raises(RuntimeError, match="total"):
+        ccxt_broker({"free": {"USDT": 5000}}).get_position("BTC/USDT")
+
+
+def test_a_currency_missing_from_a_present_ccxt_key_really_is_zero(ccxt_broker):
+    """대조군 — 거래소는 잔고 0인 통화를 응답에서 **생략하는 것이 정상**이다.
+
+    이 대조군이 없으면 위 검사는 "무엇이든 거절하는 브로커"도 통과시키고,
+    그러면 잔고가 진짜 0인 평범한 날 매매가 통째로 멈춘다.
+    """
+    b = ccxt_broker({"free": {}, "total": {}})
+    assert b.get_cash() == 0.0
+    assert b.get_position("BTC/USDT").quantity == 0.0
+    b2 = ccxt_broker({"free": {"USDT": 5000}, "total": {"BTC": 0.5}})
+    assert b2.get_cash() == 5000.0
+    assert b2.get_position("BTC/USDT").quantity == 0.5
+
+
+def test_a_renamed_alpaca_equity_field_cannot_empty_the_account(alpaca):
+    """가장 날카로운 자리 — `equity`가 0이면 **전 종목 청산 지시**가 나간다.
+
+    `equity()`는 MultiTrader·RobustBroker가 총자산을 찾을 때 부르는 값이다.
+    0으로 읽히면 모든 종목의 목표가 (비중 × 0) = 0주가 된다.
+    """
+    with pytest.raises(RuntimeError, match="equity"):
+        alpaca({"cash": "5000", "portfolio_value": "12000"}).equity()
+    with pytest.raises(RuntimeError, match="cash"):
+        alpaca({"cash_balance": "5000", "equity": "12000"}).get_cash()
+
+    # 대조군 — 멀쩡한 응답은 그대로 읽힌다. 마이너스 현금(마진)도 살린다.
+    ok = alpaca({"cash": "5000", "equity": "12000"})
+    assert (ok.get_cash(), ok.equity()) == (5000.0, 12000.0)
+    assert alpaca({"cash": "-300", "equity": "12000"}).get_cash() == -300.0
+
+
+def test_all_four_live_brokers_ask_the_same_judge():
+    """네 브로커의 잔고 조회가 전부 `require_field`를 지나는가.
+
+    ㉞ — 같은 판정을 여러 곳에서 쓰면 언젠가 갈라진다. 감사 182에서 둘만
+    고치고 둘을 빠뜨린 것이 정확히 그 일이었다. 파일이 늘어날 때 이
+    검사가 빠진 브로커를 잡는다.
+
+    ⚠️ 이 검사는 처음에 소스에서 **글자**를 찾았다가 제 발에 걸렸다 —
+       고친 이유를 설명하려고 독스트링에 적어 둔 옛 코드
+       (`acct.get("equity", 0.0)`)를 위반으로 잡았다. 감사 183에서 겪은
+       것과 같다. 글자가 아니라 **코드**를 봐야 한다면 `ast`로 파싱한다.
+    """
+    import ast
+
+    BALANCE_KEYS = {"free", "total", "cash", "equity", "output1", "output2"}
+    for mod in ("kiwoom_live", "kr_live", "crypto_live", "us_live"):
+        path = ROOT / "quant" / "broker" / f"{mod}.py"
+        src = path.read_text(encoding="utf-8")
+        assert "require_field(" in src, f"{mod}: 공통 판정을 안 쓴다"
+        for node in ast.walk(ast.parse(src)):
+            # 잔고에서 값을 꺼내며 '없으면 0/빈값'을 기본값으로 두는 옛 모양
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "get"
+                    and len(node.args) == 2
+                    and isinstance(node.args[0], ast.Constant)
+                    and node.args[0].value in BALANCE_KEYS):
+                raise AssertionError(
+                    f"{mod}:{node.lineno} — 잔고 키 "
+                    f"{node.args[0].value!r}를 기본값으로 얼버무린다. "
+                    f"require_field를 쓸 것")
