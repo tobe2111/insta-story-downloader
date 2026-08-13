@@ -242,6 +242,22 @@ def _cmd_deposit(args) -> None:
           "늘리는 '매칭' 이벤트입니다(대가·지분 없음).")
 
 
+def _cmd_redenominate(args) -> None:
+    """통합 계좌를 원화 계좌로 다시 연다 (감사 212) — 되돌릴 수 없다."""
+    from quant.live.ledger_basics import redenominate_to_krw
+
+    if not args.yes:
+        print("⚠️ 통합 계좌를 닫고 원화 계좌를 새로 엽니다. 옛 장부는 "
+              "portfolio_ALL.pre-krw.json 으로 그대로 보관되지만, 현재 "
+              "보유·현금은 새 계좌로 이어지지 않습니다.")
+        if input("계속하려면 '원화'를 입력하세요: ").strip() != "원화":
+            print("취소했습니다.")
+            return
+    out = redenominate_to_krw(args.state_dir, args.principal)
+    _notify_extra(f"🔁 통합 계좌를 원화 기준으로 다시 열었습니다 — 원금 "
+                  f"{out['start_cash']:,.0f}원 (감사 212: 해외 종목 환율 미반영)")
+
+
 def _cmd_live_daily(args) -> None:
     """하루 1회 실거래 집행 — 기본 모의투자, 실전은 이중 안전장치."""
     if args.real:
@@ -993,6 +1009,16 @@ def build_parser() -> argparse.ArgumentParser:
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
     dp.set_defaults(func=_cmd_deposit)
+
+    rd = sub.add_parser(
+        "redenominate",
+        help="통합 계좌를 원화 계좌로 다시 연다 (감사 212) — 한 번만 실행")
+    rd.add_argument("--principal", type=float, required=True,
+                    help="새 원화 계좌의 원금(원)")
+    rd.add_argument("--state-dir", default="state", dest="state_dir")
+    rd.add_argument("--yes", action="store_true",
+                    help="확인 없이 실행 (워크플로용)")
+    rd.set_defaults(func=_cmd_redenominate)
 
     lv = sub.add_parser(
         "live",

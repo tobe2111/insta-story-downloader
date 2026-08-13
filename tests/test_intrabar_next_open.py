@@ -139,6 +139,9 @@ def test_stocks_never_fill_at_the_decision_day_close(monkeypatch, tmp_path):
         def generate_signals(self, df):
             return _pd.Series(0.9, index=df.index)
 
+    # 원/달러 고정 — 가짜 제공자의 값이 환율로 새어 들어오면 해외 종목이
+    # 통째로 빠진다(감사 212). 이 파일이 보는 것은 체결 시점이다.
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: 1400.0)
     monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
     monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _S())
     monkeypatch.setattr(dl, "champion_spec",
@@ -194,6 +197,9 @@ def test_pending_stock_order_fills_at_the_next_session_open(monkeypatch,
         def generate_signals(self, df):
             return _pd.Series(0.9, index=df.index)
 
+    # 원/달러 고정 — 가짜 제공자의 값이 환율로 새어 들어오면 해외 종목이
+    # 통째로 빠진다(감사 212). 이 파일이 보는 것은 체결 시점이다.
+    monkeypatch.setattr(dl, "usdkrw", lambda *a, **k: 1400.0)
     monkeypatch.setattr("quant.data.get_provider", lambda m: _P())
     monkeypatch.setattr(dl, "champion_strategy", lambda *a, **k: _S())
     monkeypatch.setattr(dl, "champion_spec",

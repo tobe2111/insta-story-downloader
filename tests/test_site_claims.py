@@ -133,8 +133,16 @@ def test_site_claim_matches_the_code_for_closed_bar_signals():
             f"daily.py:{c.lineno} — _signal_frame에 타임프레임을 안 넘긴다")
     assert "strat.generate_signals(df_sig)" in src
     assert "strategy.generate_signals(df_sig)" in src
-    # 체결 가격은 여전히 현재가(원본 프레임의 마지막 종가)여야 한다
-    assert 'prices[key] = float(df["close"].iloc[-1])' in src
+    # 체결 가격은 여전히 현재가(원본 프레임의 **마지막** 종가)여야 한다.
+    #
+    # ⚠️ 여기도 원래 줄 전체를 글자로 박아 뒀다가 감사 212에서 빨개졌다
+    #    — 원화 환산이 붙어 글자가 달라졌을 뿐 계약은 그대로였다(감사
+    #    183·199·204·211에 이어 다섯 번째 같은 함정). 글자 대신 **무엇을
+    #    읽는지**를 본다: 신호 프레임(df_sig)이 아니라 원본 df의 마지막 종가.
+    assert 'float(df["close"].iloc[-1])' in src, (
+        "체결가가 원본 프레임의 마지막 종가에서 나오지 않는다")
+    assert 'float(df_sig["close"].iloc[-1])' not in src, (
+        "체결가를 신호 프레임(확정 봉)에서 읽으면 어제 종가로 체결하는 것이다")
 
 
 def test_partial_bar_field_exists_in_code():
