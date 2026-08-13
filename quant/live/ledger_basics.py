@@ -213,6 +213,52 @@ def time_weighted_return(history: list[dict], deposits: list[dict],
     return round((idx[-1] - 1) * 100, 2) if idx else 0.0
 
 
+def holdings_view(state: dict, equity: float | None = None) -> list[dict]:
+    """종목별 **잔고** — 증권사 잔고 화면과 같은 항목으로 편다.
+
+    왜 필요한가(2026-08-13): 사이트는 종목별 **비중(%)**만 보여줬다. 비중은
+    "얼마를 넣었나"에 답하지 못한다 — 32%가 25,527원인지 알려면 자산을 알고
+    곱해야 하고, 그나마도 **평단·수량·평가손익**은 어디에도 없었다. 장부에는
+    다 있는데 사이트로 나가지 않은 것이다.
+
+    항목은 증권사 잔고와 같게 맞춘다(사장님이 아는 화면이 곧 표준이다):
+        보유수량 · 평균매입가 · 현재가 · 매입금액 · 평가금액 · 평가손익 · 수익률
+
+    ⚠️ 현재가는 장부가 **마지막으로 알던 값**이다(`last_price_bar`가 언제
+    것인지 함께 낸다). 실시간이 아니고, 그렇게 말해야 한다.
+    """
+    rows: list[dict] = []
+    for key, p in (state.get("positions") or {}).items():
+        qty = float(p.get("quantity") or 0.0)
+        if qty == 0.0:
+            continue
+        avg = float(p.get("avg_price") or 0.0)
+        # 시세를 못 받은 종목은 매입가로 평가된다 — 손익 0으로 보이는 그
+        # 상태를 숨기지 않는다(감사 152와 같은 자리).
+        px = p.get("last_price")
+        marked = px is not None
+        px = float(px if marked else avg)
+        cost, value = qty * avg, qty * px
+        rows.append({
+            "key": key,
+            "quantity": qty,
+            "avg_price": avg,
+            "last_price": px,
+            "cost": round(cost, 2),
+            "value": round(value, 2),
+            "pnl": round(value - cost, 2),
+            "pnl_pct": round((px / avg - 1) * 100, 2) if avg > 0 else None,
+            "as_of": p.get("last_price_bar"),
+            "marked": marked,
+        })
+    rows.sort(key=lambda r: -r["value"])
+    if equity is None:
+        equity = float(state.get("cash") or 0.0) + sum(r["value"] for r in rows)
+    for r in rows:
+        r["weight"] = round(r["value"] / equity, 6) if equity else 0.0
+    return rows
+
+
 def _record_date(rec: dict) -> str:
     """기록의 날짜 — 장부는 "date", 조종석·감시 탭 상태는 "time"을 쓴다.
 

@@ -291,3 +291,93 @@ def test_the_principal_math_needs_no_numpy():
     r = subprocess.run([sys.executable, "-c", blocker], cwd=str(ROOT),
                        capture_output=True, text=True, timeout=180)
     assert r.returncode == 0 and "OK" in r.stdout, r.stderr[-2000:]
+
+
+# ── 잔고 표: 표가 스스로 모순되지 않는가 ──────────────────────
+
+def test_the_holdings_table_adds_up_to_the_account(tmp_path):
+    """보유 + 현금 = 자산. 표가 스스로 안 맞으면 아무도 안 믿는다.
+
+    ⚠️ 감사 211이 **여기서 한 번 더** 나온다. 장부의 cash에는 아직 반영되지
+    않은 입금이 이미 들어 있어서, 그대로 실으면 이렇게 된다:
+
+        보유 37,341 + 현금 961,910 = 999,251  ≠  자산 79,251
+        현금 비중 **1213%**
+
+    같은 결함이 원금·TWR·현금 세 자리에서 나왔다 — 자산과 다른 시점의
+    숫자를 나란히 놓으면 어디서든 터진다.
+    """
+    import quant.live.daily as dl
+
+    dl.add_deposit(920_000, "원금 증액", state_dir=str(tmp_path),
+                   date="2026-08-13")
+    p = tmp_path / "paper" / "portfolio_ALL.json"
+    st = json.loads(p.read_text("utf-8"))
+    st["positions"] = {
+        "us_stock:SPY": {"quantity": 12.0, "avg_price": 774.7,
+                         "last_price": 772.49, "last_price_bar": "2026-08-12"},
+        "crypto:XRP/USDT": {"quantity": 2000.0, "avg_price": 1.02,
+                            "last_price": 1.0082,
+                            "last_price_bar": "2026-08-12"}}
+    held = 12.0 * 772.49 + 2000.0 * 1.0082
+    st["cash"] = 41_909.59 + 920_000.0            # 입금이 이미 섞인 현금
+    st["history"] = [{"date": "2026-08-12", "equity": round(41_909.59 + held, 2),
+                      "return_pct": -0.94, "price": 98.96, "weight": 0.32}]
+    p.write_text(json.dumps(st), encoding="utf-8")
+
+    pf = dl.write_docs_status(str(tmp_path),
+                              docs_path=str(tmp_path / "s.json"))["paper"]["portfolio:ALL"]
+    total = sum(r["value"] for r in pf["holdings"]) + pf["cash"]
+    assert abs(total - pf["equity"]) < 1.0, (
+        f"잔고 표의 합({total:,.0f})이 자산({pf['equity']:,.0f})과 다르다")
+    assert pf["cash"] == pytest.approx(41_909.59, abs=0.01), (
+        "반영 전 입금이 현금에 섞여 나갔다 — 현금 비중이 100%를 넘는다")
+
+
+def test_the_holdings_table_reports_cost_and_pnl_per_symbol():
+    """종목마다 매입금액·평가금액·평가손익·수익률이 나와야 한다."""
+    from quant.live.ledger_basics import holdings_view
+
+    st = {"cash": 1000.0, "positions": {
+        "us_stock:SPY": {"quantity": 10.0, "avg_price": 100.0,
+                         "last_price": 110.0, "last_price_bar": "2026-08-12"}}}
+    (row,) = holdings_view(st)
+    assert row["cost"] == 1000.0 and row["value"] == 1100.0
+    assert row["pnl"] == 100.0 and row["pnl_pct"] == 10.0
+    assert row["weight"] == pytest.approx(1100.0 / 2100.0)
+    assert row["as_of"] == "2026-08-12" and row["marked"] is True
+
+
+def test_a_symbol_without_a_price_is_flagged_not_silently_flat():
+    """시세를 못 받은 종목은 매입가로 평가된다 — 그 사실을 표시해야 한다.
+
+    감사 152와 같은 자리다. 손익 0은 '안 움직였다'가 아니라 '모른다'일 수
+    있는데, 표시가 없으면 둘을 구별할 방법이 없다.
+    """
+    from quant.live.ledger_basics import holdings_view
+
+    st = {"cash": 0.0, "positions": {
+        "kr_stock:005930.KS": {"quantity": 1.0, "avg_price": 236000.0}}}
+    (row,) = holdings_view(st)
+    assert row["marked"] is False and row["pnl"] == 0.0
+    assert (ROOT / "docs" / "index.html").read_text("utf-8").count("r.marked") >= 2
+
+
+def test_the_site_does_not_call_the_target_weight_a_balance():
+    """'투자 중'은 **잔고**여야 한다 — 오늘의 목표 노출이 아니다.
+
+    실측: 목표는 4종목 32.2%였는데 계좌가 실제로 들고 있던 것은 10종목
+    47.1%였다. 잔돈·쿨다운·1주 미만으로 정리하지 못한 보유가 목표에는
+    안 잡히기 때문이다. 목표를 잔고라고 부르면 15%p가 조용히 사라진다.
+    """
+    html = (ROOT / "docs" / "index.html").read_text("utf-8")
+    start = html.find("사이드바: 돈이 지금 어디 있는가")
+    end = html.find('side-cash").innerHTML')
+    assert 0 < start < end, "'돈이 어디 있나' 카드를 찾지 못했다"
+    card = html[start:end]
+    assert "pf.holdings" in card, "카드가 잔고를 읽지 않는다"
+    # 목표 노출(weight)을 쓰더라도 **'투자 중'으로는** 쓰면 안 된다 —
+    # 차이를 설명하는 용도(const tgt)로만 허용한다.
+    before_tgt = card.split("const tgt=")[0]
+    assert "pfLast.weight" not in before_tgt, (
+        "'돈이 어디 있나' 카드가 아직 목표 노출을 잔고로 쓰고 있다")

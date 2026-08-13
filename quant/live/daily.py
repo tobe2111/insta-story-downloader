@@ -33,6 +33,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     day_return_pct,
     drawdown_from_index,
     equity_curve_kpis,
+    holdings_view,
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
@@ -2225,6 +2226,20 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 waiting = pending_deposits(deposits)
                 if waiting:
                     status["paper"][key]["pending_deposits"] = waiting
+                # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
+                # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
+                # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
+                status["paper"][key]["holdings"] = holdings_view(st, eq_now)
+                # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
+                #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이
+                #    이미 들어 있어서, 그대로 실으면 표의 합이 자산을 넘어선다:
+                #        보유 37,341 + 현금 961,910 = 999,251  ≠  자산 79,251
+                #    현금 비중이 1213%로 찍히고 표가 스스로 모순된다.
+                #    접수분은 빼고 싣는다 — 그 돈은 pending_deposits로 따로
+                #    공개되고, 다음 배치가 자산·현금을 함께 다시 잰다.
+                status["paper"][key]["cash"] = round(
+                    float(st.get("cash") or 0.0)
+                    - sum(float(d["amount"]) for d in waiting), 2)
                 rb = _regime_breakdown(hist)
                 if rb:                             # 레짐별 성과 분해(투명성)
                     status["paper"][key]["regime_breakdown"] = rb

@@ -498,6 +498,27 @@ MUTATIONS = [
      "            _d[\"settled_bar\"] = bar",
      "tests/test_a_deposit_is_not_a_loss.py"),
 
+    # 잔고 표 — 현금까지 자산과 같은 시점이어야 표의 합이 맞는다.
+    # 안 빼면 보유 37,341 + 현금 961,910 = 999,251 ≠ 자산 79,251이 된다.
+    ("잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)",
+     "quant/live/daily.py",
+     "                    float(st.get(\"cash\") or 0.0)\n"
+     "                    - sum(float(d[\"amount\"]) for d in waiting), 2)",
+     "                    float(st.get(\"cash\") or 0.0), 2)",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("시세를 못 받은 종목을 '정상 평가'로 표시한다(손익 0이 사실처럼 보인다)",
+     "quant/live/ledger_basics.py",
+     "        marked = px is not None",
+     "        marked = True",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
+    ("잔고의 매입금액을 평가금액과 같게 만든다(평가손익이 항상 0)",
+     "quant/live/ledger_basics.py",
+     "        cost, value = qty * avg, qty * px",
+     "        cost, value = qty * px, qty * px",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
     ("사이트에서 '반영 대기 중인 입금'을 지운다(넣었는데 화면이 그대로다)",
      "quant/live/daily.py",
      "                if waiting:\n"
