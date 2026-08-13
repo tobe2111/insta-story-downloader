@@ -741,6 +741,36 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       ks.map(k=>esc((syms[k]||{}).name||k)).join(" · ")+
       "). 분산 종목 수가 표시보다 적습니다");
   }
+  /* 그 예산을 **누가 가져갔는가** — 위 경고의 반대편이다(2026-08-14).
+     "살 수 없었다"만 말하고 "그래서 그 돈은 어디로 갔나"를 안 말하면
+     절반만 밝힌 것이다. 예산 유연화는 공짜가 아니다: 확신도가 높은 종목이
+     낮은 종목의 몫을 끌어 쓴 것이고, 그 결과 오늘 국내주식이 한 종목뿐인
+     날이 생긴다. 첫 원화 배치(2026-08-13)에서 실제로 그렇게 됐다. */
+  {
+    const lp=pfLast.lot_priority||null;
+    const ks=lp?Object.keys(lp):[];
+    if(ks.length){
+      const nm=k=>esc((syms[k]||{}).name||k.split(":")[1]||k);
+      const gave=[...new Set(ks.flatMap(k=>lp[k].gave_way||[]))];
+      flags.push("<b>예산을 끌어 쓴 종목 "+ks.length+"개</b> — "+
+        ks.map(k=>nm(k)+"("+won(lp[k].spent)+"/배정 "+won(lp[k].budget)+")")
+          .join(" · ")+
+        (gave.length?". 대신 "+gave.map(nm).join(" · ")+"이(가) 자리를 내줬습니다":"")+
+        ". 확신도가 높은 쪽부터 채우기 때문이며, 그만큼 종목 수는 줄어듭니다");
+    }
+  }
+  /* 시장별 '판단에 쓴 봉'이 며칠 묵었나(감사 220) — 배치 시각이 그 시장
+     마감보다 이르면 그 시장만 조용히 하루 뒤처진다. 한국·코인은 최신인데
+     미국만 뒤처지면 종목 간 비교 자체가 어긋난다. 정상(0~1일)은 조용하고
+     2일 이상만 말한다 — 매일 울리는 경고는 꺼진 경고와 같다. */
+  {
+    const ba=pfLast.bar_age_days||null;
+    const late=ba?Object.keys(ba).filter(m=>Number(ba[m])>=2):[];
+    if(late.length)flags.push("<b>묵은 봉으로 판단 "+late.length+"개 시장</b> — "+
+      late.map(m=>esc(m)+" "+ba[m]+"일 전 봉").join(" · ")+
+      ". 그 시장의 오늘 판단은 최신 시세를 못 본 것이고, 다른 시장과 "+
+      "같은 날로 비교할 수 없습니다");
+  }
   /* 값을 못 받아 직전 가격으로 평가한 종목 — 그날 손익이 실제가 아니다 */
   {
     const sm=pfLast.stale_marks||null;

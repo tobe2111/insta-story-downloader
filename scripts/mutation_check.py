@@ -341,6 +341,16 @@ MUTATIONS = [
      'def _signal_frame(market: str, df, timeframe: str = "1d", now=None):',
      'def _signal_frame(market: str, df, timeframe: str = "1d", now=None):\n    now = None',
      "tests/test_bar_completeness.py"),
+    ("예산을 끌어 쓴 사실을 화면에서 지운다 — '못 샀다'만 말하고 '누가 가져갔나'는 감춘다",
+     "docs/index.html",
+     "    const lp=pfLast.lot_priority||null;",
+     "    const lp=null;",
+     "tests/test_ledger_fields_reach_the_screen.py"),
+    ("묵은 봉으로 판단한 시장을 화면에서 지운다(감사 220의 흔적이 사라진다)",
+     "docs/index.html",
+     "    const ba=pfLast.bar_age_days||null;",
+     "    const ba=null;",
+     "tests/test_ledger_fields_reach_the_screen.py"),
 
     # ── 오디션·학습의 미래 차단(가장 비싸고 조용한 계열) ──
     ("크로스에셋 정렬을 최근접으로 바꾼다(미래 벤치마크가 과거 봉에 붙는다)",
