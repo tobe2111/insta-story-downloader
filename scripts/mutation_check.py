@@ -1686,6 +1686,19 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 206·207: 모름을 반대로 처리·지문이 버전에 흔들리던 자리 ─
+    ("변동성 필터가 판정 불가 구간을 통과시킨다(못 재는 구간에만 매매가 열린다)",
+     "quant/strategies/regime.py",
+     "            hot = (vol > self.max_daily_vol) | vol.isna()",
+     "            hot = vol > self.max_daily_vol",
+     "tests/test_regime.py"),
+
+    ("데이터 지문을 repr로 적는다(numpy를 올리면 같은 데이터의 지문이 바뀐다)",
+     "quant/utils/manifest.py",
+     "    payload = \"|\".join(_stable(v) for v in",
+     "    payload = \"|\".join(repr(v) for v in",
+     "tests/test_manifest.py"),
+
     # ── 감사 205: 한 계열 안에서 단위가 섞이던 자리 ──────────────
     ("미결제약정 필드를 계열마다 고르지 않고 행마다 or로 떨어뜨린다(단위가 섞인다)",
      "quant/data/openinterest.py",

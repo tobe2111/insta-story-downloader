@@ -75,13 +75,36 @@ class RegimeFilter(Strategy):
 
         if self.max_daily_vol is not None:
             vol = df["close"].pct_change().rolling(self.vol_window).std()
-            hot = vol > self.max_daily_vol
+            # ⚠️ **'모름'을 두 필터가 정반대로 처리하고 있었다**(감사 206).
+            #    추세 쪽은 `| ma.isna()`로 판정 불가를 **막는데**(바로 위,
+            #    주석에도 "데이터 부족 구간도 진입 보류"라고 적혀 있다),
+            #    변동성 쪽은 `vol > 한도` 하나뿐이라 **NaN이면 통과**했다 —
+            #    파이썬에서 NaN과의 비교는 전부 False이기 때문이다.
+            #
+            #    실측(추세 필터를 끄고 변동성 필터만, 한도 0.5%·실제 1.0%):
+            #        판정 불가(워밍업 20봉)  → 신호 살아 있음 20/20
+            #        판정 가능 구간          → 신호 살아 있음  0/220
+            #    **판정을 못 하는 구간에만 매매가 열려 있었다.**
+            #
+            #    기본 설정(use_trend=True)에서는 추세 워밍업(200봉)이 변동성
+            #    워밍업(20봉)을 덮어 새지 않는다. 즉 지금 새는 곳은 아니고,
+            #    **추세 필터를 끄는 순간 조용히 열린다** — 설정을 바꿀 수 있게
+            #    만들어 놓고 기본값에만 맞춰 둔 코드는 결함이 예약된 것이다
+            #    (감사 204와 같은 형태).
+            hot = (vol > self.max_daily_vol) | vol.isna()
             allowed[hot] = 0.0
             if len(df) and bool(hot.iloc[-1]):
-                gate = {"open": False, "kind": "vol_panic",
-                        "reason": (f"일간 변동성 {float(vol.iloc[-1]):.2%}가 "
-                                   f"한도 {self.max_daily_vol:.2%} 초과"
-                                   "(패닉 구간) → 신규 진입 금지")}
+                last_vol = vol.iloc[-1]
+                if last_vol != last_vol:                   # NaN
+                    gate = {"open": False, "kind": "vol_unknown",
+                            "reason": (f"변동성 미정({self.vol_window}봉 필요, "
+                                       f"데이터 {len(df)}봉) → 판정 보류, "
+                                       "진입하지 않음")}
+                else:
+                    gate = {"open": False, "kind": "vol_panic",
+                            "reason": (f"일간 변동성 {float(last_vol):.2%}가 "
+                                       f"한도 {self.max_daily_vol:.2%} 초과"
+                                       "(패닉 구간) → 신규 진입 금지")}
         self.last_gate_ = gate
 
         # allowed ∈ {0,1} 이므로 곱셈만으로 롱·숏을 함께 게이팅한다(불리한 국면의
