@@ -1686,6 +1686,26 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 200: 장부를 쓰는 마지막 관문 ────────────────────────
+    ("직렬화 최후 수단을 끈다(모르는 값 하나에 그날 장부가 통째로 사라진다)",
+     "quant/utils/jsonio.py",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent,\n"
+     "                      default=_last_resort)",
+     "    text = json.dumps(sanitize(obj), ensure_ascii=False, indent=indent)",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("numpy 스칼라를 문자열로 뭉갠다(사이트가 숫자로 못 읽는다)",
+     "quant/utils/jsonio.py",
+     "    item = getattr(obj, \"item\", None)          # numpy 스칼라 → 파이썬 값",
+     "    item = None",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
+    ("잘려나간 구간의 최고점을 요약에 안 접는다(낙폭이 저절로 좋아진다)",
+     "quant/utils/jsonio.py",
+     "        peak = e if peak is None else max(peak, e)",
+     "        peak = e",
+     "tests/test_the_ledger_survives_what_it_did_not_expect.py"),
+
     # ── 예산 유연화(사장님 결정 2026-08-13) ──────────────────────
     # "예산이 있는대로 유연하게" + "비율이 아니라 수익률이 더 높을 것이라
     # 판단되는 최우선 선택". 세 항목이 그 결정을 지킨다.

@@ -123,6 +123,44 @@ def test_a_share_costlier_than_the_whole_account_is_still_refused():
     assert deferred[HYNIX]["price"] > EQ
 
 
+def test_many_shares_are_the_normal_case_not_one(tmp_path):
+    """**여러 주가 기본이고 1주는 예외다**(사장님 확인 2026-08-13).
+
+    "설마 지금 1주만 사게끔 되어있나?" — 아니다. `want`는 배정금액이
+    허락하는 만큼(정수 내림)이고, `1주`는 **자기 예산으로 한 주도 못 살 때만**
+    쓰는 하한이다. 우선순위 규칙이 실수로 모두를 1주에 묶어 버리면 자산이
+    커져도 노출이 안 늘어난다 — 그건 조용히 성장을 막는 결함이다.
+    """
+    # 자산 1,000만원 · KODEX에 30%(300만원) → 1주 103,250원이면 29주
+    out, deferred = _fit_to_budget({KODEX: 0.30}, PX, 10_000_000.0)
+    lots = round(out[KODEX] * 10_000_000.0 / PX[KODEX])
+    assert lots == 29, f"여러 주를 못 산다: {lots}주"
+    assert not deferred
+
+    # 확신도 우선순위가 켜진 상태에서도 마찬가지 — 1위가 살 수 있는 만큼 산다
+    out2, _ = _fit_to_budget({KODEX: 0.30, KB: 0.10}, PX, 10_000_000.0,
+                             conviction={KODEX: 0.9, KB: 0.1})
+    assert round(out2[KODEX] * 10_000_000.0 / PX[KODEX]) == 29
+
+    # 대조군 — 자산이 커지면 주수도 커져야 한다(상한에 눌려 있지 않은가)
+    out3, _ = _fit_to_budget({KODEX: 0.30}, PX, 20_000_000.0)
+    assert round(out3[KODEX] * 20_000_000.0 / PX[KODEX]) > 29
+
+
+def test_an_unaffordable_name_is_simply_passed_over():
+    """*"비싼건 안사면 그만이잖아"* — 못 사는 종목이 뒤 순서를 막지 않는다.
+
+    확신도 1위가 주머니보다 비싸면 그냥 지나가고, 주머니는 다음 종목에
+    쓰인다. 유연화가 '비싼 것을 억지로 사는 규칙'이 되면 안 된다.
+    """
+    targets = {HYNIX: 0.20, KODEX: 0.15}          # 주머니 350,000원
+    out, deferred = _fit_to_budget(dict(targets), PX, EQ,
+                                   conviction={HYNIX: 0.9, KODEX: 0.1})
+    assert out[HYNIX] == 0.0 and HYNIX in deferred, "못 사는 걸 억지로 샀다"
+    assert _lots(out, KODEX) >= 1, (
+        f"1위가 못 산다고 뒤 순서까지 막혔다: {out}")
+
+
 # ── ② 순서가 결과를 바꾸지 않는다(재현성) ─────────────────────
 
 
