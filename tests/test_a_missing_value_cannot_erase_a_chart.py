@@ -103,6 +103,20 @@ def test_the_cockpit_sparkline_survives_a_missing_bar():
     assert "nan" not in out
 
 
+def test_the_cockpit_draws_nothing_when_every_bar_is_missing():
+    """그릴 값이 하나도 없으면 **빈 선**이어야 한다.
+
+    가짜 범위를 만들어 평평한 선을 그리면, 보는 사람은 '자산이 그대로'라고
+    읽는다 — 실제로는 아무것도 모르는 상태다.
+    """
+    from quant.reporting.dashboard import _sparkline
+
+    out = _sparkline([float("nan"), float("nan"), float("nan")])
+    assert 'points=""' in out, (
+        f"값이 없는데 좌표를 그렸다 — {out[:160]}")
+    assert "nan" not in out
+
+
 def test_a_normal_chart_is_still_drawn():
     """대조군 — 결측을 막느라 멀쩡한 차트까지 비우면 아무 소용이 없다."""
     from quant.reporting.html_report import _sparkline

@@ -241,3 +241,32 @@ def test_a_perfectly_flat_market_produces_no_position(name):
     sig = get_strategy(name).generate_signals(_frame([100.0] * 120, span=0.0))
     assert float(sig.abs().max()) == 0.0, (
         f"{name}: 아무 일도 없는 시장에서 비중 {sig.abs().max()}를 잡는다")
+
+
+# ── 목표 비중은 자본을 넘지 않는다 (감사 214) ──────────────────
+
+def test_no_strategy_can_ask_for_more_than_the_whole_account():
+    """`_finalize`의 [-1,1] 상한 — 모든 전략이 지나가는 마지막 문이다.
+
+    +1.0은 '자본 전부'라는 뜻이다. 그 위를 허용하면 레버리지가 되고,
+    리스크 계층은 그 값을 그대로 곱해 실제 주문 크기를 키운다. 전략이
+    실수로 2.0을 내면 계좌의 두 배가 실린다 — 상한이 마지막 방어선이다.
+    """
+    import pandas as pd
+
+    from quant.strategies.base import Strategy
+
+    class _TooBig(Strategy):
+        name = "toobig"
+        allow_short = True
+
+        def generate_signals(self, df):
+            return self._finalize(
+                pd.Series([5.0, -7.0, 0.5, -0.5], index=df.index), df.index)
+
+    idx = pd.date_range("2026-01-01", periods=4, freq="D")
+    df = pd.DataFrame({"close": [1.0] * 4}, index=idx)
+    out = _TooBig().generate_signals(df)
+    assert list(out) == [1.0, -1.0, 0.5, -0.5], (
+        f"자본을 넘는 목표 비중이 그대로 나갔다 — {list(out)}")
+    assert out.max() <= 1.0 and out.min() >= -1.0
