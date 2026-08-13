@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position, safe_amount, normalize_side
+from quant.broker.base import (Broker, Order, Position, normalize_side,
+                               require_field, safe_amount)
 from quant.utils.logging import get_logger
 
 log = get_logger("broker.crypto_live")
@@ -78,9 +79,19 @@ class CryptoLiveBroker(Broker):
         self.client = getattr(ccxt, exchange)(cfg)
 
     def get_cash(self) -> float:
+        """정산통화 가용 잔고. **'free'가 없으면 0이 아니라 오류다**(감사 199).
+
+        감사 182에서 국내 브로커 둘에 넣은 검사의 형제다. 여기는 ccxt라
+        거래소가 100곳이 넘고 응답 모양도 그만큼 다양한데, 정작 검사가
+        없었다. 실측: `free` 키가 어긋나면 현금이 조용히 0으로 읽힌다.
+
+        키가 **있는데** 그 안에 이 통화가 없으면 그건 진짜로 잔고 0이다 —
+        거래소는 잔고 0인 통화를 응답에서 생략하는 것이 정상이다.
+        """
         bal = self.client.fetch_balance()
+        free = require_field(bal, "free", "가용 잔고", f"거래소({self.exchange})")
         # inf/nan/음수 잔고가 equity 계산을 오염시키지 않게 방어한다.
-        return safe_amount(bal.get("free", {}).get(self.quote, 0.0))
+        return safe_amount((free or {}).get(self.quote, 0.0))
 
     def get_position(self, symbol: str) -> Position:
         """이 거래소 계정의 해당 코인 **전체 잔고**를 포지션으로 본다.
@@ -91,10 +102,16 @@ class CryptoLiveBroker(Broker):
         매도 대상**이 된다. 거래소 현물 잔고에는 '누가 왜 샀는가'가 없기
         때문이며, 이를 구분하려면 별도의 내부 장부가 필요하다.
         그래서 실거래는 **이 봇 전용 계정(서브계정)** 에서만 쓸 것.
+
+        ⚠️ **'total'이 없으면 '0주'가 아니라 오류다**(감사 199 — 형제 교정).
+        보유를 0으로 읽으면 상위 로직이 목표 비중만큼 **다시 사서** 포지션이
+        두 배가 된다(감사 55와 같은 결함). 키가 있는데 그 안에 이 코인이
+        없으면 그건 진짜로 '보유 없음'이다.
         """
         base = symbol.split("/")[0]
         bal = self.client.fetch_balance()
-        qty = safe_amount(bal.get("total", {}).get(base, 0.0), allow_negative=True)
+        total = require_field(bal, "total", "총 잔고", f"거래소({self.exchange})")
+        qty = safe_amount((total or {}).get(base, 0.0), allow_negative=True)
         return Position(symbol, qty, 0.0)
 
     def market_spec(self, symbol: str):

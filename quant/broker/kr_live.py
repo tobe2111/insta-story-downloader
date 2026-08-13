@@ -14,8 +14,8 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import (Broker, Order, Position,
-                               normalize_side, safe_amount)
+from quant.broker.base import (Broker, Order, Position, normalize_side,
+                               require_field, safe_amount)
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
@@ -122,11 +122,7 @@ class KISBroker(Broker):
         **보유분을 팔라는 지시**가 나온다. '모름'은 숫자가 아니다.
         """
         data = self._balance()
-        if "output2" not in data:
-            raise RuntimeError(
-                f"잔고 응답에 요약(output2)이 없습니다 — KIS 응답 형식 변경 "
-                f"가능성. 받은 키: {sorted(data)[:20]}")
-        summary = data.get("output2") or []
+        summary = require_field(data, "output2", "요약", "KIS") or []
         if summary:
             return safe_amount(summary[0].get("dnca_tot_amt", 0.0))  # 예수금 총액
         return 0.0
@@ -146,11 +142,8 @@ class KISBroker(Broker):
         키가 **있는데** 그 안에 이 종목이 없으면 그건 진짜로 '보유 없음'이다.
         """
         data = self._balance()
-        if "output1" not in data:
-            raise RuntimeError(
-                f"잔고 응답에 보유목록(output1)이 없습니다 — KIS 응답 형식 "
-                f"변경 가능성. 받은 키: {sorted(data)[:20]}")
-        for item in data.get("output1") or []:
+        holdings = require_field(data, "output1", "보유목록", "KIS") or []
+        for item in holdings:
             if item.get("pdno") == symbol:
                 return Position(
                     symbol,

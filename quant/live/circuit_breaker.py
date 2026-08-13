@@ -13,11 +13,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from quant.live.riskguard import check_loss_limit, usable_equity
+
 
 @dataclass
 class BreakerConfig:
     max_daily_loss: float | None = 0.05   # 하루 -5% 도달 시 중단. None=미사용
     max_drawdown: float | None = 0.20     # 고점 대비 -20% 도달 시 중단. None=미사용
+
+    def __post_init__(self) -> None:
+        # ⚠️ 한도를 퍼센트로 적으면(0.20 → 20) 이 장치는 **조용히 꺼진다**
+        #    (감사 198). `--max-drawdown 20`은 "-2000% 도달 시 중단"이라
+        #    영영 발동하지 않는데, 시작 로그에는 "최대낙폭 서킷 -2000%"라고
+        #    찍히고 사장님은 브레이크가 걸려 있다고 믿는다. 설정 오타는
+        #    실행 전에 드러나야 한다.
+        self.max_daily_loss = check_loss_limit(self.max_daily_loss, "일일 손실")
+        self.max_drawdown = check_loss_limit(self.max_drawdown, "최대 낙폭")
 
 
 class CircuitBreaker:
@@ -34,7 +45,19 @@ class CircuitBreaker:
         """현재 자산과 날짜로 상태를 갱신하고, 매매 중단 여부(tripped)를 반환한다.
 
         day: 날짜 문자열(예: '2026-07-03'). 날짜가 바뀌면 일일 기준을 리셋한다.
+
+        ⚠️ **숫자가 아닌 자산값은 기준선이 되면 안 된다**(감사 198). NaN이
+        한 번 peak_equity가 되면 `max(nan, x)`가 nan을 그대로 두므로(x > nan이
+        False) **세션이 끝날 때까지 회복하지 못하고**, 이후 모든 비교가
+        거짓이라 낙폭이 얼마가 되든 발동하지 않는다. inf는 반대로 다음
+        관측을 곧바로 '-100% 낙폭'으로 만들어 전 종목을 오청산한다.
+        판정을 보류하고 기준선은 그대로 둔다 — 다음 멀쩡한 관측이 제대로
+        측정되도록. 이미 발동한 상태라면 발동 상태를 유지한다.
         """
+        eq = usable_equity(equity, "서킷브레이커")
+        if eq is None:
+            return self.tripped
+        equity = eq
         if self.day_start_equity is None or day != self.current_day:
             self.current_day = day
             self.day_start_equity = equity

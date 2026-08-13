@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import os
 
-from quant.broker.base import Broker, Order, Position, safe_amount, normalize_side
+from quant.broker.base import (Broker, Order, Position, normalize_side,
+                               require_field, safe_amount)
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json
 from quant.utils.logging import get_logger
@@ -38,14 +39,28 @@ class AlpacaBroker(Broker):
         }
 
     def get_cash(self) -> float:
+        """예수금. **필드가 없으면 0이 아니라 오류다**(감사 199 — 형제 교정)."""
         acct = get_json(f"{self.base}/v2/account", self._headers())
+        cash = require_field(acct, "cash", "현금", "Alpaca")
         # 현금은 음수가 정상일 수 있다(마진 차입 계좌). 0으로 깎으면 자산이
         # 과대평가돼 과대 주문이 나가므로 음수를 허용한다.
-        return safe_amount(acct.get("cash", 0.0), allow_negative=True)
+        return safe_amount(cash, allow_negative=True)
 
     def get_equity(self) -> float:
+        """계좌 평가액. **여기가 이 파일에서 가장 날카로운 자리다**(감사 199).
+
+        `equity()`는 MultiTrader·RobustBroker가 총자산을 찾을 때 부르는
+        권위 있는 값이다. 예전에는 `acct.get("equity", 0.0)`이라 **키 이름
+        하나가 어긋나면 총자산이 0으로 읽혔다.** 실측:
+
+            {"cash": "5000", "portfolio_value": "12000"}  →  총자산 0
+
+        총자산 0이면 모든 종목의 목표가 (비중 × 0) = 0주가 되어 **계좌를
+        통째로 청산하라는 지시**가 나간다. 알파카가 필드명을 바꾼 날,
+        혹은 응답이 부분적으로만 온 날 계좌가 비워진다.
+        """
         acct = get_json(f"{self.base}/v2/account", self._headers())
-        return safe_amount(acct.get("equity", 0.0))
+        return safe_amount(require_field(acct, "equity", "총자산", "Alpaca"))
 
     def equity(self, marks: dict | None = None) -> float:
         """총자산 — 브로커/래퍼가 찾는 공통 이름(marks는 무시, 계좌값이 정답).

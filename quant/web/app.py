@@ -429,15 +429,20 @@ async function _tick(){
       const W=760,H=180, lo=Math.min(...eq), hi=Math.max(...eq), rng=(hi-lo)||1;
       const pts = eq.map((v,i)=>`${(i/(eq.length-1)*W).toFixed(1)},${(H-(v-lo)/rng*H).toFixed(1)}`).join(' ');
       const line = document.getElementById('eqline'); if(line) line.setAttribute('points', pts);
-      // 잘려나간 과거를 요약에서 이어받는다. 이 seed가 없으면 5초마다
-      // 서버가 계산한 '전 기간' KPI를 '잘린 구간' KPI로 덮어써, 화면의
-      // 최대낙폭이 저장 상한에 걸린 날부터 저절로 좋아진다(감사 ㊿).
-      const sm = (s && s.history_summary) || {};
-      const st = (typeof sm.start === 'number') ? sm.start : eq[0];
-      const cur=eq[eq.length-1], pnl=st? cur/st-1:0;
-      let peak=(typeof sm.peak === 'number')? sm.peak : st;
-      let dd=Number(sm.max_drawdown)||0;
-      for(const v of eq){ peak=Math.max(peak,v); dd=Math.min(dd, peak? v/peak-1:0); }
+      // 손익·낙폭은 **서버가 재서 보낸 값**(s.kpi)을 그대로 쓴다.
+      // 여기서 다시 계산하면 안 되는 이유(감사 197): 예전에는 이 자리에서
+      //     const pnl = cur/st - 1
+      // 를 계산했는데, 그건 **입금을 수익으로 센다** — 8만원 계좌에 92만원을
+      // 넣고 95만원이 되면 화면이 "+1087.50%"라고 말했다(실제 -5.00%).
+      // 낙폭도 같이 거짓이 된다(입금이 고점을 끌어올려 직전 손실을 지운다).
+      // 게다가 이 함수는 5초마다 돌아 서버가 계산한 값을 덮어쓰므로,
+      // 조종석만 고쳤다면 화면이 잠깐 맞았다가 조용히 되돌아갔을 것이다.
+      // 판정은 ledger_basics.equity_curve_kpis 한 곳에만 둔다.
+      // (잘려나간 과거의 seed 처리도 그 함수 안에 있다 — 감사 ㊿.)
+      const kpi = (s && s.kpi) || {};
+      const cur = (typeof kpi.current === 'number') ? kpi.current : eq[eq.length-1];
+      const pnl = Number(kpi.pnl) || 0;
+      const dd = Number(kpi.max_drawdown) || 0;
       const setTxt=(id,txt,col)=>{const el=document.getElementById(id); if(el){el.textContent=txt; if(col)el.style.color=col;}};
       setTxt('kpi-equity', _num(cur,2));
       setTxt('kpi-pnl', (pnl>=0?'+':'')+(pnl*100).toFixed(2)+'%', pnl>=0?'#3fb96f':'#e5484d');
@@ -496,10 +501,20 @@ def read_state(state_paths=None):
 
 
 def state_json(state_paths=None) -> str:
-    """현재 봇 상태를 JSON 문자열로 반환한다 (/api/state 용). 없으면 '{}'."""
+    """현재 봇 상태를 JSON 문자열로 반환한다 (/api/state 용). 없으면 '{}'.
+
+    손익·낙폭을 **여기서 재서 함께 보낸다**(감사 197). 브라우저가 자산
+    곡선을 받아 스스로 계산하면 입금 보정을 놓친다 — 실제로 놓쳤고, 그
+    화면이 5초마다 조종석의 올바른 값을 덮어쓰고 있었다. 판정은 한 곳에서만.
+    """
     import json
 
-    return json.dumps(read_state(state_paths) or {}, ensure_ascii=False)
+    st = read_state(state_paths) or {}
+    if st:
+        from quant.live.ledger_basics import equity_curve_kpis
+        st = dict(st)
+        st["kpi"] = equity_curve_kpis(st)
+    return json.dumps(st, ensure_ascii=False)
 
 
 def champions_html(state_dir: str = "state") -> str:

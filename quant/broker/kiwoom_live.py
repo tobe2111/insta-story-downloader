@@ -17,8 +17,8 @@ from __future__ import annotations
 import os
 import time
 
-from quant.broker.base import (Broker, Order, Position,
-                               normalize_side, safe_amount)
+from quant.broker.base import (Broker, Order, Position, normalize_side,
+                               require_field, safe_amount)
 from quant.broker.specs import MarketSpec
 from quant.utils.http import get_json, post_json  # noqa: F401  (get_json: 대칭성)
 from quant.utils.logging import get_logger
@@ -117,12 +117,9 @@ class KiwoomBroker(Broker):
         '모름'은 숫자가 아니다. 그대로 올려보내 호출부가 매매를 건너뛰게 한다.
         """
         data = self._balance()
-        if self.CASH_FIELD not in data:
-            raise RuntimeError(
-                f"잔고 응답에 예수금 필드({self.CASH_FIELD})가 없습니다 — "
-                f"키움 API 개정 가능성. 받은 키: {sorted(data)[:20]}")
+        raw = require_field(data, self.CASH_FIELD, "예수금 필드", "키움")
         # 콤마 제거 후 안전 변환(inf/nan/음수 방어).
-        return safe_amount(str(data.get(self.CASH_FIELD, 0)).replace(",", ""))
+        return safe_amount(str(raw).replace(",", ""))
 
     def get_position(self, symbol: str) -> Position:
         """보유 수량. **보유 목록 키가 없으면 '0주'가 아니라 오류다**(감사 182).
@@ -137,11 +134,8 @@ class KiwoomBroker(Broker):
         키가 **있는데** 그 안에 이 종목이 없으면 그건 진짜로 '보유 없음'이다.
         """
         data = self._balance()
-        if self.HOLDINGS_KEY not in data:
-            raise RuntimeError(
-                f"잔고 응답에 보유목록 키({self.HOLDINGS_KEY})가 없습니다 — "
-                f"키움 API 개정 가능성. 받은 키: {sorted(data)[:20]}")
-        for item in data.get(self.HOLDINGS_KEY) or []:
+        holdings = require_field(data, self.HOLDINGS_KEY, "보유목록 키", "키움")
+        for item in holdings or []:
             code = str(item.get(self.CODE_FIELD, "")).lstrip("A")  # 'A005930' → '005930'
             if code == symbol:
                 qty = safe_amount(str(item.get(self.QTY_FIELD, 0)).replace(",", ""))
