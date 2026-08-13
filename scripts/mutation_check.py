@@ -241,16 +241,36 @@ MUTATIONS = [
      "        if not stale:",
      "        if True:",
      "tests/test_a_skip_is_not_a_success.py"),
-    ("체결비용 표본이 아카이브 사본을 또 하나의 계좌로 센다(감사 227)",
-     "quant/reporting/fill_gap.py",
-     '        if not name.endswith(".json") or is_archive(name):',
-     '        if not name.endswith(".json"):',
-     "tests/test_an_archive_is_not_a_second_account.py"),
+    ('체결비용 표본이 아카이브 사본을 또 하나의 계좌로 센다(감사 227)',
+     'quant/reporting/fill_gap.py',
+     '    for path in ledger_files(state_dir):',
+     '    import glob\n    for path in sorted(glob.glob(os.path.join(state_dir, "paper", "*.json"))):',
+     'tests/test_an_archive_is_not_a_second_account.py'),
     ("합산 확률 표본이 아카이브를 두 번 센다 — 적중률이 촘촘해 보인다",
      "quant/live/daily.py",
-     '        if "portfolio" in name.lower() or is_archive(name):',
-     '        if "portfolio" in name.lower():',
+     '        if "portfolio" in os.path.basename(pth).lower():\n            continue',
+     '        if False:\n            continue',
      "tests/test_an_archive_is_not_a_second_account.py"),
+    ("장부 목록에서 보관본 필터를 뺀다 — 여섯 경로가 한꺼번에 샌다(감사 228)",
+     "quant/live/ledger_basics.py",
+     "            and (include_archives or not is_archive(name))]",
+     "            ]",
+     "tests/test_an_archive_is_not_a_second_account.py"),
+    ("엣지 판정이 보관본까지 표본에 넣는다 — 사본이 '입증'을 만들어낸다",
+     "quant/risk/portfolio_vol.py",
+     "        for f in ledger_files(state_dir):",
+     '        import glob\n        for f in glob.glob(os.path.join(state_dir, "paper", "*.json")):',
+     "tests/test_an_archive_is_not_a_second_account.py"),
+    ("종목표가 보유액을 장부에서 읽지 않는다 — 잔고 표와 갈라진다",
+     "docs/index.html",
+     "  ((pf&&pf.holdings)||[]).forEach(h=>{if(h&&h.key)held[h.key]=h;});",
+     "  ;",
+     "tests/test_the_symbol_table_says_how_much.py"),
+    ("갱신 주기 안내를 지운다 — 실시간인지 아닌지 물어봐야 알게 된다",
+     "docs/index.html",
+     "        이 표의 숫자는 <b>매일 새벽 배치가 하루 한 번 확정</b>한 값입니다 —",
+     "        이 표의 숫자는",
+     "tests/test_the_symbol_table_says_how_much.py"),
 
     # ── 오디션·학습의 미래 차단(가장 비싸고 조용한 계열) ──
     ("크로스에셋 정렬을 최근접으로 바꾼다(미래 벤치마크가 과거 봉에 붙는다)",
@@ -835,19 +855,17 @@ MUTATIONS = [
      '              "fx_usdkrw": None,',
      "tests/test_two_ledgers_are_not_confused.py"),
 
-    ("적용 환율을 사이트로 내보내지 않는다",
-     "quant/live/daily.py",
-     '                if hist and hist[-1].get("fx_usdkrw") is not None:\n'
-     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
-     '                if False:\n'
-     '                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
-     "tests/test_two_ledgers_are_not_confused.py"),
+    ('적용 환율을 사이트로 내보내지 않는다',
+     'quant/live/daily.py',
+     '            if hist and hist[-1].get("fx_usdkrw") is not None:\n                status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     '            if False:\n                status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]',
+     'tests/test_two_ledgers_are_not_confused.py'),
 
-    ("계좌 통화를 사이트로 내보내지 않는다(어느 단위인지 화면이 말 못 한다)",
-     "quant/live/daily.py",
-     '                status["paper"][key]["currency"] = st.get("currency")',
-     '                pass',
-     "tests/test_two_ledgers_are_not_confused.py"),
+    ('계좌 통화를 사이트로 내보내지 않는다(어느 단위인지 화면이 말 못 한다)',
+     'quant/live/daily.py',
+     '            status["paper"][key]["currency"] = st.get("currency")',
+     '            pass',
+     'tests/test_two_ledgers_are_not_confused.py'),
 
     # 감사 215 — 통합 계좌만 원화로 열고 섀도 대조군을 빠뜨린 자리.
     ("정리 안 된(단위 혼재) 장부 위에서도 배치를 돌린다(자산이 환율 배수만큼 뛴다)",
@@ -949,13 +967,11 @@ MUTATIONS = [
      "    return False",
      "tests/test_the_account_speaks_one_currency.py"),
 
-    ("사이트 장부 목록에서 보관본을 걸러내지 않는다",
-     "quant/live/daily.py",
-     "            if not name.endswith(\".json\") or is_archive(name):\n"
-     "                continue",
-     "            if not name.endswith(\".json\"):\n"
-     "                continue",
-     "tests/test_the_account_speaks_one_currency.py"),
+    ('사이트 장부 목록에서 보관본을 걸러내지 않는다',
+     'quant/live/daily.py',
+     '    for path in ledger_files(state_dir):\n        with open(path, encoding="utf-8") as f:\n            st = json.load(f)\n        if st.get("market") == "portfolio":',
+     '    import glob\n    for path in sorted(glob.glob(os.path.join(state_dir, "paper", "*.json"))):\n        with open(path, encoding="utf-8") as f:\n            st = json.load(f)\n        if st.get("market") == "portfolio":',
+     'tests/test_the_account_speaks_one_currency.py'),
 
     ("옛 장부를 보관하지 않고 덮어쓴다(과거가 사라진다)",
      "quant/live/ledger_basics.py",
@@ -965,12 +981,11 @@ MUTATIONS = [
 
     # 잔고 표 — 현금까지 자산과 같은 시점이어야 표의 합이 맞는다.
     # 안 빼면 보유 37,341 + 현금 961,910 = 999,251 ≠ 자산 79,251이 된다.
-    ("잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)",
-     "quant/live/daily.py",
-     "                    float(st.get(\"cash\") or 0.0)\n"
-     "                    - sum(float(d[\"amount\"]) for d in waiting), 2)",
-     "                    float(st.get(\"cash\") or 0.0), 2)",
-     "tests/test_a_deposit_is_not_a_loss.py"),
+    ('잔고 표의 현금에서 반영 전 입금을 안 뺀다(표의 합이 자산을 넘어선다)',
+     'quant/live/daily.py',
+     '                float(st.get("cash") or 0.0)\n                - sum(float(d["amount"]) for d in waiting), 2)',
+     '                float(st.get("cash") or 0.0), 2)',
+     'tests/test_a_deposit_is_not_a_loss.py'),
 
     ("시세를 못 받은 종목을 '정상 평가'로 표시한다(손익 0이 사실처럼 보인다)",
      "quant/live/ledger_basics.py",
@@ -985,12 +1000,10 @@ MUTATIONS = [
      "tests/test_a_deposit_is_not_a_loss.py"),
 
     ("사이트에서 '반영 대기 중인 입금'을 지운다(넣었는데 화면이 그대로다)",
-     "quant/live/daily.py",
-     "                if waiting:\n"
-     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
-     "                if False:\n"
-     "                    status[\"paper\"][key][\"pending_deposits\"] = waiting",
-     "tests/test_a_deposit_is_not_a_loss.py"),
+     'quant/live/daily.py',
+     '            if waiting:\n                status["paper"][key]["pending_deposits"] = waiting',
+     '            if False:\n                status["paper"][key]["pending_deposits"] = waiting',
+     'tests/test_a_deposit_is_not_a_loss.py'),
 
     # 감시 탭이 서버 값을 쓰지 않고 자기가 계산하면 5초 뒤 덮어쓴다.
     ("감시 탭에 서버가 잰 KPI를 안 실어 보낸다(브라우저가 옛 계산으로 돌아간다)",

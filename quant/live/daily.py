@@ -36,6 +36,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     equity_curve_kpis,
     holdings_view,
     is_archive,
+    ledger_files,
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
@@ -294,13 +295,11 @@ def _all_paper_histories(state_dir: str) -> list:
     통합 계좌 파일은 종목 확률이 없으므로 제외. 실패는 빈 목록(해설 재료일
     뿐 — 실패가 기록을 막으면 안 된다).
     """
-    import glob as _glob
     out = []
-    for pth in sorted(_glob.glob(os.path.join(state_dir, "paper", "*.json"))):
-        name = os.path.basename(pth)
-        # 아카이브는 과거 장부의 사본이라 그대로 합치면 같은 표본을 두 번
-        # 센다 — 확률대 적중률이 실제보다 촘촘해 보인다(감사 227).
-        if "portfolio" in name.lower() or is_archive(name):
+    # 아카이브는 과거 장부의 사본이라 그대로 합치면 같은 표본을 두 번 센다 —
+    # 확률대 적중률이 실제보다 촘촘해 보인다(감사 227). 목록은 한 자리에서.
+    for pth in ledger_files(state_dir):
+        if "portfolio" in os.path.basename(pth).lower():
             continue
         try:
             with open(pth, encoding="utf-8") as f:
@@ -2119,16 +2118,12 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     """
     from datetime import date, timedelta
 
-    paper_dir = os.path.join(state_dir, "paper")
-    files = (sorted(os.listdir(paper_dir))
-             if os.path.isdir(paper_dir) else [])
     markets: dict = {}
     anchor: date | None = None
     states = []
-    for name in files:
-        if not name.endswith(".json") or is_archive(name):
-            continue      # 보관된 옛 장부는 살아 있는 계좌가 아니다(감사 212)
-        with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
+    # 보관된 옛 장부는 살아 있는 계좌가 아니다(감사 212) — ledger_files가 뺀다
+    for path in ledger_files(state_dir):
+        with open(path, encoding="utf-8") as f:
             st = json.load(f)
         if st.get("history"):
             states.append(st)
@@ -2329,96 +2324,92 @@ def write_docs_status(state_dir: str = STATE_DIR,
         with open(champ_file, encoding="utf-8") as f:
             status["champions"] = json.load(f)
 
-    paper_dir = os.path.join(state_dir, "paper")
     pf_state = None                       # 통합 계좌 원본(세대별 분해 재료)
-    if os.path.isdir(paper_dir):
-        for name in sorted(os.listdir(paper_dir)):
-            # ⚠️ 보관본을 빼지 않으면 같은 키를 **덮어쓴다**(감사 212).
-            #    `portfolio_ALL.pre-krw.json`이 알파벳순으로 뒤라, 새 원화
-            #    계좌를 열었는데 사이트는 닫힌 옛 계좌를 계속 보여줬다.
-            if not name.endswith(".json") or is_archive(name):
-                continue
-            with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
-                st = json.load(f)
-            if st.get("market") == "portfolio":
-                pf_state = st
-            hist = chrono(st.get("history", []))   # 사이트 차트도 시간순으로
-            key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
-            # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다.
-            # 킬스위치와 같은 기준(입금 효과 제거)으로 잰다 — 화면과 브레이크가
-            # 다른 숫자를 보면 사장님이 보는 낙폭과 시스템이 반응하는 낙폭이
-            # 어긋난다(2026-08-11).
-            mdd = max_drawdown_from_index(twr_index(
-                hist, st.get("deposits") or [],
-                start_cash=float(st.get("start_cash", START_CASH))))
-            status["paper"][key] = {
-                "start_cash": st.get("start_cash", START_CASH),
-                "equity": (hist[-1]["equity"] if hist else st.get("cash")),
-                "return_pct": (hist[-1].get("return_pct") if hist else 0.0),
-                "mdd_pct": round(mdd * 100, 2),
-                "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
-            }
-            if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
-                deposits = st.get("deposits", [])
-                sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
-                # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가
-                # 반영하지 않은 입금을 더하면 그 금액이 그대로 손실로 보인다.
-                principal = principal_of(sc, deposits)
-                eq_now = float(status["paper"][key]["equity"] or principal)
-                status["paper"][key].update({
-                    "goal": GOAL_KRW,
-                    "principal": round(principal, 2),
-                    "pnl": round(eq_now - principal, 2),
-                    "twr_pct": time_weighted_return(hist, deposits,
-                                                    start_cash=sc),
-                    "deposits": deposits[-30:],
-                })
-                # 접수됐지만 아직 반영 안 된 입금 — 숨기지 않고 밝힌다.
-                # 이게 없으면 "92만원 넣었는데 화면이 그대로다"가 된다.
-                waiting = pending_deposits(deposits)
-                if waiting:
-                    status["paper"][key]["pending_deposits"] = waiting
-                # 계좌를 다시 연 사실 — 사이트 제목이 이걸 읽어 "언제 왜
-                # 새로 시작했는지"를 스스로 말한다(감사 212). 안 내보내면
-                # 첫 화면이 옛 이야기를 계속 한다.
-                if st.get("restarted"):
-                    status["paper"][key]["restarted"] = st["restarted"]
-                # 거래내역 — "언제 얼마에 얼마어치를 샀나". 잔고가 '지금'을
-                # 말한다면 이쪽은 '어떻게 여기까지 왔나'를 말한다(증권사도
-                # 잔고와 거래내역을 따로 둔다). 기록마다 흩어져 있는 체결을
-                # 한 줄로 펴서 최근 것부터 싣는다.
-                trades = []
-                for rec in reversed(hist):
-                    for f in rec.get("fills") or []:
-                        trades.append({**f, "date": rec.get("date")})
-                    if len(trades) >= 60:
-                        break
-                if trades:
-                    status["paper"][key]["trades"] = trades[:60]
-                # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
-                # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
-                # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
-                status["paper"][key]["currency"] = st.get("currency")
-                # 마지막 기록에 남은 적용 환율 — 잔고 표가 "1,412.5원/$ 적용"
-                # 이라고 밝힐 수 있어야 검산이 가능하다(감사 216).
-                if hist and hist[-1].get("fx_usdkrw") is not None:
-                    status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]
-                status["paper"][key]["holdings"] = holdings_view(st, eq_now)
-                # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
-                #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이
-                #    이미 들어 있어서, 그대로 실으면 표의 합이 자산을 넘어선다:
-                #        보유 37,341 + 현금 961,910 = 999,251  ≠  자산 79,251
-                #    현금 비중이 1213%로 찍히고 표가 스스로 모순된다.
-                #    접수분은 빼고 싣는다 — 그 돈은 pending_deposits로 따로
-                #    공개되고, 다음 배치가 자산·현금을 함께 다시 잰다.
-                status["paper"][key]["cash"] = round(
-                    float(st.get("cash") or 0.0)
-                    - sum(float(d["amount"]) for d in waiting), 2)
-                rb = _regime_breakdown(hist)
-                if rb:                             # 레짐별 성과 분해(투명성)
-                    status["paper"][key]["regime_breakdown"] = rb
-            if hist:
-                status["updated"] = max(status["updated"] or "", hist[-1]["date"])
+    # ⚠️ 보관본을 빼지 않으면 같은 키를 **덮어쓴다**(감사 212).
+    #    `portfolio_ALL.pre-krw.json`이 알파벳순으로 뒤라, 새 원화
+    #    계좌를 열었는데 사이트는 닫힌 옛 계좌를 계속 보여줬다.
+    for path in ledger_files(state_dir):
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+        if st.get("market") == "portfolio":
+            pf_state = st
+        hist = chrono(st.get("history", []))   # 사이트 차트도 시간순으로
+        key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
+        # 최대낙폭(MDD) — 수익률만 보여주는 화면은 반쪽짜리 정직이다.
+        # 킬스위치와 같은 기준(입금 효과 제거)으로 잰다 — 화면과 브레이크가
+        # 다른 숫자를 보면 사장님이 보는 낙폭과 시스템이 반응하는 낙폭이
+        # 어긋난다(2026-08-11).
+        mdd = max_drawdown_from_index(twr_index(
+            hist, st.get("deposits") or [],
+            start_cash=float(st.get("start_cash", START_CASH))))
+        status["paper"][key] = {
+            "start_cash": st.get("start_cash", START_CASH),
+            "equity": (hist[-1]["equity"] if hist else st.get("cash")),
+            "return_pct": (hist[-1].get("return_pct") if hist else 0.0),
+            "mdd_pct": round(mdd * 100, 2),
+            "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
+        }
+        if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
+            deposits = st.get("deposits", [])
+            sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
+            # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가
+            # 반영하지 않은 입금을 더하면 그 금액이 그대로 손실로 보인다.
+            principal = principal_of(sc, deposits)
+            eq_now = float(status["paper"][key]["equity"] or principal)
+            status["paper"][key].update({
+                "goal": GOAL_KRW,
+                "principal": round(principal, 2),
+                "pnl": round(eq_now - principal, 2),
+                "twr_pct": time_weighted_return(hist, deposits,
+                                                start_cash=sc),
+                "deposits": deposits[-30:],
+            })
+            # 접수됐지만 아직 반영 안 된 입금 — 숨기지 않고 밝힌다.
+            # 이게 없으면 "92만원 넣었는데 화면이 그대로다"가 된다.
+            waiting = pending_deposits(deposits)
+            if waiting:
+                status["paper"][key]["pending_deposits"] = waiting
+            # 계좌를 다시 연 사실 — 사이트 제목이 이걸 읽어 "언제 왜
+            # 새로 시작했는지"를 스스로 말한다(감사 212). 안 내보내면
+            # 첫 화면이 옛 이야기를 계속 한다.
+            if st.get("restarted"):
+                status["paper"][key]["restarted"] = st["restarted"]
+            # 거래내역 — "언제 얼마에 얼마어치를 샀나". 잔고가 '지금'을
+            # 말한다면 이쪽은 '어떻게 여기까지 왔나'를 말한다(증권사도
+            # 잔고와 거래내역을 따로 둔다). 기록마다 흩어져 있는 체결을
+            # 한 줄로 펴서 최근 것부터 싣는다.
+            trades = []
+            for rec in reversed(hist):
+                for f in rec.get("fills") or []:
+                    trades.append({**f, "date": rec.get("date")})
+                if len(trades) >= 60:
+                    break
+            if trades:
+                status["paper"][key]["trades"] = trades[:60]
+            # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
+            # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
+            # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
+            status["paper"][key]["currency"] = st.get("currency")
+            # 마지막 기록에 남은 적용 환율 — 잔고 표가 "1,412.5원/$ 적용"
+            # 이라고 밝힐 수 있어야 검산이 가능하다(감사 216).
+            if hist and hist[-1].get("fx_usdkrw") is not None:
+                status["paper"][key]["fx_usdkrw"] = hist[-1]["fx_usdkrw"]
+            status["paper"][key]["holdings"] = holdings_view(st, eq_now)
+            # ⚠️ 현금도 **자산과 같은 시점**이어야 한다(감사 211이 여기서
+            #    한 번 더 나온다). 장부의 cash에는 아직 반영 안 된 입금이
+            #    이미 들어 있어서, 그대로 실으면 표의 합이 자산을 넘어선다:
+            #        보유 37,341 + 현금 961,910 = 999,251  ≠  자산 79,251
+            #    현금 비중이 1213%로 찍히고 표가 스스로 모순된다.
+            #    접수분은 빼고 싣는다 — 그 돈은 pending_deposits로 따로
+            #    공개되고, 다음 배치가 자산·현금을 함께 다시 잰다.
+            status["paper"][key]["cash"] = round(
+                float(st.get("cash") or 0.0)
+                - sum(float(d["amount"]) for d in waiting), 2)
+            rb = _regime_breakdown(hist)
+            if rb:                             # 레짐별 성과 분해(투명성)
+                status["paper"][key]["regime_breakdown"] = rb
+        if hist:
+            status["updated"] = max(status["updated"] or "", hist[-1]["date"])
 
     # 오늘의 시장 브리핑(표시 전용) — 있으면 사이트에도 싣는다
     from quant.live.briefing import load_briefing

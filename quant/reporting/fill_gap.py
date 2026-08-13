@@ -75,22 +75,15 @@ def fill_gap_report(state_dir: str = "state", window: int = 90) -> dict | None:
     """
     from quant.backtest.costs import CostModel
 
-    paper_dir = os.path.join(state_dir, "paper")
-    if not os.path.isdir(paper_dir):
-        return None
     per_market: dict[str, list[tuple[float, float]]] = {}
-    from quant.live.ledger_basics import is_archive
-    for name in sorted(os.listdir(paper_dir)):
-        # ⚠️ 아카이브(*.pre-*.json)는 **과거 장부의 전체 사본**이다(감사 227).
-        #    재액면(감사 212) 같은 구조 변경 때마다 하나씩 늘어나는데, 걸러
-        #    내지 않으면 같은 체결이 사본 수만큼 표본에 들어간다. 이 표본은
-        #    실측 체결비용과 **리밸런스 밴드**로 흘러가므로 — 즉 오디션이 무는
-        #    비용과 실제 계좌의 매매 빈도를 정한다 — 표시용 오차가 아니다.
-        #    같은 가드가 daily.py·web/app.py에는 있는데 여기만 빠져 있었다.
-        if not name.endswith(".json") or is_archive(name):
-            continue
+    # ⚠️ 아카이브(*.pre-*.json)는 **과거 장부의 전체 사본**이라 걸러야 한다
+    #    (감사 227). 걸러내지 않으면 같은 체결이 사본 수만큼 표본에 들어가고,
+    #    이 표본은 실측 체결비용과 **리밸런스 밴드**로 흘러간다 — 즉 오디션이
+    #    무는 비용과 실제 계좌의 매매 빈도를 정한다. 표시용 오차가 아니다.
+    from quant.live.ledger_basics import ledger_files
+    for path in ledger_files(state_dir):
         try:
-            with open(os.path.join(paper_dir, name), encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 st = json.load(f)
         except (OSError, ValueError):
             continue
