@@ -18,6 +18,7 @@
 """
 from __future__ import annotations
 
+import math
 import os
 from datetime import datetime
 from typing import Optional
@@ -73,6 +74,13 @@ def _parse_fred(payload: dict) -> pd.Series:
         try:
             val = float(v)
         except (TypeError, ValueError):
+            continue
+        # ⚠️ "nan"·"inf"·"1e400"은 float()를 통과한다(감사 196). FRED는 결측을
+        #    "."로 보내지만 형식이 어긋난 응답까지 믿을 이유는 없다. 이 값들이
+        #    ML 피처로 흘러가면 학습·예측이 통째로 오염된다.
+        #    (공개 JSON 쪽은 `jsonio.sanitize`가 이미 None으로 바꿔 주므로
+        #     사이트가 깨지지는 않는다 — 여기는 원천에서 한 번 더 막는 것이다.)
+        if not math.isfinite(val):
             continue
         try:
             ts = pd.Timestamp(date)

@@ -1787,6 +1787,19 @@ MUTATIONS = [
      "    if False:\n        return False",
      "tests/test_the_switch_means_what_it_says.py"),
 
+    # 감사 196 — 거시 피드. 사이트 파괴 결함은 없었고(아래층이 막는다) 원천 방어 추가.
+    ("FRED 값의 nan·inf를 그대로 피처로 넘긴다(학습·예측이 오염된다)",
+     "quant/data/macro.py",
+     "        if not math.isfinite(val):\n            continue",
+     "        if False:\n            continue",
+     "tests/test_the_macro_feed_does_not_poison_the_model.py"),
+
+    ("거시 프레임을 뒤에서 앞으로도 채운다(발표 전 날짜에 미래 값이 샌다)",
+     "quant/data/macro.py",
+     "    df = pd.DataFrame(cols).sort_index().ffill()",
+     "    df = pd.DataFrame(cols).sort_index().ffill().bfill()",
+     "tests/test_the_macro_feed_does_not_poison_the_model.py"),
+
     # ── 어드민·웹 경로 ──
     # 감사 186 — 조종석에서 바깥이 바뀌는 자리. 새 결함 없음, 계약 고정.
     ("입금액 상·하한 검사를 끈다(공개 장부의 원금이 아무 값이나 된다)",
