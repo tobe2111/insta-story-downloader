@@ -53,6 +53,83 @@ def chrono(history: list[dict]) -> list[dict]:
     return sorted(history or [], key=lambda r: str(r.get("date", "")))
 
 
+# ── 입금의 '정산' — 언제부터 이 돈이 자산에 들어있나 (감사 211) ──────
+#
+# ⚠️ 왜 필요한가(2026-08-13, 실제 92만원 입금에서 터졌다):
+#
+#   입금은 **즉시** 장부의 현금(cash)에 들어간다. 그런데 화면이 읽는
+#   `equity`는 **마지막 새벽 배치가 남긴 기록**이다. 그 사이(입금 직후 ~
+#   다음 배치)에는 원금만 늘고 자산은 그대로다:
+#
+#       원금 80,000 → 1,000,000  ·  자산 79,250 (08-12 기록 그대로)
+#       화면 손익   : **-920,749원**
+#       사실       : -749원
+#
+#   감사 197의 정확한 **거울상**이다. 그때는 입금이 수익으로 보였고,
+#   여기서는 입금이 손실로 보인다. 원인은 하나 — **자산과 원금을 서로
+#   다른 시점에서 재는 것.** 둘은 같은 순간에 재야 한다.
+#
+# 왜 날짜 비교로 풀 수 없나: 기록의 날짜는 **마지막 완성 봉**이라 달력
+# 날짜보다 뒤처진다(주말·휴장이면 며칠씩). 08-13 입금을 08-12 봉 기록과
+# 날짜로 비교하면 "아직 안 들어왔다"가 되는데, 정작 배치는 그 현금을
+# 포함해 자산을 계산한다 — 이번엔 반대로 **+1149%**가 뜬다.
+#
+# 그래서 날짜가 아니라 **사실**을 적는다. 자산을 실제로 다시 잰 배치가
+# 그 봉 이름을 입금 기록에 도장처럼 찍는다(`settled_bar`). 찍히기 전은
+# '접수됨', 찍힌 뒤가 '반영됨'이다. 금액·날짜·메모는 그대로다 —
+# "과거를 고치지 않는다"는 약속은 **기록한 사실**에 대한 것이고, 정산
+# 표시는 그 사실에 붙는 새 사실이다(수표에 결제 도장을 찍는 것과 같다).
+
+def is_settled(dep: dict) -> bool:
+    """이 입금이 이미 자산(equity)에 반영됐는가.
+
+    `settled_bar`가 없으면 아직 어느 기록에도 안 들어간 돈이다.
+    """
+    return bool(dep.get("settled_bar"))
+
+
+def settled_deposits(deposits: list[dict]) -> list[dict]:
+    """자산에 이미 반영된 입금만."""
+    return [d for d in deposits or [] if is_settled(d)]
+
+
+def pending_deposits(deposits: list[dict]) -> list[dict]:
+    """접수됐지만 아직 자산에 반영되지 않은 입금 — 화면이 밝혀야 할 것."""
+    return [d for d in deposits or [] if not is_settled(d)]
+
+
+def principal_of(start_cash: float, deposits: list[dict]) -> float:
+    """자산과 **같은 시점의** 원금 = 시작금 + 정산된 입금.
+
+    아직 반영되지 않은 입금을 여기 더하면 그 금액이 그대로 손실로 보인다.
+    """
+    return float(start_cash) + sum(float(d["amount"])
+                                   for d in settled_deposits(deposits))
+
+
+def _flow_date(dep: dict) -> str:
+    """현금흐름을 귀속시킬 날짜 — 정산된 봉이 있으면 그 봉.
+
+    TWR도 같은 함정에 빠진다. 입금 날짜(08-13)로 귀속처를 찾으면 기록일
+    (08-12)보다 뒤라 **귀속처가 없어** 흐름이 통째로 무시되고, 다음 배치에서
+    자산만 92만원 뛴 것으로 보여 실력이 +1149%로 기록된다. 배치가 찍어 준
+    봉 이름이 있으면 그것이 정답이다 — 그 봉의 자산에 실제로 들어간 돈이다.
+    """
+    return str(dep.get("settled_bar") or dep.get("date") or "")
+
+
+def _flows_by_date(history: list[dict], deposits: list[dict]) -> dict[str, float]:
+    """기록일별 입금 유입액 — 기록일 사이의 입금은 '그 이후 첫 기록일'로."""
+    flows: dict[str, float] = {}
+    dates = [r["date"] for r in history]
+    for d in deposits or []:
+        want = _flow_date(d)
+        target = next((dt for dt in dates if dt >= want), None)
+        if target is not None:
+            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    return flows
+
+
 def day_return_pct(history: list[dict], deposits: list[dict],
                    start_cash: float = START_CASH) -> float | None:
     """마지막 기록일의 **하루치** 수익률(%) — 입금 효과 제거(TWR과 같은 식).
@@ -66,12 +143,7 @@ def day_return_pct(history: list[dict], deposits: list[dict],
     history = chrono(history)
     if not history:
         return None
-    flows: dict[str, float] = {}
-    dates = [r["date"] for r in history]
-    for d in deposits or []:
-        target = next((dt for dt in dates if dt >= d["date"]), None)
-        if target is not None:
-            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    flows = _flows_by_date(history, deposits)
     prev = float(history[-2]["equity"]) if len(history) >= 2 else float(start_cash)
     if prev <= 0:
         return None
@@ -104,12 +176,7 @@ def twr_index(history: list[dict], deposits: list[dict],
     history = chrono(history)
     if not history:
         return []
-    flows: dict[str, float] = {}
-    dates = [r["date"] for r in history]
-    for d in deposits or []:
-        target = next((dt for dt in dates if dt >= d["date"]), None)
-        if target is not None:
-            flows[target] = flows.get(target, 0.0) + float(d["amount"])
+    flows = _flows_by_date(history, deposits)
     out: list[float] = []
     idx, prev = 1.0, float(start_cash)
     for r in history:
@@ -265,8 +332,14 @@ def add_deposit(amount: float, memo: str = "", *, state_dir: str = "state",
     st["cash"] = float(st.get("cash", 0.0)) + amount
     atomic_write_json(path, st)
 
-    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
-                 + sum(d["amount"] for d in st["deposits"]))
+    sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
+    # 접수 총액(현금에는 이미 들어갔다)과 **자산에 반영된 원금**은 다르다.
+    # 화면이 쓰는 것은 뒤쪽이다 — 자세한 이유는 이 파일 위쪽 '입금의 정산'.
+    committed = sc + sum(d["amount"] for d in st["deposits"])
+    principal = principal_of(sc, st["deposits"])
     print(f"💝 매칭 입금 +{amount:,.0f}원 ({entry['memo'] or '메모 없음'}) — "
-          f"누적 원금 {principal:,.0f}원 / 목표 {GOAL_KRW:,}원")
-    return {"deposit": entry, "principal": principal, "goal": GOAL_KRW}
+          f"누적 원금 {committed:,.0f}원 / 목표 {GOAL_KRW:,}원")
+    print("   ⏳ 자산에 반영되는 것은 다음 새벽 배치입니다 — 그때까지 "
+          f"화면의 원금은 {principal:,.0f}원으로 남습니다(손익 왜곡 방지).")
+    return {"deposit": entry, "principal": principal,
+            "committed": committed, "goal": GOAL_KRW}

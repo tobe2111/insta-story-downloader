@@ -185,7 +185,7 @@ def test_deposit_works_without_the_heavy_stack():
         "    encoding='utf-8')\n"
         "from quant.live.ledger_basics import add_deposit\n"
         "out = add_deposit(920000, '테스트', state_dir=str(d))\n"
-        "assert out['principal'] == 1_000_000, out\n"
+        "assert out['committed'] == 1_000_000, out\n"
         "st = json.loads((d / 'paper' / 'portfolio_ALL.json')"
         ".read_text(encoding='utf-8'))\n"
         "assert st['cash'] == 1_000_000 and len(st['deposits']) == 1, st\n"

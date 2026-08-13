@@ -3958,7 +3958,20 @@
       "principal": 80000.0,
       "pnl": -749.32,
       "twr_pct": -0.94,
-      "deposits": []
+      "deposits": [
+        {
+          "date": "2026-08-13",
+          "amount": 920000.0,
+          "memo": "운영자 원금 증액 — 8만원 → 100만원"
+        }
+      ],
+      "pending_deposits": [
+        {
+          "date": "2026-08-13",
+          "amount": 920000.0,
+          "memo": "운영자 원금 증액 — 8만원 → 100만원"
+        }
+      ]
     },
     "portfolio_shadow:SHADOW": {
       "start_cash": 80000.0,
@@ -7714,45 +7727,10 @@
     ],
     "note": "판단에 사용되지 않는 참고 정보입니다 — 매매는 검증된 챔피언 전략만 수행합니다."
   },
-  "macro": {
-    "items": [
-      {
-        "key": "t10y2y",
-        "name": "장단기 금리차",
-        "unit": "%p",
-        "value": 0.48,
-        "date": "2026-08-12"
-      },
-      {
-        "key": "hy_spread",
-        "name": "하이일드 스프레드",
-        "unit": "%p",
-        "value": 2.72,
-        "date": "2026-08-11"
-      },
-      {
-        "key": "usd_idx",
-        "name": "달러인덱스",
-        "unit": "",
-        "value": 119.065,
-        "date": "2026-08-07",
-        "chg5_pct": -0.53
-      },
-      {
-        "key": "t10yie",
-        "name": "10년 기대인플레",
-        "unit": "%",
-        "value": 2.26,
-        "date": "2026-08-12"
-      }
-    ],
-    "note": "금리 곡선 정상 · 신용시장 안정 · 달러 약세(위험자산 순풍)",
-    "source": "FRED(세인트루이스 연준) · 발표 시차 보정"
-  },
   "generation": {
     "feature_set": "fs8:+fredmacro/sz2",
     "since": "2026-08-11",
-    "days": 1,
+    "days": 2,
     "target_days": 90,
     "structure": {
       "tag": "sz2",

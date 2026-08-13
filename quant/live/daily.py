@@ -34,6 +34,8 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     drawdown_from_index,
     equity_curve_kpis,
     max_drawdown_from_index,
+    pending_deposits,
+    principal_of,
     time_weighted_return,
     twr_index,
 )
@@ -1738,9 +1740,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
     # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
     applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}
-    # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다
-    principal = (float(st.get("start_cash", PORTFOLIO_START_CASH))
-                 + sum(d["amount"] for d in st.get("deposits", [])))
+    # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다.
+    #
+    # ⚠️ 여기가 입금이 **정산되는 유일한 자리**다(감사 211). 위에서 equity를
+    #    현금+평가액으로 다시 쟀고, 그 현금에는 그동안 들어온 입금이 이미
+    #    포함돼 있다. 즉 이 순간부로 그 돈은 자산의 일부다 — 그 사실을 봉
+    #    이름으로 찍어 둔다. 찍기 **전에** 원금에 더하면 자산은 옛 기록,
+    #    원금만 새 값이 되어 입금액이 통째로 손실로 보인다(실측 -920,749원).
+    #    금액·날짜·메모는 건드리지 않는다.
+    for _d in st.get("deposits", []):
+        if not _d.get("settled_bar"):
+            _d["settled_bar"] = bar
+    principal = principal_of(st.get("start_cash", PORTFOLIO_START_CASH),
+                             st.get("deposits", []))
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
               "return_pct": round((equity / principal - 1) * 100, 2),
@@ -2196,7 +2208,9 @@ def write_docs_status(state_dir: str = STATE_DIR,
             if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
                 deposits = st.get("deposits", [])
                 sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
-                principal = sc + sum(d["amount"] for d in deposits)
+                # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가
+                # 반영하지 않은 입금을 더하면 그 금액이 그대로 손실로 보인다.
+                principal = principal_of(sc, deposits)
                 eq_now = float(status["paper"][key]["equity"] or principal)
                 status["paper"][key].update({
                     "goal": GOAL_KRW,
@@ -2206,6 +2220,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
                                                     start_cash=sc),
                     "deposits": deposits[-30:],
                 })
+                # 접수됐지만 아직 반영 안 된 입금 — 숨기지 않고 밝힌다.
+                # 이게 없으면 "92만원 넣었는데 화면이 그대로다"가 된다.
+                waiting = pending_deposits(deposits)
+                if waiting:
+                    status["paper"][key]["pending_deposits"] = waiting
                 rb = _regime_breakdown(hist)
                 if rb:                             # 레짐별 성과 분해(투명성)
                     status["paper"][key]["regime_breakdown"] = rb
