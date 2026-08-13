@@ -32,6 +32,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     chrono,
     day_return_pct,
     drawdown_from_index,
+    _flows_by_date,
     equity_curve_kpis,
     holdings_view,
     is_archive,
@@ -1433,6 +1434,33 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if not prices:
         raise RuntimeError("포트폴리오: 전 종목 데이터 실패 — 기록하지 않음")
 
+    # 시장별 '판단에 쓴 봉'이 얼마나 묵었나 — 배치 시각이 시장 마감보다
+    # 이르면 그 시장만 조용히 하루 뒤처진다(감사 220).
+    #
+    # ⚠️ 배치는 05:30 KST(20:30 UTC)에 돈다. 미국장 마감은
+    #        여름(EDT) 05:00 KST → 30분 여유, 정상
+    #        겨울(EST) 06:00 KST → **장이 아직 열려 있다**
+    #    겨울에는 오늘 봉이 미완성이라 버려지고 미국 신호만 **한 세션 전**
+    #    봉으로 내려간다. 11월~3월 다섯 달을 그렇게 도는데 어디에도 표시가
+    #    없었다 — 한국·코인은 최신이고 미국만 뒤처지니 종목 간 비교도
+    #    어긋난다. 코드가 고칠 수 있는 것은 **그 사실을 드러내는 것**이다.
+    from datetime import date as _bd
+    bar_age: dict = {}
+    _today = _bd.today()
+    for _k, _b in last_bars.items():
+        try:
+            _age = (_today - _bd.fromisoformat(str(_b)[:10])).days
+        except ValueError:
+            continue
+        _m = _k.split(":")[0]
+        bar_age[_m] = max(bar_age.get(_m, 0), _age)
+    stale_gap = (max(bar_age.values()) - min(bar_age.values())) if bar_age else 0
+    if stale_gap >= 2:
+        log.warning(
+            "시장별 판단 봉 신선도가 어긋납니다 %s — 배치 시각이 어느 시장의 "
+            "마감보다 이르면 그 시장만 한 세션 뒤처집니다(겨울 서머타임 해제 "
+            "시 미국장은 06:00 KST에 닫습니다)", bar_age)
+
     bar = max(last_dates)
     if st.get("last_bar") == bar:
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
@@ -1849,6 +1877,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 약속에서 검산 못 하는 변환은 그냥 믿어 달라는 말이다.
               "fx_usdkrw": (round(float(fx_rate), 4)
                             if fx_rate is not None else None),
+              # 시장별 판단 봉의 나이(일). 배치 시각과 시장 마감이 어긋나면
+              # 여기서 드러난다 — 로그만 남기면 아무도 안 본다(감사 220).
+              "bar_age_days": bar_age or None,
               # 킬스위치·배분의 흔적 — 그날 왜 노출이 줄었는지 장부로 남는다
               "risk_scale": risk_scale,
               # 어드민 개입의 흔적 — 일시정지·노출 배수는 숨기지 않고 기록한다
@@ -2085,12 +2116,15 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
         # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
         # '그 이후 첫 기록일'에 귀속시킨다.
-        flows: dict[str, float] = {}
-        for d in st.get("deposits") or []:
-            target = next((r["date"] for r in window if r["date"] >= d["date"]),
-                          None)
-            if target is not None:
-                flows[target] = flows.get(target, 0.0) + float(d["amount"])
+        # ⚠️ 귀속 규칙을 **여기서 다시 쓰지 않는다**(감사 219). 감사 211에서
+        #    "입금은 날짜가 아니라 배치가 찍은 봉(settled_bar)으로 귀속한다"로
+        #    바꾸면서 `_flows_by_date` 한 곳에 모았는데, 주간 요약만 자기
+        #    복사본을 그대로 갖고 있었다. 그리고 이미 갈라져 있었다 —
+        #    실측(입금 08-13 / 정산 봉 08-12):
+        #        주간 요약  : +1149.06%   ← 92만원 입금이 '수익'
+        #        장부(TWR) :    -0.94%
+        #    이 숫자는 월요일 아침 주간 리포트로 나간다.
+        flows = _flows_by_date(window, st.get("deposits") or [])
         days_chg = []
         chain = 1.0
         prev = base

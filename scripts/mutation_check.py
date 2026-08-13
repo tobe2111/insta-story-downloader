@@ -691,6 +691,27 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 220 — 배치 시각과 시장 마감이 어긋나면 한 시장만 뒤처지던 자리.
+    ("시장별 판단 봉의 나이를 장부에 안 남긴다(겨울에 미국만 뒤처져도 모른다)",
+     "quant/live/daily.py",
+     '              "bar_age_days": bar_age or None,',
+     '              "bar_age_days": None,',
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    ("한 시장만 뒤처져도 경고하지 않는다",
+     "quant/live/daily.py",
+     "    if stale_gap >= 2:",
+     "    if False:",
+     "tests/test_the_thin_files_are_actually_guarded.py"),
+
+    # 감사 219 — 주간 리포트가 입금 귀속의 옛 복사본을 들고 있던 자리.
+    # 실측: 주간 요약 +1149.06% / 장부 TWR -0.94%
+    ("주간 요약이 입금 귀속을 손으로 다시 계산한다(입금이 주간 수익으로 둔갑)",
+     "quant/live/daily.py",
+     '        flows = _flows_by_date(window, st.get("deposits") or [])',
+     "        flows = {}",
+     "tests/test_a_deposit_is_not_a_loss.py"),
+
     # 감사 218 — 캡션이 코드 상수의 시작금을 방송에 내보내던 자리.
     ("SNS 캡션이 지금 원금 대신 코드 상수를 말한다(방송에 낡은 금액이 나간다)",
      "quant/reporting/social.py",
