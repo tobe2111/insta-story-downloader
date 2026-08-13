@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant — 8만원으로 시작한 자동매매, 매일 공개됩니다</title>
+<title>Quant — 자동매매 실험, 매일 그대로 공개됩니다</title>
 <meta name="description" content="설치 없이 더블클릭으로 시작하는 퀀트 도구 — 백테스트·과최적화 검증(워크포워드/PBO/CPCV)·페이퍼 트레이딩·리스크 관리. 매일의 운용 기록을 그대로 공개합니다. 수익을 보장하지 않습니다.">
 <meta property="og:title" content="Quant — 주식·코인 퀀트 조종석">
 <meta property="og:description" content="설치 없이 더블클릭 — 백테스트·과최적화 검증·페이퍼 트레이딩·리스크 관리. 수익을 보장하지 않습니다.">
@@ -268,7 +268,13 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     <section class="hero">
       <div class="heroL">
         <span class="eyebrow">● 매일 새벽 자동 운용 · 기록 전체 공개</span>
-        <h1>8만원으로 시작한 자동매매,<br><span class="hl">매일 그대로 공개</span>됩니다.</h1>
+        <!-- ⚠️ 금액을 산문에 박지 않는다(2026-08-13). 원금은 매칭 입금으로
+             바뀌고(8만원 → 100만원), 계좌가 다시 열리기도 한다(감사 212).
+             박아 두면 그날부터 사이트가 계좌와 다른 말을 한다 — 실제로
+             그랬다. 장부(status.json)에서 읽어 채운다. -->
+        <h1><span id="hero-amt">가상 자금</span>으로 굴리는 자동매매,<br>
+          <span class="hl">매일 그대로 공개</span>됩니다.</h1>
+        <p class="sub" id="hero-hist" style="margin:-6px 0 10px"></p>
         <p class="lede">백테스트부터 과최적화 검증(워크포워드·PBO·CPCV), 페이퍼 트레이딩까지
           한 프로그램에. 설치 없이 더블클릭하면 5분 안에 첫 백테스트가 돌아갑니다.
           <b>여기 보이는 기록은 우리가 실제로 돌리는 계좌</b>이고, 틀린 날도 지우지 않습니다.</p>
@@ -290,7 +296,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       </div>
       <div class="heroR">
         <div class="proof" id="proof">
-          <div class="p"><span class="pk">8마일 챌린지 · 통합 실기록</span>
+          <div class="p"><span class="pk" id="pk-eq">8마일 챌린지 · 통합 실기록</span>
             <span class="pv" id="pv-eq">—</span>
             <span class="pd" id="pd-eq">기록 불러오는 중</span></div>
           <div class="p"><span class="pk">판정 시계</span><span class="pv" id="pv-gen">—</span>
@@ -328,10 +334,25 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
           <th title="산 가격의 평균(수수료 반영)">평균매입가</th>
           <th title="장부가 마지막으로 확인한 가격 — 실시간이 아닙니다">현재가</th>
           <th>매입금액</th><th>평가금액</th><th>평가손익</th><th>수익률</th>
-          <th title="8만원 통합 계좌 자산 대비 — 종목계좌 비중과 다릅니다">통합 비중</th></tr></thead>
+          <th title="통합 계좌 자산 대비 — 종목계좌 비중과 다릅니다">통합 비중</th></tr></thead>
         <tbody></tbody>
       </table></div>
       <div class="sub" style="margin-top:8px" id="bal-note"></div>
+    </section>
+
+    <!-- 거래내역 — 잔고가 '지금'이라면 이쪽은 '어떻게 여기까지 왔나'.
+         증권사도 잔고와 거래내역을 따로 둔다. -->
+    <section class="card c8" id="trades-card" style="display:none">
+      <h2>거래내역 <span class="tag" id="tr-count">최근 체결</span></h2>
+      <div class="tw"><table id="trtable">
+        <thead><tr><th style="text-align:left">날짜</th>
+          <th style="text-align:left">종목</th><th>구분</th>
+          <th title="실제로 체결된 가격">체결가</th><th>수량</th><th>금액</th>
+          <th title="시가=결정 다음 세션 시가에 체결 · 즉시=코인 24시간 시장">체결 방식</th>
+          </tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="sub" style="margin-top:8px" id="tr-note"></div>
     </section>
 
     <section class="card c8">
@@ -339,7 +360,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <div class="tw"><table id="symtable">
         <thead><tr><th>종목</th><th>현재가</th><th>일간</th><th>누적</th>
           <th title="그 종목만 굴리는 독립 계좌에서의 비중">종목계좌 비중</th>
-          <th title="8만원 통합 계좌가 실제로 들고 있는 비중(배분 슬라이스·변동성 타깃·킬스위치 반영)">통합 노출</th>
+          <th title="통합 계좌가 실제로 들고 있는 비중(배분 슬라이스·변동성 타깃·킬스위치 반영)">통합 노출</th>
           <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간) · n이 작으면 흐리게 표시">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
         <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
@@ -453,6 +474,22 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const pf=pfKey?paper[pfKey]:null;
   const rest=Object.keys(paper).filter(k=>!k.startsWith("portfolio"));
 
+  /* --- 히어로 제목: 금액은 장부에서 읽는다 -------------------------
+     ⚠️ 원래 "8만원으로 시작한 자동매매"가 제목에 박혀 있었다. 원금이
+        매칭 입금으로 100만원이 되고 계좌가 원화로 다시 열린 뒤에도
+        제목만 8만원이라, **첫 화면이 계좌와 다른 말을 하고 있었다.**
+        검사도 못 잡았다 — 산문을 코드 상수(PORTFOLIO_START_CASH)와만
+        대조하고, 정작 살아 있는 장부와는 맞춰보지 않았기 때문이다. */
+  if(pf&&pf.principal!=null){
+    document.getElementById("hero-amt").textContent=won(pf.principal);
+    const parts=[];
+    if(pf.start_cash!=null&&pf.start_cash!==pf.principal)
+      parts.push("시작 "+won(pf.start_cash)+" · 매칭 입금으로 증액");
+    if(pf.restarted&&pf.restarted.date)
+      parts.push(pf.restarted.date+" 원화 계좌로 재개설(이전 기록은 그대로 공개)");
+    document.getElementById("hero-hist").textContent=parts.join(" · ");
+  }
+
   /* --- 히어로 증거 3칸 --- */
   if(pf){
     const ret=pf.principal!=null?((pf.equity/pf.principal-1)*100):(pf.return_pct||0);
@@ -462,7 +499,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     // (SNS 캡션이 누적을 "오늘"이라 부르던 것을 2026-08-11에 바로잡았다)
     const hh=pf.history||[],dp=(hh[hh.length-1]||{}).day_pct;
     document.getElementById("pd-eq").textContent=
-      "8만원으로 시작 · 누적 기준"
+      "원금 대비 · 누적 기준"
       +(dp!=null?" · 오늘 "+zp(dp):"")
       +" · 마지막 기록 "+(st.updated||"—");
   }
@@ -784,7 +821,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
 
   /* --- 종목별 표 ---
      ⚠️ 여기 '비중'은 **그 종목만 굴리는 독립 계좌** 안에서의 비중이다.
-     이 페이지의 주인공은 8만원 통합 계좌인데, 열 이름이 그냥 '비중'이면
+     이 페이지의 주인공은 통합 계좌인데, 열 이름이 그냥 '비중'이면
      읽는 사람은 통합 계좌가 애플을 12.4% 들고 있다고 읽는다 — 실제
      통합 노출은 배분 슬라이스·변동성 타깃·킬스위치를 곱한 1.2%다
      (2026-08-11 감사 100, 91·92와 같은 계열). 두 숫자를 나란히 놓는다. */
@@ -840,6 +877,38 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     if(stale)note+=" ⚠ 표시된 "+stale+"종목은 시세를 받지 못해 매입가로 "+
       "평가돼 있습니다(손익이 0으로 보입니다).";
     document.getElementById("bal-note").textContent=note;
+  }
+
+  /* ── 거래내역 표 ────────────────────────────────────────────
+     ⚠️ 수량·금액은 2026-08-13부터 기록된다. 그 전 체결에는 없으므로
+        지어내지 않고 "—"로 둔다 — 모르는 것을 채우면 그때부터 이 표는
+        증거가 아니라 이야기가 된다. */
+  if(pf&&(pf.trades||[]).length){
+    let noQty=0;
+    const body=pf.trades.map(t=>{
+      const nm=(syms[t.key]||{}).name||t.key.split(":")[1]||t.key;
+      const sell=(t.side==="sell");
+      if(t.quantity==null)noQty++;
+      const q=Number(t.quantity);
+      const qs=t.quantity==null?"—"
+        :(q>=100?num(Math.round(q)):(q>=1?q.toFixed(3):q.toPrecision(3)));
+      return '<tr><td style="text-align:left" class="num">'+esc(t.date||"")+'</td>'+
+        '<td style="text-align:left">'+esc(nm)+'</td>'+
+        '<td class="'+(sell?"down":"up")+'">'+(sell?"매도":"매수")+'</td>'+
+        '<td class="num">'+num(Math.round(Number(t.price)*100)/100)+'</td>'+
+        '<td class="num">'+qs+'</td>'+
+        '<td class="num">'+(t.amount==null?"—":won(t.amount))+'</td>'+
+        '<td class="sub">'+esc(t.type||"")+'</td></tr>';
+    }).join("");
+    document.getElementById("trtable").querySelector("tbody").innerHTML=body;
+    document.getElementById("trades-card").style.display="";
+    document.getElementById("tr-count").textContent=
+      "최근 체결 "+pf.trades.length+"건";
+    document.getElementById("tr-note").textContent=
+      "체결가는 실제로 반영된 가격입니다. '시가'는 결정 다음 세션의 시가에 "+
+      "체결한 것이고(개장 갭을 감수합니다), '즉시'는 24시간 시장인 코인입니다."+
+      (noQty?" ⚠ 수량·금액은 2026-08-13부터 기록됩니다 — 그 이전 "+noQty+
+        "건은 '—'로 두고 추정하지 않습니다.":"");
   }
 
   document.getElementById("symtable").querySelector("tbody").innerHTML=

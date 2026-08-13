@@ -110,7 +110,13 @@ def test_compare_sources_detects_adjustment_mismatch():
     stats = compare_sources(df, other, tolerance=0.01)
     assert stats["ok"] is False
     assert stats["n_exceed"] == len(df)
-    assert stats["max_rel_diff"] == pytest.approx(0.05, rel=1e-6)
+    # 분모가 max(|a|,|b|)로 바뀌었다(감사 210) — 5% 키운 쪽이 분모라
+    # 0.05가 아니라 0.05/1.05다. 잡아낸다는 계약은 그대로다.
+    assert stats["max_rel_diff"] == pytest.approx(0.05 / 1.05, rel=1e-6)
+    # 그리고 순서를 바꿔도 같은 숫자여야 한다 — 그게 감사 210의 요점이다.
+    rev = compare_sources(other, df, tolerance=0.01)
+    assert rev["max_rel_diff"] == pytest.approx(stats["max_rel_diff"])
+    assert rev["ok"] is False
 
 
 def test_compare_sources_empty_overlap_graceful():

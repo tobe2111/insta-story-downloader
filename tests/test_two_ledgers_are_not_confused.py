@@ -85,8 +85,17 @@ def test_the_lead_paragraph_warns_before_the_reader_scrolls():
 
 
 def test_the_headline_start_cash_is_still_the_portfolio_one():
-    """혼동을 없애려다 8만원 주장까지 흐리면 안 된다."""
-    assert "80,000원" in PAPER
+    """혼동을 없애려다 **통합 계좌 원금** 주장까지 흐리면 안 된다.
+
+    ⚠️ 원래 이 검사는 `"80,000원" in PAPER`였다. 그 글자를 지키는 것이
+    목적이 아니라 "머리말이 통합 계좌의 원금을 분명히 말한다"가 계약이다.
+    원금이 매칭 입금으로 바뀌고 계좌가 원화로 다시 열리자(감사 212) 글자만
+    낡았다 — 이제 금액은 장부에서 읽으므로, **읽는지**를 본다.
+    """
+    assert 'id="hd-principal"' in PAPER, "머리말에 원금 자리가 없다"
+    assert "port.principal" in PAPER, (
+        "머리말이 원금을 장부에서 읽지 않는다 — 산문에 박으면 원금이 바뀐 "
+        "날부터 페이지가 계좌와 다른 말을 한다")
 
 
 def test_the_symbol_start_cash_is_not_hardcoded_wrongly():

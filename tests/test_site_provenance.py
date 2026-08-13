@@ -17,6 +17,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -81,6 +83,51 @@ def test_start_cash_and_goal_in_prose_match_config():
         assert PORTFOLIO_START_CASH == 80_000, "산문은 8만원인데 설정이 다르다"
     if "1억" in html:
         assert GOAL_KRW == 100_000_000, "산문은 1억인데 설정이 다르다"
+
+
+def test_the_prose_is_checked_against_the_live_ledger_not_only_the_constant():
+    """산문의 금액은 **살아 있는 계좌**와도 맞아야 한다 (2026-08-13).
+
+    ⚠️ 위 검사에는 구멍이 있었다. 산문을 코드 상수(`PORTFOLIO_START_CASH`)
+    와만 대조하는데, 그 상수는 **새 계좌를 만들 때의 기본값**이지 지금
+    계좌의 원금이 아니다. 매칭 입금으로 원금이 8만원 → 100만원이 되고
+    계좌가 원화로 다시 열린 뒤에도 상수는 80,000 그대로였고, 그래서
+    **첫 화면이 "8만원으로 시작한 자동매매"라고 계속 말하는데 검사는 전부
+    초록**이었다.
+
+    지키는 규칙: 표시용 금액은 산문에 박지 말고 장부(status.json)에서
+    읽는다. 박아야 한다면 지금 계좌와 같아야 한다.
+    """
+    sj = ROOT / "docs" / "status.json"
+    if not sj.exists():
+        pytest.skip("status.json이 없다 — 배치 전")
+    paper = json.loads(sj.read_text("utf-8")).get("paper") or {}
+    pf = next((v for k, v in paper.items() if k.startswith("portfolio:")), None)
+    if not pf or pf.get("principal") is None:
+        pytest.skip("통합 계좌 기록이 아직 없다")
+
+    principal = float(pf["principal"])
+    man = principal / 10_000
+    for page in _LIVE_PAGES:
+        text = _read(page)
+        # 주석은 사실을 설명하는 자리라 뺀다(HTML 주석 · JS 블록 주석)
+        shown = re.sub(r"<!--(?:.|\n)*?-->", "", text)
+        shown = re.sub(r"/\*(?:.|\n)*?\*/", "", shown)
+        # `//` 줄 주석도 산문이 아니다. URL(https://)과 섞이지 않게 **줄
+        # 첫머리**가 //인 줄만 뺀다.
+        shown = "\n".join(ln for ln in shown.splitlines()
+                          if not ln.lstrip().startswith("//"))
+        for m in re.finditer(r"(\d[\d,]*)만원", shown):
+            ctx = shown[max(0, m.start() - 90):m.end() + 60]
+            if "시작" not in ctx and "가상 자금" not in ctx and "원금" not in ctx:
+                continue
+            val = float(m.group(1).replace(",", ""))
+            if val == 1.0:                    # 종목별 참고 계좌(1만원)는 별개
+                continue
+            assert val == man, (
+                f"{page}: 원금을 '{m.group(1)}만원'이라 말하는데 지금 계좌는 "
+                f"{man:,.0f}만원이다 — 금액을 산문에 박지 말고 장부에서 읽을 것\n"
+                f"  …{ctx[:140]}…")
 
 
 def test_judgment_days_not_hardcoded_in_site():

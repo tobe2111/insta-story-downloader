@@ -14,6 +14,8 @@ state 형식(quant.live.LiveTrader.snapshot() 참고):
 """
 from __future__ import annotations
 
+from quant.reporting.scale import axis_span, plot_points
+
 import html
 from pathlib import Path
 from typing import Sequence
@@ -32,13 +34,19 @@ def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
                 f'<polyline{idattr} points="" fill="none" stroke="{color}" '
                 'stroke-width="2.5" /></svg>'
                 '<div style="color:#8f96a3;padding:6px 0;font-size:12px">데이터 수집 중…</div>')
-    lo, hi = min(vals), max(vals)
-    rng = (hi - lo) or 1.0
-    n = len(vals)
-    pts = [
-        (i / (n - 1) * width, height - (v - lo) / rng * height)
-        for i, v in enumerate(vals)
-    ]
+    # 범위·좌표를 직접 계산하지 않는다(감사 213) — 결측 하나에 차트가
+    # 통째로 사라지던 자리다. 계산은 quant.reporting.scale 한 곳에만 둔다.
+    span = axis_span(vals)
+    if span is None:
+        return (f'<svg viewBox="0 0 {width} {height}" width="100%">'
+                f'<polyline{idattr} points="" fill="none" stroke="{color}" '
+                'stroke-width="2.5" /></svg>'
+                '<div style="color:#8f96a3;padding:6px 0;font-size:12px">'
+                '데이터 수집 중…</div>')
+    lo, hi, rng = span
+    pts = plot_points(vals, width, height, lo, rng)
+    if not pts:
+        return "<svg></svg>"
     line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
     area = ""
     if fill:

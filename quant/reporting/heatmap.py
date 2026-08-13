@@ -27,8 +27,22 @@ def _color(value: float, lo: float, hi: float) -> str:
     lo가 '나쁨', hi가 '좋음' 끝이다. 작을수록 좋은 지표는 호출부에서 lo/hi를
     바꿔 넘겨 방향을 뒤집는다.
     """
-    rng = (hi - lo) or 1.0
-    t = max(0.0, min(1.0, (value - lo) / rng))
+    # ⚠️ `(hi - lo) or 1.0`은 NaN을 막지 못한다 — NaN은 참이라 그대로
+    #    통과하고, hue가 NaN이 되면 `hsl(nan …)`은 유효하지 않은 CSS라
+    #    브라우저가 무시한다. 색이 안 칠해진 칸을 보는 사람은 '중립'으로
+    #    읽지만 실제로는 **모르는 값**이다(감사 213과 같은 자리).
+    import math
+
+    rng = hi - lo
+    if not math.isfinite(rng) or rng == 0:
+        rng = 1.0
+    try:
+        t = (float(value) - lo) / rng
+    except (TypeError, ValueError):
+        t = float("nan")
+    if not math.isfinite(t):
+        return "hsl(0 0% 72%)"          # 회색 = 값 없음(중립 아님)
+    t = max(0.0, min(1.0, t))
     hue = 120 * t  # 0=빨강, 120=초록
     return f"hsl({hue:.0f} 65% 45%)"
 

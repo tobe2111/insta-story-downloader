@@ -179,13 +179,29 @@ def test_matching_sources_pass_and_a_single_bad_bar_fails():
 
     off = compare_sources(_frame([100, 101, 102]), _frame([100, 110, 102]))
     assert off["ok"] is False and off["n_exceed"] == 1
-    assert off["max_rel_diff"] == pytest.approx(9 / 101)
+    # 대칭 분모(감사 210): 9/110이지 9/101이 아니다. 옛 식은 첫 인자를
+    # 기준으로 삼아서, 순서만 바꿔도 답이 달라졌다.
+    assert off["max_rel_diff"] == pytest.approx(9 / 110)
+    assert compare_sources(_frame([100, 110, 102]), _frame([100, 101, 102])
+                           )["max_rel_diff"] == pytest.approx(9 / 110)
 
 
-def test_a_zero_price_shows_up_as_infinite_not_as_agreement():
+def test_a_zero_price_is_a_total_disagreement_not_an_agreement():
+    """0 vs 1은 **비교가 되는** 값이다 — 완전히 다르다고 말해야 한다.
+
+    ⚠️ 이 검사는 원래 `max_rel_diff`가 **inf**이길 요구했다. 분모가 `|a|`
+    였기 때문인데(감사 210에서 고쳤다), inf는 두 가지를 뭉뚱그린다:
+    '값이 완전히 다르다'와 '비교할 수가 없다'. 지금은 나눈다 — 한쪽만
+    0이면 1.0(완전 불일치), 둘 다 0이면 비교 불가로 따로 센다.
+    """
     got = compare_sources(_frame([0, 100]), _frame([1, 100]))
-    assert not np.isfinite(got["max_rel_diff"]), got
-    assert got["ok"] is False
+    assert got["max_rel_diff"] == pytest.approx(1.0), got
+    assert np.isfinite(got["max_rel_diff"])
+    assert got["ok"] is False and got["n_unverifiable"] == 0
+
+    # 둘 다 0인 봉은 '통과'가 아니라 '비교 못 함'이다
+    blind = compare_sources(_frame([0, 100]), _frame([0, 100]))
+    assert blind["n_unverifiable"] == 1 and blind["ok"] is False
 
 
 def test_a_missing_column_is_not_a_pass():

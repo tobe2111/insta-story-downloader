@@ -15,6 +15,8 @@ render_validation_report만 pandas(백테스트)를 쓴다.
 """
 from __future__ import annotations
 
+from quant.reporting.scale import axis_span, plot_points
+
 import html as _html
 from pathlib import Path
 from typing import Sequence
@@ -34,8 +36,10 @@ def _svg_area(values: Sequence[float], w: int = 720, h: int = 200,
     vals = [float(v) for v in values if v == v]
     if len(vals) < 2:
         return '<p class="muted">그릴 데이터가 부족합니다.</p>'
-    lo, hi = _minmax(vals)
-    rng = (hi - lo) or 1.0
+    span = axis_span(vals)
+    if span is None:
+        return '<p class="muted">그릴 데이터가 부족합니다.</p>'
+    lo, hi, rng = span
     n = len(vals)
     def x(i): return pad + i * (w - 2 * pad) / (n - 1)
     def y(v): return pad + (h - 2 * pad) * (1 - (v - lo) / rng)
@@ -56,8 +60,10 @@ def _svg_hist(values: Sequence[float], bins: int = 20, w: int = 720, h: int = 16
     vals = [float(v) for v in values if v == v]
     if not vals:
         return '<p class="muted">그릴 데이터가 부족합니다.</p>'
-    lo, hi = _minmax(vals)
-    rng = (hi - lo) or 1.0
+    span = axis_span(vals)
+    if span is None:
+        return '<p class="muted">그릴 데이터가 부족합니다.</p>'
+    lo, hi, rng = span
     counts = [0] * bins
     for v in vals:
         b = min(bins - 1, int((v - lo) / rng * bins))

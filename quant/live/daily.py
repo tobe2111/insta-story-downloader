@@ -1495,8 +1495,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         #    슬라이스를 빼먹고 있었다 — 같은 값을 한 줄 사이에서 두 정의로
         #    쓴 셈이라, 장부가 실제보다 10~50배 큰 체결 비중을 말했다
         #    (2026-08-10 069500 체결: 장부 0.165 / 실제 주문 0.0036).
+        # 수량·금액도 남긴다(2026-08-13). 예전에는 체결가와 결과 비중만
+        # 적어서, "언제 얼마에 샀나"는 알아도 **얼마어치**를 샀는지는 장부
+        # 어디에도 없었다 — 거래내역을 만들 수가 없었다. 주문 객체가 이미
+        # 수량을 들고 있었는데 버리고 있었다.
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]) * sl, 4),
+                      "side": order.side,
+                      "quantity": round(float(order.quantity), 10),
+                      "amount": round(float(order.quantity) * float(fopen), 2),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 
@@ -1714,7 +1721,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     for o in getattr(broker, "order_log", [])[n_orders_before:]:
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
-                      "side": o.side, "type": "즉시"})
+                      "side": o.side,
+                      "quantity": round(float(o.quantity), 10),
+                      "amount": round(float(o.quantity) * float(o.price), 2),
+                      "type": "즉시"})
     # 쿨다운 기준일 갱신 — 오늘 실제로 고쳐 잡은 종목만
     for f in fills:
         last_trade[f["key"]] = str(bar)[:10]
@@ -2261,6 +2271,23 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 waiting = pending_deposits(deposits)
                 if waiting:
                     status["paper"][key]["pending_deposits"] = waiting
+                # 계좌를 다시 연 사실 — 사이트 제목이 이걸 읽어 "언제 왜
+                # 새로 시작했는지"를 스스로 말한다(감사 212). 안 내보내면
+                # 첫 화면이 옛 이야기를 계속 한다.
+                if st.get("restarted"):
+                    status["paper"][key]["restarted"] = st["restarted"]
+                # 거래내역 — "언제 얼마에 얼마어치를 샀나". 잔고가 '지금'을
+                # 말한다면 이쪽은 '어떻게 여기까지 왔나'를 말한다(증권사도
+                # 잔고와 거래내역을 따로 둔다). 기록마다 흩어져 있는 체결을
+                # 한 줄로 펴서 최근 것부터 싣는다.
+                trades = []
+                for rec in reversed(hist):
+                    for f in rec.get("fills") or []:
+                        trades.append({**f, "date": rec.get("date")})
+                    if len(trades) >= 60:
+                        break
+                if trades:
+                    status["paper"][key]["trades"] = trades[:60]
                 # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
                 # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
                 # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.

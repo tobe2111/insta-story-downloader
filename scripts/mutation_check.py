@@ -498,6 +498,45 @@ MUTATIONS = [
      "            _d[\"settled_bar\"] = bar",
      "tests/test_a_deposit_is_not_a_loss.py"),
 
+    # 감사 213 — 값 하나가 결측이면 차트가 통째로 사라지던 자리.
+    # (`hi - lo or 1.0`은 NaN을 못 막는다 — NaN은 참이다)
+    ("차트 범위 계산에서 결측·무한값을 거르지 않는다(차트가 조용히 사라진다)",
+     "quant/reporting/scale.py",
+     "        if math.isfinite(f):\n            out.append(f)",
+     "        out.append(f)",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("그릴 값이 없어도 가짜 평평한 범위를 돌려준다(없는 데이터가 생긴다)",
+     "quant/reporting/scale.py",
+     "    if not vals:\n        return None",
+     "    if not vals:\n        return (0.0, 1.0, 1.0)",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("좌표 생성에서 결측 봉을 건너뛰지 않는다(점 하나가 nan이면 선이 통째로 버려진다)",
+     "quant/reporting/scale.py",
+     "        if not math.isfinite(f):\n            continue",
+     "        if False:\n            continue",
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    ("히트맵이 모르는 값을 색으로 칠한다('중립'으로 읽힌다)",
+     "quant/reporting/heatmap.py",
+     '        return "hsl(0 0% 72%)"          # 회색 = 값 없음(중립 아님)',
+     '        t = 0.5',
+     "tests/test_a_missing_value_cannot_erase_a_chart.py"),
+
+    # 감사 210 — 교차 검증 판정이 인자 순서에 따라 뒤집히던 자리.
+    ("교차 검증 분모를 첫 인자 기준으로 되돌린다(순서만 바꿔도 판정이 뒤집힌다)",
+     "quant/data/crosscheck.py",
+     '    denom = pd.concat([pair["a"].abs(), pair["b"].abs()], axis=1).max(axis=1)',
+     '    denom = pair["a"].abs()',
+     "tests/test_two_sources_agree_regardless_of_order.py"),
+
+    ("비교 못 한 봉이 있어도 '통과'라고 말한다(검증 못 함은 통과가 아니다)",
+     "quant/data/crosscheck.py",
+     '        "ok": bool(n_blind == 0 and len(valid) and max_diff <= tolerance),',
+     '        "ok": bool(len(valid) and max_diff <= tolerance),',
+     "tests/test_two_sources_agree_regardless_of_order.py"),
+
     # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
     ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
      "quant/live/daily.py",
@@ -1704,8 +1743,8 @@ MUTATIONS = [
 
     ("교차검증에서 '겹침 없음'을 통과로 만든다(검증 못 한 걸 일치라 부른다)",
      "quant/data/crosscheck.py",
-     '             "n_exceed": 0, "ok": False}',
-     '             "n_exceed": 0, "ok": True}',
+     '             "n_exceed": 0, "n_unverifiable": 0, "ok": False}',
+     '             "n_exceed": 0, "n_unverifiable": 0, "ok": True}',
      "tests/test_the_tools_that_check_us_are_checked_too.py"),
 
     ("레짐 임계값을 전체 구간에서 뽑는다(오늘 라벨이 내일 데이터로 정해진다)",
