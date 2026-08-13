@@ -143,3 +143,107 @@ def test_a_non_finite_funding_rate_is_zero_not_nan():
     for bad in (float("nan"), float("inf"), float("-inf")):
         cm = CostModel(funding_series={ts: bad})
         assert cm.holding_cost(1.0, ts=ts) == 0.0, bad
+
+
+# ── 멈춘 시세가 최대 노출을 받지 않는가 (감사 209) ────────────────
+#
+# `size_positions`에는 이미 가드가 있었다: `realized > 1e-9`. 그 위 주석은
+# 원리를 맞게 적어 놓았다 — *"연율 변동성이므로 크기를 안다"*. 그런데 문턱을
+# **부동소수 잡음 크기**(1e-9)로 잡아서, 값이 정확히 0은 아니지만 사실상
+# 멈춘 시세가 그대로 통과했다. 실측(고치기 전):
+#
+#     20봉 중 19봉의 수익률이 정확히 0 · 한 봉만 0.01% 움직임
+#     → 연율 실현변동성 0.0022%  →  목표 비중 **1.0000 (100%)**
+#     (같은 전략·정상 변동성 2.14%일 때는 0.6631)
+#
+# 거래정지·호가 고정·시세 피드가 마지막 값을 반복하는 날이 정확히 이 모양이고,
+# **데이터 품질 검사도 이걸 안 잡는다**(실측: 위반 0건 · 심각도 False).
+# 아무도 안 막고 있었다.
+#
+# 크기로 막으면 진짜 저변동성 자산(채권 ETF)까지 걸린다. 구별되는 것은 크기가
+# 아니라 **움직임의 유무**다 — 창 안의 수익률이 대부분 정확히 0이면 그
+# 변동성 추정치는 '작은 값'이 아니라 **없는 값**이다.
+
+
+def _sized_curve(close, market="kr_stock", window=20, z=2.0):
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.daily import _risk_for
+    from quant.strategies.mean_reversion import MeanReversion
+
+    idx = pd.date_range("2025-01-01", periods=len(close), freq="D")
+    df = pd.DataFrame({"open": close, "high": close * 1.001,
+                       "low": close * 0.999, "close": close,
+                       "volume": 1e6}, index=idx)
+    sig = MeanReversion(window=window, z=z).generate_signals(df)
+    on = np.flatnonzero(sig.to_numpy())
+    w = _risk_for(market).size_positions(df, sig).to_numpy()
+    return on, (max(abs(float(w[i])) for i in on) if len(on) else 0.0)
+
+
+def test_a_frozen_price_gets_no_exposure():
+    """거래정지처럼 값이 멈춘 종목이 최대 노출을 받으면 안 된다."""
+    import numpy as np
+
+    c = np.full(60, 100.0)
+    c[45] = 99.99                       # 20봉 중 한 봉만 0.01% 움직인다
+    on, biggest = _sized_curve(c)
+    assert len(on) > 0, "전제가 깨졌다 — 신호가 나야 사이징을 잰다"
+    assert biggest == 0.0, f"멈춘 시세에 노출 {biggest:.4f}이 실렸다"
+
+
+def test_a_genuinely_calm_asset_is_not_punished():
+    """대조군 — **진짜** 저변동성 자산(연 2~3%)은 계속 거래돼야 한다.
+
+    크기로 막으면 채권 ETF 같은 정상 자산까지 꺼진다. 이 검사가 없으면
+    위 검사는 "조금만 조용하면 다 끄는" 구현도 통과시킨다.
+    """
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    c = 100 * np.exp(np.cumsum(rng.normal(0, 0.0015, 200)))
+    on, biggest = _sized_curve(c)
+    assert len(on) > 0 and biggest > 0.0, (
+        f"진짜 저변동성 자산이 꺼졌다: 신호 {len(on)}봉 · 최대 {biggest}")
+
+
+def test_a_normal_asset_is_unchanged():
+    """대조군 — 평범한 변동성에서는 예전과 같은 사이징이어야 한다."""
+    import numpy as np
+
+    rng = np.random.default_rng(0)
+    c = 100 * np.exp(np.cumsum(rng.normal(0, 0.02, 200)))
+    on, biggest = _sized_curve(c)
+    assert len(on) > 0 and 0.0 < biggest <= 1.0, biggest
+
+
+def test_the_rule_is_movement_not_size():
+    """직접 확인 — 같은 변동성 크기라도 '움직였는가'로 갈린다.
+
+    ① 창의 95%가 정확히 0        → 꺼진다
+    ② 같은 표준편차인데 매 봉 움직인다 → 살아 있다
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.daily import _risk_for
+
+    n = 60
+    frozen = np.full(n, 100.0)
+    frozen[45] = 99.99
+    moving = 100.0 + np.tile([0.0, 0.0025], n // 2)[:n]   # 매 봉 작게 움직임
+
+    fs = float(pd.Series(frozen).pct_change().rolling(20).std().iloc[45])
+    ms = float(pd.Series(moving).pct_change().rolling(20).std().iloc[45])
+    assert fs > 0 and ms > 0, "전제가 깨졌다 — 둘 다 0이 아니어야 한다"
+
+    def scale_at(c, i):
+        idx = pd.date_range("2025-01-01", periods=len(c), freq="D")
+        df = pd.DataFrame({"open": c, "high": c * 1.001, "low": c * 0.999,
+                           "close": c, "volume": 1e6}, index=idx)
+        target = pd.Series(1.0, index=idx)
+        return float(_risk_for("kr_stock").size_positions(df, target).iloc[i])
+
+    assert scale_at(frozen, 45) == 0.0, "멈춘 쪽이 안 꺼졌다"
+    assert scale_at(moving, 45) > 0.0, "움직이는 쪽이 꺼졌다"

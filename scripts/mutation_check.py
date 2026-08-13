@@ -1686,6 +1686,13 @@ MUTATIONS = [
      '        cash = acct.get("cash", 0.0)',
      "tests/test_a_renamed_field_cannot_empty_the_account.py"),
 
+    # ── 감사 209: 멈춘 시세가 최대 노출을 받던 자리 ──────────────
+    ("멈춘 시세(수익률 대부분 0) 가드를 끈다(거래정지 종목이 100% 비중을 받는다)",
+     "quant/risk/manager.py",
+     "            realized = realized.where(zero_share < 0.8, np.nan)",
+     "            realized = realized",
+     "tests/test_risk_limits_bind_at_the_source.py"),
+
     # ── 감사 208: 로그가 자기 시각·메시지를 잃던 자리 ────────────
     ("컨텍스트가 로그의 예약 키를 덮어쓴다(로그가 시각·메시지를 거짓으로 말한다)",
      "quant/utils/logging.py",
