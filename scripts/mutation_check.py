@@ -691,6 +691,19 @@ MUTATIONS = [
      "    return result",
      "tests/test_optimize.py"),
 
+    # 감사 221 — 배치 시각을 미국장 마감 뒤로 옮긴 자리(연중 안전).
+    ("배치 시각을 미국장 마감 전으로 되돌린다(겨울에 미국 신호가 한 세션 뒤처진다)",
+     ".github/workflows/daily-paper.yml",
+     '    - cron: "15 22 * * *"',
+     '    - cron: "30 20 * * *"',
+     "tests/test_the_batch_runs_after_the_markets_it_trades.py"),
+
+    ("SNS 게시를 배치보다 앞으로 되돌린다(어제 숫자가 오늘 것으로 방송된다)",
+     ".github/workflows/social-post.yml",
+     '    - cron: "45 23 * * *"',
+     '    - cron: "45 21 * * *"',
+     "tests/test_the_batch_runs_after_the_markets_it_trades.py"),
+
     # 감사 220 — 배치 시각과 시장 마감이 어긋나면 한 시장만 뒤처지던 자리.
     ("시장별 판단 봉의 나이를 장부에 안 남긴다(겨울에 미국만 뒤처져도 모른다)",
      "quant/live/daily.py",
@@ -2573,7 +2586,7 @@ MUTATIONS = [
 
     ("deadman을 23:30 UTC로 되돌린다(하루 누락 맹점 부활)",
      ".github/workflows/deadman.yml",
-     '    - cron: "30 1 * * *"',
+     '    - cron: "30 3 * * *"',
      '    - cron: "30 23 * * *"',
      "tests/test_deadman_window.py"),
 
