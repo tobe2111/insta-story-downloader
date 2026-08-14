@@ -1843,9 +1843,8 @@ MUTATIONS = [
 
     ("채점에서 뺀 보합 봉 수를 안 돌려준다(뺀 사실이 안 보인다)",
      "quant/robustness/accuracy.py",
-     '    out: dict = {"hit_rate": hit_rate, "n": n,\n'
-     '                 "n_flat": int((held & ~moved).sum())}',
-     '    out: dict = {"hit_rate": hit_rate, "n": n}',
+     '                 "n_flat": int((held & ~moved).sum()),\n',
+     "",
      "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
 
     ("장부에 보합 제외 봉 수를 안 남긴다",
@@ -2687,8 +2686,8 @@ MUTATIONS = [
 
     ("오늘의 판단이 후보 수를 '분산'이라 말하게 되돌린다",
      "docs/today.html",
-     '<div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>',
-     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>',
+     '<div class="k">통합 계좌 (${spread} · 시작 ',
+     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ',
      "tests/test_broadcast_tells_the_whole_truth.py"),
 
     ("사이드바 '종목계좌' 라벨을 맨 '비중'으로 되돌린다",
