@@ -2572,6 +2572,26 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
         pass
 
+    # 휴장일 달력 — **브라우저에도 보낸다**(2026-08-14). 사이트는 파이썬을
+    # 못 돌리므로, 배치가 아는 것을 파일로 실어 보내지 않으면 화면은 영영
+    # 주말만 아는 상태로 남는다. 그러면 명절 내내 15초마다 시세를 조르고
+    # (무료 한도를 아무도 안 보는 날에 태우고), 값이 안 변하는 것이 휴장인지
+    # 고장인지 보는 사람도 알 수 없다.
+    # 앞으로 60일치만 보낸다 — status.json은 매번 통째로 내려받는 파일이다.
+    try:
+        from datetime import date as _hdate
+        from datetime import timedelta as _htd
+
+        from quant.data.market_calendar import holiday_map
+        _hol = holiday_map(state_dir)
+        if _hol:
+            _from = _hdate.today().isoformat()
+            _to = (_hdate.today() + _htd(days=60)).isoformat()
+            status["holidays"] = {m: [d for d in days if _from <= d <= _to]
+                                  for m, days in _hol.items()}
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
     # 종목 한글 이름·선정 이유 — 사이트가 코드 대신 이름을 보여줄 수 있게
     from quant.markets import SYMBOL_INFO
     status["symbols"] = SYMBOL_INFO

@@ -100,14 +100,40 @@
    * 경계는 넉넉하게 — 조금 더 부르는 것이 장 초반을 놓치는 것보다 낫다.
    * (한국 09:00~15:40 / 미국 22:20~05:10, 전부 KST)
    */
-  function marketOpenish(nowMs) {
+  // 그 시장의 그 날짜가 휴장일로 **알려져 있는가**.
+  //
+  // ⚠️ 달력을 못 받았으면 false다 — '휴장이 아니다'가 아니라 **'모른다'**.
+  //    모를 때는 막지 않는다(파이썬 쪽 is_holiday와 같은 원칙).
+  function isHoliday(holidays, market, kstDate) {
+    if (!holidays) return false;
+    var days = holidays[market];
+    if (!days || !days.length) return false;
+    var iso = kstDate.toISOString().slice(0, 10);
+    return days.indexOf(iso) >= 0;
+  }
+
+  // 장중인가 — **휴장일 달력을 받으면 그것도 본다**(2026-08-14).
+  //
+  // 예전에는 요일만 알았다. 그래서 설·추석·크리스마스 내내 15초마다 시세를
+  // 조르고(무료 한도를 아무도 안 보는 날에 태우고), 값이 안 변하는 것이
+  // 휴장인지 고장인지 보는 사람도 알 수 없었다. 달력은 status.json이
+  // 실어 나른다 — 브라우저는 파이썬을 못 돌리므로 배치가 알려 줘야 한다.
+  //
+  // 미국장 구간은 **그 세션이 시작한 날(=미국 날짜)**로 판정한다. KST
+  // 새벽 3시의 미국장은 전날 밤에 열린 장이라, KST 날짜로 물으면 엉뚱한
+  // 날의 휴일을 보게 된다.
+  function marketOpenish(nowMs, holidays) {
     var kst = new Date(nowMs + 9 * 3600 * 1000);
     var d = kst.getUTCDay();
     var h = kst.getUTCHours() + kst.getUTCMinutes() / 60;
     if (d === 0) return false;                       // 일요일(KST) — 양쪽 휴장
-    if (d >= 1 && d <= 5 && h >= 9 && h < 15.7) return true;          // 한국장
-    if ((d >= 1 && d <= 5 && h >= 22.3) || (d >= 2 && d <= 6 && h < 5.2))
-      return true;                                                    // 미국장
+    if (d >= 1 && d <= 5 && h >= 9 && h < 15.7)                       // 한국장
+      return !isHoliday(holidays, "kr_stock", kst);
+    if ((d >= 1 && d <= 5 && h >= 22.3) || (d >= 2 && d <= 6 && h < 5.2)) {
+      // 세션 시작일 = KST 새벽(h < 5.2)이면 하루 전
+      var sess = new Date(kst.getTime() - (h < 5.2 ? 86400000 : 0));
+      return !isHoliday(holidays, "us_stock", sess);                  // 미국장
+    }
     return false;
   }
 
@@ -116,6 +142,7 @@
     liveValueOf: liveValueOf,
     markHoldings: markHoldings,
     freshness: freshness,
+    isHoliday: isHoliday,
     marketOpenish: marketOpenish,
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

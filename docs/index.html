@@ -1252,8 +1252,12 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const STOCK_MS_OPEN=15000, STOCK_MS_CLOSED=300000;
   /* 장중 판정도 QuantLive에 있다 — 시각을 인자로 받아야 검사가 특정
      순간을 재현할 수 있다(`Date.now()`를 안에서 부르면 영영 못 잰다). */
+  /* 휴장일 달력은 배치가 status.json에 실어 보낸다 — 브라우저는 파이썬을
+     못 돌리므로 스스로 알 방법이 없다. 못 받으면 예전처럼 요일만 본다
+     (모를 때는 막지 않는다). */
+  const holidays=(st&&st.holidays)||null;
   const marketOpenish=()=>!window.QuantLive
-    ||QuantLive.marketOpenish(Date.now());
+    ||QuantLive.marketOpenish(Date.now(),holidays);
   let stockTimer=null;
   function scheduleStocks(){
     if(stockTimer)clearTimeout(stockTimer);

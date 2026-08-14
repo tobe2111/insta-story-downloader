@@ -366,6 +366,51 @@ MUTATIONS = [
      "              if float(partial_bars.get(k, 1.0)) >= min_elapsed]",
      "              if float(partial_bars.get(k, 0.0)) >= min_elapsed]",
      "tests/test_a_new_day_needs_a_real_bar.py"),
+    ("휴장일을 무시하고 장을 연다 — 명절 내내 무료 시세 한도를 태운다",
+     "quant/live/market_hours.py",
+     "    if is_holiday(key, local.date(), holidays):\n        return False",
+     "    pass",
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("달력이 없는 날 '공휴일 아님'이라고 단정한다 — 휴장을 장애로 오해하게 만든다",
+     "quant/live/market_hours.py",
+     '    tail = ("" if holidays and holidays.get(key)',
+     '    tail = ("" if True',
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("휴장일을 주말까지 포함해 만든다 — 요일 판정과 두 곳에서 갈라진다",
+     "quant/data/market_calendar.py",
+     "        if day.weekday() < 5:                      # 주말은 이미 아는 사실",
+     "        if True:",
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("달력을 못 만들면 옛 캐시도 버린다 — 있는 정보를 없앤다",
+     "quant/data/market_calendar.py",
+     '        return cache.get("markets") or {}',
+     "        return {}",
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("낡은 달력을 그대로 쓴다 — 작년 공휴일로 올해를 판단한다",
+     "quant/data/market_calendar.py",
+     "    if fresh and isinstance(cache.get(\"markets\"), dict):",
+     "    if isinstance(cache.get(\"markets\"), dict):",
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("사이트에 휴장일 달력을 안 실어 보낸다 — 화면은 영영 주말만 안다",
+     "quant/live/daily.py",
+     '            status["holidays"] = {m: [d for d in days if _from <= d <= _to]',
+     '            _drop = {m: [d for d in days if _from <= d <= _to]',
+     "tests/test_the_calendar_knows_the_holidays.py"),
+    ("화면이 미국장 휴일을 KST 날짜로 본다 — 새벽 세션이 엉뚱한 날을 본다",
+     "docs/assets/live-marks.js",
+     "      var sess = new Date(kst.getTime() - (h < 5.2 ? 86400000 : 0));",
+     "      var sess = kst;",
+     "tests/live_marks_check.mjs"),
+    ("화면 장중 판정이 달력을 무시한다",
+     "docs/assets/live-marks.js",
+     '      return !isHoliday(holidays, "kr_stock", kst);',
+     "      return true;",
+     "tests/live_marks_check.mjs"),
+    ("달력이 없는데 '휴장'이라고 단정한다 — 모르면 막지 않아야 한다",
+     "docs/assets/live-marks.js",
+     "    if (!holidays) return false;",
+     "    if (!holidays) return true;",
+     "tests/live_marks_check.mjs"),
     ("민감도 스윕에서 합성 데이터 경고를 뗀다 — 가짜 데이터로 파라미터를 고른다(감사 236)",
      "quant/web/app.py",
      '        "<h1", _NAV + "\\n" + _fallback_banner(df) + used_note + "<h1", 1)',
@@ -3330,7 +3375,7 @@ MUTATIONS = [
     # 검사돼 있었지만 그 부품이 주문 경로에 꽂혀 있는지는 아무도 안 봤다.
     ("닫힌 시장에도 주문을 낸다(장 시간 가드 무력화)",
      "quant/live/engine.py",
-     "            if not is_market_open(self.market):",
+     "            if not is_market_open(self.market, holidays=_hol):",
      "            if False:",
      "tests/test_engine_step_guards.py"),
 
@@ -3396,7 +3441,7 @@ MUTATIONS = [
 
     ("웹훅에서도 닫힌 시장에 주문을 낸다",
      "quant/live/webhook.py",
-     "            if not is_market_open(self.market):",
+     "            if not is_market_open(self.market, holidays=_hol):",
      "            if False:",
      "tests/test_webhook_owner_switches.py"),
 
@@ -3653,7 +3698,27 @@ if "--dry-run" in sys.argv[1:]:
     _dry_run()
 
 
+def _node() -> str:
+    """node 실행기. CI에는 PATH에 있고, 이 저장소의 개발 환경에는 /opt에 있다."""
+    import shutil
+    return shutil.which("node") or "/opt/node22/bin/node"
+
+
 def run(test):
+    """그 검사를 돌리고 종료코드를 돌려준다(0=통과).
+
+    ⚠️ **파이썬 검사만 돌리고 있었다**(2026-08-14). 이 저장소에는 사이트·
+       워커의 돈 계산을 **실행해서** 확인하는 Node 하네스가 둘 있고
+       (`live_marks_check.mjs`·`worker_ladder_check.mjs`), 그것들이 실제로
+       결함을 잡았다(감사 229·231). 그런데 변이 시험은 pytest만 불러서,
+       그 하네스를 검사로 지정하면 "원본 코드에서 이미 실패"로 찍혔다 —
+       즉 **가장 잘 잡는 검사가 변이 시험에서는 없는 것과 같았다.**
+       종료코드 규약(0=통과)이 같으므로 실행기만 갈라 주면 된다.
+    """
+    if str(test).endswith(".mjs"):
+        r = subprocess.run([_node(), test],
+                           capture_output=True, text=True, timeout=900)
+        return r.returncode
     # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"],
