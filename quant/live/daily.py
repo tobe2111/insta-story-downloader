@@ -1220,6 +1220,46 @@ def _signal_frame(market: str, df, timeframe: str = "1d", now=None):
     return df.iloc[:-1]
 
 
+# 하루를 여는 데 필요한 최소 봉 완성도. UTC 자정 직후의 코인 봉(완성도
+# 0.00x)이 '새 날'을 열지 못하게 하는 값이면 충분하고, 정상 배치 시각의
+# 완성도(22:15 UTC → 0.927)와는 멀찍이 떨어져 있어야 한다.
+NEW_DAY_MIN_ELAPSED = 0.10          # = UTC 02:24 이전 봉은 하루를 열지 못한다
+
+
+def judgement_day(last_bars: dict, partial_bars: dict,
+                  min_elapsed: float = NEW_DAY_MIN_ELAPSED) -> str:
+    """이 배치가 판단한 날짜 — **갓 시작한 봉은 하루를 열지 않는다**.
+
+    포트폴리오 멱등 가드의 열쇠다. 예전에는 그냥 `max(봉 날짜)`였는데,
+    코인 일봉은 UTC 자정에 롤오버하므로 **자정을 조금만 넘겨 돌면 새 날이
+    열려 버린다**. 2026-08-14에 실제로 그랬다(감사 232):
+
+        예비 배치가 23:15 UTC에 걸려 있었고 Actions가 43분 늦게 띄워
+        23:58에 시작 → 자정을 넘긴 시점의 코인 봉(완성도 0.0003)이
+        '2026-08-14'을 열었다. 그 기록의 주식은 하루 묵은 봉으로 판단한
+        것이고(bar_age us_stock 1 · kr_stock 1), 그러면 **다음 날 정규
+        배치는 같은 날짜를 보고 건너뛴다** — 재시도가 다음 날을 선점해
+        묵은 판단으로 확정해 버린다.
+
+    그래서 하루의 이름은 **어느 정도 형태를 갖춘 봉**만 정할 수 있게 한다.
+    완성된 봉은 `bar_status`가 None을 주므로 `partial_bars`에 없고, 기본값
+    1.0으로 취급돼 그대로 하루를 연다(주식이 여기 해당한다).
+
+    ⚠️ 주말을 죽이지 않는다. 정규 시각(22:15 UTC)의 코인 봉 완성도는
+       0.927이라 문턱을 한참 넘는다 — 토·일에도 코인은 지금처럼 돈다.
+       막히는 것은 오직 '자정 직후'뿐이다.
+
+    한 종목도 문턱을 못 넘는 극단(전 종목이 자정 직후 코인)에서는 원래대로
+    최대 날짜를 쓴다 — 판단을 멈추느니 기록을 남기고 `bar_partial`로
+    드러낸다.
+    """
+    if not last_bars:
+        raise ValueError("판단할 봉이 없다")
+    formed = [str(b)[:10] for k, b in last_bars.items()
+              if float(partial_bars.get(k, 1.0)) >= min_elapsed]
+    return max(formed) if formed else max(str(b)[:10] for b in last_bars.values())
+
+
 def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
                    floor_krw: float = None) -> bool:
     """이 주문이 '잔돈'인가 — 목표와 현 보유의 차액이 최소 금액에 못 미치는가.
@@ -1330,7 +1370,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
-    last_dates = []
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
@@ -1469,7 +1508,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
-            last_dates.append(str(df.index[-1])[:10])
             bs = bar_status(market, df.index[-1], timeframe)
             if bs:
                 partial_bars[key] = bs["elapsed"]
@@ -1512,7 +1550,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             "마감보다 이르면 그 시장만 한 세션 뒤처집니다(겨울 서머타임 해제 "
             "시 미국장은 06:00 KST에 닫습니다)", bar_age)
 
-    bar = max(last_dates)
+    bar = judgement_day(last_bars, partial_bars)
     if st.get("last_bar") == bar:
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
         return {"skipped": True, "last_bar": bar}
