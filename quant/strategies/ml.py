@@ -80,6 +80,57 @@ OPTIONAL_FEATURES = [
 # 사실처럼 말하지 않도록 구분한다). 과거 기록은 고치지 않는다.
 BROKEN_METER_FINGERPRINT = "x_fred_dgs10"
 
+# ── 시장·종목별로 '붙을 수 있는' 선택 피처 ─────────────────────────────
+# 계측기가 건강과 고장을 구별하려면 **분모**를 알아야 한다. 예전에는 어느
+# 종목이든 OPTIONAL_FEATURES 전체(17개)를 기대치로 삼았다. 그런데 코인에
+# KRX 수급(x_frgn5)이 붙을 리 없고, 한국주식에 펀딩비(x_funding)가 붙을 리
+# 없다. 시장마다 애초에 존재하지 않는 재료를 분모에 넣은 것이다.
+#
+# 결과(2026-08-14 실측): 모든 소스가 살아 있어도 한 종목이 받을 수 있는
+# 최대는 9개(한국주식)였다. 그래서 사이트의 '피처 결손' 경고(최대치가
+# 분모의 절반 미만이면 점등 = 8.5개 미만)는 **정상 상태에서도 거의 항상
+# 켜져 있었다.** 켜져 있는 게 정상인 경고등은 꺼져 있는 것과 같다 —
+# 이 저장소가 감사 105·106에서 이미 한 번 겪은 실패다.
+#
+# ⚠️ 이 표는 attach_cross_asset()·attach_funding()·attach_open_interest()·
+#    attach_krx_flows()가 **실제로 만드는 컬럼**과 일치해야 한다. 손으로 적은
+#    목록이 실제와 어긋나 계측기가 유령을 세던 사고가 이미 있었다(감사 106).
+#    tests/test_feature_health.py가 진짜 부착 함수를 '모든 소스 성공' 상태로
+#    돌려 이 표와 대조한다 — 표만 고치고 코드를 안 고치면 검사가 실패한다.
+MARKET_OPTIONAL_FEATURES: dict[str, list[str]] = {
+    # 코인: 거래소 파생(펀딩·미결제약정) + 심리·김프 + 달러/신용 거시
+    "crypto": ["x_funding", "x_funding_chg", "x_oi_chg5", "x_btc_ret5",
+               "x_fng", "x_kimchi", "x_usd_chg5", "x_hy_spread"],
+    # 미국주식: 금리·변동성 기간구조 + FRED 거시
+    "us_stock": ["x_spy_ret5", "x_tnx_chg5", "x_vix", "x_vix_ts",
+                 "x_t10y2y", "x_hy_spread", "x_usd_chg5", "x_t10yie_chg5"],
+    # 한국주식: 미국 전일 흐름·환율·VIX + KRX 수급 + FRED 거시
+    "kr_stock": ["x_spy_ret5", "x_usdkrw_ret5", "x_vix", "x_vix_ts",
+                 "x_frgn5", "x_inst5", "x_t10y2y", "x_hy_spread",
+                 "x_usd_chg5"],
+}
+
+# 자기 자신은 벤치마크가 될 수 없다 — attach_cross_asset이 이 종목들에는
+# 해당 컬럼을 붙이지 않는다(BTC에 x_btc_ret5, SPY에 x_spy_ret5는 자기 값).
+SELF_BENCHMARK: dict[tuple[str, str], str] = {
+    ("crypto", "BTC/USDT"): "x_btc_ret5",
+    ("us_stock", "SPY"): "x_spy_ret5",
+}
+
+
+def applicable_optional_features(market: str,
+                                 symbol: str | None = None) -> list[str]:
+    """이 시장·종목에 **붙을 수 있는** 선택 피처 목록 (계측의 분모).
+
+    모르는 시장이면 전체 목록을 돌려준다 — 새 시장이 추가됐을 때 분모를
+    조용히 0으로 만들어 '완벽한 건강'으로 위장하지 않기 위해서다.
+    """
+    names = MARKET_OPTIONAL_FEATURES.get(market)
+    if names is None:
+        return list(OPTIONAL_FEATURES)
+    drop = SELF_BENCHMARK.get((market, symbol or ""))
+    return [c for c in OPTIONAL_FEATURES if c in set(names) and c != drop]
+
 
 def optional_features_from_df(df) -> list[str]:
     """이 원본 df로 만들어질 선택 피처 목록 — 피처 행렬을 다시 계산하지 않는다.
@@ -99,25 +150,38 @@ def optional_features_from_df(df) -> list[str]:
     return [c for c in OPTIONAL_FEATURES if c in set(out)]
 
 
-def feature_health(feats) -> dict:
+def feature_health(feats, market: str | None = None,
+                   symbol: str | None = None) -> dict:
     """오늘 실제로 만들어진 피처의 건강 상태 — (총계, 필수, 선택, 누락).
 
     필수 피처(FEATURE_NAMES)는 가격에서 유도되므로 항상 있어야 한다. 하나라도
     없으면 데이터 자체가 망가진 것이다. 선택 피처는 외부 소스에 달려 있어
     빠질 수 있고, 빠진 사실이 기록되지 않으면 아무도 모른다.
+
+    market(·symbol)을 주면 **그 시장에 붙을 수 있는 것**만 분모로 센다.
+    안 주면 예전처럼 전체 목록이 분모다 — 시장을 모르는 호출자가 조용히
+    후한 점수를 받지 않도록, 모를 때가 더 엄격한 쪽으로 남겨 둔다.
     """
     cols = set(getattr(feats, "columns", []))
+    expected = (applicable_optional_features(market, symbol)
+                if market else list(OPTIONAL_FEATURES))
     missing_req = [c for c in FEATURE_NAMES if c not in cols]
-    present_opt = [c for c in OPTIONAL_FEATURES if c in cols]
-    missing_opt = [c for c in OPTIONAL_FEATURES if c not in cols]
+    present_opt = [c for c in expected if c in cols]
+    missing_opt = [c for c in expected if c not in cols]
+    # 이 시장에 붙을 수 없는데도 들어와 있는 컬럼 — 표가 실제와 어긋났다는
+    # 신호다. 조용히 무시하면 감사 106(유령 이름)이 반대 방향으로 재발한다.
+    unexpected = [c for c in OPTIONAL_FEATURES
+                  if c in cols and c not in set(expected)]
     return {
         "total": len(cols),
         "required": len(FEATURE_NAMES) - len(missing_req),
         "required_expected": len(FEATURE_NAMES),
         "optional": len(present_opt),
-        "optional_expected": len(OPTIONAL_FEATURES),
+        "optional_expected": len(expected),
+        "coverage": (len(present_opt) / len(expected)) if expected else 1.0,
         "missing_required": missing_req,
         "missing_optional": missing_opt,
+        "unexpected_optional": unexpected,
     }
 
 

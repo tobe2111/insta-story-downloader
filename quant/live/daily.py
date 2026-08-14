@@ -1844,23 +1844,49 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     equity = broker.equity(marks)
 
     # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
-    # 펀딩비, 한국주식만 KRX 수급) '가능한 최대치 대비 몇 개가 실제로
-    # 붙었는가'를 종목별 최대값 기준으로 잰다. 소스가 죽은 날을 잡아내는 것이
-    # 목적이지, 시장별 차이를 결함으로 보는 것이 아니다.
+    # 펀딩비, 한국주식만 KRX 수급) **개수가 아니라 충족률**(붙은 수 ÷ 붙을 수
+    # 있는 수)로 잰다. 소스가 죽은 날을 잡아내는 것이 목적이지, 시장별 차이를
+    # 결함으로 보는 것이 아니다.
+    #
+    # ⚠️ 2026-08-14 이전에는 종목별 최대 개수를 전체 목록(17)과 비교했다.
+    #    모든 소스가 살아 있어도 한 종목 최대는 9개라, 사이트의 '피처 결손'
+    #    경고가 정상일 때도 켜져 있었다 — 항상 켜진 경고등은 꺼진 것과 같다.
     feat_health = None
     if opt_present:
-        from quant.strategies.ml import OPTIONAL_FEATURES
+        from quant.strategies.ml import (OPTIONAL_FEATURES,
+                                         applicable_optional_features)
+
+        def _applicable(key: str) -> list[str]:
+            mkt, _, sym = key.partition(":")
+            return applicable_optional_features(mkt, sym)
+
         best = max((len(v) for v in opt_present.values()), default=0)
-        worst_key = min(opt_present, key=lambda k: len(opt_present[k]))
         union = sorted({c for v in opt_present.values() for c in v})
+        # 붙을 수 있었던 것의 합집합 — '누락'의 올바른 분모. 유니버스에
+        # 한국주식이 없으면 x_frgn5는 애초에 붙을 수 없으니 누락이 아니다.
+        can = sorted({c for k in opt_present for c in _applicable(k)})
+        # 종목별 충족률(붙은 수 / 붙을 수 있는 수) — 시장이 달라도 비교 가능한
+        # 유일한 척도. 개수만 보면 코인(최대 8)이 한국주식(최대 9)보다 항상
+        # 아파 보인다.
+        cov = {k: (len(v) / len(_applicable(k)) if _applicable(k) else 1.0)
+               for k, v in opt_present.items()}
+        worst_key = min(cov, key=lambda k: (cov[k], k))
         feat_health = {
+            # 옛 필드 — 뜻을 바꾸지 않는다(과거 기록과 같은 척도로 읽히도록)
             "optional_max": best,
             "optional_possible": len(OPTIONAL_FEATURES),
             "union": len(union),
-            "missing_everywhere": [c for c in OPTIONAL_FEATURES
-                                   if c not in set(union)],
+            # 새 필드 — 시장별 기대치를 반영한 진짜 분모와 충족률
+            "optional_applicable": len(can),
+            "coverage": round(len(union) / len(can), 4) if can else 1.0,
+            # 분모가 can으로 좁혀졌다(옛 필드지만 뜻이 정확해졌다). 유니버스에
+            # 코인만 있는 날 x_frgn5(한국 수급)를 '전 종목 누락'이라 부르면
+            # 상시 오경보가 된다. 세 시장이 다 있는 지금은 결과가 같다.
+            "missing_everywhere": [c for c in can if c not in set(union)],
             "thinnest": {"key": worst_key,
-                         "n": len(opt_present[worst_key])},
+                         "n": len(opt_present[worst_key]),
+                         "applicable": len(_applicable(worst_key)),
+                         "coverage": round(cov[worst_key], 4)},
         }
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -2358,6 +2384,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 "key": f"{rec.get('market')}:{rec.get('symbol')}",
                 "promoted": bool(rec.get("promoted")),
                 "n_candidates": rec.get("n_candidates"),
+                # 공회전 표식 — 후보 대부분이 챔피언과 같은 신호라 대결이
+                # 성립하지 않은 날. 이게 없으면 '이긴 후보가 없었다'(정상)와
+                # '아무것도 비교하지 못했다'(고장)가 화면에서 같아 보인다.
+                "vacuous": bool(rec.get("vacuous")),
+                "inert": len(rec.get("inert_candidates") or []),
                 "trials_total": rec.get("trials_total")})
     champ_file = os.path.join(state_dir, "champions.json")
     if os.path.exists(champ_file):

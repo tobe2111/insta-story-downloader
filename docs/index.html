@@ -712,12 +712,28 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   if(fhOld)flags.push("<b>피처 계측 교정 전 기록</b> — 이 날의 피처 건강 수치는 "+
     "계측기 오류(존재하지 않는 컬럼 이름을 셈)로 0으로 남아 있습니다. "+
     "2026-08-12에 고쳤고 그 이후 기록부터 유효합니다");
+  /* ⚠️ 분모가 틀려 있던 시절이 있다(2026-08-14 발견). 어느 종목이든 선택
+     피처 17개를 기대치로 삼았는데, 코인에 KRX 수급이·한국주식에 펀딩비가
+     붙을 리 없다. 모든 소스가 살아 있어도 한 종목 최대는 9개라, 아래
+     '절반 미만' 조건이 **정상일 때도 켜져 있었다**. 항상 켜진 경고등은
+     꺼진 것과 같다. 이제 장부가 시장별 기대치를 반영한 coverage(충족률)를
+     함께 남기므로 그 값을 우선한다. 옛 기록에는 없으니 폴백을 남긴다. */
+  else if(fh&&typeof fh.coverage==="number"&&fh.optional_applicable){
+    const pct=Math.round(fh.coverage*100);
+    if(fh.union===0)flags.push("<b>선택 피처 전멸</b> — 이 유니버스에 붙을 수 "+
+      "있는 보조 지표 "+fh.optional_applicable+"개가 <b>한 종목도</b> 붙지 "+
+      "않았습니다(외부 데이터 수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
+    else if(fh.coverage<0.75)flags.push("<b>피처 결손</b> — 붙을 수 있는 보조 지표 "+
+      fh.optional_applicable+"개 중 "+fh.union+"개만 붙었습니다(충족률 "+pct+"%)"+
+      ((fh.missing_everywhere||[]).length?" · 전 종목 누락: "+
+        fh.missing_everywhere.join(", "):""));
+  }
   else if(fh&&typeof fh.optional_max==="number"&&fh.optional_possible){
+    /* 옛 기록(coverage 이전) — 분모가 17로 부풀려져 있어 '결손' 판정은
+       하지 않는다. 전멸(0)만은 분모와 무관하게 참이므로 그대로 알린다. */
     if(fh.optional_max===0)flags.push("<b>선택 피처 전멸</b> — 보조 지표 "+
       fh.optional_possible+"개가 <b>한 종목도</b> 붙지 않았습니다(외부 데이터 "+
       "수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
-    else if(fh.optional_max<fh.optional_possible/2)flags.push("<b>피처 결손</b> — "+
-      "보조 지표가 최대 "+fh.optional_max+"/"+fh.optional_possible+"개만 붙었습니다");
   }
   /* 데이터 품질 — 갭·스파이크가 많으면 판단 재료 자체가 흔들린다 */
   const dq=pfLast.data_quality;

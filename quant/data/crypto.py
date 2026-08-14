@@ -17,6 +17,73 @@ log = get_logger("data.crypto")
 _FALLBACK_EXCHANGES = ("okx", "kucoin", "kraken")
 
 
+def _tf_ms(timeframe: str) -> int:
+    """타임프레임 한 봉의 밀리초 — 페이지네이션 커서 계산용."""
+    unit = timeframe[-1]
+    n = int(timeframe[:-1] or 1)
+    per = {"m": 60_000, "h": 3_600_000, "d": 86_400_000,
+           "w": 604_800_000}.get(unit)
+    if per is None:
+        raise ValueError(f"알 수 없는 타임프레임: {timeframe}")
+    return n * per
+
+
+# 페이지네이션 안전장치 — 거래소가 같은 페이지를 계속 주거나 한 봉씩만
+# 주는 병리적 경우에도 반드시 끝난다. 800봉을 300봉 상한으로 받는 데
+# 3~4회면 충분하므로 20회는 넉넉한 여유다.
+_MAX_PAGES = 20
+
+
+def _fetch_paged(client, symbol: str, timeframe: str,
+                 since: int | None, limit: int) -> list:
+    """요청한 봉 수를 채울 때까지 나눠 받는다 — 거래소별 1회 상한을 넘기 위해.
+
+    ⚠️ 왜 필요한가(2026-08-14 발견). 바이낸스가 막힌 환경에서는 보조 거래소
+    okx로 폴백하는데, okx는 **한 번에 300봉**이 상한이다. 그래서 800봉을
+    요청해도 300봉만 왔고, 코인 5종목이 전부 300봉으로 굴러갔다. 그 결과:
+
+      · 챔피언(학습창 250봉)이 오디션 선발 구간(300−120=180봉)에서
+        **한 번도 학습하지 못했다** → 후보 19개 중 18개가 신호 0으로
+        챔피언과 동일 → 코인 오디션은 매일 아무것도 검증하지 못했다
+      · 실제 운용에서도 예측 가능한 구간이 50봉뿐이라 코인 노출이
+        주식(27~36%)의 1/4 수준(5~15%)에 머물렀다
+      · 300봉으로 잰 과최적화 지표(BTC PBO 0.78)도 표본 부족의 산물이었다
+
+    한 번에 다 주는 거래소(바이낸스 등)에서는 첫 페이지로 끝나므로 동작이
+    바뀌지 않는다 — 모자랄 때만 이어 받는다.
+
+    since가 없으면 '최근 limit봉'을 원하는 것이므로, 필요한 만큼 과거로
+    거슬러 올라간 시각을 시작점으로 잡는다(거래소는 since부터 앞으로 준다).
+    """
+    step = _tf_ms(timeframe)
+    if since is None:
+        # 휴장·점검으로 빠지는 봉이 있으므로 20% 여유를 두고 거슬러 올라간다.
+        now_ms = int(pd.Timestamp.now("UTC").timestamp() * 1000)
+        since = now_ms - int(limit * 1.2 + 5) * step
+    rows: list = []
+    seen: set = set()
+    cursor = since
+    for _ in range(_MAX_PAGES):
+        page = client.fetch_ohlcv(symbol, timeframe=timeframe,
+                                  since=cursor, limit=limit - len(rows))
+        if not page:
+            break
+        fresh = [r for r in page if r and r[0] not in seen]
+        if not fresh:
+            break                       # 진전 없음 — 같은 페이지의 반복
+        for r in fresh:
+            seen.add(r[0])
+        rows.extend(fresh)
+        if len(rows) >= limit:
+            break
+        nxt = max(r[0] for r in fresh) + step
+        if nxt <= cursor:
+            break                       # 커서가 안 움직이면 무한루프다
+        cursor = nxt
+    rows.sort(key=lambda r: r[0])
+    return rows[-limit:] if len(rows) > limit else rows
+
+
 def _build_client(exchange_id: str, api_key: str = "", secret: str = ""):
     """ccxt 클라이언트 생성 (테스트에서 대체 주입할 수 있게 모듈 함수로 분리)."""
     import ccxt
@@ -81,9 +148,7 @@ class CryptoDataProvider(DataProvider):
             if ts.tzinfo is None:
                 ts = ts.tz_localize("UTC")
             since = int(ts.timestamp() * 1000)
-        raw = client.fetch_ohlcv(
-            symbol, timeframe=timeframe, since=since, limit=limit
-        )
+        raw = _fetch_paged(client, symbol, timeframe, since, limit)
         df = pd.DataFrame(
             raw, columns=["ts", "open", "high", "low", "close", "volume"]
         )

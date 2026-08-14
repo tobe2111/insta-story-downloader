@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pandas as pd
 
 from quant.strategies.base import Strategy
@@ -82,6 +83,24 @@ class ChampionChallenger:
             (res_c.positions.shift(1).fillna(0.0) != 0)
             | (res_h.positions.shift(1).fillna(0.0) != 0)
         )
+        # 챌린저가 챔피언과 **한 봉도 다르지 않은 포지션**을 내는 경우 —
+        # 후보가 아니라 사본이다. 설정만 다르고 실제로는 아무 일도 하지 않는
+        # 장치(예: 재료가 없어 조용히 꺼진 옵션)가 여기로 들어온다.
+        # t=0.00으로 어차피 탈락하지만, 그냥 두면 세 가지 해를 끼친다:
+        #   ① 매일 백테스트 두 번을 헛돌린다
+        #   ② 장부의 후보 수를 부풀려 **다중검정 문턱을 올린다** — 아무것도
+        #      안 하는 후보가 진짜 후보의 승격을 방해한다
+        #   ③ 오디션 링에 '그 기능을 시험 중'이라는 인상만 남긴다
+        # 그래서 판정에 쓰지 않고 **사실로 보고한다**(감사 127의 교훈 —
+        # 죽은 장치를 조용히 두지 않는다).
+        pos_c, pos_h = res_c.positions, res_h.positions
+        if tail is not None and tail > 0:
+            pos_c, pos_h = pos_c.iloc[-tail:], pos_h.iloc[-tail:]
+        identical = bool(
+            len(pos_c) == len(pos_h) and len(pos_c) > 0
+            and np.allclose(pos_c.fillna(0.0).to_numpy(dtype=float),
+                            pos_h.fillna(0.0).to_numpy(dtype=float),
+                            rtol=0.0, atol=1e-12))
         diff = (rh - rc)[active].dropna()
         n = int(len(diff))
         mean = float(diff.mean()) if n else 0.0
@@ -106,6 +125,7 @@ class ChampionChallenger:
             "mean_diff": mean,
             "t_stat": t_stat,
             "swap": swap,
+            "identical": identical,
         }
         if folds >= 2 and n >= folds:
             # 연속 등분 — 각 폴드에서 평균 차이 > 0이면 그 폴드 승리
