@@ -235,7 +235,15 @@ def test_keltner_enters_above_the_upper_band():
 # ── 대조군: 아무 자극도 없으면 아무 신호도 없어야 한다 ────────
 
 
-@pytest.mark.parametrize("name", NAMES)
+# ⚠️ 'buy_hold'는 이 대조군에서 뺀다(2026-08-14). 이 검사가 잡으려는 것은
+#    "아무 자극도 없는데 **신호를 만들어 내는**" 전략이다. 보유는 신호기가
+#    아니라 **벤치마크**다 — 평평한 시장에서도 들고 있는 것이 정의 그 자체이고,
+#    그래서 '아무것도 안 하기'가 링에서 의미를 갖는다. 예외를 조용히 두지 않고
+#    여기 이유와 함께 적는다(다른 계약 — 인과성·롱온리·상한 — 은 그대로 받는다).
+_MAKES_ITS_OWN_SIGNAL = [n for n in NAMES if n != "buy_hold"]
+
+
+@pytest.mark.parametrize("name", _MAKES_ITS_OWN_SIGNAL)
 def test_a_perfectly_flat_market_produces_no_position(name):
     """완전히 평평한 시장에서 포지션을 잡으면 그건 신호가 아니라 잡음이다."""
     sig = get_strategy(name).generate_signals(_frame([100.0] * 120, span=0.0))

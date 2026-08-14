@@ -2979,6 +2979,12 @@ MUTATIONS = [
      "        identical = False and bool(",
      "tests/test_audition_gates_bind.py"),
 
+    ("오디션 링에서 벤치마크(보유)를 뺀다 — '들고 있는 게 낫다'를 영영 못 본다",
+     "quant/live/retrain.py",
+     '    {"strategy": "buy_hold", "params": {}},',
+     "",
+     "tests/test_the_benchmark_is_in_the_ring.py"),
+
     ("검증 게이트를 최종 비중에서 뗀다(경보만 울리던 시절로 복귀)",
      "quant/live/daily.py",
      "               * valid_damp.get(key, 1.0))",
