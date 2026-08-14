@@ -29,7 +29,7 @@ CARD_SIZE = (1080, 1350)
 DEFAULT_SITE_URL = "https://quant.jiwon-1a2.workers.dev"
 THREADS_TEXT_LIMIT = 500
 
-HASHTAGS = "#퀀트 #AI투자 #모의투자 #알고리즘트레이딩 #8마일챌린지"
+HASHTAGS = "#퀀트 #AI투자 #모의투자 #알고리즘트레이딩 #100만챌린지"
 
 
 def _fmt_won(v: float) -> str:
@@ -221,7 +221,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     ig = (
         f"{_hook(x)}\n"
         f"\n"
-        f"📊 8마일 챌린지 {day} — {date}\n"
+        f"📊 100만 챌린지 {day} — {date}\n"
         f"가짜 돈 {start_won}으로 시작해 매일 새벽 AI가 스스로 재학습·매매하는 "
         f"공개 실험. 목표는 1억이 아니라, '이 과정 전체를 숨김없이 "
         f"보여주는 것'입니다.\n"
@@ -244,7 +244,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     th = (
         f"{_hook(x)}\n"
         f"\n"
-        f"📊 8마일 챌린지 {day} · {date}\n"
+        f"📊 100만 챌린지 {day} · {date}\n"
         f"💰 {eq} (누적 {ret}{day_line}) · 노출 {gross}\n"
         f"🎯 배분 상위: {tops}{kill}{owner}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
@@ -257,7 +257,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         #    종목명이 긴 날)일수록 경고가 사라지는 구조였다. 주석은 원래
         #    "고지는 지킨다"고 적혀 있었는데 코드가 그러지 않았다.
         th = (
-            f"📊 8마일 챌린지 {day} · {date}\n"
+            f"📊 100만 챌린지 {day} · {date}\n"
             f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\n"
             f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"

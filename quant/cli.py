@@ -209,7 +209,7 @@ def _cmd_paper_daily(args) -> None:
         # 실패 알림은 lines가 비어도 나가야 한다 — 전 종목이 휴장·스킵이면
         # lines가 비는데, 예전에는 그때 실패 목록까지 함께 삼켜졌다.
         if lines or out["failed"]:
-            _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
+            _notify_extra("📅 100만 챌린지 오늘 기록\n" + "\n".join(lines)
                           + (f"\n⚠️ 실패 {len(out['failed'])}종목: "
                              f"{', '.join(out['failed'])}"
                              if out["failed"] else ""))
@@ -1064,7 +1064,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dp = sub.add_parser(
         "deposit",
-        help="8마일 챌린지 매칭 입금 (8만원→1억) — 후원 금액만큼 통합 계좌 원금 증액")
+        help="100만 챌린지 매칭 입금 (100만원→1억) — 후원 금액만큼 통합 계좌 원금 증액")
     dp.add_argument("--amount", type=float, required=True, help="입금액(원)")
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
@@ -1206,7 +1206,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     jn = sub.add_parser("journal", help="봇 상태 파일에서 거래 성과 복기(거래 단위 통계)")
     # ⚠️ 기본값이 results/state.json이었다(감사 67). 그 파일은 개발용 `learn`
-    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 8마일 통합 계좌는
+    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 통합 계좌는
     #    state/paper/portfolio_ALL.json에 쌓인다. 즉 사장님이 `quant journal`을
     #    치면 매일 매매가 도는데도 "아직 완결된 거래가 없습니다"만 나왔다 —
     #    복기 도구가 실제 장부가 아닌 빈 파일을 보고 있었다.

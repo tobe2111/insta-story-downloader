@@ -76,13 +76,36 @@ def test_history_pages_may_keep_past_numbers():
     assert "8종목에서 20종목으로" in html      # 변경을 지운 게 아니라 적어 뒀다
 
 
+def _prose(html: str) -> str:
+    """읽는 사람에게 **보이는 글자**만 남긴다 — 주석·스크립트는 뺀다.
+
+    ⚠️ 왜 필요한가 (2026-08-14). 아래 검사는 원본 HTML을 통째로 훑었다.
+       그래서 "예전에 8만원이 박혀 있었다"고 적어 둔 **개발자 주석**까지
+       산문으로 셌다. 시작금을 100만원으로 고치자 이 검사가 "산문은
+       8만원인데 설정이 다르다"며 실패했는데 — 화면에는 8만원이 한 글자도
+       없었다. 결함을 기록해 둔 주석이 결함으로 잡힌 것이다.
+
+       그리고 반대 방향이 더 나쁘다. 상수가 8만원이던 동안 이 검사는
+       **주석 덕분에** 초록이었다. 화면 산문이 무엇을 말하든 상관없이.
+    """
+    out = re.sub(r"<!--.*?-->", " ", html, flags=re.S)
+    return re.sub(r"<script\b.*?</script>", " ", out, flags=re.S | re.I)
+
+
 def test_start_cash_and_goal_in_prose_match_config():
     from quant.live.daily import GOAL_KRW, PORTFOLIO_START_CASH
-    html = "".join(_read(p) for p in _LIVE_PAGES)
+    html = "".join(_prose(_read(p)) for p in _LIVE_PAGES)
     if "8만원" in html:
         assert PORTFOLIO_START_CASH == 80_000, "산문은 8만원인데 설정이 다르다"
     if "1억" in html:
         assert GOAL_KRW == 100_000_000, "산문은 1억인데 설정이 다르다"
+    # 지금 설정이 말하는 시작금은 **화면에 그렇게 적혀 있어야** 한다.
+    # (없어도 된다 — 금액은 장부에서 읽는 게 원칙이다. 있다면 맞아야 한다.)
+    won = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
+    others = {f"{v:,.0f}만원" for v in (8, 10, 50, 100, 500, 1000)} - {won}
+    stale = sorted(w for w in others if f"{w}으로 시작" in html
+                   or f"{w}으로 시작" in html.replace(" ", ""))
+    assert not stale, f"산문이 설정과 다른 시작금을 말한다: {stale} (설정 {won})"
 
 
 def test_the_prose_is_checked_against_the_live_ledger_not_only_the_constant():

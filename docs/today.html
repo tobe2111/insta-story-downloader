@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Quant · 오늘의 판단 — 8마일 챌린지</title>
+<title>Quant · 오늘의 판단 — 100만 챌린지</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/pretendard.css">
 <!-- 트레이딩뷰 심볼 매핑은 여기 인라인으로 갖고 있었다. 첫 화면에도 차트를
@@ -63,7 +63,7 @@ body.card footer{padding-bottom:10px}
 <div class="wrap">
 <div class="head"><span class="logo">QUANT<em>.</em></span>
   <span class="date" id="date">—</span></div>
-<h1>오늘의 판단 — 8마일 챌린지</h1>
+<h1>오늘의 판단 — 100만 챌린지</h1>
 <div id="content"><p class="err">불러오는 중…</p></div>
 </div>
 <footer id="foot">quant.jiwon-1a2.workers.dev · 가상 자금 모의투자 —
@@ -89,7 +89,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     // 장부의 day_pct 우선 — 입금이 수익으로 보이지 않게
     const day=(last&&last.day_pct!=null)?last.day_pct
       :(prev&&eq!=null?((eq/prev.equity-1)*100):null);
-    const base=p.principal!=null?p.principal:(p.start_cash||80000);
+    const base=p.principal!=null?p.principal:(p.start_cash||1000000);
     const ret=base?((eq/base-1)*100):0;
     const cls=ret>=0?"pos":"neg";
     const ratio=p.goal?Math.min(1,eq/p.goal):0;
@@ -99,7 +99,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const heldN=Object.values((last&&last.applied)||{}).filter(v=>v>0).length;
     const spread=heldN>0?`오늘 ${heldN}종목 보유 / 후보 ${rest.length}종목`
                         :`후보 ${rest.length}종목`;
-    out+=`<div class="hero"><div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>
+    out+=`<div class="hero"><div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||1000000)})</div>
       <div><span class="eq ${cls}">${won(eq)}</span>
         <span class="pct ${cls}" style="margin-left:10px">${pct(ret)}</span>
         ${day!=null?`<span class="pct ${day>=0?"pos":"neg"}" style="margin-left:10px;font-size:15px">오늘 ${pct(day)}</span>`:""}</div>
@@ -107,7 +107,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         실력 지표(TWR) <b class="${(p.twr_pct||0)>=0?"pos":"neg"}">${pct(p.twr_pct||0)}</b> ·
         최대낙폭 ${typeof p.mdd_pct==="number"?p.mdd_pct+"%":"–"}</div>
       <div class="bar"><div class="fill" style="width:${Math.max(0.3,ratio*100)}%"></div></div>
-      <div class="lbl"><span>8마일 챌린지 · 8만원 → 1억</span>
+      <div class="lbl"><span>100만 챌린지 · 100만원 → 1억</span>
         <span>${(ratio*100).toFixed(3)}%</span></div></div>`;
   }
   // 어젯밤 재학습 서사 — 오늘 교체가 있으면 크게
@@ -162,7 +162,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     let ptab="";
     const pkeys=Object.keys(pend).filter(k=>Math.abs(pend[k])>0.0005);
     if(pkeys.length){
-      ptab=`<table><tr><th style="text-align:left">종목</th><th title="8만원 통합 계좌 기준 목표 비중">통합 계좌 목표 비중</th>
+      ptab=`<table><tr><th style="text-align:left">종목</th><th title="통합 계좌(시작 100만원) 기준 목표 비중">통합 계좌 목표 비중</th>
         <th>체결 예정</th></tr>`+pkeys.sort((a,b)=>pend[b]-pend[a]).map(k=>
         `<tr><td style="text-align:left"><b>${esc(nm(k))}</b></td>
          <td>${(pend[k]*100).toFixed(2)}%</td>

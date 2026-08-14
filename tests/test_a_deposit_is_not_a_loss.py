@@ -164,24 +164,26 @@ def test_the_batch_actually_stamps_and_books_the_deposit(tmp_path):
 
     rec = st["history"][-1]
     assert dep["settled_bar"] == rec["date"], "도장이 그 봉 이름이 아니다"
-    assert rec["principal"] == 100_000, (
-        f"반영 후 원금이 100,000원이 아니다({rec['principal']:,.0f}원) — "
-        "입금이 수익으로 찍힌다")
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH as SC
+    assert rec["principal"] == SC + 20_000, (
+        f"반영 후 원금이 {SC + 20_000:,.0f}원이 아니다"
+        f"({rec['principal']:,.0f}원) — 입금이 수익으로 찍힌다")
     # 하루 만에 크게 벌거나 잃을 리 없다. 원금이 틀리면 여기서 폭발한다.
     assert abs(rec["pnl"]) < 20_000, f"손익이 {rec['pnl']:,.0f}원이다"
 
 
 def test_add_deposit_leaves_the_money_unsettled(tmp_path):
     """입금 명령 자체는 도장을 찍지 않는다 — 아직 아무도 자산을 안 쟀다."""
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH as SC
     from quant.live.ledger_basics import add_deposit
 
     (tmp_path / "paper").mkdir()
     out = add_deposit(10_000, memo="테스트", state_dir=str(tmp_path))
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json").read_text("utf-8"))
     assert st["deposits"][-1].get("settled_bar") is None
-    assert st["cash"] == pytest.approx(90_000.0)   # 현금에는 즉시 들어간다
+    assert st["cash"] == pytest.approx(SC + 10_000)   # 현금에는 즉시 들어간다
     # 화면용 원금(반영분)과 접수 총액을 구분해 돌려줘야 한다
-    assert out["principal"] == 80_000.0 and out["committed"] == 90_000.0
+    assert out["principal"] == SC and out["committed"] == SC + 10_000
 
 
 # ── 네 화면이 같은 원금을 말하는가 ────────────────────────────
@@ -257,14 +259,15 @@ def test_a_settled_deposit_is_not_advertised_as_pending(tmp_path):
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text("utf-8"))
     st["deposits"][0]["settled_bar"] = "2026-08-05"
-    st["history"] = [{"date": "2026-08-05", "equity": 90_500,
+    SC = dl.PORTFOLIO_START_CASH
+    st["history"] = [{"date": "2026-08-05", "equity": SC + 10_000 + 500,
                       "return_pct": 0.56, "price": 100, "weight": 0.5}]
     p.write_text(json.dumps(st), encoding="utf-8")
 
     pf = dl.write_docs_status(str(tmp_path),
                               docs_path=str(tmp_path / "s.json"))["paper"]["portfolio:ALL"]
     assert "pending_deposits" not in pf
-    assert pf["principal"] == 90_000 and pf["pnl"] == 500
+    assert pf["principal"] == SC + 10_000 and pf["pnl"] == 500
 
 
 # ── 이 계산도 무거운 의존성 없이 (감사 102 계열) ────────────────

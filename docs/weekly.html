@@ -105,7 +105,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <td>${won(cur.equity)}</td>
         <td>${dep?("+"+won(dep)):"–"}</td></tr>`);
     }
-    pfHtml=`<div class="card"><h2>통합 계좌 (8마일 챌린지)</h2>
+    pfHtml=`<div class="card"><h2>통합 계좌 (100만 챌린지)</h2>
       <div class="tablewrap"><table>
       <tr><th>주(월요일 시작)</th><th>주간 수익률</th><th>주말 자산</th><th>매칭 입금</th></tr>
       ${rows.join("")}</table></div></div>`;

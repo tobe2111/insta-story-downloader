@@ -121,11 +121,33 @@ def test_symbol_count_comes_from_the_ledger():
 
 
 def test_start_cash_comes_from_config():
-    """장부에 원금이 없으면 코드 기본값으로 되돌아간다(옛 기록 하위호환)."""
+    """장부에 원금이 없으면 코드 기본값으로 되돌아간다(옛 기록 하위호환).
+
+    ⚠️ 이 검사는 오래 **아무것도 확인하지 않았다**(2026-08-14에 드러남).
+       이름은 "장부에 원금이 없으면"인데 기본 픽스처는 원금 8만원을 갖고
+       있었다. 캡션은 장부를 먼저 읽으므로(감사 218) 나오는 값은 늘
+       장부의 8만원이었고, 마침 코드 상수도 8만원이라 통과했다.
+       두 값이 갈라지는 순간(상수를 100만원으로 고치자) 정체가 드러났다.
+       **원금을 지운 장부**로 봐야 폴백을 보는 것이다.
+    """
     from quant.live.daily import PORTFOLIO_START_CASH
     hist = [_rec("2026-01-01", 80_000, day_pct=0.0)]
-    ig = social.build_captions(_status(hist))["instagram"]
+    st = _status(hist)
+    st["paper"]["portfolio:ALL"].pop("principal")      # 옛 기록엔 원금이 없다
+    st["paper"]["portfolio:ALL"].pop("start_cash")
+    ig = social.build_captions(st)["instagram"]
     assert f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원으로 시작" in ig
+
+
+def test_the_ledger_principal_wins_over_the_code_default():
+    """장부에 원금이 있으면 **그쪽이 먼저다**(감사 218) — 위 폴백의 짝.
+
+    둘 다 있어야 한다. 폴백만 검사하면 "코드 기본값을 늘 쓴다"는 결함이
+    통과하고, 장부만 검사하면 옛 기록에서 캡션이 빈다.
+    """
+    hist = [_rec("2026-01-01", 80_000, day_pct=0.0)]
+    ig = social.build_captions(_status(hist))["instagram"]   # 픽스처 원금 8만원
+    assert "8만원으로 시작" in ig, ig
 
 
 def test_no_hardcoded_counts_in_source():

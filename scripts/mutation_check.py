@@ -3571,6 +3571,40 @@ MUTATIONS = [
      "여기 실시간 가격은 <b>참고용입니다</b>",
      "tests/test_the_symbol_charts_are_reachable_from_the_front_page.py"),
 
+
+    # ── 2026-08-14 · 시작금이 8만원에서 100만원으로, 이름도 함께 ─────────
+    #
+    # 사장님: "모든 페이지를 확인해서 더이상 8마일이 아닌 100만원으로
+    #          시작한다는걸로 업데이트 해줘"
+    #
+    # 장부는 2026-08-13부터 이미 100만원이었는데 코드 상수만 8만원에
+    # 멈춰 있었다. 화면은 장부를 먼저 읽으므로(감사 218) 겉으로는 안
+    # 드러났지만, 계좌를 새로 만드는 경로는 전부 이 상수를 쓴다.
+
+    ("시작금 상수를 8만원으로 되돌린다(새 계좌가 계좌와 다른 원금으로 생긴다)",
+     "quant/live/ledger_basics.py",
+     "PORTFOLIO_START_CASH = 1_000_000.0",
+     "PORTFOLIO_START_CASH = 80_000.0",
+     "tests/test_daily_paper.py"),
+
+    ("첫 화면 기본 원금만 8만원으로 되돌린다(장부를 못 읽는 순간 갈라진다)",
+     "docs/index.html",
+     "const h=pf.history,base=pf.start_cash||1000000;",
+     "const h=pf.history,base=pf.start_cash||80000;",
+     "tests/test_site_numbers_track_the_code.py"),
+
+    ("산문에 옛 시작금을 다시 박는다(사이트가 계좌와 다른 말을 한다)",
+     "docs/index.html",
+     "100만 챌린지 · 통합 실기록",
+     "8만원으로 시작하는 실기록",
+     "tests/test_site_provenance.py"),
+
+    ("캡션이 장부 원금 대신 코드 기본값을 쓴다(재개설 뒤 옛 금액이 방송된다)",
+     "quant/reporting/social.py",
+     '    _p = x.get("principal")\n',
+     "    _p = None\n",
+     "tests/test_sns_provenance.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

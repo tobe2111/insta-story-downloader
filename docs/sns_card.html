@@ -161,7 +161,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
     }});
   // 시작금·유니버스·실제 보유 수 — 전부 장부에서 읽는다(감사 113).
   var startCash=(port.start_cash!=null?port.start_cash
-    :((hist[0]||{}).principal!=null?hist[0].principal:80000));
+    :((hist[0]||{}).principal!=null?hist[0].principal:1000000));
   var startTxt=(startCash>=10000&&startCash%10000===0)
     ?(startCash/10000).toLocaleString()+"만원"
     :Math.round(startCash).toLocaleString()+"원";
@@ -188,7 +188,7 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   var wilson=function(p,n){return QuantHitRate.wilsonCI(Math.round(p*n),n)};
 
   var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
-    +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'
+    +'<span class="badge">100만 챌린지 '+esc(day)+'</span></div>'
     +'<span class="date">'+esc(date)+'</span></div>';
   var footer='<div class="footer"><span>⚠️ <b>모의투자</b> — 수익 보장 없음 · '
     +'매일 그날 숫자 그대로</span><span class="swipe">'+n+' / '+TOTAL

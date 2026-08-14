@@ -394,8 +394,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     # 실전 배치는 계좌 두 종류를 돌린다:
     #   ① 종목별 참고 계좌(이 함수) — 그 전략이 그 종목에서 어떻게 행동하는지
     #      **재는 계기**다. 켈리 상한·적중률·신뢰도 곡선이 여기서 나온다.
-    #   ② 통합 분산 계좌(run_daily_portfolio) — 실제로 돈이 도는 쪽. 8마일
-    #      챌린지가 이것이고, 검증 게이트는 **그쪽에** 걸린다.
+    #   ② 통합 분산 계좌(run_daily_portfolio) — 실제로 돈이 도는 쪽. 공개
+    #      챌린지(100만원 → 1억)가 이것이고, 검증 게이트는 **그쪽에** 걸린다.
     #
     # ①에도 게이트를 걸면 순환이 된다: 게이트로 깎인 수익이 장부에 쌓이고,
     # 그 장부에서 뽑은 켈리 상한이 다시 ②의 비중을 정한다. 계기를 그 계기가
@@ -1297,7 +1297,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         require_real_data: bool = True,
                         use_champions: bool = True,
                         state_file: str = "portfolio_ALL.json") -> dict:
-    """통합 8마일 계좌(8만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
+    """통합 계좌(시작 100만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
 
     각 종목의 챔피언 전략 비중을 종목 수로 나눠(자본 균등 슬라이스) 한
     PaperBroker 계좌에 담는다. 실데이터를 못 받은 종목은 그날 매매하지 않고
@@ -2379,7 +2379,7 @@ def format_weekly(summary: dict) -> str:
     if not summary.get("markets"):
         return "📭 지난주 페이퍼 기록이 없습니다."
     a, b = summary["period"]
-    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 8마일 챌린지"]
+    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 100만 챌린지"]
     for key, m in summary["markets"].items():
         sign = "🔺" if m["week_return_pct"] >= 0 else "🔻"
         line = (f"{sign} {key}: 주간 {m['week_return_pct']:+.2f}% · "
@@ -2498,7 +2498,7 @@ def write_docs_status(state_dir: str = STATE_DIR,
             "mdd_pct": round(mdd * 100, 2),
             "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
         }
-        if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
+        if st.get("market") == "portfolio":   # 100만 챌린지(100만원 → 1억) 필드
             deposits = st.get("deposits", [])
             sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
             # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가

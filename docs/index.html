@@ -312,7 +312,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       </div>
       <div class="heroR">
         <div class="proof" id="proof">
-          <div class="p"><span class="pk" id="pk-eq">8마일 챌린지 · 통합 실기록</span>
+          <div class="p"><span class="pk" id="pk-eq">100만 챌린지 · 통합 실기록</span>
             <span class="pv" id="pv-eq">—</span>
             <span class="pd" id="pd-eq">기록 불러오는 중</span></div>
           <div class="p"><span class="pk">판정 시계</span><span class="pv" id="pv-gen">—</span>
@@ -381,7 +381,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         <thead><tr><th>종목</th>
           <th title="그 종목이 거래되는 통화 그대로입니다 — 미국주식은 달러, 코인은 USDT, 한국주식은 원. 위 잔고 표(원화 환산)와 단위가 다릅니다.">현재가<br><span class="sub" style="font-weight:400">현지 통화</span></th><th>일간</th><th>누적</th>
           <th title="그 종목만 굴리는 독립 계좌가 지금 들고 있는 비중입니다. 주식은 다음 세션 시가에 체결되므로, 오늘 내린 결정이 다르면 '→ N% 예정'으로 함께 표시합니다.">종목계좌 비중<br><span class="sub" style="font-weight:400">현재 보유</span></th>
-          <th title="통합 계좌(8마일 챌린지 본체)가 이 종목에 실제로 넣어 둔 돈입니다 — 원화 환산 평가금액. 아래 줄은 그 금액이 계좌에서 차지하는 노출(배분 슬라이스·변동성 타깃·킬스위치 반영)과 보유 수량입니다. 안 들고 있으면 '—'입니다.">통합 보유<br><span class="sub" style="font-weight:400">원화 · 노출</span></th>
+          <th title="통합 계좌(100만 챌린지 본체)가 이 종목에 실제로 넣어 둔 돈입니다 — 원화 환산 평가금액. 아래 줄은 그 금액이 계좌에서 차지하는 노출(배분 슬라이스·변동성 타깃·킬스위치 반영)과 보유 수량입니다. 안 들고 있으면 '—'입니다.">통합 보유<br><span class="sub" style="font-weight:400">원화 · 노출</span></th>
           <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)입니다. 괄호 안은 95% 신뢰구간과 표본 수 — 구간이 50%를 품고 있으면 '판정 불가'로 흐리게 나옵니다(그 표본으로는 동전던지기와 구별할 수 없다는 뜻).">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
         <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
@@ -1174,7 +1174,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       rightPriceScale:{borderVisible:false},timeScale:{borderVisible:false},
       handleScroll:false,handleScale:false,
       localization:{locale:"ko-KR",priceFormatter:p=>Math.round(p).toLocaleString("ko-KR")}});
-    const h=pf.history,base=pf.start_cash||80000;
+    const h=pf.history,base=pf.start_cash||1000000;
     const v=h.map(r=>({time:r.date,value:r.equity}));
     const up=v[v.length-1].value>=base;
     const area=chart.addAreaSeries({lineColor:up?"#f04452":"#3182f6",lineWidth:2,
