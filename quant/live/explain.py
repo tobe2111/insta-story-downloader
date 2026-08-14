@@ -374,6 +374,14 @@ def _explain(spec: dict, df, weight: float, strategy,
                  else f"{w_}일 최고가({hi:,.0f}) 돌파 대기")
         return f"{head} — 채널 돌파: {state}"
 
+    if name == "buy_hold":
+        # 이 해설은 사이트·방송에 그대로 나간다. "buy_hold 전략 신호에 따름"은
+        # 비개발자에게 아무 뜻이 없고, 무엇보다 **이 종목에서는 AI가 아니라
+        # 벤치마크가 이겼다**는 중요한 사실을 감춘다.
+        return (f"{head} — 매매 없이 보유: 이 종목은 오디션에서 **아무것도 "
+                "하지 않는 쪽**이 AI 전략을 이겼습니다(2단계 심사 통과). "
+                "매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다")
+
     if name == "momentum":
         lb = int(p.get("lookback", 60))
         mom = float(close.pct_change(lb).iloc[-1])

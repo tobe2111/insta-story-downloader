@@ -2991,6 +2991,24 @@ MUTATIONS = [
      "               * 1.0)",
      "tests/test_the_validation_gate_actually_gates.py"),
 
+    ("만료를 실패보다 먼저 본다(오래된 '버릴 것'이 오히려 덜 깎인다)",
+     "quant/live/validation_gate.py",
+     "    if pbo is not None and pbo > PBO_FAIL:\n        stale =",
+     "    if age is not None and age > MAX_AGE_DAYS:\n        pass\n    if False:\n        stale =",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("반쪽 측정(한쪽만 잰 기록)을 통과로 취급한다",
+     "quant/live/validation_gate.py",
+     '        reasons.append("보정 샤프(DSR)가 측정되지 않음")',
+     "        pass",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("날짜 없는 기록을 신선한 것으로 취급한다(옛 도장이 영원히 유효)",
+     "quant/live/validation_gate.py",
+     '        reasons.append(f"측정 날짜가 없어 신선도를 확인할 수 없음"',
+     '        _unused = (f"측정 날짜가 없어 신선도를 확인할 수 없음"',
+     "tests/test_the_validation_gate_actually_gates.py"),
+
     ("미측정 종목을 '통과'로 취급한다(검증이 죽은 날 가장 공격적으로 굴린다)",
      "quant/live/validation_gate.py",
      "SCALE_WARN = 0.5",

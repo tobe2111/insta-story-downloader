@@ -600,12 +600,21 @@ def _cmd_validate(args) -> None:
         print(f"  건너뜀: {exc}")
 
     # 3) CPCV — 여러 OOS 경로의 분포
+    #
+    # ⚠️ 이 결과는 **계산하고 출력한 뒤 버려지고 있었다**(2026-08-14 발견).
+    #    문서는 "3중 관문(DSR·PBO·CPCV)"이라 말하고 통과 기준까지 적어 뒀는데
+    #    ("가장 나쁜 경로에서도 플러스"), 그 값이 장부에 저장되지 않아
+    #    **어떤 판단에도 닿지 않았다.** DSR·PBO를 게이트에 붙이면서 확인했다.
     print("\n[3/4] CPCV (다중 OOS 경로 분포)")
+    cpcv_worst = None
+    cpcv_min_sharpe = None
     try:
         cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
                   n_test=2, embargo=args.embargo, periods_per_year=ppy)
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
-    except ValueError as exc:
+        cpcv_worst = float(cv["worst_path_return"])
+        cpcv_min_sharpe = float(cv["sharpe_min"])
+    except (ValueError, KeyError, TypeError) as exc:
         print(f"  건너뜀: {exc}")
 
     # 4) 파라미터 안정성 — 1등이 '넓은 고원'인가 '외딴 봉우리'인가
@@ -649,6 +658,10 @@ def _cmd_validate(args) -> None:
             #    이 판정의 기준이다.
             "asof": str(df.index[-1])[:10] if len(df) else None,
             "dsr": dsr_value, "pbo": pbo_value,
+            # 3중 관문의 세 번째 — 통과 기준은 "가장 나쁜 경로에서도 플러스".
+            # 2026-08-14까지 이 값은 화면에만 찍히고 사라졌다.
+            "cpcv_worst_return": cpcv_worst,
+            "cpcv_min_sharpe": cpcv_min_sharpe,
             # 원점수 1등과 견고성 1등이 다른가 — True면 그 파라미터는
             # '외딴 봉우리'일 수 있다(감사 157). 콘솔에만 찍히면 아무것도
             # 막지 못하므로 장부에 남겨 flag_watch가 읽게 한다.

@@ -64,6 +64,12 @@ VALIDATION_FILE = "validation.json"
 PBO_PASS = 0.2          # 이하면 통과
 PBO_FAIL = 0.7          # 초과면 "사실상 확실한 과적합 — 버릴 것"
 DSR_PASS = 0.95         # 이상이면 통과
+# 3중 관문의 세 번째. 문서의 통과 기준은 "가장 나쁜 경로에서도 플러스"다.
+# ⚠️ 이 값은 2026-08-14까지 **계산되고 화면에 찍힌 뒤 버려졌다** — 문서는
+#    "DSR·PBO·CPCV 전부 통과"라고 말하는데 CPCV는 장부에 저장조차 되지
+#    않아 어떤 판단에도 닿지 않았다. 실패해도 '버릴 것'(0.0)까지는 아니다 —
+#    문서가 그 표현을 쓴 것은 PBO 0.7 하나뿐이다.
+CPCV_WORST_PASS = 0.0   # 최악 경로 수익률이 이보다 커야 통과
 
 SCALE_PASS = 1.0
 SCALE_WARN = 0.5
@@ -108,40 +114,69 @@ def grade(rec: dict | None, asof: str | None = None) -> dict:
     반환: {"grade", "scale", "why", "pbo", "dsr", "age_days"}
     """
     if not rec:
-        return {"grade": "미측정", "scale": SCALE_WARN, "pbo": None, "dsr": None,
-                "age_days": None,
+        return {"grade": "미측정", "scale": SCALE_WARN, "pbo": None,
+                "dsr": None, "cpcv": None, "age_days": None,
                 "why": "과최적화 검증 기록이 없습니다 — '통과'가 아니라 "
                        "'모른다'이므로 비중을 절반으로 줄입니다."}
 
     age = _age_days(rec, asof)
+    pbo = rec.get("pbo")
+    dsr = rec.get("dsr")
+    cpcv = rec.get("cpcv_worst_return")
+    pbo = float(pbo) if isinstance(pbo, (int, float)) else None
+    dsr = float(dsr) if isinstance(dsr, (int, float)) else None
+    cpcv = float(cpcv) if isinstance(cpcv, (int, float)) else None
+    base = {"pbo": pbo, "dsr": dsr, "cpcv": cpcv, "age_days": age}
+
+    # ⚠️ **실패 판정이 만료보다 먼저다.** 순서를 반대로 뒀다가 자체 검사에
+    #    걸렸다(2026-08-14): 만료를 먼저 보면 오래된 'PBO 0.9' 기록이
+    #    실패(×0.0)가 아니라 만료(×0.5)가 되어 **더 적게 깎인다.**
+    #    나이가 형을 감면하는 셈이다. 오래된 '버릴 것'도 여전히 '버릴 것'이다.
+    if pbo is not None and pbo > PBO_FAIL:
+        stale = f" (기록이 {age}일 전 것이지만 판정은 그대로다)" if (
+            age is not None and age > MAX_AGE_DAYS) else ""
+        return {**base, "grade": "실패", "scale": SCALE_FAIL,
+                "why": f"과최적화 확률(PBO) {pbo:.0%} — 문서가 '버릴 것'이라 "
+                       f"정한 선({PBO_FAIL:.0%})을 넘었습니다. 오늘 이 종목은 "
+                       f"관망합니다.{stale}"}
+
     if age is not None and age > MAX_AGE_DAYS:
-        return {"grade": "만료", "scale": SCALE_WARN,
-                "pbo": rec.get("pbo"), "dsr": rec.get("dsr"), "age_days": age,
+        return {**base, "grade": "만료", "scale": SCALE_WARN,
                 "why": f"검증 기록이 {age}일 전 것입니다(유통기한 "
                        f"{MAX_AGE_DAYS}일) — 오늘의 판정으로 쓸 수 없어 "
                        "비중을 절반으로 줄입니다."}
 
-    pbo = rec.get("pbo")
-    dsr = rec.get("dsr")
-    pbo = float(pbo) if isinstance(pbo, (int, float)) else None
-    dsr = float(dsr) if isinstance(dsr, (int, float)) else None
-    base = {"pbo": pbo, "dsr": dsr, "age_days": age}
-
-    if pbo is not None and pbo > PBO_FAIL:
-        return {**base, "grade": "실패", "scale": SCALE_FAIL,
-                "why": f"과최적화 확률(PBO) {pbo:.0%} — 문서가 '버릴 것'이라 "
-                       f"정한 선({PBO_FAIL:.0%})을 넘었습니다. 오늘 이 종목은 "
-                       "관망합니다."}
+    if pbo is None and dsr is None and cpcv is None:
+        return {**base, "grade": "미측정", "scale": SCALE_WARN,
+                "why": "기록은 있으나 PBO·DSR·CPCV가 모두 비어 있습니다 — "
+                       "'통과'가 아니므로 비중을 절반으로 줄입니다."}
 
     reasons = []
-    if pbo is None and dsr is None:
-        return {**base, "grade": "미측정", "scale": SCALE_WARN,
-                "why": "기록은 있으나 PBO·DSR이 둘 다 비어 있습니다 — "
-                       "'통과'가 아니므로 비중을 절반으로 줄입니다."}
+    if cpcv is not None and cpcv <= CPCV_WORST_PASS:
+        reasons.append(f"CPCV 최악 경로 수익률 {cpcv:+.1%} "
+                       f"(기준: {CPCV_WORST_PASS:+.0%} 초과)")
     if pbo is not None and pbo > PBO_PASS:
         reasons.append(f"과최적화 확률(PBO) {pbo:.0%} > 기준 {PBO_PASS:.0%}")
     if dsr is not None and dsr < DSR_PASS:
         reasons.append(f"보정 샤프(DSR) {dsr:.2f} < 기준 {DSR_PASS:.2f}")
+    # ⚠️ **반쪽 측정은 통과가 아니다**(2026-08-14 자체 점검에서 발견).
+    #    PBO만 있고 DSR이 없는 기록은 실제로 흔하다(워크포워드가 DSR을 못
+    #    내면 null로 남는다). 그런데 위 조건만 보면 'PBO 통과 + DSR 없음'이
+    #    아무 이유도 안 쌓여 **만점**을 받았다. 이 모듈이 세운 원칙
+    #    ("안 재봤다"는 "괜찮다"가 아니다)이 필드 단위에서는 안 지켜진 것이다.
+    if pbo is None:
+        reasons.append("과최적화 확률(PBO)이 측정되지 않음")
+    if dsr is None:
+        reasons.append("보정 샤프(DSR)가 측정되지 않음")
+    if cpcv is None:
+        reasons.append("CPCV(다중 OOS 경로)가 측정되지 않음")
+    # ⚠️ 나이를 모르는 기록도 '통과'로 두지 않는다. 지금 장부에 있는 기록들은
+    #    날짜 없이 저장돼 있어(asof는 2026-08-14에 추가) 만료 판정이 통째로
+    #    건너뛰어졌다 — 검증이 멈춰도 옛 도장이 영원히 유효한 셈이다.
+    #    만료 장치를 만든 이유가 바로 그건데 정작 지금 있는 기록에는 안 걸렸다.
+    if age is None:
+        reasons.append(f"측정 날짜가 없어 신선도를 확인할 수 없음"
+                       f"(유통기한 {MAX_AGE_DAYS}일)")
     if reasons:
         return {**base, "grade": "경고", "scale": SCALE_WARN,
                 "why": " · ".join(reasons) + " — 비중을 절반으로 줄입니다."}
