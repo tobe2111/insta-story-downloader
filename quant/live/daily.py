@@ -37,6 +37,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     holdings_view,
     is_archive,
     ledger_files,
+    live_hit_rate,
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
@@ -455,6 +456,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     equity = broker.equity({symbol: price})
 
     acc = directional_accuracy(df_sig, signals, window=60)
+    # 오늘 기록을 붙이기 **전까지의** 장부로 잰다 — 오늘의 결과는 내일
+    # 가격이 나와야 채점된다(미래를 당겨 쓰지 않는다).
+    _lh = live_hit_rate(st.get("history") or [])
     psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
@@ -487,6 +491,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
         #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
         "hit_n": acc.get("n"),
+        # ⚠️ **위 적중률은 인샘플이다**(2026-08-14 감사 240). 표본 400봉이
+        #    챔피언을 뽑은 오디션(800봉)과 100% 겹치고, 그중 70%는 선발전
+        #    구간이다 — 그 챔피언은 그 데이터에서 이겨서 뽑혔다.
+        #    아래는 **장부에서만** 잰 값이다. 표본은 작지만 아무도 고르지
+        #    않은 구간이라, 둘을 나란히 놓아야 읽는 사람이 속지 않는다.
+        "live_hit": _lh.get("hit_rate"),
+        "live_hit_n": _lh.get("n"),
+        "live_hit_flat": _lh.get("n_flat"),
         # 채점에서 뺀 보합 봉 수(감사 168). 방향이 없던 봉은 방향 예측을
         # 채점할 수 없어 분모에서 빼는데, 몇 봉을 뺐는지 안 남기면
         # '보합이 없었다'와 구별되지 않는다.
