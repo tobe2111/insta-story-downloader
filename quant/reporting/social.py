@@ -48,6 +48,42 @@ def _held_on(status: dict, key: str, date: str) -> bool:
     return False
 
 
+def _invested_ratio(port: dict, last: dict):
+    """**실제로 시장에 나가 있는 비율** — 잔고에서 잰다 (감사 238).
+
+    사이트의 "돈이 지금 어디 있나"와 **같은 출처**(장부의 holdings)를 쓴다.
+    같은 값을 두 곳에서 따로 계산하면 언젠가 갈라진다(㉞).
+
+    잔고가 없는 옛 기록에서는 None — 모르는 것을 목표로 대신하지 않는다.
+    """
+    holdings = port.get("holdings")
+    equity = last.get("equity") or port.get("equity")
+    try:
+        equity = float(equity)
+    except (TypeError, ValueError):
+        return None
+    if not holdings or equity <= 0:
+        return None
+    total = 0.0
+    for h in holdings:
+        try:
+            total += float(h.get("value") or 0.0)
+        except (TypeError, ValueError):
+            continue
+    return max(0.0, min(1.0, total / equity))
+
+
+def _pending_weight(last: dict):
+    """다음 세션 시가에 체결되기를 기다리는 비중 — 차이의 큰 몫이다."""
+    pend = last.get("pending_next_open") or {}
+    if not isinstance(pend, dict) or not pend:
+        return None
+    try:
+        return sum(abs(float(v)) for v in pend.values())
+    except (TypeError, ValueError):
+        return None
+
+
 def _today_numbers(status: dict) -> dict:
     """status.json에서 캡션에 쓸 그날의 숫자를 뽑는다 (없는 값은 None)."""
     port = (status.get("paper") or {}).get("portfolio:ALL") or {}
@@ -69,7 +105,14 @@ def _today_numbers(status: dict) -> dict:
     keep = (list(src) if applied
             else [k for k in src if _held_on(status, k, date)])
     top = sorted(((k, src[k]) for k in keep), key=lambda kv: -kv[1])[:3]
-    top_names = [names.get(k, {}).get("name") or k.split(":")[-1]
+    # ⚠️ **아직 안 산 종목에는 그렇게 적는다**(감사 238). 주식은 다음 세션
+    #    시가에 체결되므로 오늘 목표를 잡아도 오늘은 한 주도 없다. 실측
+    #    2026-08-14 캡션: "배분 상위: 솔라나 · 아마존 · 리플" — 아마존은
+    #    그때 **한 주도 없었다.** 감사 91이 alloc→applied로 고친 것과 같은
+    #    결함의 남은 절반이다(그때는 '관망 종목이 끼는 것'만 막았다).
+    _pending = set(last.get("pending_next_open") or {})
+    top_names = [(names.get(k, {}).get("name") or k.split(":")[-1])
+                 + ("(대기)" if k in _pending else "")
                  for k, v in top if v > 0]
     return {
         "date": date,
@@ -90,6 +133,22 @@ def _today_numbers(status: dict) -> dict:
                     else _day_pct_from_history(hist, port)),
         "twr_pct": last.get("twr_pct"),
         "gross": last.get("weight"),
+        # ⚠️ **위 gross는 '목표'다. 실제로 시장에 나가 있는 돈이 아니다**
+        #    (2026-08-14 감사 238). 캡션은 이 값을 "총노출 46%"라고 불렀는데
+        #    같은 날 계좌가 실제로 들고 있던 것은 **27.2%**였다. 차이는
+        #    주식의 다음 시가 대기(13.9%p)와, 밴드·쿨다운으로 아직 목표까지
+        #    채우지 못한 기존 보유다.
+        #
+        #    사이트는 2026-08-13에 이미 고쳤다 — "투자 중 271,475원(27.2%) ·
+        #    현금 728,372원(72.8%)"에 "오늘 목표 노출은 45.6%"를 덧붙인다.
+        #    **캡션만 남아 있었다.** 감사 218에서 시작금이 그랬고(산문은
+        #    고쳤는데 캡션은 8만원), 감사 113·114에서 카드와 캡션이 서로
+        #    번갈아 빠졌다. 같은 실수의 세 번째 거울이다.
+        #
+        #    방송에 나가는 글이라 사이트보다 오히려 더 위험하다 — 사이트는
+        #    옆에 설명이 붙지만 캡션은 숫자 하나만 읽히기 때문이다.
+        "invested": _invested_ratio(port, last),
+        "pending_w": _pending_weight(last),
         "risk_scale": last.get("risk_scale", 1.0),
         # 사람의 개입 — 장부에는 "숨기지 않고 기록한다"고 남기면서 방송에는
         # 없었다(감사 96). 이 시스템에서 사람이 결과를 바꿀 수 있는 유일한
@@ -100,8 +159,14 @@ def _today_numbers(status: dict) -> dict:
         # 실제로 든 종목 수 — 후보 수와 다르다(2026-08-12 감사 114).
         # 감사 113에서 **카드**를 고치면서 캡션을 놓쳤다. 89에서는 반대로
         # 캡션을 고치고 카드를 놓쳤었다 — 같은 실수의 거울이다.
-        "n_held": len(keep) if applied else sum(
-            1 for k in src if src[k] > 0 and _held_on(status, k, date)),
+        # ⚠️ **실제로 든 종목 수**다(감사 238에서 다시 좁혔다). 예전에는
+        #    applied 키 수를 셌는데 거기엔 다음 시가 대기 종목이 들어 있어,
+        #    한 주도 없는 날에도 "7종목 보유"라고 나갔다(실측 2026-08-14:
+        #    실제 보유 5 · 캡션 7).
+        "n_held": (len(port["holdings"]) if port.get("holdings")
+                   else (len(keep) if applied else sum(
+                       1 for k in src if src[k] > 0
+                       and _held_on(status, k, date)))),
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
         "top_names": top_names,
@@ -167,6 +232,21 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     day_line = f" · 오늘 {dp}" if dp else ""
     twr = (f"{x['twr_pct']:+.2f}%" if x.get("twr_pct") is not None else None)
     gross = (f"{x['gross'] * 100:.0f}%" if x["gross"] is not None else "—")
+    # ⚠️ **실제 투자 비율을 앞에 쓴다**(감사 238). 캡션은 목표(gross) 하나만
+    #    말했고, 읽는 사람은 그 숫자만큼 돈이 시장에 나가 있다고 읽는다.
+    #    실측 2026-08-14: 목표 46% · 실제 27%. 사이트는 이미 둘을 구분해
+    #    말하고 있었는데 캡션만 남아 있었다.
+    inv = x.get("invested")
+    if inv is None:
+        # 잔고를 모르는 옛 기록 — 목표를 실제인 것처럼 말하지 않는다.
+        money = f"목표 노출 {gross}"
+    else:
+        money = f"투자 중 {inv * 100:.0f}% · 현금 {(1 - inv) * 100:.0f}%"
+        if x["gross"] is not None and abs(x["gross"] - inv) > 0.02:
+            pw = x.get("pending_w")
+            why = (f"다음 시가 대기 {pw * 100:.0f}%p 포함"
+                   if pw else "아직 목표까지 안 채움")
+            money += f" (오늘 목표 {gross} — {why})"
     tops = " · ".join(x["top_names"]) if x["top_names"] else "전 종목 관망"
     # 종목 수와 시작금은 산문에 박지 않는다 — 설정이 바뀌면 SNS만 조용히
     # 거짓말을 하게 된다(사이트에 같은 결함이 있어 이미 계약 검사로 막았다).
@@ -227,7 +307,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"보여주는 것'입니다.\n"
         f"\n"
         f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
-        f"📈 총노출 {gross} · {spread}(코인·한국·미국)\n"
+        f"📈 {money} · {spread}(코인·한국·미국)\n"
         f"🎯 오늘 배분 상위: {tops}{kill}{owner}{restart_line}\n"
         f"\n"
         f"🤖 {work}\n"
@@ -241,11 +321,14 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"{HASHTAGS}"
     )
 
+    # 스레드는 500자 제한이라 짧은 판을 쓰되, **실제가 앞**이라는 규칙은 같다.
+    short_money = (f"투자 {inv * 100:.0f}%(목표 {gross})" if inv is not None
+                   else f"목표 노출 {gross}")
     th = (
         f"{_hook(x)}\n"
         f"\n"
         f"📊 8마일 챌린지 {day} · {date}\n"
-        f"💰 {eq} (누적 {ret}{day_line}) · 노출 {gross}\n"
+        f"💰 {eq} (누적 {ret}{day_line}) · {short_money}\n"
         f"🎯 배분 상위: {tops}{kill}{owner}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
