@@ -53,6 +53,12 @@ class CostModel:
     # 봉 인덱스와 맞추려면 quant.data.funding.align_funding_to_bars 를 쓸 것.
     # 부호 규약: 양수=롱이 지불(숏은 수취). None(기본)=기존 고정 funding 사용.
     funding_series: Any = field(default=None, repr=False)
+    # 어느 시장인가 — **호가 단위(틱) 하한**을 계산하는 데만 쓴다.
+    # 빈 값이면 하한 없음(예전과 완전히 동일하게 동작한다).
+    market: str = ""
+    # 이 종목이 ETF인가 — KRX는 ETF·ETN 호가 단위가 전 가격대 5원으로
+    # 주식과 다르다. 잘못 보면 KODEX 200에 20배를 물린다.
+    is_etf: bool = False
 
     @classmethod
     def for_market(cls, market: str, **overrides) -> "CostModel":
@@ -65,12 +71,36 @@ class CostModel:
         """
         p = MARKET_COST_PRESETS.get(market.lower())
         base = dict(p) if p else {}
+        base.setdefault("market", market)      # 틱 하한이 시장을 알아야 한다
         base.update(overrides)
         return cls(**base)
 
-    def turnover_cost(self, turnover: float, vol: float = 0.0) -> float:
-        """회전율(포지션 변경량)에 따른 거래 비용 비율."""
-        return (self.fee + self.slippage + self.impact_coef * vol) * turnover
+    def slippage_floor(self, price=None) -> float:
+        """**이보다 싸게 체결될 수 없다** — 호가 한 칸의 절반 (2026-08-14).
+
+        가정 슬리피지 5bp는 국내 대형주에서 물리적으로 불가능한 값이었다.
+        실측(이 저장소 운영 종목):
+
+            삼성전자 236,000원 → 호가 500원 → 편도 하한 10.6bp (가정의 2.1배)
+            LG화학  275,500원 → 호가 500원 → 편도 하한  9.1bp (가정의 1.8배)
+
+        낼 수 없는 비용으로 백테스트를 돌리면 고회전 전략이 부당하게 유리해지고
+        그 전략이 오디션을 이겨 챔피언이 된다. 이것은 **추정이 아니라 하한**이라,
+        가정을 대체하지 않고 바닥으로만 쓴다(가정이 더 크면 가정을 둔다).
+        """
+        if not self.market or price is None:
+            return 0.0
+        from quant.backtest.tick import spread_floor
+        return spread_floor(self.market, price, self.is_etf)
+
+    def turnover_cost(self, turnover: float, vol: float = 0.0,
+                      price=None) -> float:
+        """회전율(포지션 변경량)에 따른 거래 비용 비율.
+
+        `price`를 주면 호가 단위 하한이 적용된다 — 안 주면 예전과 동일.
+        """
+        slip = max(self.slippage, self.slippage_floor(price))
+        return (self.fee + slip + self.impact_coef * vol) * turnover
 
     def market_impact_cost(
         self, turnover: float, equity: float, dollar_volume: float | None

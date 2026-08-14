@@ -652,8 +652,24 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         return None
 
 
+def is_etf(market: str, symbol: str | None) -> bool:
+    """이 종목이 ETF인가 — **호가 단위가 다르다**(2026-08-14).
+
+    KRX는 ETF·ETN 호가 단위가 전 가격대 5원으로 주식과 다르다. 주식 표를
+    그대로 적용하면 KODEX 200(97,570원)에 100원 단위를 물려 **20배**를
+    씌운다. 표시가 없으면 주식으로 본다 — 그쪽이 비싸게 치는 방향이라
+    보수적이지만, 새 ETF를 넣고 표시를 빠뜨리면 그 종목만 조용히 비싸진다.
+    `tests/test_the_spread_cannot_be_cheaper_than_a_tick.py`가 운영 종목이
+    전부 분류돼 있는지 확인한다.
+    """
+    if not symbol:
+        return False
+    from quant.markets import SYMBOL_INFO
+    return bool((SYMBOL_INFO.get(f"{market}:{symbol}") or {}).get("etf"))
+
+
 def measured_cost_model(market: str, state_dir: str = STATE_DIR,
-                        models_gap: bool = True):
+                        models_gap: bool = True, symbol: str | None = None):
     """오디션이 물어야 할 체결 비용 모델.
 
     ⚠️ 이중 계상 주의(2026-08-11 감사에서 제가 만든 결함을 되잡은 것):
@@ -673,7 +689,7 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
     기준을 흔드는 것이 더 위험하다.
     """
     from quant.backtest.costs import CostModel
-    base = CostModel.for_market(market)
+    base = CostModel.for_market(market, is_etf=is_etf(market, symbol))
     if models_gap:
         return base                             # 갭은 이미 가격에 있다
     measured = _measured_roundtrip_cost(market, state_dir)
@@ -684,12 +700,15 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
     if one_way <= assumed_one_way:
         return base                             # 실측이 더 싸면 가정 유지(보수적)
     # 초과분은 슬리피지로 붙인다 — 수수료는 계약이고 갭은 체결 미끄러짐이다
+    # ⚠️ market·is_etf를 함께 옮긴다 — 빠뜨리면 호가 단위 하한이 조용히
+    #    사라진다(같은 값을 새 객체로 옮길 때 늘 생기는 종류의 누락).
     return CostModel(fee=base.fee,
                      slippage=base.slippage + (one_way - assumed_one_way),
                      impact_coef=base.impact_coef,
                      short_borrow=base.short_borrow, funding=base.funding,
                      market_impact_coef=base.market_impact_coef,
-                     participation_cap=base.participation_cap)
+                     participation_cap=base.participation_cap,
+                     market=base.market, is_etf=base.is_etf)
 
 
 def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:

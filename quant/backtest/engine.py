@@ -294,7 +294,7 @@ class Backtester:
                             + pending_delta * (fill / open_[i] - 1.0))
                     else:
                         cash_equity *= 1.0 + pos * (fill / close[i - 1] - 1.0)
-                    exit_cost = cm.turnover_cost(abs(pos), vol[i])
+                    exit_cost = cm.turnover_cost(abs(pos), vol[i], price=fill)
                     if dollar_vol is not None:
                         exit_cost += cm.market_impact_cost(
                             abs(pos), cash_equity, dollar_vol[i])
@@ -381,7 +381,7 @@ class Backtester:
             # 5) 회전율에 따른 거래비용 차감 (변동성 비례 슬리피지 + 시장충격)
             turnover = abs(new_pos - pos)
             if turnover > 1e-12:
-                cost = cm.turnover_cost(turnover, vol[i])
+                cost = cm.turnover_cost(turnover, vol[i], price=price)
                 if dollar_vol is not None:
                     cost += cm.market_impact_cost(
                         turnover, cash_equity, dollar_vol[i])

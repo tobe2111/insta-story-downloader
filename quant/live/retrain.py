@@ -719,7 +719,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     # 갭을 가격으로 겪는(next_open_fill) 시장에 실측 갭을 비용으로까지 더하면
     # 두 번 물린다 — 그래서 모델링 여부를 넘겨 준다(2026-08-11 이중계상 수정).
     audition_cost = measured_cost_model(market, state_dir,
-                                        models_gap=audition_next_open)
+                                        models_gap=audition_next_open,
+                                        symbol=symbol)
     audition_band = _rebalance_band_rel(market, state_dir)
     decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
@@ -756,7 +757,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 의석 비중도 오디션과 같은 비용으로 — 여기만 가정을 쓰면 '싸게 평가된
         # 고회전 의원'이 의석을 더 가져간다(같은 격차의 재발).
         cost_model=measured_cost_model(market, state_dir,
-                                       models_gap=audition_next_open),
+                                       models_gap=audition_next_open,
+                                       symbol=symbol),
         next_open_fill=audition_next_open,
         rebalance_band=_rebalance_band_rel(market, state_dir),
         confirm_window=confirm_window,
