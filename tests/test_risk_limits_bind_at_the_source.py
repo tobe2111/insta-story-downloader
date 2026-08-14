@@ -247,3 +247,68 @@ def test_the_rule_is_movement_not_size():
 
     assert scale_at(frozen, 45) == 0.0, "멈춘 쪽이 안 꺼졌다"
     assert scale_at(moving, 45) > 0.0, "움직이는 쪽이 꺼졌다"
+
+
+# ── 두 가드는 서로 다른 것을 막는다 (2026-08-13 변이 전수에서 드러남) ──
+
+
+def _prices_from(returns):
+    px = [100.0]
+    for r in returns:
+        px.append(px[-1] * (1 + r))
+    return px
+
+
+def test_a_price_that_moves_but_not_really_gets_zero_exposure():
+    """**크기 가드**(realized > 1e-9)가 막는 자리 — 검사가 없어서 무방비였다.
+
+    2026-08-13 야간 변이 전수가 이걸 잡았다: 크기 가드를 빼도 아무 검사도
+    빨개지지 않았다. 이유는 기존 검사가 전부 **완전히 멈춘** 시세만 썼기
+    때문이다 — 그 경우는 움직임 가드(zero_share ≥ 0.8)가 먼저 막으므로,
+    크기 가드를 떼어내도 결과가 같아 보인다.
+
+    두 가드는 서로 다른 것을 막는다.
+        움직임 가드 : 창의 대부분이 **정확히 0**인 경우(거래정지·호가 고정)
+        크기   가드 : 값은 있는데 **실질적으로 없는** 경우(마지막 자리 잡음)
+
+    아래는 두 번째다 — 창의 47%만 0이라 움직임 가드를 통과하지만, 실현
+    변동성이 1.4e-11이라 목표/변동성이 폭발한다. 실측:
+
+        가드 있음 → 목표 비중 0.0000
+        가드 없음 → 목표 비중 1.0000  (레버리지 상한 3배가 그대로 걸린다)
+    """
+    pattern = ([0.0, 0.0, 1e-12, -1e-12]) * 30
+    close = _prices_from(pattern)
+    idx = pd.date_range("2025-01-01", periods=len(close), freq="D")
+    df = pd.DataFrame({"close": close}, index=idx)
+
+    rets = df["close"].pct_change()
+    zero_share = float((rets.fillna(0.0) == 0.0).rolling(30).mean().iloc[-1])
+    realized = float((rets.rolling(30).std() * np.sqrt(365)).iloc[-1])
+    # 전제 — 움직임 가드는 통과하고, 크기 가드만이 막을 수 있는 구간이다
+    assert zero_share < 0.8, f"움직임 가드가 먼저 막는다(zero_share={zero_share})"
+    assert 0 < realized <= 1e-9, f"크기 가드 구간이 아니다(realized={realized})"
+
+    rm = RiskManager(RiskConfig(sizing="vol_target", vol_window=30,
+                                periods_per_year=365))
+    sized = rm.size_positions(df, pd.Series(1.0, index=idx))
+    assert float(sized.iloc[-1]) == 0.0, (
+        f"실질적으로 안 움직인 종목에 비중 {float(sized.iloc[-1]):.4f}를 준다 "
+        "— 변동성 폭발 직전에 최대 노출이 되는 정반대 결과다")
+
+
+def test_a_genuinely_quiet_asset_still_gets_exposure():
+    """대조군 — 진짜 저변동성 자산(채권 ETF 같은)까지 끄면 안 된다.
+
+    ⚠️ 이 대조군이 없으면 "변동성이 작으면 무조건 0"으로 고쳐도 위 검사가
+       통과한다. 구별하는 것은 **크기가 아니라 움직임의 유무**다.
+    """
+    pattern = [0.0004, -0.0003, 0.0002, -0.0002] * 30      # 매 봉 실제로 움직임
+    close = _prices_from(pattern)
+    idx = pd.date_range("2025-01-01", periods=len(close), freq="D")
+    df = pd.DataFrame({"close": close}, index=idx)
+
+    rm = RiskManager(RiskConfig(sizing="vol_target", vol_window=30,
+                                periods_per_year=365))
+    sized = rm.size_positions(df, pd.Series(1.0, index=idx))
+    assert float(sized.iloc[-1]) > 0.0, "조용하지만 살아 있는 자산을 껐다"

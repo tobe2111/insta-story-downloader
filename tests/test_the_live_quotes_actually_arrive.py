@@ -33,6 +33,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 ROOT = Path(__file__).resolve().parent.parent
 IDX = (ROOT / "docs" / "index.html").read_text("utf-8")
 WORKER = (ROOT / "worker.js").read_text("utf-8")
+# 준실시간 평가의 순수 계산은 2026-08-13부터 이 모듈에 있다 — 인라인
+# 스크립트 안에서는 검사가 **실행**할 수 없기 때문이다. 값으로 확인하는
+# 것은 tests/live_marks_check.mjs가 하고, 여기서는 계약의 자리만 본다.
+LIVE = (ROOT / "docs" / "assets" / "live-marks.js").read_text("utf-8")
 
 
 def _worker_symbol_rule():
@@ -113,20 +117,28 @@ def test_live_marks_are_written_beside_the_book_value_not_over_it():
 
 
 def test_foreign_holdings_are_not_valued_without_a_rate():
-    """환율을 못 받으면 값을 매기지 않는다 — 1.0으로 때우지 않는다."""
-    fn = IDX[IDX.find("function liveValueOf("):]
-    fn = fn[:fn.find("function paintLive()")]
-    assert "if(!liveFx)return null;" in fn, (
+    """환율을 못 받으면 값을 매기지 않는다 — 1.0으로 때우지 않는다.
+
+    값으로 확인하는 것은 `tests/live_marks_check.mjs`다(달러 종목 null,
+    원화 종목은 살아 있음). 여기서는 **화면이 그 계산에 위임하는지**만 본다 —
+    페이지가 자기 식을 따로 쓰기 시작하면 두 곳이 갈라진다.
+    """
+    fn = IDX[IDX.find("function paintLive()"):]
+    fn = fn[:fn.find("function drawTick()")]
+    assert "QuantLive.markHoldings(all,live,liveFx)" in fn, (
+        "화면이 준실시간 평가를 스스로 계산한다 — 계산은 한 곳에서만")
+    assert "if (!fx) return null;" in LIVE, (
         "환율이 없을 때 해외 종목에 값을 매긴다")
     # 원화 시장은 환율 없이도 값을 매길 수 있어야 한다(대조군)
-    assert "if(!USD_MKT.test(key))return qty*lv.px;" in fn
+    assert "if (!USD_MKT.test(key)) return qty * lv.px;" in LIVE
 
 
 def test_the_live_total_says_it_is_not_used_for_returns():
     note = IDX[IDX.find("const note=document.getElementById(\"live-note\")"):]
     note = note[:note.find("function drawTick()")]
-    assert "지연" in note, "무료 시세의 지연을 밝히지 않는다"
     assert "수익률·낙폭·판단에는 쓰지 않습니다" in note
+    # 신선도 문구(실시간/지연)는 모듈이 **세어서** 만든다
+    assert "지연" in LIVE, "무료 시세의 지연을 밝히지 않는다"
 
 
 def test_returns_and_drawdown_never_read_the_live_prices():
@@ -152,10 +164,10 @@ def test_a_partial_live_total_is_explained_not_silently_dropped():
     그냥 지우면 화면이 아무 말 없이 조용해진다 — 오늘 고친 결함(감사 213·
     220·226)이 전부 그 모양이었다.
     """
+    assert "missing.push" in LIVE, "어느 종목이 빠졌는지 모으지 않는다"
     fn = IDX[IDX.find("function paintLive()"):]
     fn = fn[:fn.find("function drawTick()")]
-    assert "miss.push" in fn, "어느 종목이 빠졌는지 모으지 않는다"
     assert "표시하지 않습니다" in fn and "받지 못했습니다" in fn, (
         "부분 수신일 때 이유를 말하지 않는다")
-    assert "miss.length<all.length" in fn, (
+    assert "m.missing.length&&m.marked>0" in fn, (
         "한 건도 못 받은 경우와 일부만 못 받은 경우를 구분하지 않는다")

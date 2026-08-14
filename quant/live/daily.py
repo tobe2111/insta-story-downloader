@@ -1182,7 +1182,7 @@ def required_bars(spec: dict, floor: int = 30) -> int:
     return max(floor, longest)
 
 
-def _signal_frame(market: str, df, timeframe: str = "1d"):
+def _signal_frame(market: str, df, timeframe: str = "1d", now=None):
     """신호·피처 계산에 쓸 프레임 — 아직 만들어지는 중인 봉은 뺀다.
 
     주식 제공자에는 _drop_unclosed가 있어 이미 완성 봉만 온다. 코인은
@@ -1204,9 +1204,18 @@ def _signal_frame(market: str, df, timeframe: str = "1d"):
 
     지금 운영은 일봉이라 새는 곳은 아니지만, `--timeframe`을 바꾸는 순간
     조용히 틀린다. 기본값을 `"1d"`로 둬 옛 호출부는 그대로 동작한다.
+
+    ⚠️ **시각도 받는다**(2026-08-13). 안 받으면 이 판정은 벽시계에 매달려
+    있어서 검사가 특정 순간을 재현할 수 없다. 실제로 그래서
+    `test_signal_frame_measures_with_the_timeframe_it_was_given`이 **하루 중
+    21:00 UTC 이후 세 시간 동안만 빨개지는** 검사였다 — 그 창은 하필 야간
+    배치(20:15·21:15·22:15·23:45 UTC)가 도는 시간대다. 가끔 빨간 검사는
+    "무시해도 되는 것"이 되고, 그러면 진짜 신호도 함께 묻힌다.
+    오늘 화면 쪽 `marketOpenish`에 적용한 것과 같은 처방이다.
+    운영 호출부는 None을 넘겨 지금까지와 똑같이 동작한다.
     """
     from quant.data.barclock import bar_status
-    if len(df) < 2 or bar_status(market, df.index[-1], timeframe) is None:
+    if len(df) < 2 or bar_status(market, df.index[-1], timeframe, now) is None:
         return df
     return df.iloc[:-1]
 
