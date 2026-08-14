@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -243,6 +244,14 @@ class Backtester:
         ruined = False              # 자본이 0 이하로 소진됐는가(회복 불가)
 
         for i in range(n):
+            # 파산한 계좌는 **아무 일도 하지 않는다**(감사 234에서 보강).
+            # 예전에는 파산 뒤에도 루프 본문을 계속 돌았고, 보유 0에 무한대
+            # 수익률이 곱해져(`0 * inf`) 자본이 NaN이 됐다 — 종가가 0인
+            # 프레임에서 실제로 그랬다. 파산은 파산으로 남아야 한다.
+            if ruined:
+                equity[i] = 0.0
+                held[i] = 0.0
+                continue
             price = close[i]
 
             # 0-a) **진입가는 실제 체결가여야 한다**(감사 184). `next_open_fill`은
@@ -402,6 +411,27 @@ class Backtester:
             #    0이라 여기 닿지 않는다. 하지만 `--allow-short`는 지원되는 기능이고
             #    `max_position`은 CLI 인자다 — 둘 중 하나만 켜면 닿는다. 방어는
             #    '지금 닿는 자리'가 아니라 '닿을 수 있는 자리'에 둔다.
+            #
+            #    ⚠️ **NaN·inf는 파산이 아니다**(2026-08-14 감사 234). 위 판정은
+            #    `cash_equity <= 0.0`인데, NaN도 inf도 그 비교에서 False라
+            #    **그대로 통과한다.** 실측(종가 한 칸이 NaN인 프레임):
+            #
+            #        자본곡선 60칸 중 30칸이 NaN · 최종 자산 nan
+            #        그런데 보고된 총수익률은 **-10.77%** — 그럴듯한 숫자다
+            #
+            #    (`compute_metrics`가 NaN 구간을 조용히 버리고 남은 것으로
+            #    성적을 냈다. 그쪽도 함께 고쳤다.) inf면 총수익률이 +inf로
+            #    나온다. 어느 쪽이든 오디션은 이 후보를 정상으로 받아들인다 —
+            #    바로 위 문단이 경고한 '파산한 백테스트가 챔피언이 된다'가
+            #    NaN 버전으로 그대로 남아 있었던 셈이다.
+            #
+            #    0으로 눌러 '파산'으로 처리하지 않는다 — 그건 계산이 망가진
+            #    것을 손실로 둔갑시키는 것이다. 낼 수 없는 성적은 내지 않는다.
+            if not math.isfinite(cash_equity):
+                raise ValueError(
+                    f"백테스트 자본이 계산 불가 값이 됐습니다({cash_equity}) — "
+                    f"{i}번째 봉. 가격·비용에 NaN·inf가 섞였습니다. 그 구간을 "
+                    "버리고 성적을 내면 그럴듯한 오답이 나옵니다.")
             if not ruined and cash_equity <= 0.0:
                 ruined = True
             if ruined:

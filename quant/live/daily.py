@@ -1866,6 +1866,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 코인 즉시 체결 내역 — "오늘 얼마에 사고팔았나"를 사이트가 보여줄 재료.
     # 주식 시가 체결(fills 위쪽)과 함께 그날 기록에 남는다.
     for o in getattr(broker, "order_log", [])[n_orders_before:]:
+        # ⚠️ **주문 로그는 체결 내역이 아니다**(2026-08-14 감사 233). 여기는
+        #    상태를 안 보고 통째로 베끼고 있었다 — 미체결(지정가 open)이나
+        #    현금 부족 거부(rejected)가 생기면 **돈이 한 푼도 안 움직인
+        #    주문이 장부에 '오늘 얼마에 샀다'로 남는다.** 그 줄은 사이트
+        #    거래내역·SNS 캡션·체결비용 표본으로 그대로 흘러간다.
+        if getattr(o, "status", "filled") not in ("filled", "partial"):
+            continue
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
                       "side": o.side,
@@ -2059,6 +2066,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 유연화의 대가를 숨기지 않는다 — 이 돈은 gave_way의 종목이
               # 쓸 돈이었고, 그 종목들은 오늘 목표가 0이라 팔렸다.
               "lot_priority": lot_priority or None,
+              # 현금이 모자라 브로커가 **거부한** 주문(감사 233). 지금 구조
+              # 에서는 나오면 안 되는 값이다 — 레버리지 금지선·수수료
+              # 버퍼·매도 우선 순서가 셋 다 막고 있다. 그래서 여기 숫자가
+              # 찍히면 그 셋 중 하나가 새고 있다는 뜻이고, 계좌는 이유 없이
+              # 작아진 채로 굴러간다. 조용히 덜 사는 것을 장부에 드러낸다.
+              "cash_short": (getattr(broker, "rejected", None) or None) and [
+                  {"key": r["symbol"], "need": round(float(r["need"]), 2),
+                   "cash": round(float(r["cash"]), 2)}
+                  for r in broker.rejected[:20]],
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.
