@@ -19,6 +19,11 @@
      실행할 수 있게** 한 자리다(tests/live_marks_check.mjs). 소스 문자열만
      읽는 검사는 "검사는 초록인데 기능은 죽어 있다"를 못 잡는다(감사 229). -->
 <script src="assets/live-marks.js"></script>
+<!-- 종목 → 트레이딩뷰 심볼 변환. 같은 이유로 파일을 나눴다 —
+     tests/tv_symbols_check.mjs가 20종목 매핑을 값으로 확인한다.
+     엉뚱한 차트를 "삼성전자"라고 띄우는 것은 UI 버그가 아니라
+     가짜를 진짜처럼 보여주는 사고다. -->
+<script src="assets/tv-symbols.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -1007,7 +1012,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const hd=held[r.k];
       const hq=hd?(Number(hd.quantity)||0):0;
       const hqs=hq>=100?num(Math.round(hq)):(hq>=1?hq.toFixed(3):hq.toPrecision(3));
-      return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
+      /* 종목 키를 줄에 붙여 둔다 — 누르면 상세 창이 이 값으로 열린다.
+         창은 이 줄의 숫자를 **그대로 옮겨** 보여주고 다시 계산하지 않는다. */
+      return '<tr data-k="'+esc(r.k)+'" data-name="'+esc(r.name)+
+        '" data-code="'+esc(r.code)+'" title="누르면 차트와 장부를 함께 봅니다">'+
+        '<td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
@@ -1310,6 +1319,104 @@ fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/lat
   .then(r=>r.ok?r.json():null).then(j=>{
     if(j&&j.tag_name)document.getElementById("navver").textContent=j.tag_name;
   }).catch(()=>{});
+</script>
+<!-- ── 종목 상세 창 (종목별 현황에서 종목을 누르면 열린다) ───────────────
+     위쪽은 **우리 장부**, 아래쪽은 트레이딩뷰의 거래소 차트다. 두 출처를
+     한 창에 놓되 어느 쪽이 무엇인지 화면에 적는다 — 섞이면 "장부에 있는
+     것만 보여준다"는 이 사이트의 계약이 깨진다. -->
+<dialog id="symdlg">
+  <div class="dlg-head">
+    <div><b id="dlg-name">—</b> <span class="sub" id="dlg-code"></span></div>
+    <button id="dlg-x" aria-label="닫기">✕</button>
+  </div>
+  <div id="dlg-book" class="dlg-book"></div>
+  <div id="dlg-chart"></div>
+</dialog>
+<style>
+ #symdlg{border:0;border-radius:14px;padding:0;width:min(1000px,95vw);
+   max-height:92vh;background:var(--bg2);color:var(--fg);
+   box-shadow:0 24px 70px rgba(0,0,0,.55)}
+ #symdlg::backdrop{background:rgba(0,0,0,.62)}
+ .dlg-head{display:flex;align-items:center;justify-content:space-between;
+   gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+ .dlg-head button{background:none;border:0;color:var(--muted);font-size:18px;
+   cursor:pointer;line-height:1;padding:4px 8px}
+ .dlg-book{padding:12px 16px;font-size:13px;line-height:1.7}
+ .dlg-book .kv{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:6px}
+ .dlg-book .kv span b{font-variant-numeric:tabular-nums}
+ #dlg-chart{padding:0 16px 16px}
+ #dlg-chart iframe{width:100%;height:min(58vh,520px);border:0;
+   border-radius:10px;background:var(--bg3)}
+ #symtable tbody tr{cursor:pointer}
+ #symtable tbody tr:hover{background:var(--bg3)}
+</style>
+<script>
+(function(){
+  "use strict";
+  var dlg=document.getElementById("symdlg");
+  if(!dlg||!dlg.showModal)return;            // 아주 오래된 브라우저 — 조용히 끈다
+  var esc=function(s){var d=document.createElement("div");
+    d.textContent=String(s==null?"":s);return d.innerHTML;};
+  document.getElementById("dlg-x").onclick=function(){dlg.close();};
+
+  /* 표 한 줄의 장부 사실을 그대로 옮긴다 — **여기서 다시 계산하지 않는다.**
+     화면이 자기 계산을 시작하면 두 표가 갈라진다(감사 197). */
+  function openSymbol(tr){
+    var key=tr.getAttribute("data-k")||"";
+    var name=tr.getAttribute("data-name")||key;
+    var code=tr.getAttribute("data-code")||"";
+    document.getElementById("dlg-name").textContent=name;
+    document.getElementById("dlg-code").textContent=code;
+
+    var cells=tr.querySelectorAll("td");
+    var pick=function(i){return cells[i]?cells[i].innerText.replace(/\s+/g," ").trim():"—";};
+    document.getElementById("dlg-book").innerHTML=
+      '<div class="kv">'+
+        '<span>현재가 <b>'+esc(pick(1))+'</b></span>'+
+        '<span>일간 <b>'+esc(pick(2))+'</b></span>'+
+        '<span>누적 <b>'+esc(pick(3))+'</b></span>'+
+        '<span>종목계좌 비중 <b>'+esc(pick(4))+'</b></span>'+
+        '<span>통합 보유 <b>'+esc(pick(5))+'</b></span>'+
+      '</div>'+
+      '<div class="sub" style="margin-top:2px">새벽 판단 · '+esc(pick(7))+'</div>'+
+      '<div class="sub" style="margin-top:8px">↑ 여기까지가 <b>이 사이트의 '+
+      '장부</b>입니다 — 매일 새벽에 확정된 기록입니다.</div>';
+
+    var box=document.getElementById("dlg-chart");
+    var url=window.QuantTV&&QuantTV.tvEmbedUrl(key,{
+      theme:window.matchMedia("(prefers-color-scheme: light)").matches
+        ?"light":"dark"});
+    if(!url){
+      /* 매핑이 없으면 **차트를 지어내지 않는다**. 엉뚱한 종목을 띄우느니
+         없는 편이 낫다. */
+      box.innerHTML='<div class="sub">이 종목은 트레이딩뷰 차트를 연결해 '+
+        '두지 않았습니다 — 엉뚱한 종목이 뜨느니 비워 둡니다.</div>';
+    }else{
+      box.innerHTML='<div class="sub" style="margin:0 0 8px">아래 차트는 '+
+        '<b>트레이딩뷰의 거래소 공개 데이터</b>입니다 — 위 장부 숫자와 '+
+        '출처가 다르므로 값이 조금 다를 수 있습니다. '+
+        '<b>매매·수익률은 위 장부에서만 나옵니다.</b></div>'+
+        '<iframe loading="lazy" referrerpolicy="no-referrer" '+
+        'sandbox="allow-scripts allow-same-origin allow-popups" '+
+        'title="'+esc(name)+' 차트 (트레이딩뷰)" src="'+esc(url)+'"></iframe>'+
+        '<div class="sub" style="margin-top:6px">차트 제공: '+
+        '<a href="https://www.tradingview.com/" target="_blank" '+
+        'rel="noopener noreferrer">TradingView</a></div>';
+    }
+    dlg.showModal();
+  }
+
+  /* 표는 나중에 그려지므로 위임으로 잡는다 */
+  var t=document.getElementById("symtable");
+  if(t)t.addEventListener("click",function(e){
+    var tr=e.target.closest("tbody tr[data-k]");
+    if(tr)openSymbol(tr);
+  });
+  /* 차트가 남아 있으면 배경에서 계속 돈다 — 닫을 때 비운다 */
+  dlg.addEventListener("close",function(){
+    document.getElementById("dlg-chart").innerHTML="";
+  });
+})();
 </script>
 </body>
 </html>
