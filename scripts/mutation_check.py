@@ -3066,10 +3066,10 @@ MUTATIONS = [
      'f"📈 {money} · {n_sym}종목 분산(코인·한국·미국)\\n"',
      "tests/test_broadcast_tells_the_whole_truth.py"),
 
-    ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
-     "docs/paper.html",
-     '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',
-     '<th>적중률(60일)</th></tr>${rows}</table></div>',
+    ("적중률 라벨이 무엇을 잰 값인지 안 밝힌다 — '전체 기간'으로 읽힌다",
+     "docs/index.html",
+     '>적중률<br><span class="sub" style="font-weight:400">과거 400봉 · 실전</span></th>',
+     '>적중률(전체)</th>',
      "tests/test_hit_rate_carries_its_sample.py"),
 
     ("적중률에서 표본 수를 뗀다(n=3 우연이 실력처럼)",

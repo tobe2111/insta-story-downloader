@@ -101,12 +101,22 @@ def test_the_label_does_not_claim_a_window_the_value_does_not_have():
     #    장부 전 기간이 아니라 과거 400봉이고, 그 400봉은 챔피언을 뽑은
     #    구간과 100% 겹친다. 이름이 기간을 밝히는 것만으로는 부족하고
     #    **무엇을 잰 값인지**를 밝혀야 한다.
+    #    그리고 **모든 적중률 열**을 본다 — 한 페이지에 같은 열이 두 번
+    #    나오는데 하나만 고치면 나머지가 조용히 옛 라벨로 남는다(형제 찾기).
     for page in ("paper.html", "index.html"):
         src = (ROOT / "docs" / page).read_text("utf-8")
         assert "적중률(전체)" not in src, (
             f"{page}: '(전체)'는 장부 전 기간으로 읽힌다 — 실제는 과거 400봉이다")
-        assert "과거 400봉" in src, f"{page}: 적중률이 무엇을 잰 값인지 안 밝힌다"
-        assert "인샘플" in src, f"{page}: 인샘플이라는 사실을 안 밝힌다"
+        heads = re.findall(r'<th title="([^"]*)"[^>]*>적중률', src)
+        assert heads, f"{page}: 적중률 열에 설명이 없다"
+        for i, tip in enumerate(heads):
+            assert "400봉" in tip, f"{page} 적중률 열 #{i}: 무엇을 잰 값인지 안 밝힌다"
+            assert "인샘플" in tip, f"{page} 적중률 열 #{i}: 인샘플임을 안 밝힌다"
+        labels = re.findall(r'>적중률<br><span[^>]*>([^<]*)</span>', src)
+        assert len(labels) == len(heads), (
+            f"{page}: 적중률 열 {len(heads)}개 중 {len(labels)}개만 부제가 있다")
+        for i, lab in enumerate(labels):
+            assert "400봉" in lab, f"{page} 적중률 열 #{i}: 부제가 기간을 안 밝힌다"
 
 
 def test_the_ledger_stores_the_overall_rate_not_the_rolling_one():
