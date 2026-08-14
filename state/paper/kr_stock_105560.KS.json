@@ -2,7 +2,7 @@
   "cash": 7892.675885816384,
   "quantity": 0.012304959865100001,
   "avg_price": 169542.2909145507,
-  "last_bar": "2026-08-13 00:00:00",
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -224,11 +224,56 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 168500.0,
+      "weight": 0.1146,
+      "held_weight": 0.208,
+      "fractional_lot": true,
+      "equity": 9966.06,
+      "return_pct": -0.34,
+      "hit_rate": 0.5952380952380952,
+      "hit_n": 42,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +11% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 판단 재료: 50일선 이격 +1.6%(선 위) / GK 변동성(고저가 기반) 일 3.0% / VIX 기간구조(공포의 급성도) 0.77(깊은 콘탱고(안정)) · 사이징: 신호 원비중 23% → 변동성 타깃 조절 후 11% · 참고: 전 종목 합산으로 모델이 65%±10%p라 말한 59건의 실제 상승 비율 39% (95% 신뢰구간 28%~52% · 보합 1일 포함 · 이 종목 단독 표본은 2건으로 축적 중)",
+      "fill": {
+        "price": 167100.0,
+        "bar": "2026-08-14 00:00:00",
+        "weight": 0.2095,
+        "decided_bar": "2026-08-13 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "9ae31354b195f66720e168e48ee0eb4dd8c46a47ba4cfb7b2e1abc54053f75ed",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6540810380475227,
+      "drift_psi": 0.9795,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4242
     }
   ],
   "pending": {
-    "weight": 0.2095,
-    "decided_bar": "2026-08-13 00:00:00"
+    "weight": 0.1146,
+    "decided_bar": "2026-08-14 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "105560.KS",

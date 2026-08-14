@@ -2,7 +2,7 @@
   "cash": 10061.00407287742,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-13 00:00:00",
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -210,13 +210,58 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 110060.0,
+      "weight": 0.0414,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10061.0,
+      "return_pct": 0.61,
+      "hit_rate": 0.6617647058823529,
+      "hit_n": 68,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +4.1% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 판단 재료: GK 변동성(고저가 기반) 일 4.1% / 10일 수익률 +1.1% / 50일선 이격 -7.2%(선 아래) · 사이징: 신호 원비중 21% → 변동성 타깃 조절 후 4% · 참고: 전 종목 합산으로 모델이 65%±10%p라 말한 60건의 실제 상승 비율 40% (95% 신뢰구간 29%~53% · 보합 1일 포함 · 이 종목 단독 표본은 2건으로 축적 중)",
+      "fill": {
+        "price": 110220.0,
+        "bar": "2026-08-14 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-13 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "1b99e620d1750de153bcd6dac0c0ffa0a0f97e459bf8443f53bba28a4ea26930",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6467215038227836,
+      "drift_psi": 1.441,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4062
     }
   ],
   "market": "kr_stock",
   "symbol": "069500.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-13 00:00:00"
+    "weight": 0.0414,
+    "decided_bar": "2026-08-14 00:00:00"
   }
 }

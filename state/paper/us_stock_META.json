@@ -1,8 +1,8 @@
 {
-  "cash": 9989.434521785835,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-13 00:00:00",
+  "cash": 9184.286099329896,
+  "quantity": 1.347893814546786,
+  "avg_price": 596.97998046875,
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -229,11 +229,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 589.8499755859375,
+      "weight": 0.0454,
+      "held_weight": 0.0797,
+      "fractional_lot": false,
+      "equity": 9979.34,
+      "return_pct": -0.21,
+      "hit_rate": 0.5384615384615384,
+      "hit_n": 52,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +4.5% — 로지스틱회귀 모델이 내일 상승확률을 약 59%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 판단 재료: 변동성(20일) 일 2.8% / 20일 모멘텀 -8.7% / 평균 진폭(ATR) 일 3.7% · 사이징: 신호 원비중 9% → 변동성 타깃 조절 후 5% · 참고: 전 종목 합산으로 모델이 59%±10%p라 말한 64건의 실제 상승 비율 48% (95% 신뢰구간 37%~60% · 보합 1일 포함 · 이 종목 단독 표본은 5건으로 축적 중)",
+      "fill": {
+        "price": 596.97998,
+        "bar": "2026-08-14 00:00:00",
+        "weight": 0.0806,
+        "decided_bar": "2026-08-13 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "13eaa6387c621b6a073aaab82febc948b3834dfba2ace07a3373a3e00cb0a13d",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5924358250541407,
+      "drift_psi": 0.4928,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0806,
-    "decided_bar": "2026-08-13 00:00:00"
+    "weight": 0.0454,
+    "decided_bar": "2026-08-14 00:00:00"
   },
   "market": "us_stock",
   "symbol": "META",

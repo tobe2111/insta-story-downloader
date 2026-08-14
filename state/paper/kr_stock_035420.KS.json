@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-13 00:00:00",
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -224,11 +224,55 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 228000.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5102040816326531,
+      "hit_n": 98,
+      "hit_flat": 2,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: VIX 변동성지수(옵션시장 공포) 14(안도 구간) / 변동성 레짐(단/장기) 0.98(보통 수준) / GK 변동성(고저가 기반) 일 3.8%",
+      "fill": {
+        "price": 227000.0,
+        "bar": "2026-08-14 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-13 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "612488a46f74c5f54a4eae8e25bd395eeb8285f072c3fa7f54c0a161eb0aa339",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.301813820282045,
+      "drift_psi": 0.5158,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-13 00:00:00"
+    "decided_bar": "2026-08-14 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "035420.KS",

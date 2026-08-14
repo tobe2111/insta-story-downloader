@@ -2,7 +2,7 @@
   "cash": 8808.379066200137,
   "quantity": 0.018512284907066492,
   "avg_price": 63465.0,
-  "last_bar": "2026-08-13 00:00:00",
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -247,6 +247,49 @@
       "kelly_cap": null,
       "bar_partial": {
         "elapsed": 0.9616,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 62883.8,
+      "weight": 0.0896,
+      "held_weight": 0.1167,
+      "fractional_lot": false,
+      "equity": 9972.5,
+      "return_pct": -0.27,
+      "hit_rate": 0.23529411764705882,
+      "hit_n": 17,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 61%로 추정(기준 55% 초과) · 판단 재료: 평균 진폭(ATR) 일 1.8% / 공포탐욕지수(시장 심리) 29(공포) / 변동성(20일) 일 1.2% · 사이징: 신호 원비중 13% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 61%±10%p라 말한 59건의 실제 상승 비율 51% (95% 신뢰구간 38%~63% · 보합 1일 포함 · 이 종목 단독 표본은 7건으로 축적 중)",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "a1e77c9c94dd457efef952c7ecbc3950eb95de686bca84ba525bdfcbbae6979c",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6081313396067062,
+      "drift_psi": 0.4028,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.9464,
         "timeframe": "1d",
         "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
       },
