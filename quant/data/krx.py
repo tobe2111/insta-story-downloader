@@ -17,6 +17,7 @@ import datetime as _dt
 import numpy as np
 import pandas as pd
 
+from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.krx")
@@ -61,6 +62,9 @@ def attach_krx_flows(df: pd.DataFrame, symbol: str,
     try:
         flows = fetch(symbol)
         if flows is None or flows.empty:
+            note_source_failure(df, "krx_flows",
+                                "KRX 투자자별 순매수가 비어 있음(pykrx 미설치·"
+                                "종목코드 불일치·조회 실패 가능)")
             return df
         out = df.copy()
         target = pd.DatetimeIndex(out.index).normalize()
@@ -88,4 +92,5 @@ def attach_krx_flows(df: pd.DataFrame, symbol: str,
         return out
     except Exception as exc:  # noqa: BLE001
         log.warning("KRX 수급 부착 실패 %s: %s", symbol, exc)
+        note_exception(df, "krx_flows", exc)
         return df

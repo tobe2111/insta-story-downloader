@@ -92,7 +92,24 @@ def test_cooldown_path_skips_symbol_on_position_read_failure():
 
 
 def test_parliament_correlation_failure_assumes_duplicate():
+    """상관을 못 재면 '무상관(통과)'이 아니라 '중복(탈락)'으로 본다.
+
+    ⚠️ 2026-08-14 이전 이 검사는 `except` 분기에 `c = 1.0`이라는 **글자가
+    있는지**만 봤다. 그래서 초록이었지만 정작 흔한 경로는 열려 있었다 —
+    pandas의 corr는 한쪽 분산이 0이면 예외를 던지지 않고 조용히 **NaN**을
+    돌려주고, 판정이 `c == c and c > CORR_CAP`이라 NaN은 `c == c`에서
+    False가 되어 '중복 아님'으로 통과했다. 주석이 막겠다고 적어 둔 바로 그
+    방향이었다.
+
+    이제 서식이 아니라 **판정식**을 본다: NaN도 중복으로 처리해야 한다.
+    (동작 검사는 test_parliament_moves_slowly_and_diversely.py ㉔㉕에 있다.)
+    """
     src = (ROOT / "quant" / "live" / "parliament.py").read_text(encoding="utf-8")
-    block = src.split("c = float(rets[i].corr(rets[j]))")[1][:600]
-    assert "c = 1.0" in block, "상관 계산 실패가 '무상관'으로 통과된다"
-    assert "c = 0.0" not in block
+    block = src.split("c = float(rets[i].corr(rets[j]))")[1][:1400]
+    assert "c = 0.0" not in block, "계산 실패를 '무상관'으로 친다"
+    lines = [ln.strip() for ln in block.splitlines()
+             if "CORR_CAP" in ln and ln.strip().startswith("if ")]
+    assert lines, f"상관 판정식을 못 찾았다:\n{block[:400]}"
+    decision = lines[0]
+    assert "c != c" in decision, (
+        f"NaN을 중복으로 보지 않는다 — 흔한 실패 경로가 통과된다: {decision!r}")

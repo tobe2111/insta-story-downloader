@@ -735,6 +735,22 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       fh.optional_possible+"개가 <b>한 종목도</b> 붙지 않았습니다(외부 데이터 "+
       "수신 실패 가능). 모델은 기본 피처만으로 판단 중입니다");
   }
+  /* 검증 게이트 — 과최적화 검증(PBO·DSR)이 오늘 비중을 얼마나 깎았나.
+     ⚠️ 2026-08-14까지 이 검증은 **경보만 울리고 아무것도 막지 않았다.**
+     사이트는 "통과 못 한 전략은 실전에 못 올라간다"고 말하는 동안 PBO 78%
+     짜리 종목이 매일 그대로 굴러갔다. 이제 실제로 깎고, 깎은 사실을 여기
+     드러낸다 — 막는 것과 막았다고 보여주는 것은 둘 다 있어야 한다. */
+  const vg=pfLast.validation_gate;
+  if(vg&&Object.keys(vg).length){
+    const off=Object.entries(vg).filter(([,v])=>v.scale===0);
+    const half=Object.entries(vg).filter(([,v])=>v.scale>0&&v.scale<1);
+    const nm=a=>a.map(([k])=>esc(k)).join(", ");
+    if(off.length)flags.push("<b>검증 게이트: 관망 "+off.length+"종목</b> — "+
+      nm(off)+". 과최적화 확률이 '버릴 것' 기준을 넘어 오늘 이 종목은 사지 않습니다");
+    if(half.length)flags.push("<b>검증 게이트: 절반 감쇠 "+half.length+"종목</b> — "+
+      nm(half)+". 검증 기준 미달이거나 아직 측정되지 않아 비중을 절반으로 줄였습니다"+
+      " (측정 안 됨은 '통과'가 아닙니다)");
+  }
   /* 데이터 품질 — 갭·스파이크가 많으면 판단 재료 자체가 흔들린다 */
   const dq=pfLast.data_quality;
   if(dq&&(dq.spikes>0||dq.zero_volume>0))flags.push("<b>데이터 품질</b> — 이상 급변 "+

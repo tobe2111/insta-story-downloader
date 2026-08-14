@@ -243,3 +243,77 @@ def test_aggregate_denominator_follows_the_universe():
         "집계가 아직 전체 목록을 분모로 쓴다 — 코인만 도는 날 x_frgn5가 "
         "누락으로 잡혀 경보가 상시 점등된다")
     assert '"coverage"' in src
+
+
+# ── ⑤ 왜 안 붙었는지가 장부에 남는가 ──────────────────────────
+
+"""2026-08-14. 선택 피처 5개(코인 펀딩·펀딩변화·미결제약정, 한국 외국인·기관
+수급)가 전 종목에서 한 번도 붙지 않고 있었다. 계측기는 "이 다섯이 빠졌다"까지
+말해 줬지만 **왜**는 말하지 못했다 — 부착 함수들이 전부 except로 삼키고
+log.warning 한 줄만 남긴 뒤 원본을 돌려주기 때문이다. 그 로그는 실행 로그에만
+있고 며칠이면 사라진다.
+
+네트워크 차단인지, 심볼이 바뀐 건지, 라이브러리가 없는 건지, 응답이 빈
+건지 — 전부 다르게 대응해야 하는데 장부에는 똑같이 '없음'으로만 남았다."""
+
+
+def test_a_failed_source_leaves_its_reason_on_the_frame():
+    import pandas as pd
+
+    from quant.data.funding import attach_funding
+    from quant.data.openinterest import attach_open_interest
+    from quant.data.source_health import source_errors
+
+    d = _df()
+
+    def _boom(_s):
+        raise RuntimeError("HTTP 451 (지역 차단)")
+
+    out = attach_funding(d, "BTC/USDT", fetch=_boom)
+    errs = source_errors(out)
+    assert "funding" in errs, "펀딩 부착이 실패했는데 사유가 남지 않았다"
+    assert "451" in errs["funding"], errs
+
+    out2 = attach_open_interest(_df(), "BTC/USDT",
+                                fetch=lambda _s: pd.Series(dtype=float))
+    assert "oi" in source_errors(out2), "빈 응답인데 사유가 남지 않았다"
+
+
+def test_an_empty_krx_response_says_so():
+    from quant.data.krx import attach_krx_flows
+    from quant.data.source_health import source_errors
+
+    out = attach_krx_flows(_df(), "005930.KS", fetch=lambda _s: None)
+    errs = source_errors(out)
+    assert "krx_flows" in errs and "pykrx" in errs["krx_flows"], errs
+
+
+def test_a_healthy_source_leaves_no_noise():
+    """정상일 때 사유가 쌓이면 장부가 경고로 가득 차 의미를 잃는다."""
+    import pandas as pd
+
+    from quant.data.funding import attach_funding
+    from quant.data.source_health import source_errors
+
+    d = _df()
+    idx = pd.DatetimeIndex(d.index).normalize()
+    out = attach_funding(d, "BTC/USDT",
+                         fetch=lambda _s: pd.Series(1e-4, index=idx))
+    assert "funding" in out.columns
+    assert "funding" not in source_errors(out)
+
+
+def test_the_reason_reaches_the_daily_ledger():
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert "source_errors" in src, "사유를 걷지 않는다"
+    assert '"why_missing"' in src, (
+        "사유가 장부에 안 실린다 — 계측기가 '없다'까지만 말하고 '왜'는 "
+        "실행 로그와 함께 사라진다")
+
+
+def test_crossasset_does_not_double_report_other_attachers_features():
+    """펀딩·OI·KRX는 각자 사유를 남긴다 — 두 곳에 찍히면 원인 좁히기가 어렵다."""
+    from quant.data.crossasset import _NOT_OURS
+
+    assert {"x_funding", "x_funding_chg", "x_oi_chg5",
+            "x_frgn5", "x_inst5"} <= set(_NOT_OURS)

@@ -1333,6 +1333,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     last_dates = []
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
+    source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
@@ -1340,6 +1341,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
+    # 검증 게이트 — 과최적화 검증(PBO·DSR)을 비중으로 번역한 계수.
+    # ⚠️ **판단한 종목 전부**에 대해 채운다. 목록에서 빠진 종목은 감쇠가
+    #    1.0이 되어 '측정 안 됨'이 조용히 '통과'가 된다.
+    valid_grades: dict = {}         # key → {"grade","scale","why",…}
+    valid_damp: dict = {}           # key → 비중 배수(0.0/0.5/1.0)
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -1383,6 +1389,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 개수를 함께 남기지 않으면 아무도 모른다)
             from quant.strategies.ml import optional_features_from_df
             opt_present[key] = optional_features_from_df(df)
+            # 왜 안 붙었는지 — 부착 함수들이 df.attrs에 남긴 사유를 걷는다.
+            # 계측기는 "이 다섯이 빠졌다"까지만 말했고 **왜**는 실행 로그에만
+            # 있다가 며칠 뒤 사라졌다. 원인을 좁히려면 사유가 장부에 있어야 한다.
+            from quant.data.source_health import source_errors
+            errs = source_errors(df)
+            if errs:
+                source_fails[key] = errs
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -1523,6 +1536,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             broker._positions[key] = Position(
                 key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
     n = len(targets)
+
+    # ── 검증 게이트 — 과최적화 검증 결과를 실제 비중에 반영한다 ──────────
+    # 2026-08-14까지 PBO·DSR은 계산·경보·표시만 했고 **아무것도 막지 않았다.**
+    # 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리 종목이 매일
+    # 그대로 굴러갔다. 여기서 등급을 비중 배수로 번역하고, _target_w가
+    # 킬스위치·변동성 타깃 **뒤에** 곱한다(앞에 두면 스케일러가 되돌려 키운다).
+    from quant.live.validation_gate import gate_summary, validation_grades
+    valid_grades = validation_grades(
+        [f"{m}:{s}" for m, s in targets], state_dir, str(bar)[:10])
+    valid_damp = {k: float(g["scale"]) for k, g in valid_grades.items()}
+    log.info("%s", gate_summary(valid_grades))
+    for key, g in sorted(valid_grades.items()):
+        if g["scale"] < 1.0:
+            log.warning("검증 게이트 %s → 비중 ×%.2f · %s",
+                        key, g["scale"], g["why"])
 
     # ⚠️ 평가에 쓸 시세는 **오늘 받은 것 + 마지막으로 알던 것**이다(감사 152).
     #    오늘 데이터를 못 받은 종목은 prices에 없는데, 포지션은 위에서 그대로
@@ -1704,11 +1732,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
            주문 루프와 기록(_applied)이 같은 식을 따로 적어, 한쪽만 고치면
            장부가 실제 주문과 다른 값을 말했다(감사 92가 그 사고였다).
 
-        킬스위치×어드민 배수×변동성 타깃을 곱하고, 이벤트 감쇠(실적 가드)와
-        켈리 상한은 **스케일 뒤에** 건다 — 앞에 두면 스케일러가 되돌려 키워
-        둘 다 무효가 된다.
+        킬스위치×어드민 배수×변동성 타깃을 곱하고, 이벤트 감쇠(실적 가드)·
+        **검증 게이트**·켈리 상한은 **스케일 뒤에** 건다 — 앞에 두면 스케일러가
+        되돌려 키워 전부 무효가 된다.
+
+        검증 게이트(valid_damp)는 과최적화 검증(PBO·DSR) 결과를 비중으로
+        번역한 값이다. 2026-08-14까지 이 검증은 **경보만 울리고 아무것도 막지
+        않았다** — 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리
+        종목이 매일 그대로 굴러갔다. quant/live/validation_gate.py 참조.
         """
-        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
+        eff = (w * eff_scale * vscale * guard_damp.get(key, 1.0)
+               * valid_damp.get(key, 1.0))
         kcap = kelly_caps.get(key)
         if kcap is not None:
             eff = float(np.clip(eff, -kcap, kcap))
@@ -1887,6 +1921,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                          "n": len(opt_present[worst_key]),
                          "applicable": len(_applicable(worst_key)),
                          "coverage": round(cov[worst_key], 4)},
+            # 왜 빠졌는가 — 소스별 사유를 '같은 사유끼리' 묶어 남긴다.
+            # 20종목치를 그대로 실으면 장부가 부풀고, 정작 원인은 대개
+            # 종목마다 같다.
+            "why_missing": {
+                src: {"reason": reason,
+                      "symbols": sorted(k for k, e in source_fails.items()
+                                        if e.get(src) == reason)}
+                for src, reason in sorted(
+                    {s2: r for e in source_fails.values()
+                     for s2, r in e.items()}.items())
+            } or None,
         }
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -2008,6 +2053,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
+              # 검증 게이트의 흔적 — 어느 종목이 왜 깎였는지. 감쇠가 걸린
+              # 종목만 남긴다(전부 통과한 날은 조용). 이게 없으면 "왜 오늘
+              # BTC를 안 샀나"에 장부가 답하지 못한다.
+              "validation_gate": {
+                  k: {"grade": g["grade"], "scale": g["scale"],
+                      "pbo": g["pbo"], "dsr": g["dsr"], "why": g["why"]}
+                  for k, g in sorted(valid_grades.items())
+                  if g["scale"] < 1.0} or None,
               # 부분 켈리 상한이 실제로 비중을 깎은 종목(있을 때만).
               # 장부는 "왜 오늘 노출이 이만큼인가"에 답할 수 있어야 하는데,
               # 위험 장치 중 이것만 흔적이 없었다 — 상한이 총노출을 41%에서

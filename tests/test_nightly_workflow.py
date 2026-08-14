@@ -32,11 +32,41 @@ def test_workflow_guards_against_synthetic_fallback():
     assert "yfinance" in text and "ccxt" in text
 
 
-def test_workflow_validates_both_markets_and_uploads_artifact():
+def test_workflow_validates_the_whole_traded_universe_and_uploads_artifact():
+    """검증 범위가 운용 범위를 따라가는가.
+
+    ⚠️ 2026-08-14 이전 이 검사는 `--market crypto`·`BTC/USDT`·`--market
+    us_stock`·`SPY`가 파일 안에 있는지만 봤다. 그래서 운용이 8 → 20종목으로
+    늘어도 초록이었고, 나머지 18종목은 PBO·DSR이 **한 번도 계산되지 않았다.**
+    더 나쁜 건 `--strategy ma_cross`도 통과했다는 것이다 — 워크플로는 이미
+    `--strategy ml`을 쓰고 있었고, 그 문자열은 "예전에는 ma_cross를 검증했다"는
+    **주석**에만 남아 있었다. 주석을 읽고 초록을 준 검사였다.
+
+    이제 실행 명령(주석이 아니라)만 보고, 목록이 코드에 있는지를 확인한다.
+    """
     text = _text()
-    assert "--market crypto" in text and "BTC/USDT" in text
-    assert "--market us_stock" in text and "SPY" in text
-    assert "--strategy ma_cross" in text and "--limit 800" in text
+    # 셸 줄바꿈(\)으로 이어진 명령을 한 줄로 복원한다 — 안 하면 첫 줄만 보고
+    # "옵션이 없다"고 오판한다.
+    flat, buf = [], ""
+    for ln in text.splitlines():
+        stripped = ln.strip()
+        if buf or stripped.startswith("python -m quant validate"):
+            buf += " " + stripped.rstrip("\\").strip()
+            if not stripped.endswith("\\"):
+                flat.append(buf.strip())
+                buf = ""
+    cmds = flat
+    assert cmds, "검증 실행 명령이 없다"
+    joined = " ".join(cmds)
+    assert "--all" in joined, (
+        f"전 종목 모드가 아니다 — 일부만 검증한다: {cmds}")
+    assert "--symbol" not in joined, (
+        f"종목이 워크플로에 손으로 박혀 있다(다시 갈라진다): {cmds}")
+    assert "--strategy ml" in joined, (
+        f"실제로 굴리는 전략이 아닌 것을 검증한다: {cmds}")
+    assert "--limit 800" in joined
+    # 목록은 코드가 갖는다 — 운용 종목을 늘리면 검증도 따라온다
+    assert "AUTO_TARGETS" in text
     assert "upload-artifact" in text
     assert "validate-${{ github.run_id }}" in text
 

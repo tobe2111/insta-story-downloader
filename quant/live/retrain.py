@@ -81,6 +81,18 @@ DEFAULT_CHALLENGERS = [
     # 시장 공통 패턴만 남고 종목 고유 잡음은 씻긴다(패널 모델 — 실무 표준).
     {"model": "gb", "threshold": 0.55, "pool": "peers"},
     {"model": "logreg", "threshold": 0.55, "pool": "peers"},
+    # 같은 풀링이지만 **오늘의 유니버스**로 푼다. "peers"는 인과성이 완벽한
+    # 대신 스냅샷이 쌓일 때까지(≈6개월) 아무 일도 하지 않는다 — 실측
+    # 2026-08-14: 재학습 블록 28/28에서 풀을 못 찾아 챔피언과 신호가 한 봉도
+    # 다르지 않았다. 그 사이 종목당 800봉이라는 극소 표본은 그대로다.
+    #
+    # ⚠️ 이 모드는 **생존 편향**을 감수한다. 가격 행은 학습 상한 이전만 쓰므로
+    #    룩어헤드는 없지만, 풀에 든 종목 목록은 '오늘까지 살아남은' 종목이라
+    #    사후 정보다. 그래서 강제 적용하지 않고 오디션 후보로만 세운다 —
+    #    2단계 관문을 통과할 때만 챔피언이 되고, 승격되면 그 사실이 장부의
+    #    파라미터(pool: universe)에 그대로 남아 누구든 알아볼 수 있다.
+    {"model": "gb", "threshold": 0.55, "pool": "universe"},
+    {"model": "logreg", "threshold": 0.55, "pool": "universe"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
 ]

@@ -73,7 +73,7 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
         members.append({**promoted_spec, "weight": ENTRY_WEIGHT})
 
     try:
-        rets, scores = {}, {}
+        rets, scores, idle = {}, {}, {}
         for i, m in enumerate(members):
             # 의석 채점도 오디션과 같은 체결 규칙으로 — 여기만 종가 체결·
             # 밴드 0으로 매기면 '싸게 평가된 고회전 의원'이 의석을 더 가져간다
@@ -83,23 +83,44 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
             r = res.returns.iloc[-confirm_window:]
             rets[i] = r
             scores[i] = float((1 + r).prod() - 1)
+            # 채점 구간에서 **한 번도 포지션을 갖지 않은** 의원 — 전략이
+            # 아니라 현금이다(2026-08-14 발견). 이런 의원에게 의석을 주면
+            # 그 비중만큼 책이 조용히 현금으로 가고, 장부에는 "의회가 그렇게
+            # 배분했다"고 적힌다. 오디션 링에서 뺀 '무효 후보'와 같은 부류다.
+            idle[i] = bool(
+                (res.positions.iloc[-confirm_window:].abs() < 1e-12).all())
 
         # 다양성 강제 — 높은 점수 순으로 훑으며, 이미 남은 의원과 상관이
         # 과도한 후보는 탈락시킨다(같은 베팅을 두 자리 주지 않는다)
         order = sorted(scores, key=lambda i: -scores[i])
         kept: list[int] = []
         for i in order:
+            if idle[i]:
+                # 아무 베팅도 안 한 의원은 채점도 다양성 판정도 불가능하다.
+                # '상관을 못 쟀으니 통과'로 흘려보내면 현금이 의석을 갖는다.
+                log.warning("의석 제외 — 채점 구간에서 한 번도 포지션이 없던 "
+                            "의원(전략이 아니라 현금이다): %s",
+                            _spec_of(members[i]))
+                continue
             dup = False
             for j in kept:
                 try:
                     c = float(rets[i].corr(rets[j]))
                 except Exception:  # noqa: BLE001
-                    # 상관을 못 재면 '무상관(0)'이 아니라 '중복(1)'으로 본다
-                    # (감사 53). 0으로 치면 계산 실패가 곧 통과가 되어, 같은
-                    # 베팅에 두 자리를 주는 쪽으로 가드가 열린다 — 다양성
-                    # 강제 장치가 실패할 때 정확히 반대로 동작하는 셈이다.
-                    c = 1.0
-                if c == c and c > CORR_CAP:
+                    c = float("nan")
+                # ⚠️ 상관을 못 재면 '무상관(0)'이 아니라 '중복(1)'으로 본다
+                #    (감사 53). 0으로 치면 계산 실패가 곧 통과가 되어, 같은
+                #    베팅에 두 자리를 주는 쪽으로 가드가 열린다 — 다양성
+                #    강제 장치가 실패할 때 정확히 반대로 동작하는 셈이다.
+                #
+                #    ⚠️⚠️ 2026-08-14: 위 주석은 예외(except)만 막고 있었고
+                #    **정작 흔한 경로를 놓치고 있었다.** pandas의 corr는
+                #    한쪽이 상수면 예외를 던지지 않고 조용히 **NaN**을
+                #    돌려준다. 그런데 판정이 `c == c and c > CORR_CAP`이라
+                #    NaN은 `c == c`에서 False가 되어 **'중복 아님'으로
+                #    통과**했다 — 주석이 막겠다고 적어 둔 바로 그 방향으로
+                #    3년째 열려 있었던 셈이다. NaN도 중복으로 본다.
+                if c != c or c > CORR_CAP:
                     dup = True
                     break
             if not dup:

@@ -27,12 +27,20 @@ from __future__ import annotations
 
 import pandas as pd
 
+from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.crossasset")
 
 # 실행(프로세스) 내 벤치마크 메모 — 20종목 순회가 같은 SPY를 20번 받지 않게
 _MEMO: dict = {}
+
+# 이 모듈이 만들지 않는 선택 피처 — 각자 자기 부착 함수가 책임진다.
+#   x_funding·x_funding_chg ← attach_funding이 붙이는 'funding' 컬럼에서 파생
+#   x_oi_chg5               ← attach_open_interest의 'oi' 컬럼에서 파생
+#   x_frgn5·x_inst5         ← attach_krx_flows가 직접 붙임
+_NOT_OURS = frozenset({"x_funding", "x_funding_chg", "x_oi_chg5",
+                       "x_frgn5", "x_inst5"})
 
 
 def _upbit_ohlcv(symbol: str, limit: int) -> pd.DataFrame:
@@ -253,5 +261,19 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
                                              .ffill(), out.index)
     except Exception as exc:  # noqa: BLE001
         log.warning("크로스에셋 부착 실패 %s/%s: %s", market, symbol, exc)
+        note_exception(df, "crossasset", exc)
         return df
+    # 이 시장에 붙었어야 할 컬럼 중 실제로 안 붙은 것 — 어느 소스가 죽었는지
+    # 이름으로 남긴다. 없으면 '없다'는 사실조차 로그에만 남고 사라진다.
+    #
+    # ⚠️ 이 함수가 만들지 **않는** 피처는 빼야 한다. 펀딩·미결제약정·KRX
+    #    수급은 각자의 부착 함수가 만들고 자기 실패 사유를 따로 남긴다.
+    #    여기서 같이 세면 원인이 두 곳에 중복으로 찍혀 오히려 좁히기 어렵다.
+    from quant.strategies.ml import applicable_optional_features
+    for col in applicable_optional_features(market, symbol):
+        if col in _NOT_OURS or col in out.columns:
+            continue
+        note_source_failure(out, col, "이 시장에 붙어야 할 소스가 값을 "
+                                      "돌려주지 않음(FRED 키 없음·네트워크·"
+                                      "응답 없음 가능)")
     return out

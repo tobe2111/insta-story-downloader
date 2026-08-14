@@ -97,12 +97,30 @@ def test_guard_is_wired_after_the_scaler():
 
     비중에 바로 곱하면 뒤의 변동성 스케일러가 되돌려 키워 가드가 사라진다
     (2026-08-11 감사에서 고친 결함).
+
+    ⚠️ 예전에는 이 검사가 식을 **글자 그대로** 비교했다
+    ("eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)").
+    그러면 같은 자리에 감쇠를 하나 더 곱하려고 줄을 나누기만 해도 실패한다 —
+    지켜야 할 것(순서)이 아니라 서식을 못박은 검사였다. 2026-08-14에 검증
+    게이트를 같은 자리에 붙이며 실제로 그렇게 깨졌다. 이제 **순서**를 본다.
     """
     from pathlib import Path as _P
     root = _P(__file__).resolve().parent.parent
     src = (root / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "guard_damp[key] = ef" in src
-    assert "eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)" in src
+
+    body = src[src.index("def _target_w("):]
+    body = body[:body.index("\n    # 예산에 맞춰")]
+    # 설명(docstring)이 아니라 식 자체를 본다 — 주석에 이름이 있다고 곱해지는
+    # 것은 아니다.
+    expr = next(ln for ln in body.splitlines() if "eff = " in ln and "*" in ln)
+    tail = body[body.index(expr):]
+    tail = tail[:tail.index("kcap")]
+    for token in ("w", "eff_scale", "vscale", "guard_damp.get(key, 1.0)"):
+        assert token in tail, f"{token}가 최종 비중 계산에서 빠졌다:\n{tail}"
+    assert tail.index("vscale") < tail.index("guard_damp"), (
+        "실적 가드가 변동성 스케일러보다 앞에 걸렸다 — 스케일러가 되돌려 키운다\n"
+        + tail)
 
 
 def test_per_symbol_path_actually_halves_the_recorded_weight(monkeypatch,

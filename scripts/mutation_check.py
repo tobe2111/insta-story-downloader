@@ -186,13 +186,13 @@ MUTATIONS = [
 
     ("의회 다양성 강제(상관 상한)를 끈다 — 같은 베팅에 두 자리",
      "quant/live/parliament.py",
-     "                if c == c and c > CORR_CAP:",
-     "                if False:",
+     "                if c != c or c > CORR_CAP:\n                    dup = True",
+     "                if False:\n                    dup = True",
      "tests/test_parliament.py"),
 
     ("상관을 못 재면 '무상관'으로 본다(감사 53 되돌리기 — 실패가 곧 통과)",
      "quant/live/parliament.py",
-     "                    c = 1.0",
+     '                    c = float("nan")',
      "                    c = 0.0",
      "tests/test_parliament_moves_slowly_and_diversely.py"),
 
@@ -2978,6 +2978,54 @@ MUTATIONS = [
      "        identical = bool(",
      "        identical = False and bool(",
      "tests/test_audition_gates_bind.py"),
+
+    ("검증 게이트를 최종 비중에서 뗀다(경보만 울리던 시절로 복귀)",
+     "quant/live/daily.py",
+     "               * valid_damp.get(key, 1.0))",
+     "               * 1.0)",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("미측정 종목을 '통과'로 취급한다(검증이 죽은 날 가장 공격적으로 굴린다)",
+     "quant/live/validation_gate.py",
+     "SCALE_WARN = 0.5",
+     "SCALE_WARN = 1.0",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("PBO 실패선을 없앤다(과최적화 확률 78%도 그대로 굴린다)",
+     "quant/live/validation_gate.py",
+     "    if pbo is not None and pbo > PBO_FAIL:",
+     "    if False:",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("검증 결과에서 날짜를 뺀다(옛 검증이 영원히 통과 도장을 찍는다)",
+     "quant/cli.py",
+     '            "asof": str(df.index[-1])[:10] if len(df) else None,',
+     "",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("야간 검증을 두 종목으로 되돌린다",
+     ".github/workflows/nightly-validate.yml",
+     "          python -m quant validate --all \\",
+     "          python -m quant validate --market crypto --symbol BTC/USDT \\",
+     "tests/test_nightly_workflow.py"),
+
+    ("의회에서 NaN 상관을 '다양성 통과'로 되돌린다",
+     "quant/live/parliament.py",
+     "                if c != c or c > CORR_CAP:",
+     "                if c == c and c > CORR_CAP:",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("무포지션 의원에게도 의석을 준다(현금이 의석을 갖는다)",
+     "quant/live/parliament.py",
+     "            if idle[i]:",
+     "            if False:",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("소스 실패 사유 기록을 끈다(왜 안 붙었는지 다시 사라진다)",
+     "quant/data/source_health.py",
+     "        errs[str(source)] = str(reason)[:MAX_REASON]",
+     "        pass",
+     "tests/test_feature_health.py"),
 
     ("거래소 페이지네이션을 없앤다(코인이 다시 300봉으로 굶는다)",
      "quant/data/crypto.py",

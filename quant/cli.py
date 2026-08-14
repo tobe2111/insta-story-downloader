@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import copy as _copy
 
 
 def _ppy(market: str) -> int:
@@ -504,6 +505,41 @@ def _cmd_validate(args) -> None:
     한 화면으로 보여준다. 셋 다 과최적화 탐지 도구다 — 통과해도 수익 보장이 아니다."""
     import json as _json
 
+    # ── 전 종목 모드 ────────────────────────────────────────────────
+    # ⚠️ 2026-08-14까지 야간 검증은 **BTC와 SPY 두 종목만** 돌았다. 종목
+    #    목록이 워크플로 YAML에 손으로 박혀 있었기 때문이다. 운용은 8종목에서
+    #    20종목으로 늘었는데 검증은 따라가지 않았고, 나머지 18종목은 PBO·DSR이
+    #    **한 번도 계산된 적이 없었다.** 그런데도 제품 문서는 "검증을 통과한
+    #    전략만 씁니다"라고 말하고 있었다.
+    #
+    #    목록을 코드(AUTO_TARGETS)가 갖게 해 같은 표류를 막는다 — 운용 대상을
+    #    늘리면 검증도 자동으로 따라온다.
+    if getattr(args, "all_targets", False):
+        from quant.markets import AUTO_TARGETS
+        failed = []
+        for i, (mk, sym) in enumerate(AUTO_TARGETS, 1):
+            print(f"\n{'=' * 62}\n[{i}/{len(AUTO_TARGETS)}] {mk}:{sym}\n{'=' * 62}")
+            one = _copy.copy(args)
+            one.market, one.symbol, one.all_targets = mk, sym, False
+            try:
+                _cmd_validate(one)
+            except Exception as exc:  # noqa: BLE001
+                # 한 종목의 실패로 나머지 19종목의 검증을 잃지 않는다.
+                # 실패는 삼키지 않고 끝에 모아 보고하고, 종료코드로 드러낸다 —
+                # 조용히 넘어가면 그 종목은 '미측정'인 채 절반 감쇠만 받고
+                # 아무도 이유를 모른다.
+                print(f"❌ {mk}:{sym} 검증 실패: {type(exc).__name__}: {exc}")
+                failed.append(f"{mk}:{sym} ({type(exc).__name__})")
+        print(f"\n{'=' * 62}")
+        print(f"전 종목 검증 완료: 성공 {len(AUTO_TARGETS) - len(failed)}"
+              f"/{len(AUTO_TARGETS)}")
+        if failed:
+            print("실패: " + ", ".join(failed))
+            raise SystemExit(
+                f"검증 실패 {len(failed)}종목 — 그 종목들은 '미측정'으로 "
+                "남아 비중이 절반으로 깎입니다.")
+        return
+
     from quant.data import get_provider
     from quant.optimize import (cpcv, cpcv_report, grid_search, robust_best,
                                 stability_report, stability_scores,
@@ -606,6 +642,12 @@ def _cmd_validate(args) -> None:
                 prev = {}
         prev[f"{args.market}:{args.symbol}"] = {
             "strategy": args.strategy, "bars": len(df),
+            # ⚠️ 날짜가 없으면 검증 게이트가 **만료를 판정할 수 없다**
+            #    (2026-08-14). 며칠 멈춘 검증이 통과 도장을 계속 찍어 주는
+            #    것을 막으려면 '언제 잰 값인가'가 기록에 있어야 한다.
+            #    결정 봉의 날짜를 쓴다 — 실행 시각이 아니라 데이터의 시각이
+            #    이 판정의 기준이다.
+            "asof": str(df.index[-1])[:10] if len(df) else None,
             "dsr": dsr_value, "pbo": pbo_value,
             # 원점수 1등과 견고성 1등이 다른가 — True면 그 파라미터는
             # '외딴 봉우리'일 수 있다(감사 157). 콘솔에만 찍히면 아무것도
@@ -950,6 +992,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="과최적화 검증 3종(워크포워드+DSR·PBO·CPCV)을 한 번에 실행")
     va.add_argument("--market", default="synthetic")
     va.add_argument("--symbol", default="DEMO")
+    va.add_argument("--all", action="store_true", dest="all_targets",
+                    help="운용 대상 전 종목(quant.markets.AUTO_TARGETS)을 "
+                         "차례로 검증한다 — 종목 목록을 워크플로가 아니라 "
+                         "코드가 갖게 해, 종목을 늘려도 검증이 따라온다")
     va.add_argument("--timeframe", default="1d")
     va.add_argument("--limit", type=int, default=800)
     va.add_argument("--strategy", default="ma_cross",

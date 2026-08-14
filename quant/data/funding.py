@@ -16,6 +16,7 @@ from typing import Optional
 import pandas as pd
 
 from quant.broker.base import safe_amount
+from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.funding")
@@ -83,12 +84,17 @@ def attach_funding(df: pd.DataFrame, symbol: str,
                                                         limit=1000))
         hist = get(symbol)
         if hist is None or hist.empty:
+            # 조용히 넘어가지 않는다 — 이유가 장부에 남아야 원인을 좁힌다
+            note_source_failure(df, "funding",
+                                f"{exchange} 펀딩 이력이 비어 있음(현물 심볼·"
+                                "지역 차단·점검 가능)")
             return df
         out = df.copy()
         out["funding"] = align_funding_to_bars(hist, df.index)
         return out
     except Exception as exc:  # noqa: BLE001 — 부가 정보 실패가 본류를 막으면 안 됨
         log.warning("펀딩 컬럼 부착 실패(%s) — 펀딩 피처 없이 진행", exc)
+        note_exception(df, "funding", exc)
         return df
 
 

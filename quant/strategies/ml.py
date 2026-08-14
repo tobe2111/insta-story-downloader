@@ -420,9 +420,11 @@ class MLStrategy(Strategy):
         if sample_weight not in (None, "decay"):
             raise ValueError(
                 f"sample_weight는 None·'decay' 중 하나여야 합니다: {sample_weight!r}")
-        if pool is not None and not (pool == "peers" or isinstance(pool, list)):
+        if pool is not None and not (pool in ("peers", "universe")
+                                     or isinstance(pool, list)):
             raise ValueError(
-                f"pool은 None·'peers'·DataFrame 목록 중 하나여야 합니다: {pool!r}")
+                "pool은 None·'peers'·'universe'·DataFrame 목록 중 "
+                f"하나여야 합니다: {pool!r}")
         if pool is not None and meta:
             raise ValueError(
                 "pool과 meta는 함께 쓸 수 없습니다 — 메타 라벨은 종목별 1차 "
@@ -529,7 +531,40 @@ class MLStrategy(Strategy):
         블록마다 폴더를 다시 고르되 **폴더 단위로 캐시**한다. 인접 블록은
         대개 같은 폴더를 쓰므로 실제 읽기 횟수는 폴더 수만큼이다.
         """
-        from quant.utils.repro import load_snapshot_pool, snapshot_pool_day
+        from quant.utils.repro import (latest_snapshot_day,
+                                       load_snapshot_pool,
+                                       load_snapshot_pool_day,
+                                       snapshot_pool_day)
+        if self.pool == "universe":
+            # ── 오늘의 유니버스로 푼다 (생존 편향을 감수하고 표본을 얻는다)
+            # "peers"는 인과성이 완벽하지만 **6개월 뒤에야 쓸모가 생긴다** —
+            # 스냅샷이 매일 하나씩 쌓이므로, 선발 구간(끝에서 120봉 앞)까지
+            # 닿으려면 그만큼의 날이 필요하다. 실측(2026-08-14): 재학습 블록
+            # 28개 중 **28개**가 풀을 찾지 못했다. 즉 지금 이 순간 종목당
+            # 800봉이라는 ML 극소 표본을 개선할 방법이 없다는 뜻이다.
+            #
+            # 이 모드는 **가장 최근 스냅샷 폴더**를 쓴다. 가격 행은 여전히
+            # 학습 상한 이전만 쓰므로(_merge_pool) 시계열 룩어헤드는 없다 —
+            # 미래를 잘라내도 과거 신호가 바뀌지 않는다.
+            #
+            # ⚠️ 대신 **생존 편향**이 들어온다. 그 폴더의 종목 목록은
+            #    '오늘까지 살아남아 유니버스에 있는' 종목이고, 그건 사후
+            #    정보다. README가 모든 백테스트에 깔려 있다고 인정하는 바로
+            #    그 편향을 학습 표본에까지 들이는 것이다.
+            #
+            #    그래서 강제 적용하지 않는다 — 오디션 후보로만 참전하고,
+            #    2단계 관문을 통과할 때만 챔피언이 된다. 승격되면 그 사실이
+            #    장부의 파라미터(pool: universe)에 그대로 남는다.
+            day = latest_snapshot_day("state")
+            if day is None:
+                self.pool_error_ = "스냅샷 폴더가 없다"
+                return None
+            key = ("universe", day, tuple(cols))
+            if key not in self._pool_cache:
+                self._pool_cache[key] = self._build_pool(
+                    cols, load_snapshot_pool_day("state", day))
+            return self._pool_cache[key]
+
         day = snapshot_pool_day("state", str(cutoff)[:10])
         if day is None:
             return None

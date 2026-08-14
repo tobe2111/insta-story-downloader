@@ -210,3 +210,101 @@ def test_pool_challengers_in_ring_and_explained():
             "params": {"model": "gb", "threshold": 0.55, "pool": "peers"}}
     txt = explain_signal(spec, df, 0.3)
     assert "풀링" in txt
+
+
+# ── ⑥ 'universe' 모드 — 편향은 감수하되 인과성은 지킨다 (2026-08-14) ──
+
+"""배경. "peers"는 인과성이 완벽한 대신 **스냅샷이 쌓일 때까지 아무 일도
+하지 않는다.** 실측(2026-08-14, SPY 800봉): 재학습 블록 28개 중 **28개**가
+풀을 못 찾아 챔피언과 신호가 한 봉도 다르지 않았다. 선발 구간까지 닿으려면
+스냅샷이 ≈6개월 쌓여야 한다. 그동안 종목당 800봉이라는 ML 극소 표본은
+개선할 방법이 없다.
+
+"universe"는 **가장 최근 스냅샷 폴더**를 풀로 쓴다. 실측으로 풀 표본이
+0행 → 12,280행(자기 800봉의 15배)이 됐다.
+
+⚠️ 대가는 **생존 편향**이다 — 그 폴더의 종목 목록은 '오늘까지 살아남은'
+종목이라 사후 정보다. 하지만 **시계열 룩어헤드는 아니다**: 가격 행은 학습
+상한 이전만 쓰므로 미래를 잘라내도 과거 신호가 바뀌지 않는다.
+
+이 구분이 이 모드의 존재 근거 전부다. 아래 검사가 그 구분을 못으로 박는다 —
+인과성이 깨지는 순간 이 모드는 정당성을 잃는다."""
+
+
+def _universe_dir(tmp_path, monkeypatch, n_peers=3, bars=400):
+    """state/snapshots/<날짜>/ 에 동료 종목 스냅샷을 깔고 그곳을 보게 한다."""
+    from quant.utils.repro import save_snapshot
+    d = tmp_path / "state"
+    for i in range(n_peers):
+        save_snapshot(_df(bars, seed=100 + i), str(d), "2026-08-13",
+                      "synthetic", f"P{i}")
+    monkeypatch.chdir(tmp_path)
+    return d
+
+
+def test_universe_pool_actually_supplies_samples(tmp_path, monkeypatch):
+    """peers가 0행일 상황에서 universe는 표본을 실제로 공급한다."""
+    _universe_dir(tmp_path, monkeypatch)
+    df = _df(400, seed=1)
+    s = _strat(pool="universe")
+    s.generate_signals(df)
+    assert s.pool_error_ is None, s.pool_error_
+    assert s.pool_rows_ > len(df), (
+        f"풀 표본이 {s.pool_rows_}행 — 자기 데이터({len(df)}봉)보다 많아야 "
+        "표본을 늘린 의미가 있다")
+
+
+def test_universe_pool_does_not_break_causality(tmp_path, monkeypatch):
+    """미래를 잘라내도 과거 신호가 한 봉도 바뀌지 않는다.
+
+    이게 깨지면 'universe'는 생존 편향이 아니라 **룩어헤드**이고, 그 순간
+    이 모드는 폐기해야 한다.
+    """
+    _universe_dir(tmp_path, monkeypatch)
+    df = _df(400, seed=2)
+    full = _strat(pool="universe").generate_signals(df).to_numpy()
+    for cut in (300, 340, 380):
+        part = _strat(pool="universe").generate_signals(
+            df.iloc[:cut]).to_numpy()
+        diff = int((np.abs(part - full[:cut]) > 1e-12).sum())
+        assert diff == 0, (
+            f"{cut}봉으로 자르니 과거 신호 {diff}봉이 달라졌다 — "
+            "universe 풀에 미래가 새고 있다")
+
+
+def test_universe_pool_survives_a_perturbed_future(tmp_path, monkeypatch):
+    """미래 구간을 크게 흔들어도 과거가 그대로여야 한다(절단보다 강한 검사)."""
+    _universe_dir(tmp_path, monkeypatch)
+    df = _df(400, seed=3)
+    full = _strat(pool="universe").generate_signals(df).to_numpy()
+    poisoned = df.copy()
+    cols = [c for c in ("open", "high", "low", "close") if c in poisoned]
+    poisoned.loc[poisoned.index[300:], cols] *= 1.5
+    got = _strat(pool="universe").generate_signals(poisoned).to_numpy()
+    diff = int((np.abs(got[:300] - full[:300]) > 1e-12).sum())
+    assert diff == 0, f"미래를 흔드니 과거 신호 {diff}봉이 달라졌다"
+
+
+def test_universe_mode_is_a_candidate_not_a_default():
+    """생존 편향을 감수하는 모드는 **강제 적용되지 않는다** — 오디션만 통과 가능."""
+    import inspect
+
+    from quant.live.retrain import DEFAULT_CHAMPION, DEFAULT_CHALLENGERS
+    from quant.strategies.ml import MLStrategy
+
+    assert MLStrategy().pool is None, "기본값이 풀링이 되면 편향이 기본이 된다"
+    assert "pool" not in DEFAULT_CHAMPION["params"], (
+        "기본 챔피언이 생존 편향 모드다 — 승격 없이 적용되면 안 된다")
+    univ = [c for c in DEFAULT_CHALLENGERS if c.get("pool") == "universe"]
+    assert {c["model"] for c in univ} == {"gb", "logreg"}, univ
+    # 편향을 코드가 스스로 밝히는가 — 모르고 쓰는 것이 가장 나쁘다
+    src = inspect.getsource(MLStrategy._pool_at)
+    assert "생존 편향" in src
+
+
+def test_an_unknown_pool_mode_is_rejected():
+    import pytest as _pt
+
+    from quant.strategies.ml import MLStrategy
+    with _pt.raises(ValueError, match="universe"):
+        MLStrategy(pool="whatever")
