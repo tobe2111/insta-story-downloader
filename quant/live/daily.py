@@ -41,6 +41,7 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
+    settled_deposits,
     time_weighted_return,
     twr_index,
 )
@@ -2235,6 +2236,25 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
     atomic_write_json(path, cur)
 
 
+def _week_base_principal(st: dict, first_date: str) -> float:
+    """계좌가 그 주를 시작할 때 갖고 있던 원금 (감사 241).
+
+    **시작금 그 자체**다. 입금을 여기 더하면 안 된다 — 계좌에 기록이 하나도
+    없던 시절의 입금은 필연적으로 첫 기록의 자산에 들어가 있고, 주간 수익
+    계산의 `flows`가 그 첫 기록에서 이미 빼 준다. 둘 다 하면 두 번 세는 것이
+    되어 **입금이 통째로 손실로 보인다**(실측: -92%).
+
+    시작금을 모르면 첫 기록의 자산으로 물러난다 — 옛 장부는 그 필드가
+    없을 수 있고, 그때는 지금까지와 같은 값이 나온다(하위 호환).
+    """
+    del first_date          # 규칙이 날짜에 의존하지 않는다는 것을 명시
+    try:
+        base = float(st.get("start_cash"))
+    except (TypeError, ValueError):
+        return float(st["history"][0]["equity"])
+    return base if base > 0 else float(st["history"][0]["equity"])
+
+
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     """최근 7일(기록 기준) 요약 — 시장별 수익률·최고/최악일·챔피언 교체 이력.
 
@@ -2264,9 +2284,30 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         window = [r for r in hist if date.fromisoformat(r["date"]) >= start]
         if not window:
             continue
-        # 주간 수익 기준점: 창 직전 마지막 기록(없으면 창 첫 기록의 자산)
+        # 주간 수익 기준점: 창 직전 마지막 기록.
+        #
+        # ⚠️ **직전 기록이 없으면 원금이 기준이다**(2026-08-14 감사 241).
+        #    예전에는 `window[0]["equity"]`, 즉 **첫 기록 자기 자신**을 기준
+        #    으로 삼았다. 그러면 첫날 수익이 항상 0이 되고, 계좌가 문을 연
+        #    첫 주의 성적에서 첫날의 움직임이 통째로 빠진다.
+        #
+        #    실측(원화 계좌 첫 주, 원금 1,000,000원):
+        #        기록      999,635.06 → 999,847.15
+        #        리포트    주간 **+0.02%** · 최악일 08-13 **+0.00%**
+        #        사실      주간 **-0.0153%** · 최악일 08-13 **-0.0365%**
+        #    **부호가 반대다.** 이 리포트는 월요일 아침 텔레그램으로 나간다.
+        #
+        #    감사 239(낙폭이 원금을 고점으로 안 친다)와 **같은 병**이다 —
+        #    기준선에서 원금이 빠지면 첫날 손실이 사라진다.
+        #
+        #    창 시작 **전에** 정산된 입금은 그때 이미 자산에 들어가 있으므로
+        #    기준에 더한다. 창 **안에서** 정산된 입금은 아래 `flows`가 따로
+        #    빼므로 여기서 더하면 두 번 세는 것이 된다.
         idx0 = hist.index(window[0])
-        base = hist[idx0 - 1]["equity"] if idx0 > 0 else window[0]["equity"]
+        if idx0 > 0:
+            base = hist[idx0 - 1]["equity"]
+        else:
+            base = _week_base_principal(st, window[0]["date"])
         # 입금은 수익이 아니다 — 자산 비율만 쓰면 매칭입금이 주간 수익으로
         # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
         # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
@@ -2279,7 +2320,13 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         #        주간 요약  : +1149.06%   ← 92만원 입금이 '수익'
         #        장부(TWR) :    -0.94%
         #    이 숫자는 월요일 아침 주간 리포트로 나간다.
-        flows = _flows_by_date(window, st.get("deposits") or [])
+        # ⚠️ 귀속은 **전체 기록**으로 잡는다(감사 241). 창만 넘기면 창보다
+        #    오래된 입금이 "창 첫 기록"으로 끌려와 그 주의 수익에서 빠진다 —
+        #    그 돈은 이미 창 이전 자산에 들어가 있으므로 두 번 빼는 것이다.
+        #    실측: 시작금 8만 + 08-01 입금 92만인 계좌의 첫 주가 **-92%**.
+        flows = _flows_by_date(
+            hist,                        # 창이 아니라 **전체 기록**(감사 241)
+            st.get("deposits") or [])
         days_chg = []
         chain = 1.0
         prev = base
@@ -2362,7 +2409,13 @@ def format_weekly(summary: dict) -> str:
     a, b = summary["period"]
     lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 8마일 챌린지"]
     for key, m in summary["markets"].items():
-        sign = "🔺" if m["week_return_pct"] >= 0 else "🔻"
+        # ⚠️ **화살표는 화면에 찍히는 숫자와 같은 값을 봐야 한다**
+        #    (감사 241에서 함께 발견). 예전에는 원본 값의 부호를 썼는데,
+        #    파이썬의 음의 0(-0.0)은 `>= 0`이 참이면서 `+.2f`로는 "-0.00"
+        #    으로 찍힌다. 실제로 그렇게 나갔다 — "🔺 QQQ: 주간 -0.00%".
+        #    화면이 스스로 모순되면 나머지 숫자도 함께 의심받는다.
+        shown = round(m["week_return_pct"], 2) + 0.0    # -0.0 → 0.0
+        sign = "🔺" if shown > 0 else ("🔻" if shown < 0 else "➖")
         line = (f"{sign} {key}: 주간 {m['week_return_pct']:+.2f}% · "
                 f"자산 {m['equity']:,.0f} (누적 {m['total_return_pct']:+.2f}%)")
         if m.get("worst_day"):
