@@ -118,12 +118,14 @@ MIN_BAND_SAMPLES = 25
 
 
 def _wilson_ci(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
-    """윌슨 신뢰구간(95%) — 소표본·극단 비율에서도 [0,1]을 벗어나지 않는다."""
-    import math
-    denom = 1.0 + z * z / n
-    center = (p + z * z / (2 * n)) / denom
-    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-    return max(0.0, center - half), min(1.0, center + half)
+    """윌슨 신뢰구간(95%) — 공식은 accuracy.py 한 곳에만 둔다.
+
+    ⚠️ 여기 사본이 따로 있었다(2026-08-14 정리). 같은 공식을 두 곳에 적으면
+       반드시 어긋난다(FROZEN_IDEAS ①) — 실제로 이쪽 사본은 n=0에서 0으로
+       나눠 터졌다. 얇은 위임만 남긴다.
+    """
+    from quant.robustness.accuracy import wilson_ci
+    return wilson_ci(round(p * n), n, z)
 
 
 def _band_pairs(history: list, prob: float, band: float) -> list:

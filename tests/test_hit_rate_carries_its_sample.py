@@ -51,32 +51,67 @@ def test_the_accuracy_helper_actually_returns_n():
     assert out["n"] > 0
 
 
-def test_the_site_shows_the_sample_when_it_is_thin():
-    seg = INDEX.split("const hn=", 1)
-    assert len(seg) == 2, "첫 화면이 표본 수를 읽지 않는다"
-    body = seg[1][:600]
-    assert "hit_n" in INDEX
-    assert re.search(r"hn\s*<\s*\d+", body), "얇은 표본 문턱이 없다"
-    assert "n='+hn" in body, "표본 수를 화면에 적지 않는다"
+def test_the_site_asks_the_shared_rule_instead_of_its_own_threshold():
+    """⚠️ 이 감사(111)의 **기준은 나중에 틀린 것으로 드러났다** (2026-08-14).
+
+    여기서 정한 규칙은 'n<20이면 흐리게 + n 병기'였다. 방향은 맞았지만
+    기준이 표본 크기였다. 사장님이 "솔라나 64% n=11"을 지적해 20종목을
+    전부 재 봤더니 **19개**의 95% 신뢰구간이 50%를 품고 있었고, 그중에는
+    n=81짜리 60%(구간 50~70%)도 있었다 — 이 문턱을 통과해 아무 단서 없이
+    "60%"라는 단정으로 나가고 있었다. **n이 아니라 구간이 판정한다.**
+
+    그래서 문턱은 사라졌고 판정은 docs/assets/hitrate.js 한 곳으로 갔다.
+    이 검사는 '문턱이 다시 생기지 않는가'를 지킨다.
+    """
+    assert "QuantHitRate.format" in INDEX, "첫 화면이 공용 판정을 안 쓴다"
+    assert not re.search(r"hn\s*<\s*\d+", INDEX), (
+        "표본 크기 문턱이 되살아났다 — n=81짜리 60%가 그 문턱을 통과한다")
 
 
-def test_thin_samples_are_visually_muted():
-    """숨기지는 않되 확신처럼 보이지 않게 — 흐리게."""
-    assert re.search(r'hn!=null&&hn<\d+\?" sub"', INDEX), (
-        "표본이 얇은 적중률이 진한 숫자로 나간다 — 우연이 실력처럼 읽힌다")
+def test_inconclusive_rates_are_visually_muted():
+    """숨기지는 않되 확신처럼 보이지 않게 — 판정 불가면 흐리게.
+
+    흐리게 할지도 화면이 정하지 않는다. 판정과 표시를 다른 곳에서 정하면
+    "흐린데 문구는 단정"인 상태가 생긴다.
+    """
+    assert re.search(r'hf\.dim\?" sub"', INDEX), (
+        "판정 불가인 적중률이 진한 숫자로 나간다 — 우연이 실력처럼 읽힌다")
 
 
 def test_a_missing_rate_is_a_dash_not_a_zero():
     """값이 없을 때 0%로 보이면 '한 번도 못 맞췄다'로 읽힌다."""
-    body = INDEX.split("const hn=", 1)[1][:600]
-    assert '"—"' in body
+    from quant.robustness.accuracy import hit_rate_text
+    assert hit_rate_text({}) == "N/A"
+    js = (ROOT / "docs" / "assets" / "hitrate.js").read_text("utf-8")
+    assert '"\u2014"' in js or '"—"' in js, "화면 쪽에 '—' 표기가 없다"
 
 
-def test_the_threshold_is_stated_once_not_scattered():
-    """문턱이 여러 값으로 흩어지면 표시와 색이 어긋난다."""
-    body = INDEX.split("const hn=", 1)[1][:800]
-    thresholds = set(re.findall(r"hn\s*<\s*(\d+)", body))
-    assert len(thresholds) == 1, f"문턱이 여러 개다: {thresholds}"
+def test_the_verdict_is_decided_in_one_place_only():
+    """판정이 여러 곳에 흩어지면 페이지마다 다른 확신으로 나간다.
+
+    옛 검사는 '문턱이 한 값인가'를 봤다. 이제 문턱 자체가 없고, 지켜야 할
+    것은 **판정하는 곳이 하나인가**다(FROZEN_IDEAS ①).
+    """
+    # 이름이 아니라 **식의 몸통**을 본다 — QuantHitRate.wilsonCI를 부르는 것도
+    # 이름에는 'wilson'이 들어간다. 걸러야 할 것은 사본이지 호출이 아니다.
+    #
+    # ⚠️ 이 검사를 넣자마자 사본 **둘**이 걸렸다(2026-08-14): paper.html의
+    #    보정 곡선과 sns_card.html의 카드가 각자 같은 식을 적고 있었고,
+    #    sns_card 쪽 주석은 스스로 "paper.html이 쓰는 것과 같은 식"이라고
+    #    적어 두기까지 했다. 셋이 갈라지면 같은 표본이 화면·카드·알림에서
+    #    다른 폭으로 나간다.
+    body = re.compile(r"z\s*\*\s*z\s*/\s*\(\s*2\s*\*\s*n\s*\)")
+    for page in sorted((ROOT / "docs").glob("*.html")):
+        src = page.read_text("utf-8")
+        assert not body.search(src), f"{page.name}가 신뢰구간 식을 직접 적는다"
+    for page in ("index.html", "paper.html"):
+        src = (ROOT / "docs" / page).read_text("utf-8")
+        assert "QuantHitRate" in src, f"{page}가 공용 판정을 안 쓴다"
+    # 파이썬 쪽도 같다 — explain.py가 갖고 있던 사본은 n=0에서 터졌다.
+    hits = [p for p in (ROOT / "quant").rglob("*.py")
+            if p.name != "accuracy.py" and re.search(r"z\s*\*\s*z\s*/\s*\(\s*2\s*\*\s*n\s*\)",
+                                                     p.read_text("utf-8"))]
+    assert not hits, f"파이썬에 신뢰구간 사본이 있다: {[p.name for p in hits]}"
 
 
 # ── 라벨이 실제 계산과 같은가 (감사 112) ────────────────────────

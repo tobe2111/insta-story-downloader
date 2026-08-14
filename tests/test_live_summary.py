@@ -23,9 +23,11 @@ def _state(day: str = "2026-07-04") -> dict:
         "history": [
             {"time": "2026-07-03 23:00:00", "equity": 9_999.0},  # 어제 것(오늘 카운트 제외)
             {"time": f"{day} 01:00:00", "equity": 10_000.0,
-             "hit_rate": 0.51, "recent_hit_rate": 0.53},
+             "hit_rate": 0.51, "n": 100,
+             "recent_hit_rate": 0.53, "recent_n": 100},
             {"time": f"{day} 02:00:00", "equity": 10_123.45,
-             "hit_rate": 0.52, "recent_hit_rate": 0.54},
+             "hit_rate": 0.52, "n": 100,
+             "recent_hit_rate": 0.54, "recent_n": 100},
         ],
         "position": {"symbol": "BTC/USDT", "quantity": 0.1, "avg_price": 60_000.0},
         "last_error": None,
@@ -36,7 +38,9 @@ def test_build_summary_contains_key_facts():
     text = summ.build_daily_summary(_state(), today="2026-07-04")
     assert "일일 요약" in text and "2026-07-04" in text
     assert "사이클 2회" in text                    # 오늘(07-04) 기록만 카운트
-    assert "54.0%" in text                          # 마지막 기록의 recent_hit_rate
+    # 마지막 기록의 recent_hit_rate. ⚠️ 비율만 나가지 않는다 — 구간이 50%를
+    # 품으면 "판정 불가"가 붙는다(2026-08-14). n=100짜리 54%가 바로 그렇다.
+    assert "54% (판정 불가 44~63% · n=100)" in text, text
     assert "BTC/USDT 0.100000" in text              # 포지션
     assert "마지막 에러 없음" in text
     # 수익 보장류 문구가 없어야 한다(법적 금지)

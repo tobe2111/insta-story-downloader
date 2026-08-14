@@ -152,7 +152,14 @@ def test_today_shows_fills_pending_and_tradingview():
     t = (ROOT / "docs" / "today.html").read_text(encoding="utf-8")
     assert "오늘의 체결" in t and "예약 주문" in t
     assert "pending_next_open" in t and "다음 장 시가" in t
-    assert "tradingview" in t.lower() and "BINANCE:" in t and "KRX:" in t
+    # ⚠️ 예전에는 "BINANCE:"·"KRX:" 리터럴이 이 파일 안에 있는지 봤다. 그건
+    #    매핑이 **여기 있어야 한다**는 요구였고, 첫 화면에도 차트를 붙이면서
+    #    매핑을 docs/assets/tradingview.js 한 곳으로 옮기자 이 검사가 사본을
+    #    되살리라고 요구하는 꼴이 됐다. 자리가 아니라 **기능**을 본다 —
+    #    매핑이 옳은지는 tests/tradingview_check.mjs가 값으로 확인한다.
+    assert "tradingview" in t.lower(), "차트가 사라졌다"
+    assert 'src="assets/tradingview.js"' in t, "매핑 모듈을 안 싣는다"
+    assert "QuantTV." in t, "매핑을 쓰지 않는다"
 
 
 def test_portfolio_record_carries_pending_and_typed_fills():

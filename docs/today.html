@@ -6,6 +6,10 @@
 <title>Quant · 오늘의 판단 — 8마일 챌린지</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%234c7dff%22/%3E%3Cpath d=%22M8 22 L14 14 L18 18 L24 9%22 stroke=%22white%22 stroke-width=%223%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <link rel="stylesheet" href="assets/pretendard.css">
+<!-- 트레이딩뷰 심볼 매핑은 여기 인라인으로 갖고 있었다. 첫 화면에도 차트를
+     넣으면서 파일 하나로 뺐다 — 같은 매핑을 두 곳에 적으면 상장 시장이
+     바뀔 때 한쪽만 고쳐진다(FROZEN_IDEAS ①). -->
+<script src="assets/tradingview.js"></script>
 <style>
 /* 촬영·공유용 한 장짜리 화면 — 다크 고정(방송 화질), 16:9에 맞는 밀도.
    ?card=1 이면 1200×630(공유 카드) 컴팩트 레이아웃으로 전환된다. */
@@ -200,12 +204,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 
   // 실시간 차트(TradingView) — 표시 전용. 매매 판단은 새벽 데이터만 쓴다.
   if(!location.search.includes("card=1")){
-    const tvMap=k=>{
-      const [m,s]=String(k).split(":");
-      if(m==="crypto")return "BINANCE:"+s.replace("/","");
-      if(m==="kr_stock")return "KRX:"+s.replace(".KS","");
-      if(m==="us_stock")return (s==="SPY"?"AMEX:":"NASDAQ:")+s;
-      return null};
+    const tvMap=QuantTV.symbol;         // 매핑은 assets/tradingview.js 한 곳에
     const opts=rest.map(k=>{const tv=tvMap(k);
       return tv?`<option value="${tv}">${esc(((st.symbols||{})[k]||{}).name||k)}</option>`:""}).join("");
     out+=`<h2 style="font-size:16px;margin:26px 0 6px">실시간 차트
@@ -218,21 +217,7 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   // TradingView 위젯 로드 — 셀렉터로 종목 전환(위젯 재생성)
   const tvBox=document.getElementById("tvchart");
   if(tvBox){
-    const load=sym=>{
-      tvBox.innerHTML="";
-      const wrap=document.createElement("div");
-      wrap.className="tradingview-widget-container";
-      wrap.style.height="100%";
-      const s=document.createElement("script");
-      s.src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-      s.async=true;
-      s.textContent=JSON.stringify({autosize:true,symbol:sym,interval:"D",
-        timezone:"Asia/Seoul",theme:matchMedia("(prefers-color-scheme: light)").matches?"light":"dark",
-        style:"1",locale:"kr",hide_top_toolbar:false,allow_symbol_change:false,
-        save_image:false});
-      wrap.appendChild(s);
-      tvBox.appendChild(wrap);
-    };
+    const load=sym=>QuantTV.mount(tvBox,sym);
     const sel=document.getElementById("tvsel");
     load(sel.value);
     sel.onchange=()=>load(sel.value);

@@ -2712,7 +2712,7 @@ MUTATIONS = [
 
     ("적중률 라벨을 '(60일)'로 되돌린다(실제는 전체 기간)",
      "docs/paper.html",
-     '<th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)">적중률(전체)</th></tr>${rows}</table></div>',
+     '적중률(전체)</th></tr>${rows}</table></div>',
      '<th>적중률(60일)</th></tr>${rows}</table></div>',
      "tests/test_hit_rate_carries_its_sample.py"),
 
@@ -3492,6 +3492,85 @@ MUTATIONS = [
      "VERIFY_TARGET_VOL = 0.12",
      "VERIFY_TARGET_VOL = 0.10",
      "tests/test_site_numbers_track_the_code.py"),
+
+    # ── 2026-08-14 · 적중률이 표본이 감당 못 하는 단정을 하던 자리 ──────
+    #
+    # 사장님: "64% n=11 솔라나의 적중률은 이런 식으로 잘못 나오고 있어."
+    # 20종목 중 19개의 95% 구간이 50%를 품고 있었는데, 화면은 그 비율을
+    # 단정으로 내보내고 있었다. 옛 규칙('n<20이면 흐리게')은 n=81짜리
+    # 60%를 그냥 통과시켰다 — **n이 아니라 구간이 판정한다.**
+
+    ("판정 기준을 표본 크기로 되돌린다(n=81짜리 60%가 단정으로 나간다)",
+     "quant/robustness/accuracy.py",
+     "    return not (lo <= COIN_FLIP <= hi)",
+     "    return n >= 20",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("표본 없는 구간을 판정 가능으로 센다(n=0이 '실력'이 된다)",
+     "quant/robustness/accuracy.py",
+     "    if lo != lo or hi != hi:            # NaN — 표본 없음\n        return False",
+     "    if lo != lo or hi != hi:            # NaN — 표본 없음\n        return True",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("표본 미상 기록을 그냥 비율로 내보낸다(옛 기록이 확신처럼 읽힌다)",
+     "quant/robustness/accuracy.py",
+     'return f"{r:.0%} (표본 미상)"',
+     'return f"{r:.0%}"',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("판정 불가인데 '판정 불가'를 안 붙인다",
+     "quant/robustness/accuracy.py",
+     'return f"{r:.0%} (판정 불가 {band} · n={n})"',
+     'return f"{r:.0%} ({band} · n={n})"',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("최근 적중률의 분모를 안 남긴다(표본 없이 단정하게 된다)",
+     "quant/live/autolearn.py",
+     '            "recent_n": recent_n,                 # 그 비율의 분모(채점된 봉)\n',
+     "",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("화면 쪽 판정만 되돌린다(파이썬과 갈라져 페이지마다 다른 확신)",
+     "docs/assets/hitrate.js",
+     "    return !(ci[0] <= COIN_FLIP && COIN_FLIP <= ci[1]);",
+     "    return n >= 20;",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("옛 기록을 되계산하지 않는다(표본 있는 옛 기록이 단정으로 나간다)",
+     "docs/assets/hitrate.js",
+     '    if (typeof sure !== "boolean" && n !== null) {   // 옛 기록 보정',
+     '    if (false) {   // 옛 기록 보정',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("조종석이 공용 규칙 파일을 안 싣는다(5초 뒤 옛 서식으로 되돌아간다)",
+     "quant/web/app.py",
+     'f\'{_inline_asset("hitrate.js")}\'\n',
+     "",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    # ── 2026-08-14 · 첫 화면에서 종목을 눌러도 차트가 없던 자리 ──────────
+    #
+    # 매핑이 today.html 안에만 있었다. 사본을 만들면 상장 시장이 바뀔 때
+    # 한쪽만 고쳐지고, 매핑이 틀리면 차트는 **조용히** 안 뜬다.
+
+    ("코스닥(.KQ)을 안 뗀다(코스닥 종목 차트가 조용히 안 뜬다)",
+     "docs/assets/tradingview.js",
+     'return "KRX:" + s.replace(/\.(KS|KQ)$/, "");',
+     'return "KRX:" + s.replace(/\.KS$/, "");',
+     "tests/test_the_symbol_charts_are_reachable_from_the_front_page.py"),
+
+    ("차트를 못 여는 행도 눌리게 만든다(눌러도 아무 일이 없어 고장으로 읽힌다)",
+     "docs/index.html",
+     '(tvs?" clickable":"")',
+     '(" clickable")',
+     "tests/test_the_symbol_charts_are_reachable_from_the_front_page.py"),
+
+    ("차트가 표시 전용이라는 말을 지운다(실시간 값이 판단 근거로 읽힌다)",
+     "docs/index.html",
+     "여기 실시간 가격은 <b>판단에 쓰이지 않습니다</b>",
+     "여기 실시간 가격은 <b>참고용입니다</b>",
+     "tests/test_the_symbol_charts_are_reachable_from_the_front_page.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

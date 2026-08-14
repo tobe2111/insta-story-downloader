@@ -1,0 +1,28 @@
+# 선택 의존성 — 필수는 아니지만 **워크플로가 실제로 설치하는** 것들.
+#
+# ⚠️ 왜 파일로 옮겼나 (2026-08-14). 감사 130은 "검사와 실전이 같은 파일로
+#    설치되게" 고쳤고 검사(test_every_workflow_installs_from_the_one_file)까지
+#    붙였다. 그런데 그 검사는 줄에 `-r requirements.txt`가 **있는지**만 봤고,
+#    그 뒤에 덧붙은 맨 패키지 이름은 보지 않았다. 그래서 이렇게 남아 있었다:
+#
+#        pip install -r requirements.txt pykrx        ← 버전 없음
+#        pip install -r requirements.txt cryptography ← 버전 없음
+#        pip install -r requirements.txt pyinstaller  ← 버전 없음
+#
+#    감사 130이 막겠다고 적은 바로 그 형태("버전 없이 그날 PyPI 최신을
+#    받는다")가 세 패키지에 그대로 남아 있었던 것이다. 하필 pykrx는 **돈을
+#    굴리는 워크플로**(daily-paper·nightly-retrain·kr-live)가 설치하고,
+#    한국주식 수급 피처(x_frgn5·x_inst5)의 유일한 소스다 — 그 피처 둘은
+#    지금 전 종목에서 안 붙고 있다.
+#
+# 워크플로는 이 파일도 함께 설치한다:
+#     pip install -r requirements.txt -r requirements-extra.txt
+
+# --- 국내주식 수급 데이터 (daily-paper · nightly-retrain · kr-live) ---
+pykrx>=1.0,<2            # KRX 투자자별 순매수 → x_frgn5·x_inst5
+
+# --- 라이선스 서명 (ci · mutation-sweep · nightly-validate) ---
+cryptography>=41,<46     # Ed25519 비대칭 키. 없으면 HMAC 폴백
+
+# --- 실행파일 빌드 (build-app) ---
+pyinstaller>=6.0,<8

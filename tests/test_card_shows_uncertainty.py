@@ -36,15 +36,6 @@ CARD = (DOCS / "sns_card.html").read_text("utf-8")
 PAPER = (DOCS / "paper.html").read_text("utf-8")
 
 
-def _wilson_body(text: str) -> str:
-    """윌슨 구간 계산식만 뽑아 공백을 지운다(두 파일 비교용)."""
-    m = re.search(r"wilson\s*=?\s*(?:function)?\s*\(p,\s*n\)\s*(?:=>)?\s*\{(.+?)\}\s*;?\s*\n",
-                  text, re.S)
-    if not m:
-        m = re.search(r"function wilson\(p,n\)\{(.+?)return \[(.+?)\]\}", text, re.S)
-    return re.sub(r"\s+", "", m.group(0)) if m else ""
-
-
 def test_the_card_computes_a_confidence_interval():
     assert "wilson" in CARD, (
         "카드가 보정 비율을 점추정으로만 찍는다 — 표본 8일짜리 숫자가 "
@@ -52,14 +43,53 @@ def test_the_card_computes_a_confidence_interval():
 
 
 def test_the_card_uses_the_same_formula_as_the_site():
-    """두 화면이 다른 식을 쓰면 같은 날 다른 구간을 말하게 된다."""
-    card, paper = _wilson_body(CARD), _wilson_body(PAPER)
-    assert card and paper, "윌슨 계산식을 찾지 못했다 — 검사가 낡았다"
-    core = lambda s: re.sub(r"[^0-9a-zA-Z*/+\-().,=\[\]]", "", s)  # noqa: E731
-    for piece in ("z=1.96", "d=1+z*z/n", "z*z/(2*n))/d",
-                  "Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d"):
-        assert piece in core(card), f"카드의 윌슨 식에 {piece}가 없다"
-        assert piece in core(paper), f"사이트의 윌슨 식에 {piece}가 없다"
+    """두 화면이 다른 식을 쓰면 같은 날 다른 구간을 말하게 된다.
+
+    ⚠️ 이 검사는 원래 **두 파일에 같은 사본이 들어 있는가**를 봤다. 의도는
+       옳았지만 방법이 사본을 요구하고 있었다 — 그리고 실제로 사본은
+       파이썬까지 셋으로 늘어나 있었다(2026-08-14).
+
+       이제 식은 docs/assets/hitrate.js 한 곳에만 있고 둘 다 그것을 싣는다.
+       '같은 식인가'를 비교로 확인할 필요가 없어졌다 — **같은 파일**이다.
+       그래서 여기서는 사본이 되살아나지 않는지를 지킨다.
+    """
+    for name, src in (("sns_card.html", CARD), ("paper.html", PAPER)):
+        assert 'src="assets/hitrate.js"' in src, f"{name}가 공용 식을 안 싣는다"
+        assert not re.search(r"z\s*\*\s*z\s*/\s*\(\s*2\s*\*\s*n\s*\)", src), (
+            f"{name}가 윌슨 식 사본을 다시 갖고 있다")
+        assert "QuantHitRate.wilsonCI" in src, f"{name}가 공용 식을 안 부른다"
+
+
+def test_the_card_band_matches_the_shared_rule_by_value():
+    """문자열이 아니라 **값**으로 확인한다.
+
+    카드는 비율(p)로 부르고 공용 함수는 적중 수(k)로 받는다 — 그 변환을
+    카드가 잘못하면 파일은 하나인데 답이 갈린다.
+    """
+    import json
+    import shutil
+    import subprocess
+
+    node = shutil.which("node") or "/opt/node22/bin/node"
+    if not Path(node).exists():
+        import pytest
+        pytest.skip("node 없음 — 카드 구간 값 검사 생략")
+    m = re.search(r"var wilson\s*=\s*(function\(p,n\)\{.+?\});", CARD, re.S)
+    assert m, "카드의 구간 함수를 찾지 못했다 — 검사가 낡았다"
+    cases = [[3, 8], [12, 25], [0, 5], [49, 81]]
+    js = f"""
+      import {{ readFileSync }} from "node:fs";
+      new Function(readFileSync("docs/assets/hitrate.js", "utf8"))();
+      const wilson = {m.group(1)};
+      console.log(JSON.stringify({json.dumps(cases)}.map(([k, n]) =>
+        [wilson(k / n, n), globalThis.QuantHitRate.wilsonCI(k, n)])));
+    """
+    r = subprocess.run([node, "--input-type=module", "-e", js],
+                       capture_output=True, text=True, cwd=str(ROOT))
+    assert r.returncode == 0, (r.stdout + r.stderr)
+    for (k, n), (card, shared) in zip(cases, json.loads(r.stdout)):
+        assert abs(card[0] - shared[0]) < 1e-12, f"k={k} n={n} 하한이 갈린다"
+        assert abs(card[1] - shared[1]) < 1e-12, f"k={k} n={n} 상한이 갈린다"
 
 
 def test_every_calibration_ratio_on_the_card_carries_its_band():

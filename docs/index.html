@@ -19,6 +19,12 @@
      실행할 수 있게** 한 자리다(tests/live_marks_check.mjs). 소스 문자열만
      읽는 검사는 "검사는 초록인데 기능은 죽어 있다"를 못 잡는다(감사 229). -->
 <script src="assets/live-marks.js"></script>
+<!-- 적중률을 '표본이 감당하는 만큼만' 말하는 규칙과, 트레이딩뷰 심볼 매핑.
+     둘 다 화면 여러 곳이 쓰므로 파일 하나에만 둔다 — 같은 규칙을 두 곳에
+     적으면 반드시 어긋난다(FROZEN_IDEAS ①). 검사도 이 파일을 그대로
+     실행한다(tests/hitrate_check.mjs · tests/tradingview_check.mjs). -->
+<script src="assets/hitrate.js"></script>
+<script src="assets/tradingview.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -202,6 +208,12 @@ th:first-child,td:first-child{text-align:left}
 th{color:var(--muted);font-weight:600;font-size:11.5px;
   position:sticky;top:0;background:var(--bg2)}
 tbody tr:hover{background:var(--bg3)}
+/* 차트를 열 수 있는 행만 눌러지는 것처럼 보이게 한다 — 못 여는 행이
+   손 모양이면 눌러 보고 아무 일이 없어 고장으로 읽힌다. */
+tr.symrow.clickable{cursor:pointer}
+tr.symrow.clickable:focus{outline:2px solid var(--accent);outline-offset:-2px}
+tr.symrow .chev{opacity:.45}
+tr.symrow.clickable:hover .chev{opacity:1}
 
 /* ============ 하단 다운로드 밴드 ============ */
 .band{border-radius:18px;border:1px solid var(--line-strong);
@@ -370,9 +382,28 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
           <th title="그 종목이 거래되는 통화 그대로입니다 — 미국주식은 달러, 코인은 USDT, 한국주식은 원. 위 잔고 표(원화 환산)와 단위가 다릅니다.">현재가<br><span class="sub" style="font-weight:400">현지 통화</span></th><th>일간</th><th>누적</th>
           <th title="그 종목만 굴리는 독립 계좌가 지금 들고 있는 비중입니다. 주식은 다음 세션 시가에 체결되므로, 오늘 내린 결정이 다르면 '→ N% 예정'으로 함께 표시합니다.">종목계좌 비중<br><span class="sub" style="font-weight:400">현재 보유</span></th>
           <th title="통합 계좌(8마일 챌린지 본체)가 이 종목에 실제로 넣어 둔 돈입니다 — 원화 환산 평가금액. 아래 줄은 그 금액이 계좌에서 차지하는 노출(배분 슬라이스·변동성 타깃·킬스위치 반영)과 보유 수량입니다. 안 들고 있으면 '—'입니다.">통합 보유<br><span class="sub" style="font-weight:400">원화 · 노출</span></th>
-          <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간) · n이 작으면 흐리게 표시">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
+          <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)입니다. 괄호 안은 95% 신뢰구간과 표본 수 — 구간이 50%를 품고 있으면 '판정 불가'로 흐리게 나옵니다(그 표본으로는 동전던지기와 구별할 수 없다는 뜻).">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
         <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
+      <!-- 종목을 누르면 그 종목 차트가 여기 열린다(사장님 2026-08-14:
+           "종목을 클릭하면 트레이딩뷰 차트가 보이게끔"). 지금까지는 '오늘의
+           판단' 페이지에만 있었다. -->
+      <div id="symchart-box" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <b id="symchart-name" style="font-size:14px"></b>
+          <span class="sub" style="font-size:11.5px">TradingView · 표시 전용 —
+            여기 실시간 가격은 <b>판단에 쓰이지 않습니다</b>(매매는 새벽 확정
+            데이터로만 합니다)</span>
+          <button id="symchart-close" style="margin-left:auto;background:none;
+            border:1px solid var(--line-strong);color:var(--muted);border-radius:8px;
+            padding:3px 10px;font-size:12px;cursor:pointer">닫기</button>
+        </div>
+        <div id="symchart" style="height:440px;border:1px solid var(--line);
+          border-radius:12px;overflow:hidden"></div>
+        <div class="sub" id="symchart-none" style="display:none;font-size:11.5px">
+          이 종목은 차트를 연결할 수 있는 거래소 코드가 없습니다.
+        </div>
+      </div>
       <!-- 갱신 주기를 툴팁이 아니라 **화면에** 적는다(사장님 2026-08-13:
            "실시간으로 반영되는거야? 얼마에 한번씩 업데이트 돼?"). 물어봐야
            알 수 있으면 적어 두지 않은 것과 같다. 맨 위 흐르는 시세띠만
@@ -1024,13 +1055,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   document.getElementById("symtable").querySelector("tbody").innerHTML=
     rows.map(r=>{
       const p=paper[r.k],h=p.history||[],last=h[h.length-1]||{};
-      /* 적중률은 표본 수와 함께 보여준다(감사 111) — 포지션을 잡은 봉만
-         세므로 관망이 많은 종목은 n이 아주 작다. n 없이 비율만 보이면
-         n=3짜리 우연이 실력처럼 읽힌다. n<20이면 흐리게 + n 병기. */
-      const hn=(typeof last.hit_n==="number")?last.hit_n:null;
-      const hr=(typeof last.hit_rate!=="number")?"—"
-        :((last.hit_rate*100).toFixed(0)+"%"+(hn==null?"":
-          (hn<20?'<span class="sub" style="font-size:11px"> n='+hn+'</span>':"")));
+      /* 적중률은 **표본이 감당하는 만큼만** 말한다 — 규칙은 화면이 아니라
+         assets/hitrate.js 한 곳에 있다(파이썬 짝은 robustness/accuracy.py).
+         감사 111의 규칙은 'n<20이면 흐리게'였는데 기준이 틀렸다: n=81짜리
+         60%도 신뢰구간이 50%를 품는다(2026-08-14 20종목 실측, 19개가 그랬다).
+         **n이 아니라 구간이 판정한다.** */
+      const hf=QuantHitRate.format(last);
+      const hr='<span title="'+esc(hf.title)+'">'+esc(hf.text)+'</span>';
       const ap=applied?(applied[r.k]||0):null;
       /* 통합 계좌가 이 종목에 **얼마를 넣어 뒀는가**(사장님 2026-08-13).
          비중(%)만으로는 "그래서 얼마"에 답할 수 없다. 숫자는 잔고 표와
@@ -1039,7 +1070,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const hd=held[r.k];
       const hq=hd?(Number(hd.quantity)||0):0;
       const hqs=hq>=100?num(Math.round(hq)):(hq>=1?hq.toFixed(3):hq.toPrecision(3));
-      return '<tr><td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
+      /* 행 전체를 누르면 그 종목 차트가 열린다. 거래소 코드를 못 만드는
+         종목은 누를 수 있는 것처럼 보이지 않게 한다 — 눌러도 아무 일이
+         없으면 고장으로 읽힌다. */
+      const tvs=QuantTV.symbol(r.k);
+      return '<tr class="symrow'+(tvs?" clickable":"")+'" data-k="'+esc(r.k)+'"'+
+        ' data-name="'+esc(r.name)+'"'+
+        (tvs?' tabindex="0" role="button" title="차트 보기 — '+esc(r.name)+'"':"")+'>'+
+        '<td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span>'+
+        (tvs?'<span class="sub chev" style="font-size:11px"> 📈</span>':"")+'</td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
@@ -1056,10 +1095,43 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '<div class="cd lvv" data-k="'+esc(r.k)+'"></div>')
           :(ap?('<span class="sub">보유 없음</span><div class="cd">'+
                 (ap*100).toFixed(2)+'% 예정</div>'):"—"))+'</td>'+
-        '<td class="num'+(hn!=null&&hn<20?" sub":"")+'">'+hr+'</td>'+
+        '<td class="num'+(hf.dim?" sub":"")+'">'+hr+'</td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
+
+  /* --- 종목 클릭 → 그 종목의 트레이딩뷰 차트 --- */
+  (function(){
+    const box=document.getElementById("symchart-box");
+    const host=document.getElementById("symchart");
+    const none=document.getElementById("symchart-none");
+    const ttl=document.getElementById("symchart-name");
+    if(!box||!host)return;
+    let openKey=null;
+    const show=tr=>{
+      const k=tr.getAttribute("data-k");
+      const tv=QuantTV.symbol(k);
+      if(!tv)return;
+      if(openKey===k){close();return}          // 같은 종목을 다시 누르면 닫는다
+      openKey=k;
+      ttl.textContent=(tr.getAttribute("data-name")||k)+" · "+tv;
+      box.style.display="";
+      none.style.display=QuantTV.mount(host,tv)?"none":"";
+      box.scrollIntoView({behavior:"smooth",block:"nearest"});
+    };
+    const close=()=>{openKey=null;box.style.display="none";host.innerHTML=""};
+    document.getElementById("symtable").addEventListener("click",e=>{
+      const tr=e.target.closest("tr.clickable");
+      if(tr)show(tr);
+    });
+    /* 키보드로도 열린다 — 마우스로만 되는 기능은 절반만 있는 기능이다. */
+    document.getElementById("symtable").addEventListener("keydown",e=>{
+      if(e.key!=="Enter"&&e.key!==" ")return;
+      const tr=e.target.closest&&e.target.closest("tr.clickable");
+      if(tr){e.preventDefault();show(tr)}
+    });
+    document.getElementById("symchart-close").onclick=close;
+  })();
 
   /* --- 오답 노트 --- */
   if(pf){

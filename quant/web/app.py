@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import html
+from pathlib import Path
 
 # 폼 셀렉트용 (pandas 임포트를 피하려고 하드코딩; strategies 레지스트리와 일치)
 STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
@@ -269,11 +270,31 @@ _TICKER_JS = """<script>
 </script>"""
 
 
+def _inline_asset(name: str) -> str:
+    """docs/assets/의 공유 스크립트를 페이지에 **읽어서** 심는다.
+
+    ⚠️ 왜 복사가 아니라 읽기인가. 조종석은 정적 파일 경로가 없는 단일 파일
+       서버라 <script src>를 쓸 수 없다. 그렇다고 규칙을 여기 다시 적으면
+       같은 날 같은 종목이 사이트에서는 "판정 불가"인데 조종석에서는
+       "60%"로 나간다(FROZEN_IDEAS ①). 파일은 여전히 **한 개**고, 여기서는
+       그것을 읽어 실어 나를 뿐이다 — 파일을 고치면 양쪽이 같이 바뀐다.
+
+       파일이 없으면 빈 문자열을 준다(설치 형태에 따라 docs/가 없을 수 있다).
+       그때는 호출부가 규칙 없이 비율만 쓰지 않도록 스스로 확인해야 한다.
+    """
+    p = Path(__file__).resolve().parents[2] / "docs" / "assets" / name
+    try:
+        return f'<script>{p.read_text(encoding="utf-8")}</script>'
+    except OSError:
+        return ""
+
+
 def _page(title: str, body: str, active: str = "") -> str:
     """공통 문서 골격 — 헤더·내비게이션·시세 바·로딩 오버레이·스타일을 한곳에서."""
     return (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">\n'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
             f'<title>Quant · {html_escape(title)}</title>{_FAVICON}{_FONT}'
+            f'{_inline_asset("hitrate.js")}'
             f'<style>{_STYLE}</style></head><body><div class="wrap">\n'
             f'{_nav(active)}\n'
             f'<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>\n'
@@ -451,9 +472,15 @@ async function _tick(){
     }
     // 방향 예측 정확도(최근 우선) — 자동학습 상태에 존재
     const last = h[h.length-1] || {};
-    let acc = last.recent_hit_rate;
-    if(acc==null || isNaN(acc)) acc = last.hit_rate;
-    setTxtSafe('kpi-acc', (acc==null||isNaN(acc))?'N/A':(acc*100).toFixed(1)+'%');
+    // ⚠️ 비율만 쓰지 않는다 — 신뢰구간이 50%를 품으면 그 표본으로는 아무
+    //    말도 할 수 없다. 규칙은 docs/assets/hitrate.js 한 곳에 있고 이
+    //    페이지는 그 파일을 그대로 실어 온다(_inline_asset).
+    const _ra = last.recent_hit_rate;
+    const _use = (_ra!=null && !isNaN(_ra))
+      ? {hit_rate:_ra, hit_n:last.recent_n} : {hit_rate:last.hit_rate, hit_n:last.n};
+    const _hf = (typeof QuantHitRate!=='undefined')
+      ? QuantHitRate.format(_use) : {text:'N/A'};
+    setTxtSafe('kpi-acc', _hf.text);
     const orders = (s && s.orders) || [];
     // orders는 스냅샷에서 최근 20건만 실린다 — 누적 건수는 order_count를 쓴다.
     // 예전에는 orders.length를 '거래횟수'로 보여줘 20에서 영원히 멈췄다.

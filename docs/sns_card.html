@@ -5,6 +5,7 @@
 <meta name="robots" content="noindex">
 <title>SNS 카드뉴스</title>
 <link rel="stylesheet" href="assets/pretendard.css">
+<script src="assets/hitrate.js"></script>
 <style>
 /* 인스타그램 카드뉴스 캔버스 — 4:5 (1080×1350) 고정. 캡처 전용 페이지라
    반응형이 아니라 '정확한 픽셀'이 목표다. ?n=1(표지) 2(판단) 3(검증) */
@@ -181,9 +182,10 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   // "2~47%"를 함께 보이며 "구간을 믿으세요"라고 적는데, 정작 가장 널리
   // 퍼지는 카드가 그 안전장치를 빼고 있었다. 좋게 보이는 쪽(70% 이상 →
   // 64%)도 같은 문제다 — 소표본을 증거처럼 방송하게 된다.
-  function wilson(p,n){var z=1.96,d=1+z*z/n,c=(p+z*z/(2*n))/d,
-    h=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/d;
-    return [Math.max(0,c-h),Math.min(1,c+h)]}
+  // (2026-08-14) 사본을 지우고 assets/hitrate.js 하나만 남겼다 — 위 주석이
+  // 스스로 "paper.html이 쓰는 것과 같은 식"이라고 적고 있었다. 같은 식을
+  // 두 곳에 적으면 반드시 어긋난다(FROZEN_IDEAS ①).
+  var wilson=function(p,n){return QuantHitRate.wilsonCI(Math.round(p*n),n)};
 
   var head='<div class="head"><div><span class="logo">QUANT<em>.</em></span>'
     +'<span class="badge">8마일 챌린지 '+esc(day)+'</span></div>'

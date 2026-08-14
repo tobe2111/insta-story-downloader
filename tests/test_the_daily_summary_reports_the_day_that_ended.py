@@ -37,10 +37,10 @@ from quant.live.summary import (  # noqa: E402
 STATE = {
     "symbol": "BTC/USDT", "strategy": "ma_cross", "mode": "paper",
     "history": [
-        {"time": "2026-08-12T01:00:00", "equity": 100.0, "recent_hit_rate": 0.60},
-        {"time": "2026-08-12T09:00:00", "equity": 105.0, "recent_hit_rate": 0.70},
-        {"time": "2026-08-12T17:00:00", "equity": 110.0, "recent_hit_rate": 0.80},
-        {"time": "2026-08-13T00:05:00", "equity": 111.0, "recent_hit_rate": 0.10},
+        {"time": "2026-08-12T01:00:00", "equity": 100.0, "recent_hit_rate": 0.60, "recent_n": 25},
+        {"time": "2026-08-12T09:00:00", "equity": 105.0, "recent_hit_rate": 0.70, "recent_n": 25},
+        {"time": "2026-08-12T17:00:00", "equity": 110.0, "recent_hit_rate": 0.80, "recent_n": 25},
+        {"time": "2026-08-13T00:05:00", "equity": 111.0, "recent_hit_rate": 0.10, "recent_n": 10},
     ],
 }
 
@@ -69,7 +69,9 @@ def test_it_reads_the_last_record_of_that_day_not_the_newest_overall():
                                   today="2026-08-13")
     assert "110.00" in text and "111.00" not in text, (
         f"어제 요약에 오늘 자산이 실렸다: {text}")
-    assert "80.0%" in text and "10.0%" not in text, text
+    # 적중률도 그 날 마지막 기록의 것이어야 한다. 서식은 2026-08-14부터
+    # 구간을 함께 낸다 — 80%(n=25)는 판정되고, 다음 날의 10%는 안 나온다.
+    assert "80% (61~91% · n=25)" in text and "10%" not in text, text
 
 
 # ── 대조군: 롤오버 판정 자체는 그대로인가 ─────────────────────
