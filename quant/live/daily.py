@@ -2279,13 +2279,46 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                 cur = json.load(f)
         except (OSError, ValueError):
             cur = {}
-    entry = {"date": _date.today().isoformat(),
-             "ok": len(ok), "failed": len(failed),
-             "skipped": len(skipped or []),
-             "skipped_keys": sorted(skipped or [])[:20],
-             "failed_keys": sorted(failed)[:20],
+    today = _date.today().isoformat()
+    # ⚠️ **하루에 두 번 돈다**(본 크론 + 예비 크론). 그냥 덮어쓰면 나중에 도는
+    #    예비 크론이 본 크론의 성적을 지운다 — 예비 크론은 이미 기록된 종목을
+    #    정상적으로 전부 건너뛰기 때문에 그 기록은 항상 "성공 0 · 건너뜀 20"
+    #    이다(감사 244).
+    #
+    #    실측(2026-08-14, 커밋 순서대로):
+    #        paper   ok=20 skip=0   ← 본 크론이 20종목을 다 돌았다
+    #        paper   ok=0  skip=20  ← 예비 크론이 덮어썼다. 이게 화면에 남는다
+    #        retrain ok=16 skip=4 → ok=4 skip=16 (08-13, 같은 일)
+    #
+    #    그래서 **잘 돈 날과 배치가 아예 안 뜬 날이 같은 기록**으로 남는다.
+    #    부분 마비를 잡으려고 만든 장부가 정작 자기 자신을 지우고 있었다.
+    #
+    #    같은 날짜면 종목 단위로 합친다: 오늘 한 번이라도 성공한 종목은 성공,
+    #    끝까지 실패한 종목만 실패, 한 번도 안 돈 종목만 건너뜀이다
+    #    (건너뜀은 여전히 통과가 아니다 — 감사 226).
+    prev = cur.get(kind) or {}
+    ok_set, failed_map = set(ok), dict(failed)
+    skip_set = set(skipped or [])
+    if str(prev.get("date")) == today:
+        ok_set |= set(prev.get("ok_keys") or [])
+        for k, v in (prev.get("errors") or {}).items():
+            failed_map.setdefault(k, v)
+        for k in (prev.get("failed_keys") or []):
+            failed_map.setdefault(k, "")
+        skip_set |= set(prev.get("skipped_keys") or [])
+        entry_runs = int(prev.get("runs") or 1) + 1
+    else:
+        entry_runs = 1
+    failed_map = {k: v for k, v in failed_map.items() if k not in ok_set}
+    skip_set -= ok_set | set(failed_map)
+    entry = {"date": today, "runs": entry_runs,
+             "ok": len(ok_set), "failed": len(failed_map),
+             "skipped": len(skip_set),
+             "ok_keys": sorted(ok_set)[:100],
+             "skipped_keys": sorted(skip_set)[:20],
+             "failed_keys": sorted(failed_map)[:20],
              "errors": {k: str(v)[:200] for k, v in
-                        list(failed.items())[:5]}}
+                        list(failed_map.items())[:5] if v}}
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
@@ -2313,6 +2346,101 @@ def _week_base_principal(st: dict, first_date: str) -> float:
     except (TypeError, ValueError):
         return float(st["history"][0]["equity"])
     return base if base > 0 else float(st["history"][0]["equity"])
+
+
+def _window_return(hist: list, window: list, st: dict) -> tuple[float, list]:
+    """구간 수익률(%)과 (날짜, 그날 %) 목록 — **주간 셈은 여기 한 곳에서 한다.**
+
+    ⚠️ 이 셈이 두 벌이었다(감사 246). 텔레그램 주간 리포트는 여기(파이썬),
+       공개 주간 아카이브 페이지는 자기 자바스크립트 복사본을 갖고 있었고,
+       그 복사본은 아예 **다른 값**을 쓰고 있었다:
+
+           const ret = cur.day_pct != null ? cur.day_pct : ...
+
+       `day_pct`는 **그 주 마지막 날 하루치**다. 열 제목은 "주간 수익률"인데
+       매주 마지막 하루를 주간 성적으로 내보내고 있었다. 실측(2026-08-10 주):
+
+           아카이브 페이지  **+0.02%**   ← 08-14 하루치
+           사실(원금 대비)  **-0.02%**
+
+       **부호가 반대다.** 감사 241에서 파이썬 쪽을 고쳤는데, 같은 병을 가진
+       화면 쪽은 그대로 남아 있었다 — 형제를 안 찾은 자리다(㉞ 같은 판정을
+       두 곳에서 쓰면 언젠가 갈라진다).
+
+    규칙(감사 241과 같다):
+      · 기준선은 창 직전 마지막 기록. 없으면 **원금**(첫날 손익이 사라지지
+        않게).
+      · 입금은 수익이 아니다 — 그날 유입액을 빼고 구간수익을 연쇄 곱한다.
+      · 입금 귀속은 `_flows_by_date`가 **전체 기록**으로 잡는다.
+    """
+    idx0 = hist.index(window[0])
+    base = (hist[idx0 - 1]["equity"] if idx0 > 0
+            else _week_base_principal(st, window[0]["date"]))
+    src = hist                  # 귀속은 창이 아니라 **전체 기록**(감사 241)
+    flows = _flows_by_date(src, st.get("deposits") or [])
+    days_chg: list = []
+    chain, prev = 1.0, base
+    for r in window:
+        if prev:
+            r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
+            chain *= 1.0 + r_t
+            days_chg.append((r["date"], r_t * 100))
+        prev = float(r["equity"])
+    return ((chain - 1) * 100 if base else 0.0), days_chg
+
+
+def _monday_of(day: str) -> str:
+    """그 날짜가 속한 주의 월요일(ISO) — 화면과 배치가 같은 주 경계를 쓴다."""
+    from datetime import date, timedelta
+
+    d = date.fromisoformat(str(day)[:10])
+    return (d - timedelta(days=d.weekday())).isoformat()
+
+
+def weekly_archive(state_dir: str = STATE_DIR, weeks: int = 52) -> dict:
+    """주 단위 아카이브 — 계좌별 {월요일: {수익률·자산·입금}} (감사 246).
+
+    공개 주간 아카이브 페이지가 읽는 재료다. **페이지는 이제 계산하지 않고
+    읽기만 한다** — 같은 판정을 두 곳에서 하면 언젠가 갈라지고, 실제로
+    갈라져 있었다(위 `_window_return` 참고).
+    """
+    from datetime import date
+
+    out: dict = {}
+    for path in ledger_files(state_dir):
+        try:
+            with open(path, encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        hist = chrono(st.get("history") or [])
+        if not hist:
+            continue
+        key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
+        deposits = st.get("deposits") or []
+        by_week: dict = {}
+        for r in hist:
+            by_week.setdefault(_monday_of(r["date"]), []).append(r)
+        rows: dict = {}
+        for wk in sorted(by_week)[-weeks:]:
+            window = by_week[wk]
+            ret, _ = _window_return(hist, window, st)
+            dep = 0.0
+            for d in deposits:
+                when = d.get("settled_bar") or d.get("date")
+                try:
+                    if _monday_of(when) == wk:
+                        dep += float(d.get("amount") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+            rows[wk] = {"return_pct": round(ret, 2),
+                        "equity": window[-1].get("equity"),
+                        "deposit": round(dep, 2) or None,
+                        "n_days": len(window)}
+        if rows:
+            out[key] = rows
+    del date
+    return out
 
 
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
@@ -2363,11 +2491,8 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         #    창 시작 **전에** 정산된 입금은 그때 이미 자산에 들어가 있으므로
         #    기준에 더한다. 창 **안에서** 정산된 입금은 아래 `flows`가 따로
         #    빼므로 여기서 더하면 두 번 세는 것이 된다.
-        idx0 = hist.index(window[0])
-        if idx0 > 0:
-            base = hist[idx0 - 1]["equity"]
-        else:
-            base = _week_base_principal(st, window[0]["date"])
+        # 이 셈은 `_window_return`이 한 곳에서 한다(감사 246) — 주간 아카이브
+        # 페이지가 자기 복사본을 갖고 있다가 갈라진 자리다.
         # 입금은 수익이 아니다 — 자산 비율만 쓰면 매칭입금이 주간 수익으로
         # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
         # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
@@ -2384,19 +2509,7 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         #    오래된 입금이 "창 첫 기록"으로 끌려와 그 주의 수익에서 빠진다 —
         #    그 돈은 이미 창 이전 자산에 들어가 있으므로 두 번 빼는 것이다.
         #    실측: 시작금 8만 + 08-01 입금 92만인 계좌의 첫 주가 **-92%**.
-        flows = _flows_by_date(
-            hist,                        # 창이 아니라 **전체 기록**(감사 241)
-            st.get("deposits") or [])
-        days_chg = []
-        chain = 1.0
-        prev = base
-        for r in window:
-            if prev:
-                r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
-                chain *= 1.0 + r_t
-                days_chg.append((r["date"], r_t * 100))
-            prev = float(r["equity"])
-        week_ret = (chain - 1) * 100 if base else 0.0
+        week_ret, days_chg = _window_return(hist, window, st)
         best = max(days_chg, key=lambda x: x[1]) if days_chg else None
         worst = min(days_chg, key=lambda x: x[1]) if days_chg else None
         markets[key] = {
@@ -2683,6 +2796,16 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 status["run_health"] = json.load(f)
         except (OSError, ValueError):
             pass
+
+    # 주간 아카이브 — **셈은 배치가 하고 페이지는 읽기만 한다**(감사 246).
+    # 페이지가 자기 복사본으로 계산하던 시절, 그 복사본은 "주간 수익률" 칸에
+    # 그 주 **마지막 하루치**를 넣고 있었다(실측 +0.02% vs 사실 -0.02%).
+    try:
+        wk = weekly_archive(state_dir)
+        if wk:
+            status["weekly"] = wk
+    except Exception:  # noqa: BLE001 — 집계 실패가 사이트 갱신을 막으면 안 된다
+        log.warning("주간 아카이브 집계 실패 — 페이지는 '집계 없음'으로 표시된다")
 
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.

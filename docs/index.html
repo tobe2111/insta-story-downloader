@@ -764,6 +764,38 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         ". 확신도가 높은 쪽부터 채우기 때문이며, 그만큼 종목 수는 줄어듭니다");
     }
   }
+  /* 새벽 배치가 반쯤 마비된 날 — 값은 이미 실려 오는데(status.run_health)
+     **화면이 한 번도 읽지 않고 있었다**(감사 245). 종목 절반이 실패한 날도
+     읽는 사람에게는 평범한 하루로 보였다. 경보는 디스코드로만 갔고, 공개
+     장부를 보는 사람은 그 사실을 알 방법이 없었다 — 만들어 놓고 배선하지
+     않은 장치의 화면판이다(감사 139·243과 같은 계열).
+
+     조용해야 할 때는 조용하다: 주말·휴장으로 전 종목이 건너뛴 날은 말하지
+     않는다. '정체(stale)'는 그 자체가 주말·휴장을 빼고 센 값이라, 그것과
+     '실패'만 말한다 — 매일 울리는 경보는 꺼진 경보와 같다(감사 99). */
+  {
+    const rh=st.run_health||{}, nmk={paper:"페이퍼 매매",retrain:"새벽 재학습"};
+    /* ⚠️ 종목 이름 함수를 **여기서 만든다**. 위 블록의 `nm`은 그 중괄호
+       안에서만 사는 const라, 밖에서 부르면 ReferenceError가 나고 이 렌더
+       전체가 통째로 멈춘다(아래 catch가 그 사실을 화면에 말한다). */
+    const rname=k=>esc((syms[k]||{}).name||String(k).split(":")[1]||k);
+    Object.keys(rh).forEach(k=>{
+      const r=rh[k]||{}, lab=nmk[k]||k;
+      const nf=Number(r.failed)||0;
+      if(nf>0)flags.push("<b>"+esc(lab)+" 부분 실패 "+nf+"종목</b> — "+
+        (r.failed_keys||[]).slice(0,5).map(x=>rname(x)).join(" · ")+
+        ". 그 종목은 그날 판단·기록이 없고 이전 판단을 그대로 씁니다"+
+        (r.date?" ("+esc(r.date)+")":""));
+      const stl=r.stale||null, sk=stl?Object.keys(stl):[];
+      if(sk.length){
+        const u=esc(r.stale_unit||"일");
+        flags.push("<b>"+esc(lab)+" 정체 "+sk.length+"종목</b> — 최장 "+
+          (Number(r.max_stale_days)||0)+u+"째 새 봉을 못 받아 건너뛰고 "+
+          "있습니다("+sk.slice(0,5).map(x=>rname(x)+"("+stl[x]+u+")").join(" · ")+
+          "). 주말·휴장으로는 설명되지 않는 간격입니다");
+      }
+    });
+  }
   /* 시장별 '판단에 쓴 봉'이 며칠 묵었나(감사 220) — 배치 시각이 그 시장
      마감보다 이르면 그 시장만 조용히 하루 뒤처진다. 한국·코인은 최신인데
      미국만 뒤처지면 종목 간 비교 자체가 어긋난다. 정상(0~1일)은 조용하고
@@ -1290,7 +1322,24 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     pollStocks(); if(!ws)openCryptoStream();
   });
 
-}).catch(()=>{});
+}).catch(err=>{
+  /* ⚠️ 예전에는 `catch(()=>{})` — 렌더 도중 예외를 **통째로 삼켰다**(감사 245).
+     이 렌더는 하나의 긴 then 하나라서, 중간 한 줄이 터지면 그 아래가 전부
+     안 그려진다. 그런데 화면에도 콘솔에도 아무 말이 없으니 읽는 사람은
+     **빈칸을 "오늘은 그런 일이 없었다"로 읽는다.** 이 제품에서 가장 하면
+     안 되는 일이다 — 모르는 것과 아닌 것을 구분해야 한다.
+
+     실제로 이 감사 중에 그 일이 벌어졌다: 새 블록이 다른 블록 안에만 사는
+     const를 불러 ReferenceError가 났고, 사이드바 전체가 통째로 비었는데
+     콘솔조차 조용했다. 검사가 아니라 **브라우저로 띄워 봐서** 알았다. */
+  console.error("화면 렌더 실패:", err);
+  const el=document.getElementById("side-flags");
+  if(!el)return;
+  el.innerHTML='<div class="t">⚠️ 화면을 다 그리지 못했습니다</div>'+
+    '<div class="flag">이 페이지의 일부가 비어 있을 수 있습니다 — '+
+    '<b>빈칸을 "그런 일이 없었다"로 읽지 마세요.</b> 새로고침해도 같다면 '+
+    '원본 장부(<a href="status.json">status.json</a>)를 직접 보세요.</div>';
+});
 
 /* --- 후원 랭킹 — sponsors.json에 기록이 있을 때만 노출 --- */
 fetch("sponsors.json").then(r=>r.ok?r.json():null).then(j=>{
