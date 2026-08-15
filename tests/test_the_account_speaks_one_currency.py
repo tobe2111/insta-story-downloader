@@ -69,7 +69,10 @@ def test_a_missing_rate_never_becomes_one():
 
 def test_an_implausible_rate_is_refused(monkeypatch):
     """계열이 뒤집혀 오면(0.0007) 자산이 100만 배 틀어진다 — 거절한다."""
-    def _fake(market, symbol, limit=800, fetch=None):
+    # **kw — 운영 코드가 refresh=True를 함께 넘긴다(감사 252). 위치 인자만
+    # 받는 가짜를 두면 TypeError가 나고, usdkrw의 except가 그걸 삼켜서
+    # "환율을 못 받았다"로 보인다 — 검사가 엉뚱한 이유로 초록/빨강이 된다.
+    def _fake(market, symbol, limit=800, fetch=None, **kw):
         return pd.Series([0.00071], index=pd.to_datetime(["2026-08-12"]))
 
     monkeypatch.setattr("quant.data.crossasset._bench_close", _fake)
@@ -78,7 +81,7 @@ def test_an_implausible_rate_is_refused(monkeypatch):
 
 def test_a_plausible_rate_is_accepted(monkeypatch):
     """대조군 — 멀쩡한 값까지 거절하면 해외 종목이 영영 안 돈다."""
-    def _fake(market, symbol, limit=800, fetch=None):
+    def _fake(market, symbol, limit=800, fetch=None, **kw):
         return pd.Series([1_412.5], index=pd.to_datetime(["2026-08-12"]))
 
     monkeypatch.setattr("quant.data.crossasset._bench_close", _fake)
@@ -93,7 +96,7 @@ def test_a_failure_is_not_remembered(monkeypatch):
     monkeypatch.setattr(fxmod, "_MEMO", {})      # 앞선 검사의 성공값을 지운다
     calls = {"n": 0}
 
-    def _fail(market, symbol, limit=800, fetch=None):
+    def _fail(market, symbol, limit=800, fetch=None, **kw):
         calls["n"] += 1
         return None
 

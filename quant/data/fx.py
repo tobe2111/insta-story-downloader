@@ -47,21 +47,53 @@ UNITLESS_MARKETS = frozenset({"synthetic"})
 FX_MIN, FX_MAX = 500.0, 5_000.0
 
 _MEMO: dict[str, float | None] = {}
+_MEMO_AT: float = 0.0
+
+# 캐시한 환율이 늙는 시간(초). 하루 한 번 도는 배치는 이 안에서 끝나므로
+# 예전처럼 **한 배치에 한 환율**이고, 며칠 도는 프로세스에서는 한 시간마다
+# 새로 받는다(감사 252).
+FX_TTL_SEC = 3600.0
 
 
-def usdkrw(fetch=None, *, refresh: bool = False) -> float | None:
+def usdkrw(fetch=None, *, refresh: bool = False, now=None) -> float | None:
     """최근 원/달러 종가. **모르면 None** — 절대 1.0으로 대신하지 않는다.
 
     합성 폴백은 거절한다(`_bench_close`가 이미 걸러낸다). 값이 상식 범위를
     벗어나도 거절한다 — 계열이 뒤집혀 오면 자산이 100만 배 틀어진다.
+
+    ⚠️ **캐시가 늙지 않던 자리**(감사 252). 이 함수의 메모는 프로세스가 사는
+       동안 그대로였고, `refresh=True`는 아래 `_bench_close`의 메모에 막혀
+       **이름만 refresh**였다. 실측: 1416.46을 받은 뒤 환율이 1500으로
+       움직여도 `usdkrw(refresh=True)`가 계속 1416.46을 돌려줬다.
+
+       하루 한 번 도는 배치에서는 문제가 없다(프로세스가 매번 새로 뜬다).
+       문제는 **며칠 사는 프로세스** 둘이다:
+
+           실시간 루프   engine.py·multi.py — 1시간 간격으로 며칠
+           조종석 서버   web/server.py — 요청마다 usdkrw()
+
+       거기서는 해외 종목 평가 환율이 첫 조회값에 고정된다. 원/달러가 3%
+       움직이면 미국·코인 보유 평가가 3% 틀어지고, 그 왜곡이 자산·수익률·
+       낙폭·킬스위치 판정까지 그대로 흘러간다 — 감사 212가 "환율 변동이
+       매일의 재평가로 장부에 잡히게" 만든 그 통로가 막힌다.
+
+    now는 검사 주입용 시계(초). 안 주면 실제 시계를 쓴다.
     """
-    if not refresh and "usdkrw" in _MEMO:
+    import time as _time
+
+    global _MEMO_AT
+    clock = now or _time.time
+    fresh = (clock() - _MEMO_AT) < FX_TTL_SEC
+    if not refresh and fresh and "usdkrw" in _MEMO:
         return _MEMO["usdkrw"]
     rate = None
     try:
         from quant.data.crossasset import _bench_close
 
-        s = _bench_close("us_stock", "KRW=X", limit=30, fetch=fetch)
+        # 아래 메모까지 함께 비워야 진짜로 다시 받는다 — 이걸 안 해서
+        # refresh가 이름만 refresh였다.
+        s = _bench_close("us_stock", "KRW=X", limit=30, fetch=fetch,
+                         refresh=True)
         if s is not None:
             s = s.dropna()
             if len(s):
@@ -81,6 +113,7 @@ def usdkrw(fetch=None, *, refresh: bool = False) -> float | None:
                     "환산할 수 없습니다. 1.0으로 대신하지 않습니다.")
         return None
     _MEMO["usdkrw"] = rate
+    _MEMO_AT = clock()
     return rate
 
 
