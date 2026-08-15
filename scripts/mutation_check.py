@@ -2369,6 +2369,39 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 251 — worker.js(336줄)에 변이 항목이 **0건**이던 자리. 발급·인증
+    # 안전장치가 다 있는데, 그것을 지우는 변이를 아무도 잡아 본 적이 없었다.
+    ("어드민 로그인이 꺼져 있어도 키를 발급한다(누구나 키를 찍는다)",
+     "worker.js",
+     "  if (!env.ADMIN_ID || !env.ADMIN_PW) {",
+     "  if (false) {",
+     "tests/worker_license_check.mjs"),
+    ("어드민 문을 통째로 연다(시크릿 미설정을 '통과'로 읽는다)",
+     "worker.js",
+     "  if (!env.ADMIN_ID || !env.ADMIN_PW) return null;   // 시크릿 미설정 → 보호 없음",
+     "  return null;",
+     "tests/worker_license_check.mjs"),
+    ("어드민 비밀번호를 확인하지 않는다(아이디만 맞으면 통과)",
+     "worker.js",
+     "          && dec.slice(i + 1) === env.ADMIN_PW) return null;",
+     "          ) return null;",
+     "tests/worker_license_check.mjs"),
+    ("발급 시 소유자 정규화를 뺀다(대문자 이메일에 다른 키가 나간다)",
+     "worker.js",
+     '  const owner = (url.searchParams.get("owner") || "").trim().toLowerCase();',
+     '  const owner = (url.searchParams.get("owner") || "");',
+     "tests/worker_license_check.mjs"),
+    ("키 자르는 길이를 바꾼다(발급한 키가 구매자 컴퓨터에서 전부 무효)",
+     "worker.js",
+     '  const key = "QUANT-" + b32(sig.slice(0, 15)).replace(/(.{6})(?=.)/g, "$1-");',
+     '  const key = "QUANT-" + b32(sig.slice(0, 16)).replace(/(.{6})(?=.)/g, "$1-");',
+     "tests/worker_license_check.mjs"),
+    ("발급 응답을 교차출처로 연다(어드민 API에 와일드카드를 단다)",
+     "worker.js",
+     '  return json({ owner, key, fingerprint: "hmac:" + fp }, 200,\n              { "Cache-Control": "no-store" });',
+     '  return json({ owner, key, fingerprint: "hmac:" + fp }, 200,\n              { "Cache-Control": "no-store" }, true);',
+     "tests/worker_license_check.mjs"),
+
     # 감사 250 — 분석 도구가 합성 데이터 결과를 진짜처럼 보고하던 자리.
     # 실측: 네트워크 차단 환경에서 quant backtest가 "샤프 2.10 · 승률 57%"를
     # 지어낸 가격 위에서 출력했고, 본문에는 가짜라는 말이 없었다.
