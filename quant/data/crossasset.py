@@ -59,10 +59,21 @@ def _upbit_ohlcv(symbol: str, limit: int) -> pd.DataFrame:
 
 
 def _bench_close(market: str, symbol: str, limit: int = 800,
-                 fetch=None) -> pd.Series | None:
-    """벤치마크 종가 시계열(날짜 정규화·중복 제거). 실패 시 None."""
+                 fetch=None, refresh: bool = False) -> pd.Series | None:
+    """벤치마크 종가 시계열(날짜 정규화·중복 제거). 실패 시 None.
+
+    ⚠️ 이 메모는 **프로세스가 사는 동안 안 늙는다**(감사 252). 하루 한 번
+       도는 배치에서는 그게 옳다 — 같은 배치 안에서 종목마다 다른 값을
+       쓰면 자산이 어긋난다. 그런데 며칠씩 도는 프로세스(실시간 루프,
+       조종석 서버)에서는 **첫 조회값이 영영 고정**된다.
+
+       `refresh=True`면 그 키를 버리고 다시 받는다. 이게 없어서 위층
+       `fx.usdkrw(refresh=True)`가 이름만 refresh였다.
+    """
     key = (market, symbol, limit)
-    if key in _MEMO:
+    if refresh:
+        _MEMO.pop(key, None)
+    elif key in _MEMO:
         return _MEMO[key]
     try:
         if fetch is not None:
