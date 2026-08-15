@@ -228,7 +228,7 @@ MUTATIONS = [
      "tests/test_a_skip_is_not_a_success.py"),
     ("건너뜀 수를 장부에 0으로 적는다 — 세 칸이 다시 두 칸이 된다",
      "quant/live/daily.py",
-     '             "skipped": len(skipped or []),',
+     '             "skipped": len(skip_set),',
      '             "skipped": 0,',
      "tests/test_a_skip_is_not_a_success.py"),
     ("정체 문턱을 '이상'으로 바꾼다 — 정상 연휴에도 경보가 울린다",
@@ -3436,6 +3436,32 @@ MUTATIONS = [
      "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,",
      "def _write_run_health(*a, **kw) -> None:\n    return\ndef _unused(state_dir: str, kind: str, ok: list, failed: dict,",
      "tests/test_run_health.py"),
+
+    # 감사 244 — 예비 크론이 본 크론의 성적을 지우던 자리.
+    # 실측 2026-08-14: paper ok=20 → ok=0(skip=20)으로 덮여 화면에 남았다.
+    ("예비 크론이 본 크론의 성적을 덮어쓴다 — 잘 돈 날이 '아무 일도 안 한 날'이 된다",
+     "quant/live/daily.py",
+     '    if str(prev.get("date")) == today:',
+     "    if False:",
+     "tests/test_the_retry_cron_does_not_erase_the_first_run.py"),
+
+    ("이미 성공한 종목을 건너뜀으로 되돌린다 — 성공 수가 매일 0이 된다",
+     "quant/live/daily.py",
+     "    skip_set -= ok_set | set(failed_map)",
+     "    pass",
+     "tests/test_the_retry_cron_does_not_erase_the_first_run.py"),
+
+    ("합치면서 실패를 삼킨다 — 끝까지 실패한 종목이 성공으로 남는다",
+     "quant/live/daily.py",
+     '    failed_map = {k: v for k, v in failed_map.items() if k not in ok_set}',
+     "    failed_map = {}",
+     "tests/test_the_retry_cron_does_not_erase_the_first_run.py"),
+
+    ("어제 성적을 오늘로 끌고 온다 — 배치가 죽어도 화면은 영원히 초록이다",
+     "quant/live/daily.py",
+     "        entry_runs = int(prev.get(\"runs\") or 1) + 1\n    else:\n        entry_runs = 1",
+     "        entry_runs = 1\n    if True:\n        ok_set |= set(prev.get(\"ok_keys\") or [])",
+     "tests/test_the_retry_cron_does_not_erase_the_first_run.py"),
 
     ("실적 가드를 항상 비발동으로 만든다",
      "quant/data/earnings.py",

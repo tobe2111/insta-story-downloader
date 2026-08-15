@@ -2279,13 +2279,46 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                 cur = json.load(f)
         except (OSError, ValueError):
             cur = {}
-    entry = {"date": _date.today().isoformat(),
-             "ok": len(ok), "failed": len(failed),
-             "skipped": len(skipped or []),
-             "skipped_keys": sorted(skipped or [])[:20],
-             "failed_keys": sorted(failed)[:20],
+    today = _date.today().isoformat()
+    # ⚠️ **하루에 두 번 돈다**(본 크론 + 예비 크론). 그냥 덮어쓰면 나중에 도는
+    #    예비 크론이 본 크론의 성적을 지운다 — 예비 크론은 이미 기록된 종목을
+    #    정상적으로 전부 건너뛰기 때문에 그 기록은 항상 "성공 0 · 건너뜀 20"
+    #    이다(감사 244).
+    #
+    #    실측(2026-08-14, 커밋 순서대로):
+    #        paper   ok=20 skip=0   ← 본 크론이 20종목을 다 돌았다
+    #        paper   ok=0  skip=20  ← 예비 크론이 덮어썼다. 이게 화면에 남는다
+    #        retrain ok=16 skip=4 → ok=4 skip=16 (08-13, 같은 일)
+    #
+    #    그래서 **잘 돈 날과 배치가 아예 안 뜬 날이 같은 기록**으로 남는다.
+    #    부분 마비를 잡으려고 만든 장부가 정작 자기 자신을 지우고 있었다.
+    #
+    #    같은 날짜면 종목 단위로 합친다: 오늘 한 번이라도 성공한 종목은 성공,
+    #    끝까지 실패한 종목만 실패, 한 번도 안 돈 종목만 건너뜀이다
+    #    (건너뜀은 여전히 통과가 아니다 — 감사 226).
+    prev = cur.get(kind) or {}
+    ok_set, failed_map = set(ok), dict(failed)
+    skip_set = set(skipped or [])
+    if str(prev.get("date")) == today:
+        ok_set |= set(prev.get("ok_keys") or [])
+        for k, v in (prev.get("errors") or {}).items():
+            failed_map.setdefault(k, v)
+        for k in (prev.get("failed_keys") or []):
+            failed_map.setdefault(k, "")
+        skip_set |= set(prev.get("skipped_keys") or [])
+        entry_runs = int(prev.get("runs") or 1) + 1
+    else:
+        entry_runs = 1
+    failed_map = {k: v for k, v in failed_map.items() if k not in ok_set}
+    skip_set -= ok_set | set(failed_map)
+    entry = {"date": today, "runs": entry_runs,
+             "ok": len(ok_set), "failed": len(failed_map),
+             "skipped": len(skip_set),
+             "ok_keys": sorted(ok_set)[:100],
+             "skipped_keys": sorted(skip_set)[:20],
+             "failed_keys": sorted(failed_map)[:20],
              "errors": {k: str(v)[:200] for k, v in
-                        list(failed.items())[:5]}}
+                        list(failed_map.items())[:5] if v}}
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
