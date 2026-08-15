@@ -538,6 +538,8 @@ def _cmd_validate(args) -> None:
                                       _dt.date.today().isoformat())
     except Exception:  # noqa: BLE001 — 장부 조회 실패가 검증을 막지 않는다
         ledger_trials = 0
+    # 돌지 못한 검증의 **이유**를 모은다(감사 249) — 아래에서 장부에 실린다.
+    skipped: dict[str, str] = {}
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
@@ -550,6 +552,7 @@ def _cmd_validate(args) -> None:
               f"{'— 실력 가능성' if wf['dsr'] >= 0.95 else '— 운일 수 있음(0.95 미만)'}")
     except ValueError as exc:
         print(f"  건너뜀: {exc}")
+        skipped["dsr"] = str(exc)[:200]
 
     # 2) PBO — IS 1등이 OOS에서 동전던지기인지
     print("\n[2/4] PBO (백테스트 과적합 확률)")
@@ -562,6 +565,7 @@ def _cmd_validate(args) -> None:
         print("  " + pbo_report(pbo_res).replace("\n", "\n  "))
     except (ValueError, TypeError, AttributeError) as exc:
         print(f"  건너뜀: {exc}")
+        skipped["pbo"] = str(exc)[:200]
 
     # 3) CPCV — 여러 OOS 경로의 분포
     print("\n[3/4] CPCV (다중 OOS 경로 분포)")
@@ -571,6 +575,7 @@ def _cmd_validate(args) -> None:
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
     except ValueError as exc:
         print(f"  건너뜀: {exc}")
+        skipped["cpcv"] = str(exc)[:200]
 
     # 4) 파라미터 안정성 — 1등이 '넓은 고원'인가 '외딴 봉우리'인가
     #
@@ -590,6 +595,7 @@ def _cmd_validate(args) -> None:
         peak_only = bool(rb is not None and rb != gs["best_params"])
     except (ValueError, TypeError, KeyError) as exc:
         print(f"  건너뜀: {exc}")
+        skipped["stability"] = str(exc)[:200]
 
     # 검증 결과를 장부에 남긴다 — 과최적화 감시가 콘솔에만 찍히고 사라지면
     # 아무것도 막지 못한다. 저장된 값은 flag_watch가 매일 읽어 경보한다.
@@ -607,6 +613,11 @@ def _cmd_validate(args) -> None:
         prev[f"{args.market}:{args.symbol}"] = {
             "strategy": args.strategy, "bars": len(df),
             "dsr": dsr_value, "pbo": pbo_value,
+            # ⚠️ **왜 없는지도 남긴다**(감사 249). 예전에는 못 잰 값이 그냥
+            #    null로 남고 이유는 콘솔에만 찍혔다. 그러면 사이트는 "안
+            #    돌았다"와 "돌았는데 문제없다"를 구별할 수 없다 — 리포트
+            #    페이지는 그 구별을 이미 하고 있었다("판정 불가", 감사 52).
+            "skipped": dict(skipped) or None,
             # 원점수 1등과 견고성 1등이 다른가 — True면 그 파라미터는
             # '외딴 봉우리'일 수 있다(감사 157). 콘솔에만 찍히면 아무것도
             # 막지 못하므로 장부에 남겨 flag_watch가 읽게 한다.

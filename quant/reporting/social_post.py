@@ -34,6 +34,22 @@ POLL_TRIES = 12
 POLL_DELAY = 5
 
 
+def _safe_error(exc: Exception, limit: int = 300) -> str:
+    """게시 실패 사유 — **공개돼도 되는 형태로만** 남긴다 (감사 248).
+
+    ⚠️ 이 문자열은 로그로만 가지 않는다. 아래 `run()`이 결과를
+       `posted.json`에 쓰는데 그 파일은 `docs/` 안이라 **공개 사이트에
+       그대로 배포된다.** 그리고 이 모듈은 Meta API에 토큰을 **본문(form)**
+       으로 보내므로, 오류 응답이 요청을 되울리면 토큰이 그 사유 안에 들어온다.
+
+       가리개 한 겹(감사 170·248)에만 기대지 않는다 — 공개되는 파일에 원문
+       예외를 통째로 붓는 것 자체가 위험한 습관이다. 가리고, 자른다.
+    """
+    from quant.utils.http import redact_secrets
+
+    return redact_secrets(str(exc))[:limit]
+
+
 def _post(url: str, params: dict, *, http=post_json) -> dict:
     """토큰 포함 파라미터를 본문(form)으로 보내는 POST — URL에 토큰 노출 금지."""
     body = urllib.parse.urlencode(
@@ -234,8 +250,8 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
             posted.add("threads")
             log.info("스레드 게시 완료: %s", results["threads"])
         except Exception as exc:  # noqa: BLE001 — 한 플랫폼 실패가 다른 쪽을 안 막는다
-            results["threads_error"] = str(exc)
-            log.error("스레드 게시 실패: %s", exc)
+            results["threads_error"] = _safe_error(exc)
+            log.error("스레드 게시 실패: %s", _safe_error(exc))
     elif "threads" in done:
         results["threads"] = "skipped(이미 게시됨)"
     else:
@@ -249,8 +265,8 @@ def run(content_dir: str, base_url: str, *, env=os.environ,
             posted.add("instagram")
             log.info("인스타그램 게시 완료: %s", results["instagram"])
         except Exception as exc:  # noqa: BLE001
-            results["instagram_error"] = str(exc)
-            log.error("인스타그램 게시 실패: %s", exc)
+            results["instagram_error"] = _safe_error(exc)
+            log.error("인스타그램 게시 실패: %s", _safe_error(exc))
     elif "instagram" in done:
         results["instagram"] = "skipped(이미 게시됨)"
     else:

@@ -2369,6 +2369,43 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 249 — 못 돈 검증이 사이트에서 조용하던 자리. 실측: BTC/USDT는
+    # DSR이 null(봉 300개)인데 PBO 경보만 떴다.
+    ("돌지 못한 검증을 화면이 말하지 않는다(재지 못한 것이 통과로 읽힌다)",
+     "quant/live/flag_watch.py",
+     '        missing = [k for k in ("dsr", "pbo") if _unmeasured(k)]',
+     "        missing = []",
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+    ("0.0을 '못 쟀다'로 읽는다(측정된 0이 판정 불가로 둔갑)",
+     "quant/live/flag_watch.py",
+     "            return _r.get(k) is None        # 0.0은 '못 쟀다'가 아니라 '측정된 0'",
+     "            return not _r.get(k)",
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+    ("검증이 건너뛴 이유를 장부에 안 남긴다(사이트가 왜 없는지 모른다)",
+     "quant/cli.py",
+     '            "skipped": dict(skipped) or None,',
+     '            "skipped": None,',
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+
+    # 감사 248 — 가리개가 '?'·'&' 뒤에서만 작동하던 자리. 이 저장소는 토큰을
+    # **본문(form)**으로 보내므로 되울린 본문의 토큰이 그대로 새어 나갔다.
+    # 그 문자열은 docs/ 안의 posted.json에 쓰여 **공개 사이트로 배포된다.**
+    ("비밀 가리개를 쿼리스트링에서만 작동하게 한다(본문에 실린 토큰이 그대로 샌다)",
+     "quant/utils/http.py",
+     '    r"(?i)(^|[?&\\s\\"\'{,\\[])((?:api[_-]?key|apikey|access[_-]?token|token|"',
+     '    r"(?i)()([?&](?:api[_-]?key|apikey|access[_-]?token|token|"',
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+    ("공개되는 게시 결과 파일에 예외 원문을 그대로 붓는다",
+     "quant/reporting/social_post.py",
+     "    return redact_secrets(str(exc))[:limit]",
+     "    return str(exc)",
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+    ("스레드 게시 실패 사유를 안 가리고 공개 파일에 적는다",
+     "quant/reporting/social_post.py",
+     '            results["threads_error"] = _safe_error(exc)',
+     '            results["threads_error"] = str(exc)',
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+
     ("상태 파일 임시 이름을 고정한다(두 프로세스가 같은 임시 파일을 밟는다)",
      "quant/utils/jsonio.py",
      '    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")',
@@ -2917,6 +2954,35 @@ MUTATIONS = [
      "                    pending_entry = use_next_open",
      "                    pending_entry = False",
      "tests/test_the_engine_that_makes_every_number.py"),
+
+    # 감사 247 — '다음 날'이 실은 '다음 기록'이던 자리. 실측: 전 종목 143쌍
+    # 중 6쌍이 두 세션짜리(코인 5 + 국내 1, 08-06 결측). 합산 50%대 상승
+    # 비율 57% → 61%, 60%대 48% → 53%로 움직인다.
+    ("건너뛴 봉을 '다음 날'로 채점한다 — 이틀치 움직임이 하루 예측의 성적이 된다",
+     "quant/live/ledger_basics.py",
+     "            if n is not None and n != 1:",
+     "            if False:",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("주말을 결측으로 센다 — 금요일→월요일 짝이 통째로 사라진다",
+     "quant/live/ledger_basics.py",
+     "            n = missed_sessions(market, a.get(\"date\"), b.get(\"date\"), holidays)",
+     "            n = 99",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("뺀 짝의 수를 화면에 안 밝힌다 — '그런 날이 없었다'로 읽힌다",
+     "quant/live/explain.py",
+     '    return f" · 봉이 빠진 {n}번은 제외" if n else ""',
+     '    return ""',
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("확률 경험 보정이 세션 규칙을 안 쓴다 — 표시 확률이 다른 표본으로 정해진다",
+     "quant/live/calibration_guard.py",
+     "        rows, _dropped = next_session_pairs(history, market, holidays)",
+     "        rows = list(zip(history, history[1:]))",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("합산 장부에 시장을 안 싣는다 — 하루 결측과 주말을 구별할 수 없다",
+     "quant/live/daily.py",
+     '                out.append((str(d.get("market") or ""), h))',
+     "                out.append((\"\", h))",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
 
     # 감사 187 — 방송에서 말하는 숫자 + 재현성 지문. 결함 1건(보합 미고지).
     ("확률대 표본에서 보합을 말하지 않는다(종목마다 비율이 갈리는데 이유를 숨긴다)",

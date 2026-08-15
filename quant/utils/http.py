@@ -17,9 +17,22 @@ _MAX_RESPONSE_BYTES = 32 * 1024 * 1024   # 32MB (API JSON엔 넉넉)
 
 # 쿼리스트링에 담긴 비밀(FRED api_key, FMP apikey 등)을 오류 메시지에서 가린다.
 # 예외 메시지가 로그로 새어도 키가 노출되지 않도록 소스에서 방어한다.
+# ⚠️ 예전에는 앞에 `?`나 `&`가 **있어야만** 가렸다(감사 248). 그런데 이
+#    저장소는 Meta API에 토큰을 **본문(form)**으로 보낸다 — 오류 응답이 그
+#    본문을 되울리면 `access_token=EAAG...`가 문자열 맨 앞이나 따옴표 뒤에
+#    오고, 그때는 가리개가 한 글자도 안 지웠다:
+#
+#        {"error":{"message":"Invalid: access_token=EAAG…"}}   ← 그대로 노출
+#        access_token=EAAG…&media_type=IMAGE                   ← 그대로 노출
+#
+#    그리고 이 문자열은 로그로만 가지 않는다. SNS 게시 결과(posted.json)는
+#    `docs/` 안에 쓰여 **공개 사이트에 그대로 배포된다.**
+#    이제 줄 시작·공백·따옴표·괄호 뒤에서도 가린다. 값의 끝도 따옴표에서
+#    끊는다 — 안 그러면 JSON 뒷부분까지 통째로 별표가 된다.
 _SECRET_QS = re.compile(
-    r"(?i)([?&](?:api[_-]?key|apikey|access[_-]?token|token|app[_-]?secret|"
-    r"app[_-]?key|secret[_-]?key|secret|password|passwd|pwd|sig|signature)=)[^&#\s]*")
+    r"(?i)(^|[?&\s\"'{,\[])((?:api[_-]?key|apikey|access[_-]?token|token|"
+    r"app[_-]?secret|app[_-]?key|secret[_-]?key|secret|password|passwd|pwd|"
+    r"sig|signature)=)[^&#\s\"'}\]]*")
 
 # 다른 호스트로 리다이렉트될 때 떼어낼 민감 헤더(인증정보 유출 방지).
 _SENSITIVE_HEADERS = {
@@ -28,8 +41,17 @@ _SENSITIVE_HEADERS = {
 }
 
 
+def redact_secrets(text: str) -> str:
+    """문자열에서 비밀값을 가린다 — URL·오류 본문·게시 결과 어디서든.
+
+    가릴 거면 **모든 통로**를 가려야 한다(감사 170·248). 하나라도 열려
+    있으면 나머지를 가린 노력이 통째로 무의미하다.
+    """
+    return _SECRET_QS.sub(r"\1\2***", str(text))
+
+
 def _redact_url(url: str) -> str:
-    return _SECRET_QS.sub(r"\1***", url)
+    return redact_secrets(url)
 
 
 class HttpError(RuntimeError):
