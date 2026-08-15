@@ -2918,6 +2918,35 @@ MUTATIONS = [
      "                    pending_entry = False",
      "tests/test_the_engine_that_makes_every_number.py"),
 
+    # 감사 247 — '다음 날'이 실은 '다음 기록'이던 자리. 실측: 전 종목 143쌍
+    # 중 6쌍이 두 세션짜리(코인 5 + 국내 1, 08-06 결측). 합산 50%대 상승
+    # 비율 57% → 61%, 60%대 48% → 53%로 움직인다.
+    ("건너뛴 봉을 '다음 날'로 채점한다 — 이틀치 움직임이 하루 예측의 성적이 된다",
+     "quant/live/ledger_basics.py",
+     "            if n is not None and n != 1:",
+     "            if False:",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("주말을 결측으로 센다 — 금요일→월요일 짝이 통째로 사라진다",
+     "quant/live/ledger_basics.py",
+     "            n = missed_sessions(market, a.get(\"date\"), b.get(\"date\"), holidays)",
+     "            n = 99",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("뺀 짝의 수를 화면에 안 밝힌다 — '그런 날이 없었다'로 읽힌다",
+     "quant/live/explain.py",
+     '    return f" · 봉이 빠진 {n}번은 제외" if n else ""',
+     '    return ""',
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("확률 경험 보정이 세션 규칙을 안 쓴다 — 표시 확률이 다른 표본으로 정해진다",
+     "quant/live/calibration_guard.py",
+     "        rows, _dropped = next_session_pairs(history, market, holidays)",
+     "        rows = list(zip(history, history[1:]))",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+    ("합산 장부에 시장을 안 싣는다 — 하루 결측과 주말을 구별할 수 없다",
+     "quant/live/daily.py",
+     '                out.append((str(d.get("market") or ""), h))',
+     "                out.append((\"\", h))",
+     "tests/test_the_next_day_is_actually_the_next_session.py"),
+
     # 감사 187 — 방송에서 말하는 숫자 + 재현성 지문. 결함 1건(보합 미고지).
     ("확률대 표본에서 보합을 말하지 않는다(종목마다 비율이 갈리는데 이유를 숨긴다)",
      "quant/live/explain.py",

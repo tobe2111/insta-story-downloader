@@ -142,13 +142,23 @@ def _band_pairs(history: list, prob: float, band: float) -> list:
        — 빼거나 숨기지 않고 **보합이 몇 날이었는지 함께 말한다.** 숨기면
        "보합이 없었다"와 구별되지 않는다(형제를 안 찾은 자리였다, 감사 187).
     """
-    return [p for p, _ in _band_pairs_flat(history, prob, band)]
+    return [p for p, _ in _band_pairs_flat(history, prob, band)[0]]
 
 
-def _band_pairs_flat(history: list, prob: float, band: float) -> list:
-    """(결과, 보합여부) 짝 목록 — 보합 수를 함께 셀 수 있게."""
+def _band_pairs_flat(history: list, prob: float, band: float,
+                     market: str | None = None,
+                     holidays: dict | None = None) -> tuple[list, int]:
+    """(결과, 보합여부) 짝 목록과 **건너뛴 기록 때문에 버린 짝의 수**.
+
+    짝짓기는 `next_session_pairs` 한 곳에서 한다(감사 247) — 경험 보정
+    (`calibration_guard.collect_pairs`)도 같은 함수를 쓴다. 두 곳이 각자
+    짝을 지으면 같은 데이터로 다른 결론이 난다.
+    """
+    from quant.live.ledger_basics import next_session_pairs
+
+    rows, dropped = next_session_pairs(history, market, holidays)
     pairs = []
-    for a, b in zip(history, history[1:]):
+    for a, b in rows:
         p = a.get("prob_up")
         pa, pb = a.get("price"), b.get("price")
         if p is None or pa in (None, 0) or pb is None:
@@ -156,7 +166,7 @@ def _band_pairs_flat(history: list, prob: float, band: float) -> list:
         if abs(float(p) - prob) <= band:
             flat = float(pb) == float(pa)
             pairs.append((1.0 if float(pb) > float(pa) else 0.0, flat))
-    return pairs
+    return pairs, dropped
 
 
 def _flat_note(pairs: list) -> str:
@@ -165,36 +175,58 @@ def _flat_note(pairs: list) -> str:
     return f" · 보합 {n}일 포함" if n else ""
 
 
+def _gap_note(n: int) -> str:
+    """건너뛴 기록 때문에 뺀 짝이 있으면 몇 개인지 밝힌다(감사 247).
+
+    빼는 것 자체는 옳다 — 이틀치 움직임은 하루 예측의 성적이 아니다. 다만
+    **뺀 사실을 숨기면** "그런 날이 없었다"와 구별되지 않는다(감사 168·240).
+    """
+    return f" · 봉이 빠진 {n}번은 제외" if n else ""
+
+
 def _band_accuracy(history: list, prob: float, band: float = 0.10,
-                   pooled_history: list | None = None) -> str:
+                   pooled_history: list | None = None,
+                   market: str | None = None,
+                   holidays: dict | None = None) -> str:
     """오늘과 비슷한 확률대의 과거 실제 적중률 — 신뢰도 곡선의 문장판.
 
-    새벽에 기록된 prob_up(t)과 다음 기록의 가격 방향(t+1)을 짝짓는다.
+    새벽에 기록된 prob_up(t)과 **바로 다음 세션** 기록의 가격 방향을 짝짓는다
+    (감사 247 — 하루가 빠진 구간은 이틀치 움직임이라 뺀다).
     우선순위: ① 이 종목 표본이 25건 이상이면 종목 통계(가장 정확)
              ② 미달이면 전 종목 합산(이질성은 있지만 표본이 빨리 모임)
              ③ 둘 다 미달이면 숫자 없이 '표본 축적 중 (n=X)'
     25건 이상일 때만 비율을 표시하고 윌슨 95% 신뢰구간을 병기한다 —
     작은 표본의 비율이 확신처럼 읽히는 것을 막는 규칙.
+
+    pooled_history는 `(시장, 장부)` 짝의 목록이다 — 시장을 모르면 세션
+    판정을 할 수 없다. 옛 형태(장부만의 목록)도 받는다(그때는 안 거른다).
     """
-    own_f = _band_pairs_flat(history, prob, band)
+    own_f, own_gap = _band_pairs_flat(history, prob, band, market, holidays)
     own = [v for v, _ in own_f]
     if len(own) >= MIN_BAND_SAMPLES:
         acc = sum(own) / len(own)
         lo, hi = _wilson_ci(acc, len(own))
+        # ⚠️ "최근 N**일**"이라고 쓰지 않는다(감사 247) — 짝은 거래일 기준
+        #    한 세션이고, 금요일→월요일은 사흘이지만 한 번이다.
         return (f" · 참고: 이 종목에서 모델이 {prob:.0%}±10%p라 말한 최근 "
-                f"{len(own)}일의 실제 상승 비율 {acc:.0%} "
-                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(own_f)})")
-    pooled_f = []
-    for h in (pooled_history or []):
-        pooled_f.extend(_band_pairs_flat(h, prob, band))
+                f"{len(own)}번의 실제 상승 비율 {acc:.0%} "
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(own_f)}"
+                f"{_gap_note(own_gap)})")
+    pooled_f, pooled_gap = [], 0
+    for item in (pooled_history or []):
+        mkt, hist = item if isinstance(item, tuple) else (None, item)
+        got, gap = _band_pairs_flat(hist, prob, band, mkt, holidays)
+        pooled_f.extend(got)
+        pooled_gap += gap
     pooled = [v for v, _ in pooled_f]
     if len(pooled) >= MIN_BAND_SAMPLES:
         acc = sum(pooled) / len(pooled)
         lo, hi = _wilson_ci(acc, len(pooled))
         return (f" · 참고: 전 종목 합산으로 모델이 {prob:.0%}±10%p라 말한 "
-                f"{len(pooled)}건의 실제 상승 비율 {acc:.0%} "
-                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(pooled_f)} · "
-                f"이 종목 단독 표본은 {len(own)}건으로 축적 중)")
+                f"{len(pooled)}번의 실제 상승 비율 {acc:.0%} "
+                f"(95% 신뢰구간 {lo:.0%}~{hi:.0%}{_flat_note(pooled_f)}"
+                f"{_gap_note(pooled_gap)} · "
+                f"이 종목 단독 표본은 {len(own)}번으로 축적 중)")
     return (f" · 참고: 이 확률대({prob:.0%}±10%p)의 과거 성적은 "
             f"표본 축적 중 (종목 n={len(own)} · 합산 n={len(pooled)}, "
             f"{MIN_BAND_SAMPLES}건부터 표시)")
@@ -203,7 +235,9 @@ def _band_accuracy(history: list, prob: float, band: float = 0.10,
 def explain_signal(spec: dict, df, weight: float, strategy=None,
                    raw_weight: float | None = None,
                    history: list | None = None,
-                   pooled_history: list | None = None) -> str:
+                   pooled_history: list | None = None,
+                   market: str | None = None,
+                   holidays: dict | None = None) -> str:
     """전략 스펙 + 데이터 + 산출 비중으로 한국어 근거 문장을 만든다.
 
     strategy 인스턴스를 주면(직전에 generate_signals를 돌린 것) ML 피처
@@ -215,7 +249,8 @@ def explain_signal(spec: dict, df, weight: float, strategy=None,
     try:
         return _explain(spec, df, weight, strategy,
                         raw_weight=raw_weight, history=history,
-                        pooled_history=pooled_history)
+                        pooled_history=pooled_history,
+                        market=market, holidays=holidays)
     except Exception:  # noqa: BLE001
         return f"{_direction(weight)} — 챔피언 전략 신호에 따름"
 
@@ -223,7 +258,9 @@ def explain_signal(spec: dict, df, weight: float, strategy=None,
 def _explain(spec: dict, df, weight: float, strategy,
              raw_weight: float | None = None,
              history: list | None = None,
-             pooled_history: list | None = None) -> str:
+             pooled_history: list | None = None,
+             market: str | None = None,
+             holidays: dict | None = None) -> str:
     name = spec.get("strategy")
     p = spec.get("params", {})
     close = df["close"]
@@ -341,7 +378,8 @@ def _explain(spec: dict, df, weight: float, strategy,
         # 확률대 과거 적중률 — 오늘과 비슷한 확률을 말했던 날들의 실제 성적.
         # 검증이 확률 서술 바로 옆에 붙어야 과신도 불신도 데이터로 말한다.
         band = (_band_accuracy(history or [], prob,
-                               pooled_history=pooled_history)
+                               pooled_history=pooled_history,
+                               market=market, holidays=holidays)
                 if prob is not None else "")
 
         if prob is not None:

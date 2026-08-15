@@ -120,7 +120,9 @@ def test_band_accuracy_pooled_fallback():
             for _ in range(2)]                                        # 30짝
     out = _band_accuracy(own, 0.72, pooled_history=pool)
     assert "전 종목 합산" in out and "95% 신뢰구간" in out
-    assert "단독 표본은 4건" in out
+    # 단위가 '건'에서 '번'으로 바뀌었다(감사 247) — 짝은 거래일 기준 한
+    # 세션이고, 금요일→월요일은 사흘이지만 한 번이다.
+    assert "단독 표본은 4번" in out
     # 합산도 미달이면 양쪽 카운트를 밝힌 축적 중 문구
     out2 = _band_accuracy(own, 0.72, pooled_history=pool[:1][:1])
     assert "표본 축적 중" in out2 and "종목 n=4" in out2
