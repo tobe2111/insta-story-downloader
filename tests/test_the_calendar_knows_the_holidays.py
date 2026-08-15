@@ -217,10 +217,25 @@ def test_a_stale_cache_is_refreshed(tmp_path):
 def test_a_fresh_cache_is_reused(tmp_path):
     """달력은 연 단위로만 바뀐다 — 매일 다시 만들 이유가 없다."""
     (tmp_path / "holidays.json").write_text(json.dumps({
-        "fetched": "2026-01-01", "until": "2027-01-01",
+        "fetched": "2026-01-01", "since": "2025-11-01", "until": "2027-01-01",
         "markets": {"kr_stock": ["2026-06-06"]}}), "utf-8")
     days = holiday_map(state_dir=str(tmp_path), today=dt.date(2026, 1, 5))
     assert days == {"kr_stock": ["2026-06-06"]}
+
+
+def test_a_calendar_that_only_looks_forward_is_rebuilt(tmp_path):
+    """지난 휴장일을 모르는 달력은 '신선'하지 않다(감사 243).
+
+    "며칠째 새 봉이 없나"를 세려면 **어제가 휴장이었는지**를 알아야 한다.
+    앞만 담긴 캐시를 그대로 쓰면 방금 지난 연휴가 통째로 '빠뜨린 세션'으로
+    잡혀, 정상 휴장이 시세 장애로 보고된다.
+    """
+    (tmp_path / "holidays.json").write_text(json.dumps({
+        "fetched": "2026-01-01", "until": "2027-01-01",
+        "markets": {"kr_stock": ["2026-06-06"]}}), "utf-8")   # since 없음
+    days = holiday_map(state_dir=str(tmp_path), today=dt.date(2026, 1, 5))
+    assert days != {"kr_stock": ["2026-06-06"]}, "앞만 보는 달력을 그대로 썼다"
+    assert "2026-01-01" in days["kr_stock"], "지난 신정을 모른다"
 
 
 def test_an_old_calendar_beats_no_calendar(tmp_path, monkeypatch):

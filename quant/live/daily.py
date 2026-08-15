@@ -2157,6 +2157,60 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     return record
 
 
+PAPER_STALE_SESSIONS = 2
+"""이 이상 세션을 놓친 종목은 '주말이라서'로 설명되지 않는다(감사 243).
+
+    코인   2세션 = 이틀 연속 새 봉 없음 (코인은 매일 연다)
+    주식   2세션 = 거래일 이틀 연속 없음 (주말·공휴일은 애초에 안 센다)
+
+1세션은 정상이다 — 배치가 그 시장의 마감보다 이르면 한 세션 뒤처진다.
+"""
+
+
+def paper_stale_targets(skipped: list, state_dir: str = STATE_DIR,
+                        today: str | None = None,
+                        holidays: dict | None = None,
+                        threshold: int = PAPER_STALE_SESSIONS) -> dict:
+    """건너뛴 종목 중 **주말·휴장으로 설명되지 않는** 것들 → {키: 놓친 세션 수}.
+
+    ⚠️ 이 판정은 이미 있었다 — 그런데 **재학습 배치에만 붙어 있었다**(감사
+       243). 돈을 굴리는 쪽인 페이퍼 배치는 `_write_run_health`에 `stale`을
+       아예 넘기지 않아, 사이트의 '정체' 경보가 그쪽에서는 영영 울리지 않는
+       구조였다. 감사 139(거래소 규격을 아무도 안 물었다)와 같은 계열 —
+       만들어 놓고 배선하지 않은 장치.
+
+       그동안 무엇이 가려졌나: 시세 공급이 얼어붙으면 멱등 가드가 매일 조용히
+       건너뛴다. 챔피언은 옛 가격으로 계속 돈을 굴리고, 화면의 종목표는
+       며칠 전 숫자를 오늘 것처럼 보여준다.
+    """
+    from quant.data.market_calendar import holiday_map, missed_sessions
+
+    if not skipped:
+        return {}
+    if holidays is None:
+        # ⚠️ 안 실어 보내면 공휴일이 전부 '거래일'로 세어진다 — 실측: 광복절
+        #    대체휴일(2026-08-17)이 낀 구간에서 국내주식이 2세션 대신 3세션
+        #    밀린 것으로 잡혔다. 즉 **정상 휴장이 장애로 보고된다.**
+        holidays = holiday_map(state_dir)
+    out: dict[str, int] = {}
+    for key in skipped:
+        market, _, symbol = str(key).partition(":")
+        try:
+            with open(_paper_path(market, symbol, state_dir),
+                      encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        hist = st.get("history") or []
+        last = (hist[-1].get("date") if hist else None) or st.get("last_bar")
+        if not last:
+            continue
+        n = missed_sessions(market, last, today, holidays)
+        if n is not None and n > threshold:
+            out[key] = n
+    return out
+
+
 def run_daily_paper_all(targets=None, **kwargs) -> dict:
     """AUTO_TARGETS 전체를 순회 페이퍼 운용한다 — 한 종목 실패가 나머지를 안 막는다.
 
@@ -2181,8 +2235,10 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
     # 부분 실패를 장부에 남긴다 — 예전에는 20종목 중 19개가 실패해도 잡이
     # 초록이고 콘솔에만 남았다(2026-08-11 감사). 전부 실패해야 예외였다.
     # 사이트·경보가 읽을 수 있게 기록해야 '조용한 절반 마비'가 보인다.
-    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
-                      "paper", ok, failed, skipped=skipped)
+    _sd = kwargs.get("state_dir") or STATE_DIR
+    _write_run_health(_sd, "paper", ok, failed, skipped=skipped,
+                      stale=paper_stale_targets(skipped, _sd),
+                      stale_unit="거래일")
     # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
     #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
     if targets and not ok and not skipped:
@@ -2193,7 +2249,8 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
 
 def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                       skipped: list | None = None,
-                      stale: dict | None = None) -> None:
+                      stale: dict | None = None,
+                      stale_unit: str = "일") -> None:
     """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
 
     '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
@@ -2232,6 +2289,9 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
+        # 배치마다 세는 단위가 다르다 — 재학습은 달력 일수, 페이퍼는 거래일
+        # (감사 243). 단위를 안 적으면 화면이 둘을 같은 말로 읽는다.
+        entry["stale_unit"] = stale_unit
     cur[kind] = entry
     atomic_write_json(path, cur)
 

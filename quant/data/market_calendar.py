@@ -40,6 +40,10 @@ log = get_logger("data.market_calendar")
 CACHE_FILE = "holidays.json"
 REFRESH_DAYS = 30          # 달력은 연 단위로만 바뀐다 — 매일 다시 만들 이유가 없다
 HORIZON_DAYS = 400         # 앞으로 이만큼을 미리 받아 둔다(연말 경계 포함)
+# 지나간 날도 담는다 — "며칠째 새 봉이 없나"를 세려면 **어제가 휴장이었는지**를
+# 알아야 한다(감사 243). 앞만 보는 달력으로 세면 방금 지난 연휴가 통째로
+# '빠뜨린 세션'으로 잡혀, 정상 휴장이 장애로 보고된다.
+LOOKBACK_DAYS = 40
 
 # 이 저장소의 시장 이름 → 거래소 달력 코드
 EXCHANGES = {"kr_stock": "XKRX", "us_stock": "XNYS"}
@@ -78,7 +82,8 @@ _MEMO: dict = {}          # (state_dir, 오늘) → 달력. 루프마다 파일�
 
 def holiday_map(state_dir: str = "state", today: _dt.date | None = None,
                 horizon_days: int = HORIZON_DAYS,
-                refresh_days: int = REFRESH_DAYS) -> dict:
+                refresh_days: int = REFRESH_DAYS,
+                lookback_days: int = LOOKBACK_DAYS) -> dict:
     """{시장: [휴장일 ISO...]} — 캐시를 쓰고 오래되면 다시 만든다.
 
     캐시는 `state/holidays.json`에 남는다. 그날 어떤 달력으로 판단했는지가
@@ -86,15 +91,18 @@ def holiday_map(state_dir: str = "state", today: _dt.date | None = None,
     재현성 규칙).
     """
     today = today or _dt.date.today()
-    memo_key = (state_dir, today.isoformat(), horizon_days, refresh_days)
+    memo_key = (state_dir, today.isoformat(), horizon_days, refresh_days,
+                lookback_days)
     if memo_key in _MEMO:
         return _MEMO[memo_key]
-    out = _holiday_map_uncached(state_dir, today, horizon_days, refresh_days)
+    out = _holiday_map_uncached(state_dir, today, horizon_days, refresh_days,
+                                lookback_days)
     _MEMO[memo_key] = out
     return out
 
 
-def _holiday_map_uncached(state_dir, today, horizon_days, refresh_days) -> dict:
+def _holiday_map_uncached(state_dir, today, horizon_days, refresh_days,
+                          lookback_days=LOOKBACK_DAYS) -> dict:
     path = os.path.join(state_dir, CACHE_FILE)
     cache: dict = {}
     try:
@@ -115,13 +123,21 @@ def _holiday_map_uncached(state_dir, today, horizon_days, refresh_days) -> dict:
         fresh = fresh and _dt.date.fromisoformat(covered) > today
     except ValueError:
         fresh = False
+    # 뒤쪽도 덮고 있어야 한다 — 앞만 담긴 옛 캐시를 그대로 쓰면 지나간
+    # 연휴가 '빠뜨린 세션'으로 잡힌다(감사 243).
+    start = today - _dt.timedelta(days=lookback_days)
+    try:
+        fresh = fresh and _dt.date.fromisoformat(
+            str(cache.get("since") or "")) <= start
+    except ValueError:
+        fresh = False
     if fresh and isinstance(cache.get("markets"), dict):
         return cache["markets"]
 
     end = today + _dt.timedelta(days=horizon_days)
     markets: dict = {}
     for market in EXCHANGES:
-        days = _compute(market, today, end)
+        days = _compute(market, start, end)
         if days is not None:
             markets[market] = days
     if not markets:
@@ -131,12 +147,50 @@ def _holiday_map_uncached(state_dir, today, horizon_days, refresh_days) -> dict:
     try:
         os.makedirs(state_dir, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({"fetched": today.isoformat(), "until": end.isoformat(),
+            json.dump({"fetched": today.isoformat(), "since": start.isoformat(),
+                       "until": end.isoformat(),
                        "source": "exchange_calendars", "markets": markets},
                       f, ensure_ascii=False, indent=1)
     except OSError as exc:
         log.warning("휴장일 캐시 저장 실패: %s", exc)
     return markets
+
+
+def _as_date(day) -> _dt.date | None:
+    try:
+        return day if isinstance(day, _dt.date) else _dt.date.fromisoformat(
+            str(day)[:10])
+    except ValueError:
+        return None
+
+
+def missed_sessions(market: str, last_day, today=None,
+                    holidays: dict | None = None) -> int | None:
+    """마지막 봉 다음 날부터 오늘까지, **그 시장이 열렸어야 한 날**의 수.
+
+    달력 일수로 세면 안 된다(감사 243). 시장마다 여는 날이 다르기 때문이다:
+
+        실측 2026-08-15(토) · 마지막 봉 08-13 기준
+            crypto  → 놓친 세션 **2** (08-14 · 08-15 — 코인은 매일 연다)
+            kr/us   → 놓친 세션 **1** (08-14 — 토요일은 애초에 안 연다)
+
+    같은 이틀이지만 뜻이 다르다. 달력 일수 하나로 세면 코인 시세가 얼어붙은
+    사고와 주말이 구별되지 않고, **주말과 구별되지 않는 경보는 꺼진 경보다.**
+
+    달력에 없는 시장(코인 등)은 24시간·연중무휴로 본다. 날짜를 못 읽으면
+    `None`(모른다)을 돌려준다 — 0(정상)과 섞지 않는다.
+    """
+    start, end = _as_date(last_day), _as_date(today or _dt.date.today())
+    if start is None or end is None:
+        return None
+    n, day = 0, start + _dt.timedelta(days=1)
+    while day <= end:
+        if market not in EXCHANGES:                 # 24/7 시장 — 매일이 세션
+            n += 1
+        elif day.weekday() < 5 and not is_holiday(market, day, holidays):
+            n += 1
+        day += _dt.timedelta(days=1)
+    return n
 
 
 def is_holiday(market: str, day, holidays: dict | None) -> bool:
