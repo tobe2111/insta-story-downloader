@@ -211,6 +211,12 @@ def build_strategy(spec: dict):
         params = dict(spec.get("params", {}))
         inner = build_strategy(params.pop("inner"))
         return TrailingStopGuard(inner, **params)
+    if spec["strategy"] == "spec":
+        # 사용자가 자료(PDF·유튜브·트레이딩뷰)에서 가져온 명세. **도전자로만**
+        # 들어오고, 다른 후보와 똑같은 선발전·결승전·검증 게이트를 거친다.
+        # 명세는 데이터라 실행 권한이 없다 — 여기서 코드가 만들어지지 않는다.
+        from quant.ingest.spec import SpecStrategy, spec_from_dict
+        return SpecStrategy(spec_from_dict(spec["params"]["spec"]))
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -501,14 +507,44 @@ def _normalize_challengers(specs: list[dict], champion: dict) -> list[dict]:
     return out
 
 
+def _user_specs(state_dir: str | None) -> list[dict]:
+    """사용자가 넣은 전략 명세 → 도전자. 없으면 빈 목록.
+
+    ⚠️ 문제가 있는 명세는 **조용히 건너뛰지 않는다.** 그러면 사용자는 자기
+       전략이 매일 밤 링에 선다고 믿는데 실제로는 한 번도 안 선다 — 이
+       저장소가 계속 잡아온 바로 그 침묵이다.
+    """
+    try:
+        from quant.ingest.registry import user_challengers
+        cands, notes = user_challengers(state_dir)
+    except Exception as exc:            # noqa: BLE001
+        print(f"  ⚠️ 사용자 전략을 읽지 못했습니다 — {exc}")
+        return []
+    for note in notes:
+        print(f"  ⚠️ {note}")
+    if cands:
+        print(f"  📎 사용자 전략 {len(cands)}개가 오늘 링에 섭니다 "
+              f"(다른 후보와 같은 심사를 받습니다).")
+    return cands
+
+
 def build_challengers(current_spec: dict, seed: str,
-                      evolve: bool = True) -> list[dict]:
+                      evolve: bool = True,
+                      state_dir: str | None = None) -> list[dict]:
     """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
 
-    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형.
+    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형
+    + **사용자가 자료에서 가져온 명세**(있으면).
+
     래핑된 챔피언에는 '벗긴 원본'을 도전시켜 되돌아갈 길을 항상 열어 둔다.
+
+    ⚠️ 사용자 명세는 여기 **도전자로** 들어온다. 챔피언으로 바로 가는 길은
+       없다 — 검증이 이 제품의 전부인데 새 전략만 그것을 건너뛰면 앞뒤가
+       안 맞는다. 그리고 후보가 늘어난 만큼 다중검정 문턱도 같이 올라간다
+       (호출부가 `len(challengers)`로 시도 수를 세므로 저절로 따라온다).
     """
     challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
+    challengers += _user_specs(state_dir)
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
@@ -644,7 +680,11 @@ def verify_retrain(asof: str, *, market: str | None = None,
             results.append({"key": key, "ok": False,
                             "detail": "champion_before 없음(구버전 기록)"})
             continue
+        # 사용자 명세는 **장부에 적힌 그날 것**을 쓴다(폴더가 아니라).
+        # 옛 기록에는 이 칸이 없다 — 그때는 기능이 없었으므로 빈 목록이
+        # 맞다. 폴더를 읽으면 오늘 폴더로 어제를 재현하게 된다.
         challengers = build_challengers(before, seed=rec["mutation_seed"])
+        challengers += list(rec.get("user_specs") or [])
         decision = nightly_retrain(
             df, before, challengers, confirm_window=confirm_window,
             select_t=float(rec.get("select_t", 2.0)),
@@ -849,6 +889,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         },
 
         "mutation_seed": f"{asof}:{key}",
+        # ⚠️ 그날 링에 선 **사용자 명세를 그대로** 남긴다. 사용자가
+        #    자료를 추가·삭제하면 폴더는 바뀌지만 어제의 결정은 어제의
+        #    링에서 나온 것이다. 폴더를 다시 읽어 재현하면 "재현 실패"가
+        #    뜨는데 원인은 결함이 아니라 폴더 변경이고, 그러면 재현
+        #    검사가 늑대소년이 된다(감사 습관: 결정의 전제는 결정과
+        #    함께 보존한다).
+        "user_specs": [c for c in challengers if c.get("strategy") == "spec"],
         "code_sha": code_sha(),
         "data_sha256": data_sha256(df),
         "env": env_fingerprint(),      # 라이브러리 버전 차이로 인한 불일치 판별용

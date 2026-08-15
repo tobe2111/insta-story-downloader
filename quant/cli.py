@@ -469,6 +469,56 @@ def _cmd_weekly(args) -> None:
         _notify_extra(text)
 
 
+def _cmd_ingest(args) -> None:
+    """내 자료 → 전략 명세 → 도전자 등록.
+
+    ⚠️ 여기서 등록되는 것은 **도전자**다. 등록했다고 그 전략으로 매매하지
+       않는다 — 매일 밤 다른 후보들과 같은 심사(선발전·결승전)를 받고,
+       이겨야 챔피언이 된다. 그게 이 제품이 파는 것이다.
+    """
+    from quant.ingest.extract import extract_spec
+    from quant.ingest.registry import save_spec
+    from quant.ingest.sources import SourceError, load_any
+
+    try:
+        loaded = load_any(args.ref)
+    except SourceError as exc:
+        print(f"❌ 자료를 읽지 못했습니다.\n\n{exc}")
+        raise SystemExit(1) from exc
+
+    print(f"📄 {loaded.source.get('kind')} · {loaded.source.get('ref')} — "
+          f"글자 {len(loaded.text):,}자")
+    result = extract_spec(loaded.text, title=args.name or loaded.title,
+                          source=loaded.source)
+    if not result.ok:
+        # ⚠️ 이게 이 명령의 **정상적인 결과 중 하나**다. 투자 자료 대부분에는
+        #    검증 가능한 규칙이 없고, 그때 억지로 만들어 내면 그건 자료의
+        #    전략이 아니라 우리가 지어낸 전략이다.
+        print(f"\n🔍 문장 {result.sentences_seen:,}개를 봤지만 "
+              f"**실행 가능한 규칙을 찾지 못했습니다.**\n")
+        for r in result.reasons:
+            print(f"  · {r}\n")
+        print("전략을 만들지 않았습니다 — 없는 규칙을 지어내지 않습니다.")
+        raise SystemExit(2)
+
+    print("\n✅ 이렇게 읽었습니다:\n")
+    print(result.spec.summary())
+    print("\n  근거가 된 문장:")
+    for c in list(result.spec.entry) + list(result.spec.exit):
+        print(f"    · \"{c.quote[:90]}\"")
+    for note in result.spec.notes:
+        print(f"\n  ⚠️ {note}")
+
+    if args.dry_run:
+        print("\n(--dry-run: 저장하지 않았습니다)")
+        return
+    path = save_spec(result.spec, state_dir=args.state_dir or None)
+    print(f"\n💾 저장: {path}")
+    print("\n이제 매일 밤 재학습에서 **도전자로** 링에 섭니다. 등록만으로는 "
+          "매매하지 않습니다 — 다른 후보와 같은 2단계 심사를 이기고, 과최적화 "
+          "검증까지 통과해야 실제 비중을 받습니다. 대부분은 떨어집니다.")
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
@@ -1176,6 +1226,17 @@ def build_parser() -> argparse.ArgumentParser:
     rt.add_argument("--all", action="store_true",
                     help="AUTO_TARGETS 전 종목 순회(야간 자동화용)")
     rt.set_defaults(func=_cmd_retrain)
+
+    ig = sub.add_parser(
+        "ingest",
+        help="내 자료(PDF·유튜브·트레이딩뷰)에서 전략을 뽑아 도전자로 등록")
+    ig.add_argument("ref", help="PDF 경로 · 유튜브 주소 · .pine · .txt/.md")
+    ig.add_argument("--name", default="", help="전략 이름(생략 시 파일명)")
+    ig.add_argument("--state-dir", default="", dest="state_dir",
+                    help="명세를 저장할 곳(생략 시 ./specs_user)")
+    ig.add_argument("--dry-run", action="store_true", dest="dry_run",
+                    help="저장하지 않고 무엇이 뽑혔는지만 본다")
+    ig.set_defaults(func=_cmd_ingest)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)

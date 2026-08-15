@@ -3604,6 +3604,76 @@ MUTATIONS = [
      "    _p = None\n",
      "tests/test_sns_provenance.py"),
 
+
+    # ── 2026-08-14 · 내 자료로 전략 넣기 (PDF·유튜브·트레이딩뷰) ─────────
+    #
+    # 사장님: "각 유저마다 투자 관련한 자료를 넣으면 그 전략이 적용되게끔도
+    #          할 수 있어?"
+    #
+    # 이 기능의 가장 큰 위험은 **없는 규칙을 지어내는 것**이고, 두 번째는
+    # **후보를 늘리면서 다중검정 보정을 안 올리는 것**이다. 둘 다 조용히
+    # 일어나고, 둘 다 이 제품의 심장을 끈다.
+
+    ("규칙이 없는 자료에서도 전략을 만들어 낸다(지어낸 전략을 사용자 것이라 한다)",
+     "quant/ingest/extract.py",
+     "    if not entry:\n",
+     "    if False:\n",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("근거 문장 없이도 조건을 만든다(자료에서 뽑았다는 말이 거짓이 된다)",
+     "quant/ingest/spec.py",
+     "    if not str(c.quote).strip():",
+     "    if False:",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("명세로 레버리지를 들여올 수 있게 한다",
+     "quant/ingest/spec.py",
+     "        if not (0.0 < float(self.weight) <= 1.0):",
+     "        if not (0.0 < float(self.weight) <= 100.0):",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("돌파만 있고 청산이 없는 명세를 통과시킨다(하루 들고 파는 전략이 된다)",
+     "quant/ingest/spec.py",
+     "        if self.entry and all(c.op in _EVENTS for c in self.entry) and not self.exit:",
+     "        if False:",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("신고가에 오늘 고가를 포함시킨다(조건이 늘 참이 되어 매일 산다)",
+     "quant/ingest/spec.py",
+     '        return df["high"].astype(float).rolling(p).max().shift(1)',
+     '        return df["high"].astype(float).rolling(p).max()',
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("매도 문장을 매수 조건으로 넣는다(정반대로 매매한다)",
+     "quant/ingest/extract.py",
+     "    if sell and not buy:\n        return None, cond\n    if buy and not sell:\n        return cond, None\n    # 한 문장에 둘 다",
+     "    if True:\n        return cond, None\n    if buy and not sell:\n        return cond, None\n    # 한 문장에 둘 다",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("사용자 전략을 링에 안 세운다(등록해도 한 번도 심사받지 않는다)",
+     "quant/live/retrain.py",
+     "    challengers += _user_specs(state_dir)\n",
+     "",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("사용자 전략 수에 상한을 없앤다(한 사람의 자료가 전체 진화를 멈춘다)",
+     "quant/ingest/registry.py",
+     "MAX_USER_CHALLENGERS = 12",
+     "MAX_USER_CHALLENGERS = 500",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("깨진 명세 파일을 조용히 건너뛴다(안 서는 전략을 선다고 믿게 된다)",
+     "quant/ingest/registry.py",
+     '            problems.append(f"{fp.name}: {exc}")',
+     "            pass",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("재현할 때 장부 대신 오늘 폴더를 읽는다(어제를 오늘 자료로 재현한다)",
+     "quant/live/retrain.py",
+     '        challengers += list(rec.get("user_specs") or [])',
+     "        pass",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
