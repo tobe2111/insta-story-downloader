@@ -3292,6 +3292,26 @@ MUTATIONS = [
      "                    remaining = qty",
      "tests/test_broker_retry_partial.py"),
 
+    # 감사 242 — 이미 체결된 것이 '주문 실패'에 묻히던 자리.
+    # 실측: 거래소 0.6 보유 / 우리 장부 없음(종목이 skipped로 기록됨).
+    ("확인한 부분 체결을 실패로 마감한다 — 거래소에만 있는 포지션이 생긴다",
+     "quant/broker/retry.py",
+     "        if landed_before > 0 and not unverified:",
+     "        if False:",
+     "tests/test_a_landed_fill_is_not_erased_by_a_failure.py"),
+
+    ("잔량 재주문이 실패하면 이미 체결된 것까지 없던 일로 만든다",
+     "quant/broker/retry.py",
+     "                if filled_total <= 0:",
+     "                if True:",
+     "tests/test_a_landed_fill_is_not_erased_by_a_failure.py"),
+
+    ("보낼 수 없는 잔량(최소금액 미만)을 계속 재주문한다",
+     "quant/broker/retry.py",
+     "                    if not rspec.is_tradeable(rspec.round_qty(remaining), price):",
+     "                    if False:",
+     "tests/test_a_landed_fill_is_not_erased_by_a_failure.py"),
+
     # ── 2차: 오디션·리스크·인증 계열 ──────────────────────────
 
     ("합성 폴백 데이터로도 매매하게 만든다",

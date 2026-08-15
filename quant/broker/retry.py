@@ -141,7 +141,24 @@ class RobustBroker(Broker):
                 break
             # 체결 확인용: 제출 직전 포지션(변화량으로 실제 체결을 측정).
             base_qty = self._safe_pos(symbol) if self.confirm_fills else None
-            order = self._submit_with_retry(symbol, side, want, price)
+            try:
+                order = self._submit_with_retry(symbol, side, want, price)
+            except Exception:  # noqa: BLE001
+                # ⚠️ 잔량 재주문이 실패했다고 **이미 체결된 것까지** 없던 일로
+                #    만들면 안 된다(감사 242). 예외를 그대로 올리면 위층
+                #    실거래 루프가 종목을 `skipped`로 적고, 거래소에만 있는
+                #    포지션이 생긴다. 이미 체결된 것이 있으면 그것을 보고하고
+                #    끝낸다 — 아무것도 못 샀을 때만 실패로 올린다.
+                if filled_total <= 0:
+                    raise
+                note = (f"⚠️ 잔량 주문 실패 — {symbol} {side} "
+                        f"{filled_total:.8f}/{qty:.8f} 체결로 마감합니다.")
+                log.error(note)
+                if self.notifier is not None:
+                    # 마지막으로 사람 눈에 남는 말이 "주문 최종 실패"면
+                    # 산 것이 없는 줄로 읽힌다 — 끝맺음은 사실이어야 한다.
+                    self.notifier.send(note, level="error")
+                break
             last_order_id = getattr(order, "order_id", "") or last_order_id
             got = self._filled_of(order, want)
             # 접수는 됐지만 체결 수량 미상(주식 시장가 등)이면 포지션 변화로 확인.
@@ -264,6 +281,17 @@ class RobustBroker(Broker):
                     if remaining <= qty * 1e-3:
                         return Order(symbol, side, landed, price,
                                      status="filled", filled_quantity=landed)
+                    # ⚠️ 남은 수량이 거래소 규격 미만이면 **보낼 수 없는 주문**이다
+                    #    (감사 242). 그대로 보내면 거절 → 재시도 → 같은 거절을
+                    #    반복하고, 끝에 가서 "주문 최종 실패"로 마감된다. 이미
+                    #    체결된 landed가 그 실패에 묻힌다. 못 채우는 잔량은
+                    #    잔량이 아니라 **끝**이다 — 여기서 마감한다.
+                    rspec = self._spec_for(symbol)
+                    if not rspec.is_tradeable(rspec.round_qty(remaining), price):
+                        log.warning("[ROBUST] 남은 %.8f는 거래소 규격 미만 → "
+                                    "%.8f 체결로 마감", remaining, landed)
+                        return Order(symbol, side, landed, price,
+                                     status="partial", filled_quantity=landed)
                 if attempt >= self.retries:
                     break
                 wait = self.backoff * (2 ** (attempt - 1))
@@ -271,11 +299,33 @@ class RobustBroker(Broker):
                             attempt, self.retries, exc, wait)
                 self._sleep(wait)
 
+        # ⚠️ 여기까지 왔다는 것은 '더 못 산다'는 뜻이지 '아무것도 안 샀다'는
+        #    뜻이 아니다(감사 242). 예전에는 구분 없이 예외를 던졌고, 위층
+        #    실거래 루프는 그 예외를 잡아 종목을 `skipped`로 적었다 — 즉
+        #    **거래소에는 있는데 우리 장부에는 없는 포지션**이 생겼다.
+        #    증권사 체결 내역과 대사할 유일한 기록(orders.jsonl)에도 한 줄이
+        #    안 남는다. 이미 잔고로 **확인한** 체결은 실패에 묻지 않고 그대로
+        #    돌려주고, 실패는 알림으로 크게 말한다.
+        if landed_before > 0 and not unverified:
+            note = (f"⚠️ 부분 체결 후 주문 실패: {side} {symbol} "
+                    f"{landed_before:.8f}/{qty:.8f} 체결 — 잔량은 포기합니다. "
+                    f"({last_exc})")
+            log.error(note)
+            if self.notifier is not None:
+                self.notifier.send(note, level="error")
+            return Order(symbol, side, landed_before, price,
+                         status="partial", filled_quantity=landed_before)
+
         msg = f"❌ 주문 최종 실패: {side} {symbol} {qty} — {last_exc}"
         if unverified:
             msg += ("\n⚠️ 잔고를 조회할 수 없어 이 주문이 체결됐는지 확인하지 "
                     "못했습니다. 이중 체결을 피하려고 재주문하지 않았습니다 — "
                     "거래소 계좌에서 실제 보유를 직접 확인해 주세요.")
+            if landed_before > 0:
+                # 확인이 끊기기 **전에** 잰 값이 있다. 지금 상태는 모르지만,
+                # 최소한 이만큼은 체결됐다는 사실은 운영자가 알아야 한다.
+                msg += (f"\n(조회가 끊기기 전 마지막 확인: "
+                        f"{landed_before:.8f}/{qty:.8f} 체결)")
         log.error(msg)
         if self.notifier is not None:
             self.notifier.send(msg, level="error")
