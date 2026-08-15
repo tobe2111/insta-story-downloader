@@ -14,6 +14,42 @@ from __future__ import annotations
 import argparse
 
 
+def _data_note(df, market: str) -> str:
+    """이 분석이 **어떤 데이터** 위에서 나왔는지 한 줄로 밝힌다 (감사 250).
+
+    ⚠️ 표식은 예전부터 있었다 — `df.attrs["synthetic_fallback"]`. 그런데 그걸
+       읽는 곳이 **설정 마법사 한 군데뿐**이었다. 분석 명령 다섯(백테스트·
+       민감도·검증·비용·A/B)은 전부 무시했다.
+
+       그 결과가 고약하다. 네트워크가 막힌 환경에서 시세 수집이 실패하면
+       합성(지어낸) 가격으로 폴백하는데, 그 사실은 stderr 경고 한 줄로
+       지나가고 **결과 본문은 진짜와 똑같이 생겼다.** 실측:
+
+           2026-08-15 `quant costcheck` — 모든 거래소 실패 → 합성 폴백
+             "수수료 0에서의 총수익률: 44.22%"
+             "비교적 비용에 견고한 편이다."
+           `quant backtest` — 같은 폴백
+             "총수익률 33.44% · 샤프 2.10 · 승률 57.21%"
+
+       지어낸 가격 위의 샤프 2.10이다. 사이트는 같은 사실을 "합성 데이터
+       폴백 N종목 — 이 종목의 그날 기록은 실제 시장이 아닙니다"라고 크게
+       말하고(감사 ㉜), 매매 경로는 아예 거부한다. **분석 도구만 조용했다.**
+
+    `--market synthetic`은 사용자가 스스로 고른 연습용이라 말투가 다르다 —
+    다만 백테스트의 기본 시장이 synthetic이므로 그 경우도 말한다.
+    """
+    if bool(getattr(df, "attrs", {}).get("synthetic_fallback")):
+        return ("⚠️ 이 결과는 **합성(지어낸) 데이터**입니다 — 실제 시세를 받지 "
+                "못해 폴백했습니다.\n"
+                "   아래 숫자는 시장에서 일어난 일이 아닙니다. 전략 판단의 "
+                "근거로 쓰지 마세요.")
+    if market == "synthetic":
+        return ("ℹ️ 연습용 모의 데이터입니다(--market synthetic) — 실제 "
+                "시장이 아닙니다.")
+    src = str(getattr(df, "attrs", {}).get("source") or "").strip()
+    return f"📡 데이터: 실제 시세{f' · {src}' if src else ''}"
+
+
 def _ppy(market: str) -> int:
     return 365 if market in ("crypto", "synthetic") else 252
 
@@ -27,6 +63,7 @@ def _cmd_backtest(args) -> None:
 
     # 데이터 품질 스캔 — 무결성 위반이 있으면 경고만 출력한다 (비파괴, 실행은 계속).
     # 오염된 데이터 위의 백테스트는 그럴듯한 거짓말이 되므로 먼저 알려준다.
+    print(_data_note(df, args.market))
     from quant.data.quality import is_severe, quality_report, scan_ohlcv
     findings = scan_ohlcv(df)
     if is_severe(findings):
@@ -64,6 +101,7 @@ def _cmd_sweep(args) -> None:
     from quant.strategies import MovingAverageCross
 
     df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe, limit=args.limit)
+    print(_data_note(df, args.market))
     fast, slow = [5, 10, 15, 20, 30, 40], [50, 60, 80, 100, 150, 200]
     grid = sensitivity_grid(df, MovingAverageCross, "fast", fast, "slow", slow,
                             objective=args.objective, periods_per_year=_ppy(args.market))
@@ -522,6 +560,7 @@ def _cmd_validate(args) -> None:
     df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe,
                                              limit=args.limit)
     print(f"\n=== 검증: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    print(_data_note(df, args.market))
     print(f"그리드: {grid}")
 
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
@@ -855,6 +894,7 @@ def _cmd_costcheck(args) -> None:
     factory = lambda: get_strategy(args.strategy)  # noqa: E731 — 상태 없는 새 전략
     fees = [0.0, 0.0005, 0.001, 0.002, 0.005]
     print(f"\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    print(_data_note(df, args.market))
     sweep = cost_sweep(df, factory, fees, periods_per_year=ppy)
     be = break_even_cost(df, factory, periods_per_year=ppy)
     print(cost_sensitivity_report(sweep, be))
@@ -873,6 +913,7 @@ def _cmd_compare(args) -> None:
     fb = lambda: get_strategy(args.strategy_b)  # noqa: E731
     print(f"\n=== A/B 비교: A={args.strategy_a} vs B={args.strategy_b} · "
           f"{args.symbol} ({len(df)}봉) ===")
+    print(_data_note(df, args.market))
     result = ab_test(df, fa, fb, periods_per_year=ppy)
     print(compare_report(result))
 

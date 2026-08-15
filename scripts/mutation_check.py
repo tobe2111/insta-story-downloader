@@ -2369,6 +2369,30 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 250 — 분석 도구가 합성 데이터 결과를 진짜처럼 보고하던 자리.
+    # 실측: 네트워크 차단 환경에서 quant backtest가 "샤프 2.10 · 승률 57%"를
+    # 지어낸 가격 위에서 출력했고, 본문에는 가짜라는 말이 없었다.
+    ("분석 결과가 합성 데이터라는 사실을 안 밝힌다(지어낸 가격 위의 샤프가 진짜로 읽힌다)",
+     "quant/cli.py",
+     '    if bool(getattr(df, "attrs", {}).get("synthetic_fallback")):',
+     "    if False:",
+     "tests/test_the_analysis_says_what_data_it_ran_on.py"),
+    ("백테스트가 어떤 데이터로 돌았는지 말하지 않는다",
+     "quant/cli.py",
+     "    print(_data_note(df, args.market))\n    from quant.data.quality import is_severe, quality_report, scan_ohlcv",
+     "    from quant.data.quality import is_severe, quality_report, scan_ohlcv",
+     "tests/test_the_analysis_says_what_data_it_ran_on.py"),
+    ("손익분기 비용 분석이 어떤 데이터로 돌았는지 말하지 않는다",
+     "quant/cli.py",
+     '    print(f"\\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")\n    print(_data_note(df, args.market))',
+     '    print(f"\\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")',
+     "tests/test_the_analysis_says_what_data_it_ran_on.py"),
+    ("연습용 모의 데이터를 실제 시세라고 말한다",
+     "quant/cli.py",
+     '    if market == "synthetic":',
+     "    if False:",
+     "tests/test_the_analysis_says_what_data_it_ran_on.py"),
+
     # 감사 249 — 못 돈 검증이 사이트에서 조용하던 자리. 실측: BTC/USDT는
     # DSR이 null(봉 300개)인데 PBO 경보만 떴다.
     ("돌지 못한 검증을 화면이 말하지 않는다(재지 못한 것이 통과로 읽힌다)",
