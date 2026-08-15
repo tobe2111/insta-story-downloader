@@ -2369,6 +2369,25 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 248 — 가리개가 '?'·'&' 뒤에서만 작동하던 자리. 이 저장소는 토큰을
+    # **본문(form)**으로 보내므로 되울린 본문의 토큰이 그대로 새어 나갔다.
+    # 그 문자열은 docs/ 안의 posted.json에 쓰여 **공개 사이트로 배포된다.**
+    ("비밀 가리개를 쿼리스트링에서만 작동하게 한다(본문에 실린 토큰이 그대로 샌다)",
+     "quant/utils/http.py",
+     '    r"(?i)(^|[?&\\s\\"\'{,\\[])((?:api[_-]?key|apikey|access[_-]?token|token|"',
+     '    r"(?i)()([?&](?:api[_-]?key|apikey|access[_-]?token|token|"',
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+    ("공개되는 게시 결과 파일에 예외 원문을 그대로 붓는다",
+     "quant/reporting/social_post.py",
+     "    return redact_secrets(str(exc))[:limit]",
+     "    return str(exc)",
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+    ("스레드 게시 실패 사유를 안 가리고 공개 파일에 적는다",
+     "quant/reporting/social_post.py",
+     '            results["threads_error"] = _safe_error(exc)',
+     '            results["threads_error"] = str(exc)',
+     "tests/test_a_secret_is_hidden_everywhere_not_just_in_urls.py"),
+
     ("상태 파일 임시 이름을 고정한다(두 프로세스가 같은 임시 파일을 밟는다)",
      "quant/utils/jsonio.py",
      '    tmp = p.with_name(f"{p.name}.{os.getpid()}.tmp")',
