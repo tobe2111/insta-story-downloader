@@ -37,9 +37,11 @@ from quant.live.ledger_basics import (          # noqa: F401 — 재수출
     holdings_view,
     is_archive,
     ledger_files,
+    live_hit_rate,
     max_drawdown_from_index,
     pending_deposits,
     principal_of,
+    settled_deposits,
     time_weighted_return,
     twr_index,
 )
@@ -471,6 +473,9 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     equity = broker.equity({symbol: price})
 
     acc = directional_accuracy(df_sig, signals, window=60)
+    # 오늘 기록을 붙이기 **전까지의** 장부로 잰다 — 오늘의 결과는 내일
+    # 가격이 나와야 채점된다(미래를 당겨 쓰지 않는다).
+    _lh = live_hit_rate(st.get("history") or [])
     psi_v = _drift_psi(df)
     record = {
         "date": last_bar[:10], "price": price, "weight": round(weight, 4),
@@ -512,6 +517,14 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "hit_lo": acc.get("lo"),
         "hit_hi": acc.get("hi"),
         "hit_conclusive": acc.get("conclusive"),
+        # ⚠️ **위 적중률은 인샘플이다**(2026-08-14 감사 240). 표본 400봉이
+        #    챔피언을 뽑은 오디션(800봉)과 100% 겹치고, 그중 70%는 선발전
+        #    구간이다 — 그 챔피언은 그 데이터에서 이겨서 뽑혔다.
+        #    아래는 **장부에서만** 잰 값이다. 표본은 작지만 아무도 고르지
+        #    않은 구간이라, 둘을 나란히 놓아야 읽는 사람이 속지 않는다.
+        "live_hit": _lh.get("hit_rate"),
+        "live_hit_n": _lh.get("n"),
+        "live_hit_flat": _lh.get("n_flat"),
         # 채점에서 뺀 보합 봉 수(감사 168). 방향이 없던 봉은 방향 예측을
         # 채점할 수 없어 분모에서 빼는데, 몇 봉을 뺐는지 안 남기면
         # '보합이 없었다'와 구별되지 않는다.
@@ -677,8 +690,24 @@ def _measured_roundtrip_cost(market: str, state_dir: str) -> float | None:
         return None
 
 
+def is_etf(market: str, symbol: str | None) -> bool:
+    """이 종목이 ETF인가 — **호가 단위가 다르다**(2026-08-14).
+
+    KRX는 ETF·ETN 호가 단위가 전 가격대 5원으로 주식과 다르다. 주식 표를
+    그대로 적용하면 KODEX 200(97,570원)에 100원 단위를 물려 **20배**를
+    씌운다. 표시가 없으면 주식으로 본다 — 그쪽이 비싸게 치는 방향이라
+    보수적이지만, 새 ETF를 넣고 표시를 빠뜨리면 그 종목만 조용히 비싸진다.
+    `tests/test_the_spread_cannot_be_cheaper_than_a_tick.py`가 운영 종목이
+    전부 분류돼 있는지 확인한다.
+    """
+    if not symbol:
+        return False
+    from quant.markets import SYMBOL_INFO
+    return bool((SYMBOL_INFO.get(f"{market}:{symbol}") or {}).get("etf"))
+
+
 def measured_cost_model(market: str, state_dir: str = STATE_DIR,
-                        models_gap: bool = True):
+                        models_gap: bool = True, symbol: str | None = None):
     """오디션이 물어야 할 체결 비용 모델.
 
     ⚠️ 이중 계상 주의(2026-08-11 감사에서 제가 만든 결함을 되잡은 것):
@@ -698,7 +727,7 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
     기준을 흔드는 것이 더 위험하다.
     """
     from quant.backtest.costs import CostModel
-    base = CostModel.for_market(market)
+    base = CostModel.for_market(market, is_etf=is_etf(market, symbol))
     if models_gap:
         return base                             # 갭은 이미 가격에 있다
     measured = _measured_roundtrip_cost(market, state_dir)
@@ -709,12 +738,15 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
     if one_way <= assumed_one_way:
         return base                             # 실측이 더 싸면 가정 유지(보수적)
     # 초과분은 슬리피지로 붙인다 — 수수료는 계약이고 갭은 체결 미끄러짐이다
+    # ⚠️ market·is_etf를 함께 옮긴다 — 빠뜨리면 호가 단위 하한이 조용히
+    #    사라진다(같은 값을 새 객체로 옮길 때 늘 생기는 종류의 누락).
     return CostModel(fee=base.fee,
                      slippage=base.slippage + (one_way - assumed_one_way),
                      impact_coef=base.impact_coef,
                      short_borrow=base.short_borrow, funding=base.funding,
                      market_impact_coef=base.market_impact_coef,
-                     participation_cap=base.participation_cap)
+                     participation_cap=base.participation_cap,
+                     market=base.market, is_etf=base.is_etf)
 
 
 def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
@@ -1245,6 +1277,46 @@ def _signal_frame(market: str, df, timeframe: str = "1d", now=None):
     return df.iloc[:-1]
 
 
+# 하루를 여는 데 필요한 최소 봉 완성도. UTC 자정 직후의 코인 봉(완성도
+# 0.00x)이 '새 날'을 열지 못하게 하는 값이면 충분하고, 정상 배치 시각의
+# 완성도(22:15 UTC → 0.927)와는 멀찍이 떨어져 있어야 한다.
+NEW_DAY_MIN_ELAPSED = 0.10          # = UTC 02:24 이전 봉은 하루를 열지 못한다
+
+
+def judgement_day(last_bars: dict, partial_bars: dict,
+                  min_elapsed: float = NEW_DAY_MIN_ELAPSED) -> str:
+    """이 배치가 판단한 날짜 — **갓 시작한 봉은 하루를 열지 않는다**.
+
+    포트폴리오 멱등 가드의 열쇠다. 예전에는 그냥 `max(봉 날짜)`였는데,
+    코인 일봉은 UTC 자정에 롤오버하므로 **자정을 조금만 넘겨 돌면 새 날이
+    열려 버린다**. 2026-08-14에 실제로 그랬다(감사 232):
+
+        예비 배치가 23:15 UTC에 걸려 있었고 Actions가 43분 늦게 띄워
+        23:58에 시작 → 자정을 넘긴 시점의 코인 봉(완성도 0.0003)이
+        '2026-08-14'을 열었다. 그 기록의 주식은 하루 묵은 봉으로 판단한
+        것이고(bar_age us_stock 1 · kr_stock 1), 그러면 **다음 날 정규
+        배치는 같은 날짜를 보고 건너뛴다** — 재시도가 다음 날을 선점해
+        묵은 판단으로 확정해 버린다.
+
+    그래서 하루의 이름은 **어느 정도 형태를 갖춘 봉**만 정할 수 있게 한다.
+    완성된 봉은 `bar_status`가 None을 주므로 `partial_bars`에 없고, 기본값
+    1.0으로 취급돼 그대로 하루를 연다(주식이 여기 해당한다).
+
+    ⚠️ 주말을 죽이지 않는다. 정규 시각(22:15 UTC)의 코인 봉 완성도는
+       0.927이라 문턱을 한참 넘는다 — 토·일에도 코인은 지금처럼 돈다.
+       막히는 것은 오직 '자정 직후'뿐이다.
+
+    한 종목도 문턱을 못 넘는 극단(전 종목이 자정 직후 코인)에서는 원래대로
+    최대 날짜를 쓴다 — 판단을 멈추느니 기록을 남기고 `bar_partial`로
+    드러낸다.
+    """
+    if not last_bars:
+        raise ValueError("판단할 봉이 없다")
+    formed = [str(b)[:10] for k, b in last_bars.items()
+              if float(partial_bars.get(k, 1.0)) >= min_elapsed]
+    return max(formed) if formed else max(str(b)[:10] for b in last_bars.values())
+
+
 def _is_dust_order(broker, key: str, target_w: float, price, equity: float,
                    floor_krw: float = None) -> bool:
     """이 주문이 '잔돈'인가 — 목표와 현 보유의 차액이 최소 금액에 못 미치는가.
@@ -1355,7 +1427,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
-    last_dates = []
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
@@ -1507,7 +1578,6 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
-            last_dates.append(str(df.index[-1])[:10])
             bs = bar_status(market, df.index[-1], timeframe)
             if bs:
                 partial_bars[key] = bs["elapsed"]
@@ -1550,7 +1620,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             "마감보다 이르면 그 시장만 한 세션 뒤처집니다(겨울 서머타임 해제 "
             "시 미국장은 06:00 KST에 닫습니다)", bar_age)
 
-    bar = max(last_dates)
+    bar = judgement_day(last_bars, partial_bars)
     if st.get("last_bar") == bar:
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
         return {"skipped": True, "last_bar": bar}
@@ -1887,6 +1957,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 코인 즉시 체결 내역 — "오늘 얼마에 사고팔았나"를 사이트가 보여줄 재료.
     # 주식 시가 체결(fills 위쪽)과 함께 그날 기록에 남는다.
     for o in getattr(broker, "order_log", [])[n_orders_before:]:
+        # ⚠️ **주문 로그는 체결 내역이 아니다**(2026-08-14 감사 233). 여기는
+        #    상태를 안 보고 통째로 베끼고 있었다 — 미체결(지정가 open)이나
+        #    현금 부족 거부(rejected)가 생기면 **돈이 한 푼도 안 움직인
+        #    주문이 장부에 '오늘 얼마에 샀다'로 남는다.** 그 줄은 사이트
+        #    거래내역·SNS 캡션·체결비용 표본으로 그대로 흘러간다.
+        if getattr(o, "status", "filled") not in ("filled", "partial"):
+            continue
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
                       "side": o.side,
@@ -2125,6 +2202,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 유연화의 대가를 숨기지 않는다 — 이 돈은 gave_way의 종목이
               # 쓸 돈이었고, 그 종목들은 오늘 목표가 0이라 팔렸다.
               "lot_priority": lot_priority or None,
+              # 현금이 모자라 브로커가 **거부한** 주문(감사 233). 지금 구조
+              # 에서는 나오면 안 되는 값이다 — 레버리지 금지선·수수료
+              # 버퍼·매도 우선 순서가 셋 다 막고 있다. 그래서 여기 숫자가
+              # 찍히면 그 셋 중 하나가 새고 있다는 뜻이고, 계좌는 이유 없이
+              # 작아진 채로 굴러간다. 조용히 덜 사는 것을 장부에 드러낸다.
+              "cash_short": (getattr(broker, "rejected", None) or None) and [
+                  {"key": r["symbol"], "need": round(float(r["need"]), 2),
+                   "cash": round(float(r["cash"]), 2)}
+                  for r in broker.rejected[:20]],
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.
@@ -2175,6 +2261,60 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     return record
 
 
+PAPER_STALE_SESSIONS = 2
+"""이 이상 세션을 놓친 종목은 '주말이라서'로 설명되지 않는다(감사 243).
+
+    코인   2세션 = 이틀 연속 새 봉 없음 (코인은 매일 연다)
+    주식   2세션 = 거래일 이틀 연속 없음 (주말·공휴일은 애초에 안 센다)
+
+1세션은 정상이다 — 배치가 그 시장의 마감보다 이르면 한 세션 뒤처진다.
+"""
+
+
+def paper_stale_targets(skipped: list, state_dir: str = STATE_DIR,
+                        today: str | None = None,
+                        holidays: dict | None = None,
+                        threshold: int = PAPER_STALE_SESSIONS) -> dict:
+    """건너뛴 종목 중 **주말·휴장으로 설명되지 않는** 것들 → {키: 놓친 세션 수}.
+
+    ⚠️ 이 판정은 이미 있었다 — 그런데 **재학습 배치에만 붙어 있었다**(감사
+       243). 돈을 굴리는 쪽인 페이퍼 배치는 `_write_run_health`에 `stale`을
+       아예 넘기지 않아, 사이트의 '정체' 경보가 그쪽에서는 영영 울리지 않는
+       구조였다. 감사 139(거래소 규격을 아무도 안 물었다)와 같은 계열 —
+       만들어 놓고 배선하지 않은 장치.
+
+       그동안 무엇이 가려졌나: 시세 공급이 얼어붙으면 멱등 가드가 매일 조용히
+       건너뛴다. 챔피언은 옛 가격으로 계속 돈을 굴리고, 화면의 종목표는
+       며칠 전 숫자를 오늘 것처럼 보여준다.
+    """
+    from quant.data.market_calendar import holiday_map, missed_sessions
+
+    if not skipped:
+        return {}
+    if holidays is None:
+        # ⚠️ 안 실어 보내면 공휴일이 전부 '거래일'로 세어진다 — 실측: 광복절
+        #    대체휴일(2026-08-17)이 낀 구간에서 국내주식이 2세션 대신 3세션
+        #    밀린 것으로 잡혔다. 즉 **정상 휴장이 장애로 보고된다.**
+        holidays = holiday_map(state_dir)
+    out: dict[str, int] = {}
+    for key in skipped:
+        market, _, symbol = str(key).partition(":")
+        try:
+            with open(_paper_path(market, symbol, state_dir),
+                      encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        hist = st.get("history") or []
+        last = (hist[-1].get("date") if hist else None) or st.get("last_bar")
+        if not last:
+            continue
+        n = missed_sessions(market, last, today, holidays)
+        if n is not None and n > threshold:
+            out[key] = n
+    return out
+
+
 def run_daily_paper_all(targets=None, **kwargs) -> dict:
     """AUTO_TARGETS 전체를 순회 페이퍼 운용한다 — 한 종목 실패가 나머지를 안 막는다.
 
@@ -2199,8 +2339,10 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
     # 부분 실패를 장부에 남긴다 — 예전에는 20종목 중 19개가 실패해도 잡이
     # 초록이고 콘솔에만 남았다(2026-08-11 감사). 전부 실패해야 예외였다.
     # 사이트·경보가 읽을 수 있게 기록해야 '조용한 절반 마비'가 보인다.
-    _write_run_health(kwargs.get("state_dir") or STATE_DIR,
-                      "paper", ok, failed, skipped=skipped)
+    _sd = kwargs.get("state_dir") or STATE_DIR
+    _write_run_health(_sd, "paper", ok, failed, skipped=skipped,
+                      stale=paper_stale_targets(skipped, _sd),
+                      stale_unit="거래일")
     # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
     #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
     if targets and not ok and not skipped:
@@ -2211,7 +2353,8 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
 
 def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                       skipped: list | None = None,
-                      stale: dict | None = None) -> None:
+                      stale: dict | None = None,
+                      stale_unit: str = "일") -> None:
     """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
 
     '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
@@ -2240,18 +2383,168 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                 cur = json.load(f)
         except (OSError, ValueError):
             cur = {}
-    entry = {"date": _date.today().isoformat(),
-             "ok": len(ok), "failed": len(failed),
-             "skipped": len(skipped or []),
-             "skipped_keys": sorted(skipped or [])[:20],
-             "failed_keys": sorted(failed)[:20],
+    today = _date.today().isoformat()
+    # ⚠️ **하루에 두 번 돈다**(본 크론 + 예비 크론). 그냥 덮어쓰면 나중에 도는
+    #    예비 크론이 본 크론의 성적을 지운다 — 예비 크론은 이미 기록된 종목을
+    #    정상적으로 전부 건너뛰기 때문에 그 기록은 항상 "성공 0 · 건너뜀 20"
+    #    이다(감사 244).
+    #
+    #    실측(2026-08-14, 커밋 순서대로):
+    #        paper   ok=20 skip=0   ← 본 크론이 20종목을 다 돌았다
+    #        paper   ok=0  skip=20  ← 예비 크론이 덮어썼다. 이게 화면에 남는다
+    #        retrain ok=16 skip=4 → ok=4 skip=16 (08-13, 같은 일)
+    #
+    #    그래서 **잘 돈 날과 배치가 아예 안 뜬 날이 같은 기록**으로 남는다.
+    #    부분 마비를 잡으려고 만든 장부가 정작 자기 자신을 지우고 있었다.
+    #
+    #    같은 날짜면 종목 단위로 합친다: 오늘 한 번이라도 성공한 종목은 성공,
+    #    끝까지 실패한 종목만 실패, 한 번도 안 돈 종목만 건너뜀이다
+    #    (건너뜀은 여전히 통과가 아니다 — 감사 226).
+    prev = cur.get(kind) or {}
+    ok_set, failed_map = set(ok), dict(failed)
+    skip_set = set(skipped or [])
+    if str(prev.get("date")) == today:
+        ok_set |= set(prev.get("ok_keys") or [])
+        for k, v in (prev.get("errors") or {}).items():
+            failed_map.setdefault(k, v)
+        for k in (prev.get("failed_keys") or []):
+            failed_map.setdefault(k, "")
+        skip_set |= set(prev.get("skipped_keys") or [])
+        entry_runs = int(prev.get("runs") or 1) + 1
+    else:
+        entry_runs = 1
+    failed_map = {k: v for k, v in failed_map.items() if k not in ok_set}
+    skip_set -= ok_set | set(failed_map)
+    entry = {"date": today, "runs": entry_runs,
+             "ok": len(ok_set), "failed": len(failed_map),
+             "skipped": len(skip_set),
+             "ok_keys": sorted(ok_set)[:100],
+             "skipped_keys": sorted(skip_set)[:20],
+             "failed_keys": sorted(failed_map)[:20],
              "errors": {k: str(v)[:200] for k, v in
-                        list(failed.items())[:5]}}
+                        list(failed_map.items())[:5] if v}}
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
+        # 배치마다 세는 단위가 다르다 — 재학습은 달력 일수, 페이퍼는 거래일
+        # (감사 243). 단위를 안 적으면 화면이 둘을 같은 말로 읽는다.
+        entry["stale_unit"] = stale_unit
     cur[kind] = entry
     atomic_write_json(path, cur)
+
+
+def _week_base_principal(st: dict, first_date: str) -> float:
+    """계좌가 그 주를 시작할 때 갖고 있던 원금 (감사 241).
+
+    **시작금 그 자체**다. 입금을 여기 더하면 안 된다 — 계좌에 기록이 하나도
+    없던 시절의 입금은 필연적으로 첫 기록의 자산에 들어가 있고, 주간 수익
+    계산의 `flows`가 그 첫 기록에서 이미 빼 준다. 둘 다 하면 두 번 세는 것이
+    되어 **입금이 통째로 손실로 보인다**(실측: -92%).
+
+    시작금을 모르면 첫 기록의 자산으로 물러난다 — 옛 장부는 그 필드가
+    없을 수 있고, 그때는 지금까지와 같은 값이 나온다(하위 호환).
+    """
+    del first_date          # 규칙이 날짜에 의존하지 않는다는 것을 명시
+    try:
+        base = float(st.get("start_cash"))
+    except (TypeError, ValueError):
+        return float(st["history"][0]["equity"])
+    return base if base > 0 else float(st["history"][0]["equity"])
+
+
+def _window_return(hist: list, window: list, st: dict) -> tuple[float, list]:
+    """구간 수익률(%)과 (날짜, 그날 %) 목록 — **주간 셈은 여기 한 곳에서 한다.**
+
+    ⚠️ 이 셈이 두 벌이었다(감사 246). 텔레그램 주간 리포트는 여기(파이썬),
+       공개 주간 아카이브 페이지는 자기 자바스크립트 복사본을 갖고 있었고,
+       그 복사본은 아예 **다른 값**을 쓰고 있었다:
+
+           const ret = cur.day_pct != null ? cur.day_pct : ...
+
+       `day_pct`는 **그 주 마지막 날 하루치**다. 열 제목은 "주간 수익률"인데
+       매주 마지막 하루를 주간 성적으로 내보내고 있었다. 실측(2026-08-10 주):
+
+           아카이브 페이지  **+0.02%**   ← 08-14 하루치
+           사실(원금 대비)  **-0.02%**
+
+       **부호가 반대다.** 감사 241에서 파이썬 쪽을 고쳤는데, 같은 병을 가진
+       화면 쪽은 그대로 남아 있었다 — 형제를 안 찾은 자리다(㉞ 같은 판정을
+       두 곳에서 쓰면 언젠가 갈라진다).
+
+    규칙(감사 241과 같다):
+      · 기준선은 창 직전 마지막 기록. 없으면 **원금**(첫날 손익이 사라지지
+        않게).
+      · 입금은 수익이 아니다 — 그날 유입액을 빼고 구간수익을 연쇄 곱한다.
+      · 입금 귀속은 `_flows_by_date`가 **전체 기록**으로 잡는다.
+    """
+    idx0 = hist.index(window[0])
+    base = (hist[idx0 - 1]["equity"] if idx0 > 0
+            else _week_base_principal(st, window[0]["date"]))
+    src = hist                  # 귀속은 창이 아니라 **전체 기록**(감사 241)
+    flows = _flows_by_date(src, st.get("deposits") or [])
+    days_chg: list = []
+    chain, prev = 1.0, base
+    for r in window:
+        if prev:
+            r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
+            chain *= 1.0 + r_t
+            days_chg.append((r["date"], r_t * 100))
+        prev = float(r["equity"])
+    return ((chain - 1) * 100 if base else 0.0), days_chg
+
+
+def _monday_of(day: str) -> str:
+    """그 날짜가 속한 주의 월요일(ISO) — 화면과 배치가 같은 주 경계를 쓴다."""
+    from datetime import date, timedelta
+
+    d = date.fromisoformat(str(day)[:10])
+    return (d - timedelta(days=d.weekday())).isoformat()
+
+
+def weekly_archive(state_dir: str = STATE_DIR, weeks: int = 52) -> dict:
+    """주 단위 아카이브 — 계좌별 {월요일: {수익률·자산·입금}} (감사 246).
+
+    공개 주간 아카이브 페이지가 읽는 재료다. **페이지는 이제 계산하지 않고
+    읽기만 한다** — 같은 판정을 두 곳에서 하면 언젠가 갈라지고, 실제로
+    갈라져 있었다(위 `_window_return` 참고).
+    """
+    from datetime import date
+
+    out: dict = {}
+    for path in ledger_files(state_dir):
+        try:
+            with open(path, encoding="utf-8") as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        hist = chrono(st.get("history") or [])
+        if not hist:
+            continue
+        key = f"{st.get('market', '?')}:{st.get('symbol', '?')}"
+        deposits = st.get("deposits") or []
+        by_week: dict = {}
+        for r in hist:
+            by_week.setdefault(_monday_of(r["date"]), []).append(r)
+        rows: dict = {}
+        for wk in sorted(by_week)[-weeks:]:
+            window = by_week[wk]
+            ret, _ = _window_return(hist, window, st)
+            dep = 0.0
+            for d in deposits:
+                when = d.get("settled_bar") or d.get("date")
+                try:
+                    if _monday_of(when) == wk:
+                        dep += float(d.get("amount") or 0.0)
+                except (TypeError, ValueError):
+                    continue
+            rows[wk] = {"return_pct": round(ret, 2),
+                        "equity": window[-1].get("equity"),
+                        "deposit": round(dep, 2) or None,
+                        "n_days": len(window)}
+        if rows:
+            out[key] = rows
+    del date
+    return out
 
 
 def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
@@ -2283,9 +2576,27 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         window = [r for r in hist if date.fromisoformat(r["date"]) >= start]
         if not window:
             continue
-        # 주간 수익 기준점: 창 직전 마지막 기록(없으면 창 첫 기록의 자산)
-        idx0 = hist.index(window[0])
-        base = hist[idx0 - 1]["equity"] if idx0 > 0 else window[0]["equity"]
+        # 주간 수익 기준점: 창 직전 마지막 기록.
+        #
+        # ⚠️ **직전 기록이 없으면 원금이 기준이다**(2026-08-14 감사 241).
+        #    예전에는 `window[0]["equity"]`, 즉 **첫 기록 자기 자신**을 기준
+        #    으로 삼았다. 그러면 첫날 수익이 항상 0이 되고, 계좌가 문을 연
+        #    첫 주의 성적에서 첫날의 움직임이 통째로 빠진다.
+        #
+        #    실측(원화 계좌 첫 주, 원금 1,000,000원):
+        #        기록      999,635.06 → 999,847.15
+        #        리포트    주간 **+0.02%** · 최악일 08-13 **+0.00%**
+        #        사실      주간 **-0.0153%** · 최악일 08-13 **-0.0365%**
+        #    **부호가 반대다.** 이 리포트는 월요일 아침 텔레그램으로 나간다.
+        #
+        #    감사 239(낙폭이 원금을 고점으로 안 친다)와 **같은 병**이다 —
+        #    기준선에서 원금이 빠지면 첫날 손실이 사라진다.
+        #
+        #    창 시작 **전에** 정산된 입금은 그때 이미 자산에 들어가 있으므로
+        #    기준에 더한다. 창 **안에서** 정산된 입금은 아래 `flows`가 따로
+        #    빼므로 여기서 더하면 두 번 세는 것이 된다.
+        # 이 셈은 `_window_return`이 한 곳에서 한다(감사 246) — 주간 아카이브
+        # 페이지가 자기 복사본을 갖고 있다가 갈라진 자리다.
         # 입금은 수익이 아니다 — 자산 비율만 쓰면 매칭입금이 주간 수익으로
         # 둔갑한다(2026-08-11 감사에서 발견). TWR과 같은 규칙으로 그날의
         # 유입액을 빼고 구간수익을 연쇄 곱한다. 입금 날짜가 기록일 사이면
@@ -2298,17 +2609,11 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         #        주간 요약  : +1149.06%   ← 92만원 입금이 '수익'
         #        장부(TWR) :    -0.94%
         #    이 숫자는 월요일 아침 주간 리포트로 나간다.
-        flows = _flows_by_date(window, st.get("deposits") or [])
-        days_chg = []
-        chain = 1.0
-        prev = base
-        for r in window:
-            if prev:
-                r_t = (float(r["equity"]) - flows.get(r["date"], 0.0)) / prev - 1
-                chain *= 1.0 + r_t
-                days_chg.append((r["date"], r_t * 100))
-            prev = float(r["equity"])
-        week_ret = (chain - 1) * 100 if base else 0.0
+        # ⚠️ 귀속은 **전체 기록**으로 잡는다(감사 241). 창만 넘기면 창보다
+        #    오래된 입금이 "창 첫 기록"으로 끌려와 그 주의 수익에서 빠진다 —
+        #    그 돈은 이미 창 이전 자산에 들어가 있으므로 두 번 빼는 것이다.
+        #    실측: 시작금 8만 + 08-01 입금 92만인 계좌의 첫 주가 **-92%**.
+        week_ret, days_chg = _window_return(hist, window, st)
         best = max(days_chg, key=lambda x: x[1]) if days_chg else None
         worst = min(days_chg, key=lambda x: x[1]) if days_chg else None
         markets[key] = {
@@ -2381,7 +2686,13 @@ def format_weekly(summary: dict) -> str:
     a, b = summary["period"]
     lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 100만 챌린지"]
     for key, m in summary["markets"].items():
-        sign = "🔺" if m["week_return_pct"] >= 0 else "🔻"
+        # ⚠️ **화살표는 화면에 찍히는 숫자와 같은 값을 봐야 한다**
+        #    (감사 241에서 함께 발견). 예전에는 원본 값의 부호를 썼는데,
+        #    파이썬의 음의 0(-0.0)은 `>= 0`이 참이면서 `+.2f`로는 "-0.00"
+        #    으로 찍힌다. 실제로 그렇게 나갔다 — "🔺 QQQ: 주간 -0.00%".
+        #    화면이 스스로 모순되면 나머지 숫자도 함께 의심받는다.
+        shown = round(m["week_return_pct"], 2) + 0.0    # -0.0 → 0.0
+        sign = "🔺" if shown > 0 else ("🔻" if shown < 0 else "➖")
         line = (f"{sign} {key}: 주간 {m['week_return_pct']:+.2f}% · "
                 f"자산 {m['equity']:,.0f} (누적 {m['total_return_pct']:+.2f}%)")
         if m.get("worst_day"):
@@ -2595,6 +2906,16 @@ def write_docs_status(state_dir: str = STATE_DIR,
         except (OSError, ValueError):
             pass
 
+    # 주간 아카이브 — **셈은 배치가 하고 페이지는 읽기만 한다**(감사 246).
+    # 페이지가 자기 복사본으로 계산하던 시절, 그 복사본은 "주간 수익률" 칸에
+    # 그 주 **마지막 하루치**를 넣고 있었다(실측 +0.02% vs 사실 -0.02%).
+    try:
+        wk = weekly_archive(state_dir)
+        if wk:
+            status["weekly"] = wk
+    except Exception:  # noqa: BLE001 — 집계 실패가 사이트 갱신을 막으면 안 된다
+        log.warning("주간 아카이브 집계 실패 — 페이지는 '집계 없음'으로 표시된다")
+
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.
     try:
@@ -2624,6 +2945,26 @@ def write_docs_status(state_dir: str = STATE_DIR,
         census = seat_census(load_champions(state_dir))
         if census["accounts"]:
             status["parliament"] = census
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
+    # 휴장일 달력 — **브라우저에도 보낸다**(2026-08-14). 사이트는 파이썬을
+    # 못 돌리므로, 배치가 아는 것을 파일로 실어 보내지 않으면 화면은 영영
+    # 주말만 아는 상태로 남는다. 그러면 명절 내내 15초마다 시세를 조르고
+    # (무료 한도를 아무도 안 보는 날에 태우고), 값이 안 변하는 것이 휴장인지
+    # 고장인지 보는 사람도 알 수 없다.
+    # 앞으로 60일치만 보낸다 — status.json은 매번 통째로 내려받는 파일이다.
+    try:
+        from datetime import date as _hdate
+        from datetime import timedelta as _htd
+
+        from quant.data.market_calendar import holiday_map
+        _hol = holiday_map(state_dir)
+        if _hol:
+            _from = _hdate.today().isoformat()
+            _to = (_hdate.today() + _htd(days=60)).isoformat()
+            status["holidays"] = {m: [d for d in days if _from <= d <= _to]
+                                  for m, days in _hol.items()}
     except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
         pass
 

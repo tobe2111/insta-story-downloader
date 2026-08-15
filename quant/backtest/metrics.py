@@ -65,6 +65,22 @@ def compute_metrics(
                 백테스터·워크포워드처럼 weights.shift(1)를 먼저 적용한 경우).
                 이땐 추가 시프트 없이 그대로 정렬해야 이중 시프트를 피한다.
     """
+    # ⚠️ **결측을 버리는 것과 고장을 버리는 것은 다르다**(2026-08-14 감사 234).
+    #    아래 `dropna()`는 원래 곡선 앞머리의 빈 칸(첫 봉 수익률 등)을 잘라
+    #    내려고 넣은 것이다. 그런데 곡선 **중간**이 NaN이 돼도 똑같이 지워
+    #    버렸고, 그러면 남은 점들로 그럴듯한 성적이 나온다.
+    #
+    #    실측(자본곡선 60칸 중 30칸이 NaN, 최종 자산 nan):
+    #        총수익률 **-10.77%** · CAGR -76.18% · MDD -13.26%
+    #    사람도 오디션도 이 숫자를 이상하다고 볼 방법이 없다. 이 저장소의
+    #    모든 성적이 여기를 지나가므로, 낼 수 없는 성적은 내지 않는다.
+    _first = equity.first_valid_index()
+    if _first is not None:
+        _tail = pd.to_numeric(equity.loc[_first:], errors="coerce").to_numpy(float)
+        if not np.isfinite(_tail).all():
+            raise ValueError(
+                "자본곡선에 계산 불가 값(NaN·inf)이 섞여 있습니다 — 그 구간을 "
+                "버리고 성적을 내면 그럴듯한 오답이 나옵니다.")
     equity = equity.dropna()
     returns = returns.dropna()
     if len(equity) < 2:

@@ -158,9 +158,11 @@ class MultiTrader:
     def step(self) -> None:
         # 장 시간 가드: 정규장이 아니면 주문 사이클을 건너뛴다.
         if self.market is not None:
+            from quant.data.market_calendar import holiday_map
             from quant.live.market_hours import is_market_open, market_status
-            if not is_market_open(self.market):
-                log.info("⏸ %s", market_status(self.market))
+            _hol = holiday_map(getattr(self, "state_dir", "state"))
+            if not is_market_open(self.market, holidays=_hol):
+                log.info("⏸ %s", market_status(self.market, holidays=_hol))
                 return
 
         weights, prices = self._target_weights()

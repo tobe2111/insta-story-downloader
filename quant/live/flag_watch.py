@@ -210,10 +210,13 @@ def _current_flags(status: dict) -> dict[str, str]:
             continue
         label = {"paper": "페이퍼", "retrain": "재학습"}.get(kind, kind)
         worst = int(r.get("max_stale_days") or max(stale.values()))
-        names = ", ".join(f"{k}({v}일)" for k, v in
+        # 배치마다 세는 단위가 다르다(감사 243) — 재학습은 달력 일수, 페이퍼는
+        # 거래일. 화면이 단위를 지어내면 주말 이틀이 '이틀 장애'로 읽힌다.
+        unit = str(r.get("stale_unit") or "일")
+        names = ", ".join(f"{k}({v}{unit})" for k, v in
                           sorted(stale.items(), key=lambda kv: -kv[1])[:5])
         flags[f"run_stale:{kind}:{r.get('date')}:{len(stale)}"] = (
-            f"⚠️ {label} 정체: {len(stale)}종목이 최장 {worst}일째 새 봉을 "
+            f"⚠️ {label} 정체: {len(stale)}종목이 최장 {worst}{unit}째 새 봉을 "
             f"받지 못해 건너뛰고 있습니다 — {names}. 주말·연휴로는 설명되지 "
             f"않는 간격이라 시세 공급 장애일 가능성이 큽니다. 건너뛴 종목은 "
             f"오디션을 한 번도 열지 못한 채 옛 챔피언으로 계속 운용됩니다.")

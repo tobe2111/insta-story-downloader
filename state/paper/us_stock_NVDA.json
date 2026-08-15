@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-13 00:00:00",
+  "last_bar": "2026-08-14 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -244,6 +244,50 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-14",
+      "price": 225.16000366210938,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.527027027027027,
+      "hit_n": 74,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 20일선 이격 +7.0%(선 위) / 미 10년물 금리 5일 변화 +0.04 / 10일 수익률 +12.2%",
+      "fill": {
+        "price": 226.800003,
+        "bar": "2026-08-14 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-13 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "5a8f79168c7d",
+      "data_sha256": "644606235646dd62cb5efdde965ece4dc81028bd4a95619328224d697f084d0a",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:50f7a0862ac9",
+      "accounting": "next_open_v2",
+      "prob_up": 0.41124672953444874,
+      "drift_psi": 0.8667,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
@@ -251,6 +295,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-13 00:00:00"
+    "decided_bar": "2026-08-14 00:00:00"
   }
 }

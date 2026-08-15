@@ -135,10 +135,12 @@ class WebhookExecutor:
 
         # 장 시간 가드(주식). 코인·미지정은 항상 통과.
         if self.market is not None:
+            from quant.data.market_calendar import holiday_map
             from quant.live.market_hours import is_market_open, market_status
-            if not is_market_open(self.market):
+            _hol = holiday_map(getattr(self, "state_dir", "state"))
+            if not is_market_open(self.market, holidays=_hol):
                 return {"ok": False, "skipped": True,
-                        "reason": market_status(self.market)}
+                        "reason": market_status(self.market, holidays=_hol)}
 
         price = self._price(symbol, alert)
         if price <= 0:

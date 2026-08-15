@@ -106,13 +106,19 @@ def collect_briefing(state_dir: str = STATE_DIR, *,
 
     items: list[dict] = []
     seen: set[str] = set()
+    # 어떤 소스가 살아 있었나 — **실패를 세지 않으면 사라진 걸 아무도 모른다**
+    # (2026-08-14 감사 237). 아래 참고.
+    health: dict = {"feeds_ok": [], "feeds_failed": {},
+                    "symbols_ok": [], "symbols_failed": {}}
     for category, url in FEEDS:
         try:
             xml_text = get_text(url, {"User-Agent": "Mozilla/5.0 (quant-briefing)"},
                                 timeout=15)
         except Exception as exc:  # noqa: BLE001
             log.warning("브리핑 피드 실패(%s): %s", category, exc)
+            health["feeds_failed"][category] = f"{type(exc).__name__}: {exc}"[:120]
             continue
+        health["feeds_ok"].append(category)
         for it in parse_rss(xml_text, category):
             if it["title"] in seen:            # 카테고리 간 중복 제거
                 continue
@@ -127,7 +133,9 @@ def collect_briefing(state_dir: str = STATE_DIR, *,
                                 timeout=15)
         except Exception as exc:  # noqa: BLE001
             log.warning("종목 뉴스 실패(%s): %s", sym_key, exc)
+            health["symbols_failed"][sym_key] = f"{type(exc).__name__}: {exc}"[:120]
             continue
+        health["symbols_ok"].append(sym_key)
         for it in parse_rss(xml_text, "종목", top_n=2):
             if it["title"] in seen:
                 # 일반 피드에 이미 있는 기사면 그 항목에 종목 표식만 붙인다
@@ -140,11 +148,31 @@ def collect_briefing(state_dir: str = STATE_DIR, *,
             it["sym"] = sym_key
             items.append(it)
 
+    # ⚠️ **소스 건강을 함께 남긴다**(2026-08-14 감사 237). 예전에는 실패한
+    #    피드를 로그에 한 줄 찍고 `continue` 했고, 장부에는 흔적이 없었다.
+    #    그래서 이런 일이 조용히 지나간다:
+    #
+    #      · 일반 피드 3개가 전부 죽고 종목 뉴스만 살아도 40건이 모여
+    #        화면은 멀쩡해 보인다
+    #      · 반대로 구글 뉴스가 종목 검색만 막으면(같은 호스트에 요청이
+    #        20번 더 간다) **종목 뉴스가 통째로 사라지는데** 화면은 일반
+    #        뉴스를 그대로 보여주고 끝난다
+    #
+    #    "건너뜀은 통과가 아니다"(감사 226)와 "판단 근거를 남긴다"(감사 235)를
+    #    이 파일에서만 안 지키고 있었다.
     briefing = {"date": date or _date.today().isoformat(),
-                "items": items, "note": NOTE}
+                "items": items, "note": NOTE, "sources": health}
     atomic_write_json(os.path.join(state_dir, BRIEFING_FILE), briefing)
-    print(f"📰 시장 브리핑: {len(items)}건 수집 ({briefing['date']})"
+    n_f, n_s = len(FEEDS), len(SYMBOL_QUERIES)
+    print(f"📰 시장 브리핑: {len(items)}건 수집 ({briefing['date']}) · "
+          f"피드 {len(health['feeds_ok'])}/{n_f} · "
+          f"종목 {len(health['symbols_ok'])}/{n_s}"
           + ("" if items else " — 전 피드 실패(다음 실행에서 재시도)"))
+    if health["feeds_failed"]:
+        print(f"   ⚠️ 실패한 피드: {', '.join(health['feeds_failed'])}")
+    if health["symbols_failed"]:
+        print(f"   ⚠️ 뉴스를 못 받은 종목 {len(health['symbols_failed'])}개: "
+              f"{', '.join(sorted(health['symbols_failed'])[:8])}")
     return briefing
 
 

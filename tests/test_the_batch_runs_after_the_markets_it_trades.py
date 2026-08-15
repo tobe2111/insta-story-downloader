@@ -143,3 +143,38 @@ def test_the_shell_condition_matches_the_actual_backup_cron():
 def test_every_scheduled_job_has_a_timeout(name):
     """타임아웃 없는 잡은 몇 시간을 태우고도 로그를 안 남긴다(감사 77)."""
     assert _timeout(name) > 0, f"{name}: timeout-minutes가 없다"
+
+
+# ── 재시도가 다음 날을 선점하지 않는다 (감사 232) ─────────────
+
+
+def test_the_retry_cannot_cross_utc_midnight():
+    """예비 재시도가 자정을 넘기면 **다음 날 기록을 미리 만든다**.
+
+    실제로 그랬다(2026-08-14 감사 232). 재시도가 23:15에 걸려 있었는데
+    GitHub Actions가 43분 늦게 띄워 23:58에 시작했고, 코인 일봉이 UTC
+    자정에 롤오버하면서 멱등 가드가 '새 날'로 봤다:
+
+        08-13 기록  bar_age  crypto 0 · us_stock 0 · kr_stock 0   (정상)
+        08-14 기록  bar_age  crypto 0 · us_stock 1 · kr_stock 1   (묵은 봉)
+
+    그렇게 만들어진 08-14 기록의 주식은 하루 묵은 봉으로 판단한 것이고,
+    다음 날 정규 배치(22:15)는 같은 코인 봉을 보고 건너뛴다 — 즉 재시도가
+    **다음 날을 선점해 묵은 판단으로 확정**해 버린다.
+
+    위 `test_no_cron_crosses_midnight_utc`는 '자정을 안 넘는가'만 본다.
+    지연을 감안하면 그것으로 부족하다 — 여유를 지연보다 크게 잡는다.
+
+    ⚠️ **장부를 쓰는 잡만** 본다. social-post는 장부에 기록을 만들지 않고
+    이미 확정된 숫자를 읽어 내보내므로(감사 218에서 캡션이 장부에서 읽게
+    고쳤다) 자정을 넘겨도 다음 날을 선점하지 않는다. 범위를 넓혀 잡으면
+    '고칠 이유 없는 것'까지 흔들게 된다.
+    """
+    MIN_MARGIN_MIN = 60          # 자정까지 최소 이만큼은 남겨 둔다
+    for name in ("nightly-retrain.yml", "daily-paper.yml"):
+        for m in _crons(name):
+            margin = 24 * 60 - m
+            assert margin >= MIN_MARGIN_MIN, (
+                f"{name}: 크론 {m // 60:02d}:{m % 60:02d} UTC는 자정까지 "
+                f"{margin}분뿐이다 — Actions 지연으로 자정을 넘기면 다음 날 "
+                "기록을 선점한다")

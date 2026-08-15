@@ -123,9 +123,14 @@ def test_polling_stops_when_nobody_is_looking():
 
 def test_polling_slows_down_when_the_markets_are_closed():
     """장이 닫히면 값이 안 변한다 — 그 시간을 아껴 장중을 촘촘히 쓴다."""
-    assert "function marketOpenish(nowMs)" in LIVE, (
+    # ⚠️ 예전에는 `function marketOpenish(nowMs)` 문자열을 그대로 찾았다.
+    #    2026-08-14에 휴장일 달력을 인자로 추가하니(nowMs, holidays) 이
+    #    검사가 깨졌다 — 동작은 멀쩡한데 **철자가 달라져서** 빨개진 것이다.
+    #    시각을 받는지만 보면 된다. 실제 동작은 tests/live_marks_check.mjs가
+    #    값으로 확인한다("검사는 소스를 읽지 말고 돌려라").
+    assert re.search(r"function marketOpenish\(\s*nowMs\b", LIVE), (
         "장중 판정이 시각을 인자로 받지 않는다 — 검사가 특정 순간을 못 잰다")
-    assert "QuantLive.marketOpenish(Date.now())" in IDX, (
+    assert re.search(r"QuantLive\.marketOpenish\(Date\.now\(\)", IDX), (
         "화면이 장중 판정을 스스로 다시 쓴다")
     op = int(re.search(r"STOCK_MS_OPEN=(\d+)", IDX).group(1))
     cl = int(re.search(r"STOCK_MS_CLOSED=(\d+)", IDX).group(1))

@@ -64,15 +64,18 @@ SYMBOL_INFO = {
         "why": "고변동 알트코인 표본 — 변동성 큰 자산에서의 전략 검증용"},
     "us_stock:SPY": {
         "name": "S&P500 ETF",
+        "etf": True,
         "why": "미국 시장 전체 — 세계에서 가장 유동성 높은 ETF"},
     "us_stock:QQQ": {
         "name": "나스닥100 ETF",
+        "etf": True,
         "why": "미국 기술주 전체 — 성장주 시장 대표 지수"},
     "us_stock:NVDA": {
         "name": "엔비디아",
         "why": "AI 반도체 대표 개별주 — 지수와 다른 개별주 움직임 표본"},
     "kr_stock:069500.KS": {
         "name": "KODEX 200",
+        "etf": True,
         "why": "코스피200 ETF — 한국 시장 전체"},
     "kr_stock:005930.KS": {
         "name": "삼성전자",

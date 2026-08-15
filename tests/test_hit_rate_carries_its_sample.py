@@ -127,9 +127,15 @@ def test_the_label_does_not_claim_a_window_the_value_does_not_have():
     paper = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "적중률(60일)" not in paper, (
         "장부에 남는 값은 전체 기간 적중률인데 열 이름이 '(60일)'이다")
+    # ⚠️ 라벨은 2026-08-14(감사 240)에 다시 바뀌었다. '적중률(전체)'은
+    #    **무엇을 잰 값인지** 말하지 않아 인샘플 숫자를 실전 성적으로 읽게
+    #    했다. 지금 라벨은 '과거 400봉 · 인샘플/실전'이다 — 기간만이 아니라
+    #    출처까지 밝힌다. 여기서 지킬 것은 특정 글자가 아니라 **기간과 출처를
+    #    밝히는가**이므로 그쪽을 본다.
     for page in ("paper.html", "index.html"):
         src = (ROOT / "docs" / page).read_text("utf-8")
-        assert "적중률(전체)" in src, f"{page}: 적중률의 기간을 밝히지 않는다"
+        assert "과거 400봉" in src, f"{page}: 적중률이 무엇을 잰 값인지 안 밝힌다"
+        assert "인샘플" in src, f"{page}: 인샘플이라는 사실을 안 밝힌다"
 
 
 def test_the_ledger_stores_the_overall_rate_not_the_rolling_one():

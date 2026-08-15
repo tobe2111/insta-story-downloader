@@ -55,55 +55,52 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 아카이브입니다. 가상 자금 모의투자이며, 좋은 주가 있어도 미래 수익을 보장하지
 않습니다.</p>
 <div id="content"><p class="sub">불러오는 중…</p></div>
-<p class="note">주간 수익률 = 그 주 마지막 확정 자산 ÷ 직전 주 마지막 확정 자산 − 1.
-통합 계좌는 매칭 입금이 있는 주에 입금액을 함께 표기합니다(입금은 수익이 아닙니다).
+<p class="note">주간 수익률 = 그 주 마지막 확정 자산 ÷ <b>그 주 시작 시점의 자산</b> − 1.
+시작 시점은 직전 주의 마지막 확정 자산이고, <b>직전 주가 없으면 원금</b>입니다 —
+그러지 않으면 계좌를 연 첫 주의 첫날 손익이 통째로 빠집니다.
+입금은 수익이 아니므로 그 주 유입액을 빼고 계산하며(입금이 있는 주는 금액을 함께
+표기합니다), 이 숫자는 텔레그램 주간 리포트와 <b>같은 코드</b>가 냅니다.
 모든 원본 기록은 <a href="trust.html">git 장부</a>에서 검증할 수 있습니다.</p>
 </div>
 <script>
 function esc(s){const d=document.createElement("div");d.textContent=String(s);return d.innerHTML}
 function won(v){return Math.round(v).toLocaleString("ko-KR")+"원"}
 function pct(v){return (v>=0?"+":"")+Number(v).toFixed(2)+"%"}
-function mondayOf(ds){
-  const d=new Date(ds+"T00:00:00Z");
-  const wd=(d.getUTCDay()+6)%7;               // 월=0
-  d.setUTCDate(d.getUTCDate()-wd);
-  return d.toISOString().slice(0,10);
-}
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const el=document.getElementById("content");
-  const keys=Object.keys(st.paper||{});
-  if(!keys.length){el.innerHTML='<p class="err">아직 기록이 없습니다 — 첫 자동 실행 이후에 나타납니다.</p>';return}
-  // 계좌별로 주 → 그 주 마지막 기록 매핑
-  const weekly={}, weeks=new Set();
-  for(const k of keys){
-    const hist=(st.paper[k].history||[]);
-    const byWeek={};
-    for(const r of hist){ const w=mondayOf(r.date); byWeek[w]=r; weeks.add(w); }
-    weekly[k]=byWeek;
-  }
+  /* ⚠️ **여기서 계산하지 않는다**(감사 246). 예전에는 이 페이지가 자기
+     복사본으로 주간 수익률을 셌고, 그 복사본은 "주간 수익률" 칸에 그 주
+     **마지막 하루치**(day_pct)를 넣고 있었다:
+
+         const ret = cur.day_pct != null ? cur.day_pct : ...
+
+     실측(2026-08-10 주) — 아카이브 **+0.02%** / 사실 **-0.02%**. 부호가
+     반대다. 감사 241에서 파이썬 쪽(텔레그램 리포트)을 고쳤는데 화면 쪽
+     복사본은 그대로 남아 있었다. 같은 판정을 두 곳에서 하면 언젠가
+     갈라진다 — 이제 배치가 낸 값을 **읽기만** 한다. */
+  const wk=st.weekly||null;
+  if(!wk||!Object.keys(wk).length){
+    el.innerHTML='<p class="err">아직 주간 집계가 없습니다 — 다음 새벽 배치부터 '+
+      '나타납니다. (지어낸 값을 대신 보여주지 않습니다.)</p>';return}
+  const keys=Object.keys(wk);
+  const weeks=new Set();
+  keys.forEach(k=>Object.keys(wk[k]).forEach(w=>weeks.add(w)));
   const ws=[...weeks].sort();                  // 과거 → 최근
-  if(ws.length<1){el.innerHTML='<p class="err">아직 주간 집계가 없습니다.</p>';return}
   const pfk=keys.filter(k=>k.startsWith("portfolio:"))[0];
   const rest=keys.filter(k=>!k.startsWith("portfolio"));
+  const cell=v=>v==null?"–":pct(v);
+  const cls=v=>v==null?"":v>=0?"pos":"neg";
   // 통합 계좌 카드 — 주간 수익률 + 그 주의 입금
   let pfHtml="";
   if(pfk){
-    const deposits=st.paper[pfk].deposits||[];
     const rows=[];
     for(let i=ws.length-1;i>=0;i--){
-      const w=ws[i], cur=weekly[pfk][w];
-      if(!cur)continue;
-      const prevW=ws.slice(0,i).reverse().find(x=>weekly[pfk][x]);
-      const prev=prevW?weekly[pfk][prevW]:null;
-      // 장부의 day_pct 우선 — 입금이 수익으로 보이지 않게
-      const ret=cur.day_pct!=null?cur.day_pct
-        :(prev?((cur.equity/prev.equity-1)*100):null);
-      const dep=deposits.filter(d=>mondayOf(d.date)===w)
-                        .reduce((a,b)=>a+b.amount,0);
+      const w=ws[i], r=wk[pfk][w];
+      if(!r)continue;
       rows.push(`<tr><td>${esc(w)} 주</td>
-        <td class="${ret==null?"":ret>=0?"pos":"neg"}">${ret==null?"–":pct(ret)}</td>
-        <td>${won(cur.equity)}</td>
-        <td>${dep?("+"+won(dep)):"–"}</td></tr>`);
+        <td class="${cls(r.return_pct)}">${cell(r.return_pct)}</td>
+        <td>${r.equity==null?"–":won(r.equity)}</td>
+        <td>${r.deposit?("+"+won(r.deposit)):"–"}</td></tr>`);
     }
     pfHtml=`<div class="card"><h2>통합 계좌 (100만 챌린지)</h2>
       <div class="tablewrap"><table>
@@ -118,14 +115,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     for(let i=ws.length-1;i>=0;i--){
       const w=ws[i];
       const cells=rest.map(k=>{
-        const cur=weekly[k][w];
-        if(!cur)return "<td>–</td>";
-        const prevW=ws.slice(0,i).reverse().find(x=>weekly[k][x]);
-        const prev=prevW?weekly[k][prevW]:null;
-        if(!prev)return "<td>–</td>";
-        const ret=cur.day_pct!=null?cur.day_pct
-          :((cur.equity/prev.equity-1)*100);
-        return `<td class="${ret>=0?"pos":"neg"}">${pct(ret)}</td>`;
+        const r=wk[k]&&wk[k][w];
+        if(!r)return "<td>–</td>";
+        return `<td class="${cls(r.return_pct)}">${cell(r.return_pct)}</td>`;
       }).join("");
       if(cells.replace(/<td>–<\/td>/g,""))rows.push(`<tr><td>${esc(w)} 주</td>${cells}</tr>`);
     }
@@ -135,8 +127,12 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   }
   el.innerHTML=(pfHtml+grid)||'<p class="err">집계할 기록이 부족합니다.</p>';
   if(st.updated)document.querySelector(".sub").innerHTML+=` <b>마지막 갱신: ${esc(st.updated)}</b>`;
-}).catch(()=>{document.getElementById("content").innerHTML=
-  '<p class="err">아직 기록이 없습니다 — 첫 자동 실행 이후에 나타납니다.</p>'});
+}).catch(err=>{
+  /* 실패를 '기록 없음'으로 위장하지 않는다(감사 245와 같은 규칙). */
+  console.error("주간 아카이브 렌더 실패:", err);
+  document.getElementById("content").innerHTML=
+    '<p class="err">주간 집계를 불러오지 못했습니다 — 빈 화면을 "기록이 없다"로 '+
+    '읽지 마세요. 원본은 <a href="status.json">status.json</a>에 있습니다.</p>'});
 </script>
 </body>
 </html>

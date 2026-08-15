@@ -19,12 +19,15 @@
      실행할 수 있게** 한 자리다(tests/live_marks_check.mjs). 소스 문자열만
      읽는 검사는 "검사는 초록인데 기능은 죽어 있다"를 못 잡는다(감사 229). -->
 <script src="assets/live-marks.js"></script>
-<!-- 적중률을 '표본이 감당하는 만큼만' 말하는 규칙과, 트레이딩뷰 심볼 매핑.
-     둘 다 화면 여러 곳이 쓰므로 파일 하나에만 둔다 — 같은 규칙을 두 곳에
-     적으면 반드시 어긋난다(FROZEN_IDEAS ①). 검사도 이 파일을 그대로
-     실행한다(tests/hitrate_check.mjs · tests/tradingview_check.mjs). -->
+<!-- 종목 → 트레이딩뷰 심볼 변환. 같은 이유로 파일을 나눴다 —
+     tests/tv_symbols_check.mjs가 20종목 매핑을 값으로 확인한다.
+     엉뚱한 차트를 "삼성전자"라고 띄우는 것은 UI 버그가 아니라
+     가짜를 진짜처럼 보여주는 사고다. -->
+<script src="assets/tv-symbols.js"></script>
+<!-- 적중률을 '표본이 감당하는 만큼만' 말하는 규칙 — 같은 규칙을 두 곳에 적으면
+     반드시 어긋난다(FROZEN_IDEAS ①). 파이썬 짝은 robustness/accuracy.py이고,
+     tests/hitrate_check.mjs가 이 파일을 그대로 실행해 값으로 확인한다. -->
 <script src="assets/hitrate.js"></script>
-<script src="assets/tradingview.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -382,7 +385,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
           <th title="그 종목이 거래되는 통화 그대로입니다 — 미국주식은 달러, 코인은 USDT, 한국주식은 원. 위 잔고 표(원화 환산)와 단위가 다릅니다.">현재가<br><span class="sub" style="font-weight:400">현지 통화</span></th><th>일간</th><th>누적</th>
           <th title="그 종목만 굴리는 독립 계좌가 지금 들고 있는 비중입니다. 주식은 다음 세션 시가에 체결되므로, 오늘 내린 결정이 다르면 '→ N% 예정'으로 함께 표시합니다.">종목계좌 비중<br><span class="sub" style="font-weight:400">현재 보유</span></th>
           <th title="통합 계좌(100만 챌린지 본체)가 이 종목에 실제로 넣어 둔 돈입니다 — 원화 환산 평가금액. 아래 줄은 그 금액이 계좌에서 차지하는 노출(배분 슬라이스·변동성 타깃·킬스위치 반영)과 보유 수량입니다. 안 들고 있으면 '—'입니다.">통합 보유<br><span class="sub" style="font-weight:400">원화 · 노출</span></th>
-          <th title="포지션을 잡은 봉만 세어 낸 방향 적중률(기록 전체 기간)입니다. 괄호 안은 95% 신뢰구간과 표본 수 — 구간이 50%를 품고 있으면 '판정 불가'로 흐리게 나옵니다(그 표본으로는 동전던지기와 구별할 수 없다는 뜻).">적중률(전체)</th><th style="text-align:left">새벽 판단</th></tr></thead>
+          <th title="위: 과거 400봉에 오늘의 챔피언 전략을 적용해 잰 방향 적중률입니다. ⚠️ 이 400봉은 그 챔피언을 뽑은 오디션(800봉)과 100% 겹치고 그중 70%는 선발전 구간이라, 챔피언이 그 데이터에서 이겨서 뽑힌 만큼 실제보다 좋게 나옵니다(인샘플). 아래: 이 계좌의 실제 기록만으로 잰 값 — 아무도 고르지 않은 구간이지만 표본이 작습니다. 두 숫자 모두 괄호 안에 95% 신뢰구간과 표본 수가 붙고, 구간이 50%를 품으면 '판정 불가'로 흐리게 나옵니다 — 그 표본으로는 동전던지기와 구별할 수 없다는 뜻입니다.">적중률<br><span class="sub" style="font-weight:400">과거 400봉 · 실전</span></th><th style="text-align:left">새벽 판단</th></tr></thead>
         <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
       <!-- 종목을 누르면 그 종목 차트가 여기 열린다(사장님 2026-08-14:
@@ -822,6 +825,38 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         ". 확신도가 높은 쪽부터 채우기 때문이며, 그만큼 종목 수는 줄어듭니다");
     }
   }
+  /* 새벽 배치가 반쯤 마비된 날 — 값은 이미 실려 오는데(status.run_health)
+     **화면이 한 번도 읽지 않고 있었다**(감사 245). 종목 절반이 실패한 날도
+     읽는 사람에게는 평범한 하루로 보였다. 경보는 디스코드로만 갔고, 공개
+     장부를 보는 사람은 그 사실을 알 방법이 없었다 — 만들어 놓고 배선하지
+     않은 장치의 화면판이다(감사 139·243과 같은 계열).
+
+     조용해야 할 때는 조용하다: 주말·휴장으로 전 종목이 건너뛴 날은 말하지
+     않는다. '정체(stale)'는 그 자체가 주말·휴장을 빼고 센 값이라, 그것과
+     '실패'만 말한다 — 매일 울리는 경보는 꺼진 경보와 같다(감사 99). */
+  {
+    const rh=st.run_health||{}, nmk={paper:"페이퍼 매매",retrain:"새벽 재학습"};
+    /* ⚠️ 종목 이름 함수를 **여기서 만든다**. 위 블록의 `nm`은 그 중괄호
+       안에서만 사는 const라, 밖에서 부르면 ReferenceError가 나고 이 렌더
+       전체가 통째로 멈춘다(아래 catch가 그 사실을 화면에 말한다). */
+    const rname=k=>esc((syms[k]||{}).name||String(k).split(":")[1]||k);
+    Object.keys(rh).forEach(k=>{
+      const r=rh[k]||{}, lab=nmk[k]||k;
+      const nf=Number(r.failed)||0;
+      if(nf>0)flags.push("<b>"+esc(lab)+" 부분 실패 "+nf+"종목</b> — "+
+        (r.failed_keys||[]).slice(0,5).map(x=>rname(x)).join(" · ")+
+        ". 그 종목은 그날 판단·기록이 없고 이전 판단을 그대로 씁니다"+
+        (r.date?" ("+esc(r.date)+")":""));
+      const stl=r.stale||null, sk=stl?Object.keys(stl):[];
+      if(sk.length){
+        const u=esc(r.stale_unit||"일");
+        flags.push("<b>"+esc(lab)+" 정체 "+sk.length+"종목</b> — 최장 "+
+          (Number(r.max_stale_days)||0)+u+"째 새 봉을 못 받아 건너뛰고 "+
+          "있습니다("+sk.slice(0,5).map(x=>rname(x)+"("+stl[x]+u+")").join(" · ")+
+          "). 주말·휴장으로는 설명되지 않는 간격입니다");
+      }
+    });
+  }
   /* 시장별 '판단에 쓴 봉'이 며칠 묵었나(감사 220) — 배치 시각이 그 시장
      마감보다 이르면 그 시장만 조용히 하루 뒤처진다. 한국·코인은 최신인데
      미국만 뒤처지면 종목 간 비교 자체가 어긋난다. 정상(0~1일)은 조용하고
@@ -1062,6 +1097,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
          **n이 아니라 구간이 판정한다.** */
       const hf=QuantHitRate.format(last);
       const hr='<span title="'+esc(hf.title)+'">'+esc(hf.text)+'</span>';
+      /* 장부에서만 잰 실전 적중률(감사 240). 위 hit_rate는 챔피언을 뽑은
+         구간에서 잰 값이라 그것만 보여주면 선택 편향이 실력처럼 읽힌다.
+         ⚠️ 이쪽은 표본이 **더 작다**(장부 며칠치) — 그래서 같은 판정을
+            반드시 거쳐야 한다. 인샘플만 구간을 붙이고 실전은 맨 숫자로
+            내보내면, 정작 덜 믿을 숫자가 더 단정적으로 보인다. */
+      const lf=QuantHitRate.format({hit_rate:last.live_hit, hit_n:last.live_hit_n});
+      const lhr='<span class="sub" title="'+esc(lf.title)+'">실전 '+esc(lf.text)+'</span>';
       const ap=applied?(applied[r.k]||0):null;
       /* 통합 계좌가 이 종목에 **얼마를 넣어 뒀는가**(사장님 2026-08-13).
          비중(%)만으로는 "그래서 얼마"에 답할 수 없다. 숫자는 잔고 표와
@@ -1070,15 +1112,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const hd=held[r.k];
       const hq=hd?(Number(hd.quantity)||0):0;
       const hqs=hq>=100?num(Math.round(hq)):(hq>=1?hq.toFixed(3):hq.toPrecision(3));
-      /* 행 전체를 누르면 그 종목 차트가 열린다. 거래소 코드를 못 만드는
-         종목은 누를 수 있는 것처럼 보이지 않게 한다 — 눌러도 아무 일이
-         없으면 고장으로 읽힌다. */
-      const tvs=QuantTV.symbol(r.k);
-      return '<tr class="symrow'+(tvs?" clickable":"")+'" data-k="'+esc(r.k)+'"'+
-        ' data-name="'+esc(r.name)+'"'+
-        (tvs?' tabindex="0" role="button" title="차트 보기 — '+esc(r.name)+'"':"")+'>'+
-        '<td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span>'+
-        (tvs?'<span class="sub chev" style="font-size:11px"> 📈</span>':"")+'</td>'+
+      /* 종목 키를 줄에 붙여 둔다 — 누르면 상세 창이 이 값으로 열린다.
+         창은 이 줄의 숫자를 **그대로 옮겨** 보여주고 다시 계산하지 않는다. */
+      return '<tr data-k="'+esc(r.k)+'" data-name="'+esc(r.name)+
+        '" data-code="'+esc(r.code)+'" title="누르면 차트와 장부를 함께 봅니다">'+
+        '<td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
         '<td class="num '+cls(r.day||0)+'">'+(r.day==null?"—":zp(r.day))+'</td>'+
         '<td class="num '+cls(p.return_pct||0)+'">'+zp(Number(p.return_pct||0))+'</td>'+
@@ -1095,7 +1133,8 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '<div class="cd lvv" data-k="'+esc(r.k)+'"></div>')
           :(ap?('<span class="sub">보유 없음</span><div class="cd">'+
                 (ap*100).toFixed(2)+'% 예정</div>'):"—"))+'</td>'+
-        '<td class="num'+(hf.dim?" sub":"")+'">'+hr+'</td>'+
+        '<td class="num'+(hf.dim?" sub":"")+'">'+hr+
+          '<div class="cd">'+lhr+'</div></td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
@@ -1356,8 +1395,12 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const STOCK_MS_OPEN=15000, STOCK_MS_CLOSED=300000;
   /* 장중 판정도 QuantLive에 있다 — 시각을 인자로 받아야 검사가 특정
      순간을 재현할 수 있다(`Date.now()`를 안에서 부르면 영영 못 잰다). */
+  /* 휴장일 달력은 배치가 status.json에 실어 보낸다 — 브라우저는 파이썬을
+     못 돌리므로 스스로 알 방법이 없다. 못 받으면 예전처럼 요일만 본다
+     (모를 때는 막지 않는다). */
+  const holidays=(st&&st.holidays)||null;
   const marketOpenish=()=>!window.QuantLive
-    ||QuantLive.marketOpenish(Date.now());
+    ||QuantLive.marketOpenish(Date.now(),holidays);
   let stockTimer=null;
   function scheduleStocks(){
     if(stockTimer)clearTimeout(stockTimer);
@@ -1373,7 +1416,24 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     pollStocks(); if(!ws)openCryptoStream();
   });
 
-}).catch(()=>{});
+}).catch(err=>{
+  /* ⚠️ 예전에는 `catch(()=>{})` — 렌더 도중 예외를 **통째로 삼켰다**(감사 245).
+     이 렌더는 하나의 긴 then 하나라서, 중간 한 줄이 터지면 그 아래가 전부
+     안 그려진다. 그런데 화면에도 콘솔에도 아무 말이 없으니 읽는 사람은
+     **빈칸을 "오늘은 그런 일이 없었다"로 읽는다.** 이 제품에서 가장 하면
+     안 되는 일이다 — 모르는 것과 아닌 것을 구분해야 한다.
+
+     실제로 이 감사 중에 그 일이 벌어졌다: 새 블록이 다른 블록 안에만 사는
+     const를 불러 ReferenceError가 났고, 사이드바 전체가 통째로 비었는데
+     콘솔조차 조용했다. 검사가 아니라 **브라우저로 띄워 봐서** 알았다. */
+  console.error("화면 렌더 실패:", err);
+  const el=document.getElementById("side-flags");
+  if(!el)return;
+  el.innerHTML='<div class="t">⚠️ 화면을 다 그리지 못했습니다</div>'+
+    '<div class="flag">이 페이지의 일부가 비어 있을 수 있습니다 — '+
+    '<b>빈칸을 "그런 일이 없었다"로 읽지 마세요.</b> 새로고침해도 같다면 '+
+    '원본 장부(<a href="status.json">status.json</a>)를 직접 보세요.</div>';
+});
 
 /* --- 후원 랭킹 — sponsors.json에 기록이 있을 때만 노출 --- */
 fetch("sponsors.json").then(r=>r.ok?r.json():null).then(j=>{
@@ -1410,6 +1470,104 @@ fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/lat
   .then(r=>r.ok?r.json():null).then(j=>{
     if(j&&j.tag_name)document.getElementById("navver").textContent=j.tag_name;
   }).catch(()=>{});
+</script>
+<!-- ── 종목 상세 창 (종목별 현황에서 종목을 누르면 열린다) ───────────────
+     위쪽은 **우리 장부**, 아래쪽은 트레이딩뷰의 거래소 차트다. 두 출처를
+     한 창에 놓되 어느 쪽이 무엇인지 화면에 적는다 — 섞이면 "장부에 있는
+     것만 보여준다"는 이 사이트의 계약이 깨진다. -->
+<dialog id="symdlg">
+  <div class="dlg-head">
+    <div><b id="dlg-name">—</b> <span class="sub" id="dlg-code"></span></div>
+    <button id="dlg-x" aria-label="닫기">✕</button>
+  </div>
+  <div id="dlg-book" class="dlg-book"></div>
+  <div id="dlg-chart"></div>
+</dialog>
+<style>
+ #symdlg{border:0;border-radius:14px;padding:0;width:min(1000px,95vw);
+   max-height:92vh;background:var(--bg2);color:var(--fg);
+   box-shadow:0 24px 70px rgba(0,0,0,.55)}
+ #symdlg::backdrop{background:rgba(0,0,0,.62)}
+ .dlg-head{display:flex;align-items:center;justify-content:space-between;
+   gap:12px;padding:14px 16px;border-bottom:1px solid var(--line)}
+ .dlg-head button{background:none;border:0;color:var(--muted);font-size:18px;
+   cursor:pointer;line-height:1;padding:4px 8px}
+ .dlg-book{padding:12px 16px;font-size:13px;line-height:1.7}
+ .dlg-book .kv{display:flex;flex-wrap:wrap;gap:6px 18px;margin-bottom:6px}
+ .dlg-book .kv span b{font-variant-numeric:tabular-nums}
+ #dlg-chart{padding:0 16px 16px}
+ #dlg-chart iframe{width:100%;height:min(58vh,520px);border:0;
+   border-radius:10px;background:var(--bg3)}
+ #symtable tbody tr{cursor:pointer}
+ #symtable tbody tr:hover{background:var(--bg3)}
+</style>
+<script>
+(function(){
+  "use strict";
+  var dlg=document.getElementById("symdlg");
+  if(!dlg||!dlg.showModal)return;            // 아주 오래된 브라우저 — 조용히 끈다
+  var esc=function(s){var d=document.createElement("div");
+    d.textContent=String(s==null?"":s);return d.innerHTML;};
+  document.getElementById("dlg-x").onclick=function(){dlg.close();};
+
+  /* 표 한 줄의 장부 사실을 그대로 옮긴다 — **여기서 다시 계산하지 않는다.**
+     화면이 자기 계산을 시작하면 두 표가 갈라진다(감사 197). */
+  function openSymbol(tr){
+    var key=tr.getAttribute("data-k")||"";
+    var name=tr.getAttribute("data-name")||key;
+    var code=tr.getAttribute("data-code")||"";
+    document.getElementById("dlg-name").textContent=name;
+    document.getElementById("dlg-code").textContent=code;
+
+    var cells=tr.querySelectorAll("td");
+    var pick=function(i){return cells[i]?cells[i].innerText.replace(/\s+/g," ").trim():"—";};
+    document.getElementById("dlg-book").innerHTML=
+      '<div class="kv">'+
+        '<span>현재가 <b>'+esc(pick(1))+'</b></span>'+
+        '<span>일간 <b>'+esc(pick(2))+'</b></span>'+
+        '<span>누적 <b>'+esc(pick(3))+'</b></span>'+
+        '<span>종목계좌 비중 <b>'+esc(pick(4))+'</b></span>'+
+        '<span>통합 보유 <b>'+esc(pick(5))+'</b></span>'+
+      '</div>'+
+      '<div class="sub" style="margin-top:2px">새벽 판단 · '+esc(pick(7))+'</div>'+
+      '<div class="sub" style="margin-top:8px">↑ 여기까지가 <b>이 사이트의 '+
+      '장부</b>입니다 — 매일 새벽에 확정된 기록입니다.</div>';
+
+    var box=document.getElementById("dlg-chart");
+    var url=window.QuantTV&&QuantTV.tvEmbedUrl(key,{
+      theme:window.matchMedia("(prefers-color-scheme: light)").matches
+        ?"light":"dark"});
+    if(!url){
+      /* 매핑이 없으면 **차트를 지어내지 않는다**. 엉뚱한 종목을 띄우느니
+         없는 편이 낫다. */
+      box.innerHTML='<div class="sub">이 종목은 트레이딩뷰 차트를 연결해 '+
+        '두지 않았습니다 — 엉뚱한 종목이 뜨느니 비워 둡니다.</div>';
+    }else{
+      box.innerHTML='<div class="sub" style="margin:0 0 8px">아래 차트는 '+
+        '<b>트레이딩뷰의 거래소 공개 데이터</b>입니다 — 위 장부 숫자와 '+
+        '출처가 다르므로 값이 조금 다를 수 있습니다. '+
+        '<b>매매·수익률은 위 장부에서만 나옵니다.</b></div>'+
+        '<iframe loading="lazy" referrerpolicy="no-referrer" '+
+        'sandbox="allow-scripts allow-same-origin allow-popups" '+
+        'title="'+esc(name)+' 차트 (트레이딩뷰)" src="'+esc(url)+'"></iframe>'+
+        '<div class="sub" style="margin-top:6px">차트 제공: '+
+        '<a href="https://www.tradingview.com/" target="_blank" '+
+        'rel="noopener noreferrer">TradingView</a></div>';
+    }
+    dlg.showModal();
+  }
+
+  /* 표는 나중에 그려지므로 위임으로 잡는다 */
+  var t=document.getElementById("symtable");
+  if(t)t.addEventListener("click",function(e){
+    var tr=e.target.closest("tbody tr[data-k]");
+    if(tr)openSymbol(tr);
+  });
+  /* 차트가 남아 있으면 배경에서 계속 돈다 — 닫을 때 비운다 */
+  dlg.addEventListener("close",function(){
+    document.getElementById("dlg-chart").innerHTML="";
+  });
+})();
 </script>
 </body>
 </html>
