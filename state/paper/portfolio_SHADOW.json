@@ -3,37 +3,43 @@
   "symbol": "SHADOW",
   "currency": "KRW",
   "start_cash": 1000000.0,
-  "cash": 752700.2102241886,
+  "cash": 701374.3525319342,
   "positions": {
     "crypto:ETH/USDT": {
       "quantity": 0.0009845351161740584,
       "avg_price": 2672619.148095703,
-      "last_price": 2672774.9586914065,
-      "last_price_bar": "2026-08-14"
+      "last_price": 2661605.88,
+      "last_price_bar": "2026-08-15"
     },
     "crypto:XRP/USDT": {
       "quantity": 24.074862370571363,
       "avg_price": 1428.0749326171874,
-      "last_price": 1430.3412685546875,
-      "last_price_bar": "2026-08-14"
+      "last_price": 1419.06,
+      "last_price_bar": "2026-08-15"
     },
     "crypto:BTC/USDT": {
       "quantity": 0.0009126633326462405,
       "avg_price": 89883874.80322266,
-      "last_price": 89940108.26367188,
-      "last_price_bar": "2026-08-14"
+      "last_price": 89165258.39999999,
+      "last_price_bar": "2026-08-15"
     },
     "crypto:SOL/USDT": {
       "quantity": 0.9261779735297473,
       "avg_price": 107920.08442382813,
-      "last_price": 108061.73041992188,
-      "last_price_bar": "2026-08-14"
+      "last_price": 106733.08,
+      "last_price_bar": "2026-08-15"
     },
     "crypto:BNB/USDT": {
       "quantity": 0.03227780219291677,
       "avg_price": 865315.3901367188,
-      "last_price": 865315.3901367188,
-      "last_price_bar": "2026-08-14"
+      "last_price": 860472.7999999999,
+      "last_price_bar": "2026-08-15"
+    },
+    "us_stock:META": {
+      "quantity": 85.92428946041223,
+      "avg_price": 596.97998046875,
+      "last_price": 832868.1655273438,
+      "last_price_bar": "2026-08-15"
     }
   },
   "base_prices": {
@@ -55,9 +61,10 @@
     "kr_stock:035420.KS": 226500.0,
     "kr_stock:005380.KS": 418500.0,
     "kr_stock:051910.KS": 275500.0,
-    "kr_stock:105560.KS": 168100.0
+    "kr_stock:105560.KS": 168100.0,
+    "kr_stock:069500.KS": 110060.0
   },
-  "last_bar": "2026-08-14",
+  "last_bar": "2026-08-15",
   "history": [
     {
       "date": "2026-08-13",
@@ -651,6 +658,270 @@
       "twr_pct": -0.01,
       "day_pct": 0.02,
       "random_pctile": null
+    },
+    {
+      "date": "2026-08-15",
+      "price": 100.46,
+      "weight": 0.4215,
+      "equity": 72509769.67,
+      "return_pct": 7150.98,
+      "principal": 1000000.0,
+      "pnl": 71509769.67,
+      "hit_rate": null,
+      "fills": [
+        {
+          "key": "us_stock:META",
+          "price": 596.97998,
+          "bar": "2026-08-14 00:00:00",
+          "weight": 0.0515,
+          "side": "buy",
+          "quantity": 85.9242894604,
+          "amount": 51295.08,
+          "type": "시가"
+        },
+        {
+          "key": "us_stock:AMZN",
+          "price": 264.880005,
+          "bar": "2026-08-14 00:00:00",
+          "weight": 0.0878,
+          "side": "buy",
+          "quantity": 24024.2927496202,
+          "amount": 6363554.78,
+          "type": "시가"
+        }
+      ],
+      "pending_next_open": {
+        "us_stock:META": 0.0,
+        "kr_stock:069500.KS": 0.0015,
+        "kr_stock:051910.KS": 0.0077,
+        "kr_stock:105560.KS": 0.1255
+      },
+      "code_sha": "0bff7e3929df",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:bc1ec74fd1c2",
+      "accounting": "next_open_v2",
+      "fx_usdkrw": 1412.0,
+      "bar_age_days": {
+        "crypto": 0,
+        "us_stock": 1,
+        "kr_stock": 1
+      },
+      "risk_scale": 1.0,
+      "paused": false,
+      "exposure_scale": 1.0,
+      "drawdown_pct": 0.0,
+      "alloc": {
+        "crypto:BTC/USDT": 0.0413,
+        "crypto:ETH/USDT": 0.0211,
+        "crypto:SOL/USDT": 0.058,
+        "crypto:BNB/USDT": 0.1124,
+        "crypto:XRP/USDT": 0.036,
+        "us_stock:SPY": 0.1491,
+        "us_stock:QQQ": 0.0785,
+        "us_stock:NVDA": 0.0248,
+        "us_stock:MSFT": 0.0229,
+        "us_stock:AAPL": 0.1252,
+        "us_stock:AMZN": 0.0243,
+        "us_stock:META": 0.0331,
+        "us_stock:TSLA": 0.0122,
+        "kr_stock:069500.KS": 0.0154,
+        "kr_stock:005930.KS": 0.0073,
+        "kr_stock:000660.KS": 0.0052,
+        "kr_stock:035420.KS": 0.0138,
+        "kr_stock:005380.KS": 0.011,
+        "kr_stock:051910.KS": 0.012,
+        "kr_stock:105560.KS": 0.0616
+      },
+      "applied": {
+        "crypto:BTC/USDT": 0.015,
+        "crypto:ETH/USDT": 0.0011,
+        "crypto:SOL/USDT": 0.1518,
+        "crypto:BNB/USDT": 0.0625,
+        "crypto:XRP/USDT": 0.0564,
+        "kr_stock:105560.KS": 0.1255,
+        "kr_stock:051910.KS": 0.0077,
+        "kr_stock:069500.KS": 0.0015
+      },
+      "alloc_method": "hrp",
+      "vol_target": {
+        "target": 0.12,
+        "ex_ante": 0.00855,
+        "scale": 14.0274,
+        "damp": 1.0,
+        "applied": 14.0274,
+        "proven": false,
+        "reason": "판정 시계 진행 중 — fs8:+fredmacro/krw1 2일차/90일"
+      },
+      "stale_marks": null,
+      "skipped_dust": [
+        "kr_stock:000660.KS",
+        "kr_stock:005380.KS",
+        "kr_stock:005930.KS",
+        "kr_stock:035420.KS",
+        "us_stock:AAPL",
+        "us_stock:AMZN",
+        "us_stock:MSFT",
+        "us_stock:NVDA",
+        "us_stock:QQQ",
+        "us_stock:SPY",
+        "us_stock:TSLA"
+      ],
+      "skipped_cooldown": [
+        "crypto:ETH/USDT",
+        "crypto:BTC/USDT",
+        "crypto:XRP/USDT",
+        "crypto:BNB/USDT",
+        "crypto:SOL/USDT"
+      ],
+      "turnover": {
+        "filled": 2,
+        "universe": 20,
+        "symbols_ratio": 0.1,
+        "traded": 0.3767
+      },
+      "feature_health": {
+        "optional_max": 8,
+        "optional_possible": 17,
+        "union": 12,
+        "missing_everywhere": [
+          "x_funding",
+          "x_funding_chg",
+          "x_oi_chg5",
+          "x_frgn5",
+          "x_inst5"
+        ],
+        "thinnest": {
+          "key": "crypto:BTC/USDT",
+          "n": 4
+        }
+      },
+      "earnings_guard": null,
+      "kelly_caps": null,
+      "xsec_tilt": {
+        "crypto:BTC/USDT": 0.893,
+        "crypto:ETH/USDT": 0.75,
+        "crypto:SOL/USDT": 1.25,
+        "crypto:BNB/USDT": 0.964,
+        "crypto:XRP/USDT": 1.107,
+        "us_stock:SPY": 1.0,
+        "us_stock:QQQ": 1.0,
+        "us_stock:NVDA": 1.0,
+        "us_stock:MSFT": 1.0,
+        "us_stock:AAPL": 1.0,
+        "us_stock:AMZN": 1.0,
+        "us_stock:META": 1.0,
+        "us_stock:TSLA": 1.0,
+        "kr_stock:069500.KS": 0.821,
+        "kr_stock:005930.KS": 1.0,
+        "kr_stock:000660.KS": 1.0,
+        "kr_stock:035420.KS": 1.0,
+        "kr_stock:005380.KS": 1.0,
+        "kr_stock:051910.KS": 1.036,
+        "kr_stock:105560.KS": 1.179
+      },
+      "data_quality": {
+        "gaps": 2883,
+        "spikes": 5,
+        "zero_volume": 0
+      },
+      "champion": {
+        "symbols": 20,
+        "skipped": [],
+        "planned": 20,
+        "skipped_why": null
+      },
+      "lot_infeasible": null,
+      "lot_priority": {
+        "crypto:BTC/USDT": {
+          "budget": 1080725.7,
+          "spent": 1086795.29,
+          "price": 89165258.4,
+          "gave_way": []
+        },
+        "crypto:ETH/USDT": {
+          "budget": 80166.46,
+          "spent": 80616.69,
+          "price": 2661605.88,
+          "gave_way": []
+        },
+        "crypto:BNB/USDT": {
+          "budget": 4503254.18,
+          "spent": 4528545.45,
+          "price": 860472.8,
+          "gave_way": []
+        },
+        "crypto:XRP/USDT": {
+          "budget": 4063359.83,
+          "spent": 4086180.55,
+          "price": 1419.06,
+          "gave_way": []
+        }
+      },
+      "cash_short": [
+        {
+          "key": "us_stock:AMZN",
+          "need": 6367372.91,
+          "cash": 701374.35
+        }
+      ],
+      "data_source": {
+        "crypto:BTC/USDT": "okx",
+        "crypto:ETH/USDT": "okx",
+        "crypto:SOL/USDT": "okx",
+        "crypto:BNB/USDT": "okx",
+        "crypto:XRP/USDT": "okx",
+        "us_stock:SPY": "yfinance",
+        "us_stock:QQQ": "yfinance",
+        "us_stock:NVDA": "yfinance",
+        "us_stock:MSFT": "yfinance",
+        "us_stock:AAPL": "yfinance",
+        "us_stock:AMZN": "yfinance",
+        "us_stock:META": "yfinance",
+        "us_stock:TSLA": "yfinance",
+        "kr_stock:069500.KS": "yfinance",
+        "kr_stock:005930.KS": "yfinance",
+        "kr_stock:000660.KS": "yfinance",
+        "kr_stock:035420.KS": "yfinance",
+        "kr_stock:005380.KS": "yfinance",
+        "kr_stock:051910.KS": "yfinance",
+        "kr_stock:105560.KS": "yfinance"
+      },
+      "data_source_fallback": null,
+      "bar_partial": {
+        "crypto:BTC/USDT": 0.9447,
+        "crypto:ETH/USDT": 0.9447,
+        "crypto:SOL/USDT": 0.9447,
+        "crypto:BNB/USDT": 0.9447,
+        "crypto:XRP/USDT": 0.9447
+      },
+      "rebalance_band": {
+        "crypto": {
+          "band": 0.15,
+          "source": "가정",
+          "roundtrip_bp": 30.0,
+          "n": 0,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "kr_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "roundtrip_bp": 28.0,
+          "n": 23,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "us_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "roundtrip_bp": 12.0,
+          "n": 27,
+          "min_samples": 10,
+          "clipped": "하한"
+        }
+      },
+      "twr_pct": 7150.98,
+      "day_pct": 7151.94,
+      "random_pctile": 100.0
     }
   ],
   "deposits": [],
@@ -664,36 +935,47 @@
   },
   "risk_scale": 1.0,
   "prev_weights": {
-    "crypto:BTC/USDT": 0.05225,
-    "crypto:ETH/USDT": 0.002398,
-    "crypto:SOL/USDT": 0.138398,
-    "crypto:BNB/USDT": 0.013384,
-    "crypto:XRP/USDT": 0.078196,
+    "crypto:BTC/USDT": 0.025701,
+    "crypto:ETH/USDT": 0.003728,
+    "crypto:SOL/USDT": 0.186651,
+    "crypto:BNB/USDT": 0.039387,
+    "crypto:XRP/USDT": 0.111056,
     "us_stock:SPY": 0.0,
     "us_stock:QQQ": 0.0,
     "us_stock:NVDA": 0.0,
     "us_stock:MSFT": 0.0,
     "us_stock:AAPL": 0.0,
-    "us_stock:AMZN": 0.109698,
-    "us_stock:META": 0.055926,
+    "us_stock:AMZN": 0.0,
+    "us_stock:META": 0.0,
     "us_stock:TSLA": 0.0,
+    "kr_stock:069500.KS": 0.007428,
     "kr_stock:005930.KS": 0.0,
     "kr_stock:000660.KS": 0.0,
     "kr_stock:035420.KS": 0.0,
     "kr_stock:005380.KS": 0.0,
-    "kr_stock:051910.KS": 0.048334,
-    "kr_stock:105560.KS": 0.104215
+    "kr_stock:051910.KS": 0.049831,
+    "kr_stock:105560.KS": 0.146081
   },
   "pending": {
     "us_stock:META": {
-      "weight": 0.051455,
+      "weight": 0.0,
       "slice": 1.0,
-      "decided_bar": "2026-08-13 00:00:00"
+      "decided_bar": "2026-08-14 00:00:00"
     },
-    "us_stock:AMZN": {
-      "weight": 0.087814,
+    "kr_stock:069500.KS": {
+      "weight": 0.001518,
       "slice": 1.0,
-      "decided_bar": "2026-08-13 00:00:00"
+      "decided_bar": "2026-08-14 00:00:00"
+    },
+    "kr_stock:051910.KS": {
+      "weight": 0.007737,
+      "slice": 1.0,
+      "decided_bar": "2026-08-14 00:00:00"
+    },
+    "kr_stock:105560.KS": {
+      "weight": 0.125487,
+      "slice": 1.0,
+      "decided_bar": "2026-08-14 00:00:00"
     }
   },
   "last_trade": {
@@ -701,6 +983,8 @@
     "crypto:XRP/USDT": "2026-08-13",
     "crypto:BTC/USDT": "2026-08-13",
     "crypto:SOL/USDT": "2026-08-13",
-    "crypto:BNB/USDT": "2026-08-14"
+    "crypto:BNB/USDT": "2026-08-14",
+    "us_stock:META": "2026-08-15",
+    "us_stock:AMZN": "2026-08-15"
   }
 }
