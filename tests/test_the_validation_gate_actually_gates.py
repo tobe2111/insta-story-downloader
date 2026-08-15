@@ -378,3 +378,51 @@ def test_validate_actually_saves_the_cpcv_result():
     assert '"cpcv_worst_return"' in block, (
         "CPCV 결과가 장부에 저장되지 않는다 — 3중 관문의 셋째가 "
         "화면에만 찍히고 사라진다")
+
+
+def test_all_symbols_do_not_overwrite_one_report_file(tmp_path, monkeypatch):
+    """`--all --report`이 **20종목을 같은 파일에 덮어쓰면** 안 된다.
+
+    ⚠️ 파일은 있고 이름도 맞으니 아무도 눈치채지 못한다. 그 리포트를 열어 본
+       사람은 마지막 종목의 그래프를 **다른 19종목의 것으로 읽는다.**
+       조용히 틀린 자료를 주는 쪽이 아예 없는 것보다 나쁘다.
+
+    ⚠️ 검사가 **진짜 코드**를 돌게 한다. 여기서 같은 경로 규칙을 다시 적으면
+       그건 자기 사본을 검사하는 것이고(오늘 반복해서 잡은 함정), 코드가
+       바뀌어도 영원히 초록이다. `_cmd_validate`는 자기 자신을 다시 부르므로,
+       모듈 속성만 바꿔치기하면 그 재귀 호출이 잡힌다 — 바깥 호출은 원본이라
+       `--all` 분기는 실제 코드가 돈다.
+    """
+    import types
+
+    from quant import cli
+    from quant.markets import AUTO_TARGETS
+
+    original = cli._cmd_validate
+    seen: list[str] = []
+    monkeypatch.setattr(cli, "_cmd_validate",
+                        lambda one: seen.append(one.report))
+
+    original(types.SimpleNamespace(all_targets=True, market="", symbol="",
+                                   report=str(tmp_path / "리포트.html")))
+
+    assert len(seen) == len(AUTO_TARGETS), f"{len(seen)}종목만 돌았다"
+    assert len(set(seen)) == len(seen), (
+        f"리포트 경로가 겹친다 — 덮어쓰기: {sorted(seen)[:3]}")
+    for path in seen:
+        assert path.endswith(".html"), f"확장자가 사라졌다: {path}"
+
+
+def test_all_without_report_asks_for_no_path(tmp_path, monkeypatch):
+    """리포트를 안 쓰겠다고 했으면 경로를 만들어 내지 않는다."""
+    import types
+
+    from quant import cli
+
+    original = cli._cmd_validate
+    seen: list = []
+    monkeypatch.setattr(cli, "_cmd_validate",
+                        lambda one: seen.append(getattr(one, "report", None)))
+    original(types.SimpleNamespace(all_targets=True, market="", symbol="",
+                                   report=None))
+    assert seen and all(x is None for x in seen), f"경로를 지어냈다: {seen[:3]}"

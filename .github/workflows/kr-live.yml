@@ -55,7 +55,7 @@ jobs:
           # 올라오면 조용히 동작이 바뀐다(감사 130: pandas 3이 그렇게
           # 들어와 풀링 학습을 통째로 죽였고 몇 주 아무도 몰랐다).
           # requirements.txt 한 파일이 검사·실전을 함께 다스린다.
-          pip install -r requirements.txt pykrx
+          pip install -r requirements.txt -r requirements-extra.txt
 
       - name: 준비 진단 (키·토큰·잔고 — 주문 없음)
         env:

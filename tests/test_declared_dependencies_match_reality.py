@@ -122,6 +122,27 @@ def test_every_workflow_installs_from_the_one_file():
                 continue
             if "-r requirements.txt" not in s:
                 bad.append(f"{p.name}: {s}")
+                continue
+            # ⚠️ **`-r`이 있는지만 보면 반쪽이다**(2026-08-15에 드러남).
+            #    이 검사가 붙은 뒤에도 이렇게 남아 있었다:
+            #        pip install -r requirements.txt pykrx        ← 버전 없음
+            #        pip install -r requirements.txt cryptography ← 버전 없음
+            #    감사 130이 막겠다고 적은 바로 그 형태가 세 패키지에 그대로
+            #    있었다. 하필 pykrx는 **돈을 굴리는 워크플로**가 설치하고,
+            #    한국주식 수급 피처의 유일한 소스다.
+            #    그래서 `-r` 뒤에 덧붙은 **맨 패키지 이름**도 잡는다.
+            rest = s.split("pip install", 1)[1].split()
+            skip = False
+            for tok in rest:
+                if skip:                       # -r 다음 토큰은 파일 이름
+                    skip = False
+                    continue
+                if tok == "-r":
+                    skip = True
+                    continue
+                if tok.startswith("-"):        # 그 밖의 옵션
+                    continue
+                bad.append(f"{p.name}: {s}  ← '{tok}'에 버전이 없다")
     assert not bad, (
         "버전 고정 없이 설치하는 워크플로가 있다 — 어느 날 메이저가 올라오면\n"
         "조용히 동작이 바뀐다(감사 130):\n  " + "\n  ".join(bad))
@@ -141,3 +162,37 @@ def test_the_fingerprint_tells_when_the_lock_is_not_actually_honored():
             f"설치 버전이 선언 범위 밖인데 지문이 조용하다: {fp}")
     else:
         assert "deps!" not in fp
+
+
+def test_the_extra_file_exists_and_pins_what_workflows_add():
+    """워크플로가 덧붙이던 패키지가 **파일에 버전과 함께** 있는가.
+
+    ⚠️ 배선만 바꾸고 파일이 비어 있으면 그 패키지는 아예 설치되지 않는다 —
+       조용히 없어지는 쪽이 버전이 흔들리는 것보다 더 나쁘다(pykrx가 빠지면
+       한국주식 수급 피처가 통째로 사라진다).
+    """
+    import re
+
+    extra = (ROOT / "requirements-extra.txt")
+    assert extra.exists(), "requirements-extra.txt가 없다"
+    pins = {}
+    for ln in extra.read_text("utf-8").splitlines():
+        s = ln.split("#")[0].strip()
+        if not s:
+            continue
+        m = re.match(r"^([A-Za-z0-9_.-]+)\s*([<>=!].+)$", s)
+        assert m, f"버전 범위가 없는 줄: {s!r}"
+        pins[m.group(1).lower()] = m.group(2)
+    for need in ("pykrx", "cryptography", "pyinstaller"):
+        assert need in pins, f"{need}가 requirements-extra.txt에 없다"
+
+
+def test_workflows_that_need_the_extras_actually_install_them():
+    """돈을 굴리는 워크플로가 선택 의존성을 **실제로** 설치하는가."""
+    wf = ROOT / ".github" / "workflows"
+    for name in ("daily-paper.yml", "nightly-retrain.yml", "kr-live.yml",
+                 "build-app.yml"):
+        src = (wf / name).read_text("utf-8")
+        assert "-r requirements-extra.txt" in src, (
+            f"{name}이 선택 의존성을 안 설치한다 — 전에는 맨 이름으로 "
+            f"덧붙이고 있었다(버전 없이 그날 최신)")

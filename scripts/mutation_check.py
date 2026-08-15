@@ -3778,6 +3778,26 @@ MUTATIONS = [
      "",
      "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
 
+
+    # ── 2026-08-15 · 미뤄 뒀던 것 정리 ────────────────────────────────
+    ("워크플로가 선택 의존성을 버전 없이 덧붙인다(그날 PyPI 최신을 받는다)",
+     ".github/workflows/daily-paper.yml",
+     "pip install -r requirements.txt -r requirements-extra.txt",
+     "pip install -r requirements.txt pykrx",
+     "tests/test_declared_dependencies_match_reality.py"),
+
+    ("선택 의존성 파일에서 버전 범위를 뗀다",
+     "requirements-extra.txt",
+     "pykrx>=1.0,<2            # KRX 투자자별 순매수 → x_frgn5·x_inst5",
+     "pykrx            # KRX 투자자별 순매수 → x_frgn5·x_inst5",
+     "tests/test_declared_dependencies_match_reality.py"),
+
+    ("전 종목 검증 리포트를 한 파일에 덮어쓴다(마지막 종목 것만 남는다)",
+     "quant/cli.py",
+     '                one.report = str(rp.with_name(f"{rp.stem}_{safe}{rp.suffix}"))',
+     "                pass",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import copy as _copy
+import pathlib as _pathlib
 
 
 def _ppy(market: str) -> int:
@@ -619,6 +620,14 @@ def _cmd_validate(args) -> None:
             print(f"\n{'=' * 62}\n[{i}/{len(AUTO_TARGETS)}] {mk}:{sym}\n{'=' * 62}")
             one = _copy.copy(args)
             one.market, one.symbol, one.all_targets = mk, sym, False
+            # ⚠️ 리포트 경로에 종목 이름을 넣는다. 안 그러면 20종목이 **같은
+            #    파일에 차례로 덮어써서** 마지막 종목 것만 남는다 — 파일은
+            #    있고 이름도 맞으니 아무도 눈치채지 못하고, 그 리포트를 열어
+            #    본 사람은 다른 19종목이 그렇다고 읽는다.
+            if getattr(one, "report", None):
+                rp = _pathlib.Path(one.report)
+                safe = f"{mk}_{sym}".replace("/", "").replace(".", "_")
+                one.report = str(rp.with_name(f"{rp.stem}_{safe}{rp.suffix}"))
             try:
                 _cmd_validate(one)
             except Exception as exc:  # noqa: BLE001
