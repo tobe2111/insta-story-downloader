@@ -368,8 +368,8 @@ MUTATIONS = [
      "tests/test_a_new_day_needs_a_real_bar.py"),
     ("주간 리포트가 첫 기록을 자기 자신과 비교한다 — 첫날 손실이 사라진다(감사 241)",
      "quant/live/daily.py",
-     "            base = _week_base_principal(st, window[0][\"date\"])",
-     '            base = window[0]["equity"]',
+     "            else _week_base_principal(st, window[0][\"date\"]))",
+     '            else window[0]["equity"])',
      "tests/test_the_weekly_report_counts_the_first_day.py"),
     ("주간 기준선에 입금을 더한다 — 입금이 통째로 손실로 보인다(-92%)",
      "quant/live/daily.py",
@@ -378,8 +378,8 @@ MUTATIONS = [
      "tests/test_the_weekly_report_counts_the_first_day.py"),
     ("입금 귀속을 창만 보고 잡는다 — 옛 입금이 창 첫날로 끌려온다",
      "quant/live/daily.py",
-     "            hist,                        # 창이 아니라 **전체 기록**(감사 241)",
-     "            window,",
+     "    src = hist                  # 귀속은 창이 아니라 **전체 기록**(감사 241)",
+     "    src = window",
      "tests/test_the_weekly_report_counts_the_first_day.py"),
     ("주간 화살표가 화면의 숫자가 아니라 원본 부호를 본다 — '🔺 -0.00%'",
      "quant/live/daily.py",
@@ -1338,8 +1338,8 @@ MUTATIONS = [
     # 실측: 주간 요약 +1149.06% / 장부 TWR -0.94%
     ("주간 요약이 입금 귀속을 손으로 다시 계산한다(입금이 주간 수익으로 둔갑)",
      "quant/live/daily.py",
-     '            st.get("deposits") or [])',
-     "            [])",
+     '    flows = _flows_by_date(src, st.get("deposits") or [])',
+     "    flows = {}",
      "tests/test_a_deposit_is_not_a_loss.py"),
 
     # 감사 218 — 캡션이 코드 상수의 시작금을 방송에 내보내던 자리.
@@ -3469,6 +3469,19 @@ MUTATIONS = [
      "def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,",
      "def _write_run_health(*a, **kw) -> None:\n    return\ndef _unused(state_dir: str, kind: str, ok: list, failed: dict,",
      "tests/test_run_health.py"),
+
+    # 감사 246 — 공개 주간 아카이브가 '그 주 마지막 하루치'를 주간 수익률로
+    # 내보내던 자리. 실측 2026-08-10 주: 페이지 +0.02% / 사실 -0.02%.
+    ("주 경계를 일요일 시작으로 민다 — 화면과 배치가 다른 주를 본다",
+     "quant/live/daily.py",
+     "    return (d - timedelta(days=d.weekday())).isoformat()",
+     "    return (d - timedelta(days=(d.weekday() + 1) % 7)).isoformat()",
+     "tests/test_the_weekly_archive_agrees_with_the_report.py"),
+    ("주간 집계를 사이트에 안 실어 보낸다 — 아카이브가 영영 '집계 없음'이다",
+     "quant/live/daily.py",
+     '            status["weekly"] = wk',
+     "            pass",
+     "tests/test_the_weekly_archive_agrees_with_the_report.py"),
 
     # 감사 244 — 예비 크론이 본 크론의 성적을 지우던 자리.
     # 실측 2026-08-14: paper ok=20 → ok=0(skip=20)으로 덮여 화면에 남았다.
