@@ -52,9 +52,13 @@ def test_the_accuracy_helper_actually_returns_n():
 
 
 def test_the_site_shows_the_sample_when_it_is_thin():
+    # ⚠️ 예전에는 `const hn=` 뒤 **600자**만 잘라 봤다. 2026-08-14에 그 사이에
+    #    주석 몇 줄이 들어가자 검사가 빨개졌다 — 동작은 그대로인데 글자 위치가
+    #    밀린 것뿐이다. 이 저장소가 네 번 당한 계열(㉞ '구조를 봐야 하면 글자를
+    #    세지 않는다')이라, 창을 넓히지 말고 **적중률 칸 전체**를 본다.
     seg = INDEX.split("const hn=", 1)
     assert len(seg) == 2, "첫 화면이 표본 수를 읽지 않는다"
-    body = seg[1][:600]
+    body = seg[1].split("</td>", 1)[0]
     assert "hit_n" in INDEX
     assert re.search(r"hn\s*<\s*\d+", body), "얇은 표본 문턱이 없다"
     assert "n='+hn" in body, "표본 수를 화면에 적지 않는다"
@@ -68,13 +72,13 @@ def test_thin_samples_are_visually_muted():
 
 def test_a_missing_rate_is_a_dash_not_a_zero():
     """값이 없을 때 0%로 보이면 '한 번도 못 맞췄다'로 읽힌다."""
-    body = INDEX.split("const hn=", 1)[1][:600]
+    body = INDEX.split("const hn=", 1)[1].split("</td>", 1)[0]
     assert '"—"' in body
 
 
 def test_the_threshold_is_stated_once_not_scattered():
     """문턱이 여러 값으로 흩어지면 표시와 색이 어긋난다."""
-    body = INDEX.split("const hn=", 1)[1][:800]
+    body = INDEX.split("const hn=", 1)[1].split("</td>", 1)[0]
     thresholds = set(re.findall(r"hn\s*<\s*(\d+)", body))
     assert len(thresholds) == 1, f"문턱이 여러 개다: {thresholds}"
 
@@ -92,9 +96,27 @@ def test_the_label_does_not_claim_a_window_the_value_does_not_have():
     paper = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "적중률(60일)" not in paper, (
         "장부에 남는 값은 전체 기간 적중률인데 열 이름이 '(60일)'이다")
+    # ⚠️ 예전 계약은 "'적중률(전체)'라고 적혀 있을 것"이었다. 2026-08-14
+    #    감사 240에서 **그 '(전체)'가 이미 오해였다**는 것이 드러났다 —
+    #    장부 전 기간이 아니라 과거 400봉이고, 그 400봉은 챔피언을 뽑은
+    #    구간과 100% 겹친다. 이름이 기간을 밝히는 것만으로는 부족하고
+    #    **무엇을 잰 값인지**를 밝혀야 한다.
+    #    그리고 **모든 적중률 열**을 본다 — 한 페이지에 같은 열이 두 번
+    #    나오는데 하나만 고치면 나머지가 조용히 옛 라벨로 남는다(형제 찾기).
     for page in ("paper.html", "index.html"):
         src = (ROOT / "docs" / page).read_text("utf-8")
-        assert "적중률(전체)" in src, f"{page}: 적중률의 기간을 밝히지 않는다"
+        assert "적중률(전체)" not in src, (
+            f"{page}: '(전체)'는 장부 전 기간으로 읽힌다 — 실제는 과거 400봉이다")
+        heads = re.findall(r'<th title="([^"]*)"[^>]*>적중률', src)
+        assert heads, f"{page}: 적중률 열에 설명이 없다"
+        for i, tip in enumerate(heads):
+            assert "400봉" in tip, f"{page} 적중률 열 #{i}: 무엇을 잰 값인지 안 밝힌다"
+            assert "인샘플" in tip, f"{page} 적중률 열 #{i}: 인샘플임을 안 밝힌다"
+        labels = re.findall(r'>적중률<br><span[^>]*>([^<]*)</span>', src)
+        assert len(labels) == len(heads), (
+            f"{page}: 적중률 열 {len(heads)}개 중 {len(labels)}개만 부제가 있다")
+        for i, lab in enumerate(labels):
+            assert "400봉" in lab, f"{page} 적중률 열 #{i}: 부제가 기간을 안 밝힌다"
 
 
 def test_the_ledger_stores_the_overall_rate_not_the_rolling_one():

@@ -118,6 +118,23 @@ def test_selection_gate_requires_majority_folds():
 
 
 def test_ledger_records_folds_and_verify_replays_from_ledger():
+    """장부에 폴드 수가 실리고, verify는 그 값으로 재현한다.
+
+    ⚠️ 예전에는 소스에 `"select_folds": 3` 이라는 **문자열이 있는지**를 봤다.
+       그 검사는 '3이 적혀 있다'만 확인할 뿐 그 3이 **실제로 쓴 값인지**는
+       모른다. 실제로 그 숫자는 `nightly_retrain`의 기본값과 따로 놀고
+       있었다(감사 235). 값을 본다.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT))
+    from quant.live import retrain as _rt
+
     rt = (ROOT / "quant" / "live" / "retrain.py").read_text(encoding="utf-8")
-    assert '"select_folds": 3' in rt                       # 장부 기록
-    assert 'rec.get("select_folds", 0)' in rt              # 옛 기록은 0으로 재현
+    assert _rt.SELECT_FOLDS >= 2, "폴드 게이트가 꺼져 있다"
+    import inspect
+
+    assert (inspect.signature(_rt.nightly_retrain)
+            .parameters["select_folds"].default) == _rt.SELECT_FOLDS
+    assert '"select_folds": SELECT_FOLDS' in rt              # 장부 기록
+    assert 'rec.get("select_folds", 0)' in rt                # 옛 기록은 0으로 재현

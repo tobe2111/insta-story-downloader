@@ -35,6 +35,14 @@ STATE_DIR = "state"
 CHAMPIONS_FILE = "champions.json"
 HISTORY_FILE = "retrain_history.jsonl"
 
+# 선발전 폴드 일관성 게이트의 폴드 수 — **한 자리에서 정한다**(감사 235).
+# 예전에는 `nightly_retrain`의 기본값과 장부에 적는 값이 따로 있었고, 장부 쪽은
+# 숫자 3이 그냥 박혀 있었다. 한쪽만 바꾸면 장부가 실제와 다른 조건을 말하고,
+# `verify`는 그 장부대로 재현하므로 **재현이 어긋난다** — 이 제품이 내세우는
+# '조작 불가능'은 재현이 맞을 때만 사실이다(㉞ 같은 판정을 두 곳에서 쓰면
+# 언젠가 갈라진다).
+SELECT_FOLDS = 3
+
 # 시장별 기본 챔피언 — 첫 실행(기록이 없을 때)의 출발점. 가장 단순하고 견고한
 # 로지스틱회귀에서 시작해, 이후는 대결에서 이긴 설정이 이 자리를 물려받는다.
 DEFAULT_CHAMPION = {
@@ -209,6 +217,65 @@ def append_history(record: dict, state_dir: str = STATE_DIR) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def audition_evidence(decision: dict, top: int = 3) -> dict:
+    """그날 오디션에서 **실제로 나온 숫자**를 장부용으로 추린다 (감사 235).
+
+    ⚠️ 왜 필요한가. 재학습 기록 159건을 열어 보니 이런 필드만 있었다:
+
+        select_t 2.0 · confirm_t 2.5 · n_candidates 23 · promoted false
+        reason "선발전에서 챔피언을 통계적으로 이긴 후보 없음"
+
+    **문턱은 있는데 기록(記錄)이 없다.** 넘어야 할 높이만 적고 실제로 얼마나
+    뛰었는지는 아무 데도 없었다. 그래서 답할 수 없는 질문이 쌓였다:
+
+      · 159번 중 승격 1번 — 1등 후보의 t가 1.99였나 0.02였나?
+        (앞이면 문턱이 조금 높은 것이고, 뒤면 챌린저 격자가 무의미한 것이다.
+         고칠 곳이 완전히 다른데 구분할 방법이 없었다.)
+      · 결승전까지 간 12번은 무엇이 모자랐나? 결승 t를 기록하지 않았다.
+      · t가 커도 평균 차이가 잔돈이면 갈아탈 이유가 없다 — 효과 크기도 없었다.
+
+    이 저장소는 "판단 근거를 장부에 남긴다"를 정체성으로 내건다. 결정에 쓴
+    **전제**(비용·체결 가정)는 이미 남기고 있었는데, 정작 **결과**가 빠져
+    있었다.
+
+    파일이 하루 20줄씩 자라므로 상위 `top`개의 t만 남긴다 — '얼마나 가까웠나'
+    를 답하는 데는 분포의 머리만 있으면 된다.
+    """
+    cands = decision.get("candidates") or []
+
+    def _t(c) -> float | None:
+        v = c.get("t_stat")
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            return None
+        return v if math.isfinite(v) else None
+
+    ranked = sorted((c for c in cands if _t(c) is not None),
+                    key=lambda c: _t(c), reverse=True)
+    ev: dict = {"top_t": [round(_t(c), 3) for c in ranked[:max(0, top)]]}
+    if ranked:
+        b = ranked[0]
+        spec = b.get("spec") or {}
+        ev["best"] = {
+            "t": round(_t(b), 3),
+            "n": int(b.get("n") or 0),
+            # 효과 크기 — t만 보면 '통계적으로 유의한 잔돈'을 못 걸러낸다.
+            "mean_diff": round(float(b.get("mean_diff") or 0.0), 8),
+            "fold_wins": b.get("fold_wins"),
+            "n_folds": b.get("n_folds"),
+            "strategy": spec.get("strategy"),
+            "params": spec.get("params"),
+        }
+    fin = decision.get("final")
+    if fin:
+        ev["final"] = {"t": round(float(fin.get("t_stat") or 0.0), 3),
+                       "n": int(fin.get("n") or 0),
+                       "mean_diff": round(float(fin.get("mean_diff") or 0.0), 8),
+                       "swap": bool(fin.get("swap"))}
+    return ev
+
+
 def _audition_kwargs_from_record(rec: dict) -> dict:
     """장부 기록에서 그날의 오디션 조건을 되살린다(verify 재현용).
 
@@ -240,7 +307,7 @@ def nightly_retrain(
     min_obs: int = 60,
     edge: float = 0.0,
     cost_model=None,
-    select_folds: int = 3,
+    select_folds: int = SELECT_FOLDS,
     next_open_fill: bool = False,
     rebalance_band: float = 0.0,
 ) -> dict:
@@ -652,7 +719,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     # 갭을 가격으로 겪는(next_open_fill) 시장에 실측 갭을 비용으로까지 더하면
     # 두 번 물린다 — 그래서 모델링 여부를 넘겨 준다(2026-08-11 이중계상 수정).
     audition_cost = measured_cost_model(market, state_dir,
-                                        models_gap=audition_next_open)
+                                        models_gap=audition_next_open,
+                                        symbol=symbol)
     audition_band = _rebalance_band_rel(market, state_dir)
     decision = nightly_retrain(df, current_spec, challengers,
                                confirm_window=confirm_window,
@@ -660,7 +728,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                confirm_t=confirm_t_eff,
                                cost_model=audition_cost,
                                next_open_fill=audition_next_open,
-                               rebalance_band=audition_band)
+                               rebalance_band=audition_band,
+                               select_folds=SELECT_FOLDS)
 
     # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
     from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
@@ -688,7 +757,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 의석 비중도 오디션과 같은 비용으로 — 여기만 가정을 쓰면 '싸게 평가된
         # 고회전 의원'이 의석을 더 가져간다(같은 격차의 재발).
         cost_model=measured_cost_model(market, state_dir,
-                                       models_gap=audition_next_open),
+                                       models_gap=audition_next_open,
+                                       symbol=symbol),
         next_open_fill=audition_next_open,
         rebalance_band=_rebalance_band_rel(market, state_dir),
         confirm_window=confirm_window,
@@ -712,7 +782,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "n_candidates": len(decision.get("candidates", [])),
         "trials_total": trials_total,
         "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
-        "select_folds": 3,             # 폴드 일관성 게이트 — verify 재현용
+        "select_folds": SELECT_FOLDS,  # 폴드 일관성 게이트 — verify 재현용
+        # 그날 실제로 나온 숫자(감사 235). 문턱만 적고 기록을 안 적으면
+        # "왜 안 바뀌었나"에 장부가 답하지 못한다.
+        "audition_result": audition_evidence(decision),
         # 오디션 환경 — verify가 그날의 조건 그대로 재현하기 위한 값들.
         # 비용은 실측이라 날마다 변한다: 오늘 값으로 어제 결정을 재생하면
         # 재현이 깨진다. 결정의 전제를 결정과 함께 남기는 것이 장부의 일이다.

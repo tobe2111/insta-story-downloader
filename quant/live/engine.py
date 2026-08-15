@@ -98,9 +98,11 @@ class LiveTrader:
         """한 사이클 실행 (데이터 → 신호 → 사이징 → 주문 → 기록)."""
         # 장 시간 가드: 정규장이 아니면 주문을 내지 않는다(닫힌 시장 주문·거부 방지).
         if self.market is not None:
+            from quant.data.market_calendar import holiday_map
             from quant.live.market_hours import is_market_open, market_status
-            if not is_market_open(self.market):
-                log.info("⏸ %s", market_status(self.market))
+            _hol = holiday_map(getattr(self, "state_dir", "state"))
+            if not is_market_open(self.market, holidays=_hol):
+                log.info("⏸ %s", market_status(self.market, holidays=_hol))
                 return
 
         df = self.data.get_ohlcv(self.symbol, self.timeframe, limit=self.lookback)

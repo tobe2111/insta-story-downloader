@@ -215,7 +215,15 @@ def test_every_feed_dead_is_an_empty_briefing_not_a_crash(tmp_path,
 
     monkeypatch.setattr(H, "get_text", _boom)
     got = collect_briefing(str(tmp_path), date="2026-08-12")
-    assert got == {"date": "2026-08-12", "items": [], "note": NOTE}
+    assert got["date"] == "2026-08-12"
+    assert got["items"] == []
+    assert got["note"] == NOTE
+    # ⚠️ 2026-08-14 감사 237부터 **어떤 소스가 죽었는지도 함께 남긴다.**
+    #    예전 이 검사는 dict 전체를 통짜로 비교해서, 기록을 늘리는 것과
+    #    동작이 바뀌는 것을 구분하지 못했다. 지키려는 계약은 "전멸해도
+    #    예외를 던지지 않고 빈 브리핑을 남긴다"이므로 그것만 본다.
+    assert got["sources"]["feeds_ok"] == []
+    assert got["sources"]["feeds_failed"], "죽은 피드가 기록되지 않았다"
 
 
 def test_the_same_headline_is_not_listed_twice(tmp_path, monkeypatch):

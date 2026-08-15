@@ -293,6 +293,55 @@ def _msg_html(message: str) -> str:
     return f'<div class="errbox">{html.escape(message)}</div>'
 
 
+def bounded_param(params: dict, key: str, default: int,
+                  lo: int, hi: int | None = None) -> tuple[int, int]:
+    """폼 입력을 범위 안으로 자르고 **(실제값, 요청값)을 함께** 돌려준다.
+
+    자르는 것 자체는 옳다 — 표본이 50봉이면 워크포워드 숫자가 무의미하다.
+    문제는 **말을 안 하는 것**이었다(감사 236). 아래 `conditions_note`가
+    그 사실을 화면에 적는다.
+    """
+    raw = params.get(key, "")
+    try:
+        want = int(str(raw).strip()) if str(raw).strip() != "" else int(default)
+    except (TypeError, ValueError):
+        want = int(default)
+    val = max(lo, want if hi is None else min(hi, want))
+    return val, want
+
+
+def conditions_note(items) -> str:
+    """이 화면이 **실제로 쓴 조건**을 적는다 (2026-08-14 감사 236).
+
+    ⚠️ 조종석은 폼 입력을 조용히 범위 안으로 잘랐다. 실측:
+
+        요청: 봉 50 · IS창 10 · OOS창 5
+        실제: 봉 200 · IS창 50 · OOS창 20
+        화면: **아무 데도 안 적혀 있다**
+
+    사용자는 자기가 넣은 조건으로 나온 결과라고 믿는다. 그리고 이 탭들은
+    '이 파라미터를 신뢰해도 되는가'를 판정하는 과최적화 검증 도구다 —
+    판정의 전제가 화면에 없으면 판정 자체를 검증할 수 없다.
+
+    합성 데이터 배너와 같은 계열의 침묵이다. 다섯 형제 중 검증 탭만
+    봉 수를 적고 있었다(그것도 우연히 제목에 들어가 있어서).
+
+    items: [(라벨, 실제값, 요청값), ...]
+    """
+    parts, changed = [], []
+    for label, used, want in items:
+        parts.append(f"{html.escape(str(label))} <b>{used:,}</b>")
+        if int(used) != int(want):
+            changed.append(f"{html.escape(str(label))} {want:,}→{used:,}")
+    if not parts:
+        return ""
+    tail = ("" if not changed else
+            ' <span style="color:#b45309">· 입력값을 허용 범위로 조정했습니다('
+            + ", ".join(changed) + ")</span>")
+    return (f'<p class="sub" style="font-size:12.5px;margin:6px 0 0">'
+            f'실제 사용한 조건 — {" · ".join(parts)}{tail}</p>')
+
+
 def _fallback_banner(*dfs) -> str:
     """실데이터 수신 실패 → 합성 폴백으로 계산된 결과임을 화면에 명시한다.
 
@@ -823,12 +872,13 @@ def run_optimize_html(params: dict) -> str:
     objective = "sharpe"
     if strategy_name not in _OPT_GRIDS:
         return render_optimize_form(f"'{strategy_name}'는 최적화 미지원 전략입니다.")
-    try:
-        limit = max(200, min(5000, int(params.get("limit", 800))))
-        is_window = max(50, int(params.get("is_window", 250)))
-        oos_window = max(20, int(params.get("oos_window", 125)))
-    except (TypeError, ValueError):
-        limit, is_window, oos_window = 800, 250, 125
+    # 자르되 **자른 사실을 화면에 적는다**(감사 236) — 아래 conditions_note.
+    limit, want_limit = bounded_param(params, "limit", 800, 200, 5000)
+    is_window, want_is = bounded_param(params, "is_window", 250, 50)
+    oos_window, want_oos = bounded_param(params, "oos_window", 125, 20)
+    used_note = conditions_note([("봉", limit, want_limit),
+                                 ("IS창", is_window, want_is),
+                                 ("OOS창", oos_window, want_oos)])
 
     from quant.data import get_provider
     from quant.optimize import grid_search, walk_forward
@@ -882,6 +932,7 @@ def run_optimize_html(params: dict) -> str:
     label = STRATEGY_LABELS.get(strategy_name, strategy_name)
     body = f"""<p class="kicker">Walk-forward</p>
 <h1>워크포워드 결과 · {html.escape(label)} · {html.escape(symbol)}</h1>
+{used_note}
 {_fallback_banner(df)}
 <div class="card">
 <p>IS(학습) 샤프: <b>{is_sharpe:.2f}</b> → OOS(검증) 샤프: <b>{oos_sharpe:.2f}</b></p>
@@ -950,12 +1001,13 @@ def run_validate_html(params: dict) -> str:
         return render_validate_form(
             f"'{strategy_name}'는 검증 미지원 전략입니다 "
             f"(기본 그리드 지원: {', '.join(_OPT_GRIDS)}).")
-    try:
-        limit = max(200, min(5000, int(params.get("limit", 800))))
-        is_window = max(50, int(params.get("is_window", 250)))
-        oos_window = max(20, int(params.get("oos_window", 125)))
-    except (TypeError, ValueError):
-        limit, is_window, oos_window = 800, 250, 125
+    # 자르되 **자른 사실을 화면에 적는다**(감사 236) — 아래 conditions_note.
+    limit, want_limit = bounded_param(params, "limit", 800, 200, 5000)
+    is_window, want_is = bounded_param(params, "is_window", 250, 50)
+    oos_window, want_oos = bounded_param(params, "oos_window", 125, 20)
+    used_note = conditions_note([("봉", limit, want_limit),
+                                 ("IS창", is_window, want_is),
+                                 ("OOS창", oos_window, want_oos)])
 
     # 유효 입력 확인 후에만 무거운(pandas) 모듈을 임포트
     from quant.data import get_provider
@@ -1011,6 +1063,7 @@ def run_validate_html(params: dict) -> str:
     body = f"""<p class="kicker">Validation</p>
 <h1>검증 결과 · {html.escape(label)} · {html.escape(symbol)} ({len(df)}봉)</h1>
 <p class="sub">그리드: {html.escape(str(grid))}</p>
+{used_note}
 {_fallback_banner(df)}
 {boxes}
 <p class="warn">⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.
@@ -1052,10 +1105,8 @@ def run_sweep_html(params: dict) -> str:
     symbol = params.get("symbol", "DEMO")
     timeframe = params.get("timeframe", "1d")
     objective = params.get("objective", "sharpe")
-    try:
-        limit = max(100, min(5000, int(params.get("limit", 800))))
-    except (TypeError, ValueError):
-        limit = 800
+    limit, want_limit = bounded_param(params, "limit", 800, 100, 5000)
+    used_note = conditions_note([("봉", limit, want_limit)])
 
     ppy = 365 if market in ("crypto", "synthetic") else 252
     df = get_provider(market).get_ohlcv(symbol, timeframe, limit=limit)
@@ -1064,7 +1115,13 @@ def run_sweep_html(params: dict) -> str:
                             objective=objective, periods_per_year=ppy)
     heat = build_heatmap_html(fast, slow, grid, x_label="단기 MA", y_label="장기 MA",
                               objective=objective, title=f"MA 민감도 · {symbol}")
-    return heat.replace("<h1", _NAV + "\n<h1", 1)
+    # ⚠️ **여기만 합성 데이터 배너가 없었다**(감사 236). 형제 넷(백테스트·
+    #    포트폴리오·최적화·검증)은 전부 띄우는데 스윕만 빠져 있었다. 실측:
+    #    실데이터 수신 실패 프레임을 넣으면 히트맵이 아무 경고 없이 그려졌고,
+    #    화면에는 "MA 민감도"라는 제목과 색칠된 격자만 남는다 — 사용자는
+    #    가짜 데이터로 파라미터를 고르게 된다.
+    return heat.replace(
+        "<h1", _NAV + "\n" + _fallback_banner(df) + used_note + "<h1", 1)
 
 
 # ── 방송 모드 (/broadcast) — 유튜브 라이브 송출용 전용 화면 ────────────────

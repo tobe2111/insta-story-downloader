@@ -137,6 +137,44 @@ check("아무것도 없으면 문장도 없다", Q.freshness(HOLD, {}).text === 
         Q.marketOpenish(kst(2026, 7, 17, 10)) === true);
 }
 
+// ⑥ 휴장일 달력 — 명절에 무료 한도를 태우지 않는다
+{
+  const kst = (y, mo, d, h, mi) => Date.UTC(y, mo, d, h - (mi === undefined ? 9 : 9), mi || 0);
+  // 2026 설: 2/16(월)~2/18(수) · 미국 추수감사절 2026-11-26(목)
+  const HOL = {kr_stock: ["2026-02-16", "2026-02-17", "2026-02-18"],
+               us_stock: ["2026-11-26"]};
+  check("설 연휴 월요일 10:00 KST — 한국장 휴장",
+        Q.marketOpenish(kst(2026, 1, 16, 10), HOL) === false);
+  check("달력 없으면 같은 시각이 '장중'(대조군 — 모르면 막지 않는다)",
+        Q.marketOpenish(kst(2026, 1, 16, 10)) === true);
+  check("연휴 다음 목요일은 정상 개장(대조군)",
+        Q.marketOpenish(kst(2026, 1, 19, 10), HOL) === true);
+  check("한국 휴일이 미국장을 막지 않는다",
+        Q.marketOpenish(kst(2026, 1, 16, 23), HOL) === true);
+
+  // 추수감사절: 미국장은 KST로 그날 밤 22:30부터 다음 날 새벽까지다.
+  check("추수감사절 밤(KST 11/26 23:00) — 미국장 휴장",
+        Q.marketOpenish(kst(2026, 10, 26, 23), HOL) === false);
+  check("그 세션의 새벽(KST 11/27 03:00)도 같은 휴일로 판정",
+        Q.marketOpenish(kst(2026, 10, 27, 3), HOL) === false,
+        "KST 날짜로 물으면 엉뚱한 날의 휴일을 본다");
+  check("추수감사절 다음 날 밤(KST 11/27 23:00)은 개장(대조군)",
+        Q.marketOpenish(kst(2026, 10, 27, 23), HOL) === true);
+  check("미국 휴일이 한국장을 막지 않는다",
+        Q.marketOpenish(kst(2026, 10, 26, 10), HOL) === true);
+
+  // isHoliday 자체 — 모르는 것과 아닌 것을 구분한다
+  const D = (s) => new Date(s + "T00:00:00Z");
+  check("달력 없음 → false(=모른다, 막지 않는다)",
+        Q.isHoliday(null, "kr_stock", D("2026-02-16")) === false);
+  check("빈 목록도 false", Q.isHoliday({kr_stock: []}, "kr_stock",
+                                       D("2026-02-16")) === false);
+  check("아는 휴일은 true", Q.isHoliday(HOL, "kr_stock",
+                                     D("2026-02-16")) === true);
+  check("모르는 시장은 false", Q.isHoliday(HOL, "crypto",
+                                       D("2026-02-16")) === false);
+}
+
 if (fails.length) {
   console.error("실패 " + fails.length + "건:");
   fails.forEach((f) => console.error("  ✗ " + f));
