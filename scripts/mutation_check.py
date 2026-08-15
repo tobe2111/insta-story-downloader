@@ -3674,6 +3674,110 @@ MUTATIONS = [
      "        pass",
      "tests/test_ingested_specs_must_win_the_audition.py"),
 
+
+    # ── 2026-08-14 · 선물 준비 ①②③④ — 레버리지를 열기 전에 관문부터 ────
+    #
+    # 사장님: "모두 순서대로 가장 이상적이고 영구적으로 진행해줘."
+    #
+    # 이 저장소가 이번 주 내내 고친 결함은 전부 "선언만 돼 있고 안 막는 장치"
+    # 였다. 레버리지는 그 결함이 나면 **계좌가 없어지는** 영역이다.
+
+    ("청산 관문을 자주 보는 것만으로 뚫리게 한다(점프 바닥 제거)",
+     "quant/risk/liquidation.py",
+     "    return max(floor, float(daily_vol) * scale * float(sigma))",
+     "    return float(daily_vol) * scale * float(sigma)",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("모르는 시장에 가장 관대한 점프 바닥을 준다",
+     "quant/risk/liquidation.py",
+     "DEFAULT_JUMP_FLOOR = 0.20   # 모르면 가장 나쁜 쪽",
+     "DEFAULT_JUMP_FLOOR = 0.02   # 모르면 가장 나쁜 쪽",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("변동성을 모르는데 레버리지를 통과시킨다(모름을 안전으로 읽는다)",
+     "quant/risk/liquidation.py",
+     "        if leverage <= 1.0:\n            return Headroom(True, x_liq, 0.0, float(\"inf\"), measured,",
+     "        if True:\n            return Headroom(True, x_liq, 0.0, float(\"inf\"), measured,",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("여유 배수를 1배로 낮춘다(이론상 아슬아슬하게 사는 것을 통과로 친다)",
+     "quant/risk/liquidation.py",
+     "SAFETY_FACTOR = 2.0",
+     "SAFETY_FACTOR = 1.0",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("파산을 최종 자산으로만 판정한다(도중에 죽은 경로가 무사가 된다)",
+     "quant/robustness/ruin.py",
+     "    ruined = (equity <= ruin_level).any(axis=1)    # **경로 어느 지점에서든**",
+     "    ruined = equity[:, -1] <= ruin_level",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("블록 부트스트랩을 하루 단위로 바꾼다(뭉친 하락이 흩어져 안전해 보인다)",
+     "quant/robustness/ruin.py",
+     "    block = max(5, min(20, r.size // 10))          # 연속 하락을 살리는 블록 길이",
+     "    block = 1",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("표본이 모자라도 파산확률을 통과시킨다",
+     "quant/robustness/ruin.py",
+     "    if r.size < 30:",
+     "    if False:",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("파산 허용 기준을 느슨하게 한다(관문이 장식이 된다)",
+     "quant/robustness/ruin.py",
+     "RUIN_PASS = 0.01",
+     "RUIN_PASS = 0.50",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("감시 간격을 실측이 아니라 설정값으로 쓴다(밀린 회차를 못 본다)",
+     "quant/live/guard.py",
+     "    if now_iso:\n",
+     "    if False:\n",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("심장박동이 모자라도 간격을 0으로 친다(모름을 '완벽한 감시'로 읽는다)",
+     "quant/live/guard.py",
+     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return None",
+     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return 0.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("장중 감시가 킬스위치 규칙을 자기가 다시 적는다(새벽 배치와 갈라진다)",
+     "quant/live/guard.py",
+     "    from quant.live.daily import _kill_switch_scale\n",
+     "    _kill_switch_scale = lambda prev, dd: 1.0 if dd > -0.25 else 0.0\n",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("감시 실적이 없어도 레버리지를 연다",
+     "quant/risk/leverage_gate.py",
+     '        return LeverageDecision(1.0, "장중 감시 실적 없음", checks)',
+     "        observed = 1.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("파산확률을 못 재도 레버리지를 연다",
+     "quant/risk/leverage_gate.py",
+     '        return LeverageDecision(1.0, "파산확률 미측정", checks)',
+     "        ruin_cap = HARD_CAP",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("절대 상한을 없앤다(모든 가정이 동시에 낙관적일 때 막을 것이 없다)",
+     "quant/risk/leverage_gate.py",
+     "HARD_CAP = 3.0",
+     "HARD_CAP = 1000.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("관문 중 가장 큰 값을 쓴다(제일 약한 고리가 아니라 제일 관대한 것을 따른다)",
+     "quant/risk/leverage_gate.py",
+     "    cap, binding = min(limits, key=lambda x: x[0])",
+     "    cap, binding = max(limits, key=lambda x: x[0])",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("장중 감시가 노출 축소를 장부에 안 적는다(다음 배치가 되돌린다)",
+     "quant/cli.py",
+     '        st["risk_scale"] = v.scale\n',
+     "",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

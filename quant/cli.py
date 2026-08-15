@@ -469,6 +469,54 @@ def _cmd_weekly(args) -> None:
         _notify_extra(text)
 
 
+def _cmd_guard(args) -> None:
+    """장중 감시 1회 — 새벽 배치를 기다리지 않고 지금 낙폭을 잰다.
+
+    ⚠️ 지금(현물·레버리지 없음)은 이 명령이 **없어도 안전하다** — 자산이 0
+       아래로 안 가기 때문이다. 이건 레버리지를 열기 위한 준비이고, 동시에
+       "우리는 얼마나 자주 보고 있는가"를 실측으로 남기는 장치다.
+       그 실측이 없으면 레버리지 한도를 계산할 수 없다(risk/leverage_gate).
+    """
+    import datetime as dt
+    import json as _json
+    import os as _os
+
+    from quant.live.guard import guard_once, observed_gap_minutes
+    from quant.live.ledger_basics import chrono
+
+    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    path = _os.path.join(args.state_dir, "paper", args.state_file)
+    try:
+        with open(path, encoding="utf-8") as f:
+            st = _json.load(f)
+    except (OSError, _json.JSONDecodeError) as exc:
+        print(f"❌ 장부를 읽지 못했습니다({path}): {exc}")
+        raise SystemExit(1) from exc
+
+    hist = chrono(st.get("history") or [])
+    eqs = [float(r["equity"]) for r in hist if r.get("equity") is not None]
+    if not eqs:
+        print("기록이 없어 낙폭을 잴 수 없습니다 — 심장박동만 남깁니다.")
+        from quant.live.guard import record_heartbeat
+        record_heartbeat(now, state_dir=args.state_dir)
+        return
+
+    v = guard_once(eqs[-1], max(eqs), float(st.get("risk_scale", 1.0)),
+                   now_iso=now, state_dir=args.state_dir)
+    gap = observed_gap_minutes(args.state_dir, now_iso=now)
+    print(f"🛡️ 장중 감시 — {v.reason}")
+    print(f"   관측된 최악 감시 간격: "
+          + (f"{gap:,.0f}분" if gap is not None else "아직 모름(기록이 모자람)"))
+    if v.acted:
+        # ⚠️ 노출 축소를 **장부에 적는다.** 감시가 판단만 하고 장부를 안
+        #    고치면 다음 배치가 옛 노출로 되돌린다 — 그러면 이 감시는
+        #    '선언만 하는 장치'가 된다(이 저장소가 가장 경계하는 것).
+        st["risk_scale"] = v.scale
+        from quant.utils.jsonio import atomic_write_json
+        atomic_write_json(path, st)
+        print(f"   → 장부의 노출 배수를 {v.scale:.0%}로 낮췄습니다.")
+
+
 def _cmd_ingest(args) -> None:
     """내 자료 → 전략 명세 → 도전자 등록.
 
@@ -1237,6 +1285,14 @@ def build_parser() -> argparse.ArgumentParser:
     ig.add_argument("--dry-run", action="store_true", dest="dry_run",
                     help="저장하지 않고 무엇이 뽑혔는지만 본다")
     ig.set_defaults(func=_cmd_ingest)
+
+    gd = sub.add_parser(
+        "guard",
+        help="장중 감시 1회 — 지금 자산으로 낙폭을 재고 킬스위치를 즉시 적용")
+    gd.add_argument("--state-dir", default="state", dest="state_dir")
+    gd.add_argument("--state-file", default="portfolio_ALL.json",
+                    dest="state_file")
+    gd.set_defaults(func=_cmd_guard)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)
