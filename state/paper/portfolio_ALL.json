@@ -3,7 +3,7 @@
   "symbol": "ALL",
   "currency": "KRW",
   "start_cash": 1000000.0,
-  "cash": 677061.4684795652,
+  "cash": 728372.2664975652,
   "positions": {
     "crypto:ETH/USDT": {
       "quantity": 0.0009807652647602124,
@@ -33,12 +33,6 @@
       "quantity": 0.03228247081073386,
       "avg_price": 865173.7441406249,
       "last_price": 860614.0,
-      "last_price_bar": "2026-08-15"
-    },
-    "us_stock:META": {
-      "quantity": 85.89908215570816,
-      "avg_price": 596.97998046875,
-      "last_price": 832868.1655273438,
       "last_price_bar": "2026-08-15"
     }
   },
@@ -662,22 +656,12 @@
       "date": "2026-08-15",
       "price": 100.59,
       "weight": 0.4215,
-      "equity": 72488497.73,
-      "return_pct": 7148.85,
+      "equity": 997197.56,
+      "return_pct": -0.28,
       "principal": 1000000.0,
-      "pnl": 71488497.73,
+      "pnl": -2802.44,
       "hit_rate": null,
       "fills": [
-        {
-          "key": "us_stock:META",
-          "price": 596.97998,
-          "bar": "2026-08-14 00:00:00",
-          "weight": 0.0515,
-          "side": "buy",
-          "quantity": 85.8990821557,
-          "amount": 51280.03,
-          "type": "시가"
-        },
         {
           "key": "us_stock:AMZN",
           "price": 264.880005,
@@ -918,9 +902,31 @@
           "clipped": "하한"
         }
       },
-      "twr_pct": 7148.85,
-      "day_pct": 7149.96,
-      "random_pctile": 100.0
+      "twr_pct": -0.28,
+      "day_pct": -0.26,
+      "random_pctile": 100.0,
+      "_restated": {
+        "why": "2026-08-15 미국주식 대기 주문이 달러 시가로 체결됐습니다(감사 254). 100만원 계좌가 META 85.9주(원화 7,154만원어치)를 산 것으로 기록됐고, 그 결과 자산이 7,249만원(+7,150%)으로 찍혔습니다. 현실에서 낼 수 없는 주문이므로 체결을 무효로 되돌리고 쓴 돈을 현금으로 돌려놓습니다. 없던 거래를 지어내지 않았습니다 — 있었던 것으로 기록된 불가능한 거래를 지웁니다.",
+        "before": {
+          "equity": 72488497.73,
+          "pnl": 71488497.73,
+          "day_pct": 7149.96,
+          "return_pct": 7148.85,
+          "twr_pct": 7148.85
+        },
+        "voided_fills": [
+          {
+            "key": "us_stock:META",
+            "price": 596.97998,
+            "bar": "2026-08-14 00:00:00",
+            "weight": 0.0515,
+            "side": "buy",
+            "quantity": 85.8990821557,
+            "amount": 51280.03,
+            "type": "시가"
+          }
+        ]
+      }
     }
   ],
   "deposits": [],
@@ -956,11 +962,6 @@
     "kr_stock:105560.KS": 0.146081
   },
   "pending": {
-    "us_stock:META": {
-      "weight": 0.0,
-      "slice": 1.0,
-      "decided_bar": "2026-08-14 00:00:00"
-    },
     "kr_stock:069500.KS": {
       "weight": 0.001518,
       "slice": 1.0,
@@ -983,7 +984,6 @@
     "crypto:BTC/USDT": "2026-08-13",
     "crypto:SOL/USDT": "2026-08-13",
     "crypto:BNB/USDT": "2026-08-14",
-    "us_stock:META": "2026-08-15",
     "us_stock:AMZN": "2026-08-15"
   }
 }

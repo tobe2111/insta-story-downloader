@@ -178,11 +178,31 @@ def _fill_cost(market: str) -> float:
 
 
 def _first_bar_after(df, bar_ts: str):
-    """decided_bar 이후 첫 봉의 (타임스탬프, 시가). 없으면 (None, None)."""
+    """decided_bar 이후 첫 봉의 (타임스탬프, 시가). 없으면 (None, None).
+
+    ⚠️ 여기서 돌려주는 시가는 **현지 통화**다. 통합 계좌에 넣기 전에
+    반드시 `_to_krw_or_die`를 거쳐야 한다 — 안 거치면 감사 254가 재발한다.
+    """
     for ix, r in df.iterrows():
         if str(ix) > bar_ts:
             return str(ix), float(r["open"])
     return None, None
+
+
+def _to_krw_or_die(market: str, price: float, fx_rate: float | None) -> float:
+    """통합 계좌에 들어가는 **모든** 가격이 지나야 하는 단 하나의 문.
+
+    환율을 모르면 1.0으로 때우지 않고 그 종목을 통째로 뺀다 — 때우는 것이
+    감사 212가 고친 결함이고, 이 함수를 **안 부르는 것**이 감사 254가
+    고친 결함이다. 평가가격과 체결가격이 각자 환산하면 언젠가 한쪽이
+    빠지므로, 두 경로가 같은 함수를 부른다(FROZEN_IDEAS ①).
+    """
+    krw = to_krw(market, float(price), fx_rate)
+    if krw is None:
+        raise RuntimeError(
+            "원/달러를 확인하지 못해 원화로 평가할 수 없다 "
+            "(해외 종목은 환산 없이 기록하지 않는다)")
+    return krw
 
 
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
@@ -208,6 +228,11 @@ ACCOUNTING_VERSION = "next_open_v2"
 # 정작 통합 계좌의 밴드를 정할 근거가 늦게 쌓인다. 각 계좌가 단일 종목에
 # 풀사이즈로 들어가므로 절대 밴드 5%도 상대적으로 촘촘하지 않다.
 REBALANCE_BAND = 0.05
+
+# 체결가가 평가가격의 몇 배까지 그럴듯한가(감사 254). 하룻밤 갭·액면분할이
+# 만들 수 있는 폭보다는 넉넉하고, 통화를 안 바꾼 값(원/달러 ≈ 1,400배)보다는
+# 한참 낮다. 이 사이를 벗어나면 시장이 아니라 코드가 만든 숫자다.
+FILL_MARK_MAX_RATIO = 5.0
 
 
 def _risk_for(market: str):
@@ -1587,13 +1612,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             #    신호는 현지 통화 그대로 낸다(전략 동작은 그대로). 환산은
             #    체결·평가에만 걸어서, 환율 변동이 매일의 재평가로 자산에
             #    흘러들게 한다.
-            px_krw = to_krw(market, float(df["close"].iloc[-1]), fx_rate)
-            if px_krw is None:
-                # 환율을 모르면 값을 매길 수 없다. 1.0으로 때우지 않는다 —
-                # 그것이 지금 고치고 있는 바로 그 결함이다.
-                raise RuntimeError(
-                    "원/달러를 확인하지 못해 원화로 평가할 수 없다 "
-                    "(해외 종목은 환산 없이 기록하지 않는다)")
+            px_krw = _to_krw_or_die(market, float(df["close"].iloc[-1]),
+                                    fx_rate)
             prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
@@ -1602,7 +1622,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 partial_bars[key] = bs["elapsed"]
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
-                opens_after[key] = _first_bar_after(df, pend["decided_bar"])
+                # ⚠️ **체결가도 원화로 환산한다**(감사 254). 감사 212가 평가
+                #    가격만 환산하고 여기를 빼먹어서, 대기 주문은 달러 시가로
+                #    체결되고 그 포지션은 원화 종가로 평가됐다 — 같은 종목의
+                #    같은 하루가 두 통화로 계산된 셈이다. 2026-08-15에
+                #    META를 달러 시가(596.98)로 사서 원화 종가(832,868)로
+                #    평가하는 바람에, 100만원 계좌의 자산이 7,249만원으로
+                #    찍혔다(+7,150%). 환산이 필요한 곳을 **두 군데에 나눠
+                #    적으면 반드시 한 곳이 빠진다** — 그래서 두 곳 모두
+                #    같은 한 함수를 부른다.
+                fbar, fopen = _first_bar_after(df, pend["decided_bar"])
+                opens_after[key] = (
+                    (fbar, _to_krw_or_die(market, fopen, fx_rate))
+                    if fopen is not None else (None, None))
         except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
             skipped.append(key)
             # 왜 빠졌는지도 남긴다 — 키만 있으면 '데이터 장애'인지 '거래소
@@ -1708,6 +1740,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    쓰기로 한 이상(한 종목의 1주를 사려고 다른 종목을 파는 이상)
     #    "먼저 팔고 그 돈으로 산다"가 지켜져야 그 결정이 그날 안에 완성된다.
     #    비중을 줄이는 쪽(=매도)부터, 줄이는 폭이 큰 순서로.
+    fill_refused: dict = {}         # key → 왜 체결을 거부했나(감사 254)
     #    ⚠️ 여기서는 아직 그날의 `equity`가 계산되기 전이다(체결이 끝나야
     #       정해진다). 순서를 정하는 데는 정확한 값이 필요 없으므로 지금
     #       시점의 평가액 스냅샷을 쓴다 — 못 구하면 정렬을 건드리지 않는다.
@@ -1732,6 +1765,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         fbar, fopen = opens_after.get(key, (None, None))
         if fopen is None:
             continue
+        # 체결가가 같은 종목의 평가가격과 **자릿수부터** 다르면 그 둘은
+        # 같은 통화가 아니다(감사 254). 하룻밤 갭으로는 3배가 날 수 없으니,
+        # 이 문턱을 넘는 값은 시장이 아니라 코드가 만든 것이다. 위의 환산이
+        # 다시 빠지더라도 여기서 멈춘다 — 선언이 아니라 실제로 막는다.
+        mark_px = marks.get(key)
+        if mark_px and fopen and not (
+                1.0 / FILL_MARK_MAX_RATIO
+                <= float(fopen) / float(mark_px) <= FILL_MARK_MAX_RATIO):
+            fill_refused[key] = {"open": round(float(fopen), 6),
+                                 "mark": round(float(mark_px), 6),
+                                 "why": "체결가와 평가가격의 배율이 비상식적 "
+                                        "— 통화 환산 누락 의심"}
+            log.error("포트폴리오 %s 체결 거부: 시가 %.6f vs 평가 %.6f",
+                      key, float(fopen), float(mark_px))
+            continue                       # 대기 주문은 남겨 둔다(재시도)
         broker.fee = _fill_cost(key.split(":")[0])
         eq_now = broker.equity({**marks, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
@@ -2230,6 +2278,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   {"key": r["symbol"], "need": round(float(r["need"]), 2),
                    "cash": round(float(r["cash"]), 2)}
                   for r in broker.rejected[:20]],
+              # 자릿수가 안 맞아 **체결을 거부한** 주문(감사 254). 여기 값이
+              # 찍히면 통화 환산이 어딘가에서 다시 빠졌다는 뜻이다.
+              "fill_refused": fill_refused or None,
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.

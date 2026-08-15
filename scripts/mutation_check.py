@@ -1438,7 +1438,7 @@ MUTATIONS = [
     # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
     ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
      "quant/live/daily.py",
-     "            px_krw = to_krw(market, float(df[\"close\"].iloc[-1]), fx_rate)",
+     "            px_krw = _to_krw_or_die(market, float(df[\"close\"].iloc[-1]),\n                                    fx_rate)",
      "            px_krw = float(df[\"close\"].iloc[-1])",
      "tests/test_the_account_speaks_one_currency.py"),
 
@@ -2368,6 +2368,29 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 254 — 통합 계좌가 달러로 사고 원화로 평가하던 자리.
+    # 실측: 2026-08-15 META 596.98(달러)에 체결 → 832,868(원)로 평가 →
+    #       100만원 계좌의 자산이 7,249만원(+7,150%)으로 기록됨.
+    ("대기 주문 체결가를 환산 없이 담는다(달러로 사서 원화로 평가한다)",
+     "quant/live/daily.py",
+     "                    (fbar, _to_krw_or_die(market, fopen, fx_rate))",
+     "                    (fbar, fopen)",
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("환율을 모를 때 1.0으로 때운다(감사 212가 고친 결함이 되돌아온다)",
+     "quant/live/daily.py",
+     '    krw = to_krw(market, float(price), fx_rate)\n    if krw is None:',
+     '    krw = to_krw(market, float(price), fx_rate)\n    if False:',
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("자릿수가 안 맞는 체결을 그냥 통과시킨다(환산이 또 빠져도 안 막힌다)",
+     "quant/live/daily.py",
+     "FILL_MARK_MAX_RATIO = 5.0",
+     "FILL_MARK_MAX_RATIO = 1e9",
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("거부한 체결을 장부에 안 남긴다(이유 없이 덜 산 채로 굴러간다)",
+     "quant/live/daily.py",
+     '              "fill_refused": fill_refused or None,',
+     '              "fill_refused": None,',
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
     # 감사 252 — 환율 캐시가 안 늙어 장수 프로세스에서 얼어 있던 자리.
     # 실측: 1416.46을 받은 뒤 1500으로 움직여도 refresh=True가 1416.46 반환.
     ("환율 캐시가 늙지 않는다(며칠 도는 프로세스에서 환율이 얼어붙는다)",

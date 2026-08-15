@@ -4109,9 +4109,9 @@
     },
     "portfolio:ALL": {
       "start_cash": 1000000.0,
-      "equity": 72488497.73,
-      "return_pct": 7148.85,
-      "mdd_pct": -0.04,
+      "equity": 997197.56,
+      "return_pct": -0.28,
+      "mdd_pct": -0.28,
       "history": [
         {
           "date": "2026-08-13",
@@ -4709,22 +4709,12 @@
           "date": "2026-08-15",
           "price": 100.59,
           "weight": 0.4215,
-          "equity": 72488497.73,
-          "return_pct": 7148.85,
+          "equity": 997197.56,
+          "return_pct": -0.28,
           "principal": 1000000.0,
-          "pnl": 71488497.73,
+          "pnl": -2802.44,
           "hit_rate": null,
           "fills": [
-            {
-              "key": "us_stock:META",
-              "price": 596.97998,
-              "bar": "2026-08-14 00:00:00",
-              "weight": 0.0515,
-              "side": "buy",
-              "quantity": 85.8990821557,
-              "amount": 51280.03,
-              "type": "시가"
-            },
             {
               "key": "us_stock:AMZN",
               "price": 264.880005,
@@ -4965,15 +4955,37 @@
               "clipped": "하한"
             }
           },
-          "twr_pct": 7148.85,
-          "day_pct": 7149.96,
-          "random_pctile": 100.0
+          "twr_pct": -0.28,
+          "day_pct": -0.26,
+          "random_pctile": 100.0,
+          "_restated": {
+            "why": "2026-08-15 미국주식 대기 주문이 달러 시가로 체결됐습니다(감사 254). 100만원 계좌가 META 85.9주(원화 7,154만원어치)를 산 것으로 기록됐고, 그 결과 자산이 7,249만원(+7,150%)으로 찍혔습니다. 현실에서 낼 수 없는 주문이므로 체결을 무효로 되돌리고 쓴 돈을 현금으로 돌려놓습니다. 없던 거래를 지어내지 않았습니다 — 있었던 것으로 기록된 불가능한 거래를 지웁니다.",
+            "before": {
+              "equity": 72488497.73,
+              "pnl": 71488497.73,
+              "day_pct": 7149.96,
+              "return_pct": 7148.85,
+              "twr_pct": 7148.85
+            },
+            "voided_fills": [
+              {
+                "key": "us_stock:META",
+                "price": 596.97998,
+                "bar": "2026-08-14 00:00:00",
+                "weight": 0.0515,
+                "side": "buy",
+                "quantity": 85.8990821557,
+                "amount": 51280.03,
+                "type": "시가"
+              }
+            ]
+          }
         }
       ],
       "goal": 100000000,
       "principal": 1000000.0,
-      "pnl": 71488497.73,
-      "twr_pct": 7148.85,
+      "pnl": -2802.44,
+      "twr_pct": -0.28,
       "deposits": [],
       "restarted": {
         "date": "2026-08-13",
@@ -4984,17 +4996,6 @@
         "prior_equity_note": "단위 혼재 — 원화로 환산 불가"
       },
       "trades": [
-        {
-          "key": "us_stock:META",
-          "price": 596.97998,
-          "bar": "2026-08-14 00:00:00",
-          "weight": 0.0515,
-          "side": "buy",
-          "quantity": 85.8990821557,
-          "amount": 51280.03,
-          "type": "시가",
-          "date": "2026-08-15"
-        },
         {
           "key": "us_stock:AMZN",
           "price": 264.880005,
@@ -5061,19 +5062,6 @@
       "fx_usdkrw": 1412.0,
       "holdings": [
         {
-          "key": "us_stock:META",
-          "quantity": 85.89908215570816,
-          "avg_price": 596.97998046875,
-          "last_price": 832868.1655273438,
-          "cost": 51280.03,
-          "value": 71542610.98,
-          "pnl": 71491330.94,
-          "pnl_pct": 139413.58,
-          "as_of": "2026-08-15",
-          "marked": true,
-          "weight": 0.986951
-        },
-        {
           "key": "crypto:SOL/USDT",
           "quantity": 1.155494612174841,
           "avg_price": 107920.08442382813,
@@ -5084,7 +5072,7 @@
           "pnl_pct": -1.1,
           "as_of": "2026-08-15",
           "marked": true,
-          "weight": 0.001701
+          "weight": 0.123676
         },
         {
           "key": "crypto:BTC/USDT",
@@ -5097,7 +5085,7 @@
           "pnl_pct": -0.8,
           "as_of": "2026-08-15",
           "marked": true,
-          "weight": 0.001118
+          "weight": 0.081294
         },
         {
           "key": "crypto:XRP/USDT",
@@ -5110,7 +5098,7 @@
           "pnl_pct": -0.62,
           "as_of": "2026-08-15",
           "marked": true,
-          "weight": 0.00047
+          "weight": 0.034132
         },
         {
           "key": "crypto:BNB/USDT",
@@ -5123,7 +5111,7 @@
           "pnl_pct": -0.53,
           "as_of": "2026-08-15",
           "marked": true,
-          "weight": 0.000383
+          "weight": 0.027861
         },
         {
           "key": "crypto:ETH/USDT",
@@ -5136,16 +5124,16 @@
           "pnl_pct": -0.41,
           "as_of": "2026-08-15",
           "marked": true,
-          "weight": 3.6e-05
+          "weight": 0.002618
         }
       ],
-      "cash": 677061.47
+      "cash": 728372.27
     },
     "portfolio_shadow:SHADOW": {
       "start_cash": 1000000.0,
-      "equity": 72509769.67,
-      "return_pct": 7150.98,
-      "mdd_pct": -0.03,
+      "equity": 997490.19,
+      "return_pct": -0.25,
+      "mdd_pct": -0.25,
       "history": [
         {
           "date": "2026-08-13",
@@ -5744,22 +5732,12 @@
           "date": "2026-08-15",
           "price": 100.46,
           "weight": 0.4215,
-          "equity": 72509769.67,
-          "return_pct": 7150.98,
+          "equity": 997490.19,
+          "return_pct": -0.25,
           "principal": 1000000.0,
-          "pnl": 71509769.67,
+          "pnl": -2509.81,
           "hit_rate": null,
           "fills": [
-            {
-              "key": "us_stock:META",
-              "price": 596.97998,
-              "bar": "2026-08-14 00:00:00",
-              "weight": 0.0515,
-              "side": "buy",
-              "quantity": 85.9242894604,
-              "amount": 51295.08,
-              "type": "시가"
-            },
             {
               "key": "us_stock:AMZN",
               "price": 264.880005,
@@ -6000,9 +5978,31 @@
               "clipped": "하한"
             }
           },
-          "twr_pct": 7150.98,
-          "day_pct": 7151.94,
-          "random_pctile": 100.0
+          "twr_pct": -0.25,
+          "day_pct": -0.24,
+          "random_pctile": 100.0,
+          "_restated": {
+            "why": "2026-08-15 미국주식 대기 주문이 달러 시가로 체결됐습니다(감사 254). 100만원 계좌가 META 85.9주(원화 7,154만원어치)를 산 것으로 기록됐고, 그 결과 자산이 7,249만원(+7,150%)으로 찍혔습니다. 현실에서 낼 수 없는 주문이므로 체결을 무효로 되돌리고 쓴 돈을 현금으로 돌려놓습니다. 없던 거래를 지어내지 않았습니다 — 있었던 것으로 기록된 불가능한 거래를 지웁니다.",
+            "before": {
+              "equity": 72509769.67,
+              "pnl": 71509769.67,
+              "day_pct": 7151.94,
+              "return_pct": 7150.98,
+              "twr_pct": 7150.98
+            },
+            "voided_fills": [
+              {
+                "key": "us_stock:META",
+                "price": 596.97998,
+                "bar": "2026-08-14 00:00:00",
+                "weight": 0.0515,
+                "side": "buy",
+                "quantity": 85.9242894604,
+                "amount": 51295.08,
+                "type": "시가"
+              }
+            ]
+          }
         }
       ]
     },
@@ -8291,6 +8291,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 77
     },
     {
@@ -8298,6 +8300,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 77
     },
     {
@@ -8305,6 +8309,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 77
     },
     {
@@ -8312,6 +8318,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 77
     },
     {
@@ -8319,6 +8327,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 77
     },
     {
@@ -8326,6 +8336,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 57
     },
     {
@@ -8333,6 +8345,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 57
     },
     {
@@ -8340,6 +8354,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 57
     },
     {
@@ -8347,6 +8363,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 57
     },
     {
@@ -8354,6 +8372,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 19,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 57
     },
     {
@@ -8361,6 +8381,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8368,6 +8390,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8375,6 +8399,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8382,6 +8408,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8389,6 +8417,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8396,6 +8426,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8403,6 +8435,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8410,6 +8444,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8417,6 +8453,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8424,6 +8462,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8431,6 +8471,8 @@
       "key": "us_stock:SPY",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8438,6 +8480,8 @@
       "key": "us_stock:QQQ",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8445,6 +8489,8 @@
       "key": "us_stock:NVDA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8452,6 +8498,8 @@
       "key": "us_stock:MSFT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8459,6 +8507,8 @@
       "key": "us_stock:AAPL",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8466,6 +8516,8 @@
       "key": "us_stock:AMZN",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8473,6 +8525,8 @@
       "key": "us_stock:META",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8480,6 +8534,8 @@
       "key": "us_stock:TSLA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 81
     },
     {
@@ -8487,6 +8543,8 @@
       "key": "kr_stock:069500.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 61
     },
     {
@@ -8494,6 +8552,8 @@
       "key": "kr_stock:005930.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8501,6 +8561,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": true,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8508,6 +8570,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8515,6 +8579,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8522,6 +8588,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8529,6 +8597,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 101
     },
     {
@@ -8536,6 +8606,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8543,6 +8615,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8550,6 +8624,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8557,6 +8633,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8564,6 +8642,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8571,6 +8651,8 @@
       "key": "us_stock:SPY",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8578,6 +8660,8 @@
       "key": "us_stock:QQQ",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8585,6 +8669,8 @@
       "key": "us_stock:NVDA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8592,6 +8678,8 @@
       "key": "us_stock:MSFT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8599,6 +8687,8 @@
       "key": "us_stock:AAPL",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8606,6 +8696,8 @@
       "key": "us_stock:AMZN",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8613,6 +8705,8 @@
       "key": "us_stock:META",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8620,6 +8714,8 @@
       "key": "us_stock:TSLA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 105
     },
     {
@@ -8627,6 +8723,8 @@
       "key": "kr_stock:069500.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 85
     },
     {
@@ -8634,6 +8732,8 @@
       "key": "kr_stock:005930.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8641,6 +8741,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": false,
       "n_candidates": 24,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8648,6 +8750,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8655,6 +8759,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8662,6 +8768,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8669,6 +8777,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 125
     },
     {
@@ -8676,6 +8786,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8683,6 +8795,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8690,6 +8804,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8697,6 +8813,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8704,6 +8822,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8711,6 +8831,8 @@
       "key": "us_stock:SPY",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8718,6 +8840,8 @@
       "key": "us_stock:QQQ",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8725,6 +8849,8 @@
       "key": "us_stock:NVDA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8732,6 +8858,8 @@
       "key": "us_stock:MSFT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8739,6 +8867,8 @@
       "key": "us_stock:AAPL",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8746,6 +8876,8 @@
       "key": "us_stock:AMZN",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8753,6 +8885,8 @@
       "key": "us_stock:META",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8760,6 +8894,8 @@
       "key": "us_stock:TSLA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 129
     },
     {
@@ -8767,6 +8903,8 @@
       "key": "kr_stock:069500.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 109
     },
     {
@@ -8774,6 +8912,8 @@
       "key": "kr_stock:005930.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8781,6 +8921,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": false,
       "n_candidates": 24,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8788,6 +8930,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8795,6 +8939,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8802,6 +8948,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8809,6 +8957,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 149
     },
     {
@@ -8816,6 +8966,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8823,6 +8975,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8830,6 +8984,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8837,6 +8993,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8844,6 +9002,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8851,6 +9011,8 @@
       "key": "us_stock:SPY",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8858,6 +9020,8 @@
       "key": "us_stock:QQQ",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8865,6 +9029,8 @@
       "key": "us_stock:NVDA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8872,6 +9038,8 @@
       "key": "us_stock:MSFT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8879,6 +9047,8 @@
       "key": "us_stock:AAPL",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8886,6 +9056,8 @@
       "key": "us_stock:AMZN",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8893,6 +9065,8 @@
       "key": "us_stock:META",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8900,6 +9074,8 @@
       "key": "us_stock:TSLA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 153
     },
     {
@@ -8907,6 +9083,8 @@
       "key": "kr_stock:069500.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 133
     },
     {
@@ -8914,6 +9092,8 @@
       "key": "kr_stock:005930.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8921,6 +9101,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8928,6 +9110,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": false,
       "n_candidates": 24,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8935,6 +9119,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8942,6 +9128,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8949,6 +9137,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 173
     },
     {
@@ -8956,6 +9146,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 201
     },
     {
@@ -8963,6 +9155,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 201
     },
     {
@@ -8970,6 +9164,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 201
     },
     {
@@ -8977,6 +9173,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 201
     },
     {
@@ -8984,6 +9182,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 201
     },
     {
@@ -8991,6 +9191,8 @@
       "key": "us_stock:SPY",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -8998,6 +9200,8 @@
       "key": "us_stock:QQQ",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9005,6 +9209,8 @@
       "key": "us_stock:NVDA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9012,6 +9218,8 @@
       "key": "us_stock:MSFT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9019,6 +9227,8 @@
       "key": "us_stock:AAPL",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9026,6 +9236,8 @@
       "key": "us_stock:AMZN",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9033,6 +9245,8 @@
       "key": "us_stock:META",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9040,6 +9254,8 @@
       "key": "us_stock:TSLA",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 177
     },
     {
@@ -9047,6 +9263,8 @@
       "key": "kr_stock:069500.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 157
     },
     {
@@ -9054,6 +9272,8 @@
       "key": "kr_stock:005930.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9061,6 +9281,8 @@
       "key": "kr_stock:000660.KS",
       "promoted": false,
       "n_candidates": 24,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9068,6 +9290,8 @@
       "key": "kr_stock:035420.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9075,6 +9299,8 @@
       "key": "kr_stock:005380.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9082,6 +9308,8 @@
       "key": "kr_stock:051910.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9089,6 +9317,8 @@
       "key": "kr_stock:105560.KS",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 197
     },
     {
@@ -9096,6 +9326,8 @@
       "key": "crypto:BTC/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 225
     },
     {
@@ -9103,6 +9335,8 @@
       "key": "crypto:ETH/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 225
     },
     {
@@ -9110,6 +9344,8 @@
       "key": "crypto:SOL/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 225
     },
     {
@@ -9117,6 +9353,8 @@
       "key": "crypto:BNB/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 225
     },
     {
@@ -9124,6 +9362,8 @@
       "key": "crypto:XRP/USDT",
       "promoted": false,
       "n_candidates": 23,
+      "vacuous": false,
+      "inert": 0,
       "trials_total": 225
     }
   ],
@@ -9364,41 +9604,6 @@
       ],
       "symbols_failed": {}
     }
-  },
-  "macro": {
-    "items": [
-      {
-        "key": "t10y2y",
-        "name": "장단기 금리차",
-        "unit": "%p",
-        "value": 0.51,
-        "date": "2026-08-14"
-      },
-      {
-        "key": "hy_spread",
-        "name": "하이일드 스프레드",
-        "unit": "%p",
-        "value": 2.71,
-        "date": "2026-08-13"
-      },
-      {
-        "key": "usd_idx",
-        "name": "달러인덱스",
-        "unit": "",
-        "value": 119.065,
-        "date": "2026-08-07",
-        "chg5_pct": -0.53
-      },
-      {
-        "key": "t10yie",
-        "name": "10년 기대인플레",
-        "unit": "%",
-        "value": 2.27,
-        "date": "2026-08-14"
-      }
-    ],
-    "note": "금리 곡선 정상 · 신용시장 안정 · 달러 약세(위험자산 순풍)",
-    "source": "FRED(세인트루이스 연준) · 발표 시차 보정"
   },
   "generation": {
     "feature_set": "fs8:+fredmacro/krw1",
@@ -9650,16 +9855,16 @@
     },
     "portfolio:ALL": {
       "2026-08-10": {
-        "return_pct": 7148.85,
-        "equity": 72488497.73,
+        "return_pct": -0.28,
+        "equity": 997197.56,
         "deposit": null,
         "n_days": 3
       }
     },
     "portfolio_shadow:SHADOW": {
       "2026-08-10": {
-        "return_pct": 7150.98,
-        "equity": 72509769.67,
+        "return_pct": -0.25,
+        "equity": 997490.19,
         "deposit": null,
         "n_days": 3
       }

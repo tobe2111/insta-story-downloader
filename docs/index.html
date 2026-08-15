@@ -876,6 +876,34 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     if(ks.length)flags.push("<b>묵은 가격 평가 "+ks.length+"종목</b> — 새 시세를 "+
       "못 받아 직전 가격으로 평가했습니다. 이 날의 손익은 확정값이 아닙니다");
   }
+  /* 나중에 **되돌린** 기록 — 그날 장부에 남았던 숫자가 지금 보는 숫자와
+     다르다는 사실은 성적표만큼 중요하다. 조용히 고치면 유리하게 고친
+     것과 구분되지 않으므로, 고쳤다는 사실과 고치기 전 숫자를 함께 띄운다. */
+  {
+    const rs=pfLast._restated||null;
+    if(rs)flags.push("<b>이 날의 기록은 나중에 되돌렸습니다</b> — "+esc(rs.why||"")+
+      (rs.before&&rs.before.equity?" (되돌리기 전 자산 "+
+        Math.round(rs.before.equity).toLocaleString()+"원)":""));
+  }
+  /* 현금이 모자라 브로커가 거부한 주문 — 지금 구조에서는 나오면 안 되는
+     값이다. 찍혔다면 레버리지 금지선·수수료 버퍼·매도 우선 중 하나가
+     새고 있다는 뜻이라, 계좌는 이유 없이 덜 산 채로 굴러간다. */
+  {
+    const cs=pfLast.cash_short||null;
+    if(cs&&cs.length)flags.push("<b>현금 부족으로 거부된 주문 "+cs.length+"건</b> — "+
+      cs.map(r=>esc((syms[r.key]||{}).name||r.key)).join(" · ")+
+      ". 계획한 만큼 사지 못했습니다. 이 날의 비중은 전략이 정한 값이 아닙니다");
+  }
+  /* 체결가와 평가가격의 자릿수가 어긋나 거부한 주문(감사 254) — 통화
+     환산이 어딘가에서 빠졌다는 신호다. 조용히 넘기면 100만원 계좌가
+     7,249만원으로 찍힌다. */
+  {
+    const fr=pfLast.fill_refused||null;
+    const ks=fr?Object.keys(fr):[];
+    if(ks.length)flags.push("<b>자릿수가 안 맞아 거부된 체결 "+ks.length+"건</b> — "+
+      ks.map(k=>esc((syms[k]||{}).name||k)).join(" · ")+
+      ". 체결가와 평가가격이 같은 통화가 아닌 것으로 보여 주문을 막았습니다");
+  }
   /* 실데이터를 못 받아 합성으로 폴백한 종목 — 가장 숨기면 안 되는 사실 */
   {
     const fb=pfLast.data_source_fallback||null;
