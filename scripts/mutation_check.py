@@ -2369,6 +2369,24 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 249 — 못 돈 검증이 사이트에서 조용하던 자리. 실측: BTC/USDT는
+    # DSR이 null(봉 300개)인데 PBO 경보만 떴다.
+    ("돌지 못한 검증을 화면이 말하지 않는다(재지 못한 것이 통과로 읽힌다)",
+     "quant/live/flag_watch.py",
+     '        missing = [k for k in ("dsr", "pbo") if _unmeasured(k)]',
+     "        missing = []",
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+    ("0.0을 '못 쟀다'로 읽는다(측정된 0이 판정 불가로 둔갑)",
+     "quant/live/flag_watch.py",
+     "            return _r.get(k) is None        # 0.0은 '못 쟀다'가 아니라 '측정된 0'",
+     "            return not _r.get(k)",
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+    ("검증이 건너뛴 이유를 장부에 안 남긴다(사이트가 왜 없는지 모른다)",
+     "quant/cli.py",
+     '            "skipped": dict(skipped) or None,',
+     '            "skipped": None,',
+     "tests/test_a_validation_that_did_not_run_is_not_a_pass.py"),
+
     # 감사 248 — 가리개가 '?'·'&' 뒤에서만 작동하던 자리. 이 저장소는 토큰을
     # **본문(form)**으로 보내므로 되울린 본문의 토큰이 그대로 새어 나갔다.
     # 그 문자열은 docs/ 안의 posted.json에 쓰여 **공개 사이트로 배포된다.**
