@@ -2369,6 +2369,29 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 252 — 환율 캐시가 안 늙어 장수 프로세스에서 얼어 있던 자리.
+    # 실측: 1416.46을 받은 뒤 1500으로 움직여도 refresh=True가 1416.46 반환.
+    ("환율 캐시가 늙지 않는다(며칠 도는 프로세스에서 환율이 얼어붙는다)",
+     "quant/data/fx.py",
+     "    fresh = (clock() - _MEMO_AT) < FX_TTL_SEC",
+     "    fresh = True",
+     "tests/test_the_exchange_rate_does_not_freeze.py"),
+    ("환율을 다시 받아도 아래 메모가 옛 값을 준다(refresh가 이름뿐이 된다)",
+     "quant/data/fx.py",
+     '        s = _bench_close("us_stock", "KRW=X", limit=30, fetch=fetch,\n                         refresh=True)',
+     '        s = _bench_close("us_stock", "KRW=X", limit=30, fetch=fetch)',
+     "tests/test_the_exchange_rate_does_not_freeze.py"),
+    ("벤치마크 메모가 refresh를 무시한다(위층이 무엇을 해도 옛 값)",
+     "quant/data/crossasset.py",
+     "    if refresh:\n        _MEMO.pop(key, None)",
+     "    if False:\n        _MEMO.pop(key, None)",
+     "tests/test_the_exchange_rate_does_not_freeze.py"),
+    ("성공한 환율의 시각을 안 남긴다(캐시가 영원히 신선하다고 읽힌다)",
+     "quant/data/fx.py",
+     "    _MEMO_AT = clock()",
+     "    pass",
+     "tests/test_the_exchange_rate_does_not_freeze.py"),
+
     # 감사 251 — worker.js(336줄)에 변이 항목이 **0건**이던 자리. 발급·인증
     # 안전장치가 다 있는데, 그것을 지우는 변이를 아무도 잡아 본 적이 없었다.
     ("어드민 로그인이 꺼져 있어도 키를 발급한다(누구나 키를 찍는다)",
