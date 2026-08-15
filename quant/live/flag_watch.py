@@ -159,6 +159,30 @@ def _current_flags(status: dict) -> dict[str, str]:
         # 운인가"를 묻는다면 이건 "이 **파라미터**가 운인가"를 묻는다 —
         # 옆칸으로 한 스텝만 옮겨도 무너지는 설정은 데이터가 조금만 달라져도
         # 무너진다. 지표가 셋 다 통과해도 이건 따로 걸릴 수 있다.
+        # ⚠️ **돌지 못한 검증은 통과가 아니다**(감사 249). 위 두 규칙은
+        #    `is not None`으로 시작해서, 값이 없는 항목에 대해 **아무 말도
+        #    안 했다.** 리포트 페이지는 같은 상황을 이미 "판정 불가 — 돌지
+        #    못한 검증이 있음"이라고 쓰고 있었다(감사 52). 같은 사실을
+        #    한 화면은 말하고 다른 화면은 침묵했다.
+        #
+        #    실측(2026-08-15 장부): crypto:BTC/USDT는 DSR이 null인데(봉 300개
+        #    — 표본 부족) 사이트에는 PBO 경보만 떴다. 읽는 사람은 나머지가
+        #    통과한 줄로 읽는다.
+        why = r.get("skipped") or {}
+        def _unmeasured(k, _r=r):
+            return _r.get(k) is None        # 0.0은 '못 쟀다'가 아니라 '측정된 0'
+
+        missing = [k for k in ("dsr", "pbo") if _unmeasured(k)]
+        if missing:
+            names = {"dsr": "DSR(다중검정 보정)", "pbo": "PBO(과적합 확률)"}
+            detail = " · ".join(
+                f"{names[k]}: {why.get(k) or '이유 미기록'}" for k in missing)
+            flags[f"validation_missing:{key}"] = (
+                f"⚠️ 판정 불가: {key}({r.get('strategy')}) — 검증 "
+                f"{len(missing)}종이 돌지 못했습니다({detail}). "
+                f"통과가 아니라 **재지 못한 것**입니다 — 다른 지표가 초록이어도 "
+                f"이 종목은 아직 검증되지 않았습니다.")
+
         if r.get("peak_only"):
             flags[f"lonely_peak:{key}"] = (
                 f"⚠️ 외딴 봉우리 의심: {key}({r.get('strategy')}) — 원점수 1등과 "

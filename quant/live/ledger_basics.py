@@ -252,6 +252,45 @@ INDEX_ORIGIN = 1.0
 #      · 과거 400봉  — "이 전략이 그 구간에서 방향을 맞혔나"(인샘플)
 #      · 장부        — "우리가 실제로 맞혔나"(표본 작음)
 
+def next_session_pairs(history: list[dict], market: str | None = None,
+                       holidays: dict | None = None) -> tuple[list, int]:
+    """(오늘 기록, **바로 다음 세션** 기록) 짝 목록과 **버린 짝의 수**.
+
+    ⚠️ 예전에는 그냥 `zip(history, history[1:])`였다(감사 247). 그러면 기록이
+       하루 빠진 구간에서 **이틀치 움직임이 하루 예측의 성적**으로 들어간다.
+       모델은 "내일 오를 확률"을 말했는데, 채점은 모레까지 본 셈이다.
+
+       실측(2026-08-15 장부, 전 종목 143쌍):
+           한 세션짜리      137쌍
+           두 세션짜리        6쌍  ← 코인 5 + 국내 1 (08-05→08-07, 08-06 결측)
+
+       4%지만 이 표본은 **화면에 나가는 신뢰도 곡선**과 **표시 확률을 바꾸는
+       경험 보정**이 함께 쓴다. 그리고 시세 공급이 며칠 얼어붙으면(감사 243)
+       그 비율은 조용히 커진다.
+
+    '세션'은 시장마다 다르다 — 코인은 매일, 주식은 거래일이다(감사 243의
+    `missed_sessions`를 그대로 쓴다). 금요일→월요일은 **한 세션**이라
+    정상이고, 코인의 하루 결측은 **버린다**.
+
+    market이 없으면(옛 호출·모르는 시장) 거르지 않는다 — 모르는 것을
+    막지 않는다는 이 저장소의 원칙 그대로다. 대신 버린 수를 함께 돌려주어
+    화면이 "몇 개를 뺐다"고 말할 수 있게 한다(감사 168·240과 같은 규칙 —
+    빼면 뺐다고 말한다).
+    """
+    from quant.data.market_calendar import missed_sessions
+
+    rows = chrono(history or [])
+    pairs, dropped = [], 0
+    for a, b in zip(rows, rows[1:]):
+        if market:
+            n = missed_sessions(market, a.get("date"), b.get("date"), holidays)
+            if n is not None and n != 1:
+                dropped += 1
+                continue
+        pairs.append((a, b))
+    return pairs, dropped
+
+
 def live_hit_rate(history: list[dict]) -> dict:
     """장부 기록만으로 잰 방향 적중률 — {"hit_rate", "n", "n_flat"}.
 

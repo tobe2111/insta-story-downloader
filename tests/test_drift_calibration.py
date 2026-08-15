@@ -181,7 +181,10 @@ def test_calibration_never_moves_the_recorded_weight(monkeypatch, tmp_path):
                             lambda *a, **k: {"strategy": "fixed", "params": {}})
         monkeypatch.setattr(
             "quant.live.calibration_guard.recalibrated_prob",
-            lambda p, h: ((0.01, True) if adjusted else (p, False)))
+            # **kw — 운영 호출이 휴장일 달력을 함께 넘긴다(감사 247).
+            # 위치 인자만 받는 가짜를 두면 TypeError가 나는데, 운영 코드의
+            # except가 그걸 삼켜서 이 검사가 조용히 헛돈다.
+            lambda p, h, **kw: ((0.01, True) if adjusted else (p, False)))
         dl.run_daily_paper("synthetic", "DEMO", state_dir=str(state_dir),
                            require_real_data=False)
         st = _json.loads((state_dir / "paper" / "synthetic_DEMO.json")

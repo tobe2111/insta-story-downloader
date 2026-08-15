@@ -55,16 +55,28 @@ def _bin_of(prob: float, bins: int) -> int:
     return max(0, min(int(p * bins), bins - 1))
 
 
-def collect_pairs(histories: list) -> list:
-    """장부 목록에서 (예측확률, 다음 날 상승 여부) 짝을 전부 모은다.
+def collect_pairs(histories: list, holidays: dict | None = None) -> list:
+    """장부 목록에서 (예측확률, **다음 세션** 상승 여부) 짝을 전부 모은다.
 
-    짝짓기 규칙은 해설(_band_pairs)과 동일: 새벽에 기록된 prob_up(t)과
-    다음 기록의 가격 방향(t+1). 같은 규칙이어야 사이트 플래그와 이 보정이
-    같은 데이터로 같은 결론을 낸다.
+    짝짓기 규칙은 해설(`_band_pairs`)과 **같은 함수**를 쓴다 —
+    `ledger_basics.next_session_pairs`. 규칙이 같아야 사이트 플래그와 이
+    보정이 같은 데이터로 같은 결론을 낸다.
+
+    ⚠️ 예전에는 두 곳이 각자 `zip(history, history[1:])`를 적고 있었다
+       (감사 247). 규칙이 같다고 **주석에 적혀만** 있었고, 둘 다 기록이
+       하루 빠진 구간에서 이틀치 움직임을 하루 예측의 성적으로 세고 있었다.
+       이 함수의 결과는 화면에 **표시되는 확률 자체를 바꾼다**(prob_up_cal).
+
+    histories는 `(시장, 장부)` 짝의 목록이다 — 시장을 모르면 세션 판정을
+    할 수 없다. 옛 형태(장부만의 목록)도 받는다(그때는 안 거른다).
     """
+    from quant.live.ledger_basics import next_session_pairs
+
     pairs = []
-    for history in histories or []:
-        for a, b in zip(history, history[1:]):
+    for item in histories or []:
+        market, history = item if isinstance(item, tuple) else (None, item)
+        rows, _dropped = next_session_pairs(history, market, holidays)
+        for a, b in rows:
             p = a.get("prob_up")
             pa, pb = a.get("price"), b.get("price")
             if p is None or pa in (None, 0) or pb is None:
@@ -74,14 +86,15 @@ def collect_pairs(histories: list) -> list:
 
 
 def calibration_table(histories: list, bin_width: float = BIN_WIDTH,
-                      min_n: int = MIN_INTERVENE_SAMPLES) -> list[dict]:
+                      min_n: int = MIN_INTERVENE_SAMPLES,
+                      holidays: dict | None = None) -> list[dict]:
     """확률대별 보정표 — 구간마다 표본·예측평균·실제비율·CI·확정 여부.
 
     반환: [{"lo", "hi", "n", "pred_mean", "actual", "ci_lo", "ci_hi",
             "confirmed"}] (표본 있는 구간만). confirmed는 n≥min_n이면서
     pred_mean이 [ci_lo, ci_hi] 밖일 때만 True.
     """
-    pairs = collect_pairs(histories)
+    pairs = collect_pairs(histories, holidays)
     bins = max(1, round(1.0 / bin_width))
     sums = [[0.0, 0.0, 0] for _ in range(bins)]      # [예측합, 상승합, 수]
     for p, hit in pairs:
@@ -105,7 +118,8 @@ def calibration_table(histories: list, bin_width: float = BIN_WIDTH,
 
 
 def recalibrated_prob(prob: float | None, histories: list,
-                      table: list[dict] | None = None) -> tuple[float | None, bool]:
+                      table: list[dict] | None = None,
+                      holidays: dict | None = None) -> tuple[float | None, bool]:
     """오늘 확률의 경험 보정값을 계산한다 — (보정 확률, 개입 여부).
 
     확률이 '어긋남 확정' 구간에 들면 그 구간의 실제 적중률을 반환하고
@@ -115,7 +129,7 @@ def recalibrated_prob(prob: float | None, histories: list,
     if prob is None:
         return None, False
     if table is None:
-        table = calibration_table(histories)
+        table = calibration_table(histories, holidays=holidays)
     p = float(prob)
     if not math.isfinite(p):
         return prob, False

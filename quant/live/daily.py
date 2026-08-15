@@ -289,6 +289,15 @@ def _paper_path(market: str, symbol: str, state_dir: str) -> str:
     return os.path.join(state_dir, "paper", f"{safe}.json")
 
 
+def _holidays_for(state_dir: str) -> dict | None:
+    """휴장일 달력 — 못 만들면 None(모른다). 실패가 기록을 막지 않는다."""
+    try:
+        from quant.data.market_calendar import holiday_map
+        return holiday_map(state_dir)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _all_paper_histories(state_dir: str) -> list:
     """전 종목 페이퍼 장부의 history 목록 — 확률대 적중률의 합산 표본 재료.
 
@@ -305,9 +314,14 @@ def _all_paper_histories(state_dir: str) -> list:
             continue
         try:
             with open(pth, encoding="utf-8") as f:
-                h = json.load(f).get("history")
+                d = json.load(f)
+            h = d.get("history")
+            # ⚠️ **시장을 함께 싣는다**(감사 247). 이 목록을 쓰는 두 곳(해설의
+            #    신뢰도 곡선·확률 경험 보정)은 "다음 세션"으로 짝을 짓는데,
+            #    세션이 무엇인지는 시장마다 다르다 — 코인은 매일, 주식은
+            #    거래일이다. 시장이 없으면 하루 결측과 주말을 구별할 수 없다.
             if isinstance(h, list) and h:
-                out.append(h)
+                out.append((str(d.get("market") or ""), h))
         except (OSError, ValueError):
             continue
     return out
@@ -422,7 +436,11 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
                             weight, getattr(strategy, "_impl", None),
                             raw_weight=float(signals.iloc[-1]),
                             history=st.get("history") or [],
-                            pooled_history=_all_paper_histories(state_dir))
+                            pooled_history=_all_paper_histories(state_dir),
+                            # 세션 판정에 필요한 것 둘(감사 247) — 이 종목의
+                            # 시장과 휴장일 달력. 없으면 안 거른다.
+                            market=market,
+                            holidays=_holidays_for(state_dir))
     if earnings_guard:
         reason += (f" · 🛡 실적 가드: 발표({earnings_guard['date']}) 임박 → "
                    "비중 절반")
@@ -566,7 +584,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     try:
         from quant.live.calibration_guard import recalibrated_prob
         adj, active = recalibrated_prob(
-            record["prob_up"], _all_paper_histories(state_dir))
+            record["prob_up"], _all_paper_histories(state_dir),
+            holidays=_holidays_for(state_dir))
         if active:
             record["prob_up_cal"] = round(float(adj), 4)
     except Exception:  # noqa: BLE001 — 보정 준비 실패가 기록을 막으면 안 된다
