@@ -380,6 +380,29 @@ def _audition_kwargs_from_record(rec: dict) -> dict:
 SELECT_SCREEN_T = 1.0
 
 
+def effective_select_t(select_t: float, confirm_t: float,
+                       clamp_screen: bool = True) -> float:
+    """**실제로 적용되는** 선발 문턱 — 계산하는 곳은 여기 하나뿐이다.
+
+    ⚠️ 왜 함수로 뺐나(2026-08-16 실측). 이 조정은 `nightly_retrain` 안에서만
+       일어났고, 장부·콘솔은 **조정 전 값**을 적었다. 그래서 175/175건이
+       이렇게 남아 있다:
+
+           기록·화면:  선발 t≥2.52   ← 실제로는 아무도 이 문턱을 넘지 않았다
+           실제 적용:  선발 t≥1.03
+
+       조정 자체는 옳다(선별기가 자기가 먹여 살리는 검정보다 엄격하면 그
+       검정은 정의상 아무것도 못 거른다 — 위 주석). 틀린 것은 **기록**이다.
+       "왜 챔피언이 안 바뀌나"를 2.52로 판단하면 답이 통째로 어긋난다.
+
+       그래서 판정은 한 곳에서만 하고 장부·화면·오디션이 **같은 함수**를
+       읽는다 — 두 곳에서 따로 계산하면 언젠가 갈라진다.
+    """
+    if clamp_screen and select_t > confirm_t:
+        return float(confirm_t)
+    return float(select_t)
+
+
 def nightly_retrain(
     df,
     champion_spec: dict,
@@ -423,12 +446,13 @@ def nightly_retrain(
             "챔피언을 유지하지만 이는 검증 결과가 아닙니다."),
             "candidates": [], "inert": []}
 
-    if clamp_screen and select_t > confirm_t:
+    used = effective_select_t(select_t, confirm_t, clamp_screen)
+    if used != select_t:
         log.warning(
             "선발 문턱(%.2f)이 결승 문턱(%.2f)보다 엄격하다 — 결승전이 "
             "무력화된다. 선발 문턱을 %.2f로 낮춘다.",
-            select_t, confirm_t, confirm_t)
-        select_t = confirm_t
+            select_t, confirm_t, used)
+    select_t = used
 
     select_df = df.iloc[:-confirm_window]      # 선발전: 결승 구간을 전혀 못 본다
     candidates, inert = [], []
@@ -882,10 +906,16 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     confirm_t_eff = confirm_threshold(trials_recent)
     # 선별기는 자기가 먹여 살리는 검정보다 엄격할 수 없다.
     select_t_eff = min(SELECT_SCREEN_T, confirm_t_eff)
+    # ⚠️ **실제로 적용되는** 문턱을 찍는다. 예전에는 조정 전 값(2.52)을 찍어,
+    #    아무도 넘은 적 없는 문턱을 매일 화면에 보여줬다.
+    select_t_used = effective_select_t(select_t_eff, confirm_t_eff)
+    screen_note = ("" if select_t_used == select_t_eff else
+                   f" (다중검정 보정값 {select_t_eff:.2f}는 결승 문턱보다 "
+                   "엄격해 적용하지 않는다 — 보정은 결승전이 맡는다)")
     print(f"  🔬 다중검정 보정: 오늘 후보 {n_cand}개 · 최근 1년 "
           f"{trials_recent:,}개 · 누적 검증 도전자 {trials_total:,}개 → "
-          f"선발(선별) t≥{select_t_eff:.2f} · 결승(판정) t≥{confirm_t_eff:.2f}"
-          f" (상한 {CONFIRM_T_CAP})")
+          f"선발(선별) t≥{select_t_used:.2f} · 결승(판정) t≥{confirm_t_eff:.2f}"
+          f" (상한 {CONFIRM_T_CAP}){screen_note}")
 
     # 오디션 환경을 실제 운용 환경과 맞춘다 — '챔피언을 뽑는 세계'와 '돈이
     # 도는 세계'가 다르면, 실제로는 낼 수 없는 성과를 근거로 챔피언이 뽑힌다.
@@ -970,7 +1000,12 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # '이긴 후보가 없다'(정상)와 '비교를 못 했다'(고장)는 다른 사건이다.
         "vacuous": bool(decision.get("vacuous")),
         "trials_total": trials_total,
+        # select_t = 다중검정 보정이 **요청한** 값(verify 재현 입력).
+        # select_t_used = 그날 실제로 후보를 거른 문턱. 둘이 다른 날이 대부분이고,
+        # 예전에는 앞의 것만 적어 175/175건이 "선발 t≥2.52"로 남았다 —
+        # 아무도 넘은 적 없는 문턱이다(감사 258).
         "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
+        "select_t_used": round(effective_select_t(select_t_eff, confirm_t_eff), 3),
         "select_folds": SELECT_FOLDS,  # 폴드 일관성 게이트 — verify 재현용
         # 관문 세대 — v2: 선발전은 선별기, 다중검정 보정은 결승전이 맡는다.
         # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
