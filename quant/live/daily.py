@@ -2986,6 +2986,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 집계 실패가 사이트 갱신을 막으면 안 된다
         log.warning("주간 아카이브 집계 실패 — 페이지는 '집계 없음'으로 표시된다")
 
+    # 횡단면 증거 — **같은 설정이 몇 종목에서 통했나**(감사 255).
+    # 종목별 오디션은 하루에 표본 1개를 쌓지만 이건 20개를 쌓는다. 실측에서
+    # 주식(t=+4.37)과 코인(t=-1.76)이 반대 방향으로 갈렸는데, 종목마다 따로
+    # 여는 오디션은 그 사실을 영영 볼 수 없다.
+    try:
+        from quant.live.crosssection import pooled_evidence
+        xs = pooled_evidence(state_dir)
+        if xs:
+            status["crosssection"] = xs
+    except Exception:  # noqa: BLE001 — 관찰 지표 실패가 사이트 갱신을 막지 않는다
+        log.warning("횡단면 증거 집계 실패 — 이 칸은 비워 둔다")
+
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.
     try:

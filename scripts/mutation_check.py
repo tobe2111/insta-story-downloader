@@ -2391,6 +2391,36 @@ MUTATIONS = [
      '              "fill_refused": fill_refused or None,',
      '              "fill_refused": None,',
      "tests/test_one_account_cannot_hold_two_currencies.py"),
+    # 감사 255 — 같은 설정을 20종목에 적용한 횡단면 증거. 실측: 주식 t=+4.37 /
+    # 코인 t=-1.76 (종목별 오디션은 이 차이를 못 본다).
+    ("횡단면에서 주식 종목을 통째로 빠뜨린다(20종목이 5종목으로 보인다)",
+     "quant/live/crosssection.py",
+     "            symbol = stem[len(market) + 1:]",
+     "            symbol = stem.split(\"_\", 1)[1]",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("표본 1개로도 t를 만든다(한 종목으로 통계를 지어낸다)",
+     "quant/live/crosssection.py",
+     "    if n >= 2:",
+     "    if n >= 1:",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("횡단면 숫자가 인샘플이라는 표식을 지운다(실전 성적으로 읽힌다)",
+     "quant/live/crosssection.py",
+     '        "in_sample": True,          # ⚠️ 이 값을 지우면 화면이 실전 성적으로 읽는다',
+     '        "in_sample": False,',
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("반쪽만 찍힌 스냅샷 날을 그대로 쓴다(20종목이 5종목으로, 결론이 뒤집힌다)",
+     "quant/live/crosssection.py",
+     "    return max(recent,\n"
+     '               key=lambda s: (len(glob.glob(os.path.join(s, "*.csv.gz"))), s))',
+     "    return recent[-1]",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+
+    ("횡단면 증거를 사이트에 안 실어 보낸다",
+     "quant/live/daily.py",
+     '            status["crosssection"] = xs',
+     "            pass",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+
     # 감사 252 — 환율 캐시가 안 늙어 장수 프로세스에서 얼어 있던 자리.
     # 실측: 1416.46을 받은 뒤 1500으로 움직여도 refresh=True가 1416.46 반환.
     ("환율 캐시가 늙지 않는다(며칠 도는 프로세스에서 환율이 얼어붙는다)",
