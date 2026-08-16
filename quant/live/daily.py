@@ -2696,7 +2696,11 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         }
 
     swaps = []
-    auditions = {"runs": 0, "candidates": 0, "promoted": 0}
+    # vacuous = **대결이 열리지 않은** 오디션. '승격 0회'와 전혀 다른 상태다 —
+    # 후보가 못 이긴 것이 아니라 비교 자체가 성립하지 않은 것이다. 이 숫자는
+    # 사이트(retrain_recent)에는 실려 있었지만 **주간 보고서에는 없었다**.
+    # 사장님에게 실제로 도착하는 문서가 그 구별을 못 하면 없는 것과 같다.
+    auditions = {"runs": 0, "candidates": 0, "promoted": 0, "vacuous": 0}
     hist_file = os.path.join(state_dir, "retrain_history.jsonl")
     if os.path.exists(hist_file):
         with open(hist_file, encoding="utf-8") as f:
@@ -2716,6 +2720,8 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
                 # 이번 주 오디션 통계 — 몇 명이 도전해 몇 명이 승격했나
                 auditions["runs"] += 1
                 auditions["candidates"] += int(rec.get("n_candidates") or 0)
+                if rec.get("vacuous"):
+                    auditions["vacuous"] += 1
                 if rec.get("promoted"):
                     auditions["promoted"] += 1
                     swaps.append({"asof": rec["asof"],
@@ -2786,6 +2792,10 @@ def format_weekly(summary: dict) -> str:
     if a and a["runs"]:
         lines.append(f"🎭 오디션: 이번 주 {a['runs']}회 · 후보 "
                      f"{a['candidates']}명 중 승격 {a['promoted']}회")
+        # '승격 0회'는 정상일 수 있지만 '대결이 안 열림'은 절대 정상이 아니다.
+        if a.get("vacuous"):
+            lines.append(f"   ⚠️ 그중 {a['vacuous']}회는 **대결 자체가 열리지 "
+                         "않았습니다** — 승격 없음이 아니라 심사 없음입니다")
     fc = h.get("fill_check")
     if fc:
         for mk, r in (fc.get("markets") or {}).items():

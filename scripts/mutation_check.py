@@ -4478,6 +4478,45 @@ MUTATIONS = [
      "                pass",
      "tests/test_the_validation_gate_actually_gates.py"),
 
+
+    # ── 감사 256 — 긴 검증(워크포워드)과 생존 편향 고지 ─────────────
+    # 학습창은 250봉 그대로 두고 검증 구간만 과거 전체로 넓힌 관찰값.
+    # 이 숫자는 오늘 살아남은 종목으로만 계산하므로 반드시 고지가 붙어야 한다.
+    ("학습창 구간을 성적에 넣는다(아직 시작 안 한 0이 무성과로 찍힌다)",
+     "quant/live/walkforward.py",
+     "    oos = returns.iloc[warmup:] if warmup > 0 else returns",
+     "    oos = returns",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("구간 수를 표본과 무관하게 고정한다(50봉을 8등분한다)",
+     "quant/live/walkforward.py",
+     "    k = max(1, min(int(segments), n // MIN_SEGMENT_BARS))",
+     "    k = int(segments)",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("샤프 판정을 절대 비교로 되돌린다(상쇄된 1e-19로 나눠 샤프 수천이 나온다)",
+     "quant/live/walkforward.py",
+     "    if not math.isfinite(sd) or degenerate_spread(sd, float(returns.abs().mean())):",
+     "    if not math.isfinite(sd) or sd <= 0:",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("합성 폴백으로 10년 성적을 만든다(가짜 시세로 만든 그럴듯한 거짓말)",
+     "quant/live/walkforward.py",
+     '    if df is None or df.empty or df.attrs.get("synthetic_fallback"):',
+     "    if df is None or df.empty:",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("주간 보고서가 '대결 안 열림'을 세지 않는다(승격 0회와 구별이 사라진다)",
+     "quant/live/daily.py",
+     '                    auditions["vacuous"] += 1',
+     '                    auditions["vacuous"] += 0',
+     "tests/test_an_empty_audition_reaches_the_report.py"),
+
+    ("생존 편향 표식을 끈다(화면이 '실제로 벌 수 있었던 돈'으로 읽는다)",
+     "quant/live/walkforward.py",
+     '        "survivorship_biased": True,',
+     '        "survivorship_biased": False,',
+     "tests/test_the_long_check_says_it_is_biased.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

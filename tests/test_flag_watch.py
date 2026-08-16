@@ -203,7 +203,9 @@ def test_weekly_health_section(tmp_path):
          "promoted": False, "n_candidates": 12}) + "\n", "utf-8")
     s = weekly_summary(str(tmp_path))
     h = s["health"]
-    assert h["auditions"] == {"runs": 1, "candidates": 12, "promoted": 0}
+    # vacuous는 '대결이 안 열린' 오디션 수 — 0이 정상이다(감사 256).
+    assert h["auditions"] == {"runs": 1, "candidates": 12, "promoted": 0,
+                              "vacuous": 0}
     assert h["killswitch"]["risk_scale"] == 0.75
     assert h["generation"]["target_days"] == 90
     text = format_weekly(s)

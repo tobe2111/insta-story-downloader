@@ -64,12 +64,33 @@ jobs:
             exit 1
           fi
 
+      # 긴 검증 — 챔피언 설정을 최장 과거(2,500봉 ≈ 주식 10년)에 적용해
+      # 구간별로 몇 번 통했는지 본다. 학습창은 250봉 그대로다(과거로 학습창을
+      # 늘리면 이미 죽은 패턴을 배운다). 여기서 늘리는 것은 **검증 구간**뿐.
+      #
+      # ⚠️ 이 숫자는 생존 편향이 있다 — 오늘 살아남은 20종목으로만 계산한다.
+      #    보고서 본문이 그 고지를 함께 싣는다(quant/live/walkforward.py).
+      # 주간에 두는 이유: 매일 돌릴 값이 아니고(설정이 바뀌어야 변한다),
+      # 야간 배치를 무겁게 만들면 그날 기록이 늦어진다.
+      - name: 긴 검증(워크포워드) 보고서
+        continue-on-error: true      # 이 관찰값 실패가 주간 보고를 막지 않는다
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python -m quant walkforward --save walkforward.json | tee walkforward.txt
+
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: weekly-${{ github.run_id }}
-          path: weekly.txt
+          path: |
+            weekly.txt
+            walkforward.txt
+            walkforward.json
           if-no-files-found: ignore
 
       - name: 실패 경보 (디스코드/텔레그램)
