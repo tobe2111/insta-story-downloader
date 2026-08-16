@@ -2368,6 +2368,28 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 256 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
+    # 실측: 코인 5종목이 800봉 요청에 300봉 수신(2026-08-15 스냅샷).
+    ("표본이 모자라도 장부에 안 남는다(300봉짜리 결론이 800봉으로 읽힌다)",
+     "quant/live/daily.py",
+     "            if got < int(lookback * BARS_SHORTFALL_RATIO):",
+     "            if False:",
+     "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
+    ("표본 부족 문턱이 실제 사고(800→300)를 놓친다",
+     "quant/live/daily.py",
+     "BARS_SHORTFALL_RATIO = 0.9",
+     "BARS_SHORTFALL_RATIO = 0.3",
+     "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
+    ("표본 부족이 알림으로 안 나간다(또 몇 주 동안 안 보인다)",
+     "quant/live/flag_watch.py",
+     '        bs = last.get("bars_short") or {}',
+     "        bs = {}",
+     "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
+    ("가장 심한 종목이 아니라 아무거나 예로 든다(심각도가 가려진다)",
+     "quant/live/flag_watch.py",
+     '            worst = min(bs.items(), key=lambda kv: kv[1]["got"] / kv[1]["asked"])',
+     "            worst = max(bs.items(), key=lambda kv: kv[1][\"got\"] / kv[1][\"asked\"])",
+     "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
     # 감사 255 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
     # 실측: 2026-08-15 +7,150% 기록이 [skip actions] 구멍으로 반나절 생존.
     ("장부 관문이 실패를 삼킨다(오염된 기록이 그대로 커밋된다)",

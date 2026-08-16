@@ -234,6 +234,11 @@ REBALANCE_BAND = 0.05
 # 한참 낮다. 이 사이를 벗어나면 시장이 아니라 코드가 만든 숫자다.
 FILL_MARK_MAX_RATIO = 5.0
 
+# 요청한 봉 수의 몇 할 아래로 받으면 '덜 받았다'로 보는가(감사 256).
+# 거래소 점검·신규 상장으로 몇 봉이 비는 것은 정상이므로 넉넉히 두되,
+# okx 폴백이 800봉 요청에 300봉(37%)을 주던 상황은 반드시 걸려야 한다.
+BARS_SHORTFALL_RATIO = 0.9
+
 
 def _risk_for(market: str):
     """시장별 연율화 계수를 반영한 RiskManager — 코인 365일, 주식 252거래일.
@@ -1479,6 +1484,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
+    bars_short: dict = {}           # key → 요청보다 적게 받은 봉 수(감사 256)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     # 검증 게이트 — 과최적화 검증(PBO·DSR)을 비중으로 번역한 계수.
@@ -1495,6 +1501,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
+            # **몇 봉으로 판단했는가** (감사 256). 장부는 마지막 봉이 얼마나
+            # 묵었는지(bar_age_days)와 얼마나 만들어졌는지(bar_partial)는
+            # 남기면서, 정작 **표본이 몇 개였는지**는 남기지 않았다.
+            #
+            # 그래서 코인 5종목이 요청한 800봉 대신 300봉만 받고 있던 것이
+            # 몇 주 동안 안 보였다(거래소 폴백의 1회 응답 상한 — 감사 251).
+            # 장부에는 매일 "정상"이라 적혔고, 그 사이 챔피언은 학습창
+            # 250봉을 선발 구간 180봉에서 겨루었고 과최적화 지표(BTC PBO
+            # 0.78)도 표본 부족의 산물이었다. **받은 양을 안 적으면 덜 받은
+            # 것을 알 방법이 없다.**
+            got = int(len(df))
+            if got < int(lookback * BARS_SHORTFALL_RATIO):
+                bars_short[key] = {"asked": int(lookback), "got": got}
             # 데이터 무결성 검사 — 중복 봉·음수 가격·OHLC 모순은 그 종목의
             # 수익률 계산을 통째로 왜곡한다.
             # ⚠️ 이 검사는 원래 수동 backtest 명령에서만 돌았다(2026-08-11
@@ -2291,6 +2310,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 확정값이 아니므로, 어느 종목이 몇 % 만들어진 봉으로 판단됐는지
               # 남긴다 — 공개 차트와 대조하려는 사람이 오해하지 않도록.
               "bar_partial": partial_bars or None,
+              # 요청한 것보다 **적게 받은** 종목(감사 256). 판단의 표본이
+              # 몇 개였는지는 성적만큼 중요한 사실이다 — 300봉으로 낸
+              # 결론과 800봉으로 낸 결론은 같은 무게가 아니다.
+              "bars_short": bars_short or None,
               # 오늘 쓴 재조정 밴드와 그 근거(감사 74). 이 값은 실측 표본이
               # 문턱을 넘는 순간 가정→실측으로 갈아타며 한국주식 기준
               # 0.150→0.400(2.67배)까지 뛴다 — 그날 회전율이 크게 줄지만

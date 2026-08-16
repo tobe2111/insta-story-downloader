@@ -145,6 +145,20 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"구조에서는 나올 수 없는 값입니다. 레버리지 금지선·수수료 "
                 f"버퍼·매도 우선 순서 중 하나가 새고 있다는 뜻이고, 계좌는 "
                 f"이유 없이 계획보다 덜 산 채로 굴러갑니다.")
+        # 요청보다 적은 표본으로 판단한 종목(감사 256). 성적이 나쁜 것이
+        # 아니라 **성적을 말할 근거가 얇은** 상태다 — 이걸 모르면 300봉으로
+        # 낸 결론을 800봉짜리 확신으로 읽는다. 종목 수가 바뀔 때만 다시
+        # 알린다(같은 상태로 매일 울리면 아무도 안 본다).
+        bs = last.get("bars_short") or {}
+        if bs:
+            worst = min(bs.items(), key=lambda kv: kv[1]["got"] / kv[1]["asked"])
+            flags[f"bars_short:{key}:{len(bs)}"] = (
+                f"⚠️ 표본이 모자란 채로 판단한 종목 {len(bs)}개 — 예: "
+                f"{worst[0]} {worst[1]['got']}/{worst[1]['asked']}봉. "
+                f"데이터 제공처가 요청한 만큼 주지 않았거나 상장 이력이 "
+                f"짧습니다. 이 종목들의 성적·과최적화 지표는 표본 부족의 "
+                f"산물일 수 있습니다(2026-08-15까지 코인 5종목이 800봉 "
+                f"요청에 300봉으로 굴러갔습니다).")
         fr = last.get("fill_refused") or {}
         if fr:
             names = ", ".join(sorted(fr))
