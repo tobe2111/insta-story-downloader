@@ -2368,6 +2368,28 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 257 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
+    # 실측: 예약 15분 / 관측 최악 간격 558분(2026-08-16 심장박동).
+    ("감시가 몇 시간 멈춰도 알림이 안 나간다(문서는 계속 15분이라 말한다)",
+     "quant/live/flag_watch.py",
+     "        if gap is not None and gap > limit:",
+     "        if False:",
+     "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+    ("지각 문턱이 실제 사고(558분)를 놓친다",
+     "quant/live/guard.py",
+     "GUARD_LATE_FACTOR = 4.0",
+     "GUARD_LATE_FACTOR = 100.0",
+     "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+    ("예약 주기가 워크플로와 갈라져도 아무도 모른다",
+     "quant/live/guard.py",
+     "GUARD_INTERVAL_MINUTES = 15",
+     "GUARD_INTERVAL_MINUTES = 60",
+     "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+    ("플래그가 감시 기록을 아예 안 읽는다(state_dir이 안 넘어간다)",
+     "quant/live/flag_watch.py",
+     "    cur = _current_flags(status, state_dir)",
+     "    cur = _current_flags(status)",
+     "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     # 감사 256 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
     # 실측: 코인 5종목이 800봉 요청에 300봉 수신(2026-08-15 스냅샷).
     ("표본이 모자라도 장부에 안 남는다(300봉짜리 결론이 800봉으로 읽힌다)",

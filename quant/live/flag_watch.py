@@ -29,8 +29,12 @@ def _measured_cost_note(n: int) -> str:
             f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
 
 
-def _current_flags(status: dict) -> dict[str, str]:
-    """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다."""
+def _current_flags(status: dict, state_dir: str = "state") -> dict[str, str]:
+    """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다.
+
+    `state_dir`은 status.json에 담기지 않는 기록(장중 감시 심장박동 등)을
+    읽는 데 쓴다 — 그 기록도 '지금 켜진 경고'의 재료다.
+    """
     flags: dict[str, str] = {}
 
     # ① 체결 가정 검증 — 실측 불리 갭이 백테스트 가정을 초과(낙관 의심)
@@ -168,6 +172,31 @@ def _current_flags(status: dict) -> dict[str, str]:
                 f"2026-08-15에 이 상태로 100만원 계좌가 7,249만원으로 "
                 f"기록됐습니다(감사 254). 대기 주문은 남아 있으므로 고치기 "
                 f"전까지 그 종목은 매일 거부됩니다.")
+
+    # ③-4 장중 감시가 **예약대로 안 돌고 있다** (감사 257).
+    #
+    #     guard.yml은 15분마다 돌게 예약돼 있지만, 공용 러너는 촘촘한 cron을
+    #     크게 밀거나 건너뛴다. 2026-08-16 실측 최악 간격은 **558분**이었다.
+    #     레버리지 한도는 이미 실측 간격으로 계산하므로 안전 쪽으로 기울지만,
+    #     **그 사실이 사람에게 닿지 않으면 문서와 대외 문구가 계속 "15분마다
+    #     봅니다"라고 말한다** — 이 저장소가 가장 싫어하는 상태다.
+    #     심장박동은 매 회차 기록됐고, 아무도 그것을 읽지 않았다.
+    try:
+        from quant.live.guard import (GUARD_INTERVAL_MINUTES,
+                                      GUARD_LATE_FACTOR,
+                                      observed_gap_minutes)
+        gap = observed_gap_minutes(state_dir)
+        limit = GUARD_INTERVAL_MINUTES * GUARD_LATE_FACTOR
+        if gap is not None and gap > limit:
+            flags[f"guard_late:{int(gap // 60)}h"] = (
+                f"⚠️ 장중 감시가 예약대로 돌지 않습니다 — 예약 "
+                f"{GUARD_INTERVAL_MINUTES}분 간격인데 실제로 관측된 최악 "
+                f"간격은 **{gap:,.0f}분**({gap / 60:.1f}시간)입니다. "
+                f"레버리지 한도는 실측 간격으로 계산하므로 안전 쪽으로 "
+                f"기울지만, 문서·대외 문구에서 '{GUARD_INTERVAL_MINUTES}분마다 "
+                f"본다'고 말하면 안 됩니다.")
+    except Exception:  # noqa: BLE001 — 감시 기록이 없어도 다른 플래그는 살린다
+        pass
 
     # ④ 킬스위치 — 통합 계좌가 낙폭으로 노출을 줄인 순간은 즉시 알아야 할
     #    사건이다. 단계가 더 내려가면(0.75→0.5) 키가 바뀌어 다시 알리고,
@@ -386,7 +415,7 @@ def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
                 prev = set(json.load(f).get("flags") or [])
         except (OSError, ValueError):
             prev = set()
-    cur = _current_flags(status)
+    cur = _current_flags(status, state_dir)
     new = [k for k in cur if k not in prev]
     # 전송에 실패한 경보는 '보냈다'로 적지 않는다 — 적으면 다음 실행부터
     # '이미 켜져 있던 플래그'로 분류돼 **영원히 다시 오지 않는다**. 웹훅이
