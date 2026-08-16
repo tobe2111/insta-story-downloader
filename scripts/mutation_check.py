@@ -2368,6 +2368,28 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 255 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
+    # 실측: 2026-08-15 +7,150% 기록이 [skip actions] 구멍으로 반나절 생존.
+    ("장부 관문이 실패를 삼킨다(오염된 기록이 그대로 커밋된다)",
+     ".github/workflows/daily-paper.yml",
+     "          python scripts/ledger_gate.py",
+     "          python scripts/ledger_gate.py || true",
+     "tests/test_the_batch_checks_what_it_just_wrote.py"),
+    ("검사 파일이 없어도 장부 관문이 초록을 준다",
+     "scripts/ledger_gate.py",
+     "    if missing:",
+     "    if False:",
+     "tests/test_the_batch_checks_what_it_just_wrote.py"),
+    ("현금 부족 거부가 알림으로 안 나간다(사고의 첫 신호를 아무도 못 본다)",
+     "quant/live/flag_watch.py",
+     '        cs = last.get("cash_short") or []',
+     "        cs = []",
+     "tests/test_the_batch_checks_what_it_just_wrote.py"),
+    ("자릿수 불일치로 거부된 체결이 알림으로 안 나간다",
+     "quant/live/flag_watch.py",
+     '        fr = last.get("fill_refused") or {}',
+     "        fr = {}",
+     "tests/test_the_batch_checks_what_it_just_wrote.py"),
     # 감사 254 — 통합 계좌가 달러로 사고 원화로 평가하던 자리.
     # 실측: 2026-08-15 META 596.98(달러)에 체결 → 832,868(원)로 평가 →
     #       100만원 계좌의 자산이 7,249만원(+7,150%)으로 기록됨.
