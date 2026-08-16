@@ -4513,6 +4513,43 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
 
+    # ── 감사 260 — 증거금 없는 무제한 공매도가 열려 있었다 ─────────────
+    ("보유를 넘어서는 매도를 그냥 체결한다(100만원 계좌가 5,000만원어치 숏)",
+     "quant/broker/paper.py",
+     "            if quantity > allowance + _DUST:",
+     "            if False:",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("증거금 없이도 숏을 조금 열어 준다(기본이 금지가 아니게 된다)",
+     "quant/broker/paper.py",
+     "            allowance = max(0.0, old_qty)          # 팔 수 있는 보유 수량",
+     "            allowance = max(0.0, old_qty) + 1e9",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("초과 매도를 통째로 거부한다(청산이 막혀 덫이 된다)",
+     "quant/broker/paper.py",
+     "                quantity = allowance",
+     "                quantity = 0.0",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("증거금 한도를 무시한다(50%를 줘도 무한정 열린다)",
+     "quant/broker/paper.py",
+     "                allowance += max(0.0, self._cash) / (price * self.short_margin)",
+     "                allowance += 1e9",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("한국 대주료를 미국 수준으로 낮춘다(개인이 못 빌리는 것을 싸게 친다)",
+     "quant/backtest/costs.py",
+     "_BORROW_KR = 0.025 / 252       # 한국 개인 대주 ~연 2.5% (가능할 때)",
+     "_BORROW_KR = 0.0001 / 252",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("대차료를 0으로 되돌린다(숏을 공짜로 무한정 들고 있게 된다)",
+     "quant/backtest/costs.py",
+     "_BORROW_US = 0.0025 / 252      # 미국 대형주 일반 대차 ~연 0.25%",
+     "_BORROW_US = 0.0",
+     "tests/test_a_naked_short_is_not_free.py"),
+
     # ── 감사 259 — 횡단면 랭킹("오를까"가 아니라 "누가 더 셀까") ────────
     ("스냅샷 폴더를 넘겨받은 데이터의 마지막 봉으로 고른다(미래를 자르면 과거가 바뀐다)",
      "quant/strategies/cross_rank.py",

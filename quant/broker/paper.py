@@ -52,9 +52,26 @@ def _positive(value, what: str) -> float:
 
 class PaperBroker(Broker):
     def __init__(self, cash: float = 10_000.0, fee: float = 0.001,
-                 allow_margin: bool = False):
+                 allow_margin: bool = False, short_margin: float = 0.0):
         self._cash = cash
         self.fee = fee
+        # 신규·추가 **공매도**에 필요한 증거금 비율(|숏 노출| 대비).
+        # 0(기본) = 공매도 금지 — 매도는 **보유 수량까지만** 체결된다.
+        #
+        # ⚠️ 왜 기본이 금지인가 (2026-08-16 실측, 감사 260).
+        #    이 클래스는 매도를 전혀 막지 않았다. "빠져나오는 길을 막으면
+        #    덫이 된다"는 옳은 이유였지만, 그 구멍으로 **증거금 없는 무제한
+        #    공매도**가 열려 있었다:
+        #
+        #        100만원 계좌에 목표 -500% → -50,000주 체결 · 현금 599만원
+        #
+        #    실전에는 없는 계좌다. 대주 가능 수량도, 증거금도, 대차료도 없다
+        #    (short_borrow가 전 시장 0.0이었다). 이 상태로 숏 전략을 오디션에
+        #    올리면 **실제로는 낼 수 없는 성과**로 챔피언이 뽑힌다 — 이 저장소가
+        #    반복해서 고쳐 온 '오디션-현실 격차' 그 자체다.
+        #
+        #    청산은 그대로 자유롭다. 막는 것은 **보유를 넘어서는 매도**뿐이다.
+        self.short_margin = max(0.0, float(short_margin))
         self._positions: dict[str, Position] = {}
         self.order_log: list[Order] = []
         # 현금보다 큰 매수를 허용할 것인가. 기본은 **아니다** — 아래 참고.
@@ -130,6 +147,31 @@ class PaperBroker(Broker):
 
         pos = self.get_position(symbol)
         old_qty, old_avg = pos.quantity, pos.avg_price
+
+        # ── 공매도 한도 — 없는 주식을 팔지 않는다 (감사 260) ──────────
+        # 청산(보유 범위 안의 매도)은 그대로 통과한다. 보유를 **넘어서는**
+        # 매도만 증거금을 본다. 증거금 모델이 없으면(기본) 보유까지로 자른다.
+        if side == "sell":
+            allowance = max(0.0, old_qty)          # 팔 수 있는 보유 수량
+            if self.short_margin > 0.0:
+                # |숏 노출| × 증거금비율 ≤ 현금. 현금이 담보다.
+                allowance += max(0.0, self._cash) / (price * self.short_margin)
+            if quantity > allowance + _DUST:
+                cut = quantity - allowance
+                self.rejected.append({"symbol": symbol, "short_over": cut,
+                                      "allowance": allowance,
+                                      "reason": "공매도 한도"})
+                log.error("[PAPER] 공매도 한도 초과: %s 매도 %.6f 중 %.6f만 "
+                          "체결 가능(보유·증거금 기준) — 초과분 %.6f 거부",
+                          symbol, quantity, allowance, cut)
+                quantity = allowance
+                if quantity <= _DUST:
+                    order = Order(symbol, side, 0.0, price,
+                                  status="rejected", filled_quantity=0.0)
+                    self._log_order(order)
+                    return order
+                cost = quantity * price
+                fee = cost * self.fee
 
         # 현금: 매수는 비용+수수료 차감, 매도는 대금-수수료 가산(자금 보존).
         if side == "buy":

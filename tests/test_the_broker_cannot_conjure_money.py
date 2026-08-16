@@ -133,12 +133,31 @@ def test_spending_the_whole_account_is_allowed():
 
 
 def test_selling_is_never_blocked_by_the_cash_limit():
-    """빠져나오는 길은 막지 않는다 — 공매도는 현금을 늘린다."""
-    b = PaperBroker(cash=0.0)
+    """빠져나오는 길은 **현금 한도**로 막지 않는다.
+
+    ⚠️ 2026-08-16(감사 260) 이후 이 검사는 계좌를 `short_margin`으로 세운다.
+       막는 주체가 둘로 갈렸기 때문이다 — **현금 한도**(이 파일의 주제)는
+       예나 지금이나 매도를 막지 않고, **공매도 한도**(새 관문)가 보유를
+       넘어서는 매도만 본다. 현금 0원이어도 담보 없이 숏이 열리던 것이
+       바로 그 관문이 막는 것이고, 여기서 확인할 것은 아니다.
+    """
+    b = PaperBroker(cash=1_000.0, short_margin=0.5)
     o = b.market_order("S", "sell", 10.0, 50.0)
     assert o.status == "filled"
-    assert b.get_cash() > 0
+    assert b.get_cash() > 1_000.0            # 매도 대금이 들어왔다
     assert b.get_position("S").quantity == -10.0
+
+
+def test_the_cash_limit_and_the_short_limit_are_different_guards():
+    """대조군 — 현금이 없어서 막힌 것과 빌릴 수 없어서 막힌 것은 다르다.
+
+    둘을 같은 이유로 적으면 "왜 안 팔렸나"에 장부가 틀린 답을 한다.
+    """
+    b = PaperBroker(cash=0.0)                       # 담보도 보유도 없다
+    o = b.market_order("S", "sell", 10.0, 50.0)
+    assert o.status == "rejected"
+    assert b.rejected[-1].get("reason") == "공매도 한도"
+    assert "need" not in b.rejected[-1], "현금 부족으로 잘못 적었다"
 
 
 def test_liquidating_a_position_works_with_no_cash():
