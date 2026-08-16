@@ -69,10 +69,26 @@ def test_the_late_threshold_would_have_caught_the_real_lag():
 # ── ② 사람에게 닿는가 ───────────────────────────────────────────
 
 def _flags_with_beats(tmp_path, beats: list[str]) -> dict:
+    """심장박동을 써 두고 **운영과 같은 경로**로 판정까지 간다.
+
+    `_current_flags`에 직접 값을 만들어 넣지 않는다 — 그러면 재료를 모으는
+    쪽(status를 만드는 daily.py)이 빠져서, 배선이 끊겨도 통과한다.
+    """
     import json
     (tmp_path / "guard_heartbeat.json").write_text(
         json.dumps({"beats": beats, "actions": []}), encoding="utf-8")
-    return _current_flags({"paper": {}}, str(tmp_path))
+    return _current_flags(_status_from(tmp_path))
+
+
+def _status_from(state_dir) -> dict:
+    """daily.py가 status에 감시 실측을 싣는 그 경로를 그대로 부른다."""
+    from quant.live.daily import write_docs_status
+    import tempfile
+    import os
+    with tempfile.TemporaryDirectory() as d:
+        st = write_docs_status(state_dir=str(state_dir),
+                               docs_path=os.path.join(d, "status.json"))
+    return st
 
 
 def _every(n: int, minutes: int) -> list[str]:
@@ -127,13 +143,14 @@ def test_three_beats_are_not_enough_to_declare_anything(tmp_path):
         "심장박동 3회로 감시 주기를 단정한다")
 
 
-def test_the_real_entry_point_looks_in_the_right_place(tmp_path, monkeypatch):
-    """실제로 알림을 쏘는 함수까지 배선이 이어져 있는가.
+def test_the_whole_chain_runs_from_heartbeat_to_a_sent_message(tmp_path,
+                                                               monkeypatch):
+    """심장박동 → 실측 → status → 판정 → **실제 발송**까지 한 번에 본다.
 
-    ⚠️ 변이 시험이 이 구멍을 잡았다 — 위 검사들은 안쪽 함수를 직접
-    불러서, 바깥(`check_and_notify_flags`)이 감시 기록의 위치를 안 넘겨도
-    전부 통과했다. 배치에서는 기본값이 우연히 맞아 티가 안 났을 것이다.
-    **우연히 맞는 배선은 언젠가 우연히 틀린다.**
+    ⚠️ 변이 시험이 여기서 구멍을 잡았다 — 위 검사들이 안쪽 함수만 불러서,
+    재료를 status에 싣는 단계가 빠져도 전부 통과했다. 그 단계는 배치에서
+    우연히 맞아떨어지고 있었을 뿐이다. **우연히 맞는 배선은 언젠가 우연히
+    틀린다.**
     """
     import datetime as dt
     import json
@@ -154,10 +171,44 @@ def test_the_real_entry_point_looks_in_the_right_place(tmp_path, monkeypatch):
             return True
 
     monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: _N())
-    new = FW.check_and_notify_flags({"paper": {}}, state_dir=str(tmp_path))
-    assert any(k.startswith("guard_late") for k in new), (
-        "감시 기록을 넘겼는데 알림 경로가 그것을 안 읽는다 — 배선이 끊겼다")
-    assert any("558" in m for m in sent), "실제 발송 문구에 실측값이 없다"
+
+    # ⚠️ 새 알림을 쏘는 것은 `write_docs_status` **자신**이다(daily.py가 그
+    #    안에서 check_and_notify_flags를 부른다). 그래서 여기서 한 번 더
+    #    부르면 이미 켜진 플래그로 분류돼 조용하다 — 그게 정상이다. 사슬을
+    #    보려면 **운영이 실제로 부르는 그 한 번**을 지켜봐야 한다.
+    status = _status_from(tmp_path)
+    assert (status.get("guard") or {}).get("observed_gap_min"), (
+        "status를 만드는 쪽이 감시 실측을 안 싣는다 — 판정할 재료가 없다")
+    assert any("558" in m for m in sent), (
+        f"심장박동에 9시간 구멍이 있는데 아무것도 발송되지 않았다: {sent}")
+
+    # 같은 경보가 다음 날 또 울리지 않는지도 여기서 본다 — 매일 울리는
+    # 경보는 꺼진 경보와 같다(이 모듈의 존재 이유).
+    before = len(sent)
+    FW.check_and_notify_flags(status, state_dir=str(tmp_path))
+    assert len(sent) == before, "이미 켜져 있던 경보가 다시 발송된다"
+
+
+def test_the_judge_does_not_read_files_behind_its_own_back():
+    """판정 함수는 **받은 것만** 봐야 한다.
+
+    ⚠️ 2026-08-16에 여기서 심장박동 파일을 직접 읽게 만들었다가 CI가
+    무너졌다. 감시 기록이 쌓이자, 감시와 아무 상관 없는 검사들
+    (`test_the_frozen_feed_does_not_look_like_a_weekend` 등)이 "경보 없음"을
+    확인하지 못했다 — 그 함수가 **저장소의 지금 상태에 묶였기** 때문이다.
+    값으로 확인할 수 없게 된 판정기는 판정기가 아니다.
+    """
+    import inspect
+
+    from quant.live import flag_watch as FW
+    src = inspect.getsource(FW._current_flags)
+    for banned in ("open(", "load_heartbeat", "observed_gap_minutes",
+                   "os.path.join"):
+        assert banned not in src, (
+            f"판정 함수가 바깥 상태를 직접 읽는다({banned!r}) — 재료 수집은 "
+            "status를 만드는 쪽이 한다")
+    assert "state_dir" not in inspect.signature(FW._current_flags).parameters, (
+        "판정 함수가 파일 경로를 받는다 — 다시 파일을 읽게 될 문이다")
 
 
 def test_a_missing_heartbeat_file_does_not_break_the_other_flags(tmp_path):
@@ -165,8 +216,7 @@ def test_a_missing_heartbeat_file_does_not_break_the_other_flags(tmp_path):
     flags = _current_flags(
         {"paper": {"portfolio:ALL": {"history": [
             {"date": "2026-08-16",
-             "cash_short": [{"key": "us_stock:AMZN", "need": 1, "cash": 0}]}]}}},
-        str(tmp_path / "does-not-exist"))
+             "cash_short": [{"key": "us_stock:AMZN", "need": 1, "cash": 0}]}]}}})
     assert [k for k in flags if k.startswith("cash_short")], (
         "감시 기록이 없다는 이유로 다른 경고가 사라진다")
 

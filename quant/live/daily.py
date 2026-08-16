@@ -3019,6 +3019,21 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 검증 실패가 사이트 갱신을 막으면 안 된다
         pass
 
+    # 장중 감시가 **실제로** 얼마나 자주 돌았나(감사 257). 예약값이 아니라
+    # 심장박동에서 잰 값이다. 여기서 status에 실어 두는 이유: 경보를 만드는
+    # 쪽(flag_watch)이 파일을 직접 읽으면 그 함수가 **저장소의 지금 상태에
+    # 묶인다.** 실제로 그렇게 만들었다가, 감시 기록이 쌓이자 아무 상관 없는
+    # 검사들이 "경보 없음"을 확인하지 못하고 무너졌다. 재료는 여기서 모으고
+    # 판정은 저기서 한다 — 원래 이 파일들이 나눠 갖던 역할이다.
+    try:
+        from quant.live.guard import GUARD_INTERVAL_MINUTES, observed_gap_minutes
+        _gap = observed_gap_minutes(state_dir)
+        if _gap is not None:
+            status["guard"] = {"observed_gap_min": round(float(_gap), 1),
+                               "interval_min": GUARD_INTERVAL_MINUTES}
+    except Exception:  # noqa: BLE001 — 감시 기록이 없어도 사이트는 갱신된다
+        pass
+
     # 야간 검증(PBO·DSR) 장부 — 과최적화 감시가 사이트·경보로 이어지게
     vpath = os.path.join(state_dir, "validation.json")
     if os.path.exists(vpath):

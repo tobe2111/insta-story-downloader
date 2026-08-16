@@ -2372,7 +2372,7 @@ MUTATIONS = [
     # 실측: 예약 15분 / 관측 최악 간격 558분(2026-08-16 심장박동).
     ("감시가 몇 시간 멈춰도 알림이 안 나간다(문서는 계속 15분이라 말한다)",
      "quant/live/flag_watch.py",
-     "        if gap is not None and gap > limit:",
+     "        if gap is not None and interval > 0 and gap > limit:",
      "        if False:",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     ("지각 문턱이 실제 사고(558분)를 놓친다",
@@ -2385,10 +2385,10 @@ MUTATIONS = [
      "GUARD_INTERVAL_MINUTES = 15",
      "GUARD_INTERVAL_MINUTES = 60",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
-    ("플래그가 감시 기록을 아예 안 읽는다(state_dir이 안 넘어간다)",
-     "quant/live/flag_watch.py",
-     "    cur = _current_flags(status, state_dir)",
-     "    cur = _current_flags(status)",
+    ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
+     "quant/live/daily.py",
+     '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',
+     '            status["_guard_unused"] = {"observed_gap_min": round(float(_gap), 1),',
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     # 감사 256 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
     # 실측: 코인 5종목이 800봉 요청에 300봉 수신(2026-08-15 스냅샷).

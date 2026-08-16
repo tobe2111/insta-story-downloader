@@ -29,11 +29,14 @@ def _measured_cost_note(n: int) -> str:
             f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
 
 
-def _current_flags(status: dict, state_dir: str = "state") -> dict[str, str]:
+def _current_flags(status: dict) -> dict[str, str]:
     """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다.
 
-    `state_dir`은 status.json에 담기지 않는 기록(장중 감시 심장박동 등)을
-    읽는 데 쓴다 — 그 기록도 '지금 켜진 경고'의 재료다.
+    ⚠️ **받은 것만 본다.** 파일을 직접 읽지 않는다 — 2026-08-16에 장중 감시
+    기록을 여기서 읽게 만들었다가, 그 기록이 쌓이자 감시와 아무 상관 없는
+    검사들까지 "경보 없음"을 확인하지 못하고 무너졌다. 판정하는 함수가
+    바깥 상태를 몰래 읽으면 그 함수는 더 이상 값으로 확인할 수 없다.
+    재료를 모으는 일은 daily.py(status를 만드는 쪽)가 한다.
     """
     flags: dict[str, str] = {}
 
@@ -181,20 +184,26 @@ def _current_flags(status: dict, state_dir: str = "state") -> dict[str, str]:
     #     **그 사실이 사람에게 닿지 않으면 문서와 대외 문구가 계속 "15분마다
     #     봅니다"라고 말한다** — 이 저장소가 가장 싫어하는 상태다.
     #     심장박동은 매 회차 기록됐고, 아무도 그것을 읽지 않았다.
+    #
+    #     ⚠️ 이 판정의 재료는 **status가 실어다 준다**(2026-08-16). 처음에는
+    #        여기서 심장박동 파일을 직접 읽었는데, 그러자 이 함수가 저장소의
+    #        지금 상태에 묶였다 — 감시 기록이 쌓이자 감시와 아무 상관 없는
+    #        검사들까지 "경보 없음"을 확인하지 못하고 무너졌다. **판정하는
+    #        함수는 자기가 받은 것만 봐야 한다.** 재료 수집은 daily.py가 한다.
     try:
-        from quant.live.guard import (GUARD_INTERVAL_MINUTES,
-                                      GUARD_LATE_FACTOR,
-                                      observed_gap_minutes)
-        gap = observed_gap_minutes(state_dir)
-        limit = GUARD_INTERVAL_MINUTES * GUARD_LATE_FACTOR
-        if gap is not None and gap > limit:
+        from quant.live.guard import GUARD_LATE_FACTOR
+        g = status.get("guard") or {}
+        gap = g.get("observed_gap_min")
+        interval = float(g.get("interval_min") or 0.0)
+        limit = interval * GUARD_LATE_FACTOR
+        booked = f"{interval:g}"                   # 15.0이 아니라 15로 읽히게
+        if gap is not None and interval > 0 and gap > limit:
             flags[f"guard_late:{int(gap // 60)}h"] = (
-                f"⚠️ 장중 감시가 예약대로 돌지 않습니다 — 예약 "
-                f"{GUARD_INTERVAL_MINUTES}분 간격인데 실제로 관측된 최악 "
-                f"간격은 **{gap:,.0f}분**({gap / 60:.1f}시간)입니다. "
-                f"레버리지 한도는 실측 간격으로 계산하므로 안전 쪽으로 "
-                f"기울지만, 문서·대외 문구에서 '{GUARD_INTERVAL_MINUTES}분마다 "
-                f"본다'고 말하면 안 됩니다.")
+                f"⚠️ 장중 감시가 예약대로 돌지 않습니다 — 예약 {booked}분 "
+                f"간격인데 실제로 관측된 최악 간격은 **{gap:,.0f}분**"
+                f"({gap / 60:.1f}시간)입니다. 레버리지 한도는 실측 간격으로 "
+                f"계산하므로 안전 쪽으로 기울지만, 문서·대외 문구에서 "
+                f"'{booked}분마다 본다'고 말하면 안 됩니다.")
     except Exception:  # noqa: BLE001 — 감시 기록이 없어도 다른 플래그는 살린다
         pass
 
@@ -415,7 +424,7 @@ def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
                 prev = set(json.load(f).get("flags") or [])
         except (OSError, ValueError):
             prev = set()
-    cur = _current_flags(status, state_dir)
+    cur = _current_flags(status)
     new = [k for k in cur if k not in prev]
     # 전송에 실패한 경보는 '보냈다'로 적지 않는다 — 적으면 다음 실행부터
     # '이미 켜져 있던 플래그'로 분류돼 **영원히 다시 오지 않는다**. 웹훅이
