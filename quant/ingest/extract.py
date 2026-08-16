@@ -65,7 +65,12 @@ def _ma_cross(sent: str) -> tuple[Condition | None, Condition | None]:
     m = re.search(
         rf"(\d{{1,3}})\s*(?:일|봉)?\s*{_MA}?\s*(?:선)?[가-힣\s]*?"
         rf"(\d{{1,3}})\s*(?:일|봉)?\s*{_MA}?\s*(?:선)?"
-        rf"[^.!?\n]*?(상향\s*돌파|하향\s*돌파|위로\s*돌파|아래로\s*돌파|"
+        # ⚠️ '뚫다'를 빼먹고 있었다(감사 259). 한국어 매매 글에서 "위로
+        #    뚫으면"은 "위로 돌파하면"만큼 흔하다. 실측: 사용자가 매수는
+        #    "위로 돌파", 매도는 "아래로 뚫으면"으로 적었더니 **매도 규칙만
+        #    조용히 사라졌다** — 사는 규칙만 있고 파는 규칙이 없는 전략이 된다.
+        rf"[^.!?\n]*?(상향\s*(?:돌파|뚫)|하향\s*(?:돌파|뚫)|"
+        rf"위로\s*(?:돌파|뚫)|아래로\s*(?:돌파|뚫)|"
         rf"golden\s*cross|dead\s*cross|넘으면|밑으로)",
         sent, re.I)
     if not m:
@@ -164,6 +169,19 @@ _VAGUE = re.compile(
     r"손실은\s*짧게|이익은\s*길게|무릎에\s*사서|어깨에\s*팔|"
     r"trend|sentiment|feel|gut)", re.I)
 
+# **숫자가 있고 매매 행위를 말하는데 우리가 못 옮긴 문장**을 찾기 위한 그물
+# (감사 259). 이런 문장이 있는데 아무 말 없이 지나가면, 사용자는 "✅ 이렇게
+# 읽었습니다"를 보고 자기 규칙이 **전부** 반영된 줄 안다.
+#
+# 실측: "손절은 -8%, 익절은 +20%로 잡습니다"를 넣었더니 조건 두 개만
+# 보여주고 이 문장은 **언급조차 되지 않았다.** 사용자 입장에서 가장 중요한
+# 위험 관리 규칙이 조용히 사라진 셈이다. 지어내지 않는 것과 말하지 않는
+# 것은 다르다 — 이 저장소는 전자를 지키기로 했지 후자를 허용한 적이 없다.
+_RULEISH = re.compile(
+    r"(?=.*\d)"                                     # 숫자가 있고
+    r".*(매수|매도|사|팔|진입|청산|손절|익절|보유|비중|분할|"
+    r"buy|sell|entry|exit|stop|target|position)", re.I)
+
 
 def extract_spec(text: str, *, title: str = "", source: dict | None = None,
                  max_conditions: int = 4) -> Extraction:
@@ -183,17 +201,23 @@ def extract_spec(text: str, *, title: str = "", source: dict | None = None,
     entry: list[Condition] = []
     exits: list[Condition] = []
     seen: set[tuple[str, str, str]] = set()
+    used: set[str] = set()          # 조건을 하나라도 내놓은 문장
     for sent in sentences:
         for pat in _PATTERNS:
             e, x = pat(sent)
             for cond, bucket in ((e, entry), (x, exits)):
                 if cond is None:
                     continue
+                used.add(sent)
                 key = (cond.left, cond.op, cond.right)
                 if key in seen:
                     continue
                 seen.add(key)
                 bucket.append(cond)
+
+    # 규칙처럼 생겼는데 **우리가 못 옮긴** 문장 (감사 259).
+    # 손절·익절·분할매수처럼 사용자에게 가장 중요한 규칙이 여기 걸린다.
+    unread = [s for s in sentences if s not in used and _RULEISH.match(s)]
 
     if not entry:
         # 왜 못 뽑았는지를 **구별해서** 말한다. "규칙이 없다"와 "규칙은 있는데
@@ -223,6 +247,20 @@ def extract_spec(text: str, *, title: str = "", source: dict | None = None,
             f"(과최적화). 뺀 조건: "
             + " · ".join(c.describe() for c in entry[max_conditions:]))
         entry = entry[:max_conditions]
+
+    # ⚠️ **못 옮긴 것을 말한다.** 지어내지 않는 것과 말하지 않는 것은 다르다.
+    #    "✅ 이렇게 읽었습니다"만 보여주면 사용자는 자기 규칙이 전부 반영된
+    #    줄 안다 — 실제로는 손절·익절이 통째로 빠졌는데도.
+    if unread:
+        shown = unread[:5]
+        more = f" (외 {len(unread) - len(shown)}문장)" if len(unread) > len(shown) else ""
+        reasons.append(
+            "**다음 문장은 규칙처럼 보이는데 옮기지 못했습니다** — 이 "
+            "부분은 검증에 **반영되지 않습니다**. 지금 옮길 수 있는 것은 "
+            "지표 사이의 비교(이동평균 교차·RSI 수준·가격 돌파)뿐이고, "
+            "손절·익절·분할매수처럼 보유 중에 값을 재는 규칙은 아직 "
+            "지원하지 않습니다"
+            + more + ":\n    · " + "\n    · ".join(shown))
 
     spec = StrategySpec(
         name=safe_strategy_name(title or (source or {}).get("ref", "")),
