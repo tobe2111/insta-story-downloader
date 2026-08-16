@@ -34,7 +34,15 @@ def test_live_shares_paper_guards():
 
 def test_live_is_long_only_and_unlevered():
     assert "max(0.0, min(1.0, weight))" in SRC
-    assert "* exposure" in SRC                   # 어드민 노출 배수 반영
+    # ⚠️ 예전 이 줄은 `"* exposure" in SRC`였다 — **변수 이름을 못박은 검사**라
+    #    행동이 아니라 서식을 지켰다. 2026-08-16에 킬스위치를 이 경로에 배선
+    #    하면서 이름이 `eff_exposure`가 되자, 동작은 더 안전해졌는데 검사가
+    #    빨간불이 됐다. 이 저장소가 반복해서 걷어낸 계열이다.
+    #    지금은 **곱해지는가**를 보고, 실제 동작은 값으로 확인한다
+    #    (tests/test_the_real_money_path_has_the_same_brakes.py).
+    assert "eff_exposure = exposure * risk_scale" in SRC, (
+        "어드민 노출 배수와 킬스위치가 함께 곱해지지 않는다")
+    assert "* eff_exposure" in SRC
 
 
 def test_live_records_exposure_scale():

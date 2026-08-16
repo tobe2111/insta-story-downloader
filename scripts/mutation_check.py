@@ -2368,6 +2368,33 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 258 — 실제로 돈이 나가는 경로에 킬스위치·검증 게이트가 없던 자리.
+    # 실측: run_daily_live는 어드민 노출 배수만 곱하고 있었다.
+    ("킬스위치가 실거래 노출에 안 걸린다(낙폭이 깊어도 그대로 산다)",
+     "quant/live/daily_live.py",
+     "    eff_exposure = exposure * risk_scale",
+     "    eff_exposure = exposure",
+     "tests/test_the_real_money_path_has_the_same_brakes.py"),
+    ("검증 게이트가 실거래 비중에 안 곱해진다(미측정 종목을 전액으로 산다)",
+     "quant/live/daily_live.py",
+     '            weight *= valid_damp.get(f"{market}:{symbol}", 1.0)',
+     "            pass",
+     "tests/test_the_real_money_path_has_the_same_brakes.py"),
+    ("실거래 장부가 계좌 자산을 안 남긴다(낙폭을 잴 재료가 사라진다)",
+     "quant/live/daily_live.py",
+     '               "equity": round(account_equity, 2) if account_equity else None,',
+     '               "equity": None,',
+     "tests/test_the_real_money_path_has_the_same_brakes.py"),
+    ("한 종목 조회 실패가 계좌 자산 전체를 0으로 만든다(없던 폭락)",
+     "quant/live/daily_live.py",
+     "        except Exception:  # noqa: BLE001 — 한 종목 조회 실패로 자산을 왜곡하지 않는다",
+     "        except Exception:  # noqa: BLE001\n            return 0.0",
+     "tests/test_the_real_money_path_has_the_same_brakes.py"),
+    ("검증 게이트가 고장나면 감쇠 없이 통과시킨다(고장난 날 가장 공격적)",
+     "quant/live/daily_live.py",
+     "        return dict.fromkeys(keys, 0.5)",
+     "        return dict.fromkeys(keys, 1.0)",
+     "tests/test_the_real_money_path_has_the_same_brakes.py"),
     # 감사 257 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
     # 실측: 예약 15분 / 관측 최악 간격 558분(2026-08-16 심장박동).
     ("감시가 몇 시간 멈춰도 알림이 안 나간다(문서는 계속 15분이라 말한다)",

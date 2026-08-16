@@ -104,6 +104,88 @@ def _harden(broker, *, sleep=None, now=None):
                         sleep=sleep or _t.sleep, now=now or _t.time)
 
 
+def _account_equity(broker, prices: dict) -> float:
+    """계좌 전체 자산 = 현금 + Σ(보유수량 × 현재가).
+
+    조회가 실패한 종목은 **빼고 센다.** 0으로 치면 그 종목이 사라진 것처럼
+    보여 낙폭이 실제보다 크게 잡히고, 킬스위치가 데이터 장애에 반응한다.
+    """
+    try:
+        cash = float(broker.get_cash())
+    except Exception:  # noqa: BLE001
+        return 0.0
+    total = cash
+    for symbol, px in prices.items():
+        try:
+            code = symbol.split(".")[0]
+            total += float(broker.get_position(code).quantity) * float(px)
+        except Exception:  # noqa: BLE001 — 한 종목 조회 실패로 자산을 왜곡하지 않는다
+            log.warning("실거래 자산 계산: %s 포지션 조회 실패 — 제외", symbol)
+    return total
+
+
+def _kill_switch_for_live(state_dir: str, equity: float) -> tuple[float, float]:
+    """실거래 계좌의 (노출 배수, 낙폭). 규칙은 페이퍼와 **같은 함수**를 쓴다.
+
+    ⚠️ 여기에 문턱을 다시 적지 않는다. 같은 규칙을 두 곳에 적으면 반드시
+       어긋나고, 어긋나는 쪽은 늘 나중에 손대는 쪽이다(FROZEN_IDEAS ①).
+       -3%/-15% 같은 숫자가 이 파일에 등장하면 그건 결함이다.
+    """
+    import json
+
+    from quant.live.daily import _kill_switch_scale
+    from quant.live.ledger_basics import drawdown_from_index, twr_index
+
+    path = os.path.join(state_dir, "live", "kr.json")
+    hist: list = []
+    prev_scale = 1.0
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                blob = json.load(f)
+            hist = blob.get("history") or []
+            for row in reversed(hist):
+                if row.get("risk_scale") is not None:
+                    prev_scale = float(row["risk_scale"])
+                    break
+        except (OSError, ValueError):
+            hist = []
+    series = [{"date": r.get("date"), "equity": r.get("equity")}
+              for r in hist if r.get("equity")]
+    if equity > 0:
+        series.append({"date": _dt.date.today().isoformat(), "equity": equity})
+    if len(series) < 2:
+        # 기록이 없으면 낙폭을 모른다 — 모를 때는 **줄이지도 열지도 않는다**.
+        # (0.0으로 잠그면 첫날 아무것도 못 사고, 이 계좌는 영원히 첫날이다.)
+        return prev_scale, 0.0
+    dd = drawdown_from_index(twr_index(series, [], start_cash=series[0]["equity"]))
+    return _kill_switch_scale(prev_scale, dd), dd
+
+
+def _validation_damping(targets, state_dir: str) -> dict:
+    """과최적화 검증(PBO·DSR) 결과 → 종목별 비중 배수. 페이퍼와 같은 판정기.
+
+    검증 기록이 없으면 그 종목은 **절반**이다 — '안 재봤다'와 '괜찮다'를
+    같게 두면 검증이 고장난 날 시스템이 가장 공격적으로 굴러간다.
+    """
+    keys = [f"{m}:{s}" for m, s in targets]
+    try:
+        from quant.live.validation_gate import gate_summary, validation_grades
+        grades = validation_grades(keys, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 못 재면 보수적으로 절반
+        log.warning("검증 게이트를 부르지 못했습니다(%s) — 전 종목 비중 절반", exc)
+        return dict.fromkeys(keys, 0.5)
+    log.info("%s (실거래)", gate_summary(grades))
+    out = {}
+    for key, g in grades.items():
+        scale = float(g["scale"])
+        out[key] = scale
+        if scale < 1.0:
+            log.warning("검증 게이트(실거래) %s → 비중 ×%.2f · %s",
+                        key, scale, g.get("why", ""))
+    return out
+
+
 def run_daily_live(targets=None, *, paper: bool = True,
                    state_dir: str = STATE_DIR, broker=None,
                    broker_name: str | None = None,
@@ -145,11 +227,50 @@ def run_daily_live(targets=None, *, paper: bool = True,
     orders, decisions, skipped = [], {}, []
     zero_qty: list = []          # 1주 미만이라 0주로 잘린 주문(감사 138)
     unfilled: list = []          # 접수됐지만 체결 0인 주문(감사 148)
+
+    # ── 시세 선취 + 계좌 자산 계산 (감사 258) ───────────────────────
+    #
+    # ⚠️ **왜 여기서 자산을 재는가.** 킬스위치는 '지금 계좌가 고점 대비
+    #    얼마나 깨졌나'로 판단하므로 **주문을 내기 전에** 계좌 전체 자산을
+    #    알아야 한다. 예전 이 함수는 종목 루프 안에서 그 종목 하나의
+    #    포지션만으로 equity를 냈고(현금 + 그 종목), 계좌 전체 자산은
+    #    어디에도 없었다 — 그래서 낙폭을 **잴 수조차 없었다.**
+    prices: dict = {}
+    frames: dict = {}
     for market, symbol in targets:
         try:
             df = get_provider(market).get_ohlcv(symbol, "1d", limit=400)
             if df.empty or df.attrs.get("synthetic_fallback"):
                 raise RuntimeError("실데이터 수신 실패")
+            frames[symbol] = df
+            prices[symbol] = float(df["close"].iloc[-1])
+        except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 나머지를 막지 않는다
+            skipped.append(symbol)
+            log.warning("실거래 %s 시세 스킵: %s", symbol, exc)
+
+    account_equity = _account_equity(broker, prices)
+
+    # 킬스위치·검증 게이트 — **페이퍼와 같은 함수를 부른다.**
+    #
+    # ⚠️ 2026-08-16까지 이 경로에는 둘 다 없었다(감사 258). 페이퍼 계좌는
+    #    낙폭이 커지면 자동으로 노출을 줄이고 과최적화 검증 결과를 비중에
+    #    곱하는데, **실제로 돈이 나가는 쪽에는 그 둘이 배선돼 있지 않았다.**
+    #    문서와 사이트는 "킬스위치가 실거래를 막는다"고 말하고 있었다.
+    #    이 파일은 같은 병을 이미 한 번 앓았다 — 재조정 밴드를 페이퍼만
+    #    고치고 실거래 경로는 옛 코드로 남겨 뒀던 2026-08-11이다.
+    #    규칙은 여기 다시 적지 않는다. 한 곳에서 가져와 곱하기만 한다.
+    risk_scale, drawdown = _kill_switch_for_live(state_dir, account_equity)
+    valid_damp = _validation_damping(targets, state_dir)
+    eff_exposure = exposure * risk_scale
+    if risk_scale < 1.0:
+        log.warning("🛡 킬스위치(실거래): 낙폭 %.1f%% → 노출 %.0f%%로 제한",
+                    drawdown * 100, risk_scale * 100)
+
+    for market, symbol in targets:
+        try:
+            df = frames.get(symbol)
+            if df is None:
+                continue                    # 위에서 이미 skipped에 담았다
             from quant.data.krx import attach_krx_flows
             df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
@@ -163,8 +284,13 @@ def run_daily_live(targets=None, *, paper: bool = True,
                 _load_paper(_paper_path(market, symbol, state_dir))
                 .get("history") or [])
             weight = max(-kcap, min(kcap, weight))
-            # 실거래는 롱온리·무레버리지 — 음수(숏)·1 초과는 자르고 노출 배수 적용
-            weight = max(0.0, min(1.0, weight)) * exposure
+            # 실거래는 롱온리·무레버리지 — 음수(숏)·1 초과는 자르고, 그다음
+            # **킬스위치·어드민 배수·검증 게이트**를 차례로 곱한다(감사 258).
+            # ⚠️ 자르기 **뒤**에 곱해야 한다. 앞에 두면 상한이 축소분을 다시
+            #    끌어올려 장치가 무력화된다 — 페이퍼에서 2026-08-11에 실제로
+            #    그렇게 킬스위치가 죽었고, 그래서 같은 순서를 여기서도 지킨다.
+            weight = max(0.0, min(1.0, weight)) * eff_exposure
+            weight *= valid_damp.get(f"{market}:{symbol}", 1.0)
             decisions[symbol] = round(weight, 4)
 
             code = symbol.split(".")[0]            # KIS PDNO = 6자리 코드
@@ -240,7 +366,18 @@ def run_daily_live(targets=None, *, paper: bool = True,
                # 별개라 이 칸이 없으면 "주문 N건"이 곧 "N종목을 샀다"로
                # 읽힌다 — zero_qty(감사 138)와 같은 병의 다른 단계다.
                "unfilled": unfilled,
-               "exposure_scale": exposure}
+               "exposure_scale": exposure,
+               # 계좌 전체 자산 — **낙폭을 재려면 이게 있어야 한다**(감사 258).
+               # 예전에는 주문 한 줄마다 '현금 + 그 종목' 값만 남고 계좌
+               # 자산은 어디에도 없었다. 그래서 킬스위치는 배선이 없던 게
+               # 아니라 **잴 재료조차 없었다.**
+               "equity": round(account_equity, 2) if account_equity else None,
+               # 오늘 실제로 적용된 자동 브레이크. 남기지 않으면 "왜 오늘
+               # 덜 샀나"에 장부가 답하지 못한다.
+               "risk_scale": risk_scale,
+               "drawdown_pct": round(drawdown * 100, 2),
+               "validation_gate": {k: v for k, v in valid_damp.items()
+                                   if v < 1.0} or None}
     try:
         import json
         from quant.utils.jsonio import atomic_write_json
