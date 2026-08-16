@@ -210,6 +210,33 @@ def latest_snapshot_day(state_dir: str) -> str | None:
     return days[-1] if days else None
 
 
+def fullest_snapshot_day(state_dir: str, lookback: int = 5) -> str | None:
+    """최근 `lookback`개 폴더 중 **종목이 가장 많이 담긴** 날(동률이면 최신).
+
+    ⚠️ 왜 '가장 최근'이 아닌가 — **하루가 통째로 안 찍히는 날이 있다.**
+       실측(2026-08-15, 토요일): 그날 스냅샷에는 코인 5종목만 저장됐다
+       (주식은 휴장이라 배치가 건너뜀). 그 폴더를 또래 풀로 쓰면 주식
+       종목이 **코인 5개하고만** 순위를 다투게 된다 — 실제로 NVDA 성적이
+       +43%에서 -3%로 뒤집혔다. 같은 함정을 횡단면 증거(crosssection)에서도
+       한 번 밟았다.
+
+    폴더 선택이 **넘겨받은 데이터와 무관**하다는 점이 중요하다 — 그래야
+    미래를 잘라내도 과거 신호가 변하지 않는다(인과성 검사). 대신 종목
+    **목록**에는 생존 편향이 있다(latest_snapshot_day의 주의와 동일).
+    """
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return None
+    days = sorted(d for d in os.listdir(base)
+                  if os.path.isdir(os.path.join(base, d)))
+    recent = days[-int(lookback):] if lookback > 0 else days
+    if not recent:
+        return None
+    return max(recent, key=lambda d: (
+        len([f for f in os.listdir(os.path.join(base, d))
+             if f.endswith(".csv.gz")]), d))
+
+
 def snapshot_pool_day(state_dir: str, cutoff: str) -> str | None:
     """cutoff보다 **엄격히 이전**인 최신 스냅샷 폴더명(없으면 None).
 
