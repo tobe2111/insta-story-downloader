@@ -101,6 +101,27 @@ DEFAULT_CHALLENGERS = [
     #    파라미터(pool: universe)에 그대로 남아 누구든 알아볼 수 있다.
     {"model": "gb", "threshold": 0.55, "pool": "universe"},
     {"model": "logreg", "threshold": 0.55, "pool": "universe"},
+    # 비중을 정하는 방식(sizing) — **오디션이 184회 동안 한 번도 안 흔든 축.**
+    #
+    # 기본값 "proba"는 확신도에 비례해 산다: 문턱 0.55에서 모델이 "60% 확률로
+    # 오른다"고 해도 실제로 사는 것은 자본의 11%다((0.60−0.55)/0.45). 모델
+    # 확률이 대부분 0.55~0.60에 몰려 있어 거의 늘 잔돈만 건다.
+    #
+    # 실측(2026-08-14 스냅샷, 주식 15종목·같은 비용):
+    #     시장에 들어가 있던 비율 44.7% · **평균 노출 0.09** (자본의 91%가 현금)
+    #                 평균 누적   샤프평균   최대낙폭평균   최악
+    #       proba       +9.1%     +0.48      -7.9%      -13.8%
+    #       binary     +25.3%     +0.61     -14.5%      -24.7%
+    #       그냥 보유   +134%        —       -39.9%      -75.5%
+    #
+    # 수익도 샤프도 binary가 낫고 낙폭은 보유의 1/3이다. 그렇다고 손으로
+    # 갈아치우지 않는다 — 저 숫자는 인샘플이고 한 구간이다. **후보로 세워
+    # 2단계 관문을 이기게 한다.** 데이터가 답하지 내가 답하지 않는다.
+    {"model": "logreg", "threshold": 0.55, "sizing": "binary"},
+    {"model": "gb", "threshold": 0.55, "sizing": "binary"},
+    # 문턱을 올리면 덜 자주 들어가되 들어갈 때 더 크게 건다 — 같은 축의
+    # 반대편 손잡이라 함께 세워야 무엇이 효과인지 갈린다.
+    {"model": "logreg", "threshold": 0.60, "sizing": "binary"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
     # ⭐ 벤치마크를 링에 세운다(2026-08-14). 사이트는 "그냥 보유" 곡선을
@@ -153,9 +174,13 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
             break
         p = dict(params)
         if spec["strategy"] == "ml":
+            # ⚠️ "sizing"이 없던 것이 2026-08-16에 드러났다. 이 축 하나가
+            #    평균 노출을 0.09로 묶어 자본의 91%를 현금으로 놀렸는데,
+            #    오디션 184회가 한 번도 여기를 흔들지 않았다. 없는 축은
+            #    영원히 진다 — 탐색 공간에 없으면 이길 기회조차 없다.
             axis = rng.choice(["model", "threshold", "train_window",
                                "retrain_every", "calibrate", "label",
-                               "sample_weight"])
+                               "sample_weight", "sizing"])
             if axis == "model":
                 p["model"] = rng.choice(["logreg", "rf", "gb", "vote"])
             elif axis == "threshold":
@@ -172,6 +197,8 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
                 if p["label"] == "triple":
                     p["label_k"] = rng.choice([1.0, 1.5, 2.0])
                     p["label_horizon"] = rng.choice([5, 10, 15])
+            elif axis == "sizing":
+                p["sizing"] = rng.choice(["proba", "binary"])
             elif axis == "sample_weight":
                 p["sample_weight"] = rng.choice([None, "decay"])
             else:
