@@ -51,36 +51,67 @@ def test_the_accuracy_helper_actually_returns_n():
     assert out["n"] > 0
 
 
-def test_the_site_shows_the_sample_when_it_is_thin():
-    # ⚠️ 예전에는 `const hn=` 뒤 **600자**만 잘라 봤다. 2026-08-14에 그 사이에
-    #    주석 몇 줄이 들어가자 검사가 빨개졌다 — 동작은 그대로인데 글자 위치가
-    #    밀린 것뿐이다. 이 저장소가 네 번 당한 계열(㉞ '구조를 봐야 하면 글자를
-    #    세지 않는다')이라, 창을 넓히지 말고 **적중률 칸 전체**를 본다.
-    seg = INDEX.split("const hn=", 1)
-    assert len(seg) == 2, "첫 화면이 표본 수를 읽지 않는다"
-    body = seg[1].split("</td>", 1)[0]
-    assert "hit_n" in INDEX
-    assert re.search(r"hn\s*<\s*\d+", body), "얇은 표본 문턱이 없다"
-    assert "n='+hn" in body, "표본 수를 화면에 적지 않는다"
+def test_the_site_asks_the_shared_rule_instead_of_its_own_threshold():
+    """⚠️ 이 감사(111)의 **기준은 나중에 틀린 것으로 드러났다** (2026-08-14).
+
+    여기서 정한 규칙은 'n<20이면 흐리게 + n 병기'였다. 방향은 맞았지만
+    기준이 표본 크기였다. 사장님이 "솔라나 64% n=11"을 지적해 20종목을
+    전부 재 봤더니 **19개**의 95% 신뢰구간이 50%를 품고 있었고, 그중에는
+    n=81짜리 60%(구간 50~70%)도 있었다 — 이 문턱을 통과해 아무 단서 없이
+    "60%"라는 단정으로 나가고 있었다. **n이 아니라 구간이 판정한다.**
+
+    그래서 문턱은 사라졌고 판정은 docs/assets/hitrate.js 한 곳으로 갔다.
+    이 검사는 '문턱이 다시 생기지 않는가'를 지킨다.
+    """
+    assert "QuantHitRate.format" in INDEX, "첫 화면이 공용 판정을 안 쓴다"
+    assert not re.search(r"hn\s*<\s*\d+", INDEX), (
+        "표본 크기 문턱이 되살아났다 — n=81짜리 60%가 그 문턱을 통과한다")
 
 
-def test_thin_samples_are_visually_muted():
-    """숨기지는 않되 확신처럼 보이지 않게 — 흐리게."""
-    assert re.search(r'hn!=null&&hn<\d+\?" sub"', INDEX), (
-        "표본이 얇은 적중률이 진한 숫자로 나간다 — 우연이 실력처럼 읽힌다")
+def test_inconclusive_rates_are_visually_muted():
+    """숨기지는 않되 확신처럼 보이지 않게 — 판정 불가면 흐리게.
+
+    흐리게 할지도 화면이 정하지 않는다. 판정과 표시를 다른 곳에서 정하면
+    "흐린데 문구는 단정"인 상태가 생긴다.
+    """
+    assert re.search(r'hf\.dim\?" sub"', INDEX), (
+        "판정 불가인 적중률이 진한 숫자로 나간다 — 우연이 실력처럼 읽힌다")
 
 
 def test_a_missing_rate_is_a_dash_not_a_zero():
     """값이 없을 때 0%로 보이면 '한 번도 못 맞췄다'로 읽힌다."""
-    body = INDEX.split("const hn=", 1)[1].split("</td>", 1)[0]
-    assert '"—"' in body
+    from quant.robustness.accuracy import hit_rate_text
+    assert hit_rate_text({}) == "N/A"
+    js = (ROOT / "docs" / "assets" / "hitrate.js").read_text("utf-8")
+    assert '"\u2014"' in js or '"—"' in js, "화면 쪽에 '—' 표기가 없다"
 
 
-def test_the_threshold_is_stated_once_not_scattered():
-    """문턱이 여러 값으로 흩어지면 표시와 색이 어긋난다."""
-    body = INDEX.split("const hn=", 1)[1].split("</td>", 1)[0]
-    thresholds = set(re.findall(r"hn\s*<\s*(\d+)", body))
-    assert len(thresholds) == 1, f"문턱이 여러 개다: {thresholds}"
+def test_the_verdict_is_decided_in_one_place_only():
+    """판정이 여러 곳에 흩어지면 페이지마다 다른 확신으로 나간다.
+
+    옛 검사는 '문턱이 한 값인가'를 봤다. 이제 문턱 자체가 없고, 지켜야 할
+    것은 **판정하는 곳이 하나인가**다(FROZEN_IDEAS ①).
+    """
+    # 이름이 아니라 **식의 몸통**을 본다 — QuantHitRate.wilsonCI를 부르는 것도
+    # 이름에는 'wilson'이 들어간다. 걸러야 할 것은 사본이지 호출이 아니다.
+    #
+    # ⚠️ 이 검사를 넣자마자 사본 **둘**이 걸렸다(2026-08-14): paper.html의
+    #    보정 곡선과 sns_card.html의 카드가 각자 같은 식을 적고 있었고,
+    #    sns_card 쪽 주석은 스스로 "paper.html이 쓰는 것과 같은 식"이라고
+    #    적어 두기까지 했다. 셋이 갈라지면 같은 표본이 화면·카드·알림에서
+    #    다른 폭으로 나간다.
+    body = re.compile(r"z\s*\*\s*z\s*/\s*\(\s*2\s*\*\s*n\s*\)")
+    for page in sorted((ROOT / "docs").glob("*.html")):
+        src = page.read_text("utf-8")
+        assert not body.search(src), f"{page.name}가 신뢰구간 식을 직접 적는다"
+    for page in ("index.html", "paper.html"):
+        src = (ROOT / "docs" / page).read_text("utf-8")
+        assert "QuantHitRate" in src, f"{page}가 공용 판정을 안 쓴다"
+    # 파이썬 쪽도 같다 — explain.py가 갖고 있던 사본은 n=0에서 터졌다.
+    hits = [p for p in (ROOT / "quant").rglob("*.py")
+            if p.name != "accuracy.py" and re.search(r"z\s*\*\s*z\s*/\s*\(\s*2\s*\*\s*n\s*\)",
+                                                     p.read_text("utf-8"))]
+    assert not hits, f"파이썬에 신뢰구간 사본이 있다: {[p.name for p in hits]}"
 
 
 # ── 라벨이 실제 계산과 같은가 (감사 112) ────────────────────────
@@ -96,27 +127,15 @@ def test_the_label_does_not_claim_a_window_the_value_does_not_have():
     paper = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "적중률(60일)" not in paper, (
         "장부에 남는 값은 전체 기간 적중률인데 열 이름이 '(60일)'이다")
-    # ⚠️ 예전 계약은 "'적중률(전체)'라고 적혀 있을 것"이었다. 2026-08-14
-    #    감사 240에서 **그 '(전체)'가 이미 오해였다**는 것이 드러났다 —
-    #    장부 전 기간이 아니라 과거 400봉이고, 그 400봉은 챔피언을 뽑은
-    #    구간과 100% 겹친다. 이름이 기간을 밝히는 것만으로는 부족하고
-    #    **무엇을 잰 값인지**를 밝혀야 한다.
-    #    그리고 **모든 적중률 열**을 본다 — 한 페이지에 같은 열이 두 번
-    #    나오는데 하나만 고치면 나머지가 조용히 옛 라벨로 남는다(형제 찾기).
+    # ⚠️ 라벨은 2026-08-14(감사 240)에 다시 바뀌었다. '적중률(전체)'은
+    #    **무엇을 잰 값인지** 말하지 않아 인샘플 숫자를 실전 성적으로 읽게
+    #    했다. 지금 라벨은 '과거 400봉 · 인샘플/실전'이다 — 기간만이 아니라
+    #    출처까지 밝힌다. 여기서 지킬 것은 특정 글자가 아니라 **기간과 출처를
+    #    밝히는가**이므로 그쪽을 본다.
     for page in ("paper.html", "index.html"):
         src = (ROOT / "docs" / page).read_text("utf-8")
-        assert "적중률(전체)" not in src, (
-            f"{page}: '(전체)'는 장부 전 기간으로 읽힌다 — 실제는 과거 400봉이다")
-        heads = re.findall(r'<th title="([^"]*)"[^>]*>적중률', src)
-        assert heads, f"{page}: 적중률 열에 설명이 없다"
-        for i, tip in enumerate(heads):
-            assert "400봉" in tip, f"{page} 적중률 열 #{i}: 무엇을 잰 값인지 안 밝힌다"
-            assert "인샘플" in tip, f"{page} 적중률 열 #{i}: 인샘플임을 안 밝힌다"
-        labels = re.findall(r'>적중률<br><span[^>]*>([^<]*)</span>', src)
-        assert len(labels) == len(heads), (
-            f"{page}: 적중률 열 {len(heads)}개 중 {len(labels)}개만 부제가 있다")
-        for i, lab in enumerate(labels):
-            assert "400봉" in lab, f"{page} 적중률 열 #{i}: 부제가 기간을 안 밝힌다"
+        assert "과거 400봉" in src, f"{page}: 적중률이 무엇을 잰 값인지 안 밝힌다"
+        assert "인샘플" in src, f"{page}: 인샘플이라는 사실을 안 밝힌다"
 
 
 def test_the_ledger_stores_the_overall_rate_not_the_rolling_one():

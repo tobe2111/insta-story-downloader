@@ -118,12 +118,14 @@ MIN_BAND_SAMPLES = 25
 
 
 def _wilson_ci(p: float, n: int, z: float = 1.96) -> tuple[float, float]:
-    """윌슨 신뢰구간(95%) — 소표본·극단 비율에서도 [0,1]을 벗어나지 않는다."""
-    import math
-    denom = 1.0 + z * z / n
-    center = (p + z * z / (2 * n)) / denom
-    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
-    return max(0.0, center - half), min(1.0, center + half)
+    """윌슨 신뢰구간(95%) — 공식은 accuracy.py 한 곳에만 둔다.
+
+    ⚠️ 여기 사본이 따로 있었다(2026-08-14 정리). 같은 공식을 두 곳에 적으면
+       반드시 어긋난다(FROZEN_IDEAS ①) — 실제로 이쪽 사본은 n=0에서 0으로
+       나눠 터졌다. 얇은 위임만 남긴다.
+    """
+    from quant.robustness.accuracy import wilson_ci
+    return wilson_ci(round(p * n), n, z)
 
 
 def _band_pairs(history: list, prob: float, band: float) -> list:
@@ -411,6 +413,14 @@ def _explain(spec: dict, df, weight: float, strategy,
         state = ("최근 돌파 후 추세 추종 중" if weight > 0
                  else f"{w_}일 최고가({hi:,.0f}) 돌파 대기")
         return f"{head} — 채널 돌파: {state}"
+
+    if name == "buy_hold":
+        # 이 해설은 사이트·방송에 그대로 나간다. "buy_hold 전략 신호에 따름"은
+        # 비개발자에게 아무 뜻이 없고, 무엇보다 **이 종목에서는 AI가 아니라
+        # 벤치마크가 이겼다**는 중요한 사실을 감춘다.
+        return (f"{head} — 매매 없이 보유: 이 종목은 오디션에서 **아무것도 "
+                "하지 않는 쪽**이 AI 전략을 이겼습니다(2단계 심사 통과). "
+                "매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다")
 
     if name == "momentum":
         lb = int(p.get("lookback", 60))

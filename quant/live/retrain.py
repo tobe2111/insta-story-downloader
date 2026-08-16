@@ -89,8 +89,34 @@ DEFAULT_CHALLENGERS = [
     # 시장 공통 패턴만 남고 종목 고유 잡음은 씻긴다(패널 모델 — 실무 표준).
     {"model": "gb", "threshold": 0.55, "pool": "peers"},
     {"model": "logreg", "threshold": 0.55, "pool": "peers"},
+    # 같은 풀링이지만 **오늘의 유니버스**로 푼다. "peers"는 인과성이 완벽한
+    # 대신 스냅샷이 쌓일 때까지(≈6개월) 아무 일도 하지 않는다 — 실측
+    # 2026-08-14: 재학습 블록 28/28에서 풀을 못 찾아 챔피언과 신호가 한 봉도
+    # 다르지 않았다. 그 사이 종목당 800봉이라는 극소 표본은 그대로다.
+    #
+    # ⚠️ 이 모드는 **생존 편향**을 감수한다. 가격 행은 학습 상한 이전만 쓰므로
+    #    룩어헤드는 없지만, 풀에 든 종목 목록은 '오늘까지 살아남은' 종목이라
+    #    사후 정보다. 그래서 강제 적용하지 않고 오디션 후보로만 세운다 —
+    #    2단계 관문을 통과할 때만 챔피언이 되고, 승격되면 그 사실이 장부의
+    #    파라미터(pool: universe)에 그대로 남아 누구든 알아볼 수 있다.
+    {"model": "gb", "threshold": 0.55, "pool": "universe"},
+    {"model": "logreg", "threshold": 0.55, "pool": "universe"},
     {"strategy": "ma_cross", "params": {"fast": 20, "slow": 60}},
     {"strategy": "breakout", "params": {"window": 55, "exit_window": 20}},
+    # ⭐ 벤치마크를 링에 세운다(2026-08-14). 사이트는 "그냥 보유" 곡선을
+    # 그려 보여주는데, **오디션 링에는 그 벤치마크가 없었다.** 그래서
+    # 시스템은 구조적으로 "들고 있는 게 낫다"를 발견할 수 없었다.
+    #
+    # 실측(스냅샷 20종목, 수수료 미반영): ML 샤프 중앙값 0.46 vs 보유 0.81.
+    # 예측 자체는 정상(적중률 54.3%)인데 노출이 ~30%뿐이라 상승장에서
+    # 구조적으로 진다. 사람이 한 번 알아채고 지나가는 대신, 링에 세워 두면
+    # 오디션이 매일 답한다.
+    #
+    # ⚠️ 보유가 이긴다고 '보유가 옳다'는 뜻은 아니다 — 하락을 그대로 다
+    #    맞고(최대낙폭), 이 비교에는 생존 편향이 깔려 있다. 그래서 다른
+    #    후보와 똑같은 2단계 관문을 통과해야만 챔피언이 되고, 승격돼도
+    #    총노출은 변동성 타깃·킬스위치·검증 게이트가 다시 깎는다.
+    {"strategy": "buy_hold", "params": {}},
 ]
 
 
@@ -193,6 +219,12 @@ def build_strategy(spec: dict):
         params = dict(spec.get("params", {}))
         inner = build_strategy(params.pop("inner"))
         return TrailingStopGuard(inner, **params)
+    if spec["strategy"] == "spec":
+        # 사용자가 자료(PDF·유튜브·트레이딩뷰)에서 가져온 명세. **도전자로만**
+        # 들어오고, 다른 후보와 똑같은 선발전·결승전·검증 게이트를 거친다.
+        # 명세는 데이터라 실행 권한이 없다 — 여기서 코드가 만들어지지 않는다.
+        from quant.ingest.spec import SpecStrategy, spec_from_dict
+        return SpecStrategy(spec_from_dict(spec["params"]["spec"]))
     from quant.strategies import get_strategy
     return get_strategy(spec["strategy"], **spec.get("params", {}))
 
@@ -295,6 +327,32 @@ def _audition_kwargs_from_record(rec: dict) -> dict:
     }
 
 
+# ── 선발전은 '선별기'지 '검정'이 아니다 ────────────────────────────────
+# 2026-08-14 실측(스냅샷 15종목, 후보 20개): 선발 문턱 2.45 · 결승 문턱 1.03
+# 이었고, **결승에 도달한 후보가 15종목에서 0개**였다. 결승전(선발전이 보지
+# 못한 최근 구간)은 이 설계의 핵심 방어선인데 한 번도 작동하지 않았다.
+#
+# 왜 뒤집혔나: 다중검정 보정 sqrt(2·ln N)을 **선발전**에 걸었다. 그런데
+# 선발전과 결승전은 **서로 겹치지 않는 구간**을 본다(select_df는 결승 구간을
+# 잘라낸다). 겹치지 않는 데이터에서 N개 중 1등을 고른 뒤 그 1명만 검정하면,
+# 그 검정은 이미 단일 검정이다 — 같은 날 후보가 몇 명이었든 결승전의 t는
+# 귀무가설 아래서 여전히 표준정규다. 코드 주석도 "최종 검정은 1회라 다중검정
+# 부풀림이 없다"고 적고 있었는데, 정작 보정은 선발전에 걸려 있었다.
+# 즉 **같은 다중성을 두 번 셌고**, 그 대가로 2단계 관문이 통째로 죽었다.
+#
+# 실측된 대가: ma_cross가 선발 t=1.96 · 3/3 폴드 전승 · 봉당 +5.43bp로 챔피언을
+# 이기고도 결승에 못 갔다. 문턱을 1.0으로 내렸을 때 15종목 중 8개가 결승에
+# 도달했고, 승격된 설정은 **오디션이 전혀 보지 못한 250봉**에서 3건 중 2건이
+# 이겼다(평균 +5.5bp/봉).
+#
+# ⚠️ 정직한 한계: 15종목·승격 3건은 통계적 증명이 아니다(전체 t≈0.8).
+#    이 변경의 근거는 그 숫자가 아니라 **구조**다 — 선별기가 자기가 먹여
+#    살리는 검정보다 엄격하면 그 검정은 정의상 아무것도 거르지 못한다.
+#    실제 다중성(매일·전 종목 반복)은 결승 문턱(confirm_threshold)이 계속
+#    맡는다. 이 값을 다시 올리려면 결승 문턱보다 낮게 유지해야 한다.
+SELECT_SCREEN_T = 1.0
+
+
 def nightly_retrain(
     df,
     champion_spec: dict,
@@ -302,7 +360,7 @@ def nightly_retrain(
     *,
     build: Callable[[dict], object] = build_strategy,
     confirm_window: int = 120,
-    select_t: float = 2.0,
+    select_t: float = SELECT_SCREEN_T,
     confirm_t: float = 1.0,
     min_obs: int = 60,
     edge: float = 0.0,
@@ -310,6 +368,7 @@ def nightly_retrain(
     select_folds: int = SELECT_FOLDS,
     next_open_fill: bool = False,
     rebalance_band: float = 0.0,
+    clamp_screen: bool = True,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -320,16 +379,32 @@ def nightly_retrain(
     연속 등분한 폴드 중 과반에서 이겨야 통과 — 전체 t-통계 하나는 한 구간의
     대박이 만든 착시일 수 있다(CPCV 경량판). 0이면 기존 동작(verify가 옛
     기록을 재현할 때 사용).
+
+    ⚠️ select_t는 **결승 문턱을 넘지 못한다**(SELECT_SCREEN_T 주석 참조).
+    선별기가 자기가 먹여 살리는 검정보다 엄격하면 결승전은 정의상 아무것도
+    거르지 못하고, 2단계 관문은 이름만 남는다. 넘겨받은 값이 더 크면
+    조용히가 아니라 **경고와 함께** 낮춘다.
     """
     from quant.live.champion_challenger import ChampionChallenger
 
     if len(df) <= confirm_window + min_obs:
-        return {"promoted": False, "reason": (
-            f"데이터 부족({len(df)}봉) — 선발전+결승전({confirm_window}봉)을 "
-            "나눌 수 없어 챔피언을 유지합니다."), "candidates": []}
+        # 이것도 '검증 못 한 날'이다 — 오디션이 아예 열리지 않았으므로
+        # 그날의 '챔피언 유지'는 검증 결과가 아니다(공회전과 같은 부류).
+        return {"promoted": False, "vacuous": True, "reason": (
+            f"⚠️ 평가 불가 — 데이터 부족({len(df)}봉)으로 선발전+결승전"
+            f"({confirm_window}봉)을 나눌 수 없어 오디션을 열지 못했습니다. "
+            "챔피언을 유지하지만 이는 검증 결과가 아닙니다."),
+            "candidates": [], "inert": []}
+
+    if clamp_screen and select_t > confirm_t:
+        log.warning(
+            "선발 문턱(%.2f)이 결승 문턱(%.2f)보다 엄격하다 — 결승전이 "
+            "무력화된다. 선발 문턱을 %.2f로 낮춘다.",
+            select_t, confirm_t, confirm_t)
+        select_t = confirm_t
 
     select_df = df.iloc[:-confirm_window]      # 선발전: 결승 구간을 전혀 못 본다
-    candidates = []
+    candidates, inert = [], []
     for spec in challenger_specs:
         if "strategy" in spec:                  # 다른 전략(전통 전략 등)의 도전
             full_spec = {"strategy": spec["strategy"],
@@ -350,6 +425,15 @@ def nightly_retrain(
         except Exception as exc:  # noqa: BLE001 — 후보 하나의 실패로 전체를 죽이지 않는다
             log.warning("챌린저 평가 실패 %s: %s", spec, exc)
             continue
+        if r.get("identical"):
+            # 챔피언과 한 봉도 다르지 않은 후보 — 설정만 다르고 하는 일은 같다.
+            # 후보로 세지 않는다(문턱·시도 수를 부풀리지 않게). 대신 무엇이
+            # 죽어 있었는지 이름을 남긴다 — 조용한 무효화가 감사 127을 몇 주
+            # 숨겼고, 여기서도 매일 두 개가 유령처럼 링에 올라와 있었다.
+            inert.append(full_spec)
+            log.warning("무효 후보(챔피언과 신호 동일) — 오디션에서 제외: %s",
+                        json.dumps(full_spec, ensure_ascii=False))
+            continue
         candidates.append({"spec": full_spec, **r})
 
     def _consistent(c: dict) -> bool:
@@ -359,12 +443,35 @@ def nightly_retrain(
             return True
         return c["fold_wins"] >= c["n_folds"] // 2 + 1
 
+    # 공회전 오디션 — 후보 대부분이 챔피언과 같은 신호를 냈다는 것은 그날의
+    # 대결이 아무것도 비교하지 못했다는 뜻이다. 실측(2026-08-14): 코인 5종목은
+    # 선발 구간이 180봉인데 챔피언의 학습창이 250봉이라 **한 번도 학습하지
+    # 못했고**, 후보 19개 중 18개가 신호 0으로 챔피언과 동일했다. 그런데도
+    # 장부에는 "후보 19개 — 챔피언 유지. 정상입니다"라고 적혔다.
+    # 검증하지 못한 것을 검증했다고 말하는 것이 이 저장소가 가장 경계하는 일이다.
+    vacuous = bool(inert) and len(candidates) <= max(1, len(inert) // 4)
+    if not candidates:
+        # 후보가 하나도 안 남은 두 경로를 구별한다. 둘 다 '검증 못 함'이지만
+        # 원인이 다르고, 뭉뚱그리면 고칠 곳을 못 찾는다.
+        why = (f"후보 {len(inert)}개가 **전부** 챔피언과 같은 신호를 냈습니다"
+               "(대결이 성립하지 않음). 데이터가 짧아 학습창·워밍업을 채우지 "
+               "못했을 가능성이 큽니다." if inert else
+               "세울 수 있는 후보가 하나도 없었습니다"
+               "(후보 목록이 비었거나 전부 평가 중 예외).")
+        return {"promoted": False, "vacuous": True, "reason": (
+            f"⚠️ 평가 불가 — {why} 이날의 오디션은 아무것도 검증하지 "
+            "못했습니다 — '이긴 후보가 없다'와 다릅니다."),
+            "candidates": candidates, "inert": inert}
+
     passed = [c for c in candidates if c["swap"] and _consistent(c)]
     if not passed:
-        return {"promoted": False, "reason": (
+        note = (f" ⚠️ 다만 후보 {len(inert) + len(candidates)}개 중 {len(inert)}개는 "
+                "챔피언과 신호가 같아 대결 자체가 성립하지 않았습니다."
+                if vacuous else " 정상입니다.")
+        return {"promoted": False, "vacuous": vacuous, "reason": (
             f"선발전에서 챔피언을 통계적으로 이긴 후보 없음"
-            f"(후보 {len(candidates)}개) — 챔피언 유지. 정상입니다."),
-            "candidates": candidates}
+            f"(실제 대결 {len(candidates)}개) — 챔피언 유지.{note}"),
+            "candidates": candidates, "inert": inert}
 
     best = max(passed, key=lambda c: c["t_stat"])
 
@@ -381,12 +488,14 @@ def nightly_retrain(
         return {"promoted": False, "reason": (
             "선발전 1위가 결승전(최근 미공개 구간)에서 검증 실패 — 챔피언 유지. "
             "선발전 성적은 우연이었을 가능성이 큽니다."),
-            "best_candidate": best, "final": final, "candidates": candidates}
+            "best_candidate": best, "final": final,
+            "candidates": candidates, "inert": inert}
 
     return {"promoted": True, "champion": best["spec"], "reason": (
         f"선발전 t={best['t_stat']:.2f}, 결승전 t={final['t_stat']:.2f} 모두 통과 "
         "— 새 챔피언으로 승격."),
-        "best_candidate": best, "final": final, "candidates": candidates}
+        "best_candidate": best, "final": final,
+        "candidates": candidates, "inert": inert}
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
@@ -465,14 +574,44 @@ def _normalize_challengers(specs: list[dict], champion: dict) -> list[dict]:
     return out
 
 
+def _user_specs(state_dir: str | None) -> list[dict]:
+    """사용자가 넣은 전략 명세 → 도전자. 없으면 빈 목록.
+
+    ⚠️ 문제가 있는 명세는 **조용히 건너뛰지 않는다.** 그러면 사용자는 자기
+       전략이 매일 밤 링에 선다고 믿는데 실제로는 한 번도 안 선다 — 이
+       저장소가 계속 잡아온 바로 그 침묵이다.
+    """
+    try:
+        from quant.ingest.registry import user_challengers
+        cands, notes = user_challengers(state_dir)
+    except Exception as exc:            # noqa: BLE001
+        print(f"  ⚠️ 사용자 전략을 읽지 못했습니다 — {exc}")
+        return []
+    for note in notes:
+        print(f"  ⚠️ {note}")
+    if cands:
+        print(f"  📎 사용자 전략 {len(cands)}개가 오늘 링에 섭니다 "
+              f"(다른 후보와 같은 심사를 받습니다).")
+    return cands
+
+
 def build_challengers(current_spec: dict, seed: str,
-                      evolve: bool = True) -> list[dict]:
+                      evolve: bool = True,
+                      state_dir: str | None = None) -> list[dict]:
     """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
 
-    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형.
+    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형
+    + **사용자가 자료에서 가져온 명세**(있으면).
+
     래핑된 챔피언에는 '벗긴 원본'을 도전시켜 되돌아갈 길을 항상 열어 둔다.
+
+    ⚠️ 사용자 명세는 여기 **도전자로** 들어온다. 챔피언으로 바로 가는 길은
+       없다 — 검증이 이 제품의 전부인데 새 전략만 그것을 건너뛰면 앞뒤가
+       안 맞는다. 그리고 후보가 늘어난 만큼 다중검정 문턱도 같이 올라간다
+       (호출부가 `len(challengers)`로 시도 수를 세므로 저절로 따라온다).
     """
     challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
+    challengers += _user_specs(state_dir)
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
@@ -508,6 +647,7 @@ def build_challengers(current_spec: dict, seed: str,
 # 총계 trials_total은 투명성 표시용으로 계속 쌓는다).
 TRIALS_WINDOW_DAYS = 365
 CONFIRM_T_CAP = 1.35
+
 
 
 def confirm_threshold(trials_recent: int) -> float:
@@ -607,7 +747,11 @@ def verify_retrain(asof: str, *, market: str | None = None,
             results.append({"key": key, "ok": False,
                             "detail": "champion_before 없음(구버전 기록)"})
             continue
+        # 사용자 명세는 **장부에 적힌 그날 것**을 쓴다(폴더가 아니라).
+        # 옛 기록에는 이 칸이 없다 — 그때는 기능이 없었으므로 빈 목록이
+        # 맞다. 폴더를 읽으면 오늘 폴더로 어제를 재현하게 된다.
         challengers = build_challengers(before, seed=rec["mutation_seed"])
+        challengers += list(rec.get("user_specs") or [])
         decision = nightly_retrain(
             df, before, challengers, confirm_window=confirm_window,
             select_t=float(rec.get("select_t", 2.0)),
@@ -615,6 +759,10 @@ def verify_retrain(asof: str, *, market: str | None = None,
             # 옛 기록(폴드 게이트 이전)은 0으로 재현 — 알고리즘 진화가
             # 과거 결정의 재현 검증을 깨뜨리지 않게 장부 값을 따른다.
             select_folds=int(rec.get("select_folds", 0)),
+            # 관문 세대 — v2부터 '선별기는 검정보다 엄격할 수 없다'는 규칙이
+            # 생겼다. 옛 기록(v1)은 그 규칙이 없던 세계의 결정이므로 그대로
+            # 재현한다. 과거 기록은 고치지 않는다.
+            clamp_screen=int(rec.get("gate_version", 1)) >= 2,
             # 그날의 오디션 조건을 장부에서 그대로 되살린다. 실측 비용은
             # 날마다 변하므로 '오늘 값'으로 어제 결정을 재생하면 재현이
             # 깨진다 — 결정의 전제는 결정과 함께 보존돼야 한다.
@@ -691,18 +839,25 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
 
     # ── 다중검정 보정 — 오디션을 반복할수록 '운 좋은 승자'가 나올 확률이
     # 커진다. 누적 시도 횟수를 장부에 남기고, 그에 비례해 승격 관문을 높인다.
-    #   선발전: 그날 후보 수 N의 기대 최댓값 근사 sqrt(2·ln N) 이상을 요구
+    #   선발전: **선별기**다. 고정 스크리닝 문턱(SELECT_SCREEN_T)만 쓴다.
     #   결승전: '최근 1년' 시도 수에 로그 비례 + 상한(진화가 영원히 멈추는
     #   것을 방지) — DSR 정신의 보수적 근사. 누적 총계는 표시용으로만 쌓는다.
+    #
+    # ⚠️ 예전에는 선발전에 sqrt(2·ln N)을 걸었다. 선발전과 결승전은 겹치지
+    #    않는 구간을 보므로 **같은 날 후보 수는 결승전을 부풀리지 않는다** —
+    #    그 보정을 선발전에 또 거는 것은 같은 다중성을 두 번 세는 것이었고,
+    #    그 결과 결승전이 한 번도 작동하지 않았다(2026-08-14 실측 15/15).
+    #    진짜 다중성은 '매일 반복'이고 그건 결승 문턱이 계속 맡는다.
     n_cand = len(challengers)
     trials_total = int(entry.get("trials_total", 0)) + n_cand
     entry["trials_total"] = trials_total
     trials_recent = recent_trials(market, symbol, asof, state_dir) + n_cand
-    select_t_eff = max(2.0, math.sqrt(2 * math.log(max(2, n_cand))))
     confirm_t_eff = confirm_threshold(trials_recent)
+    # 선별기는 자기가 먹여 살리는 검정보다 엄격할 수 없다.
+    select_t_eff = min(SELECT_SCREEN_T, confirm_t_eff)
     print(f"  🔬 다중검정 보정: 오늘 후보 {n_cand}개 · 최근 1년 "
           f"{trials_recent:,}개 · 누적 검증 도전자 {trials_total:,}개 → "
-          f"선발 t≥{select_t_eff:.2f} · 결승 t≥{confirm_t_eff:.2f}"
+          f"선발(선별) t≥{select_t_eff:.2f} · 결승(판정) t≥{confirm_t_eff:.2f}"
           f" (상한 {CONFIRM_T_CAP})")
 
     # 오디션 환경을 실제 운용 환경과 맞춘다 — '챔피언을 뽑는 세계'와 '돈이
@@ -780,9 +935,19 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "champion_strategy": decided["strategy"],
         "champion_before": current_spec,       # verify가 대결을 재구성할 출발점
         "n_candidates": len(decision.get("candidates", [])),
+        # 무효 후보 — 챔피언과 신호가 한 봉도 다르지 않아 링에서 뺀 설정들.
+        # 이름을 남긴다: 어떤 기능이 '시험 중'인 척하며 실제로는 꺼져 있었는지
+        # 장부만 봐도 드러나야 한다(감사 127의 재발 방지).
+        "inert_candidates": decision.get("inert", []),
+        # 공회전 표식 — 후보 대부분이 챔피언 사본이라 대결이 성립하지 않은 날.
+        # '이긴 후보가 없다'(정상)와 '비교를 못 했다'(고장)는 다른 사건이다.
+        "vacuous": bool(decision.get("vacuous")),
         "trials_total": trials_total,
         "select_t": round(select_t_eff, 3), "confirm_t": round(confirm_t_eff, 3),
         "select_folds": SELECT_FOLDS,  # 폴드 일관성 게이트 — verify 재현용
+        # 관문 세대 — v2: 선발전은 선별기, 다중검정 보정은 결승전이 맡는다.
+        # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
+        "gate_version": 2,
         # 그날 실제로 나온 숫자(감사 235). 문턱만 적고 기록을 안 적으면
         # "왜 안 바뀌었나"에 장부가 답하지 못한다.
         "audition_result": audition_evidence(decision),
@@ -797,6 +962,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         },
 
         "mutation_seed": f"{asof}:{key}",
+        # ⚠️ 그날 링에 선 **사용자 명세를 그대로** 남긴다. 사용자가
+        #    자료를 추가·삭제하면 폴더는 바뀌지만 어제의 결정은 어제의
+        #    링에서 나온 것이다. 폴더를 다시 읽어 재현하면 "재현 실패"가
+        #    뜨는데 원인은 결함이 아니라 폴더 변경이고, 그러면 재현
+        #    검사가 늑대소년이 된다(감사 습관: 결정의 전제는 결정과
+        #    함께 보존한다).
+        "user_specs": [c for c in challengers if c.get("strategy") == "spec"],
         "code_sha": code_sha(),
         "data_sha256": data_sha256(df),
         "env": env_fingerprint(),      # 라이브러리 버전 차이로 인한 불일치 판별용

@@ -211,7 +211,12 @@ def test_admin_exposure_scale_actually_reduces_gross(monkeypatch, tmp_path):
     for scale in (0.5, 0.25):
         _settings(monkeypatch, exposure_scale=scale)
         got = _run(monkeypatch, tmp_path / f"s{scale}", prov)["record"]["weight"]
-        assert got == pytest.approx(full * scale, rel=1e-6), (
+        # ⚠️ 장부의 weight는 소수 4자리로 반올림된 값이다. 비례 관계는 그
+        #    격자보다 더 정밀하게 확인할 수 없다 — rel 허용오차만 두면
+        #    총노출이 작아지는 변경(2026-08-14 검증 게이트)에서 반올림만으로
+        #    깨진다. 검사의 뜻은 "손잡이가 총노출을 그만큼 줄인다"이지
+        #    "부동소수까지 똑같다"가 아니다.
+        assert got == pytest.approx(full * scale, rel=1e-6, abs=1e-4), (
             f"노출 배수 {scale}인데 총노출이 {got:.4f} (기대 {full * scale:.4f})")
 
 

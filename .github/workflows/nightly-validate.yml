@@ -27,7 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     # 매달림 방어(2026-08-11 감사 77) — 무제한이면 배치가 멈춘 채
     # 몇 시간을 태우고 로그도 안 남는다. 값은 실측 최대의 3배 이상.
-    timeout-minutes: 60
+    # 2종목 → 20종목으로 늘리며 상향(2026-08-14). 실측: ml 1종목 49초
+    # (800봉·그리드 4조합) → 20종목 ~17분. 러너가 느린 경우를 3배로 잡아도
+    # 60분 안이지만, 재현성 감사까지 같은 잡에 있으므로 여유를 둔다.
+    # 상한(120분)은 tests/test_workflow_timeouts.py가 강제한다 —
+    # 지나치게 크면 '매달림 방어'가 의미를 잃는다.
+    timeout-minutes: 120
     defaults:
       run:
         # 명시적 bash → pipefail 활성화. `python … | tee`에서 python 쪽 실패가
@@ -48,41 +53,51 @@ jobs:
           # ci.yml의 핵심 의존성 + 실데이터 소스(yfinance: 주식, ccxt: 코인)
           # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
           # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
-          pip install -r requirements.txt cryptography
+          pip install -r requirements.txt -r requirements-extra.txt
 
       - name: 실데이터 확인 (합성 폴백이면 즉시 실패)
         # CLI 출력만으로는 폴백 여부를 알 수 없으므로(attrs는 CLI 밖) 여기서
         # 직접 데이터를 받아 attrs["synthetic_fallback"]을 검사한다.
+        #
+        # ⚠️ 종목 목록을 여기 손으로 적지 않는다(2026-08-14). 예전에는
+        #    ("crypto","BTC/USDT")·("us_stock","SPY") 두 줄이 박혀 있었고,
+        #    운용이 8종목 → 20종목으로 늘 때 이 파일은 따라가지 않았다.
+        #    나머지 18종목은 PBO·DSR이 한 번도 계산된 적이 없었는데 제품
+        #    문서는 "검증을 통과한 전략만 씁니다"라고 말하고 있었다.
         run: |
           python - <<'PY'
           from quant.data import get_provider
+          from quant.markets import AUTO_TARGETS
 
-          for market, symbol in (("crypto", "BTC/USDT"), ("us_stock", "SPY")):
-              df = get_provider(market).get_ohlcv(symbol, "1d", limit=800)
+          bad = []
+          for market, symbol in AUTO_TARGETS:
+              try:
+                  df = get_provider(market).get_ohlcv(symbol, "1d", limit=800)
+              except Exception as exc:
+                  bad.append(f"{market}/{symbol}: {type(exc).__name__}: {exc}")
+                  continue
               if df.attrs.get("synthetic_fallback"):
-                  raise SystemExit(
-                      f"❌ {market}/{symbol}: 실데이터 수신 실패 → 합성 폴백 감지. "
-                      "실데이터 없이 검증은 무의미하므로 잡을 실패시킵니다. "
-                      "(데이터 소스/네트워크 상태를 확인하세요)")
+                  bad.append(f"{market}/{symbol}: 합성 폴백 감지")
+                  continue
               print(f"✅ {market}/{symbol}: 실데이터 {len(df)}봉 수신")
+          if bad:
+              raise SystemExit(
+                  "❌ 실데이터 수신 실패 — 실데이터 없이 검증은 무의미하므로 "
+                  "잡을 실패시킵니다:\n  " + "\n  ".join(bad))
           PY
 
       # ⚠️ 실제로 굴리는 전략을 검증한다. 예전에는 --strategy ma_cross를
       #    검증했는데, 챔피언은 20종목 전부 ml이었다 — 아무도 안 쓰는 전략을
       #    검증하는 과최적화 감시는 감시가 아니다(2026-08-11 발견).
-      - name: Validate crypto (BTC/USDT · 실전 전략 ml)
+      #
+      # --all은 quant.markets.AUTO_TARGETS를 돈다. 운용 종목을 늘리면 검증도
+      # 자동으로 따라온다 — 목록이 두 곳에 있으면 반드시 갈라진다.
+      - name: Validate 전 종목 (운용 대상 전체 · 실전 전략 ml)
         continue-on-error: false
         run: |
-          python -m quant validate --market crypto --symbol BTC/USDT \
+          python -m quant validate --all \
             --strategy ml --limit 800 --save state/validation.json \
-            | tee validate-crypto.txt
-
-      - name: Validate us_stock (SPY · 실전 전략 ml)
-        continue-on-error: false
-        run: |
-          python -m quant validate --market us_stock --symbol SPY \
-            --strategy ml --limit 800 --save state/validation.json \
-            | tee validate-us-stock.txt
+            | tee validate-all.txt
 
       # 재현성 감사 — 어제의 재학습 결정을 저장된 스냅샷으로 되돌려 같은
       # 결론이 나오는지 확인한다.
@@ -145,8 +160,7 @@ jobs:
         with:
           name: validate-${{ github.run_id }}
           path: |
-            validate-crypto.txt
-            validate-us-stock.txt
+            validate-all.txt
           if-no-files-found: ignore
       - name: 실패 경보 (디스코드/텔레그램)
         # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.

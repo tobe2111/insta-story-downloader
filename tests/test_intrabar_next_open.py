@@ -228,12 +228,23 @@ def test_pending_stock_order_fills_at_the_next_session_open(monkeypatch,
     assert fill["key"] == "us_stock:SPY"
     assert fill["type"] == "시가"
 
-    # 체결가는 '결정 다음 봉의 시가'와 정확히 같아야 한다 — 종가가 아니라
+    # 체결가는 '결정 다음 봉의 시가'와 정확히 같아야 한다 — 종가가 아니라.
+    #
+    # ⚠️ 단, 통합 계좌는 **원화 계좌**다(감사 254). 예전 이 검사는 달러 시가와
+    #    글자 그대로 같기를 요구했고, 그래서 **환산이 빠진 상태를 정답으로
+    #    고정하고 있었다** — 2026-08-15에 100만원 계좌의 자산이 7,249만원으로
+    #    찍힌 그 상태다. 여기서 지킬 것은 '언제(시가)'와 '얼마(원화 환산)'
+    #    둘 다이므로, 환산까지 포함해서 본다.
     import pytest as _pt
-    nxt_bar, nxt_open = dl._first_bar_after(full.iloc[:301], decided)
+    nxt_bar, nxt_open_local = dl._first_bar_after(full.iloc[:301], decided)
+    nxt_open = nxt_open_local * 1400.0          # 위에서 고정한 원/달러
     assert fill["bar"] == nxt_bar
-    assert fill["price"] == _pt.approx(round(nxt_open, 6))
-    assert fill["price"] != _pt.approx(float(full.loc[nxt_bar, "close"])), \
+    assert fill["price"] == _pt.approx(round(nxt_open, 6)), (
+        "체결가가 원화로 환산되지 않았다 — 달러로 사서 원화로 평가하게 된다")
+    assert fill["price"] != _pt.approx(nxt_open_local), (
+        "체결가가 달러 그대로다 — 계좌 안에 두 통화가 섞인다")
+    assert fill["price"] != _pt.approx(
+        float(full.loc[nxt_bar, "close"]) * 1400.0), \
         "체결가가 그 봉의 종가와 같다 — 시가 체결이 아니다"
 
     # 체결됐으니 포지션이 잡힌다

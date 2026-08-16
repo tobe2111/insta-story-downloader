@@ -138,7 +138,14 @@ def test_retrain_multiple_testing_ledger_and_verify(tmp_path):
         assert rec["mutation_seed"] == f"{rec['asof']}:synthetic:DEMO"
         assert len(rec["data_sha256"]) == 64 and rec["code_sha"]
         assert rec["trials_total"] == n1
-        assert rec["select_t"] >= 2.0
+        # 관문 불변식 — 선별기(선발전)는 자기가 먹여 살리는 검정(결승전)보다
+        # 엄격할 수 없다. 2026-08-14 이전에는 여기서 select_t ≥ 2.0을
+        # 요구했는데, 그 값이 결승 문턱(≈1.03)보다 높아 결승전이 한 번도
+        # 열리지 않았다 — 검사가 그 역전을 못박고 있었다.
+        assert 0.0 < rec["select_t"] <= rec["confirm_t"], (
+            f"선별 t={rec['select_t']} > 결승 t={rec['confirm_t']} — "
+            "결승전이 무력화된 설정이 장부에 남았다")
+        assert rec["gate_version"] >= 2
         assert 1.0 <= rec["confirm_t"] <= rt.CONFIRM_T_CAP  # 상한 안에서만 상승
         assert rec["env"].startswith("py")                  # 환경 지문 기록
         # 입력 스냅샷이 보존됐다

@@ -193,6 +193,23 @@ def load_snapshot(state_dir: str, asof: str, market: str, symbol: str):
         return pd.read_csv(f, index_col=0, parse_dates=True)
 
 
+def latest_snapshot_day(state_dir: str) -> str | None:
+    """cutoff와 무관하게 **가장 최근** 스냅샷 폴더명 (없으면 None).
+
+    ⚠️ 이것을 학습 풀로 쓰면 **생존 편향**이 들어온다 — 폴더에 든 종목 목록은
+    '오늘까지 살아남아 유니버스에 있는' 종목이기 때문이다. 가격 값 자체는
+    호출자가 학습 상한 이전 행만 쓰므로 룩어헤드가 아니지만, 종목 **선정**은
+    사후 정보다. 쓰는 쪽(MLStrategy pool="universe")이 그 사실을 이름과
+    문서로 드러내야 한다. 엄격한 인과성이 필요하면 snapshot_pool_day를 쓸 것.
+    """
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return None
+    days = sorted(d for d in os.listdir(base)
+                  if os.path.isdir(os.path.join(base, d)))
+    return days[-1] if days else None
+
+
 def snapshot_pool_day(state_dir: str, cutoff: str) -> str | None:
     """cutoff보다 **엄격히 이전**인 최신 스냅샷 폴더명(없으면 None).
 
@@ -216,11 +233,23 @@ def load_snapshot_pool(state_dir: str, cutoff: str) -> list:
     당일 스냅샷을 하나씩 채우는 중이라, 당일 폴더는 실행 시점마다 내용물이
     달라 verify 재현이 깨진다(하루 지연은 학습 풀에 무해).
     """
-    import pandas as pd
     day = snapshot_pool_day(state_dir, cutoff)
-    if day is None:
+    return load_snapshot_pool_day(state_dir, day) if day else []
+
+
+def load_snapshot_pool_day(state_dir: str, day: str | None) -> list:
+    """지정한 스냅샷 폴더의 전 종목 df 목록 — 폴더 선택 규칙과 분리한다.
+
+    '어느 날 폴더를 쓸 것인가'는 정책이고(엄격한 인과성 vs 오늘의 유니버스),
+    '그 폴더를 읽는다'는 기계다. 둘을 한 함수에 두면 정책을 바꿀 때마다
+    읽기 코드가 복제된다.
+    """
+    import pandas as pd
+    if not day:
         return []
     day_dir = os.path.join(state_dir, SNAP_DIR, day)
+    if not os.path.isdir(day_dir):
+        return []
     out = []
     for name in sorted(os.listdir(day_dir)):
         if not name.endswith(".csv.gz"):

@@ -16,6 +16,7 @@ import math
 
 import pandas as pd
 
+from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.openinterest")
@@ -100,6 +101,9 @@ def attach_open_interest(df: pd.DataFrame, symbol: str,
     try:
         s = fetch(symbol)
         if s is None or s.empty:
+            note_source_failure(df, "oi",
+                                "미결제약정 이력이 비어 있음(거래소 미지원·"
+                                "지역 차단·심볼 불일치 가능)")
             return df
         out = df.copy()
         target = pd.DatetimeIndex(out.index).normalize()
@@ -108,4 +112,5 @@ def attach_open_interest(df: pd.DataFrame, symbol: str,
         return out
     except Exception as exc:  # noqa: BLE001
         log.warning("OI 부착 실패(%s) — 원본 유지", exc)
+        note_exception(df, "oi", exc)
         return df

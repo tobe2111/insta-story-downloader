@@ -253,3 +253,43 @@ def test_admin_does_not_invent_a_derived_number():
     assert "vt.ex_ante/last.weight" not in body.replace(" ", ""), (
         "스케일 전후가 다른 두 값을 나눠 파생 수치를 만든다")
     assert "전액투자 환산" not in body
+
+
+# ── 화면 안에 박힌 '장부가 없을 때의 원금' ──────────────────────────
+
+def test_the_pages_fall_back_to_the_configured_start_cash():
+    """장부를 못 읽는 순간 화면이 쓰는 숫자도 설정을 따라가야 한다.
+
+    ⚠️ 왜 필요한가 (2026-08-14). 시작금을 8만원 → 100만원으로 고쳤는데,
+       화면 세 곳(`index`·`today`·`sns_card`)에는 `p.start_cash||80000`
+       처럼 **옛 금액이 그대로 박혀 있었다.** 평소에는 장부에 start_cash가
+       있어 안 드러난다. 드러나는 때는 하필 최악이다 — 장부를 못 읽었거나
+       계좌를 막 다시 연 순간, 즉 사람이 화면을 제일 유심히 보는 때다.
+
+       감사 89("종목 수를 산문에 박지 마라")와 같은 결함이고, 그때 종목
+       수에만 걸어 둔 그물을 금액에도 건다.
+
+       여기 숫자를 literal로 적으면 이 검사도 같은 병에 걸린다 —
+       **코드에서 읽어** 대조한다.
+    """
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH, START_CASH
+
+    # 계좌는 두 종류다 — 통합 계좌(100만원)와 종목별 참고 계좌(각 1만원).
+    # 화면은 문맥에 따라 둘 중 하나로 되돌아간다. 셋째 숫자가 나오면
+    # 그건 어느 계좌도 아닌, 누군가 그때그때 박아 둔 값이다.
+    ok = {int(PORTFOLIO_START_CASH), int(START_CASH)}
+    pat = re.compile(r"(?:start_cash|principal)\s*(?:\|\||[:?])\s*(\d{4,})")
+    bad: list[str] = []
+    for page in ("index.html", "today.html", "sns_card.html", "paper.html"):
+        src = (ROOT / "docs" / page).read_text("utf-8")
+        for m in pat.finditer(src):
+            if int(m.group(1)) not in ok:
+                bad.append(f"{page}: {m.group(0)}")
+    assert not bad, (
+        f"화면이 설정({sorted(ok)})과 다른 기본 원금을 갖고 있다: {bad}")
+    # 그리고 통합 계좌 폴백이 **적어도 한 곳에는** 있어야 한다 —
+    # 정규식이 아무것도 못 찾아도 통과하면 이 검사는 빈 그물이다.
+    joined = "".join((ROOT / "docs" / p).read_text("utf-8")
+                     for p in ("index.html", "today.html", "sns_card.html"))
+    assert str(int(PORTFOLIO_START_CASH)) in joined, (
+        "통합 계좌 폴백을 하나도 못 찾았다 — 검사가 낡았다")

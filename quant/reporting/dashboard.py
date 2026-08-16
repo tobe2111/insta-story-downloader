@@ -23,6 +23,7 @@ from typing import Sequence
 # ledger_basics는 표준 라이브러리만 쓴다 — 이 파일의 "의존성 0" 성질이
 # 유지된다. 그 가벼움이 이 판정을 공유할 수 있게 해 준 조건이다(감사 197).
 from quant.live.ledger_basics import equity_curve_kpis
+from quant.robustness.accuracy import hit_rate_text
 
 
 def _sparkline(values: Sequence[float], width: int = 760, height: int = 180,
@@ -101,10 +102,14 @@ def build_dashboard_html(state: dict) -> str:
     last_weight = history[-1].get("weight", 0.0) if history else 0.0
     # 방향 예측 정확도(최근 우선, 없으면 전체) — 자동학습 상태에만 존재할 수 있음
     last = history[-1] if history else {}
+    # ⚠️ 비율만 크게 쓰지 않는다(2026-08-14). 신뢰구간이 50%를 품으면 그
+    #    표본으로는 "맞힌다"고 말할 수 없다 — 서식 규칙은 robustness/accuracy.py
+    #    한 곳에 있고 화면(assets/hitrate.js)도 같은 판정을 쓴다.
     acc = last.get("recent_hit_rate")
     if acc is None or acc != acc:              # None 또는 NaN이면 전체값으로
-        acc = last.get("hit_rate")
-    acc_txt = f"{acc:.1%}" if isinstance(acc, (int, float)) and acc == acc else "N/A"
+        acc_txt = hit_rate_text(last, key="hit_rate", n_key="n")
+    else:
+        acc_txt = hit_rate_text(last, key="recent_hit_rate", n_key="recent_n")
     orders = state.get("orders", [])
     # 단일 종목("position": dict) 또는 다중 종목("positions": list) 모두 지원
     positions = state.get("positions")

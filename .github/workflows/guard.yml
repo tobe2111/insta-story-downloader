@@ -1,0 +1,67 @@
+name: Intraday Guard
+
+# 장중 감시 — 새벽 배치를 기다리지 않고 지금 낙폭을 재고 킬스위치를 적용한다.
+#
+# ⚠️ 왜 있는가 (2026-08-14, 선물 준비 ②단계).
+#    킬스위치(-15%/-25%)는 새벽 배치에서 하루 한 번 돈다. 현물은 그래도 된다 —
+#    최악이어도 자산이 0 아래로 안 가니 다음 아침에 처리하면 된다.
+#    레버리지는 그 전제가 깨진다. 거래소는 실시간으로 청산하고 우리는 배치가
+#    돌 때만 본다. 그 사이에 끝나면 킬스위치는 선언만 남는다.
+#
+# ⚠️ **이 잡의 진짜 산출물은 심장박동이다.** 감시 자체보다, "우리가 실제로
+#    얼마나 자주 봤는가"를 실측으로 남기는 것이 중요하다. 레버리지 한도는
+#    설정한 주기가 아니라 **관측된 최악 간격**으로 계산된다
+#    (quant/risk/leverage_gate.py). 기록이 없으면 레버리지는 잠긴 채다.
+#
+# 정직한 한계: GitHub Actions 크론은 정시에 안 돈다(수 분~수십 분 지연이 흔하다).
+# 그래서 "15분마다 설정했으니 15분"이라고 적지 않고, 매 회차 시각을 남겨
+# 실제 간격을 재게 했다. 지연이 곧 한도에 반영된다 — 그게 맞다.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"      # 15분마다 (실제 간격은 심장박동이 말한다)
+  workflow_dispatch:
+
+concurrency:
+  group: intraday-guard
+  cancel-in-progress: false     # 겹치면 건너뛰지 말고 줄 세운다(기록 연속성)
+
+permissions:
+  contents: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+      - name: 장중 감시 1회
+        run: python -m quant guard --state-dir state
+      - name: 심장박동·조치 커밋
+        run: |
+          set -euo pipefail
+          git config user.name "quant-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state/guard_heartbeat.json state/paper || true
+          # 바뀐 게 없으면 조용히 끝낸다 — 빈 커밋으로 이력을 더럽히지 않는다.
+          if git diff --cached --quiet; then
+            echo "변화 없음 — 커밋 생략"
+            exit 0
+          fi
+          # [skip actions] — 표식이 없으면 하루 96번 전체 검사를 돌린다.
+          # `[skip ci]`가 아닌 이유: 그건 Cloudflare 배포까지 건너뛴다
+          # (2026-08-10 실제 사고 — 커밋은 됐는데 사이트가 조용히 낡았다).
+          git commit -m "🛡️ 장중 감시 기록 [skip actions]"
+          # 15분마다 도는 잡이라 push 충돌이 잦다. 리베이스 후 재시도.
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && \
+              git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((i * 5))
+          done
+          echo "::error::심장박동을 밀어 넣지 못했습니다 — 다음 회차가 이어서 남깁니다"
+          exit 1

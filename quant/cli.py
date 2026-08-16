@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import argparse
+import copy as _copy
+import pathlib as _pathlib
 
 
 def _data_note(df, market: str) -> str:
@@ -246,7 +248,7 @@ def _cmd_paper_daily(args) -> None:
         # 실패 알림은 lines가 비어도 나가야 한다 — 전 종목이 휴장·스킵이면
         # lines가 비는데, 예전에는 그때 실패 목록까지 함께 삼켜졌다.
         if lines or out["failed"]:
-            _notify_extra("📅 8마일 챌린지 오늘 기록\n" + "\n".join(lines)
+            _notify_extra("📅 100만 챌린지 오늘 기록\n" + "\n".join(lines)
                           + (f"\n⚠️ 실패 {len(out['failed'])}종목: "
                              f"{', '.join(out['failed'])}"
                              if out["failed"] else ""))
@@ -506,6 +508,104 @@ def _cmd_weekly(args) -> None:
         _notify_extra(text)
 
 
+def _cmd_guard(args) -> None:
+    """장중 감시 1회 — 새벽 배치를 기다리지 않고 지금 낙폭을 잰다.
+
+    ⚠️ 지금(현물·레버리지 없음)은 이 명령이 **없어도 안전하다** — 자산이 0
+       아래로 안 가기 때문이다. 이건 레버리지를 열기 위한 준비이고, 동시에
+       "우리는 얼마나 자주 보고 있는가"를 실측으로 남기는 장치다.
+       그 실측이 없으면 레버리지 한도를 계산할 수 없다(risk/leverage_gate).
+    """
+    import datetime as dt
+    import json as _json
+    import os as _os
+
+    from quant.live.guard import guard_once, observed_gap_minutes
+    from quant.live.ledger_basics import chrono
+
+    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    path = _os.path.join(args.state_dir, "paper", args.state_file)
+    try:
+        with open(path, encoding="utf-8") as f:
+            st = _json.load(f)
+    except (OSError, _json.JSONDecodeError) as exc:
+        print(f"❌ 장부를 읽지 못했습니다({path}): {exc}")
+        raise SystemExit(1) from exc
+
+    hist = chrono(st.get("history") or [])
+    eqs = [float(r["equity"]) for r in hist if r.get("equity") is not None]
+    if not eqs:
+        print("기록이 없어 낙폭을 잴 수 없습니다 — 심장박동만 남깁니다.")
+        from quant.live.guard import record_heartbeat
+        record_heartbeat(now, state_dir=args.state_dir)
+        return
+
+    v = guard_once(eqs[-1], max(eqs), float(st.get("risk_scale", 1.0)),
+                   now_iso=now, state_dir=args.state_dir)
+    gap = observed_gap_minutes(args.state_dir, now_iso=now)
+    print(f"🛡️ 장중 감시 — {v.reason}")
+    print(f"   관측된 최악 감시 간격: "
+          + (f"{gap:,.0f}분" if gap is not None else "아직 모름(기록이 모자람)"))
+    if v.acted:
+        # ⚠️ 노출 축소를 **장부에 적는다.** 감시가 판단만 하고 장부를 안
+        #    고치면 다음 배치가 옛 노출로 되돌린다 — 그러면 이 감시는
+        #    '선언만 하는 장치'가 된다(이 저장소가 가장 경계하는 것).
+        st["risk_scale"] = v.scale
+        from quant.utils.jsonio import atomic_write_json
+        atomic_write_json(path, st)
+        print(f"   → 장부의 노출 배수를 {v.scale:.0%}로 낮췄습니다.")
+
+
+def _cmd_ingest(args) -> None:
+    """내 자료 → 전략 명세 → 도전자 등록.
+
+    ⚠️ 여기서 등록되는 것은 **도전자**다. 등록했다고 그 전략으로 매매하지
+       않는다 — 매일 밤 다른 후보들과 같은 심사(선발전·결승전)를 받고,
+       이겨야 챔피언이 된다. 그게 이 제품이 파는 것이다.
+    """
+    from quant.ingest.extract import extract_spec
+    from quant.ingest.registry import save_spec
+    from quant.ingest.sources import SourceError, load_any
+
+    try:
+        loaded = load_any(args.ref)
+    except SourceError as exc:
+        print(f"❌ 자료를 읽지 못했습니다.\n\n{exc}")
+        raise SystemExit(1) from exc
+
+    print(f"📄 {loaded.source.get('kind')} · {loaded.source.get('ref')} — "
+          f"글자 {len(loaded.text):,}자")
+    result = extract_spec(loaded.text, title=args.name or loaded.title,
+                          source=loaded.source)
+    if not result.ok:
+        # ⚠️ 이게 이 명령의 **정상적인 결과 중 하나**다. 투자 자료 대부분에는
+        #    검증 가능한 규칙이 없고, 그때 억지로 만들어 내면 그건 자료의
+        #    전략이 아니라 우리가 지어낸 전략이다.
+        print(f"\n🔍 문장 {result.sentences_seen:,}개를 봤지만 "
+              f"**실행 가능한 규칙을 찾지 못했습니다.**\n")
+        for r in result.reasons:
+            print(f"  · {r}\n")
+        print("전략을 만들지 않았습니다 — 없는 규칙을 지어내지 않습니다.")
+        raise SystemExit(2)
+
+    print("\n✅ 이렇게 읽었습니다:\n")
+    print(result.spec.summary())
+    print("\n  근거가 된 문장:")
+    for c in list(result.spec.entry) + list(result.spec.exit):
+        print(f"    · \"{c.quote[:90]}\"")
+    for note in result.spec.notes:
+        print(f"\n  ⚠️ {note}")
+
+    if args.dry_run:
+        print("\n(--dry-run: 저장하지 않았습니다)")
+        return
+    path = save_spec(result.spec, state_dir=args.state_dir or None)
+    print(f"\n💾 저장: {path}")
+    print("\n이제 매일 밤 재학습에서 **도전자로** 링에 섭니다. 등록만으로는 "
+          "매매하지 않습니다 — 다른 후보와 같은 2단계 심사를 이기고, 과최적화 "
+          "검증까지 통과해야 실제 비중을 받습니다. 대부분은 떨어집니다.")
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
@@ -541,6 +641,49 @@ def _cmd_validate(args) -> None:
     """워크포워드(+DSR) → PBO → CPCV를 한 번에 돌려 '이 전략을 믿어도 되는가'를
     한 화면으로 보여준다. 셋 다 과최적화 탐지 도구다 — 통과해도 수익 보장이 아니다."""
     import json as _json
+
+    # ── 전 종목 모드 ────────────────────────────────────────────────
+    # ⚠️ 2026-08-14까지 야간 검증은 **BTC와 SPY 두 종목만** 돌았다. 종목
+    #    목록이 워크플로 YAML에 손으로 박혀 있었기 때문이다. 운용은 8종목에서
+    #    20종목으로 늘었는데 검증은 따라가지 않았고, 나머지 18종목은 PBO·DSR이
+    #    **한 번도 계산된 적이 없었다.** 그런데도 제품 문서는 "검증을 통과한
+    #    전략만 씁니다"라고 말하고 있었다.
+    #
+    #    목록을 코드(AUTO_TARGETS)가 갖게 해 같은 표류를 막는다 — 운용 대상을
+    #    늘리면 검증도 자동으로 따라온다.
+    if getattr(args, "all_targets", False):
+        from quant.markets import AUTO_TARGETS
+        failed = []
+        for i, (mk, sym) in enumerate(AUTO_TARGETS, 1):
+            print(f"\n{'=' * 62}\n[{i}/{len(AUTO_TARGETS)}] {mk}:{sym}\n{'=' * 62}")
+            one = _copy.copy(args)
+            one.market, one.symbol, one.all_targets = mk, sym, False
+            # ⚠️ 리포트 경로에 종목 이름을 넣는다. 안 그러면 20종목이 **같은
+            #    파일에 차례로 덮어써서** 마지막 종목 것만 남는다 — 파일은
+            #    있고 이름도 맞으니 아무도 눈치채지 못하고, 그 리포트를 열어
+            #    본 사람은 다른 19종목이 그렇다고 읽는다.
+            if getattr(one, "report", None):
+                rp = _pathlib.Path(one.report)
+                safe = f"{mk}_{sym}".replace("/", "").replace(".", "_")
+                one.report = str(rp.with_name(f"{rp.stem}_{safe}{rp.suffix}"))
+            try:
+                _cmd_validate(one)
+            except Exception as exc:  # noqa: BLE001
+                # 한 종목의 실패로 나머지 19종목의 검증을 잃지 않는다.
+                # 실패는 삼키지 않고 끝에 모아 보고하고, 종료코드로 드러낸다 —
+                # 조용히 넘어가면 그 종목은 '미측정'인 채 절반 감쇠만 받고
+                # 아무도 이유를 모른다.
+                print(f"❌ {mk}:{sym} 검증 실패: {type(exc).__name__}: {exc}")
+                failed.append(f"{mk}:{sym} ({type(exc).__name__})")
+        print(f"\n{'=' * 62}")
+        print(f"전 종목 검증 완료: 성공 {len(AUTO_TARGETS) - len(failed)}"
+              f"/{len(AUTO_TARGETS)}")
+        if failed:
+            print("실패: " + ", ".join(failed))
+            raise SystemExit(
+                f"검증 실패 {len(failed)}종목 — 그 종목들은 '미측정'으로 "
+                "남아 비중이 절반으로 깎입니다.")
+        return
 
     from quant.data import get_provider
     from quant.optimize import (cpcv, cpcv_report, grid_search, robust_best,
@@ -607,12 +750,21 @@ def _cmd_validate(args) -> None:
         skipped["pbo"] = str(exc)[:200]
 
     # 3) CPCV — 여러 OOS 경로의 분포
+    #
+    # ⚠️ 이 결과는 **계산하고 출력한 뒤 버려지고 있었다**(2026-08-14 발견).
+    #    문서는 "3중 관문(DSR·PBO·CPCV)"이라 말하고 통과 기준까지 적어 뒀는데
+    #    ("가장 나쁜 경로에서도 플러스"), 그 값이 장부에 저장되지 않아
+    #    **어떤 판단에도 닿지 않았다.** DSR·PBO를 게이트에 붙이면서 확인했다.
     print("\n[3/4] CPCV (다중 OOS 경로 분포)")
+    cpcv_worst = None
+    cpcv_min_sharpe = None
     try:
         cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
                   n_test=2, embargo=args.embargo, periods_per_year=ppy)
         print("  " + cpcv_report(cv).replace("\n", "\n  "))
-    except ValueError as exc:
+        cpcv_worst = float(cv["worst_path_return"])
+        cpcv_min_sharpe = float(cv["sharpe_min"])
+    except (ValueError, KeyError, TypeError) as exc:
         print(f"  건너뜀: {exc}")
         skipped["cpcv"] = str(exc)[:200]
 
@@ -651,7 +803,17 @@ def _cmd_validate(args) -> None:
                 prev = {}
         prev[f"{args.market}:{args.symbol}"] = {
             "strategy": args.strategy, "bars": len(df),
+            # ⚠️ 날짜가 없으면 검증 게이트가 **만료를 판정할 수 없다**
+            #    (2026-08-14). 며칠 멈춘 검증이 통과 도장을 계속 찍어 주는
+            #    것을 막으려면 '언제 잰 값인가'가 기록에 있어야 한다.
+            #    결정 봉의 날짜를 쓴다 — 실행 시각이 아니라 데이터의 시각이
+            #    이 판정의 기준이다.
+            "asof": str(df.index[-1])[:10] if len(df) else None,
             "dsr": dsr_value, "pbo": pbo_value,
+            # 3중 관문의 세 번째 — 통과 기준은 "가장 나쁜 경로에서도 플러스".
+            # 2026-08-14까지 이 값은 화면에만 찍히고 사라졌다.
+            "cpcv_worst_return": cpcv_worst,
+            "cpcv_min_sharpe": cpcv_min_sharpe,
             # ⚠️ **왜 없는지도 남긴다**(감사 249). 예전에는 못 잰 값이 그냥
             #    null로 남고 이유는 콘솔에만 찍혔다. 그러면 사이트는 "안
             #    돌았다"와 "돌았는데 문제없다"를 구별할 수 없다 — 리포트
@@ -1002,6 +1164,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="과최적화 검증 3종(워크포워드+DSR·PBO·CPCV)을 한 번에 실행")
     va.add_argument("--market", default="synthetic")
     va.add_argument("--symbol", default="DEMO")
+    va.add_argument("--all", action="store_true", dest="all_targets",
+                    help="운용 대상 전 종목(quant.markets.AUTO_TARGETS)을 "
+                         "차례로 검증한다 — 종목 목록을 워크플로가 아니라 "
+                         "코드가 갖게 해, 종목을 늘려도 검증이 따라온다")
     va.add_argument("--timeframe", default="1d")
     va.add_argument("--limit", type=int, default=800)
     va.add_argument("--strategy", default="ma_cross",
@@ -1057,7 +1223,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dp = sub.add_parser(
         "deposit",
-        help="8마일 챌린지 매칭 입금 (8만원→1억) — 후원 금액만큼 통합 계좌 원금 증액")
+        help="100만 챌린지 매칭 입금 (100만원→1억) — 후원 금액만큼 통합 계좌 원금 증액")
     dp.add_argument("--amount", type=float, required=True, help="입금액(원)")
     dp.add_argument("--memo", default="", help="예: '슈퍼챗 ○○님'")
     dp.add_argument("--state-dir", default="state", dest="state_dir")
@@ -1170,6 +1336,25 @@ def build_parser() -> argparse.ArgumentParser:
                     help="AUTO_TARGETS 전 종목 순회(야간 자동화용)")
     rt.set_defaults(func=_cmd_retrain)
 
+    ig = sub.add_parser(
+        "ingest",
+        help="내 자료(PDF·유튜브·트레이딩뷰)에서 전략을 뽑아 도전자로 등록")
+    ig.add_argument("ref", help="PDF 경로 · 유튜브 주소 · .pine · .txt/.md")
+    ig.add_argument("--name", default="", help="전략 이름(생략 시 파일명)")
+    ig.add_argument("--state-dir", default="", dest="state_dir",
+                    help="명세를 저장할 곳(생략 시 ./specs_user)")
+    ig.add_argument("--dry-run", action="store_true", dest="dry_run",
+                    help="저장하지 않고 무엇이 뽑혔는지만 본다")
+    ig.set_defaults(func=_cmd_ingest)
+
+    gd = sub.add_parser(
+        "guard",
+        help="장중 감시 1회 — 지금 자산으로 낙폭을 재고 킬스위치를 즉시 적용")
+    gd.add_argument("--state-dir", default="state", dest="state_dir")
+    gd.add_argument("--state-file", default="portfolio_ALL.json",
+                    dest="state_file")
+    gd.set_defaults(func=_cmd_guard)
+
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)
 
@@ -1199,7 +1384,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     jn = sub.add_parser("journal", help="봇 상태 파일에서 거래 성과 복기(거래 단위 통계)")
     # ⚠️ 기본값이 results/state.json이었다(감사 67). 그 파일은 개발용 `learn`
-    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 8마일 통합 계좌는
+    #    봇이 쓰는 것이고, 실제로 돈을 굴리는 통합 계좌는
     #    state/paper/portfolio_ALL.json에 쌓인다. 즉 사장님이 `quant journal`을
     #    치면 매일 매매가 도는데도 "아직 완결된 거래가 없습니다"만 나왔다 —
     #    복기 도구가 실제 장부가 아닌 빈 파일을 보고 있었다.

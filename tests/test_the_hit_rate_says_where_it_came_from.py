@@ -143,8 +143,15 @@ def test_the_column_shows_both_numbers():
     assert "last.live_hit_n" in IDX, "표본 수를 안 보여준다"
     # ⚠️ 값을 **계산만** 하고 칸에 안 넣으면 화면에는 안 나온다 — 변이
     #    시험이 그 자리를 찔러 잡았다(계산과 표시는 다른 일이다).
-    i = IDX.index("'<td class=\"num'+(hn!=null&&hn<20?\" sub\":\"\")+'\">'+hr+")
-    assert "lhr" in IDX[i:i + 200], "적중률 칸이 실전 값을 그리지 않는다"
+    #
+    # ⚠️ 예전에는 칸을 여는 식을 **글자 그대로** 찾았다(`hn<20` 문턱 포함).
+    #    2026-08-15에 판정 기준이 표본 수에서 신뢰구간으로 바뀌자 그 글자가
+    #    사라져 검사가 빨개졌다 — 동작은 그대로인데 서식이 바뀐 것뿐이다.
+    #    이 저장소가 여러 번 당한 계열이라, 서식이 아니라 **구조**를 본다:
+    #    적중률 칸 안에 두 값이 다 그려지는가.
+    i = IDX.index("+hr+")
+    cell = IDX[i:IDX.index("</td>", i)]
+    assert "lhr" in cell, "적중률 칸이 실전 값을 그리지 않는다"
 
 
 def test_the_ledger_records_the_live_hit_rate():

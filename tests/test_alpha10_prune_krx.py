@@ -103,6 +103,14 @@ def test_krx_wired_into_three_paths_and_workflows():
     dl = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert rt.count("attach_krx_flows") >= 2         # import + 호출
     assert dl.count("attach_krx_flows") >= 4         # 페이퍼·포트폴리오
+    # ⚠️ 워크플로에 'pykrx'라는 **글자**가 있는지가 아니라, 그 워크플로가
+    #    pykrx를 **실제로 설치하는지**를 본다(2026-08-15). 선택 의존성을
+    #    버전과 함께 requirements-extra.txt로 옮기면서 글자는 사라졌지만
+    #    설치는 그대로다 — 자리를 고정한 검사는 그때 엉뚱하게 실패한다.
+    extra = (ROOT / "requirements-extra.txt").read_text(encoding="utf-8")
+    assert "pykrx" in extra, "선택 의존성 파일에 pykrx가 없다"
     for wf in ("nightly-retrain.yml", "daily-paper.yml"):
         y = (ROOT / ".github" / "workflows" / wf).read_text(encoding="utf-8")
-        assert "pykrx" in y
+        assert "pykrx" in y or "-r requirements-extra.txt" in y, (
+            f"{wf}가 pykrx를 설치하지 않는다 — 한국주식 수급 피처가 "
+            f"통째로 사라진다")

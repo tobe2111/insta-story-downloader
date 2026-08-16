@@ -178,11 +178,31 @@ def _fill_cost(market: str) -> float:
 
 
 def _first_bar_after(df, bar_ts: str):
-    """decided_bar 이후 첫 봉의 (타임스탬프, 시가). 없으면 (None, None)."""
+    """decided_bar 이후 첫 봉의 (타임스탬프, 시가). 없으면 (None, None).
+
+    ⚠️ 여기서 돌려주는 시가는 **현지 통화**다. 통합 계좌에 넣기 전에
+    반드시 `_to_krw_or_die`를 거쳐야 한다 — 안 거치면 감사 254가 재발한다.
+    """
     for ix, r in df.iterrows():
         if str(ix) > bar_ts:
             return str(ix), float(r["open"])
     return None, None
+
+
+def _to_krw_or_die(market: str, price: float, fx_rate: float | None) -> float:
+    """통합 계좌에 들어가는 **모든** 가격이 지나야 하는 단 하나의 문.
+
+    환율을 모르면 1.0으로 때우지 않고 그 종목을 통째로 뺀다 — 때우는 것이
+    감사 212가 고친 결함이고, 이 함수를 **안 부르는 것**이 감사 254가
+    고친 결함이다. 평가가격과 체결가격이 각자 환산하면 언젠가 한쪽이
+    빠지므로, 두 경로가 같은 함수를 부른다(FROZEN_IDEAS ①).
+    """
+    krw = to_krw(market, float(price), fx_rate)
+    if krw is None:
+        raise RuntimeError(
+            "원/달러를 확인하지 못해 원화로 평가할 수 없다 "
+            "(해외 종목은 환산 없이 기록하지 않는다)")
+    return krw
 
 
 # 재현성 해시 — 공용 구현(quant.utils.repro)을 그대로 쓴다
@@ -208,6 +228,11 @@ ACCOUNTING_VERSION = "next_open_v2"
 # 정작 통합 계좌의 밴드를 정할 근거가 늦게 쌓인다. 각 계좌가 단일 종목에
 # 풀사이즈로 들어가므로 절대 밴드 5%도 상대적으로 촘촘하지 않다.
 REBALANCE_BAND = 0.05
+
+# 체결가가 평가가격의 몇 배까지 그럴듯한가(감사 254). 하룻밤 갭·액면분할이
+# 만들 수 있는 폭보다는 넉넉하고, 통화를 안 바꾼 값(원/달러 ≈ 1,400배)보다는
+# 한참 낮다. 이 사이를 벗어나면 시장이 아니라 코드가 만든 숫자다.
+FILL_MARK_MAX_RATIO = 5.0
 
 
 def _risk_for(market: str):
@@ -406,6 +431,22 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
             weight = float(weight * ef)
             earnings_guard = {"date": edate, "factor": ef}
 
+    # ── 검증 게이트를 여기 걸지 **않는** 이유 (2026-08-14, 의도된 경계) ──
+    # 실전 배치는 계좌 두 종류를 돌린다:
+    #   ① 종목별 참고 계좌(이 함수) — 그 전략이 그 종목에서 어떻게 행동하는지
+    #      **재는 계기**다. 켈리 상한·적중률·신뢰도 곡선이 여기서 나온다.
+    #   ② 통합 분산 계좌(run_daily_portfolio) — 실제로 돈이 도는 쪽. 공개
+    #      챌린지(100만원 → 1억)가 이것이고, 검증 게이트는 **그쪽에** 걸린다.
+    #
+    # ①에도 게이트를 걸면 순환이 된다: 게이트로 깎인 수익이 장부에 쌓이고,
+    # 그 장부에서 뽑은 켈리 상한이 다시 ②의 비중을 정한다. 계기를 그 계기가
+    # 재는 대상으로 감쇠시키는 셈이라, "이 전략이 원래 어떻게 행동하는가"를
+    # 영영 알 수 없게 된다. 그래서 계기는 감쇠 없이 둔다.
+    #
+    # ⚠️ 이 경계는 문서에도 그대로 적어야 한다 — README·사이트가 "검증이
+    #    비중에 반영된다"고만 말하고 어느 계좌인지 안 밝히면, 종목별 화면을
+    #    본 사람은 게이트가 안 걸린 줄 안다.
+
     # 부분 켈리 상한 — 이 종목의 OOS(페이퍼) 통계가 30일 이상 쌓이면
     # ½켈리로 최대 비중을 제한한다(과대 베팅의 복리 벌칙 방어).
     kelly_cap = _kelly_cap_from_history(st.get("history") or [])
@@ -510,6 +551,15 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         #    감사 94(카드가 신뢰구간 없이 비율을 방송)와 같은 계열이고,
         #    이쪽은 첫 화면 전 종목 행에 매일 나간다.
         "hit_n": acc.get("n"),
+        # ⚠️ 표본만으로는 부족하다(2026-08-14, 사장님 지적 "솔라나 64% n=11").
+        #    20종목을 전부 재 봤더니 **19개**의 95% 신뢰구간이 50%를 품고
+        #    있었다 — n=81짜리 60%(구간 50~70%)도 그랬다. 그때까지 화면은
+        #    n<20일 때만 n을 흐리게 붙였으므로 n=81은 아무 단서 없이 "60%"
+        #    라는 단정으로 나가고 있었다. **n이 아니라 구간이 판정한다.**
+        #    구간과 판정을 장부에 남겨, 화면이 자기 계산을 시작하지 않게 한다.
+        "hit_lo": acc.get("lo"),
+        "hit_hi": acc.get("hi"),
+        "hit_conclusive": acc.get("conclusive"),
         # ⚠️ **위 적중률은 인샘플이다**(2026-08-14 감사 240). 표본 400봉이
         #    챔피언을 뽑은 오디션(800봉)과 100% 겹치고, 그중 70%는 선발전
         #    구간이다 — 그 챔피언은 그 데이터에서 이겨서 뽑혔다.
@@ -1363,7 +1413,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         require_real_data: bool = True,
                         use_champions: bool = True,
                         state_file: str = "portfolio_ALL.json") -> dict:
-    """통합 8마일 계좌(8만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
+    """통합 계좌(시작 100만원) — 전 종목에 분산해 한 계좌로 운용한다(실전과 가장 유사).
 
     각 종목의 챔피언 전략 비중을 종목 수로 나눠(자본 균등 슬라이스) 한
     PaperBroker 계좌에 담는다. 실데이터를 못 받은 종목은 그날 매매하지 않고
@@ -1423,6 +1473,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
+    source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
@@ -1430,6 +1481,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
+    # 검증 게이트 — 과최적화 검증(PBO·DSR)을 비중으로 번역한 계수.
+    # ⚠️ **판단한 종목 전부**에 대해 채운다. 목록에서 빠진 종목은 감쇠가
+    #    1.0이 되어 '측정 안 됨'이 조용히 '통과'가 된다.
+    valid_grades: dict = {}         # key → {"grade","scale","why",…}
+    valid_damp: dict = {}           # key → 비중 배수(0.0/0.5/1.0)
     pending = st.get("pending") or {}
     for market, symbol in targets:
         key = f"{market}:{symbol}"
@@ -1473,6 +1529,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 개수를 함께 남기지 않으면 아무도 모른다)
             from quant.strategies.ml import optional_features_from_df
             opt_present[key] = optional_features_from_df(df)
+            # 왜 안 붙었는지 — 부착 함수들이 df.attrs에 남긴 사유를 걷는다.
+            # 계측기는 "이 다섯이 빠졌다"까지만 말했고 **왜**는 실행 로그에만
+            # 있다가 며칠 뒤 사라졌다. 원인을 좁히려면 사유가 장부에 있어야 한다.
+            from quant.data.source_health import source_errors
+            errs = source_errors(df)
+            if errs:
+                source_fails[key] = errs
             if use_champions:
                 strat = champion_strategy(market, symbol, state_dir)
             else:
@@ -1549,13 +1612,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             #    신호는 현지 통화 그대로 낸다(전략 동작은 그대로). 환산은
             #    체결·평가에만 걸어서, 환율 변동이 매일의 재평가로 자산에
             #    흘러들게 한다.
-            px_krw = to_krw(market, float(df["close"].iloc[-1]), fx_rate)
-            if px_krw is None:
-                # 환율을 모르면 값을 매길 수 없다. 1.0으로 때우지 않는다 —
-                # 그것이 지금 고치고 있는 바로 그 결함이다.
-                raise RuntimeError(
-                    "원/달러를 확인하지 못해 원화로 평가할 수 없다 "
-                    "(해외 종목은 환산 없이 기록하지 않는다)")
+            px_krw = _to_krw_or_die(market, float(df["close"].iloc[-1]),
+                                    fx_rate)
             prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
@@ -1564,7 +1622,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 partial_bars[key] = bs["elapsed"]
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
-                opens_after[key] = _first_bar_after(df, pend["decided_bar"])
+                # ⚠️ **체결가도 원화로 환산한다**(감사 254). 감사 212가 평가
+                #    가격만 환산하고 여기를 빼먹어서, 대기 주문은 달러 시가로
+                #    체결되고 그 포지션은 원화 종가로 평가됐다 — 같은 종목의
+                #    같은 하루가 두 통화로 계산된 셈이다. 2026-08-15에
+                #    META를 달러 시가(596.98)로 사서 원화 종가(832,868)로
+                #    평가하는 바람에, 100만원 계좌의 자산이 7,249만원으로
+                #    찍혔다(+7,150%). 환산이 필요한 곳을 **두 군데에 나눠
+                #    적으면 반드시 한 곳이 빠진다** — 그래서 두 곳 모두
+                #    같은 한 함수를 부른다.
+                fbar, fopen = _first_bar_after(df, pend["decided_bar"])
+                opens_after[key] = (
+                    (fbar, _to_krw_or_die(market, fopen, fx_rate))
+                    if fopen is not None else (None, None))
         except Exception as exc:  # noqa: BLE001 — 해당 종목만 관망(포지션 유지)
             skipped.append(key)
             # 왜 빠졌는지도 남긴다 — 키만 있으면 '데이터 장애'인지 '거래소
@@ -1613,6 +1683,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 key, float(pos["quantity"]), float(pos.get("avg_price", 0.0)))
     n = len(targets)
 
+    # ── 검증 게이트 — 과최적화 검증 결과를 실제 비중에 반영한다 ──────────
+    # 2026-08-14까지 PBO·DSR은 계산·경보·표시만 했고 **아무것도 막지 않았다.**
+    # 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리 종목이 매일
+    # 그대로 굴러갔다. 여기서 등급을 비중 배수로 번역하고, _target_w가
+    # 킬스위치·변동성 타깃 **뒤에** 곱한다(앞에 두면 스케일러가 되돌려 키운다).
+    from quant.live.validation_gate import gate_summary, validation_grades
+    valid_grades = validation_grades(
+        [f"{m}:{s}" for m, s in targets], state_dir, str(bar)[:10])
+    valid_damp = {k: float(g["scale"]) for k, g in valid_grades.items()}
+    log.info("%s", gate_summary(valid_grades))
+    for key, g in sorted(valid_grades.items()):
+        if g["scale"] < 1.0:
+            log.warning("검증 게이트 %s → 비중 ×%.2f · %s",
+                        key, g["scale"], g["why"])
+
     # ⚠️ 평가에 쓸 시세는 **오늘 받은 것 + 마지막으로 알던 것**이다(감사 152).
     #    오늘 데이터를 못 받은 종목은 prices에 없는데, 포지션은 위에서 그대로
     #    복원된다. 그러면 `PaperBroker.equity`가 그 종목을 **매입가**로 값을
@@ -1655,6 +1740,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    쓰기로 한 이상(한 종목의 1주를 사려고 다른 종목을 파는 이상)
     #    "먼저 팔고 그 돈으로 산다"가 지켜져야 그 결정이 그날 안에 완성된다.
     #    비중을 줄이는 쪽(=매도)부터, 줄이는 폭이 큰 순서로.
+    fill_refused: dict = {}         # key → 왜 체결을 거부했나(감사 254)
     #    ⚠️ 여기서는 아직 그날의 `equity`가 계산되기 전이다(체결이 끝나야
     #       정해진다). 순서를 정하는 데는 정확한 값이 필요 없으므로 지금
     #       시점의 평가액 스냅샷을 쓴다 — 못 구하면 정렬을 건드리지 않는다.
@@ -1679,6 +1765,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         fbar, fopen = opens_after.get(key, (None, None))
         if fopen is None:
             continue
+        # 체결가가 같은 종목의 평가가격과 **자릿수부터** 다르면 그 둘은
+        # 같은 통화가 아니다(감사 254). 하룻밤 갭으로는 3배가 날 수 없으니,
+        # 이 문턱을 넘는 값은 시장이 아니라 코드가 만든 것이다. 위의 환산이
+        # 다시 빠지더라도 여기서 멈춘다 — 선언이 아니라 실제로 막는다.
+        mark_px = marks.get(key)
+        if mark_px and fopen and not (
+                1.0 / FILL_MARK_MAX_RATIO
+                <= float(fopen) / float(mark_px) <= FILL_MARK_MAX_RATIO):
+            fill_refused[key] = {"open": round(float(fopen), 6),
+                                 "mark": round(float(mark_px), 6),
+                                 "why": "체결가와 평가가격의 배율이 비상식적 "
+                                        "— 통화 환산 누락 의심"}
+            log.error("포트폴리오 %s 체결 거부: 시가 %.6f vs 평가 %.6f",
+                      key, float(fopen), float(mark_px))
+            continue                       # 대기 주문은 남겨 둔다(재시도)
         broker.fee = _fill_cost(key.split(":")[0])
         eq_now = broker.equity({**marks, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
@@ -1793,11 +1894,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
            주문 루프와 기록(_applied)이 같은 식을 따로 적어, 한쪽만 고치면
            장부가 실제 주문과 다른 값을 말했다(감사 92가 그 사고였다).
 
-        킬스위치×어드민 배수×변동성 타깃을 곱하고, 이벤트 감쇠(실적 가드)와
-        켈리 상한은 **스케일 뒤에** 건다 — 앞에 두면 스케일러가 되돌려 키워
-        둘 다 무효가 된다.
+        킬스위치×어드민 배수×변동성 타깃을 곱하고, 이벤트 감쇠(실적 가드)·
+        **검증 게이트**·켈리 상한은 **스케일 뒤에** 건다 — 앞에 두면 스케일러가
+        되돌려 키워 전부 무효가 된다.
+
+        검증 게이트(valid_damp)는 과최적화 검증(PBO·DSR) 결과를 비중으로
+        번역한 값이다. 2026-08-14까지 이 검증은 **경보만 울리고 아무것도 막지
+        않았다** — 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리
+        종목이 매일 그대로 굴러갔다. quant/live/validation_gate.py 참조.
         """
-        eff = w * eff_scale * vscale * guard_damp.get(key, 1.0)
+        eff = (w * eff_scale * vscale * guard_damp.get(key, 1.0)
+               * valid_damp.get(key, 1.0))
         kcap = kelly_caps.get(key)
         if kcap is not None:
             eff = float(np.clip(eff, -kcap, kcap))
@@ -1940,23 +2047,60 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     equity = broker.equity(marks)
 
     # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
-    # 펀딩비, 한국주식만 KRX 수급) '가능한 최대치 대비 몇 개가 실제로
-    # 붙었는가'를 종목별 최대값 기준으로 잰다. 소스가 죽은 날을 잡아내는 것이
-    # 목적이지, 시장별 차이를 결함으로 보는 것이 아니다.
+    # 펀딩비, 한국주식만 KRX 수급) **개수가 아니라 충족률**(붙은 수 ÷ 붙을 수
+    # 있는 수)로 잰다. 소스가 죽은 날을 잡아내는 것이 목적이지, 시장별 차이를
+    # 결함으로 보는 것이 아니다.
+    #
+    # ⚠️ 2026-08-14 이전에는 종목별 최대 개수를 전체 목록(17)과 비교했다.
+    #    모든 소스가 살아 있어도 한 종목 최대는 9개라, 사이트의 '피처 결손'
+    #    경고가 정상일 때도 켜져 있었다 — 항상 켜진 경고등은 꺼진 것과 같다.
     feat_health = None
     if opt_present:
-        from quant.strategies.ml import OPTIONAL_FEATURES
+        from quant.strategies.ml import (OPTIONAL_FEATURES,
+                                         applicable_optional_features)
+
+        def _applicable(key: str) -> list[str]:
+            mkt, _, sym = key.partition(":")
+            return applicable_optional_features(mkt, sym)
+
         best = max((len(v) for v in opt_present.values()), default=0)
-        worst_key = min(opt_present, key=lambda k: len(opt_present[k]))
         union = sorted({c for v in opt_present.values() for c in v})
+        # 붙을 수 있었던 것의 합집합 — '누락'의 올바른 분모. 유니버스에
+        # 한국주식이 없으면 x_frgn5는 애초에 붙을 수 없으니 누락이 아니다.
+        can = sorted({c for k in opt_present for c in _applicable(k)})
+        # 종목별 충족률(붙은 수 / 붙을 수 있는 수) — 시장이 달라도 비교 가능한
+        # 유일한 척도. 개수만 보면 코인(최대 8)이 한국주식(최대 9)보다 항상
+        # 아파 보인다.
+        cov = {k: (len(v) / len(_applicable(k)) if _applicable(k) else 1.0)
+               for k, v in opt_present.items()}
+        worst_key = min(cov, key=lambda k: (cov[k], k))
         feat_health = {
+            # 옛 필드 — 뜻을 바꾸지 않는다(과거 기록과 같은 척도로 읽히도록)
             "optional_max": best,
             "optional_possible": len(OPTIONAL_FEATURES),
             "union": len(union),
-            "missing_everywhere": [c for c in OPTIONAL_FEATURES
-                                   if c not in set(union)],
+            # 새 필드 — 시장별 기대치를 반영한 진짜 분모와 충족률
+            "optional_applicable": len(can),
+            "coverage": round(len(union) / len(can), 4) if can else 1.0,
+            # 분모가 can으로 좁혀졌다(옛 필드지만 뜻이 정확해졌다). 유니버스에
+            # 코인만 있는 날 x_frgn5(한국 수급)를 '전 종목 누락'이라 부르면
+            # 상시 오경보가 된다. 세 시장이 다 있는 지금은 결과가 같다.
+            "missing_everywhere": [c for c in can if c not in set(union)],
             "thinnest": {"key": worst_key,
-                         "n": len(opt_present[worst_key])},
+                         "n": len(opt_present[worst_key]),
+                         "applicable": len(_applicable(worst_key)),
+                         "coverage": round(cov[worst_key], 4)},
+            # 왜 빠졌는가 — 소스별 사유를 '같은 사유끼리' 묶어 남긴다.
+            # 20종목치를 그대로 실으면 장부가 부풀고, 정작 원인은 대개
+            # 종목마다 같다.
+            "why_missing": {
+                src: {"reason": reason,
+                      "symbols": sorted(k for k, e in source_fails.items()
+                                        if e.get(src) == reason)}
+                for src, reason in sorted(
+                    {s2: r for e in source_fails.values()
+                     for s2, r in e.items()}.items())
+            } or None,
         }
 
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
@@ -2078,6 +2222,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
+              # 검증 게이트의 흔적 — 어느 종목이 왜 깎였는지. 감쇠가 걸린
+              # 종목만 남긴다(전부 통과한 날은 조용). 이게 없으면 "왜 오늘
+              # BTC를 안 샀나"에 장부가 답하지 못한다.
+              "validation_gate": {
+                  k: {"grade": g["grade"], "scale": g["scale"],
+                      "pbo": g["pbo"], "dsr": g["dsr"], "why": g["why"]}
+                  for k, g in sorted(valid_grades.items())
+                  if g["scale"] < 1.0} or None,
               # 부분 켈리 상한이 실제로 비중을 깎은 종목(있을 때만).
               # 장부는 "왜 오늘 노출이 이만큼인가"에 답할 수 있어야 하는데,
               # 위험 장치 중 이것만 흔적이 없었다 — 상한이 총노출을 41%에서
@@ -2126,6 +2278,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   {"key": r["symbol"], "need": round(float(r["need"]), 2),
                    "cash": round(float(r["cash"]), 2)}
                   for r in broker.rejected[:20]],
+              # 자릿수가 안 맞아 **체결을 거부한** 주문(감사 254). 여기 값이
+              # 찍히면 통화 환산이 어딘가에서 다시 빠졌다는 뜻이다.
+              "fill_refused": fill_refused or None,
               "data_source": sources or None,
               # 그중 **1차 소스가 아닌** 것들. 사람이 매일 20줄을 읽지
               # 않아도 되도록, 봐야 할 것만 따로 뽑아 둔다.
@@ -2599,7 +2754,7 @@ def format_weekly(summary: dict) -> str:
     if not summary.get("markets"):
         return "📭 지난주 페이퍼 기록이 없습니다."
     a, b = summary["period"]
-    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 8마일 챌린지"]
+    lines = [f"🗓️ 주간 요약 ({a} ~ {b}) — 가상 100만 챌린지"]
     for key, m in summary["markets"].items():
         # ⚠️ **화살표는 화면에 찍히는 숫자와 같은 값을 봐야 한다**
         #    (감사 241에서 함께 발견). 예전에는 원본 값의 부호를 썼는데,
@@ -2688,6 +2843,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 "key": f"{rec.get('market')}:{rec.get('symbol')}",
                 "promoted": bool(rec.get("promoted")),
                 "n_candidates": rec.get("n_candidates"),
+                # 공회전 표식 — 후보 대부분이 챔피언과 같은 신호라 대결이
+                # 성립하지 않은 날. 이게 없으면 '이긴 후보가 없었다'(정상)와
+                # '아무것도 비교하지 못했다'(고장)가 화면에서 같아 보인다.
+                "vacuous": bool(rec.get("vacuous")),
+                "inert": len(rec.get("inert_candidates") or []),
                 "trials_total": rec.get("trials_total")})
     champ_file = os.path.join(state_dir, "champions.json")
     if os.path.exists(champ_file):
@@ -2719,7 +2879,7 @@ def write_docs_status(state_dir: str = STATE_DIR,
             "mdd_pct": round(mdd * 100, 2),
             "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
         }
-        if st.get("market") == "portfolio":   # 8마일 챌린지(8만원 → 1억) 필드
+        if st.get("market") == "portfolio":   # 100만 챌린지(100만원 → 1억) 필드
             deposits = st.get("deposits", [])
             sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
             # 자산과 **같은 시점의** 원금만 쓴다(감사 211). 아직 배치가

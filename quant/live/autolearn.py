@@ -127,11 +127,19 @@ class AutoLearner:
         # '무엇을 보고 맞혔는지'가 화면과 어긋난다.
         acc = directional_accuracy(df_sig, signals, window=self.accuracy_window)
         # 최근 구간(롤링) 정확도 — 정확도가 시간에 따라 어떻게 변하는지
+        # ⚠️ 최근 적중률은 **표본과 함께** 남긴다. 비율만 남기면 화면·알림이
+        #    "최근 적중률 64%"를 표본 없이 내보내고, 받는 쪽은 그것이 4봉짜리
+        #    우연인지 알 방법이 없다(2026-08-14).
         recent = float("nan")
+        recent_n = 0
         if "rolling" in acc and len(acc["rolling"]):
             tail = acc["rolling"].dropna()
             if len(tail):
                 recent = float(tail.iloc[-1])
+                rn = acc.get("rolling_n")
+                if rn is not None:
+                    v = rn.reindex([tail.index[-1]]).iloc[0]
+                    recent_n = int(v) if v == v else 0
 
         record = {
             "time": str(df.index[-1]),
@@ -140,6 +148,7 @@ class AutoLearner:
             "equity": equity,
             "hit_rate": acc["hit_rate"],          # 전체 적중률
             "recent_hit_rate": recent,            # 최근 window봉 적중률
+            "recent_n": recent_n,                 # 그 비율의 분모(채점된 봉)
             "n": acc["n"],
             # 채점에서 뺀 보합 봉 수 — 안 남기면 '보합이 없었다'와
             # 구별되지 않는다(감사 168).

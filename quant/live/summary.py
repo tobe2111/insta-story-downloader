@@ -12,6 +12,8 @@ import datetime as dt
 import json
 from pathlib import Path
 
+from quant.robustness.accuracy import hit_rate_text
+
 
 def _today_utc() -> str:
     """오늘의 UTC 날짜 문자열(YYYY-MM-DD)."""
@@ -81,12 +83,17 @@ def build_daily_summary(state: dict, today: str | None = None) -> str:
     #    그 날에 기록이 하나도 없으면 전체 마지막으로 폴백한다(없는 것보다 낫다).
     last = same_day[-1] if same_day else (
         history[-1] if history and isinstance(history[-1], dict) else {})
-    hit = last.get("recent_hit_rate", last.get("hit_rate"))
+    # 적중률은 **표본이 감당하는 만큼만** 말한다 — 구간이 50%를 품으면
+    # "판정 불가"로 나간다. 서식 규칙은 robustness/accuracy.py 한 곳에 있다.
+    _r = last.get("recent_hit_rate")
+    hit_txt = (hit_rate_text(last, key="recent_hit_rate", n_key="recent_n")
+               if isinstance(_r, (int, float)) and _r == _r
+               else hit_rate_text(last, key="hit_rate", n_key="n"))
     err = state.get("last_error")
     return (
         f"📋 일일 요약({day} UTC) [{state.get('symbol', '?')}"
         f" · {state.get('strategy', '?')} · {state.get('mode', '?')}]: "
-        f"오늘 사이클 {cycles}회 · 최근 적중률 {_fmt_pct(hit)} · "
+        f"오늘 사이클 {cycles}회 · 최근 적중률 {hit_txt} · "
         f"자산 {_fmt_num(last.get('equity'))} · 포지션 {_positions_text(state)} · "
         f"마지막 에러 {err if err else '없음'}"
     )

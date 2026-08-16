@@ -186,13 +186,13 @@ MUTATIONS = [
 
     ("의회 다양성 강제(상관 상한)를 끈다 — 같은 베팅에 두 자리",
      "quant/live/parliament.py",
-     "                if c == c and c > CORR_CAP:",
-     "                if False:",
+     "                if c != c or c > CORR_CAP:\n                    dup = True",
+     "                if False:\n                    dup = True",
      "tests/test_parliament.py"),
 
     ("상관을 못 재면 '무상관'으로 본다(감사 53 되돌리기 — 실패가 곧 통과)",
      "quant/live/parliament.py",
-     "                    c = 1.0",
+     '                    c = float("nan")',
      "                    c = 0.0",
      "tests/test_parliament_moves_slowly_and_diversely.py"),
 
@@ -1438,7 +1438,7 @@ MUTATIONS = [
     # 감사 212 — 한 계좌에 원화와 달러가 섞여 있던 자리.
     ("해외 종목을 환산하지 않고 달러 가격 그대로 계좌에 담는다",
      "quant/live/daily.py",
-     "            px_krw = to_krw(market, float(df[\"close\"].iloc[-1]), fx_rate)",
+     "            px_krw = _to_krw_or_die(market, float(df[\"close\"].iloc[-1]),\n                                    fx_rate)",
      "            px_krw = float(df[\"close\"].iloc[-1])",
      "tests/test_the_account_speaks_one_currency.py"),
 
@@ -2279,9 +2279,8 @@ MUTATIONS = [
 
     ("채점에서 뺀 보합 봉 수를 안 돌려준다(뺀 사실이 안 보인다)",
      "quant/robustness/accuracy.py",
-     '    out: dict = {"hit_rate": hit_rate, "n": n,\n'
-     '                 "n_flat": int((held & ~moved).sum())}',
-     '    out: dict = {"hit_rate": hit_rate, "n": n}',
+     '                 "n_flat": int((held & ~moved).sum()),\n',
+     "",
      "tests/test_a_flat_bar_is_not_a_wrong_guess.py"),
 
     ("장부에 보합 제외 봉 수를 안 남긴다",
@@ -2369,6 +2368,29 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # 감사 254 — 통합 계좌가 달러로 사고 원화로 평가하던 자리.
+    # 실측: 2026-08-15 META 596.98(달러)에 체결 → 832,868(원)로 평가 →
+    #       100만원 계좌의 자산이 7,249만원(+7,150%)으로 기록됨.
+    ("대기 주문 체결가를 환산 없이 담는다(달러로 사서 원화로 평가한다)",
+     "quant/live/daily.py",
+     "                    (fbar, _to_krw_or_die(market, fopen, fx_rate))",
+     "                    (fbar, fopen)",
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("환율을 모를 때 1.0으로 때운다(감사 212가 고친 결함이 되돌아온다)",
+     "quant/live/daily.py",
+     '    krw = to_krw(market, float(price), fx_rate)\n    if krw is None:',
+     '    krw = to_krw(market, float(price), fx_rate)\n    if False:',
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("자릿수가 안 맞는 체결을 그냥 통과시킨다(환산이 또 빠져도 안 막힌다)",
+     "quant/live/daily.py",
+     "FILL_MARK_MAX_RATIO = 5.0",
+     "FILL_MARK_MAX_RATIO = 1e9",
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
+    ("거부한 체결을 장부에 안 남긴다(이유 없이 덜 산 채로 굴러간다)",
+     "quant/live/daily.py",
+     '              "fill_refused": fill_refused or None,',
+     '              "fill_refused": None,',
+     "tests/test_one_account_cannot_hold_two_currencies.py"),
     # 감사 252 — 환율 캐시가 안 늙어 장수 프로세스에서 얼어 있던 자리.
     # 실측: 1416.46을 받은 뒤 1500으로 움직여도 refresh=True가 1416.46 반환.
     ("환율 캐시가 늙지 않는다(며칠 도는 프로세스에서 환율이 얼어붙는다)",
@@ -3270,8 +3292,8 @@ MUTATIONS = [
 
     ("오늘의 판단이 후보 수를 '분산'이라 말하게 되돌린다",
      "docs/today.html",
-     '<div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||80000)})</div>',
-     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ${won(p.start_cash||80000)})</div>',
+     '<div class="k">통합 계좌 (${spread} · 시작 ',
+     '<div class="k">통합 계좌 (${rest.length}종목 분산 · 시작 ',
      "tests/test_broadcast_tells_the_whole_truth.py"),
 
     ("사이드바 '종목계좌' 라벨을 맨 '비중'으로 되돌린다",
@@ -3552,11 +3574,125 @@ MUTATIONS = [
      "return True",
      "tests/test_alpha7_volforecast_folds.py"),
 
-    ("다중검정 보정 문턱을 0으로 내린다",
+    ("선별 문턱을 0으로 내린다(잡음 후보가 그대로 결승행)",
      "quant/live/retrain.py",
-     "    select_t: float = 2.0,",
-     "    select_t: float = 0.0,",
+     "SELECT_SCREEN_T = 1.0",
+     "SELECT_SCREEN_T = 0.0",
      "tests/test_audition_gates_bind.py"),
+
+    ("결승 문턱의 다중검정 보정을 상수로 만든다",
+     "quant/live/retrain.py",
+     "    return min(CONFIRM_T_CAP,\n               1.0 + 0.5 * math.log10(1 + max(0, trials_recent) / 1000))",
+     "    return 1.0",
+     "tests/test_audition_gates_bind.py"),
+
+    ("선별기가 검정보다 엄격해지도록 클램프를 없앤다(결승전 무력화)",
+     "quant/live/retrain.py",
+     "    if clamp_screen and select_t > confirm_t:",
+     "    if False and select_t > confirm_t:",
+     "tests/test_audition_gates_bind.py"),
+
+    ("무효 후보(챔피언 사본)를 링에 그대로 세운다",
+     "quant/live/retrain.py",
+     '        if r.get("identical"):',
+     "        if False:",
+     "tests/test_audition_gates_bind.py"),
+
+    ("무효 후보 탐지를 항상 거짓으로 만든다",
+     "quant/live/champion_challenger.py",
+     "        identical = bool(",
+     "        identical = False and bool(",
+     "tests/test_audition_gates_bind.py"),
+
+    ("오디션 링에서 벤치마크(보유)를 뺀다 — '들고 있는 게 낫다'를 영영 못 본다",
+     "quant/live/retrain.py",
+     '    {"strategy": "buy_hold", "params": {}},',
+     "",
+     "tests/test_the_benchmark_is_in_the_ring.py"),
+
+    ("검증 게이트를 최종 비중에서 뗀다(경보만 울리던 시절로 복귀)",
+     "quant/live/daily.py",
+     "               * valid_damp.get(key, 1.0))",
+     "               * 1.0)",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("만료를 실패보다 먼저 본다(오래된 '버릴 것'이 오히려 덜 깎인다)",
+     "quant/live/validation_gate.py",
+     "    if pbo is not None and pbo > PBO_FAIL:\n        stale =",
+     "    if age is not None and age > MAX_AGE_DAYS:\n        pass\n    if False:\n        stale =",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("반쪽 측정(한쪽만 잰 기록)을 통과로 취급한다",
+     "quant/live/validation_gate.py",
+     '        reasons.append("보정 샤프(DSR)가 측정되지 않음")',
+     "        pass",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("날짜 없는 기록을 신선한 것으로 취급한다(옛 도장이 영원히 유효)",
+     "quant/live/validation_gate.py",
+     '        reasons.append(f"측정 날짜가 없어 신선도를 확인할 수 없음"',
+     '        _unused = (f"측정 날짜가 없어 신선도를 확인할 수 없음"',
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("미측정 종목을 '통과'로 취급한다(검증이 죽은 날 가장 공격적으로 굴린다)",
+     "quant/live/validation_gate.py",
+     "SCALE_WARN = 0.5",
+     "SCALE_WARN = 1.0",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("PBO 실패선을 없앤다(과최적화 확률 78%도 그대로 굴린다)",
+     "quant/live/validation_gate.py",
+     "    if pbo is not None and pbo > PBO_FAIL:",
+     "    if False:",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("검증 결과에서 날짜를 뺀다(옛 검증이 영원히 통과 도장을 찍는다)",
+     "quant/cli.py",
+     '            "asof": str(df.index[-1])[:10] if len(df) else None,',
+     "",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
+    ("야간 검증을 두 종목으로 되돌린다",
+     ".github/workflows/nightly-validate.yml",
+     "          python -m quant validate --all \\",
+     "          python -m quant validate --market crypto --symbol BTC/USDT \\",
+     "tests/test_nightly_workflow.py"),
+
+    ("의회에서 NaN 상관을 '다양성 통과'로 되돌린다",
+     "quant/live/parliament.py",
+     "                if c != c or c > CORR_CAP:",
+     "                if c == c and c > CORR_CAP:",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("무포지션 의원에게도 의석을 준다(현금이 의석을 갖는다)",
+     "quant/live/parliament.py",
+     "            if idle[i]:",
+     "            if False:",
+     "tests/test_parliament_moves_slowly_and_diversely.py"),
+
+    ("소스 실패 사유 기록을 끈다(왜 안 붙었는지 다시 사라진다)",
+     "quant/data/source_health.py",
+     "        errs[str(source)] = str(reason)[:MAX_REASON]",
+     "        pass",
+     "tests/test_feature_health.py"),
+
+    ("거래소 페이지네이션을 없앤다(코인이 다시 300봉으로 굶는다)",
+     "quant/data/crypto.py",
+     "        raw = _fetch_paged(client, symbol, timeframe, since, limit)",
+     "        raw = client.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit)",
+     "tests/test_a_capped_exchange_does_not_starve_the_model.py"),
+
+    ("공회전 오디션을 다시 '정상'이라고 적는다",
+     "quant/live/retrain.py",
+     "    vacuous = bool(inert) and len(candidates) <= max(1, len(inert) // 4)",
+     "    vacuous = False",
+     "tests/test_audition_gates_bind.py"),
+
+    ("피처 계측의 분모를 시장 무시하고 전체 목록으로 되돌린다",
+     "quant/strategies/ml.py",
+     "    names = MARKET_OPTIONAL_FEATURES.get(market)",
+     "    names = None",
+     "tests/test_feature_health.py"),
 
     ("웹훅 서명 검증을 통과시킨다",
      "quant/live/webhook.py",
@@ -4020,6 +4156,298 @@ MUTATIONS = [
      "VERIFY_TARGET_VOL = 0.12",
      "VERIFY_TARGET_VOL = 0.10",
      "tests/test_site_numbers_track_the_code.py"),
+
+    # ── 2026-08-14 · 적중률이 표본이 감당 못 하는 단정을 하던 자리 ──────
+    #
+    # 사장님: "64% n=11 솔라나의 적중률은 이런 식으로 잘못 나오고 있어."
+    # 20종목 중 19개의 95% 구간이 50%를 품고 있었는데, 화면은 그 비율을
+    # 단정으로 내보내고 있었다. 옛 규칙('n<20이면 흐리게')은 n=81짜리
+    # 60%를 그냥 통과시켰다 — **n이 아니라 구간이 판정한다.**
+
+    ("판정 기준을 표본 크기로 되돌린다(n=81짜리 60%가 단정으로 나간다)",
+     "quant/robustness/accuracy.py",
+     "    return not (lo <= COIN_FLIP <= hi)",
+     "    return n >= 20",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("표본 없는 구간을 판정 가능으로 센다(n=0이 '실력'이 된다)",
+     "quant/robustness/accuracy.py",
+     "    if lo != lo or hi != hi:            # NaN — 표본 없음\n        return False",
+     "    if lo != lo or hi != hi:            # NaN — 표본 없음\n        return True",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("표본 미상 기록을 그냥 비율로 내보낸다(옛 기록이 확신처럼 읽힌다)",
+     "quant/robustness/accuracy.py",
+     'return f"{r:.0%} (표본 미상)"',
+     'return f"{r:.0%}"',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("판정 불가인데 '판정 불가'를 안 붙인다",
+     "quant/robustness/accuracy.py",
+     'return f"{r:.0%} (판정 불가 {band} · n={n})"',
+     'return f"{r:.0%} ({band} · n={n})"',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("최근 적중률의 분모를 안 남긴다(표본 없이 단정하게 된다)",
+     "quant/live/autolearn.py",
+     '            "recent_n": recent_n,                 # 그 비율의 분모(채점된 봉)\n',
+     "",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("화면 쪽 판정만 되돌린다(파이썬과 갈라져 페이지마다 다른 확신)",
+     "docs/assets/hitrate.js",
+     "    return !(ci[0] <= COIN_FLIP && COIN_FLIP <= ci[1]);",
+     "    return n >= 20;",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("옛 기록을 되계산하지 않는다(표본 있는 옛 기록이 단정으로 나간다)",
+     "docs/assets/hitrate.js",
+     '    if (typeof sure !== "boolean" && n !== null) {   // 옛 기록 보정',
+     '    if (false) {   // 옛 기록 보정',
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    ("조종석이 공용 규칙 파일을 안 싣는다(5초 뒤 옛 서식으로 되돌아간다)",
+     "quant/web/app.py",
+     'f\'{_inline_asset("hitrate.js")}\'\n',
+     "",
+     "tests/test_the_hit_rate_says_only_what_the_sample_supports.py"),
+
+    # ── 2026-08-14 · 첫 화면에서 종목을 눌러도 차트가 없던 자리 ──────────
+    #
+    # 매핑이 today.html 안에만 있었다. 사본을 만들면 상장 시장이 바뀔 때
+    # 한쪽만 고쳐지고, 매핑이 틀리면 차트는 **조용히** 안 뜬다.
+
+
+
+
+
+    # ── 2026-08-14 · 시작금이 8만원에서 100만원으로, 이름도 함께 ─────────
+    #
+    # 사장님: "모든 페이지를 확인해서 더이상 8마일이 아닌 100만원으로
+    #          시작한다는걸로 업데이트 해줘"
+    #
+    # 장부는 2026-08-13부터 이미 100만원이었는데 코드 상수만 8만원에
+    # 멈춰 있었다. 화면은 장부를 먼저 읽으므로(감사 218) 겉으로는 안
+    # 드러났지만, 계좌를 새로 만드는 경로는 전부 이 상수를 쓴다.
+
+    ("시작금 상수를 8만원으로 되돌린다(새 계좌가 계좌와 다른 원금으로 생긴다)",
+     "quant/live/ledger_basics.py",
+     "PORTFOLIO_START_CASH = 1_000_000.0",
+     "PORTFOLIO_START_CASH = 80_000.0",
+     "tests/test_daily_paper.py"),
+
+    ("첫 화면 기본 원금만 8만원으로 되돌린다(장부를 못 읽는 순간 갈라진다)",
+     "docs/index.html",
+     "const h=pf.history,base=pf.start_cash||1000000;",
+     "const h=pf.history,base=pf.start_cash||80000;",
+     "tests/test_site_numbers_track_the_code.py"),
+
+    ("산문에 옛 시작금을 다시 박는다(사이트가 계좌와 다른 말을 한다)",
+     "docs/index.html",
+     "100만 챌린지 · 통합 실기록",
+     "8만원으로 시작하는 실기록",
+     "tests/test_site_provenance.py"),
+
+    ("캡션이 장부 원금 대신 코드 기본값을 쓴다(재개설 뒤 옛 금액이 방송된다)",
+     "quant/reporting/social.py",
+     '    _p = x.get("principal")\n',
+     "    _p = None\n",
+     "tests/test_sns_provenance.py"),
+
+
+    # ── 2026-08-14 · 내 자료로 전략 넣기 (PDF·유튜브·트레이딩뷰) ─────────
+    #
+    # 사장님: "각 유저마다 투자 관련한 자료를 넣으면 그 전략이 적용되게끔도
+    #          할 수 있어?"
+    #
+    # 이 기능의 가장 큰 위험은 **없는 규칙을 지어내는 것**이고, 두 번째는
+    # **후보를 늘리면서 다중검정 보정을 안 올리는 것**이다. 둘 다 조용히
+    # 일어나고, 둘 다 이 제품의 심장을 끈다.
+
+    ("규칙이 없는 자료에서도 전략을 만들어 낸다(지어낸 전략을 사용자 것이라 한다)",
+     "quant/ingest/extract.py",
+     "    if not entry:\n",
+     "    if False:\n",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("근거 문장 없이도 조건을 만든다(자료에서 뽑았다는 말이 거짓이 된다)",
+     "quant/ingest/spec.py",
+     "    if not str(c.quote).strip():",
+     "    if False:",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("명세로 레버리지를 들여올 수 있게 한다",
+     "quant/ingest/spec.py",
+     "        if not (0.0 < float(self.weight) <= 1.0):",
+     "        if not (0.0 < float(self.weight) <= 100.0):",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("돌파만 있고 청산이 없는 명세를 통과시킨다(하루 들고 파는 전략이 된다)",
+     "quant/ingest/spec.py",
+     "        if self.entry and all(c.op in _EVENTS for c in self.entry) and not self.exit:",
+     "        if False:",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("신고가에 오늘 고가를 포함시킨다(조건이 늘 참이 되어 매일 산다)",
+     "quant/ingest/spec.py",
+     '        return df["high"].astype(float).rolling(p).max().shift(1)',
+     '        return df["high"].astype(float).rolling(p).max()',
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("매도 문장을 매수 조건으로 넣는다(정반대로 매매한다)",
+     "quant/ingest/extract.py",
+     "    if sell and not buy:\n        return None, cond\n    if buy and not sell:\n        return cond, None\n    # 한 문장에 둘 다",
+     "    if True:\n        return cond, None\n    if buy and not sell:\n        return cond, None\n    # 한 문장에 둘 다",
+     "tests/test_only_real_rules_become_strategies.py"),
+
+    ("사용자 전략을 링에 안 세운다(등록해도 한 번도 심사받지 않는다)",
+     "quant/live/retrain.py",
+     "    challengers += _user_specs(state_dir)\n",
+     "",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("사용자 전략 수에 상한을 없앤다(한 사람의 자료가 전체 진화를 멈춘다)",
+     "quant/ingest/registry.py",
+     "MAX_USER_CHALLENGERS = 12",
+     "MAX_USER_CHALLENGERS = 500",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("깨진 명세 파일을 조용히 건너뛴다(안 서는 전략을 선다고 믿게 된다)",
+     "quant/ingest/registry.py",
+     '            problems.append(f"{fp.name}: {exc}")',
+     "            pass",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+    ("재현할 때 장부 대신 오늘 폴더를 읽는다(어제를 오늘 자료로 재현한다)",
+     "quant/live/retrain.py",
+     '        challengers += list(rec.get("user_specs") or [])',
+     "        pass",
+     "tests/test_ingested_specs_must_win_the_audition.py"),
+
+
+    # ── 2026-08-14 · 선물 준비 ①②③④ — 레버리지를 열기 전에 관문부터 ────
+    #
+    # 사장님: "모두 순서대로 가장 이상적이고 영구적으로 진행해줘."
+    #
+    # 이 저장소가 이번 주 내내 고친 결함은 전부 "선언만 돼 있고 안 막는 장치"
+    # 였다. 레버리지는 그 결함이 나면 **계좌가 없어지는** 영역이다.
+
+    ("청산 관문을 자주 보는 것만으로 뚫리게 한다(점프 바닥 제거)",
+     "quant/risk/liquidation.py",
+     "    return max(floor, float(daily_vol) * scale * float(sigma))",
+     "    return float(daily_vol) * scale * float(sigma)",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("모르는 시장에 가장 관대한 점프 바닥을 준다",
+     "quant/risk/liquidation.py",
+     "DEFAULT_JUMP_FLOOR = 0.20   # 모르면 가장 나쁜 쪽",
+     "DEFAULT_JUMP_FLOOR = 0.02   # 모르면 가장 나쁜 쪽",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("변동성을 모르는데 레버리지를 통과시킨다(모름을 안전으로 읽는다)",
+     "quant/risk/liquidation.py",
+     "        if leverage <= 1.0:\n            return Headroom(True, x_liq, 0.0, float(\"inf\"), measured,",
+     "        if True:\n            return Headroom(True, x_liq, 0.0, float(\"inf\"), measured,",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("여유 배수를 1배로 낮춘다(이론상 아슬아슬하게 사는 것을 통과로 친다)",
+     "quant/risk/liquidation.py",
+     "SAFETY_FACTOR = 2.0",
+     "SAFETY_FACTOR = 1.0",
+     "tests/test_liquidation_cannot_beat_the_killswitch.py"),
+
+    ("파산을 최종 자산으로만 판정한다(도중에 죽은 경로가 무사가 된다)",
+     "quant/robustness/ruin.py",
+     "    ruined = (equity <= ruin_level).any(axis=1)    # **경로 어느 지점에서든**",
+     "    ruined = equity[:, -1] <= ruin_level",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("블록 부트스트랩을 하루 단위로 바꾼다(뭉친 하락이 흩어져 안전해 보인다)",
+     "quant/robustness/ruin.py",
+     "    block = max(5, min(20, r.size // 10))          # 연속 하락을 살리는 블록 길이",
+     "    block = 1",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("표본이 모자라도 파산확률을 통과시킨다",
+     "quant/robustness/ruin.py",
+     "    if r.size < 30:",
+     "    if False:",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("파산 허용 기준을 느슨하게 한다(관문이 장식이 된다)",
+     "quant/robustness/ruin.py",
+     "RUIN_PASS = 0.01",
+     "RUIN_PASS = 0.50",
+     "tests/test_a_good_average_can_still_go_bankrupt.py"),
+
+    ("감시 간격을 실측이 아니라 설정값으로 쓴다(밀린 회차를 못 본다)",
+     "quant/live/guard.py",
+     "    if now_iso:\n",
+     "    if False:\n",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("심장박동이 모자라도 간격을 0으로 친다(모름을 '완벽한 감시'로 읽는다)",
+     "quant/live/guard.py",
+     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return None",
+     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return 0.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("장중 감시가 킬스위치 규칙을 자기가 다시 적는다(새벽 배치와 갈라진다)",
+     "quant/live/guard.py",
+     "    from quant.live.daily import _kill_switch_scale\n",
+     "    _kill_switch_scale = lambda prev, dd: 1.0 if dd > -0.25 else 0.0\n",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("감시 실적이 없어도 레버리지를 연다",
+     "quant/risk/leverage_gate.py",
+     '        return LeverageDecision(1.0, "장중 감시 실적 없음", checks)',
+     "        observed = 1.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("파산확률을 못 재도 레버리지를 연다",
+     "quant/risk/leverage_gate.py",
+     '        return LeverageDecision(1.0, "파산확률 미측정", checks)',
+     "        ruin_cap = HARD_CAP",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("절대 상한을 없앤다(모든 가정이 동시에 낙관적일 때 막을 것이 없다)",
+     "quant/risk/leverage_gate.py",
+     "HARD_CAP = 3.0",
+     "HARD_CAP = 1000.0",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("관문 중 가장 큰 값을 쓴다(제일 약한 고리가 아니라 제일 관대한 것을 따른다)",
+     "quant/risk/leverage_gate.py",
+     "    cap, binding = min(limits, key=lambda x: x[0])",
+     "    cap, binding = max(limits, key=lambda x: x[0])",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+    ("장중 감시가 노출 축소를 장부에 안 적는다(다음 배치가 되돌린다)",
+     "quant/cli.py",
+     '        st["risk_scale"] = v.scale\n',
+     "",
+     "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
+
+
+    # ── 2026-08-15 · 미뤄 뒀던 것 정리 ────────────────────────────────
+    ("워크플로가 선택 의존성을 버전 없이 덧붙인다(그날 PyPI 최신을 받는다)",
+     ".github/workflows/daily-paper.yml",
+     "pip install -r requirements.txt -r requirements-extra.txt",
+     "pip install -r requirements.txt pykrx",
+     "tests/test_declared_dependencies_match_reality.py"),
+
+    ("선택 의존성 파일에서 버전 범위를 뗀다",
+     "requirements-extra.txt",
+     "pykrx>=1.0,<2            # KRX 투자자별 순매수 → x_frgn5·x_inst5",
+     "pykrx            # KRX 투자자별 순매수 → x_frgn5·x_inst5",
+     "tests/test_declared_dependencies_match_reality.py"),
+
+    ("전 종목 검증 리포트를 한 파일에 덮어쓴다(마지막 종목 것만 남는다)",
+     "quant/cli.py",
+     '                one.report = str(rp.with_name(f"{rp.stem}_{safe}{rp.suffix}"))',
+     "                pass",
+     "tests/test_the_validation_gate_actually_gates.py"),
+
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

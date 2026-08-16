@@ -11,8 +11,75 @@
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pandas as pd
+
+# 이 비율과 구별되지 않으면 "맞힌다"고 말할 수 없다 — 동전던지기.
+COIN_FLIP = 0.5
+
+
+def wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """윌슨 신뢰구간(기본 95%) — 소표본·극단 비율에서도 [0,1]을 안 벗어난다.
+
+    ⚠️ 이 규칙은 **여기 한 곳에만** 둔다. 같은 공식을 두 곳에 적으면 반드시
+       어긋난다(FROZEN_IDEAS ①). explain.py가 자기 사본을 갖고 있었고,
+       그쪽은 n=0에서 0으로 나눈다 — 이 함수는 그 경우 (nan, nan)을 준다.
+    """
+    if n <= 0:
+        return (float("nan"), float("nan"))
+    p = k / n
+    denom = 1.0 + z * z / n
+    center = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return max(0.0, center - half), min(1.0, center + half)
+
+
+def is_conclusive(k: int, n: int, z: float = 1.96) -> bool:
+    """이 표본이 '동전던지기가 아니다'라고 말할 수 있는가.
+
+    신뢰구간이 50%를 품고 있으면 **어느 쪽으로도 말할 수 없다.** 그런데도
+    비율만 크게 써 두면 읽는 사람은 그것을 확립된 실력으로 읽는다.
+
+    ⚠️ 표본 크기(n)만으로는 판정할 수 없다(2026-08-14 실측). 사장님이
+       "솔라나 64% n=11"을 지적해 20종목을 전부 재 봤더니 **19개**의
+       구간이 50%를 품고 있었다. n=81짜리 60%(구간 50~70%)도 그랬다 —
+       그때까지 화면은 n<20일 때만 n을 흐리게 붙였으므로, n=81은 아무
+       단서 없이 "60%"라는 단정으로 나가고 있었다.
+       **n이 아니라 구간이 판정한다.**
+    """
+    lo, hi = wilson_ci(k, n)
+    if lo != lo or hi != hi:            # NaN — 표본 없음
+        return False
+    return not (lo <= COIN_FLIP <= hi)
+
+
+def hit_rate_text(rec: dict | None, *, key: str = "hit_rate",
+                  n_key: str = "hit_n") -> str:
+    """장부 기록 하나 → 사람이 읽을 적중률 문자열. **여기가 유일한 규칙이다.**
+
+    화면(assets/hitrate.js)과 같은 판정을 파이썬 쪽에서도 쓴다 — 텔레그램
+    요약·조종석 KPI가 각자 자기 서식을 만들면 같은 날 같은 종목이 화면에서는
+    "판정 불가"인데 알림에서는 "60%"로 나간다.
+
+        58% (판정 불가 32~81% · n=12)   구간이 50%를 품는다 — 아무 말도 못 한다
+        67% (54~77% · n=63)             동전던지기와 구별된다
+        60% (표본 미상)                  n이 기록되지 않은 옛 기록
+        N/A                              채점 가능한 봉이 없다
+    """
+    rec = rec or {}
+    r = rec.get(key)
+    if not isinstance(r, (int, float)) or isinstance(r, bool) or r != r:
+        return "N/A"
+    n = rec.get(n_key)
+    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:
+        return f"{r:.0%} (표본 미상)"
+    lo, hi = wilson_ci(round(r * n), n)
+    band = f"{lo * 100:.0f}~{hi * 100:.0f}%"   # 화면(hitrate.js)과 같은 서식
+    if is_conclusive(round(r * n), n):
+        return f"{r:.0%} ({band} · n={n})"
+    return f"{r:.0%} (판정 불가 {band} · n={n})"
 
 
 def directional_accuracy(
@@ -62,12 +129,27 @@ def directional_accuracy(
     correct = active & (np.sign(sig) == np.sign(ret_next))
 
     n = int(active.sum())
-    hit_rate = float(correct.sum() / n) if n > 0 else float("nan")
+    k = int(correct.sum())
+    hit_rate = float(k / n) if n > 0 else float("nan")
+    # ⚠️ 적중률은 **혼자 다니지 않는다.** 비율만 내보내면 읽는 쪽이 표본을
+    #    붙일 방법이 없고, 그러면 n=11짜리 64%가 확립된 실력처럼 읽힌다.
+    #    구간과 판정을 같이 돌려주어 '숫자를 쓸 수 있는가'를 호출자가
+    #    따로 계산하지 않게 한다(같은 규칙을 두 곳에 적지 않는다).
+    lo, hi = wilson_ci(k, n)
     out: dict = {"hit_rate": hit_rate, "n": n,
-                 "n_flat": int((held & ~moved).sum())}
+                 "n_flat": int((held & ~moved).sum()),
+                 "correct": k, "lo": lo, "hi": hi,
+                 "conclusive": is_conclusive(k, n)}
 
     if window:
         num = correct.astype(float).rolling(window).sum()
         den = active.astype(float).rolling(window).sum()
         out["rolling"] = (num / den.replace(0.0, np.nan)).rename("hit_rate")
+        # ⚠️ 롤링 비율에는 **분모가 따라다녀야 한다**(2026-08-14). 예전에는
+        #    비율만 돌려줬고, 화면·알림은 그 비율을 표본 없이 "최근 적중률
+        #    64%"로 내보냈다. window=20이어도 관망이 많은 종목은 실제
+        #    채점된 봉이 서너 개뿐이라, 그 64%는 아무것도 말하지 않는다.
+        #    비율을 주는 자리에서 분모도 같이 준다 — 그래야 받는 쪽이
+        #    '이 숫자를 쓸 수 있는가'를 물을 수 있다.
+        out["rolling_n"] = den.rename("n")
     return out

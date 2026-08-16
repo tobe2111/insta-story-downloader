@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 
 from quant.live.daily import run_daily_paper, write_docs_status  # noqa: E402
 from quant.live.retrain import save_champions  # noqa: E402
@@ -242,26 +243,32 @@ def test_portfolio_refuses_when_all_symbols_fail(tmp_path, monkeypatch):
 # ── 만원 → 1억 챌린지 (매칭 입금 · 분리 회계) ─────────────────────────────
 
 def test_add_deposit_ledger_and_principal(tmp_path):
-    from quant.live.daily import GOAL_KRW, add_deposit
+    from quant.live.daily import (GOAL_KRW, PORTFOLIO_START_CASH,
+                                  add_deposit)
 
-    # 8마일 챌린지: 통합 계좌 시작금 8만원 + 입금 1만원 = 접수 원금 9만원
+    # 통합 계좌 시작금 + 입금 1만원 = 접수 원금.
+    # ⚠️ 금액은 **상수에서 읽는다**. 여기 8만원을 박아 두면 시작금이 바뀔
+    #    때마다(2026-08-14에 실제로 100만원이 됐다) 검사가 산수를 다시
+    #    배워야 한다 — 검사가 재는 것은 금액이 아니라 '접수액과 원금을
+    #    구별하는가'다.
+    SC = PORTFOLIO_START_CASH
     out = add_deposit(10000, "슈퍼챗 홍길동", state_dir=str(tmp_path),
                       date="2026-08-05")
     # ⚠️ 접수액과 **화면이 쓰는 원금**은 다르다(감사 211). 입금은 즉시 현금이
     #    되지만 자산은 다음 새벽 배치가 다시 잰다. 그 사이에 원금만 올리면
     #    입금액이 통째로 손실로 보인다(실측 -920,749원).
-    assert out["committed"] == 90000 and out["goal"] == GOAL_KRW
-    assert out["principal"] == 80000                 # 아직 자산에 안 잡혔다
+    assert out["committed"] == SC + 10000 and out["goal"] == GOAL_KRW
+    assert out["principal"] == SC                    # 아직 자산에 안 잡혔다
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
                     .read_text(encoding="utf-8"))
-    assert st["cash"] == 90000                       # 현금 증액
-    assert st["start_cash"] == 80000                 # 8종목 × 만원
+    assert st["cash"] == SC + 10000                  # 현금 증액
+    assert st["start_cash"] == SC
     assert st["deposits"][0]["memo"] == "슈퍼챗 홍길동"
 
     add_deposit(5000, state_dir=str(tmp_path), date="2026-08-06")
     st = json.loads((tmp_path / "paper" / "portfolio_ALL.json")
                     .read_text(encoding="utf-8"))
-    assert len(st["deposits"]) == 2 and st["cash"] == 95000
+    assert len(st["deposits"]) == 2 and st["cash"] == SC + 15000
 
     with pytest.raises(ValueError):                  # 상한·양수 검증
         add_deposit(0, state_dir=str(tmp_path))
@@ -291,11 +298,14 @@ def test_time_weighted_return_removes_deposit_effect():
 def test_docs_status_challenge_fields(tmp_path):
     import quant.live.daily as dl
 
+    SC = dl.PORTFOLIO_START_CASH
     dl.add_deposit(10000, "테스트", state_dir=str(tmp_path), date="2026-08-05")
-    # 수동으로 기록 1건 구성(운용 손익 +500 가정)
+    # 수동으로 기록 1건 구성(운용 손익 +500 가정).
+    # 금액은 시작금에서 파생시킨다 — 박아 두면 시작금이 바뀔 때 검사가
+    # 재는 것(원금·손익을 나눠 세는가)과 무관한 이유로 깨진다.
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text(encoding="utf-8"))
-    st["history"] = [{"date": "2026-08-05", "equity": 90500,
+    st["history"] = [{"date": "2026-08-05", "equity": SC + 10000 + 500,
                       "return_pct": 2.5, "price": 100, "weight": 0.5}]
     # 이 자산(90,500)은 입금을 **포함해** 다시 잰 값이다 — 배치가 그렇게 재고
     # 나서 찍는 도장을 여기서도 찍어 준다(감사 211). 이걸 빼먹으면 자산은
@@ -306,7 +316,7 @@ def test_docs_status_challenge_fields(tmp_path):
     out = dl.write_docs_status(str(tmp_path),
                                docs_path=str(tmp_path / "s.json"))
     pf = out["paper"]["portfolio:ALL"]
-    assert pf["principal"] == 90000 and pf["pnl"] == 500
+    assert pf["principal"] == SC + 10000 and pf["pnl"] == 500
     assert pf["goal"] == dl.GOAL_KRW
     assert pf["deposits"][0]["amount"] == 10000
     assert "pending_deposits" not in pf          # 반영됐으니 대기 없음
@@ -320,31 +330,53 @@ def test_docs_status_does_not_book_an_unsettled_deposit_as_loss(tmp_path):
     """
     import quant.live.daily as dl
 
+    SC = dl.PORTFOLIO_START_CASH
     dl.add_deposit(920000, "원금 증액", state_dir=str(tmp_path),
                    date="2026-08-13")
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text(encoding="utf-8"))
-    st["history"] = [{"date": "2026-08-12", "equity": 79250.68,
+    # 아직 입금이 반영되지 않은 자산 = 시작금에서 749.32원 잃은 상태.
+    # (실제 사건의 숫자는 8만원 계좌의 79,250.68이었다 — 시작금이 바뀌어도
+    #  결함의 모양은 같으므로 손실액만 남기고 기준을 상수에서 읽는다.)
+    st["history"] = [{"date": "2026-08-12", "equity": SC - 749.32,
                       "return_pct": -0.94, "price": 98.96, "weight": 0.32}]
     p.write_text(json.dumps(st), encoding="utf-8")
 
     pf = dl.write_docs_status(str(tmp_path),
                               docs_path=str(tmp_path / "s.json"))
     pf = pf["paper"]["portfolio:ALL"]
-    assert pf["principal"] == 80000, "반영 전 입금이 원금에 섞였다"
+    assert pf["principal"] == SC, "반영 전 입금이 원금에 섞였다"
     assert -1000 < pf["pnl"] < 0, f"입금이 손실로 잡혔다 — {pf['pnl']:,.0f}원"
     # 그리고 **숨기지 않는다** — 사이트가 "접수됨"이라고 말할 재료를 준다
     assert [d["amount"] for d in pf["pending_deposits"]] == [920000.0]
 
 
-def test_8mile_portfolio_start_cash(tmp_path, monkeypatch):
-    """8마일 챌린지: 새 통합 계좌는 8만원으로 시작하고 TWR도 그 기준으로 계산."""
+def test_portfolio_start_cash_matches_the_live_account(tmp_path, monkeypatch):
+    """새 통합 계좌는 **지금 계좌와 같은 금액**으로 시작한다.
+
+    ⚠️ 2026-08-14, 사장님 지적으로 8만원 → 100만원. 옛 이름은 '8마일
+       챌린지'(8종목 × 만원)였는데, 유니버스가 20종목이 되고 매칭 입금·원화
+       재개설로 원금이 100만원이 되면서 이름도 상수도 뜻을 잃었다.
+
+       상수만 8만원에 멈춰 있어도 화면은 장부의 원금을 먼저 읽으므로(감사
+       218) 겉으로는 안 드러났다. 하지만 **계좌를 새로 만드는 경로는 전부
+       이 상수를 쓴다** — 장부가 없는 환경에서 배치가 처음 도는 순간
+       8만원짜리 계좌가 생겨 사이트가 말하는 원금과 갈라진다.
+    """
+    import json as _json
+
     import quant.live.daily as dl
 
-    assert dl.PORTFOLIO_START_CASH == 80_000.0
-    # 새 계좌 생성 경로(add_deposit 폴백)가 8만원 기반인지
+    SC = dl.PORTFOLIO_START_CASH
+    assert SC == 1_000_000.0, "코드 기본값이 지금 계좌(100만원)와 다르다"
+    # 살아 있는 장부와도 같은가 — 상수만 맞고 장부가 다르면 의미가 없다.
+    live = ROOT / "state" / "paper" / "portfolio_ALL.json"
+    if live.exists():
+        assert _json.loads(live.read_text("utf-8"))["start_cash"] == SC, (
+            "코드 기본값과 살아 있는 계좌의 시작금이 다르다")
+    # 새 계좌 생성 경로(add_deposit 폴백)가 그 금액 기반인지
     out = dl.add_deposit(1000, state_dir=str(tmp_path), date="2026-08-05")
-    assert out["committed"] == 81000          # 접수 총액(현금에는 즉시 반영)
+    assert out["committed"] == SC + 1000      # 접수 총액(현금에는 즉시 반영)
     # 저장된 start_cash를 존중하는지(과거 만원 계좌 하위호환)
     p = tmp_path / "paper" / "portfolio_ALL.json"
     st = json.loads(p.read_text(encoding="utf-8"))

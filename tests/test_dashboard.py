@@ -51,12 +51,16 @@ def test_dashboard_empty_history(tmp_path):
 def test_dashboard_shows_accuracy(tmp_path):
     """자동학습 상태(정확도 포함)면 방향 정확도 KPI가 퍼센트로 표시된다."""
     hist = [{"time": "t", "price": 100, "weight": 1.0, "equity": 10_000,
-             "hit_rate": 0.53, "recent_hit_rate": 0.55, "n": 40}]
+             "hit_rate": 0.53, "n": 40,
+             "recent_hit_rate": 0.55, "recent_n": 40}]
     state = {"symbol": "X", "strategy": "ml", "mode": "paper-autolearn",
              "history": hist, "position": {}, "orders": []}
     out = dashboard.generate_dashboard(state, tmp_path / "acc.html")
     html = out.read_text(encoding="utf-8")
-    assert "방향 정확도" in html and "55.0%" in html   # recent_hit_rate 우선
+    # recent_hit_rate 우선. ⚠️ 비율만 크게 쓰지 않는다 — 구간이 50%를 품으면
+    #    "판정 불가"가 함께 나간다(2026-08-14). n=40짜리 55%가 그렇다.
+    assert "방향 정확도" in html
+    assert "55% (판정 불가 40~69% · n=40)" in html, "표본 없이 단정한다"
 
 
 def test_dashboard_accuracy_na_when_absent(tmp_path):
