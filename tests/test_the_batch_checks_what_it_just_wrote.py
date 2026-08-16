@@ -111,6 +111,51 @@ def test_the_gate_actually_fails_on_a_broken_ledger(tmp_path):
         ledger_gate.LEDGER_CHECKS = orig
 
 
+def test_the_gate_says_whether_the_ledger_is_wrong_or_the_checker_broke(
+        monkeypatch):
+    """둘 다 커밋을 막지만, **사람에게는 다른 사건**이다.
+
+    새벽 5시 30분에 배치가 멈췄을 때 찾아야 할 것이 장부인지 도구인지
+    관문이 말해 주지 않으면, 없는 버그를 몇 시간 찾게 된다.
+    """
+    import subprocess as _sp
+
+    from scripts import ledger_gate  # noqa: PLC0415
+
+    def _fake(rc):
+        def _run(*a, **k):
+            return _sp.CompletedProcess(a[0] if a else [], rc, "", "")
+        return _run
+
+    seen = {}
+    for rc, expect in ((1, "장부가 말이 안 된다"), (4, "미실행"), (5, "미실행")):
+        monkeypatch.setattr(ledger_gate.subprocess, "run", _fake(rc))
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            out = ledger_gate.run()
+        seen[rc] = buf.getvalue()
+        assert out == 1, f"종료코드 {rc}인데 관문이 커밋을 허용한다"
+        assert expect in seen[rc], (
+            f"종료코드 {rc}의 설명이 '{expect}'를 말하지 않는다:\n{seen[rc]}")
+    assert seen[1] != seen[4], (
+        "장부 오류와 도구 고장이 **같은 문구**로 나간다 — 사람이 엉뚱한 곳을 "
+        "뒤지게 된다")
+
+
+def test_a_checker_that_collected_nothing_is_not_a_pass():
+    """검사가 0개 수집돼도 통과가 되면, 이름만 바뀌어도 관문이 사라진다.
+
+    pytest는 수집 0건에 5를 준다 — 0이 아니므로 막히지만, 그건 우연이
+    아니라 의도여야 한다. 그래서 5가 '못 돌았다' 쪽에 명시적으로 있는지 본다.
+    """
+    from scripts import ledger_gate  # noqa: PLC0415
+    assert 5 in ledger_gate._PYTEST_CANT_RUN, (
+        "검사가 하나도 수집되지 않은 상태가 '못 돌았다'로 분류돼 있지 않다")
+    assert 0 not in ledger_gate._PYTEST_CANT_RUN
+
+
 def test_the_gate_is_cheap_enough_that_cost_is_not_an_excuse():
     """비싸면 언젠가 꺼진다 — 실제로 얼마나 걸리는지 잰다."""
     import time

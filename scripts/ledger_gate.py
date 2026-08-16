@@ -45,6 +45,14 @@ LEDGER_CHECKS = (
 )
 
 
+# pytest의 종료코드 — '검사가 틀렸다'와 '검사가 못 돌았다'는 다른 사건이다.
+# 새벽 5시 30분에 배치가 멈췄을 때, 사람이 찾아야 할 것이 장부인지 도구인지
+# 관문이 말해 주지 않으면 없는 버그를 몇 시간 찾게 된다.
+_PYTEST_FAILED = 1          # 검사가 돌았고 **장부가 틀렸다**
+_PYTEST_CANT_RUN = {2: "중단됨", 3: "내부 오류", 4: "사용법 오류",
+                    5: "검사가 하나도 수집되지 않음"}
+
+
 def run() -> int:
     missing = [c for c in LEDGER_CHECKS if not (ROOT / c).exists()]
     if missing:
@@ -55,12 +63,25 @@ def run() -> int:
         [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
          *LEDGER_CHECKS],
         cwd=ROOT, capture_output=True, text=True)
-    if proc.returncode == 0:
+    rc = proc.returncode
+    if rc == 0:
         print(f"✅ 장부 관문 통과 ({len(LEDGER_CHECKS)}개 검사)")
         return 0
-    print("❌ 장부 관문 실패 — 이 기록은 커밋하지 않는다.")
-    print("   오염된 기록은 그날의 성적표이자 **내일의 출발 상태**다.")
-    print("   장부는 어제에 멈추고, 그 멈춤은 데드맨 스위치가 잡는다.")
+
+    if rc == _PYTEST_FAILED:
+        print("❌ 장부 관문 실패 — **장부가 말이 안 된다.** 커밋하지 않는다.")
+        print("   오염된 기록은 그날의 성적표이자 **내일의 출발 상태**다.")
+        print("   → 아래 실패한 검사가 무엇을 봤는지부터 읽으세요.")
+    else:
+        # 여기서도 커밋하지 않는다 — '못 쟀다'는 '괜찮다'가 아니다(검증
+        # 게이트가 미측정을 통과로 치지 않는 것과 같은 이유). 다만 사람이
+        # 엉뚱한 곳을 뒤지지 않게 **원인의 종류를 분명히 다르게** 말한다.
+        why = _PYTEST_CANT_RUN.get(rc, f"알 수 없는 종료코드 {rc}")
+        print(f"❌ 장부 관문 **미실행** — 검사 도구가 못 돌았다({why}).")
+        print("   장부가 틀렸다는 뜻이 **아니다.** 그래도 커밋하지 않는다 —")
+        print("   '못 쟀다'와 '괜찮다'를 같게 두면 관문이 고장난 날 시스템이")
+        print("   가장 위험하게 굴러간다.")
+        print("   → 장부가 아니라 **검사 환경**(의존성·수집·경로)을 보세요.")
     print(proc.stdout[-4000:])
     print(proc.stderr[-2000:])
     return 1
