@@ -4512,6 +4512,33 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
 
+    # ── 감사 258 — 장부가 아무도 넘은 적 없는 문턱을 적고 있었다 ───────
+    ("장부가 조정 전 문턱을 적는다(175/175건이 '선발 t≥2.52'였다)",
+     "quant/live/retrain.py",
+     '        "select_t_used": round(effective_select_t(select_t_eff, confirm_t_eff), 3),',
+     '        "select_t_used": round(select_t_eff, 3),',
+     "tests/test_the_ledger_records_the_threshold_it_used.py"),
+
+    ("화면이 조정 전 문턱을 찍는다(매일 틀린 숫자로 판단하게 된다)",
+     "quant/live/retrain.py",
+     "    select_t_used = effective_select_t(select_t_eff, confirm_t_eff)",
+     "    select_t_used = select_t_eff",
+     "tests/test_the_ledger_records_the_threshold_it_used.py"),
+
+    ("문턱 조정을 늘 건다(선별기가 결승보다 느슨해도 끌어내린다)",
+     "quant/live/retrain.py",
+     "    if clamp_screen and select_t > confirm_t:\n        return float(confirm_t)",
+     "    if clamp_screen:\n        return float(confirm_t)",
+     "tests/test_the_ledger_records_the_threshold_it_used.py"),
+
+    ("옛 관문(gate_version 1)까지 조정한다(과거 결정이 재현되지 않는다)",
+     "quant/live/retrain.py",
+     "def effective_select_t(select_t: float, confirm_t: float,\n"
+     "                       clamp_screen: bool = True) -> float:",
+     "def effective_select_t(select_t: float, confirm_t: float,\n"
+     "                       clamp_screen: bool = False) -> float:",
+     "tests/test_the_ledger_records_the_threshold_it_used.py"),
+
     # ── 감사 257 — 대조군 없는 성적표 · 안 흔든 사이징 축 ─────────────
     ("긴 검증에서 '그냥 보유' 대조군을 뗀다(플러스 62%만 남고 이김 31%가 사라진다)",
      "quant/live/walkforward.py",
