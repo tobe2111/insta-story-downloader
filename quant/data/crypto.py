@@ -54,18 +54,40 @@ def _fetch_paged(client, symbol: str, timeframe: str,
 
     since가 없으면 '최근 limit봉'을 원하는 것이므로, 필요한 만큼 과거로
     거슬러 올라간 시각을 시작점으로 잡는다(거래소는 since부터 앞으로 준다).
+
+    ⚠️ **그리고 현재에 닿을 때까지 받아야 한다** (2026-08-16 실전 사고, 감사 261).
+    첫 판은 `len(rows) >= limit`에서 멈췄다. 그런데 시작점은 `limit*1.2` 뒤라,
+    800개를 다 모은 시점이 아직 **165일 전**이었다. 즉 앞에서부터 800개를
+    받고 **최근 165일을 통째로 못 받았다.**
+
+        실측(2026-08-16 야간 배치): 코인 5종목이 bars=800으로 '성공'했는데
+        마지막 봉이 **2026-03-04** — 5개월 반 묵은 데이터로 챔피언을 결정했다.
+        (감사 243의 정체 경보가 정확히 165일로 잡아냈다.)
+
+    "봉 수를 채웠다"와 "최신까지 받았다"는 다른 조건이다. 개수로 멈추면
+    **더 오래된 쪽**이 남는다 — 판단에 쓸 수 없는 쪽이다. 그래서 멈추는
+    기준을 개수가 아니라 **도달 시각**으로 바꾸고, 넘치면 뒤에서 자른다.
     """
     step = _tf_ms(timeframe)
-    if since is None:
+    now_ms = int(pd.Timestamp.now("UTC").timestamp() * 1000)
+    # ⚠️ 두 요청은 **다른 것을 원한다** — 여기를 뭉뚱그린 것이 사고의 뿌리다.
+    #    · 시작점을 **받았다**  → "그 지점부터 limit봉"(호출자가 구간을 안다)
+    #    · 시작점이 **없다**    → "**최신** limit봉"(우리가 시작점을 정한다)
+    #    뒤쪽에서 개수로 멈추면 우리가 정한 시작점이 한참 과거라 최신을 놓친다.
+    tail = since is None
+    if tail:
         # 휴장·점검으로 빠지는 봉이 있으므로 20% 여유를 두고 거슬러 올라간다.
-        now_ms = int(pd.Timestamp.now("UTC").timestamp() * 1000)
         since = now_ms - int(limit * 1.2 + 5) * step
     rows: list = []
     seen: set = set()
     cursor = since
     for _ in range(_MAX_PAGES):
-        page = client.fetch_ohlcv(symbol, timeframe=timeframe,
-                                  since=cursor, limit=limit - len(rows))
+        # ⚠️ 남은 개수(limit - len(rows))로 조르면 마지막 페이지가 잘려
+        #    최신 봉을 못 받는다. 한 번에 줄 수 있는 만큼 받게 둔다.
+        # ⚠️ '최신 limit봉'을 받는 중이면 남은 개수로 조르면 안 된다 —
+        #    마지막 페이지가 잘려 최신 봉을 못 받는다.
+        page = client.fetch_ohlcv(symbol, timeframe=timeframe, since=cursor,
+                                  limit=limit if tail else limit - len(rows))
         if not page:
             break
         fresh = [r for r in page if r and r[0] not in seen]
@@ -74,9 +96,12 @@ def _fetch_paged(client, symbol: str, timeframe: str,
         for r in fresh:
             seen.add(r[0])
         rows.extend(fresh)
-        if len(rows) >= limit:
+        last_ts = max(r[0] for r in fresh)
+        # 멈추는 기준이 요청 종류에 따라 다르다. 구간 요청은 개수를 채우면
+        # 끝이고, '최신 limit봉'은 **현재에 닿아야** 끝이다.
+        if (last_ts + step > now_ms) if tail else (len(rows) >= limit):
             break
-        nxt = max(r[0] for r in fresh) + step
+        nxt = last_ts + step
         if nxt <= cursor:
             break                       # 커서가 안 움직이면 무한루프다
         cursor = nxt

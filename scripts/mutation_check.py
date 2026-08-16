@@ -4513,6 +4513,23 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
 
+    # ── 감사 261 — 800봉을 다 받고도 최신 165일을 못 받았다(실전 사고) ──
+    ("이어받기를 개수로 멈춘다(가장 오래된 800봉만 받고 최근 165일을 버린다)",
+     "quant/data/crypto.py",
+     "        if (last_ts + step > now_ms) if tail else (len(rows) >= limit):\n"
+     "            break",
+     "        if len(rows) >= limit:\n"
+     "            break",
+     "tests/test_the_bars_reach_today.py"),
+
+    ("페이지 요청을 남은 개수로 조른다(마지막 페이지가 잘려 최신 봉을 놓친다)",
+     "quant/data/crypto.py",
+     "        page = client.fetch_ohlcv(symbol, timeframe=timeframe, since=cursor,\n"
+     "                                  limit=limit if tail else limit - len(rows))",
+     "        page = client.fetch_ohlcv(symbol, timeframe=timeframe, since=cursor,\n"
+     "                                  limit=limit - len(rows))",
+     "tests/test_the_bars_reach_today.py"),
+
     # ── 감사 260 — 증거금 없는 무제한 공매도가 열려 있었다 ─────────────
     ("보유를 넘어서는 매도를 그냥 체결한다(100만원 계좌가 5,000만원어치 숏)",
      "quant/broker/paper.py",
