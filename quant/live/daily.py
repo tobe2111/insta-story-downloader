@@ -2733,6 +2733,19 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     # 시스템 건강 — 수익률 밖의 상태(판정 시계·체결 가정·킬스위치)를 함께.
     # 주간 요약은 "이번 주 시스템 건강 보고서"다 — 숫자 자랑이 아니라.
     health: dict = {"auditions": auditions}
+    # 굴린 자본 — **자산이 아니라 노출**. 100만원을 1억으로 만들겠다면서
+    # 자본의 절반이 늘 현금이면 그 사실이 매주 눈에 보여야 한다. 이 숫자는
+    # 장부에 계속 있었지만(`weight`) 어떤 보고서도 읽지 않았다.
+    for st in states:
+        if st.get("market") == "portfolio" and st.get("history"):
+            w = [float(r["weight"]) for r in chrono(st["history"])[-days:]
+                 if r.get("weight") is not None]
+            if w:
+                health["deployed"] = {
+                    "gross_mean": round(sum(w) / len(w), 4),
+                    "gross_last": round(w[-1], 4),
+                    "n_days": len(w),
+                }
     gen = _generation_info(state_dir)
     if gen:
         health["generation"] = gen
@@ -2796,6 +2809,11 @@ def format_weekly(summary: dict) -> str:
         if a.get("vacuous"):
             lines.append(f"   ⚠️ 그중 {a['vacuous']}회는 **대결 자체가 열리지 "
                          "않았습니다** — 승격 없음이 아니라 심사 없음입니다")
+    dep = h.get("deployed")
+    if dep:
+        lines.append(
+            f"💰 굴린 자본: 평균 {dep['gross_mean']:.0%} · 최근 "
+            f"{dep['gross_last']:.0%} (나머지는 현금 · {dep['n_days']}일 기준)")
     fc = h.get("fill_check")
     if fc:
         for mk, r in (fc.get("markets") or {}).items():

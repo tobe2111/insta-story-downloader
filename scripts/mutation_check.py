@@ -4512,6 +4512,49 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
 
+    # ── 감사 257 — 대조군 없는 성적표 · 안 흔든 사이징 축 ─────────────
+    ("긴 검증에서 '그냥 보유' 대조군을 뗀다(플러스 62%만 남고 이김 31%가 사라진다)",
+     "quant/live/walkforward.py",
+     "        segs = segment_scores(res.returns, warmup, market, segments, hold=hold)",
+     "        segs = segment_scores(res.returns, warmup, market, segments)",
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("보유 대비 판정을 뒤집는다(지고 있는데 이겼다고 적는다)",
+     "quant/live/walkforward.py",
+     '            row["beat_hold"] = bool(row["total_return"] > hr)',
+     '            row["beat_hold"] = bool(row["total_return"] < hr)',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("대조군을 날짜 정렬 없이 앞에서부터 갖다 붙인다(딴 구간과 비교한다)",
+     "quant/live/walkforward.py",
+     "        bh = hold.reindex(oos.index).fillna(0.0)",
+     "        bh = hold.reset_index(drop=True).set_axis(oos.index).fillna(0.0)",
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("굴린 자본을 안 잰다(자본의 절반이 현금인 것을 아무도 모른다)",
+     "quant/live/walkforward.py",
+     '            "avg_exposure": round(float(pos.mean()), 4) if len(pos) else None,',
+     '            "avg_exposure": None,',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("주간 보고서가 굴린 자본을 안 싣는다(장부에 있는데 아무도 안 읽는다)",
+     "quant/live/daily.py",
+     '                health["deployed"] = {',
+     '                _unused = {',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("사이징을 오디션 탐색 축에서 뺀다(없는 축은 영원히 진다)",
+     "quant/live/retrain.py",
+     '                               "sample_weight", "sizing"])',
+     '                               "sample_weight"])',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("사이징 후보를 고정 링에서 뺀다(돌연변이 운에만 맡긴다)",
+     "quant/live/retrain.py",
+     '    {"model": "logreg", "threshold": 0.55, "sizing": "binary"},',
+     '    {"model": "logreg", "threshold": 0.55},',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
     ("생존 편향 표식을 끈다(화면이 '실제로 벌 수 있었던 돈'으로 읽는다)",
      "quant/live/walkforward.py",
      '        "survivorship_biased": True,',

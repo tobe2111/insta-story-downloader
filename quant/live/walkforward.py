@@ -79,30 +79,46 @@ def _sharpe(returns, periods_per_year: int) -> float | None:
 
 
 def segment_scores(returns, warmup: int, market: str,
-                   segments: int = SEGMENTS) -> list[dict]:
+                   segments: int = SEGMENTS, hold=None) -> list[dict]:
     """워밍업 이후 수익 시계열을 연속 구간으로 잘라 구간별 성적을 낸다.
 
     ⚠️ 워밍업(학습창)을 안 빼면 신호가 없던 구간의 0들이 첫 구간을 '무성과'로
        만든다 — 그 0은 성과가 아니라 **아직 시작 안 함**이다.
+
+    hold를 주면 **같은 구간의 '그냥 보유' 수익**을 나란히 담는다. 대조군이
+    없으면 이 보고서는 스스로를 속인다 — 실측(2026-08-14): 구간의 62%가
+    플러스였지만, 보유를 이긴 구간은 **31%**뿐이었다. 앞 숫자만 보면 잘하고
+    있는 것처럼 보인다. 사이트가 이미 "그냥 보유했다면을 나란히 보여줍니다"
+    라고 약속하고 있으므로, 여기 빠져 있던 것은 그 약속의 구멍이었다.
     """
     oos = returns.iloc[warmup:] if warmup > 0 else returns
     ppy = 365 if market == "crypto" else 252
     n = len(oos)
     if n < MIN_SEGMENT_BARS:
         return []
+    bh = None
+    if hold is not None:
+        # 같은 인덱스로 맞춘다 — 어긋난 채 비교하면 대조군이 거짓말이 된다.
+        bh = hold.reindex(oos.index).fillna(0.0)
     k = max(1, min(int(segments), n // MIN_SEGMENT_BARS))
     out = []
     for i in range(k):
-        part = oos.iloc[n * i // k: n * (i + 1) // k]
+        lo, hi = n * i // k, n * (i + 1) // k
+        part = oos.iloc[lo:hi]
         if len(part) < 2:
             continue
-        out.append({
+        row = {
             "from": str(part.index[0])[:10],
             "to": str(part.index[-1])[:10],
             "bars": int(len(part)),
             "total_return": round(float((1 + part).prod() - 1), 6),
             "sharpe": _sharpe(part, ppy),
-        })
+        }
+        if bh is not None:
+            hr = float((1 + bh.iloc[lo:hi]).prod() - 1)
+            row["hold_return"] = round(hr, 6)
+            row["beat_hold"] = bool(row["total_return"] > hr)
+        out.append(row)
     return out
 
 
@@ -178,10 +194,17 @@ def walkforward_report(state_dir: str = "state", *, bars: int = LONG_BARS,
         except Exception as exc:  # noqa: BLE001
             log.warning("워크포워드 %s 실패: %s", key, exc)
             continue
-        segs = segment_scores(res.returns, warmup, market, segments)
+        # 대조군 — 같은 구간을 '그냥 보유'했다면. 없으면 이 보고서는
+        # 스스로를 속인다(플러스 62% vs 보유를 이긴 31%).
+        hold = df["close"].pct_change().fillna(0.0)
+        segs = segment_scores(res.returns, warmup, market, segments, hold=hold)
         if not segs:
             continue
         wins = sum(1 for s in segs if s["total_return"] > 0)
+        beats = sum(1 for s in segs if s.get("beat_hold"))
+        # 자본을 얼마나 실제로 굴렸나 — 이 숫자가 어디에도 없어서 "자본의
+        # 91%가 늘 현금"이라는 사실을 아무도 몰랐다(2026-08-16 실측).
+        pos = res.positions.iloc[warmup:]
         rows.append({
             "key": key, "market": market, "symbol": symbol,
             "source": source, "bars": int(len(df)),
@@ -189,6 +212,9 @@ def walkforward_report(state_dir: str = "state", *, bars: int = LONG_BARS,
             "warmup": warmup,
             "segments": segs,
             "segment_wins": wins, "n_segments": len(segs),
+            "beat_hold_segments": beats,
+            "time_in_market": round(float((pos != 0).mean()), 4) if len(pos) else None,
+            "avg_exposure": round(float(pos.mean()), 4) if len(pos) else None,
             "worst_segment": min(segs, key=lambda s: s["total_return"]),
         })
 
@@ -196,8 +222,11 @@ def walkforward_report(state_dir: str = "state", *, bars: int = LONG_BARS,
         return {}
     total_segs = sum(r["n_segments"] for r in rows)
     total_wins = sum(r["segment_wins"] for r in rows)
+    total_beats = sum(r["beat_hold_segments"] for r in rows)
     deepest = max(r["bars"] for r in rows)
     shallowest = min(r["bars"] for r in rows)
+    deployed = [r["avg_exposure"] for r in rows if r["avg_exposure"] is not None]
+    in_mkt = [r["time_in_market"] for r in rows if r["time_in_market"] is not None]
     out = {
         "requested_bars": int(bars),
         "deepest_bars": deepest,
@@ -206,11 +235,23 @@ def walkforward_report(state_dir: str = "state", *, bars: int = LONG_BARS,
         "segment_wins": total_wins,
         "n_segments": total_segs,
         "win_rate": round(total_wins / total_segs, 4) if total_segs else None,
+        # ⚠️ 플러스 비율만 보면 잘하는 것처럼 보인다. 이 줄이 진짜 성적이다.
+        "beat_hold_segments": total_beats,
+        "beat_hold_rate": (round(total_beats / total_segs, 4)
+                           if total_segs else None),
+        # ⚠️ 이름과 계산이 어긋나면 안 된다 — 이것은 '누적 수익이 보유를
+        #    이긴 종목'이 아니라 **구간의 과반에서 이긴 종목** 수다.
+        "majority_beat_hold_symbols": sum(
+            1 for r in rows if r["beat_hold_segments"] * 2 > r["n_segments"]),
+        "avg_exposure": (round(sum(deployed) / len(deployed), 4)
+                         if deployed else None),
+        "time_in_market": (round(sum(in_mkt) / len(in_mkt), 4)
+                           if in_mkt else None),
         # ⚠️ 이 두 표식을 지우면 화면이 '실제로 벌 수 있었던 돈'으로 읽는다.
         "survivorship_biased": True,
         "in_sample_setting": True,
         "notes": [SURVIVORSHIP_NOTE, IN_SAMPLE_NOTE],
-        "symbols": sorted(rows, key=lambda r: -r["segment_wins"]),
+        "symbols": sorted(rows, key=lambda r: -r["beat_hold_segments"]),
     }
     log.info("워크포워드: %s종목 · 구간 %s개 중 플러스 %s개",
              out["n_symbols"], total_segs, total_wins)
@@ -227,10 +268,26 @@ def format_walkforward(rep: dict) -> str:
         f"   전체 {rep['n_segments']}구간 중 플러스 {rep['segment_wins']}개"
         f"({rep['win_rate']:.0%})",
     ]
+    if rep.get("beat_hold_rate") is not None:
+        # ⚠️ 대조군이 진짜 성적이다 — 플러스 비율은 상승장이면 저절로 높다.
+        lines.append(
+            f"   ⚖️ 그중 **그냥 보유를 이긴 구간 {rep['beat_hold_segments']}개"
+            f"({rep['beat_hold_rate']:.0%})** · 구간 과반에서 보유를 이긴 종목 "
+            f"{rep['majority_beat_hold_symbols']}/{rep['n_symbols']}")
+    if rep.get("avg_exposure") is not None:
+        # ⚠️ 이것은 **종목 하나만 굴리는 참고 계좌** 기준이다. 통합 계좌는
+        #    20종목을 합치므로 총노출이 이보다 훨씬 크다(실측 42~51%).
+        #    라벨을 뭉뚱그리면 "자본의 91%가 현금"이라는 틀린 결론이 나온다.
+        lines.append(
+            f"   💰 종목당 평균 노출 {rep['avg_exposure']:.0%} · "
+            f"시장에 있던 시간 {rep['time_in_market']:.0%} "
+            f"(종목별 참고 계좌 기준 — 통합 계좌 총노출은 별도)")
     for r in rep["symbols"][:20]:
         worst = r["worst_segment"]
         lines.append(
-            f"   {r['key']:22s} {r['segment_wins']}/{r['n_segments']}구간 플러스 · "
+            f"   {r['key']:22s} 플러스 {r['segment_wins']}/{r['n_segments']} · "
+            f"보유이김 {r['beat_hold_segments']}/{r['n_segments']} · "
+            f"노출 {(r['avg_exposure'] or 0):.0%} · "
             f"{r['from']}~{r['to']}({r['bars']:,}봉·{r['source']}) · "
             f"최악 {worst['from']} {worst['total_return'] * 100:+.1f}%")
     for note in rep.get("notes") or []:
