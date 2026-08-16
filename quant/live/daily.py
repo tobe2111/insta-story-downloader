@@ -2719,7 +2719,11 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
         }
 
     swaps = []
-    auditions = {"runs": 0, "candidates": 0, "promoted": 0}
+    # vacuous = **대결이 열리지 않은** 오디션. '승격 0회'와 전혀 다른 상태다 —
+    # 후보가 못 이긴 것이 아니라 비교 자체가 성립하지 않은 것이다. 이 숫자는
+    # 사이트(retrain_recent)에는 실려 있었지만 **주간 보고서에는 없었다**.
+    # 사장님에게 실제로 도착하는 문서가 그 구별을 못 하면 없는 것과 같다.
+    auditions = {"runs": 0, "candidates": 0, "promoted": 0, "vacuous": 0}
     hist_file = os.path.join(state_dir, "retrain_history.jsonl")
     if os.path.exists(hist_file):
         with open(hist_file, encoding="utf-8") as f:
@@ -2739,6 +2743,8 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
                 # 이번 주 오디션 통계 — 몇 명이 도전해 몇 명이 승격했나
                 auditions["runs"] += 1
                 auditions["candidates"] += int(rec.get("n_candidates") or 0)
+                if rec.get("vacuous"):
+                    auditions["vacuous"] += 1
                 if rec.get("promoted"):
                     auditions["promoted"] += 1
                     swaps.append({"asof": rec["asof"],
@@ -2750,6 +2756,19 @@ def weekly_summary(state_dir: str = STATE_DIR, days: int = 7) -> dict:
     # 시스템 건강 — 수익률 밖의 상태(판정 시계·체결 가정·킬스위치)를 함께.
     # 주간 요약은 "이번 주 시스템 건강 보고서"다 — 숫자 자랑이 아니라.
     health: dict = {"auditions": auditions}
+    # 굴린 자본 — **자산이 아니라 노출**. 100만원을 1억으로 만들겠다면서
+    # 자본의 절반이 늘 현금이면 그 사실이 매주 눈에 보여야 한다. 이 숫자는
+    # 장부에 계속 있었지만(`weight`) 어떤 보고서도 읽지 않았다.
+    for st in states:
+        if st.get("market") == "portfolio" and st.get("history"):
+            w = [float(r["weight"]) for r in chrono(st["history"])[-days:]
+                 if r.get("weight") is not None]
+            if w:
+                health["deployed"] = {
+                    "gross_mean": round(sum(w) / len(w), 4),
+                    "gross_last": round(w[-1], 4),
+                    "n_days": len(w),
+                }
     gen = _generation_info(state_dir)
     if gen:
         health["generation"] = gen
@@ -2809,6 +2828,15 @@ def format_weekly(summary: dict) -> str:
     if a and a["runs"]:
         lines.append(f"🎭 오디션: 이번 주 {a['runs']}회 · 후보 "
                      f"{a['candidates']}명 중 승격 {a['promoted']}회")
+        # '승격 0회'는 정상일 수 있지만 '대결이 안 열림'은 절대 정상이 아니다.
+        if a.get("vacuous"):
+            lines.append(f"   ⚠️ 그중 {a['vacuous']}회는 **대결 자체가 열리지 "
+                         "않았습니다** — 승격 없음이 아니라 심사 없음입니다")
+    dep = h.get("deployed")
+    if dep:
+        lines.append(
+            f"💰 굴린 자본: 평균 {dep['gross_mean']:.0%} · 최근 "
+            f"{dep['gross_last']:.0%} (나머지는 현금 · {dep['n_days']}일 기준)")
     fc = h.get("fill_check")
     if fc:
         for mk, r in (fc.get("markets") or {}).items():
@@ -3008,6 +3036,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
             status["weekly"] = wk
     except Exception:  # noqa: BLE001 — 집계 실패가 사이트 갱신을 막으면 안 된다
         log.warning("주간 아카이브 집계 실패 — 페이지는 '집계 없음'으로 표시된다")
+
+    # 횡단면 증거 — **같은 설정이 몇 종목에서 통했나**(감사 255).
+    # 종목별 오디션은 하루에 표본 1개를 쌓지만 이건 20개를 쌓는다. 실측에서
+    # 주식(t=+4.37)과 코인(t=-1.76)이 반대 방향으로 갈렸는데, 종목마다 따로
+    # 여는 오디션은 그 사실을 영영 볼 수 없다.
+    try:
+        from quant.live.crosssection import pooled_evidence
+        xs = pooled_evidence(state_dir)
+        if xs:
+            status["crosssection"] = xs
+    except Exception:  # noqa: BLE001 — 관찰 지표 실패가 사이트 갱신을 막지 않는다
+        log.warning("횡단면 증거 집계 실패 — 이 칸은 비워 둔다")
 
     # 체결 가정 검증(표시 전용) — 실측 개장 갭 vs 백테스트 슬리피지 가정.
     # 실측이 가정보다 불리하면 그 사실이 그대로 사이트에 공개된다.

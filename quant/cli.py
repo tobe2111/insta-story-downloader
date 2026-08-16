@@ -508,6 +508,26 @@ def _cmd_weekly(args) -> None:
         _notify_extra(text)
 
 
+def _cmd_walkforward(args) -> None:
+    from quant.live.walkforward import format_walkforward, walkforward_report
+
+    rep = walkforward_report(args.state_dir, bars=args.bars,
+                             fetch=not args.offline)
+    text = format_walkforward(rep)
+    print(text)
+    if not args.no_notify:
+        # 만들어 놓고 아무도 부르지 않는 보고서는 없는 보고서다(주간 워크플로
+        # 주석과 같은 이유) — 사이트를 안 열어도 숫자가 도착해야 한다.
+        _notify_extra(text)
+    if args.save:
+        import json as _json
+        import os as _os
+        _os.makedirs(_os.path.dirname(args.save) or ".", exist_ok=True)
+        with open(args.save, "w", encoding="utf-8") as f:
+            _json.dump(rep, f, ensure_ascii=False, indent=1)
+        print(f"\n💾 저장: {args.save}")
+
+
 def _cmd_guard(args) -> None:
     """장중 감시 1회 — 새벽 배치를 기다리지 않고 지금 낙폭을 잰다.
 
@@ -1297,6 +1317,21 @@ def build_parser() -> argparse.ArgumentParser:
     wk.add_argument("--no-notify", action="store_true",
                     help="텔레그램 전송 없이 출력만")
     wk.set_defaults(func=_cmd_weekly)
+
+    wf = sub.add_parser(
+        "walkforward",
+        help="긴 검증 — 챔피언 설정을 최장 과거에 적용한 구간별 성적"
+             "(생존 편향 고지 포함, 승격에 쓰지 않는 관찰값)")
+    wf.add_argument("--state-dir", default="state", dest="state_dir")
+    wf.add_argument("--bars", type=int, default=2500,
+                    help="목표 봉 수(기본 2,500 ≈ 주식 10년)")
+    wf.add_argument("--offline", action="store_true",
+                    help="네트워크 없이 저장된 스냅샷만 사용")
+    wf.add_argument("--save", default=None,
+                    help="결과 JSON 저장 경로(예: docs/walkforward.json)")
+    wf.add_argument("--no-notify", action="store_true",
+                    help="알림 전송 없이 출력만")
+    wf.set_defaults(func=_cmd_walkforward)
 
     sc = sub.add_parser(
         "social-content",

@@ -2506,6 +2506,36 @@ MUTATIONS = [
      '              "fill_refused": fill_refused or None,',
      '              "fill_refused": None,',
      "tests/test_one_account_cannot_hold_two_currencies.py"),
+    # 감사 255 — 같은 설정을 20종목에 적용한 횡단면 증거. 실측: 주식 t=+4.37 /
+    # 코인 t=-1.76 (종목별 오디션은 이 차이를 못 본다).
+    ("횡단면에서 주식 종목을 통째로 빠뜨린다(20종목이 5종목으로 보인다)",
+     "quant/live/crosssection.py",
+     "            symbol = stem[len(market) + 1:]",
+     "            symbol = stem.split(\"_\", 1)[1]",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("표본 1개로도 t를 만든다(한 종목으로 통계를 지어낸다)",
+     "quant/live/crosssection.py",
+     "    if n >= 2:",
+     "    if n >= 1:",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("횡단면 숫자가 인샘플이라는 표식을 지운다(실전 성적으로 읽힌다)",
+     "quant/live/crosssection.py",
+     '        "in_sample": True,          # ⚠️ 이 값을 지우면 화면이 실전 성적으로 읽는다',
+     '        "in_sample": False,',
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+    ("반쪽만 찍힌 스냅샷 날을 그대로 쓴다(20종목이 5종목으로, 결론이 뒤집힌다)",
+     "quant/live/crosssection.py",
+     "    return max(recent,\n"
+     '               key=lambda s: (len(glob.glob(os.path.join(s, "*.csv.gz"))), s))',
+     "    return recent[-1]",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+
+    ("횡단면 증거를 사이트에 안 실어 보낸다",
+     "quant/live/daily.py",
+     '            status["crosssection"] = xs',
+     "            pass",
+     "tests/test_the_same_setting_is_judged_across_symbols.py"),
+
     # 감사 252 — 환율 캐시가 안 늙어 장수 프로세스에서 얼어 있던 자리.
     # 실측: 1416.46을 받은 뒤 1500으로 움직여도 refresh=True가 1416.46 반환.
     ("환율 캐시가 늙지 않는다(며칠 도는 프로세스에서 환율이 얼어붙는다)",
@@ -4563,6 +4593,88 @@ MUTATIONS = [
      "                pass",
      "tests/test_the_validation_gate_actually_gates.py"),
 
+
+    # ── 감사 256 — 긴 검증(워크포워드)과 생존 편향 고지 ─────────────
+    # 학습창은 250봉 그대로 두고 검증 구간만 과거 전체로 넓힌 관찰값.
+    # 이 숫자는 오늘 살아남은 종목으로만 계산하므로 반드시 고지가 붙어야 한다.
+    ("학습창 구간을 성적에 넣는다(아직 시작 안 한 0이 무성과로 찍힌다)",
+     "quant/live/walkforward.py",
+     "    oos = returns.iloc[warmup:] if warmup > 0 else returns",
+     "    oos = returns",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("구간 수를 표본과 무관하게 고정한다(50봉을 8등분한다)",
+     "quant/live/walkforward.py",
+     "    k = max(1, min(int(segments), n // MIN_SEGMENT_BARS))",
+     "    k = int(segments)",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("샤프 판정을 절대 비교로 되돌린다(상쇄된 1e-19로 나눠 샤프 수천이 나온다)",
+     "quant/live/walkforward.py",
+     "    if not math.isfinite(sd) or degenerate_spread(sd, float(returns.abs().mean())):",
+     "    if not math.isfinite(sd) or sd <= 0:",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("합성 폴백으로 10년 성적을 만든다(가짜 시세로 만든 그럴듯한 거짓말)",
+     "quant/live/walkforward.py",
+     '    if df is None or df.empty or df.attrs.get("synthetic_fallback"):',
+     "    if df is None or df.empty:",
+     "tests/test_the_long_check_says_it_is_biased.py"),
+
+    ("주간 보고서가 '대결 안 열림'을 세지 않는다(승격 0회와 구별이 사라진다)",
+     "quant/live/daily.py",
+     '                    auditions["vacuous"] += 1',
+     '                    auditions["vacuous"] += 0',
+     "tests/test_an_empty_audition_reaches_the_report.py"),
+
+    # ── 감사 257 — 대조군 없는 성적표 · 안 흔든 사이징 축 ─────────────
+    ("긴 검증에서 '그냥 보유' 대조군을 뗀다(플러스 62%만 남고 이김 31%가 사라진다)",
+     "quant/live/walkforward.py",
+     "        segs = segment_scores(res.returns, warmup, market, segments, hold=hold)",
+     "        segs = segment_scores(res.returns, warmup, market, segments)",
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("보유 대비 판정을 뒤집는다(지고 있는데 이겼다고 적는다)",
+     "quant/live/walkforward.py",
+     '            row["beat_hold"] = bool(row["total_return"] > hr)',
+     '            row["beat_hold"] = bool(row["total_return"] < hr)',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("대조군을 날짜 정렬 없이 앞에서부터 갖다 붙인다(딴 구간과 비교한다)",
+     "quant/live/walkforward.py",
+     "        bh = hold.reindex(oos.index).fillna(0.0)",
+     "        bh = hold.reset_index(drop=True).set_axis(oos.index).fillna(0.0)",
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("굴린 자본을 안 잰다(자본의 절반이 현금인 것을 아무도 모른다)",
+     "quant/live/walkforward.py",
+     '            "avg_exposure": round(float(pos.mean()), 4) if len(pos) else None,',
+     '            "avg_exposure": None,',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("주간 보고서가 굴린 자본을 안 싣는다(장부에 있는데 아무도 안 읽는다)",
+     "quant/live/daily.py",
+     '                health["deployed"] = {',
+     '                _unused = {',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("사이징을 오디션 탐색 축에서 뺀다(없는 축은 영원히 진다)",
+     "quant/live/retrain.py",
+     '                               "sample_weight", "sizing"])',
+     '                               "sample_weight"])',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("사이징 후보를 고정 링에서 뺀다(돌연변이 운에만 맡긴다)",
+     "quant/live/retrain.py",
+     '    {"model": "logreg", "threshold": 0.55, "sizing": "binary"},',
+     '    {"model": "logreg", "threshold": 0.55},',
+     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+
+    ("생존 편향 표식을 끈다(화면이 '실제로 벌 수 있었던 돈'으로 읽는다)",
+     "quant/live/walkforward.py",
+     '        "survivorship_biased": True,',
+     '        "survivorship_biased": False,',
+     "tests/test_the_long_check_says_it_is_biased.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
