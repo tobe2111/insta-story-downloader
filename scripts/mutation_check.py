@@ -2368,7 +2368,7 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
-    # 감사 259 — 사용자 자료에서 **못 옮긴 규칙을 말하지 않던** 자리.
+    # 감사 264 — 사용자 자료에서 **못 옮긴 규칙을 말하지 않던** 자리.
     # 실측: "손절 -8%, 익절 +20%"가 언급조차 없이 사라졌다.
     ("못 옮긴 규칙을 조용히 버린다(사용자는 전부 반영된 줄 안다)",
      "quant/ingest/extract.py",
@@ -2380,7 +2380,7 @@ MUTATIONS = [
      'rf"위로\\s*(?:돌파|뚫)|아래로\\s*(?:돌파|뚫)|"',
      'rf"위로\\s*돌파|아래로\\s*돌파|"',
      "tests/test_only_real_rules_become_strategies.py"),
-    # 감사 258 — 실제로 돈이 나가는 경로에 킬스위치·검증 게이트가 없던 자리.
+    # 감사 263 — 실제로 돈이 나가는 경로에 킬스위치·검증 게이트가 없던 자리.
     # 실측: run_daily_live는 어드민 노출 배수만 곱하고 있었다.
     ("킬스위치가 실거래 노출에 안 걸린다(낙폭이 깊어도 그대로 산다)",
      "quant/live/daily_live.py",
@@ -2407,7 +2407,7 @@ MUTATIONS = [
      "        return dict.fromkeys(keys, 0.5)",
      "        return dict.fromkeys(keys, 1.0)",
      "tests/test_the_real_money_path_has_the_same_brakes.py"),
-    # 감사 257 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
+    # 감사 262 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
     # 실측: 예약 15분 / 관측 최악 간격 558분(2026-08-16 심장박동).
     ("감시가 몇 시간 멈춰도 알림이 안 나간다(문서는 계속 15분이라 말한다)",
      "quant/live/flag_watch.py",
@@ -2429,7 +2429,7 @@ MUTATIONS = [
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',
      '            status["_guard_unused"] = {"observed_gap_min": round(float(_gap), 1),',
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
-    # 감사 256 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
+    # 감사 261 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
     # 실측: 코인 5종목이 800봉 요청에 300봉 수신(2026-08-15 스냅샷).
     ("표본이 모자라도 장부에 안 남는다(300봉짜리 결론이 800봉으로 읽힌다)",
      "quant/live/daily.py",
@@ -2451,7 +2451,7 @@ MUTATIONS = [
      '            worst = min(bs.items(), key=lambda kv: kv[1]["got"] / kv[1]["asked"])',
      "            worst = max(bs.items(), key=lambda kv: kv[1][\"got\"] / kv[1][\"asked\"])",
      "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
-    # 감사 255 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
+    # 감사 260 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
     # 실측: 2026-08-15 +7,150% 기록이 [skip actions] 구멍으로 반나절 생존.
     ("장부 관문이 실패를 삼킨다(오염된 기록이 그대로 커밋된다)",
      ".github/workflows/daily-paper.yml",
