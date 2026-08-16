@@ -88,6 +88,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add state/
+          # 장부 관문(감사 255) — 방금 쓴 기록이 말이 되는지 커밋 **전에** 본다.
+          # 배치 커밋은 [skip actions]라 CI가 안 붙는다. 그 구멍으로
+          # 2026-08-15의 +7,150%가 반나절을 살아남았다. 실패하면 커밋하지
+          # 않는다 — 오염된 기록은 내일의 출발 상태이기도 하다.
+          python scripts/ledger_gate.py
           git commit -m "야간 재학습 기록: $(date -u +%F) 챔피언 결정 [skip actions]"
           # 다른 커밋과 경합할 수 있으므로 리베이스 후 푸시(최대 4회 재시도)
           for i in 1 2 3 4; do

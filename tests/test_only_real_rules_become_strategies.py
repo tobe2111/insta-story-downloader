@@ -221,3 +221,56 @@ def test_warmup_bars_take_no_position():
                                   title="t").spec)
     sig = s.generate_signals(df)
     assert float(sig.iloc[:199].abs().sum()) == 0.0, "워밍업 구간에 포지션이 있다"
+
+
+# ── 못 옮긴 것을 말하는가 (감사 264) ────────────────────────────
+
+def test_a_rule_we_cannot_translate_is_named_not_silently_dropped():
+    """지어내지 않는 것과 **말하지 않는 것**은 다르다.
+
+    실측(2026-08-16): 사장님 자료에 "손절은 -8%, 익절은 +20%로 잡습니다"가
+    있었는데, 화면은 조건 두 개만 보여주고 그 문장은 **언급조차 하지
+    않았다.** 사용자는 "✅ 이렇게 읽었습니다"를 보고 자기 규칙이 전부
+    반영된 줄 안다 — 실제로는 위험 관리가 통째로 빠졌는데도.
+    """
+    from quant.ingest.extract import extract_spec
+    # ⚠️ 파는 규칙을 함께 넣는다. 안 넣으면 '돌파 매수인데 매도가 없다'는
+    #    **다른** 가드에 먼저 걸려, 이 검사가 무엇을 보는지 흐려진다.
+    out = extract_spec(
+        "20일 이동평균선이 60일 이동평균선을 위로 돌파하면 매수합니다.\n"
+        "RSI 70 위로 올라가면 정리합니다.\n"
+        "손절은 -8%, 익절은 +20%로 잡습니다.\n")
+    assert out.ok, out.reasons
+    blob = "\n".join(out.reasons)
+    assert "옮기지 못했습니다" in blob, (
+        f"못 옮긴 규칙을 조용히 버린다: {out.reasons}")
+    assert "손절" in blob, "어느 문장이 빠졌는지 안 알려준다"
+    assert "반영되지 않습니다" in blob, (
+        "빠졌다는 사실은 말하면서 '검증에 안 들어간다'는 결과를 안 말한다")
+
+
+def test_a_fully_translated_note_stays_quiet():
+    """다 옮겼는데도 경고하면 사용자가 경고를 무시하기 시작한다."""
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(
+        "20일 이동평균선이 60일 이동평균선을 위로 돌파하면 매수합니다.\n"
+        "RSI 70 위로 올라가면 과열이므로 정리합니다.\n")
+    assert out.ok, out.reasons
+    assert "옮기지 못했습니다" not in "\n".join(out.reasons), (
+        f"전부 옮겼는데 못 옮겼다고 한다: {out.reasons}")
+
+
+def test_the_korean_verb_for_breaking_through_is_understood():
+    """'뚫다'는 '돌파하다'만큼 흔하다 — 빠지면 파는 규칙만 사라진다.
+
+    실측: 매수는 "위로 돌파", 매도는 "아래로 뚫으면"으로 적힌 자료에서
+    **매도 규칙만 조용히 사라져** 사는 규칙뿐인 전략이 됐다.
+    """
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(
+        "20일 이동평균선이 60일 이동평균선을 위로 돌파하면 매수합니다.\n"
+        "반대로 20일선이 60일선을 아래로 뚫으면 전량 매도합니다.\n")
+    assert out.ok, out.reasons
+    ops = [c.op for c in out.spec.exit]
+    assert "cross_below" in ops, (
+        f"'아래로 뚫으면 매도'를 못 읽는다 — 파는 규칙이 사라진다: {ops}")
