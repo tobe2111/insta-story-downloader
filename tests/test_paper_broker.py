@@ -25,9 +25,17 @@ def test_long_add_weighted_avg_unchanged_regression():
     assert b.get_position("X").quantity == 7.0
 
 
+# ⚠️ 아래 숏 장부 검사들은 **숏이 허용된 계좌**로 세운다(감사 260).
+#    2026-08-16부터 기본 계좌는 보유를 넘어서는 매도를 막는다 — 증거금 없는
+#    무제한 공매도가 열려 있었기 때문이다. 여기서 검증하는 것은 그 관문이
+#    아니라 **숏이 열렸을 때의 장부 계산**(진입가·플립·부분커버)이므로,
+#    관문을 통과한 계좌로 같은 계약을 그대로 확인한다.
+_SHORT_OK = dict(short_margin=0.5)
+
+
 def test_fresh_short_records_entry_price():
     """관망 상태에서 매도 → 숏 진입가가 체결가로 기록된다(구버전은 0)."""
-    b = PaperBroker(cash=100_000, fee=0.0)
+    b = PaperBroker(cash=100_000, fee=0.0, **_SHORT_OK)
     b.market_order("X", "sell", 5, 100)
     pos = b.get_position("X")
     assert pos.quantity == -5.0
@@ -36,7 +44,7 @@ def test_fresh_short_records_entry_price():
 
 def test_flip_long_to_short_resets_avg():
     """롱→숏 전환 시 평단이 새 숏 진입가로 리셋된다(구버전은 옛 롱 평단 유지)."""
-    b = PaperBroker(cash=100_000, fee=0.0)
+    b = PaperBroker(cash=100_000, fee=0.0, **_SHORT_OK)
     b.market_order("X", "buy", 10, 100)
     b.market_order("X", "sell", 15, 110)     # 10 롱 청산 + 5 숏 진입
     pos = b.get_position("X")
@@ -46,7 +54,7 @@ def test_flip_long_to_short_resets_avg():
 
 def test_partial_cover_keeps_short_avg():
     """숏 부분 커버 시 평단이 유지된다(구버전은 (-500+330)/-2=85 같은 무의미값)."""
-    b = PaperBroker(cash=100_000, fee=0.0)
+    b = PaperBroker(cash=100_000, fee=0.0, **_SHORT_OK)
     b.market_order("X", "sell", 5, 100)
     b.market_order("X", "buy", 3, 110)       # 부분 커버 → -2 남음
     pos = b.get_position("X")
@@ -84,7 +92,7 @@ def test_target_weight_full_buy_no_negative_cash():
 def test_target_weight_short_not_fee_shrunk():
     """숏 목표는 (1+fee) 버퍼로 축소하지 않는다 — 숏은 현금이 부족해질 방향이
     아니므로 버퍼가 목표 비중만 왜곡한다(과소 진입 버그 수정)."""
-    b = PaperBroker(cash=10_000, fee=0.001)
+    b = PaperBroker(cash=10_000, fee=0.001, **_SHORT_OK)
     order = b.target_weight("X", -0.5, 100.0, 10_000.0)
     assert order is not None and order.side == "sell"
     # 정확히 -0.5 * 10000 / 100 = 50주 (구버전: 50/1.001 ≈ 49.95주)

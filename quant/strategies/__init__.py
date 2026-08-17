@@ -5,6 +5,7 @@ from quant.strategies.adx import ADXFilter
 from quant.strategies.base import Strategy
 from quant.strategies.breakout import Breakout
 from quant.strategies.buy_hold import BuyHold
+from quant.strategies.cross_rank import CrossRank
 from quant.strategies.ensemble import AdaptiveEnsemble, StrategyEnsemble
 from quant.strategies.event_guard import EventGuard
 from quant.strategies.keltner import KeltnerBreakout
@@ -34,12 +35,14 @@ _REGISTRY = {
     # 벤치마크를 링에 세운다 — 사이트가 그리는 "그냥 보유"가 후보로
     # 없으면, 시스템은 "들고 있는 게 낫다"를 영원히 발견하지 못한다.
     "buy_hold": BuyHold,
+    "cross_rank": CrossRank,
 }
 
 __all__ = [
     "Strategy",
     "MovingAverageCross",
     "BuyHold",
+    "CrossRank",
     "Momentum",
     "MeanReversion",
     "RSIReversion",

@@ -59,13 +59,16 @@ SNAPSHOT_LOOKBACK = 5
 
 
 def _fullest_snapshot(state_dir: str) -> str | None:
-    """최근 며칠 중 종목이 가장 많이 담긴 스냅샷 폴더(동률이면 최신)."""
-    snaps = sorted(glob.glob(os.path.join(state_dir, "snapshots", "*")))
-    recent = [s for s in snaps[-SNAPSHOT_LOOKBACK:] if os.path.isdir(s)]
-    if not recent:
-        return None
-    return max(recent,
-               key=lambda s: (len(glob.glob(os.path.join(s, "*.csv.gz"))), s))
+    """최근 며칠 중 종목이 가장 많이 담긴 스냅샷 폴더(동률이면 최신).
+
+    ⚠️ 판정은 `repro.fullest_snapshot_day` 한 곳에만 둔다. 예전에는 이 규칙이
+       여기에만 있었는데, 횡단면 랭킹 전략(감사 259)이 같은 함정을 다시
+       밟으면서 두 곳에 같은 판정을 두게 될 뻔했다 — 그러면 언젠가 갈라진다.
+    """
+    from quant.utils.repro import fullest_snapshot_day
+
+    day = fullest_snapshot_day(state_dir, SNAPSHOT_LOOKBACK)
+    return os.path.join(state_dir, "snapshots", day) if day else None
 
 
 def _split_key(filename: str) -> tuple[str, str] | None:

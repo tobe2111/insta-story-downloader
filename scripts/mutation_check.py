@@ -2524,9 +2524,10 @@ MUTATIONS = [
      '        "in_sample": False,',
      "tests/test_the_same_setting_is_judged_across_symbols.py"),
     ("반쪽만 찍힌 스냅샷 날을 그대로 쓴다(20종목이 5종목으로, 결론이 뒤집힌다)",
-     "quant/live/crosssection.py",
-     "    return max(recent,\n"
-     '               key=lambda s: (len(glob.glob(os.path.join(s, "*.csv.gz"))), s))',
+     "quant/utils/repro.py",
+     "    return max(recent, key=lambda d: (\n"
+     "        len([f for f in os.listdir(os.path.join(base, d))\n"
+     '             if f.endswith(".csv.gz")]), d))',
      "    return recent[-1]",
      "tests/test_the_same_setting_is_judged_across_symbols.py"),
 
@@ -4626,6 +4627,117 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 1',
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
+
+    # ── 감사 261 — 800봉을 다 받고도 최신 165일을 못 받았다(실전 사고) ──
+    ("이어받기를 개수로 멈춘다(가장 오래된 800봉만 받고 최근 165일을 버린다)",
+     "quant/data/crypto.py",
+     "        if (last_ts + step > now_ms) if tail else (len(rows) >= limit):\n"
+     "            break",
+     "        if len(rows) >= limit:\n"
+     "            break",
+     "tests/test_the_bars_reach_today.py"),
+
+    ("페이지 요청을 남은 개수로 조른다(마지막 페이지가 잘려 최신 봉을 놓친다)",
+     "quant/data/crypto.py",
+     "        page = client.fetch_ohlcv(symbol, timeframe=timeframe, since=cursor,\n"
+     "                                  limit=limit if tail else limit - len(rows))",
+     "        page = client.fetch_ohlcv(symbol, timeframe=timeframe, since=cursor,\n"
+     "                                  limit=limit - len(rows))",
+     "tests/test_the_bars_reach_today.py"),
+
+    # ── 감사 260 — 증거금 없는 무제한 공매도가 열려 있었다 ─────────────
+    ("보유를 넘어서는 매도를 그냥 체결한다(100만원 계좌가 5,000만원어치 숏)",
+     "quant/broker/paper.py",
+     "            if quantity > allowance + _DUST:",
+     "            if False:",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("증거금 없이도 숏을 조금 열어 준다(기본이 금지가 아니게 된다)",
+     "quant/broker/paper.py",
+     "            allowance = max(0.0, old_qty)          # 팔 수 있는 보유 수량",
+     "            allowance = max(0.0, old_qty) + 1e9",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("초과 매도를 통째로 거부한다(청산이 막혀 덫이 된다)",
+     "quant/broker/paper.py",
+     "                quantity = allowance",
+     "                quantity = 0.0",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("증거금 한도를 무시한다(50%를 줘도 무한정 열린다)",
+     "quant/broker/paper.py",
+     "                allowance += max(0.0, self._cash) / (price * self.short_margin)",
+     "                allowance += 1e9",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("한국 대주료를 미국 수준으로 낮춘다(개인이 못 빌리는 것을 싸게 친다)",
+     "quant/backtest/costs.py",
+     "_BORROW_KR = 0.025 / 252       # 한국 개인 대주 ~연 2.5% (가능할 때)",
+     "_BORROW_KR = 0.0001 / 252",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    ("대차료를 0으로 되돌린다(숏을 공짜로 무한정 들고 있게 된다)",
+     "quant/backtest/costs.py",
+     "_BORROW_US = 0.0025 / 252      # 미국 대형주 일반 대차 ~연 0.25%",
+     "_BORROW_US = 0.0",
+     "tests/test_a_naked_short_is_not_free.py"),
+
+    # ── 감사 259 — 횡단면 랭킹("오를까"가 아니라 "누가 더 셀까") ────────
+    ("스냅샷 폴더를 넘겨받은 데이터의 마지막 봉으로 고른다(미래를 자르면 과거가 바뀐다)",
+     "quant/strategies/cross_rank.py",
+     "            frames = load_snapshot_pool_day(\n"
+     "                self.state_dir, fullest_snapshot_day(self.state_dir))",
+     "            from quant.utils.repro import load_snapshot_pool\n"
+     "            frames = load_snapshot_pool(self.state_dir, str(index[-1])[:10])",
+     "tests/test_lookahead_challenger_ring.py"),
+
+    ("또래 시세를 뒤채움으로 맞춘다(내일 가격이 오늘 순위에 실린다 = 룩어헤드)",
+     "quant/strategies/cross_rank.py",
+     "            cols[f\"p{i}\"] = mom.reindex(mom.index.union(index)).ffill().reindex(index)",
+     "            cols[f\"p{i}\"] = mom.reindex(mom.index.union(index)).bfill().reindex(index)",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("순위 부등호를 뒤집는다(가장 약한 종목을 산다)",
+     "quant/strategies/cross_rank.py",
+     "        below = mat.lt(mine, axis=0).sum(axis=1)",
+     "        below = mat.gt(mine, axis=0).sum(axis=1)",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("상위 컷을 무시하고 늘 산다(순위가 아니라 그냥 보유가 된다)",
+     "quant/strategies/cross_rank.py",
+     "        w[known & (pct >= (1.0 - self.top_frac))] = 1.0",
+     "        w[known] = 1.0",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("순위가 성립 안 하는 봉을 그냥 판단한다(모르는 구간에서 최대 숏을 잡는다)",
+     "quant/strategies/cross_rank.py",
+     "        known = mine.notna() & (valid > 0)",
+     "        known = mine.notna() | (valid >= 0)",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("또래가 없어도 순위를 지어낸다(혼자서 1등이 된다)",
+     "quant/strategies/cross_rank.py",
+     "        if len(cols) < self.min_peers:\n            return None",
+     "        if False:\n            return None",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("말이 안 되는 상위 비율을 조용히 받는다(0%면 아무것도 안 산다)",
+     "quant/strategies/cross_rank.py",
+     "        if not 0.0 < float(top_frac) <= 1.0:",
+     "        if False:",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("횡단면 후보에서 숏을 몰래 켠다(체결·차입비용 검증 없이 실전과 벌어진다)",
+     "quant/strategies/cross_rank.py",
+     "        self.allow_short = bool(allow_short)",
+     "        self.allow_short = True",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
+
+    ("횡단면 전략을 링에서 뺀다(만들어 놓고 아무도 안 부른다)",
+     "quant/live/retrain.py",
+     '    {"strategy": "cross_rank", "params": {"lookback": 20, "top_frac": 0.3}},',
+     "",
+     "tests/test_the_ranking_cannot_see_tomorrow.py"),
 
     # ── 감사 258 — 장부가 아무도 넘은 적 없는 문턱을 적고 있었다 ───────
     ("장부가 조정 전 문턱을 적는다(175/175건이 '선발 t≥2.52'였다)",
