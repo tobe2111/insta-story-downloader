@@ -16,15 +16,24 @@ from typing import Optional
 import pandas as pd
 
 from quant.broker.base import safe_amount
+from quant.data.derivatives import ladder_reason, perp_symbol, walk_ladder
 from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.funding")
 
 
+def _price_source(df) -> str | None:
+    """그 종목 시세를 실제로 준 거래소 — 부가 지표도 거기부터 물어본다."""
+    try:
+        return str(df.attrs.get("source") or "") or None
+    except Exception:  # noqa: BLE001  # pragma: no cover
+        return None
+
+
 def fetch_funding_history(
     symbol: str,
-    exchange: str = "binance",
+    exchange: str = "binanceusdm",
     since: Optional[int] = None,
     limit: int = 1000,
 ) -> pd.Series:
@@ -67,7 +76,7 @@ def fetch_funding_history(
 
 
 def attach_funding(df: pd.DataFrame, symbol: str,
-                   exchange: str = "binance", fetch=None) -> pd.DataFrame:
+                   exchange: str | None = None, fetch=None) -> pd.DataFrame:
     """OHLCV 데이터프레임에 'funding' 컬럼(봉당 펀딩률)을 붙여 반환한다.
 
     ML 피처(x_funding)용 — 가격에서 유도할 수 없는 포지셔닝 정보를 컬럼으로
@@ -79,18 +88,42 @@ def attach_funding(df: pd.DataFrame, symbol: str,
     # fetch 주입 — 형제인 attach_open_interest·attach_krx_flows는 처음부터
     # 받고 있었는데 여기만 없어서 **네트워크 없이는 검사할 수 없었다**(감사
     # 173). 검사할 수 없는 코드는 검사되지 않는다.
+    #
+    # ⚠️ exchange를 명시하지 않으면 **시세와 같은 사다리**를 내려간다(감사
+    #    270). 예전 기본값은 `binance` 한 곳이었고, 그 문이 막힌 환경에서
+    #    시세는 okx로 폴백하는데 펀딩만 매일 빈손으로 돌아왔다.
     try:
-        get = fetch or (lambda s: fetch_funding_history(s, exchange=exchange,
-                                                        limit=1000))
-        hist = get(symbol)
-        if hist is None or hist.empty:
-            # 조용히 넘어가지 않는다 — 이유가 장부에 남아야 원인을 좁힌다
-            note_source_failure(df, "funding",
-                                f"{exchange} 펀딩 이력이 비어 있음(현물 심볼·"
-                                "지역 차단·점검 가능)")
-            return df
+        if fetch is not None:          # 호출자가 출처를 지정했다 — 사다리 없음
+            hist = fetch(symbol)
+            if hist is None or hist.empty:
+                note_source_failure(df, "funding", "펀딩 이력이 비어 있음")
+                return df
+            source = str(exchange or "주입")
+        elif exchange:                 # 거래소를 콕 집었다 — 그 한 곳만 본다
+            hist = fetch_funding_history(perp_symbol(symbol),
+                                         exchange=exchange, limit=1000)
+            if hist is None or hist.empty:
+                note_source_failure(df, "funding",
+                                    f"{exchange} 펀딩 이력이 비어 있음(현물 "
+                                    "심볼·지역 차단·점검 가능)")
+                return df
+            source = exchange
+        else:
+            hist, source, tried = walk_ladder(
+                _price_source(df), symbol,
+                lambda s, ex: fetch_funding_history(s, exchange=ex, limit=1000),
+                capability="fetchFundingRateHistory")
+            if hist is None:
+                # 조용히 넘어가지 않는다 — 이유가 장부에 남아야 원인을 좁힌다.
+                # 거래소 이름 없이 "없음"만 남기면 다음 사람이 처음부터
+                # 다시 조사한다(감사 269가 사용자 자료에서 배운 것과 같다).
+                note_source_failure(df, "funding", ladder_reason(tried))
+                return df
         out = df.copy()
         out["funding"] = align_funding_to_bars(hist, df.index)
+        # 어느 거래소에서 받았는지 남긴다 — 거래소마다 정산 주기가 달라
+        # 값이 튄 날 제공처 교체를 먼저 의심할 수 있어야 한다.
+        out.attrs["funding_source"] = source
         return out
     except Exception as exc:  # noqa: BLE001 — 부가 정보 실패가 본류를 막으면 안 됨
         log.warning("펀딩 컬럼 부착 실패(%s) — 펀딩 피처 없이 진행", exc)

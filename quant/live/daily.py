@@ -234,7 +234,7 @@ REBALANCE_BAND = 0.05
 # 한참 낮다. 이 사이를 벗어나면 시장이 아니라 코드가 만든 숫자다.
 FILL_MARK_MAX_RATIO = 5.0
 
-# 요청한 봉 수의 몇 할 아래로 받으면 '덜 받았다'로 보는가(감사 261).
+# 요청한 봉 수의 몇 할 아래로 받으면 '덜 받았다'로 보는가(감사 266).
 # 거래소 점검·신규 상장으로 몇 봉이 비는 것은 정상이므로 넉넉히 두되,
 # okx 폴백이 800봉 요청에 300봉(37%)을 주던 상황은 반드시 걸려야 한다.
 BARS_SHORTFALL_RATIO = 0.9
@@ -898,6 +898,94 @@ def random_strategy_percentile(history: list[dict], actual_twr_pct: float,
     return round(beaten / n * 100, 1)
 
 
+# 실측 피처가 며칠 연속 달라져야 '세대가 바뀌었다'로 보는가 (감사 271).
+#
+# 1로 두면 외부 소스가 하룻밤 흔들릴 때마다 90일 시계가 0으로 돌아가
+# **영원히 90일에 못 닿는다.** 크게 두면 진짜 변화가 며칠 묻힌다. 3밤은
+# 이 저장소에서 관측된 소스 장애 길이(대개 하루, 길어야 이틀)의 바로 위다.
+GEN_CONFIRM_NIGHTS = 3
+
+
+def _nightly_realized(path: str) -> dict[str, list[tuple[str, frozenset]]]:
+    """밤마다 **실제로 붙은** 선택 피처 — 시장별 {시장: [(날짜, 피처집합)]}.
+
+    종목별이 아니라 그 시장 전체의 합집합을 쓴다. 한 종목에서만 소스가
+    빠진 것과 그 소스가 통째로 죽은 것은 다른 사건이고, 세대를 가르는 것은
+    후자다.
+
+    ⚠️ **시장을 섞어 날짜로만 묶으면 안 된다.** 기록의 날짜(asof)는 그
+    종목 데이터의 마지막 봉이라, 같은 밤에 돌아도 코인은 오늘, 주식은
+    직전 거래일로 적힌다. 날짜로만 묶으면 하루는 '코인 피처만', 다음
+    하루는 '주식 피처만' 붙은 것처럼 보여 구성이 매일 뒤집힌다 — 그러면
+    이 장치가 매일 세대 교체를 선언하는 고장난 경보가 된다.
+
+    `features_used`가 없는 옛 기록은 아예 세지 않는다 — '안 적혔다'를
+    '아무것도 안 붙었다'로 읽으면, 기록을 시작한 날 없던 변화가 있었던
+    것처럼 보인다.
+    """
+    by_market: dict[str, dict[str, set]] = {}
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        for ln in f:
+            try:
+                r = json.loads(ln)
+            except ValueError:
+                continue
+            used = r.get("features_used")
+            if used is None:
+                continue
+            a = str(r.get("asof", ""))[:10]
+            mkt = str(r.get("market") or "?")
+            if len(a) == 10:
+                by_market.setdefault(mkt, {}).setdefault(a, set()).update(
+                    str(c) for c in used)
+    return {m: [(d, frozenset(days[d])) for d in sorted(days)]
+            for m, days in by_market.items()}
+
+
+def _realized_since(nights: list[tuple[str, frozenset]]) -> tuple[str, frozenset] | None:
+    """지금의 피처 구성이 **언제부터 유지되고 있나** — (시작일, 피처집합).
+
+    최신 밤에서 과거로 거슬러 가며, 지금과 같은 구성이 나오면 시작일을
+    거기까지 늘린다. 다른 구성이 `GEN_CONFIRM_NIGHTS`밤 연속 나오면 거기서
+    세대가 끊긴 것으로 본다 — 하루이틀짜리 소스 장애는 건너뛰고, 정말로
+    달라진 구간만 경계가 된다.
+    """
+    if not nights:
+        return None
+    # 가장 최근 구성이 **며칠째 이어지고 있나.** 아직 확정 문턱을 못 넘었으면
+    # 세대 교체를 선언하지 않는다 — 안 그러면 공개 시계가 하룻밤 장애에
+    # 0일차로 떨어졌다가 다음 날 45일차로 되돌아온다. 보는 사람에게는 그게
+    # 사고로 읽히고, 실제로는 아무 일도 없었던 것이다.
+    newest = nights[-1][1]
+    run = 0
+    for _, fs in reversed(nights):
+        if fs != newest:
+            break
+        run += 1
+    current = (newest if (run >= GEN_CONFIRM_NIGHTS or run == len(nights))
+               else nights[-run - 1][1])
+
+    since = nights[-1][0]
+    gap = 0
+    for date, fs in reversed(nights):
+        if fs == current:
+            since, gap = date, 0
+        else:
+            gap += 1
+            if gap >= GEN_CONFIRM_NIGHTS:
+                break
+    return since, current
+
+
+def _realized_tag(features: frozenset) -> str:
+    """피처 구성을 짧은 이름표로 — 개수가 같아도 구성이 다르면 달라야 한다."""
+    import hashlib
+    h = hashlib.sha1("|".join(sorted(features)).encode()).hexdigest()[:4]
+    return f"opt{len(features)}:{h}"
+
+
 def _generation_info(state_dir: str) -> dict | None:
     """현재 구조 세대의 관찰 일수 — 90일 시계를 숨기지 않는다.
 
@@ -905,15 +993,26 @@ def _generation_info(state_dir: str) -> dict | None:
     리셋된다. 이 사실을 사이트에 명시해, 과거 세대의 기록이 현재 구조의
     실적처럼 읽히는 착시를 막는다.
 
-    세대는 두 축으로 결정된다:
-      ① 피처셋(FEATURE_SET) — 무엇을 보고 판단하는가
+    세대는 세 축으로 결정된다:
+      ① 피처셋(FEATURE_SET) — 무엇을 보겠다고 **선언**했는가
       ② 실행 구조(STRUCTURE_TAG/EPOCH) — 얼마를 어떻게 사고파는가
+      ③ 실측 피처 구성 — 그래서 **실제로 무엇을 보고 있었는가** (감사 271)
+
     ②를 뒤늦게 넣은 이유: 2026-08-11에 사이징(총노출 6.8%→100%)과 회전율
     통제를 크게 바꿨는데, 피처는 그대로라 시계가 리셋되지 않았다. 그러나
     노출이 15배 다른 두 구간의 수익률은 같은 통계가 아니다 — 피처만 세대로
     치는 것은 우리가 세운 원칙의 구멍이었다.
 
-    since = ①이 처음 등장한 날과 ②의 마지막 변경일 중 **나중** 날짜.
+    ③을 넣은 이유는 같은 병의 다른 얼굴이다. ①은 사람이 손으로 적는
+    이름표라, 외부 소스가 죽어 피처 3개가 통째로 빠져도 태그는 그대로다.
+    실제로 코인 펀딩·미결제약정 3개는 몇 주 동안 하나도 안 붙었고, 그걸
+    되살리는 순간 **모델이 보는 것이 달라지는데 시계는 안 멈춘다.** 그러면
+    90일 표본은 앞부분(3개 없음)과 뒷부분(3개 있음)이 섞인 채 "한 세대의
+    90일"로 발표된다. 우리가 지금까지 잡아 온 것과 정확히 같은 계열의
+    구멍이다 — **선언만 돼 있고 실제로는 안 맞는 장치.**
+
+    since = ①이 처음 등장한 날, ②의 마지막 변경일, ③의 마지막 변경일 중
+    **가장 나중** 날짜.
     """
     try:
         import datetime as _dt
@@ -937,11 +1036,34 @@ def _generation_info(state_dir: str) -> dict | None:
         # 실행 구조가 더 최근에 바뀌었으면 그날부터 다시 센다
         if STRUCTURE_EPOCH > since:
             since = STRUCTURE_EPOCH
+        # 실측 피처 구성이 더 최근에 바뀌었으면 또 그날부터 다시 센다.
+        # 시장마다 따로 재고, **가장 최근 경계**를 세대의 시작으로 삼는다 —
+        # 한 시장의 입력이 바뀌면 그날부터는 다른 시스템이다.
+        tag = f"{FEATURE_SET}/{STRUCTURE_TAG}"
+        info_realized = None
+        per_market = {m: _realized_since(nights)
+                      for m, nights in _nightly_realized(path).items()}
+        per_market = {m: v for m, v in per_market.items() if v}
+        if per_market:
+            r_since = max(v[0] for v in per_market.values())
+            r_feats = frozenset().union(*(v[1] for v in per_market.values()))
+            if r_since > since:
+                since = r_since
+            tag = f"{tag}/{_realized_tag(r_feats)}"
+            info_realized = {
+                "since": r_since, "n": len(r_feats),
+                "features": sorted(r_feats),
+                "confirm_nights": GEN_CONFIRM_NIGHTS,
+                "by_market": {m: {"since": v[0], "n": len(v[1])}
+                              for m, v in sorted(per_market.items())}}
         days = (today - _dt.date.fromisoformat(since)).days
-        return {"feature_set": f"{FEATURE_SET}/{STRUCTURE_TAG}",
-                "since": since, "days": max(0, days), "target_days": 90,
-                "structure": {"tag": STRUCTURE_TAG, "epoch": STRUCTURE_EPOCH,
-                              "why": STRUCTURE_WHY}}
+        out = {"feature_set": tag,
+               "since": since, "days": max(0, days), "target_days": 90,
+               "structure": {"tag": STRUCTURE_TAG, "epoch": STRUCTURE_EPOCH,
+                             "why": STRUCTURE_WHY}}
+        if info_realized:
+            out["realized"] = info_realized
+        return out
     except Exception:  # noqa: BLE001 — 표시 재료일 뿐
         return None
 
@@ -1492,7 +1614,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
-    bars_short: dict = {}           # key → 요청보다 적게 받은 봉 수(감사 261)
+    bars_short: dict = {}           # key → 요청보다 적게 받은 봉 수(감사 266)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
     # 검증 게이트 — 과최적화 검증(PBO·DSR)을 비중으로 번역한 계수.
@@ -1509,7 +1631,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             if df.empty or (require_real_data
                             and df.attrs.get("synthetic_fallback")):
                 raise RuntimeError("실데이터 없음")
-            # **몇 봉으로 판단했는가** (감사 261). 장부는 마지막 봉이 얼마나
+            # **몇 봉으로 판단했는가** (감사 266). 장부는 마지막 봉이 얼마나
             # 묵었는지(bar_age_days)와 얼마나 만들어졌는지(bar_partial)는
             # 남기면서, 정작 **표본이 몇 개였는지**는 남기지 않았다.
             #
@@ -2334,7 +2456,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 확정값이 아니므로, 어느 종목이 몇 % 만들어진 봉으로 판단됐는지
               # 남긴다 — 공개 차트와 대조하려는 사람이 오해하지 않도록.
               "bar_partial": partial_bars or None,
-              # 요청한 것보다 **적게 받은** 종목(감사 261). 판단의 표본이
+              # 요청한 것보다 **적게 받은** 종목(감사 266). 판단의 표본이
               # 몇 개였는지는 성적만큼 중요한 사실이다 — 300봉으로 낸
               # 결론과 800봉으로 낸 결론은 같은 무게가 아니다.
               "bars_short": bars_short or None,
@@ -3083,7 +3205,7 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 검증 실패가 사이트 갱신을 막으면 안 된다
         pass
 
-    # 장중 감시가 **실제로** 얼마나 자주 돌았나(감사 262). 예약값이 아니라
+    # 장중 감시가 **실제로** 얼마나 자주 돌았나(감사 267). 예약값이 아니라
     # 심장박동에서 잰 값이다. 여기서 status에 실어 두는 이유: 경보를 만드는
     # 쪽(flag_watch)이 파일을 직접 읽으면 그 함수가 **저장소의 지금 상태에
     # 묶인다.** 실제로 그렇게 만들었다가, 감시 기록이 쌓이자 아무 상관 없는

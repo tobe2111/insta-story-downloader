@@ -16,10 +16,19 @@ import math
 
 import pandas as pd
 
+from quant.data.derivatives import ladder_reason, walk_ladder
 from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.openinterest")
+
+
+def _price_source(df) -> str | None:
+    """그 종목 시세를 실제로 준 거래소 — 부가 지표도 거기부터 물어본다."""
+    try:
+        return str(df.attrs.get("source") or "") or None
+    except Exception:  # noqa: BLE001  # pragma: no cover
+        return None
 
 
 def fetch_oi_history(symbol: str, exchange: str = "binanceusdm",
@@ -91,21 +100,35 @@ def fetch_oi_history(symbol: str, exchange: str = "binanceusdm",
 
 
 def attach_open_interest(df: pd.DataFrame, symbol: str,
-                         fetch=fetch_oi_history) -> pd.DataFrame:
+                         fetch=None) -> pd.DataFrame:
     """일봉 df에 'oi' 컬럼(미결제약정 수준)을 부착한다 — 펀딩과 같은 원리.
 
     원시 '수준'을 컬럼으로 저장하는 이유: 스냅샷·데이터 해시에 남아 verify가
     같은 피처(ML이 x_oi_chg5로 파생)로 그날의 결정을 재현할 수 있다.
     전진충전 정렬만 사용(룩어헤드 불가). 실패 시 원본 그대로.
+
+    ⚠️ fetch를 주지 않으면 **시세와 같은 거래소 사다리**를 내려간다(감사
+       270). 예전에는 `binanceusdm` 한 곳이 기본값으로 박혀 있었고, 그
+       문이 막힌 환경에서 시세는 okx로 폴백하는데 미결제약정만 매일
+       빈손으로 돌아왔다 — 몇 주 동안 `x_oi_chg5`가 통째로 비어 있었다.
     """
     try:
-        s = fetch(symbol)
-        if s is None or s.empty:
-            note_source_failure(df, "oi",
-                                "미결제약정 이력이 비어 있음(거래소 미지원·"
-                                "지역 차단·심볼 불일치 가능)")
-            return df
+        if fetch is not None:          # 호출자가 출처를 지정했다 — 사다리 없음
+            s = fetch(symbol)
+            source = "주입"
+            if s is None or s.empty:
+                note_source_failure(df, "oi", "미결제약정 이력이 비어 있음")
+                return df
+        else:
+            s, source, tried = walk_ladder(
+                _price_source(df), symbol,
+                lambda sym, ex: fetch_oi_history(sym, exchange=ex),
+                capability="fetchOpenInterestHistory")
+            if s is None:
+                note_source_failure(df, "oi", ladder_reason(tried))
+                return df
         out = df.copy()
+        out.attrs["oi_source"] = source
         target = pd.DatetimeIndex(out.index).normalize()
         out["oi"] = pd.Series(s.reindex(target, method="ffill").to_numpy(),
                               index=out.index)

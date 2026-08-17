@@ -12,9 +12,36 @@ from quant.utils.logging import get_logger
 log = get_logger("data.crypto")
 
 
+# 처음 물어보는 거래소.
+DEFAULT_EXCHANGE = "binance"
+
 # 기본 거래소 실패 시 순서대로 시도하는 보조 거래소 — 전 세계 공용 현물 시세라
 # 어느 거래소든 BTC/USDT 같은 주요 페어의 일봉은 사실상 동일하다.
 _FALLBACK_EXCHANGES = ("okx", "kucoin", "kraken")
+
+
+def spot_ladder(preferred: str | None = None) -> tuple[str, ...]:
+    """코인 시세를 물어볼 거래소 순서 — **이 사다리의 정본은 여기 하나뿐이다.**
+
+    ⚠️ 왜 함수인가 (감사 270). 시세는 이 사다리를 타고 실제로 okx까지
+    내려가 데이터를 받아 왔는데, 같은 코인의 **펀딩비·미결제약정**은
+    `binance`가 코드에 그대로 박혀 있었다. 바이낸스는 이 환경에서 막혀
+    있으므로 그 셋은 **몇 주 동안 한 번도 붙지 않았다.** 시세는 되는데
+    부가 지표만 안 되는, 겉으로는 설명이 안 되는 상태였다.
+
+    사다리를 두 곳에 적으면 반드시 어긋난다(FROZEN_IDEAS ①). 그래서
+    파생 지표 쪽(`quant.data.derivatives`)도 이 함수를 읽어 순서를 만든다.
+
+    preferred: 먼저 물어볼 거래소(그 종목 시세를 실제로 준 곳). 시세와
+    같은 거래소에서 부가 지표를 받으면 둘이 같은 장부를 보게 된다.
+    """
+    order = ([preferred] if preferred else []) + [DEFAULT_EXCHANGE]
+    order += list(_FALLBACK_EXCHANGES)
+    out: list[str] = []
+    for ex in order:
+        if ex and ex not in out:
+            out.append(ex)
+    return tuple(out)
 
 
 def _tf_ms(timeframe: str) -> int:
@@ -125,7 +152,8 @@ class CryptoDataProvider(DataProvider):
     야간 자동화의 최약점이었다(지역 차단·점검 하나로 그날 기록이 빈다).
     """
 
-    def __init__(self, exchange: str = "binance", api_key: str = "", secret: str = ""):
+    def __init__(self, exchange: str = DEFAULT_EXCHANGE, api_key: str = "",
+                 secret: str = ""):
         self.exchange_id = exchange
         self._client = None
         try:
@@ -141,11 +169,11 @@ class CryptoDataProvider(DataProvider):
         end: Optional[datetime] = None,
         limit: int = 500,
     ) -> pd.DataFrame:
-        attempts: list[tuple[str, object]] = []
-        if self._client is not None:
-            attempts.append((self.exchange_id, self._client))
-        attempts += [(ex, None) for ex in _FALLBACK_EXCHANGES
-                     if ex != self.exchange_id]
+        ladder = spot_ladder(self.exchange_id)
+        attempts: list[tuple[str, object]] = [
+            (ex, self._client if (ex == self.exchange_id
+                                  and self._client is not None) else None)
+            for ex in ladder]
 
         for ex_id, client in attempts:
             try:
