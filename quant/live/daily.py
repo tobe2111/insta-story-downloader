@@ -409,7 +409,15 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     path = _paper_path(market, symbol, state_dir)
     st = _load_paper(path)
     last_bar = str(df.index[-1])
-    if st.get("last_bar") == last_bar:
+    # 종목별 참고 계좌도 같은 규칙 — 시간이 거꾸로 가면 멈춘다(감사 262).
+    # 통합 계좌에서만 막으면 같은 사고가 이쪽 장부를 조용히 오염시킨다.
+    prev = st.get("last_bar")
+    if prev and str(last_bar) < str(prev):
+        log.error("%s/%s: 판정 봉이 과거로 갔다 — 기록 %s → 오늘 %s. "
+                  "시세가 뒤처졌다는 뜻이라 기록하지 않는다.",
+                  market, symbol, prev, last_bar)
+        return {"skipped": True, "last_bar": prev, "backwards": str(last_bar)}
+    if prev == last_bar:
         log.info("%s/%s: 같은 봉(%s)에 이미 실행됨 — 건너뜀", market, symbol, last_bar)
         return {"skipped": True, "last_bar": last_bar}
 
@@ -1691,7 +1699,23 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             "시 미국장은 06:00 KST에 닫습니다)", bar_age)
 
     bar = judgement_day(last_bars, partial_bars)
-    if st.get("last_bar") == bar:
+    # ⚠️ **시간이 거꾸로 가면 멈춘다** (2026-08-16 실전 사고, 감사 262).
+    #    멱등 가드는 `==`만 봤다. 그래서 판정일이 **이전 기록보다 과거**로
+    #    떨어지면 그대로 통과해 이미 있는 날짜 뒤에 한 줄을 더 붙였다.
+    #
+    #    실측(2026-08-16 배치): 코인 시세가 165일 묵어(감사 261) 판정일이
+    #    2026-08-15 → **2026-08-14**로 뒷걸음쳤고, 장부에 08-14가 두 번
+    #    적혔다. 장부 관문이 커밋을 막아 공개되지는 않았지만, 관문이 없었다면
+    #    그 기록이 다음 날의 출발 상태가 된다.
+    #
+    #    같은 봉은 '이미 했다'(정상)이고, 과거로 가는 봉은 '입력이 고장났다'
+    #    (사고)다. 둘을 같은 가지에 두면 사고가 정상으로 보인다.
+    prev_bar = st.get("last_bar")
+    if prev_bar and str(bar) < str(prev_bar):
+        log.error("포트폴리오: 판정일이 과거로 갔다 — 기록 %s → 오늘 %s. "
+                  "시세 공급이 뒤처졌다는 뜻이라 기록하지 않는다.", prev_bar, bar)
+        return {"skipped": True, "last_bar": prev_bar, "backwards": str(bar)}
+    if prev_bar == bar:
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
         return {"skipped": True, "last_bar": bar}
 
