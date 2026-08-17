@@ -38,13 +38,11 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
-# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
-# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+# 브라우저를 어디서 찾는지도, 없을 때 건너뛸지도 **한 곳에서만** 정한다.
+# 감사 278에서 찾기만 모았더니 `Path("")`가 현재 디렉터리가 되어 관문이
+# 통과해 버렸고, 그날 밤 배치 넷이 통째로 멈췄다(감사 280).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _browser import block_external, chrome_exe  # noqa: E402
-
-CHROME = chrome_exe()
+from _browser import block_external, chromium_or_skip  # noqa: E402
 
 # (경로, 그 페이지가 '못 그렸다'고 말할 때 쓰는 문구)
 PAGES = [
@@ -70,8 +68,6 @@ def site(tmp_path_factory):
     """docs 사본을 정적 서버로 띄운다. 반환: base URL."""
     pytest.importorskip("playwright.sync_api",
                         reason="playwright 없음 — 화면 렌더 검사 생략")
-    if not Path(CHROME).exists():
-        pytest.skip("chromium 없음 — 화면 렌더 검사 생략")
     root = tmp_path_factory.mktemp("site")
     shutil.copytree(ROOT / "docs", root, dirs_exist_ok=True)
 
@@ -93,7 +89,7 @@ def browser(site):
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
-        b = p.chromium.launch(executable_path=CHROME)
+        b = p.chromium.launch(executable_path=chromium_or_skip())
         try:
             yield b
         finally:
