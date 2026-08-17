@@ -3868,7 +3868,7 @@ MUTATIONS = [
 
     ("같은 봉 재실행 멱등 가드를 없앤다(중복 기록)",
      "quant/live/daily.py",
-     '    if st.get("last_bar") == bar:',
+     "    if prev_bar == bar:",
      "    if False:",
      "tests/test_guards_actually_bind.py"),
 
@@ -4627,6 +4627,31 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 1',
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
+
+    # ── 감사 262 — 판정일이 과거로 뒷걸음쳐 같은 날이 두 번 적혔다 ──────
+    ("정상 건너뜀까지 사고로 막는다(같은 봉이면 그냥 이미 한 것이다)",
+     "quant/live/daily.py",
+     "    if prev_bar and str(bar) < str(prev_bar):",
+     "    if prev_bar and str(bar) <= str(prev_bar):",
+     "tests/test_the_ledger_never_goes_backwards.py"),
+
+    ("뒷걸음 사실을 장부에 안 남긴다(왜 안 돌았는지 답할 수 없다)",
+     "quant/live/daily.py",
+     '        return {"skipped": True, "last_bar": prev_bar, "backwards": str(bar)}',
+     '        return {"skipped": True, "last_bar": prev_bar}',
+     "tests/test_the_ledger_never_goes_backwards.py"),
+
+    ("종목별 계좌는 뒷걸음을 안 막는다(통합만 지키면 이쪽이 오염된다)",
+     "quant/live/daily.py",
+     "    if prev and str(last_bar) < str(prev):",
+     "    if False:",
+     "tests/test_the_ledger_never_goes_backwards.py"),
+
+    ("첫 기록도 뒷걸음으로 본다(장부가 비면 영영 시작 못 한다)",
+     "quant/live/daily.py",
+     "    prev_bar = st.get(\"last_bar\")",
+     "    prev_bar = st.get(\"last_bar\") or \"9999-12-31\"",
+     "tests/test_the_ledger_never_goes_backwards.py"),
 
     # ── 감사 261 — 800봉을 다 받고도 최신 165일을 못 받았다(실전 사고) ──
     ("이어받기를 개수로 멈춘다(가장 오래된 800봉만 받고 최근 165일을 버린다)",
