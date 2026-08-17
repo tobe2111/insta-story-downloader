@@ -58,6 +58,18 @@ jobs:
           # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
           pip install -r requirements.txt -r requirements-extra.txt
 
+      # ⚠️ 브라우저가 없으면 화면 계약 검사가 통째로 건너뛰고, 변이 전수는
+      #    그것을 **놓침**으로 센다(맞는 판정이다 — 건너뜀은 통과가 아니다).
+      #    2026-08-17 전수가 놓친 21건 중 16건이 그 자리였다(감사 278).
+      - name: 브라우저 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('requirements-extra.txt') }}
+
+      - name: 크로미움 설치 (화면 렌더 검사용)
+        run: python -m playwright install --with-deps chromium
+
       # ⚠️ 이 도구는 실행 중 소스 파일을 잠깐 고쳤다가 되돌린다. 중단되면
       #    변조된 채로 남을 수 있으므로, 러너를 버리는 이 잡에서만 돌린다
       #    (아무것도 커밋하지 않는 이유이기도 하다).

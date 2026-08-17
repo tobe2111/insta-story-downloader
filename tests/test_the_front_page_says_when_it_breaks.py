@@ -34,7 +34,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 IDX = (ROOT / "docs" / "index.html").read_text("utf-8")
-CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
+# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
+# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _browser import block_external, chrome_exe  # noqa: E402
+
+CHROME = chrome_exe()
 
 
 # ── 삼키지 않는가 (소스 계약) ─────────────────────────────────
@@ -90,6 +96,7 @@ def _flags_text(tmp_path, patch: dict) -> str:
         with pw.sync_playwright() as p:
             b = p.chromium.launch(executable_path=CHROME)
             page = b.new_page()
+            block_external(page)
             page.goto(url)
             page.wait_for_timeout(1500)
             out = page.locator("#side-flags").inner_text()

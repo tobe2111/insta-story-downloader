@@ -247,19 +247,52 @@ def test_the_caption_reads_the_principal_from_the_ledger():
     다시 열린 뒤에도 캡션은 **"가짜 돈 8만원으로 시작해"**라고 나갈
     참이었다. 사이트 산문은 같은 이유로 이미 고쳤는데 캡션만 남아 있었다 —
     방송에 나가는 글이라 사이트보다 오히려 더 위험하다.
+
+    ⚠️ 이 검사는 2026-08-17까지 **아무것도 안 지키고 있었다**(감사 278).
+       장부 원금을 1,000,000원으로 적어 뒀는데, 그 사이 상수도 100만원으로
+       올라가 **둘이 같아졌다.** 그래서 캡션이 장부를 안 읽고 상수만 읽어도
+       똑같이 "100만원"이 나왔고, 야간 변이 전수가 배선을 끊어 봐도 검사는
+       초록이었다. 같은 값으로 두 길을 시험하면 갈림길을 못 본다 —
+       그래서 이제 **상수와 절대 같을 수 없는 값**을 장부에 넣는다.
     """
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH
     from quant.reporting.social import build_captions
 
+    ledger_p = float(PORTFOLIO_START_CASH) * 2 + 10_000    # 상수와 다른 값
     st = {"updated": "2026-08-13T21:00:00Z",
           "paper": {"portfolio:ALL": {
-              "start_cash": 1_000_000.0, "principal": 1_000_000.0,
+              "start_cash": ledger_p, "principal": ledger_p,
               "history": [{"date": "2026-08-13", "equity": 1_002_000.0,
                            "return_pct": 0.2, "day_pct": 0.2,
                            "weight": 0.4, "risk_scale": 1.0}]}},
           "symbols": {}, "retrain_recent": []}
     cap = build_captions(st, site_url="https://example.com")["instagram"]
-    assert "100만원" in cap, f"캡션이 지금 원금을 말하지 않는다\n{cap[:300]}"
-    assert "8만원" not in cap, "낡은 시작금이 방송에 나간다"
+    want = f"{ledger_p / 10_000:,.0f}만원"
+    nope = f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원"
+    assert want in cap, f"캡션이 장부의 원금({want})을 말하지 않는다\n{cap[:300]}"
+    assert nope not in cap, (
+        f"캡션이 장부 대신 코드 상수({nope})를 말한다 — 계좌가 바뀌어도 "
+        "방송에는 옛 금액이 나간다")
+
+
+def test_the_caption_falls_back_to_the_constant_only_when_the_ledger_is_silent():
+    """대조군 — 장부에 원금이 없으면 상수라도 말해야 한다.
+
+    위 검사만 있으면 "무조건 상수를 쓰지 마라"로 굳어져, 원금을 못 읽는 날
+    캡션이 빈칸으로 나가도 아무도 모른다.
+    """
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH
+    from quant.reporting.social import build_captions
+
+    st = {"updated": "2026-08-13T21:00:00Z",
+          "paper": {"portfolio:ALL": {
+              "history": [{"date": "2026-08-13", "equity": 1_002_000.0,
+                           "return_pct": 0.2, "day_pct": 0.2,
+                           "weight": 0.4, "risk_scale": 1.0}]}},
+          "symbols": {}, "retrain_recent": []}
+    cap = build_captions(st, site_url="https://example.com")["instagram"]
+    assert f"{PORTFOLIO_START_CASH / 10_000:,.0f}만원" in cap, (
+        f"원금을 모르는 날 캡션이 시작금을 아예 안 말한다\n{cap[:300]}")
 
 
 def test_the_caption_says_the_account_was_reopened_instead_of_showing_dashes():

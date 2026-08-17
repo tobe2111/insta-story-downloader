@@ -38,7 +38,13 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
+# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
+# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _browser import block_external, chrome_exe  # noqa: E402
+
+CHROME = chrome_exe()
 
 # 실측 장부(2026-08-15) — 이 파일의 숫자는 전부 여기서 온다.
 EQ, BASE, DAY = 997197.56, 1_000_000.0, "2026-08-15"
@@ -89,6 +95,7 @@ def browser(site):
 @pytest.fixture()
 def page(browser, site):
     pg = browser.new_page(viewport={"width": 1440, "height": 900})
+    block_external(pg)
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(f"{site}/index.html")
@@ -164,6 +171,7 @@ def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         pg = browser.new_page()
+        block_external(pg)
         pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
         pg.wait_for_timeout(2400)
         txt = pg.locator("#glance").inner_text()

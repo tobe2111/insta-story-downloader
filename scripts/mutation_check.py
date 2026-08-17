@@ -97,7 +97,7 @@
 import atexit
 import os
 import signal
-import pathlib, subprocess, sys
+import pathlib, re, subprocess, sys
 
 MUTATIONS = [
     # (설명, 파일, 원본, 변조, 돌릴 테스트)
@@ -5408,6 +5408,42 @@ MUTATIONS = [
      "    _vh = x.get(\"vs_hold\")\n    if _vh:",
      "    _vh = x.get(\"vs_hold\")\n    if True:",
      "tests/test_the_score_is_measured_against_holding.py"),
+
+    # ── 감사 278 — 화면 계약 검사가 **돌지 않던** 자리 ────────────
+    #
+    # 2026-08-17 야간 전수가 21건을 놓쳤고, 그중 16건의 원인은 하나였다:
+    # 공개 페이지를 실제로 그려 보는 검사가 브라우저 없이 조용히 건너뛰고
+    # 있었다. 아래 항목들은 그 배선 자체를 지킨다 — 배선이 끊기면 다시
+    # 열여섯 계약이 한꺼번에 무방비가 되기 때문이다.
+    ("CI가 브라우저를 안 받는다(화면 계약 16건이 조용히 건너뛰어진다)",
+     ".github/workflows/ci.yml",
+     "        run: python -m playwright install --with-deps chromium",
+     "        run: echo '브라우저 없이 간다'",
+     "tests/test_the_page_contracts_actually_run.py"),
+
+    ("야간 변이 전수가 브라우저를 안 받는다(놓침이 다시 21건이 된다)",
+     ".github/workflows/mutation-sweep.yml",
+     "        run: python -m playwright install --with-deps chromium",
+     "        run: echo '브라우저 없이 간다'",
+     "tests/test_the_page_contracts_actually_run.py"),
+
+    ("화면 검사용 패키지를 선언에서 뺀다(설치 단계 자체가 죽는다)",
+     "requirements-extra.txt",
+     "playwright>=1.40,<2",
+     "# playwright — 잠시 뺐다",
+     "tests/test_the_page_contracts_actually_run.py"),
+
+    ("묵은 가격으로 평가한 종목을 화면에서 지운다(그날 손익이 확정처럼 읽힌다)",
+     "docs/index.html",
+     "    const sm=pfLast.stale_marks||null;",
+     "    const sm=null;",
+     "tests/test_ledger_fields_reach_the_screen.py"),
+
+    ("원금을 못 읽는 날 캡션이 시작금을 아예 안 말한다(0원으로 방송된다)",
+     "quant/reporting/social.py",
+     "        _p = PORTFOLIO_START_CASH",
+     "        _p = 0.0",
+     "tests/test_social_path_stays_light.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
@@ -5560,15 +5596,37 @@ def run(test):
        즉 **가장 잘 잡는 검사가 변이 시험에서는 없는 것과 같았다.**
        종료코드 규약(0=통과)이 같으므로 실행기만 갈라 주면 된다.
     """
+    return _run_verbose(test)[0]
+
+
+def _run_verbose(test) -> tuple[int, str]:
+    """`run()`과 같되 출력까지 준다 — 기준선에서 '몇 개가 건너뛰었나'를 본다."""
     if str(test).endswith(".mjs"):
         r = subprocess.run([_node(), test],
                            capture_output=True, text=True, timeout=900)
-        return r.returncode
+        return r.returncode, (r.stdout or "") + (r.stderr or "")
     # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"],
                        capture_output=True, text=True, timeout=900, env=env)
-    return r.returncode
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+def _skip_count(out: str) -> int:
+    """그 검사 파일에서 **건너뛴** 항목 수.
+
+    ⚠️ 왜 이걸 세나 (2026-08-17 감사 278). 이 도구가 놓친 21건을 한 줄에
+       "못 잡음"이라고만 적었다. 그래서 며칠 동안 "검사가 헐겁다"로 읽혔는데,
+       실제 원인은 16건에서 **검사가 아예 안 돌았다**는 것이었다 — 러너에
+       브라우저가 없어 조용히 건너뛰었고, 건너뛴 검사의 종료코드는 0이라
+       이 도구에는 '통과'와 구별되지 않았다.
+
+       원인을 알면 고치는 데 몇 분이고, 모르면 며칠이다. 그래서 놓친 항목
+       옆에 **그 검사 파일이 기준선에서 몇 개를 건너뛰었는지**를 함께 적는다.
+       숫자가 0이 아니면 먼저 환경을 의심하라는 뜻이다.
+    """
+    m = re.findall(r"(\d+) skipped", out or "")
+    return int(m[-1]) if m else 0
 
 
 # 파일이 없거나 수집이 깨진 경우 pytest는 4(사용 오류)를 준다. 그것을
@@ -5589,6 +5647,7 @@ print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
 caught = missed = skipped = broken = 0
 _baseline: dict = {}
+_skipped_in: dict = {}          # 검사 파일별 '기준선에서 건너뛴 항목 수'
 for desc, path, old, new, test in MUTATIONS:
     if FILTER and FILTER not in desc and FILTER not in test:
         continue
@@ -5600,10 +5659,12 @@ for desc, path, old, new, test in MUTATIONS:
         continue
     if test not in _baseline:
         if not pathlib.Path(test).exists():
-            _baseline[test] = "파일 없음"
+            _baseline[test], _skipped_in[test] = "파일 없음", 0
         else:
-            _baseline[test] = ("" if run(test) == BASELINE_OK
+            _rc, _out = _run_verbose(test)
+            _baseline[test] = ("" if _rc == BASELINE_OK
                                else "원본 코드에서 이미 실패")
+            _skipped_in[test] = _skip_count(_out)
     if _baseline[test]:
         print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
         broken += 1
@@ -5621,7 +5682,12 @@ for desc, path, old, new, test in MUTATIONS:
         print(f"✅   {desc[:58]:60s} {test.split('/')[-1]}")
         caught += 1
     else:
-        print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}  ← 못 잡음")
+        # 원인을 함께 적는다 — '헐거운 검사'와 '안 돈 검사'는 고치는 방법이
+        # 전혀 다르다(감사 278). 건너뛴 항목이 있으면 환경부터 의심하라.
+        why = (f"  ← 못 잡음 (그 검사가 기준선에서 {_skipped_in.get(test, 0)}개를 "
+               "건너뛴다 — 환경부터 볼 것)"
+               if _skipped_in.get(test) else "  ← 못 잡음")
+        print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}{why}")
         missed += 1
 print("─" * 110)
 print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")

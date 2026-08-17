@@ -47,6 +47,19 @@ jobs:
           # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
           pip install -r requirements.txt -r requirements-extra.txt
 
+      # 공개 페이지가 **진짜로 그려지는가**를 보는 검사들은 브라우저를 띄운다.
+      # 브라우저가 없으면 그 검사들은 조용히 건너뛴다 — 그리고 2026-08-17까지
+      # 정확히 그 상태였다(감사 278). 첫 화면·잔고·금액·보유 대비 성적 계약이
+      # CI에서 한 번도 돈 적이 없었다. 여기서 받는다.
+      - name: 브라우저 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('requirements-extra.txt') }}
+
+      - name: 크로미움 설치 (화면 렌더 검사용)
+        run: python -m playwright install --with-deps chromium
+
       - name: Syntax check (py_compile)
         run: python -m py_compile $(find quant examples tests -name "*.py")
 
