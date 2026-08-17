@@ -107,6 +107,24 @@ class _SafeRedirect(urllib.request.HTTPRedirectHandler):
 _opener = urllib.request.build_opener(_SafeRedirect())
 
 
+# 우리가 밝히는 신원. 디스코드·깃허브 등 다수 API가 User-Agent를 요구하거나
+# 없으면 봇으로 보고 막는다(감사 263 — 클라우드플레어 1010으로 경보가 전부
+# 죽었다). 연락처를 함께 적는 것이 이런 API의 관례다.
+USER_AGENT = "quant-bot/1.0 (+https://github.com/tobe2111/insta-story-downloader)"
+
+
+def _with_agent(headers: dict[str, str] | None) -> dict[str, str]:
+    """신원을 붙인 헤더 — **이 규칙은 여기 한 곳에만 둔다.**
+
+    호출자가 직접 지정했으면 그것을 존중한다(API가 특정 UA를 요구할 수 있다).
+    지정하지 않았을 때만 우리 이름을 붙인다.
+    """
+    sent = dict(headers or {})
+    if not any(k.lower() == "user-agent" for k in sent):
+        sent["User-Agent"] = USER_AGENT
+    return sent
+
+
 def _request(
     method: str,
     url: str,
@@ -121,7 +139,22 @@ def _request(
         data = body.encode() if isinstance(body, str) else body
     else:
         data = json.dumps(body).encode()
-    req = urllib.request.Request(url, data=data, method=method, headers=headers or {})
+    # ⚠️ **User-Agent를 안 보내면 경보가 통째로 죽는다** (2026-08-17, 감사 263).
+    #    urllib의 기본값은 `Python-urllib/3.x`이고, 클라우드플레어 뒤에 있는
+    #    서비스(디스코드가 그렇다)는 그 서명을 봇으로 보고 막는다:
+    #
+    #        2026-08-16 야간 배치 로그 —
+    #        디스코드 알림 실패: HTTP 403 … error code: 1010   (× 8건 전부)
+    #
+    #    1010은 "브라우저 서명 기반 차단"이다. 즉 킬스위치·낙폭·배치 실패·
+    #    과최적화 경보가 **마지막 한 걸음에서 전부 조용히 죽고 있었다.**
+    #    감사 175 덕분에 '보냈다'로 기록되지는 않아 매일 재시도했지만,
+    #    매일 같은 이유로 막혔으니 사장님께는 한 건도 도착하지 않았다.
+    #
+    #    호출자가 직접 지정했으면 그것을 존중한다(API가 특정 UA를 요구할 수
+    #    있다). 지정하지 않았을 때만 우리 이름을 붙인다.
+    req = urllib.request.Request(url, data=data, method=method,
+                                 headers=_with_agent(headers))
     try:
         with _opener.open(req, timeout=timeout) as resp:
             raw = resp.read(_MAX_RESPONSE_BYTES + 1)
@@ -180,7 +213,10 @@ def url_ok(url: str, timeout: int = 20,
     반환: 2xx면 True, 그 외(4xx·5xx·네트워크 오류)면 False. 예외를 던지지
     않으므로 호출부는 '되면 True'만 보면 된다.
     """
-    req = urllib.request.Request(url, method="GET", headers=headers or {})
+    # ⚠️ 이 함수는 `_request`를 안 거친다 — 그래서 감사 263의 User-Agent 배선이
+    #    여기만 빠졌었다. 검사가 그 사실을 잡았다. 신원을 붙이는 규칙은 한
+    #    곳(`_with_agent`)에만 두고 두 통로가 함께 읽는다.
+    req = urllib.request.Request(url, method="GET", headers=_with_agent(headers))
     try:
         with _opener.open(req, timeout=timeout) as resp:
             resp.read(1)          # 헤더만 주는 서버 대비 — 딱 1바이트
