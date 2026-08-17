@@ -60,17 +60,33 @@ EXPECTED = {
     "/deposit/run": "run_deposit_html",
     "/sweep": "render_sweep_form",
     "/sweep/run": "run_sweep_html",
+    # 내 전략(설치형) — 조회 3, 상태변경 3(아래 POST 표)
+    "/ingest": "render_ingest_form",
+    "/pins": "render_pins_page",
+    "/pin/prepare": "render_pin_prepare",
 }
 
-APP_FUNCS = sorted(set(EXPECTED.values()))
+# POST 전용 — 긴 본문(자료 붙여넣기)과 상태 변경이 있는 경로.
+# GET 표와 분리한 이유: 이 셋은 do_GET에서 404여야 한다(쿼리로 상태를
+# 바꾸는 경로를 늘리지 않는다 — /deposit/run의 교훈).
+EXPECTED_POST = {
+    "/ingest/run": "run_ingest_html",
+    "/pin/save": "run_pin_save",
+    "/pin/unpin": "run_pin_unpin",
+}
+
+APP_FUNCS = sorted(set(EXPECTED.values()) | set(EXPECTED_POST.values()))
 
 
 class _Wire(ws.QuantHandler):
     """소켓 없이 do_GET을 끝까지 돌린다."""
 
     def __init__(self, path, headers=None):  # noqa: D107
+        import io
         self.path = path
-        self.headers = {"Host": "127.0.0.1:8000", **(headers or {})}
+        self.headers = {"Host": "127.0.0.1:8000", "Content-Length": "0",
+                        **(headers or {})}
+        self.rfile = io.BytesIO(b"")
         self.sent = []
 
     def _send(self, body, status=200, content_type="text/html; charset=utf-8"):
@@ -88,10 +104,10 @@ def drive(monkeypatch):
             return "{}" if _n.endswith("_json") else f"<h1>{_n}</h1>"
         monkeypatch.setattr(ws, name, rec)
 
-    def _go(path, **headers):
+    def _go(path, method="GET", **headers):
         called.clear()
         w = _Wire(path, headers)
-        w.do_GET()
+        (w.do_GET if method == "GET" else w.do_POST)()
         status = w.sent[0][0] if w.sent else None
         return (called[0] if called else None), status
 
@@ -112,6 +128,21 @@ def test_unknown_path_is_404(drive):
     assert status == 404
 
 
+@pytest.mark.parametrize("path,func", sorted(EXPECTED_POST.items()))
+def test_post_route_dispatches_to_its_own_handler(drive, path, func):
+    got, status = drive(path, method="POST")
+    assert got == func, f"POST {path} 가 {func} 대신 {got} 를 불렀다"
+    assert status == 200, (path, status)
+
+
+@pytest.mark.parametrize("path", sorted(EXPECTED_POST))
+def test_post_only_routes_do_not_answer_get(drive, path):
+    """상태를 바꾸는 새 경로는 GET으로 열리지 않는다 — 쿼리로 상태를 바꾸는
+    경로를 더 늘리지 않는다(/deposit/run의 교훈)."""
+    _, status = drive(path)
+    assert status == 404, f"GET {path} 가 {status} — POST 전용이어야 한다"
+
+
 def test_health_needs_no_handler(drive):
     got, status = drive("/health")
     assert status == 200 and got is None
@@ -121,7 +152,8 @@ def test_health_needs_no_handler(drive):
 
 def _mutating_routes():
     """실행(run_*) 계열에 닿는 경로 — 이름이 아니라 표에서 뽑는다."""
-    return sorted(p for p, f in EXPECTED.items() if f.startswith("run_"))
+    both = {**EXPECTED, **EXPECTED_POST}
+    return sorted(p for p, f in both.items() if f.startswith("run_"))
 
 
 @pytest.mark.parametrize("path", _mutating_routes())
@@ -166,7 +198,7 @@ def test_no_route_escapes_this_table():
     found |= set(re.findall(r'parsed\.path in \(([^)]*)\)', SRC)[0:1] and
                  re.findall(r'"(/[^"]*)"',
                             re.findall(r'parsed\.path in \(([^)]*)\)', SRC)[0]))
-    known = set(EXPECTED) | {"/health"}
+    known = set(EXPECTED) | set(EXPECTED_POST) | {"/health"}
     assert found == known, (
         f"표에 없는 라우트: {sorted(found - known)} / "
         f"소스에 없는 라우트: {sorted(known - found)}")
@@ -174,5 +206,5 @@ def test_no_route_escapes_this_table():
 
 def test_protected_list_has_no_dead_entries():
     """보호 목록에 존재하지 않는 경로가 남아 있으면 착각을 만든다."""
-    dead = set(ws.QuantHandler._MUTATING) - set(EXPECTED)
+    dead = set(ws.QuantHandler._MUTATING) - set(EXPECTED) - set(EXPECTED_POST)
     assert not dead, f"없는 경로를 보호하고 있다(오래된 항목?): {sorted(dead)}"
