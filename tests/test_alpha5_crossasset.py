@@ -154,11 +154,23 @@ def test_today_shows_fills_pending_and_tradingview():
     assert "pending_next_open" in t and "다음 장 시가" in t
     # ⚠️ 예전에는 "BINANCE:"·"KRX:" 리터럴이 이 파일 안에 있는지 봤다. 그건
     #    매핑이 **여기 있어야 한다**는 요구였고, 첫 화면에도 차트를 붙이면서
-    #    매핑을 docs/assets/tradingview.js 한 곳으로 옮기자 이 검사가 사본을
-    #    되살리라고 요구하는 꼴이 됐다. 자리가 아니라 **기능**을 본다 —
-    #    매핑이 옳은지는 tests/tradingview_check.mjs가 값으로 확인한다.
+    #    매핑을 파일 하나로 옮기자 이 검사가 사본을 되살리라고 요구하는 꼴이
+    #    됐다. 자리가 아니라 **기능**을 본다 — 매핑이 옳은지는
+    #    tests/tv_symbols_check.mjs가 값으로 확인한다.
     assert "tradingview" in t.lower(), "차트가 사라졌다"
-    assert 'src="assets/tradingview.js"' in t, "매핑 모듈을 안 싣는다"
+    # ⚠️ 이 줄은 `src="assets/tradingview.js"`를 **글자로** 요구했다. 그런
+    #    파일은 없다 — 실제 이름은 tv-symbols.js다. 그래서 페이지가
+    #    2026-08-16부터 죽어 있는 동안 **이 검사가 오히려 그 오타를 지켰다**
+    #    (감사 264). 이름을 박아 두지 말고, **부르는 파일이 실제로 있는지**를
+    #    묻는다. 화면이 진짜로 그려지는지는
+    #    tests/test_every_public_page_actually_renders.py가 브라우저로 본다.
+    import re
+
+    srcs = re.findall(r'<script src="([^"]+)"></script>', t)
+    assert srcs, "스크립트를 하나도 안 싣는다"
+    for s in srcs:
+        assert (ROOT / "docs" / s).exists(), f"없는 파일을 부른다: {s}"
+    assert any("tv-symbols" in s for s in srcs), "매핑 모듈을 안 싣는다"
     assert "QuantTV." in t, "매핑을 쓰지 않는다"
 
 

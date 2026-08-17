@@ -1176,6 +1176,85 @@ def _regime_breakdown(history: list, window: int = 20) -> dict | None:
 PRIMARY_SOURCE = {"us_stock": "yfinance", "kr_stock": "yfinance"}
 
 
+# 자산의 몇 배까지는 봐 주는가. **레버리지가 잠겨 있으므로 한 종목·한 건이
+# 계좌 전체보다 클 수는 없다** — 1.0이 물리적 상한이고, 반올림·수수료 여유로
+# 아주 조금만 더 준다. 여기를 헐겁게 잡으면(예: 1.5) 실측 사고 중
+# 비트코인 1.09배짜리를 놓친다 — 그 줄도 화면에 "1,086,327원/배정
+# 1,080,408원"으로 그대로 나갔다.
+AMOUNT_SANITY_RATIO = 1.02
+
+
+def amounts_over_equity(equity: float, fills: list | None,
+                        lot_priority: dict | None) -> dict:
+    """그날 계좌보다 큰 금액을 찾아낸다 (감사 273).
+
+    레버리지가 잠긴 계좌에서 **한 건의 체결이나 한 종목의 예산이 자산 전체를
+    넘을 수는 없다.** 넘었다면 시장이 아니라 코드가 만든 숫자이고, 거의 언제나
+    통화 환산이 어딘가에서 빠진 것이다(감사 212·254가 그랬다).
+
+    ⚠️ 비중만 보는 검사로는 못 잡는다. 2026-08-15 사고 때 체결 비중은
+       0.0878, 그날 총노출은 0.4215 — **비중은 전부 정상 범위**였는데
+       금액은 6,361,687원(자산의 6.4배)이었다. 비중과 금액이 다른 통화로
+       계산되면 한쪽만 보는 검사는 통과한다.
+
+    반환: {"fills": [...], "lot_priority": [...]} — 넘은 항목만. 없으면 {}.
+    """
+    try:
+        eq = float(equity)
+    except (TypeError, ValueError):
+        return {}
+    if not (eq > 0):
+        return {}
+    cap = eq * AMOUNT_SANITY_RATIO
+    bad: dict = {}
+    over = [{"key": f.get("key"), "amount": round(float(f.get("amount") or 0), 2)}
+            for f in (fills or [])
+            if abs(float(f.get("amount") or 0)) > cap]
+    if over:
+        bad["fills"] = over
+    over = [{"key": k, "spent": round(float((v or {}).get("spent") or 0), 2)}
+            for k, v in sorted((lot_priority or {}).items())
+            if abs(float((v or {}).get("spent") or 0)) > cap]
+    if over:
+        bad["lot_priority"] = over
+    if bad:
+        bad["equity"] = round(eq, 2)
+    return bad
+
+
+def _rejected_rows(broker, kind: str, limit: int = 20) -> list[dict]:
+    """브로커가 거부한 주문 중 **그 종류만** 장부용으로 추린다 (감사 264).
+
+    ⚠️ 왜 종류를 나누나. `broker.rejected`에는 서로 다른 사고가 섞여 들어온다.
+
+        현금 부족   {"symbol", "need", "cash"}        — 감사 233
+        공매도 한도 {"symbol", "short_over", "allowance"} — 감사 260
+
+    장부는 오랫동안 **모든 줄이 현금 부족이라고 가정하고** `r["need"]`를
+    꺼냈다. 그래서 숏이 한 번이라도 거부되면 배치가 `KeyError`로 죽는다 —
+    실제로 그렇게 죽는 것을 실행해서 봤다. 그리고 죽지 않았더라도 더 나쁘다:
+    증거금 사고가 "현금 부족"이라는 **틀린 이름**으로 경보에 나간다.
+
+    ``kind``에 그 종류를 특정하는 열쇠(``need`` 또는 ``short_over``)를 준다.
+    없는 줄은 조용히 건너뛰지 않고 **다른 목록으로 간다** — 어느 쪽에도 안
+    담기는 줄이 생기면 그건 새로 생긴 거부 유형이므로, 여기가 아니라
+    `unknown` 항목으로 드러난다.
+    """
+    rows = []
+    for r in (getattr(broker, "rejected", None) or []):
+        if kind not in r:
+            continue
+        row = {"key": r.get("symbol")}
+        for k, v in r.items():
+            if k == "symbol":
+                continue
+            row[k] = round(float(v), 2) if isinstance(v, (int, float)) else v
+        rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
 def _source_fallbacks(sources: dict) -> dict:
     """1차 소스가 아닌 종목만 추린다 — {키: 실제로 쓴 소스}."""
     out = {}
@@ -1963,11 +2042,30 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         # 적어서, "언제 얼마에 샀나"는 알아도 **얼마어치**를 샀는지는 장부
         # 어디에도 없었다 — 거래내역을 만들 수가 없었다. 주문 객체가 이미
         # 수량을 들고 있었는데 버리고 있었다.
+        # ⚠️ **주문은 체결이 아니다**(감사 273). 코인 즉시 체결 쪽은 감사 233이
+        #    이미 상태를 보게 고쳤는데(아래 `order_log` 루프), **바로 이 짝은
+        #    안 고쳤다.** 그래서 현금 부족으로 거부된 주문이 "오늘 얼마에
+        #    샀다"로 장부에 남는다.
+        #
+        #    가정이 아니다. 2026-08-15 장부에 이렇게 남아 있다:
+        #        fills: 아마존 매수 24,017.24주 · 6,361,687.93원
+        #        cash_short: 아마존 need 6,365,504.94 · cash 677,061.47
+        #    **한 주도 안 샀는데** 사이트의 '오늘의 체결' 표는 "아마존 매수"를
+        #    보여줬고, 같은 화면의 잔고 표에는 아마존이 없었다.
+        _filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)
+        if getattr(order, "status", "filled") not in ("filled", "partial") \
+                or _filled <= 0:
+            log.error("포트폴리오 %s 대기 주문 미체결(%s) — 체결로 적지 않는다",
+                      key, getattr(order, "status", "?"))
+            pending.pop(key, None)
+            continue
+        # 요청 수량이 아니라 **실제로 체결된 수량**을 적는다. 부분 체결이
+        # 통째로 체결된 것처럼 남으면 금액도 그만큼 부풀려진다.
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
                       "weight": round(float(pend["weight"]) * sl, 4),
                       "side": order.side,
-                      "quantity": round(float(order.quantity), 10),
-                      "amount": round(float(order.quantity) * float(fopen), 2),
+                      "quantity": round(_filled, 10),
+                      "amount": round(_filled * float(fopen), 2),
                       "type": "시가"})           # 결정 다음 세션 시가 체결
         pending.pop(key, None)
 
@@ -2196,11 +2294,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         #    거래내역·SNS 캡션·체결비용 표본으로 그대로 흘러간다.
         if getattr(o, "status", "filled") not in ("filled", "partial"):
             continue
+        # ⚠️ 상태는 봤는데 **수량은 요청분을 적고 있었다**(감사 273). 부분
+        #    체결이면 `quantity`(요청)와 `filled_quantity`(실제)가 다르고,
+        #    그 차이만큼 금액이 부풀려진 채로 사이트·캡션·비용 표본에 간다.
+        _q = float(getattr(o, "filled_quantity", 0.0) or 0.0) or float(o.quantity)
         fills.append({"key": o.symbol, "price": round(float(o.price), 6),
                       "bar": last_bars.get(o.symbol, ""),
                       "side": o.side,
-                      "quantity": round(float(o.quantity), 10),
-                      "amount": round(float(o.quantity) * float(o.price), 2),
+                      "quantity": round(_q, 10),
+                      "amount": round(_q * float(o.price), 2),
                       "type": "즉시"})
     # 쿨다운 기준일 갱신 — 오늘 실제로 고쳐 잡은 종목만
     for f in fills:
@@ -2296,7 +2398,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
     # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
-    applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}
+    # ⚠️ **부호를 지우면 숏이 롱으로 보인다** (감사 264). 예전에는 `abs()`라
+    #    숏 -0.3과 롱 +0.3이 장부·화면에 똑같이 0.3으로 남았다. 지금은 숏이
+    #    링에 없어 값이 늘 양수지만, 켜는 날 화면이 거짓말을 시작한다 —
+    #    그리고 그날은 아무도 이 줄을 기억하지 못한다.
+    #    회전율(Σ|오늘−어제|)도 부호가 있어야 맞다: +0.3 → -0.3은 회전율
+    #    0이 아니라 0.6이다.
+    applied = {k: round(v, 4) for k, v in fitted_w.items() if abs(v) > 0}
+    # 총노출(gross)과 순노출(net)은 다른 질문이다 — 롱숏이 반반이면 gross는
+    # 100%인데 net은 0%(시장 중립)다. gross만 적으면 그 구별이 사라진다.
+    net_exposure = sum(fitted_w.values())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다.
     #
     # ⚠️ 여기가 입금이 **정산되는 유일한 자리**다(감사 211). 위에서 equity를
@@ -2310,6 +2421,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             _d["settled_bar"] = bar
     principal = principal_of(st.get("start_cash", PORTFOLIO_START_CASH),
                              st.get("deposits", []))
+    # ⚠️ **금액이 계좌보다 클 수 없다** (감사 273). 레버리지가 잠긴 계좌에서
+    #    한 건의 체결이나 한 종목의 예산이 자산 전체를 넘으면, 그것은 시장이
+    #    아니라 코드가 만든 숫자다 — 거의 언제나 통화 환산이 어딘가에서
+    #    빠진 것이다.
+    #
+    #    이 검사가 없어서 2026-08-15 장부에 이런 숫자가 남았고 사이트가 그대로
+    #    보여줬다(자산 997,198원 계좌에서):
+    #        체결   아마존 6,361,687.93원   (6.4배)
+    #        예산   비앤비 4,501,932.95원   (4.5배 · 네 종목 합계 9.8배)
+    #    비중만 보는 검사는 이걸 못 잡는다 — 그 비중들은 전부 정상 범위였다.
+    #
+    #    **기록을 지우지 않는다.** 지우면 사고가 없었던 것처럼 보인다.
+    #    그대로 남기되 `impossible_amounts`로 표시해, 화면이 그 숫자를
+    #    사실처럼 말하지 않게 한다.
+    impossible = amounts_over_equity(equity, fills, lot_priority)
+    if impossible:
+        log.error("금액이 계좌(%s원)를 넘는다 — 통화 환산 누락 의심: %s",
+                  f"{equity:,.0f}", impossible)
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
               "return_pct": round((equity / principal - 1) * 100, 2),
@@ -2317,6 +2446,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "pnl": round(equity - principal, 2),
               "hit_rate": None,
               "fills": fills,                      # 체결 현실성: 시가·즉시 체결 내역
+              # 계좌보다 큰 금액이 이 기록에 있다는 표식(감사 273) — 숫자는
+              # 지우지 않고, 화면이 그것을 사실처럼 말하지 못하게 한다.
+              "impossible_amounts": impossible or None,
               # 예약 주문 — 오늘 새벽 결정됐고 '다음 장 시가'에 체결될 것들.
               # 사이트가 "내일 뭘 얼마나 살 예정인가"를 보여줄 재료.
               "pending_next_open": {k: round(float(p["weight"])
@@ -2439,10 +2571,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 버퍼·매도 우선 순서가 셋 다 막고 있다. 그래서 여기 숫자가
               # 찍히면 그 셋 중 하나가 새고 있다는 뜻이고, 계좌는 이유 없이
               # 작아진 채로 굴러간다. 조용히 덜 사는 것을 장부에 드러낸다.
-              "cash_short": (getattr(broker, "rejected", None) or None) and [
-                  {"key": r["symbol"], "need": round(float(r["need"]), 2),
-                   "cash": round(float(r["cash"]), 2)}
-                  for r in broker.rejected[:20]],
+              # 순노출 — 숏이 켜지면 gross와 갈린다(감사 264).
+              "net_weight": round(net_exposure, 4),
+              # ⚠️ **거부에는 두 종류가 있다**(감사 264). 여기는 오랫동안
+              #    `broker.rejected`의 모든 줄이 현금 부족이라고 가정하고
+              #    `r["need"]`를 그대로 꺼냈다. 감사 260이 공매도 한도
+              #    거부(`short_over`)를 같은 목록에 넣으면서, 숏이 한 번이라도
+              #    거부되는 순간 **배치 전체가 KeyError로 죽는다.**
+              #    실행해서 찾았다 — 소스만 읽었으면 두 줄이 같은 목록을
+              #    쓴다는 사실이 보이지 않는다.
+              "cash_short": _rejected_rows(broker, "need") or None,
+              # 증거금 없이 팔려다 잘린 주문 — 현금 부족과 **다른 사고**다.
+              # 같은 이름으로 묶으면 경보가 원인을 잘못 말한다.
+              "short_refused": _rejected_rows(broker, "short_over") or None,
               # 자릿수가 안 맞아 **체결을 거부한** 주문(감사 254). 여기 값이
               # 찍히면 통화 환산이 어딘가에서 다시 빠졌다는 뜻이다.
               "fill_refused": fill_refused or None,

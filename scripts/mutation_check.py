@@ -612,8 +612,8 @@ MUTATIONS = [
     # 감사 245 — 배치 건강이 브라우저까지 실려 왔는데 화면이 안 읽던 자리.
     ("화면이 배치 부분 실패를 안 말한다 — 절반 마비가 평범한 하루로 보인다",
      "docs/index.html",
-     "      if(nf>0)flags.push(\"<b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
-     "      if(false)flags.push(\"<b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
+     "      if(nf>0)flags.push(\"🚨 <b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
+     "      if(false)flags.push(\"🚨 <b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
      "tests/run_health_flags_check.mjs"),
     ("화면이 배치 정체를 안 말한다 — 얼어붙은 시세가 화면에서 조용하다",
      "docs/index.html",
@@ -3783,7 +3783,7 @@ MUTATIONS = [
 
     ("배분 예산을 매수 비중이라 부른다(관망 종목 방송)",
      "quant/reporting/social.py",
-     "    keep = (list(src) if applied\n"
+     "    keep = ([k for k, _ in _expo.top(applied, len(applied))] if applied\n"
      "            else [k for k in src if _held_on(status, k, date)])",
      "    keep = list(src)",
      "tests/test_alloc_is_not_a_purchase.py"),
@@ -5045,6 +5045,182 @@ MUTATIONS = [
      '        "survivorship_biased": True,',
      '        "survivorship_biased": False,',
      "tests/test_the_long_check_says_it_is_biased.py"),
+
+    # ── 감사 264 — 장부가 숏의 부호를 지우고, 죽은 페이지가 조용했다 ──
+    ("장부가 숏의 부호를 지운다(숏 -30%가 롱 30%로 남는다)",
+     "quant/live/daily.py",
+     "    applied = {k: round(v, 4) for k, v in fitted_w.items() if abs(v) > 0}",
+     "    applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("순노출을 총노출과 같게 만든다(롱숏 반반이 '시장 중립'으로 안 읽힌다)",
+     "quant/live/daily.py",
+     "    net_exposure = sum(fitted_w.values())",
+     "    net_exposure = sum(abs(v) for v in fitted_w.values())",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("증거금 거부를 현금 부족으로 적는다(경보가 원인을 잘못 말한다)",
+     "quant/live/daily.py",
+     '              "short_refused": _rejected_rows(broker, "short_over") or None,',
+     '              "short_refused": _rejected_rows(broker, "need") or None,',
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("'들고 있다'를 롱만으로 본다(숏이 화면에서 통째로 사라진다)",
+     "quant/reporting/exposure.py",
+     "    return math.isfinite(x) and abs(x) > 0",
+     "    return math.isfinite(x) and x > 0",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("상위 노출을 부호로 정렬한다(가장 큰 숏이 목록 맨 끝으로 밀린다)",
+     "quant/reporting/exposure.py",
+     "    rows.sort(key=lambda kv: -abs(kv[1]))",
+     "    rows.sort(key=lambda kv: -kv[1])",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("캡션이 숏을 롱처럼 적는다(팔아 둔 종목이 '배분 상위'로 나간다)",
+     "quant/reporting/social.py",
+     '                 + ("(숏)" if v < 0 else "")',
+     '                 + ""',
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("브라우저 쪽 '들고 있다'만 롱으로 되돌린다(두 언어가 갈라진다)",
+     "docs/assets/exposure.js",
+     "    return isFinite(x) && Math.abs(x) > 0;",
+     "    return isFinite(x) && x > 0;",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("오래된 경보에서 날짜 딱지를 뗀다(이틀 전 사고가 오늘 일로 나간다)",
+     "quant/live/flag_watch.py",
+     "    if day and age is not None and age >= 1:",
+     "    if day and age is not None and age >= 3:",
+     "tests/test_the_alarm_says_when_it_happened.py"),
+
+    ("정체 경보 키에서 나이를 뺀다(하루 더 멈춰도 다시 안 울린다)",
+     "quant/live/flag_watch.py",
+     '            flags[f"ledger_stalled:{key}:{_age}"] = (',
+     '            flags[f"ledger_stalled:{key}"] = (',
+     "tests/test_the_alarm_says_when_it_happened.py"),
+
+    ("'오늘의 판단'이 없는 스크립트를 부르게 되돌린다(페이지가 통째로 죽는다)",
+     "docs/today.html",
+     '<script src="assets/tv-symbols.js"></script>',
+     '<script src="assets/tradingview.js"></script>',
+     "tests/test_every_public_page_actually_renders.py"),
+
+    # ── 감사 273 — 사이트가 계좌보다 큰 금액을 사실처럼 보여줬다 ──
+    ("거부된 주문을 체결로 적는다(한 주도 안 샀는데 '매수'로 방송된다)",
+     "quant/live/daily.py",
+     '        _filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)\n'
+     '        if getattr(order, "status", "filled") not in ("filled", "partial") \\\n'
+     '                or _filled <= 0:',
+     '        _filled = float(getattr(order, "quantity", 0.0) or 0.0)\n'
+     '        if False:',
+     "tests/test_the_amounts_add_up.py"),
+
+    ("금액 검사의 여유를 자릿수만큼 넓힌다(1.09배짜리 사고를 놓친다)",
+     "quant/live/daily.py",
+     "AMOUNT_SANITY_RATIO = 1.02",
+     "AMOUNT_SANITY_RATIO = 1.5",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("금액이 계좌를 넘어도 통과시킨다(통화 환산 누락이 조용해진다)",
+     "quant/live/daily.py",
+     "    cap = eq * AMOUNT_SANITY_RATIO",
+     "    cap = float('inf')",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("브라우저 쪽 금액 여유만 넓힌다(사이트와 경보가 갈라진다)",
+     "docs/assets/amounts.js",
+     "  var SANITY_RATIO = 1.02;",
+     "  var SANITY_RATIO = 1.5;",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("못 믿을 금액을 화면에서 도로 보여준다(사고가 사실처럼 읽힌다)",
+     "docs/today.html",
+     '          <td>${bad?"—":Number(f.price).toLocaleString()}</td>',
+     '          <td>${Number(f.price).toLocaleString()}</td>',
+     "tests/test_the_amounts_add_up.py"),
+
+    ("첫 화면이 못 믿을 예산을 도로 읽어 준다",
+     "docs/index.html",
+     "    const ks=(lp?Object.keys(lp):[]).filter(k=>!badKeys.has(k));",
+     "    const ks=(lp?Object.keys(lp):[]);",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("거래내역 표가 못 믿을 금액을 도로 보여준다(같은 결함의 세 번째 자리)",
+     "docs/index.html",
+     '      const bad=QuantAmounts.impossible(\n'
+     '        eqOn[String(t.date||"").slice(0,10)], t.amount);',
+     '      const bad=false;',
+     "tests/test_the_amounts_add_up.py"),
+
+    # ── 감사 274 — 첫 화면이 첫 질문에 답하지 않았다 ──
+    ("오래된 숫자를 오늘처럼 말한다(이틀 전 금액이 '지금'으로 읽힌다)",
+     "docs/index.html",
+     "        (age!==null&&age>=1",
+     "        (false",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("고급 카드를 처음부터 펴 둔다(처음 온 사람에게 벽이 된다)",
+     "docs/index.html",
+     "\n.adv{display:none}\nbody.detail .adv{display:block}",
+     "\n.adv{display:block}\nbody.detail .adv{display:block}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("급한 경고까지 접는다(접힌 경고는 없는 경고다)",
+     "docs/index.html",
+     "body:not(.detail) .side .flag:not(.crit){display:none}",
+     "body:not(.detail) .side .flag{display:none}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("차트 창을 종목표 한 곳에만 건다(다른 표는 눌러도 안 열린다)",
+     "docs/index.html",
+     '  ["symtable","baltable","trtable"].forEach(function(id){',
+     '  ["symtable"].forEach(function(id){',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("잔고 줄에서 종목 키를 뗀다(눌러도 어느 종목인지 모른다)",
+     "docs/index.html",
+     """      return '<tr data-k="'+esc(r.key)+'" data-name="'+esc(nm)+""",
+     """      return '<tr data-name="'+esc(nm)+""",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("두 비중 열을 다시 같은 이름으로 부른다(같은 질문의 두 답으로 읽힌다)",
+     "docs/index.html",
+     '계좌 비중<br><span class="sub" style="font-weight:400">실제 보유</span>',
+     '통합 비중',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    # ── 감사 275 — 같은 화면의 숫자들이 서로 안 맞았다 ──
+    ("잔고 합계에서 현금을 도로 뺀다(줄이 스스로 안 맞는다)",
+     "docs/index.html",
+     "      '<td class=\"num\">'+won(sumCost+cashB)+'</td>'+",
+     "      '<td class=\"num\">'+won(sumCost)+'</td>'+",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("두 손익이 왜 다른지 말하지 않는다(하나가 틀렸다고 읽힌다)",
+     "docs/index.html",
+     "      const el=document.getElementById(\"bal-bridge\");",
+     "      const el=null;",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("준실시간 합계를 잔고 표에만 칠한다(한 화면이 두 금액을 말한다)",
+     "docs/index.html",
+     "        '<div class=\"sub lvv\" data-k=\"__total__\" style=\"margin-top:6px\"></div>';",
+     "        '';",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("자릿수가 다른 준실시간 값도 그대로 내보낸다(환율이 빠지면 1,400배)",
+     "docs/index.html",
+     "          :(QuantAmounts.livePlausible(bookEq,liveEq)",
+     "          :(true",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("준실시간 허용 폭을 자릿수만큼 넓힌다",
+     "docs/assets/amounts.js",
+     "  var LIVE_MAX_DRIFT = 1.5;",
+     "  var LIVE_MAX_DRIFT = 1000;",
+     "tests/test_the_amounts_add_up.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
