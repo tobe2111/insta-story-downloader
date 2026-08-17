@@ -4628,6 +4628,33 @@ MUTATIONS = [
      '                    auditions["vacuous"] += 0',
      "tests/test_an_empty_audition_reaches_the_report.py"),
 
+    # ── 감사 263 — 경보가 마지막 한 걸음에서 전부 죽고 있었다 ──────────
+    ("신원을 안 밝힌다(클라우드플레어 1010으로 경보가 통째로 차단된다)",
+     "quant/utils/http.py",
+     "    if not any(k.lower() == \"user-agent\" for k in sent):\n"
+     "        sent[\"User-Agent\"] = USER_AGENT",
+     "    if False:\n"
+     "        sent[\"User-Agent\"] = USER_AGENT",
+     "tests/test_the_alarm_can_actually_leave_the_house.py"),
+
+    ("호출자가 정한 User-Agent를 덮어쓴다(특정 UA를 요구하는 API가 깨진다)",
+     "quant/utils/http.py",
+     "    sent = dict(headers or {})",
+     "    sent = {}",
+     "tests/test_the_alarm_can_actually_leave_the_house.py"),
+
+    ("공개 확인 통로만 신원을 안 붙인다(그 통로의 확인만 조용히 막힌다)",
+     "quant/utils/http.py",
+     '    req = urllib.request.Request(url, method="GET", headers=_with_agent(headers))',
+     '    req = urllib.request.Request(url, method="GET", headers=headers or {})',
+     "tests/test_the_alarm_can_actually_leave_the_house.py"),
+
+    ("라이브러리 기본 신원을 그대로 쓴다(막히는 그 값이다)",
+     "quant/utils/http.py",
+     'USER_AGENT = "quant-bot/1.0 (+https://github.com/tobe2111/insta-story-downloader)"',
+     'USER_AGENT = "Python-urllib/3.11"',
+     "tests/test_the_alarm_can_actually_leave_the_house.py"),
+
     # ── 감사 262 — 판정일이 과거로 뒷걸음쳐 같은 날이 두 번 적혔다 ──────
     ("정상 건너뜀까지 사고로 막는다(같은 봉이면 그냥 이미 한 것이다)",
      "quant/live/daily.py",
