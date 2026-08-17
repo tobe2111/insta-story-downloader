@@ -24,7 +24,17 @@ WF = Path(__file__).resolve().parent.parent / ".github" / "workflows"
 
 # 실측 기준으로 정한 상한(2026-08-11). 지나치게 크면 방어가 의미를 잃고,
 # 지나치게 작으면 정상 실행을 죽인다.
+#
+# ⚠️ 2026-08-17(감사 278)에 120 → 180. 야간 변이 전수가 819건이 됐고, 그중
+#    스물몇 건은 **브라우저를 띄우는 검사**가 지킨다(이날 처음으로 러너에
+#    브라우저가 생겼다) — 그 검사 한 번이 몇 초가 아니라 1분 안팎이다.
+#    상한이 모자라면 전수가 도중에 끊기고, 끊긴 전수는 "아직 안 본 항목"과
+#    "지켜지는 항목"을 구별하지 못한다.
+#    ⚠️ 다만 상한을 **전부** 올리면 다른 잡도 조용히 늘어난다 — 한 잡이
+#       필요해서 넓힌 문으로 나머지가 따라 나가는 것이 이 저장소가 여러 번
+#       겪은 모양이다. 그래서 예외는 그 잡에만 준다.
 MAX_ALLOWED = 120
+LONGER_OK = {"mutation-sweep.yml": 180}   # 브라우저를 띄우는 전수 — 위 참조
 
 
 def _jobs():
@@ -53,8 +63,18 @@ def test_every_job_bounds_its_runtime(wf, name, job):
     """
     t = job.get("timeout-minutes")
     assert t, f"{wf}:{name} 에 timeout-minutes가 없다 — 매달리면 무제한으로 탄다"
-    assert isinstance(t, int) and 0 < t <= MAX_ALLOWED, \
-        f"{wf}:{name} 의 timeout-minutes={t} 가 비현실적이다"
+    cap = LONGER_OK.get(wf, MAX_ALLOWED)
+    assert isinstance(t, int) and 0 < t <= cap, \
+        f"{wf}:{name} 의 timeout-minutes={t} 가 비현실적이다(상한 {cap}분)"
+
+
+def test_the_long_running_exception_is_not_a_blanket():
+    """예외 목록이 조용히 자라면 상한은 없는 것과 같다."""
+    assert set(LONGER_OK) == {"mutation-sweep.yml"}, (
+        f"긴 실행 예외가 늘었다: {sorted(LONGER_OK)} — 왜 그 잡만 긴지 "
+        "위 주석에 이유를 적고 이 검사도 함께 고칠 것")
+    for wf in LONGER_OK:
+        assert (WF / wf).exists(), f"예외에 적힌 {wf}가 사라졌다 — 목록을 정리할 것"
 
 
 def test_the_money_batches_are_bounded_tightly():
