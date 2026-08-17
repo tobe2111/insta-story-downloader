@@ -171,6 +171,13 @@ def test_a_spec_cannot_smuggle_code():
     "20일 신고가를 뚫으면 매수한다.",
     "RSI가 30 이하로 내려가면 매수한다. RSI가 70 이상이면 매도한다.",
     "주가가 200일 이동평균선 위에 있을 때만 매수한다.",
+    # 넓어진 사전(2026-08-17)도 같은 검사를 통과해야 한다 — 새 지표가
+    # 미래를 보면 그 전략의 백테스트 전체가 거짓말이 된다.
+    "볼린저밴드 하단에 닿으면 매수한다. 볼린저밴드 상단에 닿으면 매도한다.",
+    "거래량이 20일 평균의 2배 이상이면 매수한다. RSI가 70 이상이면 매도한다.",
+    "3일 연속 양봉이면 매수한다. 3일 연속 음봉이면 매도한다.",
+    "MACD가 시그널선을 골든크로스하면 매수한다. MACD가 데드크로스하면 매도한다.",
+    "주가가 20일 이동평균선 위에 있으면 매수한다. 손절은 -8%, 익절은 +20%로 잡는다.",
 ])
 def test_specs_do_not_look_ahead(text):
     """미래를 잘라내도 **과거 신호가 그대로여야** 한다.
@@ -232,6 +239,10 @@ def test_a_rule_we_cannot_translate_is_named_not_silently_dropped():
     있었는데, 화면은 조건 두 개만 보여주고 그 문장은 **언급조차 하지
     않았다.** 사용자는 "✅ 이렇게 읽었습니다"를 보고 자기 규칙이 전부
     반영된 줄 안다 — 실제로는 위험 관리가 통째로 빠졌는데도.
+
+    2026-08-17부터 손절/익절은 옮겨진다(아래 별도 검사). 그래서 이 검사의
+    예시는 **여전히 못 옮기는** 분할매수로 바꿨다 — 사전이 넓어져도 이
+    장치(못 옮긴 것을 말한다)는 계속 필요하다.
     """
     from quant.ingest.extract import extract_spec
     # ⚠️ 파는 규칙을 함께 넣는다. 안 넣으면 '돌파 매수인데 매도가 없다'는
@@ -239,12 +250,12 @@ def test_a_rule_we_cannot_translate_is_named_not_silently_dropped():
     out = extract_spec(
         "20일 이동평균선이 60일 이동평균선을 위로 돌파하면 매수합니다.\n"
         "RSI 70 위로 올라가면 정리합니다.\n"
-        "손절은 -8%, 익절은 +20%로 잡습니다.\n")
+        "매수는 3번에 나눠 분할매수로 진입합니다.\n")
     assert out.ok, out.reasons
     blob = "\n".join(out.reasons)
     assert "옮기지 못했습니다" in blob, (
         f"못 옮긴 규칙을 조용히 버린다: {out.reasons}")
-    assert "손절" in blob, "어느 문장이 빠졌는지 안 알려준다"
+    assert "분할" in blob, "어느 문장이 빠졌는지 안 알려준다"
     assert "반영되지 않습니다" in blob, (
         "빠졌다는 사실은 말하면서 '검증에 안 들어간다'는 결과를 안 말한다")
 
@@ -258,6 +269,153 @@ def test_a_fully_translated_note_stays_quiet():
     assert out.ok, out.reasons
     assert "옮기지 못했습니다" not in "\n".join(out.reasons), (
         f"전부 옮겼는데 못 옮겼다고 한다: {out.reasons}")
+
+
+# ── ⑥ 넓어진 사전 (2026-08-17) — 각 패턴은 '뽑혀야 할 것'과 '안 뽑혀야
+#     할 것'을 함께 고정한다. 한쪽만 보면 아무거나 뽑는 사전도 통과한다. ──
+
+def test_stop_and_target_are_translated_now():
+    """감사 269의 바로 그 문장 — "손절 -8%, 익절 +20%"가 이제 옮겨진다."""
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(
+        "20일 이동평균선이 60일 이동평균선을 위로 돌파하면 매수합니다.\n"
+        "RSI 70 위로 올라가면 정리합니다.\n"
+        "손절은 -8%, 익절은 +20%로 잡습니다.\n")
+    assert out.ok, out.reasons
+    assert out.spec.stop and out.spec.stop["pct"] == 8.0, out.spec.stop
+    assert out.spec.target and out.spec.target["pct"] == 20.0, out.spec.target
+    assert "손절" in out.spec.stop["quote"], "근거 문장이 안 붙었다"
+    assert "옮기지 못했습니다" not in "\n".join(out.reasons), (
+        f"옮겨 놓고 못 옮겼다고 한다: {out.reasons}")
+
+
+def test_a_stop_actually_cuts_the_loss_in_execution():
+    """읽는 것과 도는 것은 다르다 — 손절이 **값으로** 자산을 지키는가."""
+    import numpy as np
+    import pandas as pd
+
+    from quant.ingest.spec import Condition, SpecStrategy, StrategySpec
+    spec = StrategySpec(
+        "s", entry=[Condition("sma:2", "cross_above", "sma:4", "근거")],
+        stop={"pct": 8.0, "quote": "손절 -8%"})
+    idx = pd.date_range("2026-01-01", periods=40, freq="D")
+    c = pd.Series(np.r_[np.linspace(100, 95, 10), np.linspace(95, 105, 5),
+                        np.linspace(105, 60, 25)], index=idx)
+    df = pd.DataFrame({"open": c, "high": c, "low": c, "close": c,
+                       "volume": 1e6}, index=idx)
+    sig = SpecStrategy(spec).generate_signals(df)
+    entered = sig[sig > 0]
+    assert len(entered) > 0, "진입 자체가 없다 — 픽스처가 잘못됐다"
+    exit_i = sig.index.get_loc(entered.index[-1]) + 1
+    entry_px = float(c.iloc[sig.index.get_loc(entered.index[0])])
+    exit_px = float(c.iloc[exit_i - 1])
+    loss = exit_px / entry_px - 1
+    assert loss > -0.20, (
+        f"손절 -8%인데 {loss:.0%}까지 들고 있었다 — 손절이 장식이다")
+    assert float(sig.iloc[-1]) == 0.0, "폭락 끝까지 포지션을 들고 있다"
+
+
+def test_an_event_entry_with_a_stop_is_not_a_one_day_trade():
+    """돌파 매수 + 손절/익절만 있는 전략 — 예전엔 거부됐지만 이제 성립한다.
+
+    단 '진입 조건이 깨지면 청산'으로 돌면 하루살이가 되므로, 나가는 길이
+    손절/익절뿐인지 값으로 확인한다.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quant.ingest.extract import extract_spec
+    from quant.ingest.spec import SpecStrategy
+    out = extract_spec("20일 신고가를 뚫으면 매수한다. 손절은 8%로 한다.")
+    assert out.ok, out.reasons
+    # 픽스처: 40봉 횡보(100) → 하루 돌파(110) → 횡보(108). 돌파 다음 날부터
+    # 진입 조건은 거짓이 되지만(108은 신고가가 아니다) 손절(-8%)에는 안
+    # 걸린다(-1.8%). 그래서 '진입 조건이 깨지면 청산'으로 돌면 정확히
+    # 하루살이가 되고, 나가는 길이 손절/익절뿐이면 계속 들고 있는다 —
+    # 두 구현이 **다른 답**을 내는 경로라야 변이가 드러난다. (단조 상승
+    # 픽스처는 진입 조건이 매일 참이라 두 구현이 같은 답을 냈다.)
+    idx = pd.date_range("2026-01-01", periods=80, freq="D")
+    c = pd.Series(np.r_[np.full(40, 100.0), [110.0],
+                        np.full(39, 108.0)], index=idx)
+    df = pd.DataFrame({"open": c, "high": c, "low": c,
+                       "close": c, "volume": 1e6}, index=idx)
+    sig = SpecStrategy(out.spec).generate_signals(df)
+    entries = int((sig.diff() > 0).sum())
+    assert entries > 0, "돌파가 설계된 픽스처인데 진입이 없다 — 픽스처 오류"
+    held = float((sig > 0).sum()) / entries
+    assert held > 1.5, (
+        f"돌파+손절 전략이 평균 {held:.1f}일만 들고 판다 — 나가는 길이 "
+        "손절/익절이어야 하는데 '진입 조건이 깨지면 청산'으로 돌고 있다")
+
+
+def test_the_volume_average_excludes_today():
+    """'평균의 2배'의 평균은 **어제까지**다 — 오늘을 넣으면 큰 날일수록
+    분모가 커져 문턱이 스스로 올라간다(2배가 영원히 안 나온다)."""
+    import pandas as pd
+
+    from quant.ingest.spec import _series
+    idx = pd.date_range("2026-01-01", periods=7, freq="D")
+    df = pd.DataFrame({"open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0,
+                       "volume": [10.0] * 6 + [30.0]}, index=idx)
+    assert float(_series("vol_ratio:5", df).iloc[-1]) == 3.0, (
+        "어제까지 평균 10에 오늘 30이면 정확히 3.0배여야 한다 — 오늘이 "
+        "분모에 섞이고 있다")
+
+
+def test_the_stop_sign_is_actually_captured():
+    """'손절은 -8%'의 부호가 캡처돼 절댓값 처리를 **실제로 거치는가**.
+
+    빈틈 문자클래스에 -가 들어 있으면 탐욕 매칭이 부호를 삼켜 abs()가
+    죽은 코드가 된다 — 변이 시험이 그 상태를 잡아서 이 검사를 만들었다.
+    """
+    from quant.ingest.extract import _STOP_RE
+    m = _STOP_RE.search("손절은 -8%로 잡는다.")
+    assert m and m.group(2) == "-8", (
+        f"부호가 캡처되지 않는다: {m and m.group(2)!r} — 빈틈 클래스가 "
+        "-를 삼키고 있다")
+
+
+def test_bollinger_volume_streak_macd_are_translated():
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(
+        "볼린저밴드 하단에 닿으면 매수한다.\n"
+        "거래량이 20일 평균의 2배 이상일 때만 매수한다.\n"
+        "MACD가 시그널선을 골든크로스하면 매수한다.\n"
+        "3일 연속 음봉이면 매도한다.\n")
+    assert out.ok, out.reasons
+    lefts = {c.left for c in out.spec.entry}
+    assert "close" in lefts and "vol_ratio:20" in lefts and "macd" in lefts, (
+        f"새 패턴이 안 뽑힌다: {lefts}")
+    assert {c.left for c in out.spec.exit} == {"down_streak"}, out.spec.exit
+
+
+@pytest.mark.parametrize("text,why", [
+    ("거래량이 터지면 매수한다.", "배수 숫자가 없다 — '터지면'은 규칙이 아니다"),
+    ("볼린저밴드 상단에 닿으면 매수한다.", "상단 터치 매수는 뜻이 갈린다(돌파인지 회귀인지)"),
+    ("MACD가 좋아 보이면 매수한다.", "교차 방향이 없다"),
+    ("연속 양봉이 나오면 매수한다.", "며칠 연속인지 숫자가 없다"),
+    ("손절을 잘 잡아야 한다.", "손절 %가 없다"),
+])
+def test_the_wider_dictionary_still_refuses_vague_sentences(text, why):
+    """사전이 넓어져도 **숫자 없는 문장은 여전히 거절**한다 — 넓힌다는 것이
+    아무거나 받는다는 뜻이 되면 처음의 원칙이 무너진다."""
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(text)
+    assert not out.ok, f"{why} — 그런데 전략이 나왔다: {out.spec and out.spec.summary()}"
+
+
+def test_conflicting_stop_values_are_reported_not_averaged():
+    """손절이 두 값으로 나오면 첫 값을 쓰되 **둘째 문장을 못 옮김으로 보고**한다."""
+    from quant.ingest.extract import extract_spec
+    out = extract_spec(
+        "주가가 20일 이동평균선 위에 있으면 매수한다.\n"
+        "손절은 -8%로 잡는다.\n"
+        "하락장에서는 손절을 -5%로 줄인다.\n")
+    assert out.ok, out.reasons
+    assert out.spec.stop["pct"] == 8.0
+    blob = "\n".join(out.reasons)
+    assert "-5%" in blob or "5%" in blob, (
+        f"모순되는 둘째 손절 문장이 조용히 사라졌다: {out.reasons}")
 
 
 def test_the_korean_verb_for_breaking_through_is_understood():
