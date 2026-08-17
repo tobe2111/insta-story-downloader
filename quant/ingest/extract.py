@@ -159,7 +159,126 @@ def _breakout(sent: str) -> tuple[Condition | None, Condition | None]:
     return None, None
 
 
-_PATTERNS = (_ma_cross, _rsi_level, _price_ma, _breakout)
+def _bollinger(sent: str) -> tuple[Condition | None, Condition | None]:
+    """'볼린저밴드 하단에 닿으면 매수' / '상단을 돌파하면 매수' 꼴.
+
+    표준편차 배수는 교과서 기본값(2)으로 고정한다 — RSI를 14로 채우는 것과
+    같은 관례다. 기간은 문장에 있으면 그 숫자, 없으면 20.
+    """
+    m = re.search(r"(?:(\d{1,3})\s*(?:일|봉)\s*)?볼린저\s*(?:밴드)?[^.\n]{0,24}?"
+                  r"(상단|위쪽|하단|아래쪽|upper|lower)", sent, re.I)
+    if not m:
+        return None, None
+    period = m.group(1) or "20"
+    upper = bool(re.search(r"상단|위쪽|upper", m.group(2), re.I))
+    band = f"bb_up:{period}" if upper else f"bb_lo:{period}"
+    event = bool(re.search(r"돌파|뚫", sent))
+    buy = bool(re.search(_BUY, sent, re.I))
+    sell = bool(re.search(_SELL, sent, re.I))
+    if buy == sell:
+        return None, None
+    if buy:
+        if upper and event:          # 변동성 돌파형: 상단을 뚫으면 산다
+            return Condition("close", "cross_above", band, sent.strip()), None
+        if not upper:                # 평균회귀형: 하단에 닿으면 산다
+            return Condition("close", "<=", band, sent.strip()), None
+        return None, None            # '상단에 닿으면 매수'는 뜻이 갈려 안 정한다
+    if upper:                        # 상단에서 판다
+        return None, Condition("close", ">=", band, sent.strip())
+    if event:                        # 하단을 이탈하면 판다
+        return None, Condition("close", "cross_below", band, sent.strip())
+    return None, None
+
+
+def _volume_spike(sent: str) -> tuple[Condition | None, Condition | None]:
+    """'거래량이 (20일) 평균의 2배 이상이면 매수' 꼴.
+
+    배수 숫자가 없는 "거래량이 터지면"은 규칙이 아니다 — 못 옮긴 문장으로
+    보고된다.
+    """
+    m = re.search(r"거래량[^.\n]{0,30}?(?:(\d{1,3})\s*(?:일|봉)\s*)?평균"
+                  r"[^.\n]{0,10}?(\d{1,2}(?:\.\d)?)\s*배", sent)
+    if not m:
+        return None, None
+    period, mult = m.group(1) or "20", m.group(2)
+    buy = bool(re.search(_BUY, sent, re.I))
+    sell = bool(re.search(_SELL, sent, re.I))
+    if buy == sell:
+        return None, None
+    cond = Condition(f"vol_ratio:{period}", ">=", mult, sent.strip())
+    return (cond, None) if buy else (None, cond)
+
+
+def _streak(sent: str) -> tuple[Condition | None, Condition | None]:
+    """'3일 연속 양봉이면 매수' / '3일 연속 하락하면 매도' 꼴."""
+    m = re.search(r"(\d{1,2})\s*(?:일|봉)\s*연속[^.\n]{0,12}?"
+                  r"(양봉|상승|오르|음봉|하락|내리|떨어)", sent)
+    if not m:
+        return None, None
+    n, what = m.group(1), m.group(2)
+    up = bool(re.search(r"양봉|상승|오르", what))
+    term = "up_streak" if up else "down_streak"
+    buy = bool(re.search(_BUY, sent, re.I))
+    sell = bool(re.search(_SELL, sent, re.I))
+    if buy == sell:
+        return None, None
+    cond = Condition(term, ">=", n, sent.strip())
+    return (cond, None) if buy else (None, cond)
+
+
+def _macd_cross(sent: str) -> tuple[Condition | None, Condition | None]:
+    """'MACD가 시그널선을 상향 돌파하면(골든크로스) 매수' 꼴 — 12·26·9 관례."""
+    if not re.search(r"MACD", sent, re.I):
+        return None, None
+    m = re.search(r"(골든\s*크로스|golden|상향\s*(?:돌파|뚫)|위로\s*(?:돌파|뚫)|"
+                  r"데드\s*크로스|dead|하향\s*(?:돌파|뚫)|아래로\s*(?:돌파|뚫))",
+                  sent, re.I)
+    if not m:
+        return None, None
+    up = bool(re.search(r"골든|golden|상향|위로", m.group(1), re.I))
+    buy = bool(re.search(_BUY, sent, re.I))
+    sell = bool(re.search(_SELL, sent, re.I))
+    if buy == sell:
+        return None, None
+    cond = Condition("macd", "cross_above" if up else "cross_below",
+                     "macd_sig", sent.strip())
+    return (cond, None) if buy else (None, cond)
+
+
+_PATTERNS = (_ma_cross, _rsi_level, _price_ma, _breakout,
+             _bollinger, _volume_spike, _streak, _macd_cross)
+
+
+# 손절/익절 — 조건이 아니라 별도 규칙이다(진입가를 기억해야 하는 경로 의존).
+# "손절 -8%", "손절은 8%로", "익절 +20%", "목표 수익 20%" 꼴을 받는다.
+_STOP_RE = re.compile(
+    # 빈틈 클래스에서 +,-를 뺀다 — 넣으면 탐욕 매칭이 부호를 삼켜 "-8%"의
+    # 부호가 영원히 캡처되지 않는다(변이 시험이 abs()가 죽은 코드임을 잡았다).
+    r"(손절|스탑|stop\s*loss?)[^0-9\n%+-]{0,14}([+-]?\d{1,2}(?:\.\d)?)\s*%")
+_TARGET_RE = re.compile(
+    r"(익절|목표\s*(?:가|수익(?:률)?)?|target|take\s*profit)"
+    r"[^0-9\n%+-]{0,14}([+-]?\d{1,3}(?:\.\d)?)\s*%", re.I)
+
+
+def _stop_target(sentences: list[str]) -> tuple[dict | None, dict | None,
+                                                set[str]]:
+    """문장들에서 손절/익절을 찾는다 — 처음 나온 값을 쓰고, 그 문장을 used로.
+
+    같은 항목이 다른 값으로 또 나오면 두 번째 문장은 used에 넣지 않는다 —
+    '못 옮긴 문장'으로 보고돼 사용자가 모순을 알게 된다.
+    """
+    stop = target = None
+    used: set[str] = set()
+    for sent in sentences:
+        m = _STOP_RE.search(sent)
+        if m and stop is None:
+            stop = {"pct": abs(float(m.group(2))), "quote": sent.strip()}
+            used.add(sent)
+        m = _TARGET_RE.search(sent)
+        if m and target is None:
+            target = {"pct": abs(float(m.group(2))), "quote": sent.strip()}
+            used.add(sent)
+    return stop, target, used
 
 # 규칙처럼 들리지만 **실행할 수 없는** 말들. 이게 있는데 조건이 하나도 안
 # 나오면, "규칙이 없다"가 아니라 "규칙처럼 보이지만 숫자가 없다"고 말해 준다 —
@@ -215,10 +334,18 @@ def extract_spec(text: str, *, title: str = "", source: dict | None = None,
                 seen.add(key)
                 bucket.append(cond)
 
+    # 손절/익절 — 조건과 별도의 경로 의존 규칙 (2026-08-17부터 옮긴다)
+    stop, target, st_used = _stop_target(sentences)
+    used |= st_used
+
     # 규칙처럼 생겼는데 **우리가 못 옮긴** 문장 (감사 269).
-    # 손절·익절·분할매수처럼 사용자에게 가장 중요한 규칙이 여기 걸린다.
+    # 분할매수·트레일링 스탑처럼 아직 못 옮기는 규칙이 여기 걸린다.
     unread = [s for s in sentences if s not in used and _RULEISH.match(s)]
 
+    if not entry and (stop or target):
+        reasons.append(
+            "손절/익절은 찾았지만 **언제 사는지**가 없습니다 — 나가는 규칙만으로는 "
+            "전략이 되지 않습니다.")
     if not entry:
         # 왜 못 뽑았는지를 **구별해서** 말한다. "규칙이 없다"와 "규칙은 있는데
         # 숫자가 없다"는 사용자가 할 일이 다르다.
@@ -256,16 +383,18 @@ def extract_spec(text: str, *, title: str = "", source: dict | None = None,
         more = f" (외 {len(unread) - len(shown)}문장)" if len(unread) > len(shown) else ""
         reasons.append(
             "**다음 문장은 규칙처럼 보이는데 옮기지 못했습니다** — 이 "
-            "부분은 검증에 **반영되지 않습니다**. 지금 옮길 수 있는 것은 "
-            "지표 사이의 비교(이동평균 교차·RSI 수준·가격 돌파)뿐이고, "
-            "손절·익절·분할매수처럼 보유 중에 값을 재는 규칙은 아직 "
-            "지원하지 않습니다"
+            "부분은 검증에 **반영되지 않습니다**. 지금 옮길 수 있는 것: "
+            "이동평균 교차 · RSI 수준 · 가격 vs 이동평균 · 신고가/신저가 "
+            "돌파 · 볼린저밴드 · 거래량 평균 대비 배수 · 연속 양봉/음봉 · "
+            "MACD 교차 · 손절/익절 %. 분할매수·트레일링 스탑·시간 조건은 "
+            "아직 지원하지 않습니다"
             + more + ":\n    · " + "\n    · ".join(shown))
 
     spec = StrategySpec(
         name=safe_strategy_name(title or (source or {}).get("ref", "")),
         entry=entry, exit=exits[:max_conditions],
         source=dict(source or {}), notes=list(reasons),
+        stop=stop, target=target,
     )
     # ⚠️ 조건을 찾았다고 전략이 되는 건 아니다. 명세 자체가 실행 불가능한
     #    조합일 수 있다(예: 매수가 '돌파'뿐인데 파는 규칙이 없음 — 하루 들고

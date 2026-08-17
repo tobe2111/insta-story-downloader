@@ -2367,6 +2367,51 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # ── 자료 읽기 사전 확장 — 손절/익절·볼린저·거래량·연속봉·MACD (2026-08-17) ──
+    # 여기의 병: 읽었다면서 실행이 다르거나, 미래를 보거나, 못 읽은 것을
+    # 조용히 넘기거나.
+    ("손절이 실행에서 장식이 된다(읽어 놓고 자산을 안 지킨다)",
+     "quant/ingest/spec.py",
+     "                hit_stop = (stop is not None and entry_px > 0\n"
+     "                            and closes[i] <= entry_px * (1 - stop / 100.0))",
+     "                hit_stop = False",
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("돌파+손절 전략이 하루살이로 돈다(진입 조건이 깨지면 바로 판다)",
+     "quant/ingest/spec.py",
+     "        elif self.spec.stop or self.spec.target:",
+     "        elif False:",
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("거래량 평균에 오늘이 들어간다(큰 날일수록 문턱이 스스로 올라간다)",
+     "quant/ingest/spec.py",
+     '        avg = df["volume"].astype(float).rolling(p).mean().shift(1)',
+     '        avg = df["volume"].astype(float).rolling(p).mean()',
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("손절 정규식 빈틈이 부호를 삼킨다(-8%의 -가 캡처 밖으로 나간다)",
+     "quant/ingest/extract.py",
+     r'    r"(손절|스탑|stop\s*loss?)[^0-9\n%+-]{0,14}([+-]?\d{1,2}(?:\.\d)?)\s*%")',
+     r'    r"(손절|스탑|stop\s*loss?)[^0-9\n%]{0,14}(-?\d{1,2}(?:\.\d)?)\s*%")',
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("모순되는 둘째 손절 문장이 조용히 사라진다(사용자는 -5%가 반영된 줄 안다)",
+     "quant/ingest/extract.py",
+     "        if m and stop is None:\n"
+     '            stop = {"pct": abs(float(m.group(2))), "quote": sent.strip()}\n'
+     "            used.add(sent)",
+     "        if m and stop is None:\n"
+     '            stop = {"pct": abs(float(m.group(2))), "quote": sent.strip()}\n'
+     "        if m:\n"
+     "            used.add(sent)",
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("볼린저 '상단 터치 매수'의 중의성을 단정한다(돌파인지 회귀인지 지어낸다)",
+     "quant/ingest/extract.py",
+     "        return None, None            # '상단에 닿으면 매수'는 뜻이 갈려 안 정한다",
+     "        return Condition(\"close\", \">=\", band, sent.strip()), None",
+     "tests/test_only_real_rules_become_strategies.py"),
+    ("연속봉의 방향을 뒤집는다(음봉 매도가 양봉 매도로 둔갑한다)",
+     "quant/ingest/extract.py",
+     '    up = bool(re.search(r"양봉|상승|오르", what))',
+     '    up = True',
+     "tests/test_only_real_rules_become_strategies.py"),
+
     # ── 내 전략 고정(pin) — 설치형 사용자의 강제 적용 (2026-08-17) ───────
     # 전략은 사용자의 것, 브레이크는 우리의 것. 여기의 병 세 가지:
     # 고정이 안 먹거나 / 확인 없이 먹거나 / 고정 사실이 숨거나.
@@ -4609,7 +4654,8 @@ MUTATIONS = [
 
     ("돌파만 있고 청산이 없는 명세를 통과시킨다(하루 들고 파는 전략이 된다)",
      "quant/ingest/spec.py",
-     "        if self.entry and all(c.op in _EVENTS for c in self.entry) and not self.exit:",
+     "        if (self.entry and all(c.op in _EVENTS for c in self.entry)\n"
+     "                and not self.exit and not (self.stop or self.target)):",
      "        if False:",
      "tests/test_only_real_rules_become_strategies.py"),
 

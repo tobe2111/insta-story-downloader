@@ -42,8 +42,16 @@ SPEC_VERSION = 1
 #   rsi:N   RSI N봉                 ret:N   N봉 수익률(%)
 #   high:N  최근 N봉 최고가         low:N   최근 N봉 최저가
 #   vol:N   N봉 변동성(수익률 표준편차)
-_BARE = {"close", "open", "high", "low", "volume"}
-_PARAM = {"sma", "ema", "rsi", "ret", "high", "low", "vol"}
+#   bb_up:N / bb_lo:N  볼린저밴드 상단/하단 (N봉, 표준편차 2배 고정 — 교과서
+#                      기본값. 자료가 다른 배수를 명시하는 경우는 드물고,
+#                      명시했다면 그 문장은 '못 옮김'으로 보고된다)
+#   vol_ratio:N  오늘 거래량 ÷ 어제까지 N봉 평균 거래량 (2.0 = 평균의 2배)
+#   macd / macd_sig  MACD(12,26)와 시그널(9) — 관례 고정값
+#   up_streak / down_streak  오늘까지 연속 상승/하락 마감 일수
+_BARE = {"close", "open", "high", "low", "volume",
+         "macd", "macd_sig", "up_streak", "down_streak"}
+_PARAM = {"sma", "ema", "rsi", "ret", "high", "low", "vol",
+          "bb_up", "bb_lo", "vol_ratio"}
 # 사건형 연산자 — **그 봉에서만** 참이다. 상태형(>, < 등)과 다르게 다뤄야 한다.
 _EVENTS = {"cross_above", "cross_below"}
 _OPS = {">", ">=", "<", "<="} | _EVENTS
@@ -101,11 +109,14 @@ def _pretty(term: str) -> str:
     kind, _, param = term.partition(":")
     ko = {"sma": "봉 이동평균선", "ema": "봉 지수이동평균선", "rsi": "봉 RSI",
           "ret": "봉 수익률", "high": "봉 최고가", "low": "봉 최저가",
-          "vol": "봉 변동성"}
+          "vol": "봉 변동성", "bb_up": "봉 볼린저밴드 상단",
+          "bb_lo": "봉 볼린저밴드 하단", "vol_ratio": "봉 평균 대비 거래량 배수"}
     if kind in ko and param:
         return f"{param}{ko[kind]}"
     return {"close": "종가", "open": "시가", "high": "고가", "low": "저가",
-            "volume": "거래량"}.get(kind, term)
+            "volume": "거래량", "macd": "MACD", "macd_sig": "MACD 시그널",
+            "up_streak": "연속 상승 마감 일수",
+            "down_streak": "연속 하락 마감 일수"}.get(kind, term)
 
 
 @dataclass
@@ -121,6 +132,14 @@ class StrategySpec:
     version: int = SPEC_VERSION
     # 자료에서 규칙을 못 뽑았을 때 그 사실과 이유. 비어 있어야 정상이다.
     notes: list[str] = field(default_factory=list)
+    # 손절/익절 — 진입가 대비 %. {"pct": 8.0, "quote": "원문"} 또는 None.
+    # 조건(Condition)이 아니라 별도 필드인 이유: 지표 비교는 봉만 보면 되지만
+    # 손절은 **내가 얼마에 샀는지**를 기억해야 한다(경로 의존). 판정은 종가
+    # 기준이다 — 일봉 시스템이라 장중 이탈은 못 보고, 갭 하락이면 손절선보다
+    # 나쁜 가격에 나간다. 이 한계는 summary에 그대로 적는다.
+    # 버전을 안 올린 이유: 선택 필드 추가라 옛 명세는 그대로 읽힌다.
+    stop: dict | None = None
+    target: dict | None = None
 
     # ── 검증 ──────────────────────────────────────────────────────
     def validate(self) -> None:
@@ -141,6 +160,17 @@ class StrategySpec:
                 f"1을 넘는 값은 레버리지이고, 이 시스템은 레버리지를 쓰지 않습니다.")
         for c in list(self.entry) + list(self.exit):
             _check_condition(c)
+        for label, rule in (("손절", self.stop), ("익절", self.target)):
+            if rule is None:
+                continue
+            pct = _num((rule or {}).get("pct"))
+            if pct is None or not (0.0 < pct < 100.0):
+                raise SpecError(
+                    f"{label}이 {rule!r}입니다 — 0 초과 100 미만의 %여야 합니다.")
+            if not str(rule.get("quote", "")).strip():
+                raise SpecError(
+                    f"{label} 규칙에 근거 문장이 없습니다 — 자료의 어느 대목에서 "
+                    f"나왔는지 댈 수 없는 규칙은 만들지 않습니다.")
         # ⚠️ **돌파는 사건이지 상태가 아니다** (2026-08-14, 만들자마자 실측으로
         #    잡음). '20일선이 60일선을 상향 돌파'는 그 한 봉에서만 참이다.
         #    청산 규칙이 없으면 "진입 조건이 깨지면 청산"으로 도는데, 돌파는
@@ -151,7 +181,8 @@ class StrategySpec:
         #
         #    "골든크로스에 산다"는 보통 "데드크로스에 판다"를 뜻하지만,
         #    **자료가 그렇게 안 적었으면 우리가 채우지 않는다.** 물어보게 한다.
-        if self.entry and all(c.op in _EVENTS for c in self.entry) and not self.exit:
+        if (self.entry and all(c.op in _EVENTS for c in self.entry)
+                and not self.exit and not (self.stop or self.target)):
             raise SpecError(
                 "매수 조건이 '돌파'뿐인데 **언제 파는지가 없습니다.** 돌파는 그 "
                 "봉에서만 일어나는 사건이라, 파는 조건이 없으면 사자마자 다음 "
@@ -164,7 +195,14 @@ class StrategySpec:
         lines = [f"전략 '{self.name}'"]
         lines += ["  살 때: " + c.describe() for c in self.entry]
         lines += ["  팔 때: " + c.describe() for c in self.exit] or [
-            "  팔 때: (조건 없음 — 살 조건이 깨지면 청산합니다)"]
+            "  팔 때: (손절/익절로만 나갑니다)" if (self.stop or self.target)
+            else "  팔 때: (조건 없음 — 살 조건이 깨지면 청산합니다)"]
+        if self.stop:
+            lines.append(f"  손절: 진입가 대비 -{float(self.stop['pct']):g}% "
+                         "(종가 기준 — 갭 하락이면 더 나쁜 가격에 나갑니다)")
+        if self.target:
+            lines.append(f"  익절: 진입가 대비 +{float(self.target['pct']):g}% "
+                         "(종가 기준)")
         lines.append(f"  비중: {self.weight:.0%}"
                      + (" · 숏 허용" if self.allow_short else ""))
         return "\n".join(lines)
@@ -177,6 +215,7 @@ class StrategySpec:
             "entry": [vars(c) for c in self.entry],
             "exit": [vars(c) for c in self.exit],
             "notes": self.notes,
+            "stop": self.stop, "target": self.target,
         }
 
 
@@ -247,6 +286,8 @@ def spec_from_dict(d: dict) -> StrategySpec:
         source=dict(d.get("source") or {}),
         version=int(d.get("version", SPEC_VERSION)),
         notes=[str(x) for x in (d.get("notes") or [])],
+        stop=dict(d["stop"]) if d.get("stop") else None,
+        target=dict(d["target"]) if d.get("target") else None,
     )
     spec.validate()
     return spec
@@ -265,6 +306,17 @@ def _series(term: str, df: pd.DataFrame) -> pd.Series:
         return pd.Series(float(n), index=df.index)
     kind, _, param = term.partition(":")
     if kind in _BARE and not param:
+        close = df["close"].astype(float)
+        if kind in ("macd", "macd_sig"):
+            macd = (close.ewm(span=12, adjust=False).mean()
+                    - close.ewm(span=26, adjust=False).mean())
+            return macd if kind == "macd" else macd.ewm(
+                span=9, adjust=False).mean()
+        if kind in ("up_streak", "down_streak"):
+            # 오늘까지 며칠 연속으로 올라(내려) 마감했나 — diff는 과거만 본다.
+            move = close.diff()
+            hit = (move > 0) if kind == "up_streak" else (move < 0)
+            return hit.groupby((~hit).cumsum()).cumsum().astype(float)
         return df[kind].astype(float)
     p = int(float(param))
     close = df["close"].astype(float)
@@ -286,6 +338,15 @@ def _series(term: str, df: pd.DataFrame) -> pd.Series:
         return df["low"].astype(float).rolling(p).min().shift(1)
     if kind == "vol":
         return close.pct_change().rolling(p).std() * 100.0
+    if kind in ("bb_up", "bb_lo"):
+        mid = close.rolling(p).mean()
+        sd = close.rolling(p).std()
+        return mid + 2.0 * sd if kind == "bb_up" else mid - 2.0 * sd
+    if kind == "vol_ratio":
+        # ⚠️ 평균은 **어제까지** — 오늘 거래량을 분모에도 넣으면 "평균의
+        #    2배"가 스스로를 희석해 큰 날일수록 문턱이 올라간다.
+        avg = df["volume"].astype(float).rolling(p).mean().shift(1)
+        return df["volume"].astype(float) / avg
     raise SpecError(f"'{term}'을 계산할 수 없습니다.")   # validate가 먼저 막는다
 
 
@@ -340,17 +401,31 @@ class SpecStrategy(Strategy):
         if self.spec.exit:
             leave = np.logical_or.reduce(
                 [_evaluate(c, df).to_numpy() for c in self.spec.exit])
+        elif self.spec.stop or self.spec.target:
+            # 청산 조건은 없지만 손절/익절이 있다 — 나가는 길은 그 둘뿐이다.
+            # 여기서 ~enter로 두면 돌파-진입 전략이 하루살이가 된다.
+            leave = np.zeros(len(df), dtype=bool)
         else:
             leave = ~enter          # 청산 규칙이 없으면 진입 조건이 깨질 때
 
+        stop = float(self.spec.stop["pct"]) if self.spec.stop else None
+        target = float(self.spec.target["pct"]) if self.spec.target else None
+        closes = df["close"].astype(float).to_numpy()
         w = float(self.spec.weight)
         out = np.zeros(len(df))
-        pos = 0.0
+        pos, entry_px = 0.0, 0.0
         for i in range(len(df)):
             if pos == 0.0 and enter[i]:
-                pos = w
-            elif pos != 0.0 and leave[i]:
-                pos = 0.0
+                pos, entry_px = w, closes[i]
+            elif pos != 0.0:
+                # 손절/익절은 **진입가 대비 종가**로 판정한다. 진입 봉에서는
+                # 재지 않는다(같은 종가와 비교하는 셈이라 뜻이 없다).
+                hit_stop = (stop is not None and entry_px > 0
+                            and closes[i] <= entry_px * (1 - stop / 100.0))
+                hit_target = (target is not None and entry_px > 0
+                              and closes[i] >= entry_px * (1 + target / 100.0))
+                if leave[i] or hit_stop or hit_target:
+                    pos = 0.0
             out[i] = pos
         return self._finalize(pd.Series(out, index=df.index), df.index)
 
