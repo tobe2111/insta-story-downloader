@@ -612,8 +612,8 @@ MUTATIONS = [
     # 감사 245 — 배치 건강이 브라우저까지 실려 왔는데 화면이 안 읽던 자리.
     ("화면이 배치 부분 실패를 안 말한다 — 절반 마비가 평범한 하루로 보인다",
      "docs/index.html",
-     "      if(nf>0)flags.push(\"<b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
-     "      if(false)flags.push(\"<b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
+     "      if(nf>0)flags.push(\"🚨 <b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
+     "      if(false)flags.push(\"🚨 <b>\"+esc(lab)+\" 부분 실패 \"+nf+\"종목</b> — \"+",
      "tests/run_health_flags_check.mjs"),
     ("화면이 배치 정체를 안 말한다 — 얼어붙은 시세가 화면에서 조용하다",
      "docs/index.html",
@@ -4967,6 +4967,50 @@ MUTATIONS = [
      "    const ks=(lp?Object.keys(lp):[]).filter(k=>!badKeys.has(k));",
      "    const ks=(lp?Object.keys(lp):[]);",
      "tests/test_the_amounts_add_up.py"),
+
+    ("거래내역 표가 못 믿을 금액을 도로 보여준다(같은 결함의 세 번째 자리)",
+     "docs/index.html",
+     '      const bad=QuantAmounts.impossible(\n'
+     '        eqOn[String(t.date||"").slice(0,10)], t.amount);',
+     '      const bad=false;',
+     "tests/test_the_amounts_add_up.py"),
+
+    # ── 감사 266 — 첫 화면이 첫 질문에 답하지 않았다 ──
+    ("오래된 숫자를 오늘처럼 말한다(이틀 전 금액이 '지금'으로 읽힌다)",
+     "docs/index.html",
+     "        (age!==null&&age>=1",
+     "        (false",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("고급 카드를 처음부터 펴 둔다(처음 온 사람에게 벽이 된다)",
+     "docs/index.html",
+     "\n.adv{display:none}\nbody.detail .adv{display:block}",
+     "\n.adv{display:block}\nbody.detail .adv{display:block}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("급한 경고까지 접는다(접힌 경고는 없는 경고다)",
+     "docs/index.html",
+     "body:not(.detail) .side .flag:not(.crit){display:none}",
+     "body:not(.detail) .side .flag{display:none}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("차트 창을 종목표 한 곳에만 건다(다른 표는 눌러도 안 열린다)",
+     "docs/index.html",
+     '  ["symtable","baltable","trtable"].forEach(function(id){',
+     '  ["symtable"].forEach(function(id){',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("잔고 줄에서 종목 키를 뗀다(눌러도 어느 종목인지 모른다)",
+     "docs/index.html",
+     """      return '<tr data-k="'+esc(r.key)+'" data-name="'+esc(nm)+""",
+     """      return '<tr data-name="'+esc(nm)+""",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("두 비중 열을 다시 같은 이름으로 부른다(같은 질문의 두 답으로 읽힌다)",
+     "docs/index.html",
+     '계좌 비중<br><span class="sub" style="font-weight:400">실제 보유</span>',
+     '통합 비중',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

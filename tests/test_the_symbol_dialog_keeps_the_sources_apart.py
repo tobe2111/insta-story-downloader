@@ -94,7 +94,13 @@ def test_the_dialog_copies_the_row_it_does_not_recompute():
     """감사 197 — 화면이 자기 계산을 시작하면 두 표가 갈라진다."""
     i = IDX.index('function openSymbol(tr)')
     body = IDX[i:i + 2000]
-    assert "cells[i].innerText" in body, "표의 값을 그대로 옮기지 않는다"
+    # ⚠️ 예전에는 `cells[i].innerText`(칸 번호)를 요구했다. 그러면 이 창은
+    #    종목표 한 곳에서만 맞고, 잔고·거래내역에서 열면 엉뚱한 칸을 읽는다.
+    #    지금은 **그 표의 머리글을 읽어** 짝지운다(감사 266) — 여전히 표의
+    #    값을 그대로 옮길 뿐, 다시 계산하지는 않는다. 실제로 세 표에서
+    #    열어 보는 것은 tests/test_the_first_screen_answers_the_first_question.py.
+    assert "td.innerText" in body, "표의 값을 그대로 옮기지 않는다"
+    assert "thead th" in body, "표의 머리글이 아니라 칸 번호로 집는다"
     for forbidden in ("*100", "toFixed(", "Number("):
         assert forbidden not in body, (
             f"창 안에서 다시 계산한다({forbidden}) — 표와 갈라진다")

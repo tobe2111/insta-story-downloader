@@ -205,7 +205,7 @@ def test_python_and_javascript_do_not_drift():
 CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
 
 
-def _render(tmp_path, page, selector):
+def _render(tmp_path, page, selector, detail=False):
     """2026-08-15 사고를 그대로 넣은 status.json으로 페이지를 띄운다.
 
     ⚠️ 실제 `docs/status.json`을 그대로 쓰면 내일 새벽 배치가 그 파일을
@@ -234,6 +234,16 @@ def _render(tmp_path, page, selector):
                       "bar": "2026-08-14 00:00:00", "side": "buy",
                       "quantity": 0.0322824708, "amount": 27929.95,
                       "type": "즉시"}]
+    # 거래내역 표는 `trades`를 읽는다 — 같은 사고의 세 번째 자리(감사 266).
+    st["paper"]["portfolio:ALL"]["trades"] = [
+        {"key": "us_stock:AMZN", "price": 264.880005, "date": "2026-08-15",
+         "side": "buy", "quantity": 24017.2448278807, "amount": 6361687.93,
+         "type": "시가"},
+        {"key": "crypto:BNB/USDT", "price": 865173.744141, "date": "2026-08-14",
+         "side": "buy", "quantity": 0.0322824708, "amount": 27929.95,
+         "type": "즉시"}]
+    for r in st["paper"]["portfolio:ALL"]["history"]:
+        r["equity"] = EQ                      # 그날 자산과 견주므로 채워 준다
     last["lot_priority"] = {
         "crypto:BNB/USDT": {"budget": 4501932.95, "spent": 4526594.72,
                             "price": 860614.0, "gave_way": []},
@@ -257,6 +267,9 @@ def _render(tmp_path, page, selector):
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/{page}")
             pg.wait_for_timeout(2200)
+            if detail and pg.locator("#morebtn").count():
+                pg.locator("#morebtn").click()   # 간단 보기에선 접혀 있다(감사 266)
+                pg.wait_for_timeout(400)
             out = pg.locator(selector).inner_text()
             b.close()
     finally:
@@ -283,6 +296,7 @@ def test_the_fill_table_refuses_the_impossible_amount(tmp_path):
 
 
 def test_the_front_page_says_the_amounts_do_not_add_up(tmp_path):
+    """🚨 경고는 **간단 보기에서도** 보여야 한다 — 접어 두면 없는 것과 같다."""
     txt = _render(tmp_path, "index.html", "#side-flags")
     assert "금액이 계좌와 안 맞는 기록" in txt, f"경고가 없다:\n{txt[:600]}"
     # ⚠️ `won()`은 반올림한다 — 4,526,594.72원은 화면에 "4,526,595원"으로
@@ -291,7 +305,15 @@ def test_the_front_page_says_the_amounts_do_not_add_up(tmp_path):
         f"못 믿을 금액을 그대로 읽어 준다:\n{txt[:600]}")
     assert "비앤비" not in txt.split("금액이 계좌와 안 맞는")[0], (
         f"못 믿을 종목이 '예산을 끌어 쓴' 줄에 남아 있다:\n{txt[:600]}")
-    # 대조군 — 같은 날의 **정상** 예산 초과는 계속 보여야 한다.
+
+
+
+def test_a_normal_over_budget_line_survives(tmp_path):
+    """대조군 — 같은 날의 **정상** 예산 초과는 지우지 않는다.
+
+    (감사 266에서 이 줄은 '자세히 보기' 뒤로 접혔으므로 펴서 확인한다.)
+    """
+    txt = _render(tmp_path, "index.html", "#side-flags", detail=True)
     assert "이더리움" in txt and "80,582원" in txt, (
         f"정상 기록까지 함께 지웠다:\n{txt[:600]}")
 
@@ -327,3 +349,19 @@ def test_a_batch_never_writes_a_refused_order_as_a_fill(tmp_path, monkeypatch):
         assert float(f.get("amount") or 0) <= float(last["equity"]) * 1.02, (
             f"계좌({last['equity']})보다 큰 체결이 적혔다: {f}")
     assert not last.get("impossible_amounts"), last["impossible_amounts"]
+
+
+def test_the_trade_history_refuses_the_impossible_amount(tmp_path):
+    """거래내역 표도 같은 판정을 써야 한다.
+
+    감사 265에서 '오늘의 판단'의 체결 표와 첫 화면 경고는 고쳤는데
+    **이 표만 남아 있었다** — 한 곳을 고치면 거울이 하나 더 있다
+    (FROZEN_IDEAS ⑭). 화면으로 보고서야 알았다.
+    """
+    txt = _render(tmp_path, "index.html", "#trades-card")
+    assert "확인 필요" in txt, f"못 믿을 금액을 그대로 보여준다:\n{txt[:600]}"
+    assert "6,361,688" not in txt, txt[:600]
+    assert "264.88" not in txt, f"못 믿을 체결가가 남아 있다:\n{txt[:600]}"
+    # 대조군 — 멀쩡한 체결은 금액도 가격도 그대로 보여야 한다.
+    assert "27,930원" in txt and "865,173" in txt, (
+        f"정상 체결까지 가렸다:\n{txt[:600]}")
