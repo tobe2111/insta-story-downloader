@@ -3841,7 +3841,7 @@ MUTATIONS = [
 
     ("길이 초과 시 짧은 판이 고지까지 잘라내게 되돌린다",
      "quant/reporting/social.py",
-     'f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"\n'
+     'f"💰 {eq} (누적 {ret}{day_line}{bench_short}){kill}{owner}\\n"\n'
      '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
      'f"💰 {eq} (누적 {ret})\\n"\n'
      '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
@@ -5388,6 +5388,25 @@ MUTATIONS = [
      "    if (!isFinite(p0) || !(p0 > 0) || !isFinite(pn) || !(pn > 0)\n"
      "        || !isFinite(eq)) return null;",
      "    if (false) return null;",
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    # ── 감사 277 — 사이트는 고쳤는데 방송 캡션만 남았다 ──
+    ("캡션에서 보유 대비 성적을 뺀다(사이트와 방송이 다른 성적을 말한다)",
+     "quant/reporting/social.py",
+     '        "vs_hold": _vs_hold_of(port),',
+     '        "vs_hold": None,',
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("긴 캡션이 잘릴 때 보유 대비 성적부터 버린다(고지가 하이라이트로 취급된다)",
+     "quant/reporting/social.py",
+     '            f"💰 {eq} (누적 {ret}{day_line}{bench_short}){kill}{owner}\\n"',
+     '            f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"',
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("기준선을 못 재도 캡션이 뭔가 적는다",
+     "quant/reporting/social.py",
+     "    _vh = x.get(\"vs_hold\")\n    if _vh:",
+     "    _vh = x.get(\"vs_hold\")\n    if True:",
      "tests/test_the_score_is_measured_against_holding.py"),
 ]
 

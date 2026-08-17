@@ -212,3 +212,75 @@ def test_the_front_page_says_it_plainly_when_ahead(tmp_path):
                              {"date": "2026-08-15", "price": 90, "equity": 950_000}],
                   1_000_000)
     assert "앞섭니다" in txt, f"이기고 있는데 그렇게 말하지 않는다:\n{txt}"
+
+
+# ── ⑥ 방송 캡션도 같은 점수를 말하는가 (감사 277) ────────────────
+#
+# ⚠️ **부품을 만들어 놓고 안 붙이면 없는 것과 같다.** 감사 276에서 이 계산의
+#    파이썬 짝(quant/reporting/benchmark.py)을 만들었는데, 붙인 곳은 화면뿐이고
+#    **파이썬 쪽에서는 아무도 부르지 않았다** — 검사만 그 함수를 import하고
+#    있었다. 이 저장소가 감사 135·139·243에서 반복해 겪은 자리이고,
+#    감사 238·218·113은 전부 "산문은 고쳤는데 캡션만 남았다"였다.
+#    캡션이 사이트보다 멀리 퍼지므로 이쪽이 오히려 더 위험하다.
+
+def _status(history, principal=BASE) -> dict:
+    return {"updated": history[-1]["date"],
+            "paper": {"portfolio:ALL": {
+                "principal": principal, "start_cash": principal,
+                "goal": 100_000_000, "equity": history[-1]["equity"],
+                "history": history}},
+            "symbols": {}}
+
+
+def test_the_broadcast_caption_carries_the_same_score():
+    from quant.reporting.social import build_captions
+
+    c = build_captions(_status(REAL))
+    for name, txt in (("인스타", c["instagram"]), ("스레드", c["threads"])):
+        assert "1,005,900원" in txt or "-0.87%p" in txt, (
+            f"{name} 캡션이 보유 대비 성적을 말하지 않는다:\n{txt[:400]}")
+
+
+def test_the_caption_says_ahead_when_it_is_ahead():
+    """대조군 — 이기는 날은 이겼다고 방송해야 한다."""
+    from quant.reporting.social import build_captions
+
+    win = [{"date": "2026-08-13", "price": 100, "equity": 1_000_000},
+           {"date": "2026-08-15", "price": 90, "equity": 950_000}]
+    txt = build_captions(_status(win))["instagram"]
+    assert "앞섭니다" in txt, f"이기는 날인데 그렇게 말하지 않는다:\n{txt[:400]}"
+
+
+def test_the_caption_stays_silent_when_it_cannot_measure():
+    """기준선을 모르면 **아무 말도 안 한다** — 지어내는 것보다 침묵이 낫다."""
+    from quant.reporting.social import build_captions
+
+    blind = [{"date": "2026-08-13", "equity": 1_000_000},
+             {"date": "2026-08-15", "equity": 950_000}]     # price 없음
+    txt = build_captions(_status(blind))["instagram"]
+    assert "들고만 있었다면" not in txt, f"기준선을 모르는데 적었다:\n{txt[:400]}"
+    assert "%p" not in txt.split("자산")[1][:120], txt[:400]
+
+
+def test_the_short_caption_keeps_the_score_even_when_trimmed():
+    """길이가 넘쳐 잘려도 이 숫자는 남아야 한다 — 하이라이트가 아니라 **고지**다.
+
+    감사 97과 같은 규칙: 쓸 말이 많은 날일수록 중요한 것이 잘려 나가면 안 된다.
+    """
+    from quant.reporting.social import THREADS_TEXT_LIMIT, build_captions
+
+    st = _status(REAL)
+    # ⚠️ 이름을 조금 길게 하는 정도로는 **잘림 경로가 안 탄다** — 처음 쓴
+    #    검사가 그랬고, 그래서 변이 하나가 살아남았다(짧은 판에서 점수를
+    #    빼도 통과했다). 한도를 확실히 넘겨 **그 가지를 실제로 태운다.**
+    st["symbols"] = {f"kr_stock:{i:06d}.KS": {"name": "아주아주긴종목이름" * 20}
+                     for i in range(12)}
+    st["paper"]["portfolio:ALL"]["history"][-1]["applied"] = {
+        f"kr_stock:{i:06d}.KS": 0.05 for i in range(12)}
+    long_th = build_captions(st)["threads"]
+    assert len(long_th) <= THREADS_TEXT_LIMIT, len(long_th)
+    # 잘림이 실제로 일어났는지부터 확인한다 — 안 잘렸으면 이 검사는 아무것도
+    # 지키지 않는다(하이라이트인 '배분 상위'가 사라진 것이 잘림의 표식이다).
+    assert "배분 상위" not in long_th, (
+        f"잘림 경로를 안 탔다 — 이 검사가 헛돈다:\n{long_th}")
+    assert "%p" in long_th, f"잘린 판에서 보유 대비 성적이 사라졌다:\n{long_th}"
