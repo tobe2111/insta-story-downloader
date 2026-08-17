@@ -5011,6 +5011,37 @@ MUTATIONS = [
      '계좌 비중<br><span class="sub" style="font-weight:400">실제 보유</span>',
      '통합 비중',
      "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    # ── 감사 267 — 같은 화면의 숫자들이 서로 안 맞았다 ──
+    ("잔고 합계에서 현금을 도로 뺀다(줄이 스스로 안 맞는다)",
+     "docs/index.html",
+     "      '<td class=\"num\">'+won(sumCost+cashB)+'</td>'+",
+     "      '<td class=\"num\">'+won(sumCost)+'</td>'+",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("두 손익이 왜 다른지 말하지 않는다(하나가 틀렸다고 읽힌다)",
+     "docs/index.html",
+     "      const el=document.getElementById(\"bal-bridge\");",
+     "      const el=null;",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("준실시간 합계를 잔고 표에만 칠한다(한 화면이 두 금액을 말한다)",
+     "docs/index.html",
+     "        '<div class=\"sub lvv\" data-k=\"__total__\" style=\"margin-top:6px\"></div>';",
+     "        '';",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("자릿수가 다른 준실시간 값도 그대로 내보낸다(환율이 빠지면 1,400배)",
+     "docs/index.html",
+     "          :(QuantAmounts.livePlausible(bookEq,liveEq)",
+     "          :(true",
+     "tests/test_the_numbers_on_the_page_agree.py"),
+
+    ("준실시간 허용 폭을 자릿수만큼 넓힌다",
+     "docs/assets/amounts.js",
+     "  var LIVE_MAX_DRIFT = 1.5;",
+     "  var LIVE_MAX_DRIFT = 1000;",
+     "tests/test_the_amounts_add_up.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

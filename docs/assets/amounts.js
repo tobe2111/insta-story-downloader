@@ -70,7 +70,30 @@
     return bad.some(function (x) { return x.key === key; });
   }
 
+  /**
+   * 준실시간 합계가 **확정 자산과 같은 세상의 숫자인가.**
+   *
+   * ⚠️ 왜 필요한가 (감사 267). 준실시간 값은 확정값과 조금 다른 게 정상이다
+   *    — 그래서 `impossible()`의 1.02배 잣대를 그대로 쓸 수 없다. 하지만
+   *    **자릿수가 다르면** 그건 시장이 아니라 환율·단위가 빠진 것이다.
+   *    실제로 시세 경로에 환율이 빠지면 코인 평가액이 1,400배로 튄다
+   *    (감사 212가 그 사고였고, 그때는 확정값 쪽에서 터졌다).
+   *
+   *    라벨만 붙이고 내보내면 "지금 35,969,655원"이 화면에 남는다 —
+   *    100만원 계좌에서. 라벨은 그 숫자를 참으로 만들지 못한다.
+   */
+  var LIVE_MAX_DRIFT = 1.5;      // 하루 안에 자산이 1.5배가 되지는 않는다
+
+  function livePlausible(book, live) {
+    var b = Number(book), l = Number(live);
+    if (!isFinite(b) || !isFinite(l) || !(b > 0)) return false;
+    if (!(l > 0)) return false;
+    var r = l / b;
+    return r <= LIVE_MAX_DRIFT && r >= 1 / LIVE_MAX_DRIFT;
+  }
+
   root.QuantAmounts = {
+    LIVE_MAX_DRIFT: LIVE_MAX_DRIFT, livePlausible: livePlausible,
     SANITY_RATIO: SANITY_RATIO,
     impossible: impossible, overEquity: overEquity, flagged: flagged,
   };

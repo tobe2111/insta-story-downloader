@@ -412,6 +412,8 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         <tbody></tbody>
       </table></div>
       <div class="sub" style="margin-top:8px" id="bal-note"></div>
+      <!-- 같은 화면의 두 '손익'이 왜 다른지 — 숫자를 맞추는 대신 다리를 놓는다 -->
+      <div class="sub" style="margin-top:6px" id="bal-bridge"></div>
       <!-- 준실시간 참고 합계 — 확정값 아래에 따로 둔다. 비어 있으면
            (시세·환율을 못 받은 경우) 아무것도 그리지 않는다. -->
       <div class="sub" style="margin-top:6px;font-size:11.5px" id="live-note"></div>
@@ -760,7 +762,16 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<div class="sub" style="margin-top:10px">'+
           '이 중 <b>'+won(heldVal)+'</b>이 종목에 들어가 있고, '+
           '<b>'+won(cashVal)+'</b>은 현금입니다.'+
-        '</div>';
+        '</div>'+
+        /* ⚠️ 준실시간 시세가 들어오면 **잔고 표만** "지금 999,xxx원"으로
+           움직이고 이 카드는 확정값에 머물러 있었다(감사 267 · 사장님
+           "실시간으로 페이지의 숫자들이 다 일치가 돼야 해"). 두 곳이 다른
+           숫자를 말하면 읽는 사람은 어느 쪽이 자기 돈인지 알 수 없다.
+           **여기서 다시 계산하지 않는다** — 잔고 표와 같은 `.lvv` 자리를
+           하나 더 두면 paintLive()가 같은 값을 같은 순간에 칠한다.
+           한 곳에서 계산하고 여러 곳에 칠하는 것과, 여러 곳이 각자
+           계산하는 것은 다른 일이다(㉞). */
+        '<div class="sub lvv" data-k="__total__" style="margin-top:6px"></div>';
     }
   }
   /* --- 사이드바: 돈이 지금 어디 있는가 ---------------------------------
@@ -1199,6 +1210,8 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
        장부에서 오고, 가격만 시세에서 온다. 화면이 수량까지 지어내면
        그때부터 이 표는 증거가 아니다. */
     window.__holdings=pf.holdings; window.__cash=cashB;
+    /* 준실시간 값이 '같은 세상의 숫자'인지 재려면 확정 자산이 필요하다 */
+    window.__bookEquity=Number(pf.equity);
     let sumCost=0,sumVal=0,stale=0,asof="";
     const body=pf.holdings.map(r=>{
       const nm=(syms[r.key]||{}).name||r.key.split(":")[1]||r.key;
@@ -1238,8 +1251,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '<td class="num"><b>'+won(cashB)+'</b></td><td class="num">—</td>'+
       '<td class="num">—</td><td class="num">'+
         (eqB?(cashB/eqB*100).toFixed(1):"0.0")+'%</td></tr>'+
+      /* ⚠️ **이 줄이 앞뒤가 안 맞았다**(감사 267 · 사장님 지적 "숫자들이 다
+         일치가 돼야 해"). 매입금액 칸은 현금을 빼고 271,221원, 평가금액 칸은
+         현금을 넣어 997,198원이었다 — 같은 줄에서 두 칸이 서로 다른 것을
+         세고 있었다. 빼 보면 +725,977원 '이익'이 나온다.
+         두 칸 모두 **계좌 전체**로 맞춘다: 넣은 돈(매입+현금) vs 지금 값. */
       '<tr><td style="text-align:left"><b>합계</b></td>'+
-      '<td colspan="3"></td><td class="num">'+won(sumCost)+'</td>'+
+      '<td colspan="3" class="sub">종목 매입금액 '+won(sumCost)+
+        ' + 현금 '+won(cashB)+'</td>'+
+      '<td class="num">'+won(sumCost+cashB)+'</td>'+
       '<td class="num"><b>'+won(sumVal+cashB)+'</b>'+
         '<div class="cd lvv" data-k="__total__"></div></td>'+
       '<td class="num '+cls((sumVal-sumCost)/(sumCost||1))+'">'+
@@ -1260,6 +1280,26 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     if(stale)note+=" ⚠ 표시된 "+stale+"종목은 시세를 받지 못해 매입가로 "+
       "평가돼 있습니다(손익이 0으로 보입니다).";
     document.getElementById("bal-note").textContent=note;
+    /* ⚠️ **한 화면에 '손익'이 둘 있었다**(감사 267 · 사장님 지적).
+         맨 위 '한눈에'는 −2,802원(원금 대비), 이 표 합계는 −2,396원(매입 대비).
+       둘 다 맞는 값이고 정의가 다를 뿐인데, 이름이 같고 설명이 없으면
+       읽는 사람은 **하나가 틀렸다**고 결론짓는다. 차이는 이미 낸 수수료다 —
+       계좌에서 빠져나가 어디에도 남아 있지 않은 돈이라 어느 칸에도 안 보인다.
+       그 다리를 화면에 놓는다. 숫자를 맞추는 게 아니라 **왜 다른지**를 적는다. */
+    {
+      const baseB=Number(pf.principal!=null?pf.principal:pf.start_cash);
+      const gap=(sumCost+cashB)-baseB;      // 음수면 그만큼 계좌 밖으로 나갔다
+      const el=document.getElementById("bal-bridge");
+      if(el&&isFinite(baseB)&&baseB>0){
+        el.innerHTML='이 표의 <b>'+won(sumVal-sumCost)+'</b>은 '+
+          '<b>매입금액 대비</b>입니다. 맨 위 <b>'+won((sumVal+cashB)-baseB)+
+          '</b>은 <b>원금('+won(baseB)+') 대비</b>라 값이 다릅니다'+
+          (Math.abs(gap)>=1
+            ?' — 차이 <b>'+won(Math.abs(gap))+'</b>은 이미 낸 매매 수수료로, '+
+             '계좌에서 빠져나가 어느 칸에도 남아 있지 않습니다.'
+            :'.');
+      }
+    }
   }
 
   /* ── 거래내역 표 ────────────────────────────────────────────
@@ -1465,10 +1505,23 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     const all=window.__holdings||[];
     const m=QuantLive.markHoldings(all,live,liveFx);
     const cash=window.__cash||0;
+    /* 확정 자산 — 준실시간 값이 이것과 같은 세상의 숫자인지 재는 기준 */
+    const bookEq=(window.__bookEquity!=null)?window.__bookEquity:(m.sumBook+cash);
     nodes.forEach(n=>{
       const k=n.getAttribute("data-k");
       if(k==="__total__"){
-        n.innerHTML=m.complete?'지금 '+won(m.sumLive+cash):'';
+        /* 확정값과 **다른 숫자**이므로 라벨 없이 내보내지 않는다. 같은
+           문구를 쓰는 자리가 둘(잔고 합계·한눈에)이라 여기서 한 번만 만든다.
+           ⚠️ 자릿수가 다르면 라벨을 붙여도 참이 되지 않는다(감사 267) —
+              환율이 빠지면 코인 평가액이 1,400배로 튄다. 그런 값은 안 낸다. */
+        const liveEq=m.sumLive+cash;
+        n.innerHTML=!m.complete?''
+          :(QuantAmounts.livePlausible(bookEq,liveEq)
+            ?'준실시간 시세로 다시 계산하면 지금 <b>'+won(liveEq)+
+             '</b> — 확정 기록과 다를 수 있고 수익률·판단에는 쓰지 않습니다'
+            :'<span class="sub">준실시간 합계는 표시하지 않습니다 — 확정 자산('+
+             won(bookEq)+')과 자릿수가 달라(계산값 '+won(liveEq)+
+             ') 환율·단위가 빠진 것으로 보입니다.</span>');
         return;
       }
       const v=m.rows[k];

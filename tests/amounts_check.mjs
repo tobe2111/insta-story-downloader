@@ -78,6 +78,23 @@ check("자산이 숫자가 아니면", Q.impossible("백만원", 9e9) === false)
   check("null도 안 터진다", Object.keys(Q.overEquity(null)).length === 0);
 }
 
+/* ── 5. 준실시간 합계가 같은 세상의 숫자인가 (감사 267) ────────── */
+{
+  const book = 997197.56;
+  check("조금 오른 값은 통과", Q.livePlausible(book, book * 1.01) === true);
+  check("조금 내린 값도 통과", Q.livePlausible(book, book * 0.99) === true);
+  // 환율이 빠지면 1,400배로 튄다 — 라벨을 붙여도 참이 되지 않는다.
+  check("자릿수가 다르면 거부", Q.livePlausible(book, book * 36) === false);
+  check("반대쪽 자릿수도 거부", Q.livePlausible(book, book / 36) === false);
+  check("경계 안쪽", Q.livePlausible(book, book * 1.49) === true);
+  check("경계 바깥", Q.livePlausible(book, book * 1.51) === false);
+  // 모르면 내보내지 않는다 — 판단 근거가 없을 때 통과시키면 방어가 없다.
+  check("확정값 미상이면 거부", Q.livePlausible(null, book) === false);
+  check("0이나 음수도 거부",
+        Q.livePlausible(book, 0) === false && Q.livePlausible(book, -1) === false);
+  check("여유는 하루 변동폭 수준", Q.LIVE_MAX_DRIFT === 1.5);
+}
+
 if (fails.length) {
   console.error("금액 검사 규칙 실패:\n  - " + fails.join("\n  - "));
   process.exit(1);
