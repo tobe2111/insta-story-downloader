@@ -29,6 +29,7 @@
      tests/hitrate_check.mjs가 이 파일을 그대로 실행해 값으로 확인한다. -->
 <script src="assets/hitrate.js"></script>
 <script src="assets/exposure.js"></script>
+<script src="assets/amounts.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -805,15 +806,30 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      날이 생긴다. 첫 원화 배치(2026-08-13)에서 실제로 그렇게 됐다. */
   {
     const lp=pfLast.lot_priority||null;
-    const ks=lp?Object.keys(lp):[];
+    const nm=k=>esc((syms[k]||{}).name||k.split(":")[1]||k);
+    /* ⚠️ **계좌보다 큰 금액은 사실처럼 적지 않는다**(감사 265). 2026-08-15
+       기록에는 자산 997,198원짜리 계좌에 "비앤비 4,526,594원 · 리플
+       4,084,420원"이 남아 있고, 이 줄이 그걸 그대로 읽어 주고 있었다.
+       기록은 고치지 않는다 — 대신 못 믿을 값이라고 **말한다.** */
+    const badAmt=QuantAmounts.overEquity(pfLast);
+    const badKeys=new Set((badAmt.lot_priority||[]).map(x=>x.key));
+    const ks=(lp?Object.keys(lp):[]).filter(k=>!badKeys.has(k));
     if(ks.length){
-      const nm=k=>esc((syms[k]||{}).name||k.split(":")[1]||k);
       const gave=[...new Set(ks.flatMap(k=>lp[k].gave_way||[]))];
       flags.push("<b>예산을 끌어 쓴 종목 "+ks.length+"개</b> — "+
         ks.map(k=>nm(k)+"("+won(lp[k].spent)+"/배정 "+won(lp[k].budget)+")")
           .join(" · ")+
         (gave.length?". 대신 "+gave.map(nm).join(" · ")+"이(가) 자리를 내줬습니다":"")+
         ". 확신도가 높은 쪽부터 채우기 때문이며, 그만큼 종목 수는 줄어듭니다");
+    }
+    if(badKeys.size||(badAmt.fills||[]).length){
+      const all=[...badKeys,...(badAmt.fills||[]).map(x=>x.key)];
+      flags.push("🚨 <b>금액이 계좌와 안 맞는 기록 "+all.length+"건</b> ("+
+        [...new Set(all)].map(nm).join(" · ")+") — 그날 자산 "+won(badAmt.equity)+
+        "보다 큰 금액이 적혀 있어 <b>화면에 표시하지 않습니다</b>. "+
+        "레버리지가 잠긴 계좌에서는 성립할 수 없는 숫자이고, 통화 환산이 "+
+        "빠졌을 때 생깁니다. 기록은 지우지 않고 그대로 두었습니다 — "+
+        "<a href=\"trust.html\">기록 검증</a>에 무슨 일이었는지 적어 두었습니다");
     }
   }
   /* 새벽 배치가 반쯤 마비된 날 — 값은 이미 실려 오는데(status.run_health)

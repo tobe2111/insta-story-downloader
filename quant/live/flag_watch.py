@@ -201,6 +201,18 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
                 f"구조에서는 나올 수 없는 값입니다. 레버리지 금지선·수수료 "
                 f"버퍼·매도 우선 순서 중 하나가 새고 있다는 뜻이고, 계좌는 "
                 f"이유 없이 계획보다 덜 산 채로 굴러갑니다.", _day, _age)
+        # 금액이 계좌보다 큰 기록(감사 265). 레버리지가 잠긴 계좌에서는
+        # 성립할 수 없는 숫자이고, 거의 언제나 통화 환산이 빠진 것이다 —
+        # 즉 **자산·수익률도 함께 의심해야 하는** 상태다. 조용히 두면
+        # 사이트와 방송이 그 숫자를 사실로 내보낸다(실측 2026-08-15).
+        ia = last.get("impossible_amounts") or {}
+        if ia:
+            names = ", ".join(str(r.get("key")) for kind in ("fills", "lot_priority")
+                              for r in (ia.get(kind) or []))
+            flags[f"impossible_amounts:{key}:{len(names.split(','))}"] = _as_of(
+                f"🚨 그날 자산({ia.get('equity')})보다 큰 금액이 장부에 "
+                f"적혔습니다: {names} — 통화 환산이 빠졌을 때 생기는 모양입니다. "
+                f"자산·수익률도 함께 의심해야 합니다.", _day, _age)
         # 증거금 없이 팔려다 잘린 주문(감사 264). **현금 부족과 다른 사고다** —
         # 계좌가 덜 산 게 아니라 **계획보다 덜 판** 것이고, 그 종목의 실제
         # 노출은 장부의 목표와 다르다. 같은 이름으로 묶으면 원인을 잘못 짚는다.

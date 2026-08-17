@@ -17,6 +17,7 @@
      그래서 검사는 매일 초록이었다(감사 264). -->
 <script src="assets/tv-symbols.js"></script>
 <script src="assets/exposure.js"></script>
+<script src="assets/amounts.js"></script>
 <style>
 /* 촬영·공유용 한 장짜리 화면 — 다크 고정(방송 화질), 16:9에 맞는 밀도.
    ?card=1 이면 1200×630(공유 카드) 컴팩트 레이아웃으로 전환된다. */
@@ -159,14 +160,27 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     const pend=rec.pending_next_open||{};
     let ftab="";
     if(fills.length){
+      /* ⚠️ 체결가에 **단위가 없었다**(감사 265 · 사장님 지적). 이 계좌는
+         원화인데 같은 열에 비트코인 89,883,874.8(원)과 아마존 264.88(달러)이
+         나란히 찍혔다 — 읽는 사람은 아마존을 264원에 샀다고 읽는다.
+         그리고 그 264.88은 실은 **환산이 빠진 값**이었다. 단위를 적으면
+         그런 값이 화면에서 바로 티가 난다. */
+      const badF=new Set((QuantAmounts.overEquity(rec).fills||[]).map(x=>x.key));
       ftab=`<table><tr><th style="text-align:left">종목</th><th>체결 방식</th>
-        <th>체결가</th><th>체결 시점</th></tr>`+fills.map(f=>{
+        <th>체결가(원)</th><th>체결 금액</th><th>체결 시점</th></tr>`+fills.map(f=>{
         const t=f.type||"시가";
         const when=t==="즉시"?"새벽 결정 직후":(String(f.bar||"").slice(0,10)+" 개장 시가");
-        return `<tr><td style="text-align:left"><b>${esc(nm(f.key))}</b>${
+        /* 계좌보다 큰 금액은 사실처럼 적지 않는다 — 기록은 그대로 두고
+           화면에서만 "못 믿을 값"이라고 말한다(모르는 것과 아닌 것은 다르다). */
+        const bad=badF.has(f.key);
+        return `<tr${bad?' style="opacity:.6"':""}><td style="text-align:left"><b>${esc(nm(f.key))}</b>${
           f.side?` <span style="color:var(--muted);font-size:12px">${f.side==="buy"?"매수":"매도"}</span>`:""}</td>
           <td>${t==="즉시"?"즉시(코인)":"다음 시가(주식)"}</td>
-          <td>${Number(f.price).toLocaleString()}</td><td>${when}</td></tr>`}).join("")+`</table>`;
+          <td>${bad?"—":Number(f.price).toLocaleString()}</td>
+          <td>${bad
+            ?`<span style="color:var(--muted)">표시하지 않음 — 그날 자산보다 큰 금액이 적혀 있습니다(<a href="trust.html">경위</a>)</span>`
+            :(f.amount!=null?won(f.amount):"—")}</td>
+          <td>${when}</td></tr>`}).join("")+`</table>`;
     }else ftab=`<p style="color:var(--muted);font-size:13px">오늘 체결된 주문이 없습니다.</p>`;
     let ptab="";
     const pkeys=Object.keys(pend).filter(k=>Math.abs(pend[k])>0.0005);

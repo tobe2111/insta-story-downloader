@@ -4927,6 +4927,46 @@ MUTATIONS = [
      '<script src="assets/tv-symbols.js"></script>',
      '<script src="assets/tradingview.js"></script>',
      "tests/test_every_public_page_actually_renders.py"),
+
+    # ── 감사 265 — 사이트가 계좌보다 큰 금액을 사실처럼 보여줬다 ──
+    ("거부된 주문을 체결로 적는다(한 주도 안 샀는데 '매수'로 방송된다)",
+     "quant/live/daily.py",
+     '        _filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)\n'
+     '        if getattr(order, "status", "filled") not in ("filled", "partial") \\\n'
+     '                or _filled <= 0:',
+     '        _filled = float(getattr(order, "quantity", 0.0) or 0.0)\n'
+     '        if False:',
+     "tests/test_the_amounts_add_up.py"),
+
+    ("금액 검사의 여유를 자릿수만큼 넓힌다(1.09배짜리 사고를 놓친다)",
+     "quant/live/daily.py",
+     "AMOUNT_SANITY_RATIO = 1.02",
+     "AMOUNT_SANITY_RATIO = 1.5",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("금액이 계좌를 넘어도 통과시킨다(통화 환산 누락이 조용해진다)",
+     "quant/live/daily.py",
+     "    cap = eq * AMOUNT_SANITY_RATIO",
+     "    cap = float('inf')",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("브라우저 쪽 금액 여유만 넓힌다(사이트와 경보가 갈라진다)",
+     "docs/assets/amounts.js",
+     "  var SANITY_RATIO = 1.02;",
+     "  var SANITY_RATIO = 1.5;",
+     "tests/test_the_amounts_add_up.py"),
+
+    ("못 믿을 금액을 화면에서 도로 보여준다(사고가 사실처럼 읽힌다)",
+     "docs/today.html",
+     '          <td>${bad?"—":Number(f.price).toLocaleString()}</td>',
+     '          <td>${Number(f.price).toLocaleString()}</td>',
+     "tests/test_the_amounts_add_up.py"),
+
+    ("첫 화면이 못 믿을 예산을 도로 읽어 준다",
+     "docs/index.html",
+     "    const ks=(lp?Object.keys(lp):[]).filter(k=>!badKeys.has(k));",
+     "    const ks=(lp?Object.keys(lp):[]);",
+     "tests/test_the_amounts_add_up.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
