@@ -101,15 +101,42 @@ def test_parliament_correlation_failure_assumes_duplicate():
     False가 되어 '중복 아님'으로 통과했다. 주석이 막겠다고 적어 둔 바로 그
     방향이었다.
 
-    이제 서식이 아니라 **판정식**을 본다: NaN도 중복으로 처리해야 한다.
-    (동작 검사는 test_parliament_moves_slowly_and_diversely.py ㉔㉕에 있다.)
+    ⚠️⚠️ 2026-08-17(감사 276): **그 판정식마저 무력해졌다.** pandas 3.0부터
+    한쪽이 상수인 계열의 상관이 NaN이 아니라 0에 가까운 부동소수(6.4e-18)로
+    나온다. 즉 '못 잰 것'이 이제 **'완벽하게 무상관'**으로 읽히고, 그건
+    다양성 판정에서 가장 좋은 점수다 — 가드가 막으려던 방향으로 정확히,
+    그리고 이번에는 NaN 검사를 통과하면서 열렸다.
+
+    두 번 같은 자리에서 당했다. 그래서 이제 **글자도 판정식도 아니라 값으로**
+    본다 — 상수 계열을 실제로 넣어 보고 '중복'이 나오는지 확인한다.
+    라이브러리가 무엇을 돌려주든 우리 답은 같아야 한다.
     """
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.parliament import safe_corr
+
+    idx = pd.date_range("2025-01-01", periods=120, freq="D")
+    live = pd.Series(np.random.default_rng(7).normal(0, 0.01, len(idx)), index=idx)
+    flat = pd.Series(0.001, index=idx)          # 분산 0 — 상관이 정의되지 않는다
+
+    # 라이브러리가 NaN을 안 준다는 사실 자체를 못 박아 둔다. 이 줄이 깨지면
+    # pandas가 또 바뀐 것이고, 그때 이 검사는 여전히 옳은 답을 요구한다.
+    raw = float(flat.corr(live))
+    assert raw == raw, ("pandas가 다시 NaN을 돌려준다 — 그래도 아래 계약은 "
+                        "그대로여야 한다")
+
+    assert safe_corr(flat, live) != safe_corr(flat, live), (
+        "상수 계열의 상관을 '무상관'으로 본다 — 계산 실패가 곧 통과가 된다")
+    assert safe_corr(live, flat) != safe_corr(live, flat), "순서만 바꿔도 같아야 한다"
+    # 대조군 — 멀쩡한 두 계열은 실제 값을 돌려줘야 한다. 다 NaN으로 막으면
+    # 다양성 판정이 통째로 꺼지고, 그것도 같은 종류의 고장이다.
+    other = pd.Series(np.random.default_rng(8).normal(0, 0.01, len(idx)), index=idx)
+    c = safe_corr(live, other)
+    assert c == c and -1.0 <= c <= 1.0, c
+
     src = (ROOT / "quant" / "live" / "parliament.py").read_text(encoding="utf-8")
-    block = src.split("c = float(rets[i].corr(rets[j]))")[1][:1400]
-    assert "c = 0.0" not in block, "계산 실패를 '무상관'으로 친다"
-    lines = [ln.strip() for ln in block.splitlines()
-             if "CORR_CAP" in ln and ln.strip().startswith("if ")]
-    assert lines, f"상관 판정식을 못 찾았다:\n{block[:400]}"
-    decision = lines[0]
-    assert "c != c" in decision, (
-        f"NaN을 중복으로 보지 않는다 — 흔한 실패 경로가 통과된다: {decision!r}")
+    assert "safe_corr(rets[i], rets[j])" in src, (
+        "승격 쪽 상관 게이트가 판정을 한 곳에서 안 쓴다")
+    assert "safe_corr(r, rets[j])" in src, (
+        "다양성 쪽 상관 게이트가 판정을 한 곳에서 안 쓴다")

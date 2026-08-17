@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 
 from quant.utils.logging import get_logger
+from quant.utils.numerics import degenerate_spread
 
 log = get_logger("parliament")
 
@@ -27,6 +28,39 @@ EMA_STEP = 0.25           # 하루에 목표 비중으로 이만큼만 이동(�
 MIN_WEIGHT = 0.05         # 이 미만이면 의석 상실
 ENTRY_WEIGHT = 0.25       # 오디션 통과 신입의 초기 의석
 SOFTMAX_TEMP = 12.0       # 홀드아웃 수익 차이 → 목표 비중 민감도
+
+# ── 다양성 의석 (감사 276) ──────────────────────────────────────────
+#
+# ⚠️ 이 파일은 자기 문제를 이미 적어 두고 있었다(`seat_census` 주석):
+#    "의석은 오직 2단계 오디션을 통과한 승격자만 얻는데, 승격은 139회 중
+#     1회 일어났다." 실측 2026-08-17 기준 **189회 중 1회(0.5%)**이고,
+#    20계좌 전부가 1석이며 챔피언 19/20이 파라미터까지 완전히 같다.
+#    종목은 20개인데 **모델은 하나**다 — 그 모델이 틀리는 날 20종목이
+#    동시에 틀린다. 배분(HRP·ERC)은 종목 상관을 낮추지만 모델 상관은 1.0이다.
+#
+#    구조가 없어서가 아니다. **문이 하나뿐**이어서다. 그 문은 이렇게 묻는다:
+#
+#        "이 후보가 챔피언보다 **더 나은가?**"   (우월성 검정)
+#
+#    포트폴리오 이론이 말하는 두 번째 질문이 통째로 빠져 있었다:
+#
+#        "이 후보가 챔피언만큼 하면서 **상관이 낮은가?**"  (비열등성 + 다양성)
+#
+#    기대수익이 같고 상관이 낮은 자산을 섞으면 **샤프가 오른다.** 그건
+#    관문을 무르게 하는 것이 아니라 **다른 질문을 묻는 것**이다. 그래서
+#    승격(챔피언 교체)의 문턱은 그대로 두고, 의회에만 두 번째 문을 단다.
+#
+# 이 문도 공짜가 아니다. 세 관문을 전부 통과해야 한다:
+#   ① 선발전에서 **유의하게 못하지 않을 것**(t > -DIVERSIFIER_T_FLOOR)
+#   ② 결승 구간(최근 미공개)에서도 **유의하게 못하지 않을 것** — 여기서
+#      다시 재므로 선발전 우연으로는 못 들어온다
+#   ③ 앉아 있는 모든 의원과 **상관이 낮을 것**(< DIVERSIFIER_CORR_MAX)
+# 그리고 의석은 승격자보다 **작게**(0.15 < 0.25) 준다 — 이긴 것과 다른 것은
+# 같은 대우를 받지 않는다.
+DIVERSIFIER_CORR_MAX = 0.5   # 이보다 상관이 낮아야 '다른 베팅'이다
+DIVERSIFIER_T_FLOOR = 1.0    # 이만큼도 못 지면(=유의하게 나쁘지 않으면) 통과
+DIVERSIFIER_WEIGHT = 0.15    # 다양성 신입의 초기 의석(승격자보다 작다)
+DIVERSIFIER_PER_NIGHT = 1    # 하룻밤에 최대 몇 석까지 새로 여는가(급변 방지)
 
 
 def _spec_of(m: dict) -> dict:
@@ -47,9 +81,70 @@ def members_of(entry: dict) -> list[dict]:
              "weight": 1.0}]
 
 
+def safe_corr(a, b) -> float:
+    """두 수익률 계열의 상관 — **못 재면 NaN을 돌려준다.**
+
+    ⚠️ 이 함수가 생긴 이유 (2026-08-17, 감사 276). 이 파일에는 감사 53에서
+       세우고 2026-08-14에 다시 못 박은 규칙이 있다:
+
+           "상관을 못 재면 '무상관(0)'이 아니라 '중복(1)'으로 본다.
+            0으로 치면 계산 실패가 곧 통과가 되어, 다양성 강제 장치가
+            하필 흔들리는 날에 정확히 반대로 동작한다."
+
+       그 규칙은 `c != c`(NaN 검사)로 구현돼 있었다. **pandas 3.0에서
+       그 전제가 무너졌다** — 한쪽이 상수인 계열의 상관이 이제 NaN이 아니라
+       0에 가까운 부동소수(6.4e-18)로 나온다. 즉 '못 잰 것'이 '완벽하게
+       무상관'으로 읽히고, 그건 다양성 판정에서 **가장 좋은 점수**다.
+       가드가 막으려던 방향으로 정확히 열린 셈이다.
+
+       실측: 상수 계열 하나를 다양성 지원자로 넣었더니 그대로 의석을 얻었다
+       (이 감사의 검사가 그걸 잡았다).
+
+    그래서 NaN에 기대지 않고 **분산이 의미 있는지 직접 본다.** 어느 한쪽이
+    사실상 상수면 상관은 정의되지 않는다 — NaN을 돌려주고, 호출부는 그것을
+    '중복'으로 취급한다.
+    """
+    try:
+        a = a.dropna()
+        b = b.dropna()
+        idx = a.index.intersection(b.index)
+        if len(idx) < 3:
+            return float("nan")
+        a, b = a.reindex(idx), b.reindex(idx)
+        for s_ in (a, b):
+            if degenerate_spread(float(s_.std(ddof=1)),
+                                 float(s_.abs().mean())):
+                return float("nan")       # 상수 계열 — 상관이 정의되지 않는다
+        c = float(a.corr(b))
+        return c if math.isfinite(c) else float("nan")
+    except Exception:  # noqa: BLE001
+        return float("nan")
+
+
+def _paired_t(a, b) -> float:
+    """a와 b의 **일별 차이**에 대한 짝지은 t값. 못 재면 0.0(중립).
+
+    ⚠️ 0.0은 "차이가 없다"가 아니라 **"판정할 수 없다"**이다. 다양성 문은
+       `t > -FLOOR`로 통과를 정하므로, 못 잰 후보는 통과 쪽으로 떨어진다 —
+       그래서 이 함수만으로 문을 열지 않는다. 상관 관문(③)이 함께 걸린다.
+    """
+    try:
+        d = (a - b).dropna()
+        n = len(d)
+        if n < 20:
+            return 0.0
+        sd = float(d.std(ddof=1))
+        if not (sd > 0):
+            return 0.0
+        return float(d.mean() / (sd / math.sqrt(n)))
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 def update_parliament(entry: dict, df, *, build, cost_model=None,
                       confirm_window: int = 120,
                       promoted_spec: dict | None = None,
+                      applicants: list[dict] | None = None,
                       next_open_fill: bool = False,
                       rebalance_band: float = 0.0) -> list[dict]:
     """의회 명단·비중을 갱신해 반환한다 (순수 계산 — 저장은 호출자 몫).
@@ -72,23 +167,78 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
             m["weight"] = float(m.get("weight", 0.0)) * scale
         members.append({**promoted_spec, "weight": ENTRY_WEIGHT})
 
+    def _run(spec: dict):
+        """그 전략을 결승 구간에서 돌려 (수익률, 총수익, 관망여부)를 낸다.
+
+        의원·지원자를 **같은 자로** 잰다 — 다른 자로 재면 그 차이가 곧
+        의석 배분의 근거가 된다(오디션-현실 격차와 같은 계열).
+        """
+        res = Backtester(build(spec), cost_model=cost_model,
+                         next_open_fill=next_open_fill,
+                         rebalance_band=rebalance_band).run(df)
+        r = res.returns.iloc[-confirm_window:]
+        return (r, float((1 + r).prod() - 1),
+                bool((res.positions.iloc[-confirm_window:].abs() < 1e-12).all()))
+
     try:
         rets, scores, idle = {}, {}, {}
         for i, m in enumerate(members):
             # 의석 채점도 오디션과 같은 체결 규칙으로 — 여기만 종가 체결·
             # 밴드 0으로 매기면 '싸게 평가된 고회전 의원'이 의석을 더 가져간다
-            res = Backtester(build(_spec_of(m)), cost_model=cost_model,
-                             next_open_fill=next_open_fill,
-                             rebalance_band=rebalance_band).run(df)
-            r = res.returns.iloc[-confirm_window:]
+            r, sc, idl = _run(_spec_of(m))
             rets[i] = r
-            scores[i] = float((1 + r).prod() - 1)
+            scores[i] = sc
             # 채점 구간에서 **한 번도 포지션을 갖지 않은** 의원 — 전략이
             # 아니라 현금이다(2026-08-14 발견). 이런 의원에게 의석을 주면
             # 그 비중만큼 책이 조용히 현금으로 가고, 장부에는 "의회가 그렇게
             # 배분했다"고 적힌다. 오디션 링에서 뺀 '무효 후보'와 같은 부류다.
-            idle[i] = bool(
-                (res.positions.iloc[-confirm_window:].abs() < 1e-12).all())
+            idle[i] = idl
+
+        # ── 다양성 의석 — 두 번째 문(감사 276) ─────────────────────
+        #    "더 낫나"가 아니라 "못하지 않으면서 다른가"를 묻는다.
+        opened = 0
+        for app in (applicants or []):
+            if opened >= DIVERSIFIER_PER_NIGHT:
+                break
+            spec = {"strategy": app.get("strategy"),
+                    "params": dict(app.get("params") or {})}
+            if not spec["strategy"]:
+                continue
+            if any(_same(_spec_of(m), spec) for m in members):
+                continue                      # 이미 앉아 있다
+            # ① 선발전에서 유의하게 못하지 않았는가 (오디션이 이미 잰 값)
+            st = app.get("select_t")
+            if st is not None and float(st) <= -DIVERSIFIER_T_FLOOR:
+                continue
+            try:
+                r, sc, idl = _run(spec)
+            except Exception as exc:  # noqa: BLE001 — 지원자 하나가 의회를 막지 않는다
+                log.warning("다양성 지원자 평가 실패(건너뜀): %s", exc)
+                continue
+            if idl:
+                continue                      # 전략이 아니라 현금이다
+            # ② 결승 구간에서도 유의하게 못하지 않은가 — 리더와 짝지어 잰다
+            lead = max(scores, key=lambda i: scores[i])
+            if _paired_t(r, rets[lead]) <= -DIVERSIFIER_T_FLOOR:
+                continue
+            # ③ 앉아 있는 모두와 상관이 낮은가 (못 재면 '중복'으로 본다)
+            far = True
+            for j in list(rets):
+                c = safe_corr(r, rets[j])
+                if c != c or abs(c) >= DIVERSIFIER_CORR_MAX:
+                    far = False
+                    break
+            if not far:
+                continue
+            # 통과 — 기존 의석을 눌러 자리를 만든다(승격보다 작은 몫)
+            for m in members:
+                m["weight"] = float(m.get("weight", 0.0)) * (1.0 - DIVERSIFIER_WEIGHT)
+            k = len(members)
+            members.append({**spec, "weight": DIVERSIFIER_WEIGHT})
+            rets[k], scores[k], idle[k] = r, sc, False
+            opened += 1
+            log.info("다양성 의석 개설 — 챔피언보다 낫지는 않지만 상관이 낮다: %s",
+                     spec)
 
         # 다양성 강제 — 높은 점수 순으로 훑으며, 이미 남은 의원과 상관이
         # 과도한 후보는 탈락시킨다(같은 베팅을 두 자리 주지 않는다)
@@ -104,10 +254,10 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
                 continue
             dup = False
             for j in kept:
-                try:
-                    c = float(rets[i].corr(rets[j]))
-                except Exception:  # noqa: BLE001
-                    c = float("nan")
+                # ⚠️ 예전에는 여기서 직접 `.corr()`을 불렀다. pandas 3.0이
+                #    상수 계열에 NaN 대신 ~0을 돌려주면서 아래 NaN 검사가
+                #    통째로 죽었다(감사 276). 판정은 safe_corr 한 곳에 있다.
+                c = safe_corr(rets[i], rets[j])
                 # ⚠️ 상관을 못 재면 '무상관(0)'이 아니라 '중복(1)'으로 본다
                 #    (감사 53). 0으로 치면 계산 실패가 곧 통과가 되어, 같은
                 #    베팅에 두 자리를 주는 쪽으로 가드가 열린다 — 다양성

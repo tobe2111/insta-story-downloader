@@ -1022,7 +1022,15 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         next_open_fill=audition_next_open,
         rebalance_band=_rebalance_band_rel(market, state_dir),
         confirm_window=confirm_window,
-        promoted_spec=decision["champion"] if decision["promoted"] else None)
+        promoted_spec=decision["champion"] if decision["promoted"] else None,
+        # ⚠️ **두 번째 문**(감사 276). 승격은 "챔피언보다 더 나은가"만 묻고,
+        #    189회 중 1회만 열렸다 — 그래서 20계좌 전부 1석, 챔피언 19/20이
+        #    파라미터까지 동일하다. 종목은 20개인데 모델은 하나다.
+        #    오늘 진 후보들을 **다른 질문**에 다시 세운다: "못하지 않으면서
+        #    상관이 낮은가." 판정과 관문은 전부 parliament 쪽에 있다 —
+        #    여기서 고르면 그 기준이 두 곳에 생긴다(㉞).
+        applicants=[{**c["spec"], "select_t": c.get("t_stat")}
+                    for c in (decision.get("candidates") or [])])
     leader = entry["parliament"][0]
     entry["strategy"], entry["params"] = leader["strategy"], leader["params"]
 
