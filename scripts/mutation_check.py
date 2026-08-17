@@ -180,8 +180,8 @@ MUTATIONS = [
     # ── 의회(실제로 매매하는 혼합 전략)의 관문 ──
     ("결승전을 통과하지 않은 후보도 의회에 입성시킨다",
      "quant/live/retrain.py",
-     "        promoted_spec=decision[\"champion\"] if decision[\"promoted\"] else None)",
-     "        promoted_spec=decision[\"champion\"])",
+     "        promoted_spec=decision[\"champion\"] if decision[\"promoted\"] else None,",
+     "        promoted_spec=decision[\"champion\"],",
      "tests/test_parliament.py"),
 
     ("의회 다양성 강제(상관 상한)를 끈다 — 같은 베팅에 두 자리",
@@ -192,8 +192,8 @@ MUTATIONS = [
 
     ("상관을 못 재면 '무상관'으로 본다(감사 53 되돌리기 — 실패가 곧 통과)",
      "quant/live/parliament.py",
-     '                    c = float("nan")',
-     "                    c = 0.0",
+     '    except Exception:  # noqa: BLE001\n        return float("nan")',
+     "    except Exception:  # noqa: BLE001\n        return 0.0",
      "tests/test_parliament_moves_slowly_and_diversely.py"),
 
     ("의석 비중 급변 방지(EMA)를 끈다 — 하루 만에 전액 이동",
@@ -3841,7 +3841,7 @@ MUTATIONS = [
 
     ("길이 초과 시 짧은 판이 고지까지 잘라내게 되돌린다",
      "quant/reporting/social.py",
-     'f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"\n'
+     'f"💰 {eq} (누적 {ret}{day_line}{bench_short}){kill}{owner}\\n"\n'
      '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
      'f"💰 {eq} (누적 {ret})\\n"\n'
      '            f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\\n"',
@@ -5323,6 +5323,91 @@ MUTATIONS = [
      "  var LIVE_MAX_DRIFT = 1.5;",
      "  var LIVE_MAX_DRIFT = 1000;",
      "tests/test_the_amounts_add_up.py"),
+
+    # ── 감사 276 — 의회의 두 번째 문 · 보유 대비 점수 ──
+    ("다양성 의석 문을 닫는다(20계좌가 다시 한 모델이 된다)",
+     "quant/live/parliament.py",
+     "        opened = 0\n        for app in (applicants or []):",
+     "        opened = 0\n        for app in []:",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("상관이 높아도 다양성 의석을 준다(같은 베팅에 두 자리)",
+     "quant/live/parliament.py",
+     "                if c != c or abs(c) >= DIVERSIFIER_CORR_MAX:",
+     "                if False:",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("유의하게 못한 후보도 들여보낸다(다양성이 아니라 손실이다)",
+     "quant/live/parliament.py",
+     "            if _paired_t(r, rets[lead]) <= -DIVERSIFIER_T_FLOOR:",
+     "            if False:",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("상관 상한을 사실상 없앤다",
+     "quant/live/parliament.py",
+     "DIVERSIFIER_CORR_MAX = 0.5   # 이보다 상관이 낮아야 '다른 베팅'이다",
+     "DIVERSIFIER_CORR_MAX = 0.99  # 이보다 상관이 낮아야 '다른 베팅'이다",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("하룻밤에 여러 석을 연다(의회가 아니라 쿠데타)",
+     "quant/live/parliament.py",
+     "DIVERSIFIER_PER_NIGHT = 1    # 하룻밤에 최대 몇 석까지 새로 여는가(급변 방지)",
+     "DIVERSIFIER_PER_NIGHT = 9    # 하룻밤에 최대 몇 석까지 새로 여는가(급변 방지)",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("상수 계열의 상관을 '무상관'으로 본다(pandas 3.0에서 가드가 죽는다)",
+     "quant/live/parliament.py",
+     "            if degenerate_spread(float(s_.std(ddof=1)),\n"
+     "                                 float(s_.abs().mean())):\n"
+     "                return float(\"nan\")       # 상수 계열 — 상관이 정의되지 않는다",
+     "            if False:\n"
+     "                return float(\"nan\")       # 상수 계열 — 상관이 정의되지 않는다",
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("오디션에서 진 후보를 의회에 안 보낸다(두 번째 문이 굶는다)",
+     "quant/live/retrain.py",
+     '        applicants=[{**c["spec"], "select_t": c.get("t_stat")}\n'
+     '                    for c in (decision.get("candidates") or [])])',
+     '        applicants=[])',
+     "tests/test_the_parliament_has_a_second_door.py"),
+
+    ("보유 대비 점수를 화면에서 뺀다(시장이 오른 날의 이익이 실력처럼 보인다)",
+     "docs/index.html",
+     "          const b=QuantBench.vsHold(pf&&pf.history, base);",
+     "          const b=null;",
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("기준선을 몰라도 이겼다/졌다를 적는다",
+     "quant/reporting/benchmark.py",
+     "    if not (base > 0 and p0 > 0 and pn > 0):\n        return None",
+     "    if False:\n        return None",
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("브라우저 쪽 기준선만 지어낸다(두 언어가 갈라진다)",
+     "docs/assets/benchmark.js",
+     "    if (!isFinite(p0) || !(p0 > 0) || !isFinite(pn) || !(pn > 0)\n"
+     "        || !isFinite(eq)) return null;",
+     "    if (false) return null;",
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    # ── 감사 277 — 사이트는 고쳤는데 방송 캡션만 남았다 ──
+    ("캡션에서 보유 대비 성적을 뺀다(사이트와 방송이 다른 성적을 말한다)",
+     "quant/reporting/social.py",
+     '        "vs_hold": _vs_hold_of(port),',
+     '        "vs_hold": None,',
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("긴 캡션이 잘릴 때 보유 대비 성적부터 버린다(고지가 하이라이트로 취급된다)",
+     "quant/reporting/social.py",
+     '            f"💰 {eq} (누적 {ret}{day_line}{bench_short}){kill}{owner}\\n"',
+     '            f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\\n"',
+     "tests/test_the_score_is_measured_against_holding.py"),
+
+    ("기준선을 못 재도 캡션이 뭔가 적는다",
+     "quant/reporting/social.py",
+     "    _vh = x.get(\"vs_hold\")\n    if _vh:",
+     "    _vh = x.get(\"vs_hold\")\n    if True:",
+     "tests/test_the_score_is_measured_against_holding.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

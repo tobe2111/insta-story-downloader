@@ -84,6 +84,15 @@ def _pending_weight(last: dict):
         return None
 
 
+def _vs_hold_of(port: dict) -> dict | None:
+    """'그냥 보유했다면'과의 차이 — 못 재면 None(지어내지 않는다)."""
+    from quant.reporting.benchmark import vs_hold
+    base = port.get("principal")
+    if not isinstance(base, (int, float)) or base <= 0:
+        base = port.get("start_cash")
+    return vs_hold(port.get("history"), base)
+
+
 def _today_numbers(status: dict) -> dict:
     """status.json에서 캡션에 쓸 그날의 숫자를 뽑는다 (없는 값은 None)."""
     port = (status.get("paper") or {}).get("portfolio:ALL") or {}
@@ -178,6 +187,16 @@ def _today_numbers(status: dict) -> dict:
                    else (len(keep) if applied else sum(
                        1 for k in src if src[k] > 0
                        and _held_on(status, k, date)))),
+        # ⚠️ **캡션도 절대 수익만 말하고 있었다**(감사 277). 사이트 첫 화면은
+        #    감사 276에서 "그냥 보유했다면 얼마였나"를 함께 적게 고쳤는데,
+        #    방송에 나가는 캡션은 그대로였다 — 감사 238·218·113과 정확히
+        #    같은 거울이다(산문은 고쳤는데 캡션만 남는다). 캡션이 사이트보다
+        #    멀리 퍼지므로 이쪽이 오히려 더 위험하다.
+        #
+        #    판정은 새로 만들지 않는다. 화면(assets/benchmark.js)과 같은
+        #    규칙을 쓰는 파이썬 짝을 부른다 — 두 곳이 각자 계산하면 같은 날
+        #    사이트와 방송이 다른 성적을 말한다(㉞).
+        "vs_hold": _vs_hold_of(port),
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
         "top_names": top_names,
@@ -309,6 +328,21 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
                 "정상입니다. 확실히 나은 것만 바꾸는 게 규칙이니까요.")
 
     twr_line = f" · 실력지표(TWR) {twr}" if twr else ""
+    # ⚠️ **이 단계의 진짜 점수**(감사 277). 절대 수익만 방송하면 시장이 오른
+    #    날은 실력처럼, 내린 날은 억울해 보인다. 지금 증명하려는 것은
+    #    "1억"이 아니라 "그냥 보유보다 낫다" 하나다 — 그러면 방송도 그
+    #    질문에 답해야 한다. 못 재는 날에는 **아무 말도 하지 않는다.**
+    _vh = x.get("vs_hold")
+    if _vh:
+        _d = abs(_vh["diff"])
+        bench_line = (f"\n📊 그냥 전 종목을 사서 들고만 있었다면 "
+                      f"{_vh['hold']:,.0f}원 — 이 시스템은 그보다 "
+                      f"{_d:,.0f}원 "
+                      f"{'앞섭니다' if _vh['ahead'] else '뒤집니다'}"
+                      f"({_vh['diff_pct']:+.2f}%p)")
+        bench_short = (f" · 보유 대비 {_vh['diff_pct']:+.2f}%p")
+    else:
+        bench_line = bench_short = ""
     ig = (
         f"{_hook(x)}\n"
         f"\n"
@@ -317,7 +351,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"공개 실험. 목표는 1억이 아니라, '이 과정 전체를 숨김없이 "
         f"보여주는 것'입니다.\n"
         f"\n"
-        f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}\n"
+        f"💰 자산 {eq} (누적 {ret}{day_line}){twr_line}{bench_line}\n"
         f"📈 {money} · {spread}(코인·한국·미국)\n"
         f"🎯 오늘 배분 상위: {tops}{kill}{owner}{restart_line}\n"
         f"\n"
@@ -339,7 +373,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         f"{_hook(x)}\n"
         f"\n"
         f"📊 100만 챌린지 {day} · {date}\n"
-        f"💰 {eq} (누적 {ret}{day_line}) · {short_money}\n"
+        f"💰 {eq} (누적 {ret}{day_line}{bench_short}) · {short_money}\n"
         f"🎯 배분 상위: {tops}{kill}{owner}\n"
         f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
         f"🔗 {site_url}"
@@ -352,7 +386,7 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
         #    "고지는 지킨다"고 적혀 있었는데 코드가 그러지 않았다.
         th = (
             f"📊 100만 챌린지 {day} · {date}\n"
-            f"💰 {eq} (누적 {ret}{day_line}){kill}{owner}\n"
+            f"💰 {eq} (누적 {ret}{day_line}{bench_short}){kill}{owner}\n"
             f"⚠️ 모의투자 — 수익 보장 없음. 매일 그날 숫자 그대로.\n"
             f"🔗 {site_url}"
         )

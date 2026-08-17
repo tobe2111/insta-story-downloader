@@ -30,6 +30,7 @@
 <script src="assets/hitrate.js"></script>
 <script src="assets/exposure.js"></script>
 <script src="assets/amounts.js"></script>
+<script src="assets/benchmark.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -151,6 +152,10 @@ body:not(.detail) .side .flag:not(.crit){display:none}
 #glance .stale{margin-top:14px;padding:10px 12px;border-radius:10px;
   background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35);
   font-size:13px;line-height:1.6}
+#glance .bench{margin-top:14px;padding:10px 12px;border-radius:10px;
+  font-size:13.5px;line-height:1.6;border:1px solid var(--line-strong)}
+#glance .bench.up{background:rgba(240,68,82,.08)}
+#glance .bench.down{background:rgba(49,130,246,.08)}
 @media(max-width:640px){#glance .gnum{font-size:32px}}
 @media(max-width:1500px){
   .c8{grid-column:span 7} .c4{grid-column:span 5}
@@ -801,6 +806,20 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           '이 중 <b>'+won(heldVal)+'</b>이 종목에 들어가 있고, '+
           '<b>'+won(cashVal)+'</b>은 현금입니다.'+
         '</div>'+
+        /* ⚠️ **이 단계의 진짜 점수는 절대 수익이 아니다**(감사 276).
+           같은 기간 그냥 사서 들고만 있었어도 얼마였는지를 함께 적지 않으면,
+           시장이 오른 날은 실력처럼 보이고 내린 날은 억울해 보인다.
+           이 저장소가 증명하려는 것은 '1억'이 아니라 '그냥 보유보다 낫다'다. */
+        (function(){
+          const b=QuantBench.vsHold(pf&&pf.history, base);
+          return b?('<div class="'+(b.ahead?"bench up":"bench down")+'">'+
+            '📊 같은 기간 <b>그냥 전 종목을 사서 들고만 있었다면</b> '+
+            won(b.hold)+'입니다 — 지금 이 시스템은 그보다 <b>'+
+            won(Math.abs(b.diff))+' '+(b.ahead?"앞섭니다":"뒤집니다")+
+            '</b>('+(b.diff_pct>=0?"+":"")+b.diff_pct.toFixed(2)+'%p).'+
+            '<div class="sub" style="margin-top:4px">지금 증명하려는 것은 '+
+            '<b>1억이 아니라 "그냥 보유보다 낫다"</b> 하나입니다.</div></div>'):"";
+        })()+
         /* ⚠️ 준실시간 시세가 들어오면 **잔고 표만** "지금 999,xxx원"으로
            움직이고 이 카드는 확정값에 머물러 있었다(감사 275 · 사장님
            "실시간으로 페이지의 숫자들이 다 일치가 돼야 해"). 두 곳이 다른
