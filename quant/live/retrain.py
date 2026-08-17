@@ -156,9 +156,22 @@ DEFAULT_CHALLENGERS = [
 
 
 def _feature_set() -> str:
-    """현재 ML 피처셋 버전 태그 (장부 기록용)."""
+    """현재 ML 피처셋 버전 태그 (장부 기록용) — **선언된** 이름표다."""
     from quant.strategies.ml import FEATURE_SET
     return FEATURE_SET
+
+
+def _features_used(df) -> list[str]:
+    """그날 밤 이 종목에 **실제로 붙은** 선택 피처 이름들 (감사 271).
+
+    선언 태그(`feature_set`)와 짝을 이룬다. 둘이 갈라지는 순간이 바로
+    "모델이 보는 것이 바뀌었는데 아무도 모르는" 상태다.
+    """
+    try:
+        from quant.strategies.ml import optional_features_from_df
+        return sorted(optional_features_from_df(df))
+    except Exception:  # noqa: BLE001 — 기록 장치가 재학습을 죽이면 안 된다
+        return []
 
 
 def _key(market: str, symbol: str) -> str:
@@ -1051,6 +1064,14 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 피처셋 태그 — 피처는 '가설 그룹' 단위로 추가되며, 성과 변화가
         # 어느 배치 이후인지 이 태그로 추적한다(피처 중요도로 판단 금지).
         "feature_set": _feature_set(),
+        # ⚠️ 위 태그는 **선언**이다 — "이런 피처를 본다"고 사람이 적어 둔
+        #    이름표일 뿐, 그날 밤 실제로 붙은 것과 같다는 보장이 없다
+        #    (감사 271). 코인 펀딩·미결제약정 3개는 몇 주 동안 하나도 안
+        #    붙었는데 태그는 내내 같았고, 그래서 90일 판정 시계도 리셋되지
+        #    않았다. 죽은 피처가 되살아나면 **모델이 보는 것이 달라지는데
+        #    시계는 그대로** — 90일 뒤에 "그 표본은 섞여 있었다"를 알게 된다.
+        #    그래서 그날 밤 **실제로 붙은 선택 피처**를 함께 남긴다.
+        "features_used": _features_used(df),
         # 의회 구성 — "챔피언 교체" 대신 "구성 변화"의 서사이자 감사 흔적
         "parliament": [{"strategy": m["strategy"], "weight": m["weight"]}
                        for m in entry.get("parliament", [])],

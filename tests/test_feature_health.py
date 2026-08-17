@@ -285,7 +285,50 @@ def test_an_empty_krx_response_says_so():
 
     out = attach_krx_flows(_df(), "005930.KS", fetch=lambda _s: None)
     errs = source_errors(out)
-    assert "krx_flows" in errs and "pykrx" in errs["krx_flows"], errs
+    assert "krx_flows" in errs, errs
+    assert "005930.KS" in errs["krx_flows"], (
+        f"어느 종목에서 비었는지 안 적힌다: {errs}")
+    # ⚠️ 예전에는 여기 사유에 "pykrx 미설치·코드 불일치·조회 실패 가능"이라는
+    #    **세 가지 가능성이 나열**돼 있었다(감사 272). 배치에는 pykrx가
+    #    설치돼 있으므로 첫 번째는 답이 아닌데, 그렇게 적혀 있으니 몇 주
+    #    동안 그쪽을 의심하게 만들었다. 원인을 아는 실패는 이제 각자의
+    #    사유로 올라온다 — 여기 남는 것은 '한국 종목이 아니다'뿐이다.
+    assert "pykrx" not in errs["krx_flows"], (
+        f"원인이 아닌 것을 사유에 적고 있다 — 사람이 엉뚱한 곳을 뒤진다: {errs}")
+
+
+def test_krx_failures_do_not_all_look_the_same(monkeypatch):
+    """라이브러리 없음·조회 실패·컬럼 변경은 **다르게 대응해야 할 사건**이다.
+
+    셋이 같은 문장으로 남으면, 장부는 "없음"만 말하고 사람은 매번 처음부터
+    조사한다. 실제로 그래서 수급 피처 2개가 몇 주 동안 방치됐다(감사 272).
+    """
+    import pandas as pd
+
+    from quant.data import krx as K
+    from quant.data.source_health import source_errors
+
+    seen = {}
+    for name, boom in (
+            ("조회실패", lambda *a, **k: (_ for _ in ()).throw(
+                RuntimeError("HTTP 500"))),
+            ("컬럼변경", lambda *a, **k: pd.DataFrame(
+                {"개인": [1.0]},
+                index=pd.DatetimeIndex(["2026-01-01"])))):
+        class _Stock:
+            get_market_trading_value_by_date = staticmethod(boom)
+        monkeypatch.setitem(__import__("sys").modules, "pykrx",
+                            type("M", (), {"stock": _Stock})())
+        out = K.attach_krx_flows(_df(), "005930.KS")
+        seen[name] = source_errors(out).get("krx_flows", "")
+        assert seen[name], f"{name}: 사유가 안 남는다"
+    assert seen["조회실패"] != seen["컬럼변경"], (
+        f"서로 다른 고장이 같은 문장으로 나간다: {seen}")
+    assert "500" in seen["조회실패"], (
+        f"조회가 어떻게 거절됐는지가 사라진다 — 'HTTP 500'인지 시간 초과인지 "
+        f"모르면 대응이 갈린다: {seen['조회실패']}")
+    assert "개인" in seen["컬럼변경"], (
+        f"컬럼이 바뀐 경우 **뭐가 왔는지**를 안 적는다: {seen['컬럼변경']}")
 
 
 def test_a_healthy_source_leaves_no_noise():

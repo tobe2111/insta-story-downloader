@@ -24,36 +24,53 @@ log = get_logger("data.krx")
 
 
 def fetch_investor_net(symbol: str, limit: int = 160) -> pd.DataFrame | None:
-    """일자별 외국인/기관 순매수대금 DataFrame(컬럼 frgn, inst). 실패 시 None."""
+    """일자별 외국인/기관 순매수대금 DataFrame(컬럼 frgn, inst).
+
+    ⚠️ **실패의 종류를 뭉개지 않는다** (감사 272). 예전에는 라이브러리
+    없음·조회 예외·컬럼 이름 변경이 전부 `None` 하나로 돌아왔다. 그래서
+    장부에는 매번 "KRX 순매수가 비어 있음(미설치·코드 불일치·조회 실패
+    가능)"이라는 **세 가지 가능성을 나열한 한 문장**만 남았고, 수급 피처
+    2개가 몇 주 동안 안 붙는 동안 아무도 원인을 좁히지 못했다. 배치에는
+    pykrx가 설치돼 있으므로 그 셋 중 첫 번째는 애초에 답이 아니었는데,
+    문구가 그렇게 적혀 있으니 계속 그쪽을 의심하게 만들었다.
+
+    이제 원인을 아는 실패는 **그 사유를 그대로 들고 예외로 올라간다** —
+    부착 함수가 받아 장부에 적는다. 한국 종목이 아닌 경우만 None이다
+    (그건 실패가 아니라 해당 없음).
+    """
     code = symbol.split(".")[0]
     if not code.isdigit():
         return None
     try:
         from pykrx import stock
-    except ImportError:
-        log.info("pykrx 미설치 — KRX 수급 피처 생략")
-        return None
+    except ImportError as exc:
+        raise RuntimeError("pykrx 미설치 — 배치에는 설치돼 있어야 한다") from exc
+    end = _dt.date.today()
+    start = end - _dt.timedelta(days=int(limit * 1.6))   # 휴장일 여유
     try:
-        end = _dt.date.today()
-        start = end - _dt.timedelta(days=int(limit * 1.6))   # 휴장일 여유
         raw = stock.get_market_trading_value_by_date(
             start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), code)
-        if raw is None or raw.empty:
-            return None
-        cols = {}
-        for name in raw.columns:
-            if "외국인" in str(name):
-                cols.setdefault("frgn", raw[name])
-            elif "기관" in str(name):
-                cols.setdefault("inst", raw[name])
-        if "frgn" not in cols:
-            return None
-        out = pd.DataFrame(cols)
-        out.index = pd.DatetimeIndex(out.index).normalize()
-        return out[~out.index.duplicated(keep="last")].sort_index()
     except Exception as exc:  # noqa: BLE001 — 스크래핑 실패는 흔하다(무해해야)
         log.warning("KRX 수급 조회 실패 %s: %s", symbol, exc)
-        return None
+        raise RuntimeError(
+            f"KRX 조회 실패({type(exc).__name__}: {exc})") from exc
+    if raw is None or len(raw) == 0:
+        raise RuntimeError(
+            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 구간에 빈 표를 줬다")
+    cols = {}
+    for name in raw.columns:
+        if "외국인" in str(name):
+            cols.setdefault("frgn", raw[name])
+        elif "기관" in str(name):
+            cols.setdefault("inst", raw[name])
+    if "frgn" not in cols:
+        # 컬럼 이름이 바뀌면 값은 멀쩡한데 피처만 사라진다 — 가장 찾기 어려운
+        # 고장이므로, 실제로 뭐가 왔는지를 장부에 그대로 남긴다.
+        raise RuntimeError(
+            f"'외국인' 컬럼이 없다 — 받은 컬럼: {list(raw.columns)[:6]}")
+    out = pd.DataFrame(cols)
+    out.index = pd.DatetimeIndex(out.index).normalize()
+    return out[~out.index.duplicated(keep="last")].sort_index()
 
 
 def attach_krx_flows(df: pd.DataFrame, symbol: str,
@@ -62,9 +79,11 @@ def attach_krx_flows(df: pd.DataFrame, symbol: str,
     try:
         flows = fetch(symbol)
         if flows is None or flows.empty:
+            # 여기 남는 것은 '한국 종목이 아니다' 정도다. 원인을 아는 실패는
+            # 예외로 올라와 아래 except가 **그 사유 그대로** 적는다(감사 272).
             note_source_failure(df, "krx_flows",
-                                "KRX 투자자별 순매수가 비어 있음(pykrx 미설치·"
-                                "종목코드 불일치·조회 실패 가능)")
+                                f"KRX 투자자별 순매수가 비어 있음({symbol}이 "
+                                "한국 종목 코드가 아닐 수 있다)")
             return df
         out = df.copy()
         target = pd.DatetimeIndex(out.index).normalize()
