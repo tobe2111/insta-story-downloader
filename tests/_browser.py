@@ -23,8 +23,10 @@
   ② ``~/.cache/ms-playwright`` (``playwright install``의 기본 자리 — CI)
   ③ ``/opt/pw-browsers`` (①이 안 걸릴 때의 이 컨테이너 기본값)
 
-찾은 것이 없으면 빈 문자열을 돌려준다 — 부르는 쪽이 건너뛴다. 다만 그
-건너뜀이 다시 조용해지지 않도록, 워크플로가 브라우저를 실제로 설치하는지는
+부르는 쪽은 ``chrome_exe()``가 아니라 **``chromium_or_skip()``**을 쓴다 —
+없을 때 건너뛰는 판단까지 여기서 한다. 왜 그래야 하는지는 그 함수의 설명에
+적어 두었다(빈 문자열을 경로로 다루면 ``Path("")``가 현재 디렉터리가 된다).
+그 건너뜀이 다시 조용해지지 않도록, 워크플로가 브라우저를 실제로 설치하는지는
 ``tests/test_the_page_contracts_actually_run.py``가 따로 지킨다.
 """
 
@@ -33,7 +35,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__all__ = ["chrome_exe", "block_external", "CHROME_SEARCH_ROOTS"]
+__all__ = ["chrome_exe", "chromium_or_skip", "block_external",
+           "CHROME_SEARCH_ROOTS"]
 
 # 실행 파일 이름은 playwright 판마다 다르다(정식 크롬 / 헤드리스 셸).
 _PATTERNS = (
@@ -105,3 +108,37 @@ def block_external(page) -> None:
             pass
 
     page.route("**/*", _handle)
+
+
+def chromium_or_skip():
+    """크로미움 실행 파일 경로. 없으면 **여기서 검사를 건너뛴다.**
+
+    ⚠️ 왜 함수로 만들었나 (2026-08-17 밤, 감사 280 — 내가 낸 사고).
+       감사 278에서 경로 찾기를 한 곳으로 모으면서 파일마다 이렇게 남겨 뒀다.
+
+           CHROME = chrome_exe()          # 못 찾으면 ""
+           if not Path(CHROME).exists():
+               pytest.skip("chromium 없음")
+
+       그런데 **`Path("")`는 `PosixPath('.')`이고, 현재 디렉터리는 언제나
+       존재한다.** 그래서 브라우저가 없는 기계에서 이 관문이 통과해 버렸고,
+       playwright에게 `executable_path="."`를 넘겨 `spawn . EACCES`로 죽었다.
+
+       그 대가가 컸다. `scripts/ledger_gate.py`가 도는 배치 넷
+       (daily-paper · nightly-retrain · kr-live · deposit)은 커밋 **전에**
+       장부 검사를 돌리는데, 그 목록에 이 브라우저 검사가 섞여 있었다.
+       배치 러너에는 브라우저가 없다 → 관문이 죽는다 → **그날 기록이
+       아예 안 남는다.** 2026-08-17 밤 페이퍼·재학습 배치가 그렇게 멈췄다.
+
+       '없음'을 빈 문자열로 표현하면 어딘가에서 반드시 다른 뜻이 된다
+       (FROZEN_IDEAS ㊿+㉛ '끄려고 적은 글자가 켜는 결과를 낸다'와 같은 계열).
+       그래서 존재 확인과 건너뛰기를 **부르는 쪽에 맡기지 않는다.**
+    """
+    import pytest
+
+    pytest.importorskip("playwright.sync_api",
+                        reason="playwright 없음 — 화면 검사 생략")
+    exe = chrome_exe()
+    if not exe or not Path(exe).is_file():
+        pytest.skip("chromium 없음 — 화면 검사 생략")
+    return exe

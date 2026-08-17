@@ -44,9 +44,8 @@ from quant.reporting.benchmark import vs_hold  # noqa: E402
 # 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
 # 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _browser import block_external, chrome_exe  # noqa: E402
+from _browser import block_external, chromium_or_skip  # noqa: E402
 
-CHROME = chrome_exe()
 
 # 2026-08-13~15 실측 장부 — 이 파일의 숫자는 전부 여기서 왔다.
 REAL = [{"date": "2026-08-13", "price": 100.0, "equity": 999635},
@@ -164,8 +163,6 @@ def test_python_and_javascript_do_not_drift():
 def _render(tmp_path, history, principal):
     pytest.importorskip("playwright.sync_api",
                         reason="playwright 없음 — 화면 검사 생략")
-    if not Path(CHROME).exists():
-        pytest.skip("chromium 없음 — 화면 검사 생략")
     from playwright.sync_api import sync_playwright
 
     shutil.copytree(ROOT / "docs", tmp_path, dirs_exist_ok=True)
@@ -186,7 +183,7 @@ def _render(tmp_path, history, principal):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         with sync_playwright() as p:
-            b = p.chromium.launch(executable_path=CHROME)
+            b = p.chromium.launch(executable_path=chromium_or_skip())
             pg = b.new_page()
             block_external(pg)
             errors = []

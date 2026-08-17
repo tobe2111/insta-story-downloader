@@ -210,3 +210,90 @@ def test_every_browser_test_cuts_the_outside_world():
     assert not bad, (
         f"바깥 네트워크를 안 끊는 화면 검사: {bad} — _browser.block_external()을 "
         "부를 것(시세가 필요한 검사는 그 뒤에 page.route로 자기 응답을 심는다)")
+
+
+# ── 브라우저가 **없는** 기계에서도 안전한가 (감사 280) ──────────
+#
+# ⚠️ 감사 278의 수리가 그날 밤 배치를 죽였다. 경로 찾기를 한 곳으로 모으면서
+#    '못 찾음'을 빈 문자열로 돌려줬고, 부르는 쪽은 이렇게 확인했다.
+#
+#        if not Path(CHROME).exists():   # CHROME == ""
+#            pytest.skip(...)
+#
+#    **`Path("")`는 `PosixPath('.')`이고 현재 디렉터리는 언제나 존재한다.**
+#    그래서 브라우저 없는 러너에서 관문이 통과했고, playwright에
+#    `executable_path="."`가 넘어가 `spawn . EACCES`로 죽었다. 하필 그 검사
+#    파일이 배치의 장부 관문 목록에 있어서, 2026-08-17 밤 페이퍼·재학습
+#    배치가 **기록을 한 줄도 남기지 못하고** 멈췄다.
+
+def test_no_test_guards_the_browser_with_a_bare_path_check():
+    """빈 문자열을 경로로 다루는 확인이 남아 있으면 같은 사고가 반복된다."""
+    bad = []
+    for p in sorted(TESTS.glob("test_*.py")):
+        if p.name == Path(__file__).name:
+            continue
+        for i, ln in enumerate(p.read_text("utf-8").splitlines(), 1):
+            if "Path(CHROME)" in ln or "Path(chrome_exe())" in ln:
+                bad.append(f"{p.name}:{i}")
+    assert not bad, (
+        f"빈 문자열이 '.'가 되는 확인이 남아 있다: {bad} — "
+        "_browser.chromium_or_skip()을 쓸 것")
+
+
+def test_every_browser_test_asks_the_shared_guard():
+    """launch에 넘기는 경로는 반드시 그 관문을 통과한 값이어야 한다."""
+    bad = []
+    for p in sorted(TESTS.glob("test_*.py")):
+        src = p.read_text("utf-8")
+        if "sync_playwright" not in src:
+            continue
+        if "executable_path=chromium_or_skip()" not in src:
+            bad.append(p.name)
+    assert not bad, (
+        f"공용 관문을 안 거치고 브라우저를 띄우는 검사: {bad}")
+
+
+def test_the_guard_skips_instead_of_handing_over_a_bogus_path(monkeypatch):
+    """대조군 — 아무것도 못 찾으면 **건너뛰어야** 한다(통과가 아니라).
+
+    ⚠️ `pytest.skip()`이 던지는 Skipped는 `Exception`이 아니라
+       `BaseException`을 상속한다. `pytest.raises(Exception)`으로 잡으면
+       **이 검사 자신이 건너뛰어지고**, 그러면 아무것도 안 지킨다 —
+       오늘 하루 종일 잡은 바로 그 모양이라 여기서 못 박는다.
+    """
+    from _pytest.outcomes import Skipped
+
+    import _browser
+    monkeypatch.setattr(_browser, "_roots", lambda: [])
+    with pytest.raises(Skipped):
+        _browser.chromium_or_skip()
+
+
+def test_the_ledger_gate_does_not_need_a_browser():
+    """배치가 커밋 직전에 돌리는 관문은 **가볍고 장부만** 봐야 한다.
+
+    화면 검사가 이 목록에 섞이면, 브라우저가 없는 배치 러너에서 화면과
+    아무 상관 없는 이유로 그날 기록이 통째로 사라진다. 2026-08-17 밤에
+    실제로 그랬다 — 조용히 틀리는 것보다는 낫지만, 멈출 이유가 아니었다.
+    """
+    import ast
+
+    src = (ROOT / "scripts" / "ledger_gate.py").read_text("utf-8")
+    tree = ast.parse(src)
+    checks = None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and getattr(
+                node.targets[0], "id", "") == "LEDGER_CHECKS":
+            checks = [c.value for c in node.value.elts]
+    assert checks, "LEDGER_CHECKS를 못 찾았다 — 검사가 낡았다"
+    heavy = []
+    for rel in checks:
+        f = ROOT / rel
+        if not f.exists():
+            continue
+        s = f.read_text("utf-8")
+        if "sync_playwright" in s or "_browser" in s or "playwright" in s:
+            heavy.append(rel)
+    assert not heavy, (
+        f"장부 관문이 브라우저에 의존한다: {heavy} — 화면 검사는 별도 파일로 "
+        "빼고 관문은 장부만 볼 것")

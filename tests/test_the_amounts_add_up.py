@@ -206,9 +206,8 @@ def test_python_and_javascript_do_not_drift():
 # 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
 # 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _browser import block_external, chrome_exe  # noqa: E402
+from _browser import block_external, chromium_or_skip  # noqa: E402
 
-CHROME = chrome_exe()
 
 
 def _render(tmp_path, page, selector, detail=False):
@@ -224,8 +223,6 @@ def _render(tmp_path, page, selector, detail=False):
 
     pw = pytest.importorskip("playwright.sync_api",
                              reason="playwright 없음 — 화면 렌더 검사 생략")
-    if not Path(CHROME).exists():
-        pytest.skip("chromium 없음 — 화면 렌더 검사 생략")
 
     import shutil as _sh
     _sh.copytree(ROOT / "docs", tmp_path, dirs_exist_ok=True)
@@ -267,7 +264,7 @@ def _render(tmp_path, page, selector, detail=False):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         with pw.sync_playwright() as p:
-            b = p.chromium.launch(executable_path=CHROME)
+            b = p.chromium.launch(executable_path=chromium_or_skip())
             pg = b.new_page()
             block_external(pg)
             errors = []

@@ -5444,6 +5444,18 @@ MUTATIONS = [
      "        _p = PORTFOLIO_START_CASH",
      "        _p = 0.0",
      "tests/test_social_path_stays_light.py"),
+
+    # ── 감사 280 — 브라우저가 **없는** 기계에서도 안전한가 ────────
+    #
+    # 감사 278의 수리가 그날 밤 배치를 죽였다. 장부 관문에 브라우저 검사가
+    # 섞여 있었고, 배치 러너에는 브라우저가 없어 관문이 통째로 죽었다 —
+    # 화면과 아무 상관 없는 이유로 **그날 기록이 한 줄도 안 남았다.**
+    ("장부 관문에 화면 검사를 다시 섞는다(브라우저 없는 배치가 기록을 못 남긴다)",
+     "scripts/ledger_gate.py",
+     '    "tests/test_one_account_cannot_hold_two_currencies.py",  # 통화 혼재(감사 254)',
+     '    "tests/test_one_account_cannot_hold_two_currencies.py",\n'
+     '    "tests/test_the_screen_says_who_took_the_budget.py",',
+     "tests/test_the_page_contracts_actually_run.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

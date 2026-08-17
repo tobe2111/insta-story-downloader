@@ -38,9 +38,8 @@ IDX = (ROOT / "docs" / "index.html").read_text("utf-8")
 # 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
 # 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _browser import block_external, chrome_exe  # noqa: E402
+from _browser import block_external, chromium_or_skip  # noqa: E402
 
-CHROME = chrome_exe()
 
 
 # ── 삼키지 않는가 (소스 계약) ─────────────────────────────────
@@ -89,12 +88,10 @@ def _serve(tmp_path, patch: dict):
 def _flags_text(tmp_path, patch: dict) -> str:
     pw = pytest.importorskip("playwright.sync_api",
                              reason="playwright 없음 — 화면 렌더 검사 생략")
-    if not Path(CHROME).exists():
-        pytest.skip("chromium 없음 — 화면 렌더 검사 생략")
     url, srv = _serve(tmp_path, patch)
     try:
         with pw.sync_playwright() as p:
-            b = p.chromium.launch(executable_path=CHROME)
+            b = p.chromium.launch(executable_path=chromium_or_skip())
             page = b.new_page()
             block_external(page)
             page.goto(url)
