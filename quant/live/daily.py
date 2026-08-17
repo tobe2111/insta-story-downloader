@@ -3220,6 +3220,19 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 감시 기록이 없어도 사이트는 갱신된다
         pass
 
+    # 사용자 고정(pin) — 설치형 사용자가 심사와 무관하게 자기 전략을 지정한
+    # 종목. 화면이 이 사실을 말하지 않으면, 그 성적이 시스템 심사의 결과처럼
+    # 읽힌다(우리 공개 계좌에는 고정이 없어 이 칸은 비어 있다).
+    try:
+        from quant.live.pin import load_pins
+        _pins = load_pins(state_dir)
+        if _pins:
+            status["pins"] = {k: {"name": v.get("name"),
+                                  "since": v.get("since")}
+                              for k, v in _pins.items()}
+    except Exception:  # noqa: BLE001 — 고정 파일 문제로 사이트가 죽으면 안 된다
+        pass
+
     # 야간 검증(PBO·DSR) 장부 — 과최적화 감시가 사이트·경보로 이어지게
     vpath = os.path.join(state_dir, "validation.json")
     if os.path.exists(vpath):

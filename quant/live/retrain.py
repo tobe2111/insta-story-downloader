@@ -581,7 +581,17 @@ def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
 
     실행파일/새 설치처럼 state/가 없는 환경에서도 항상 동작해야 하므로
     폴백은 조용히 일어난다(기본 챔피언 = ml logreg, MLStrategy 기본값과 동일).
+
+    **사용자 고정(pin)이 있으면 그것이 먼저다** — 설치형 사용자가 확인
+    문구까지 타이핑해 "이 전략으로 매매해"라고 명시한 종목은 심사 결과와
+    무관하게 그 전략이 맡는다. 챔피언 기록은 계속 쌓인다(고정을 풀면 즉시
+    복귀). 크기 결정(킬스위치·변동성 타깃·검증 게이트)은 신호의 출처를
+    보지 않으므로 고정돼도 그대로 걸린다.
     """
+    from quant.live.pin import pinned_spec
+    pin = pinned_spec(market, symbol, state_dir)
+    if pin:
+        return pin
     entry = load_champions(state_dir).get(_key(market, symbol))
     if entry:
         return {"strategy": entry["strategy"], "params": dict(entry["params"])}
@@ -606,6 +616,17 @@ def champion_strategy(market: str, symbol: str, state_dir: str = STATE_DIR):
             self._impl = None
 
         def _refresh(self) -> None:
+            # 사용자 고정이 있으면 의회보다도 먼저다 — 사용자가 명시한
+            # 전략을 의회가 희석하면 "내 전략으로 매매"가 거짓말이 된다.
+            from quant.live.pin import pinned_spec
+            pin = pinned_spec(market, symbol, state_dir)
+            if pin:
+                if pin != self._spec:
+                    log.info("📌 사용자 고정 전략 적용: %s",
+                             pin["params"]["spec"].get("name"))
+                    self._impl = build_strategy(pin)
+                    self._spec = pin
+                return
             # 의회(다수 의원)가 있으면 혼합 전략으로, 아니면 단일 챔피언으로.
             # 스펙 비교 키에 의회 명단을 포함해 구성 변화도 핫리로드된다.
             entry = load_champions(state_dir).get(_key(market, symbol))

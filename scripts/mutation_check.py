@@ -2367,6 +2367,43 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # ── 내 전략 고정(pin) — 설치형 사용자의 강제 적용 (2026-08-17) ───────
+    # 전략은 사용자의 것, 브레이크는 우리의 것. 여기의 병 세 가지:
+    # 고정이 안 먹거나 / 확인 없이 먹거나 / 고정 사실이 숨거나.
+    ("고정이 챔피언 결정에 안 먹힌다(사용자는 자기 전략이 돈다고 믿는다)",
+     "quant/live/retrain.py",
+     "    pin = pinned_spec(market, symbol, state_dir)\n"
+     "    if pin:\n"
+     "        return pin",
+     "    pin = None\n"
+     "    if pin:\n"
+     "        return pin",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("핫리로드 경로에서 고정이 무시된다(재시작 전까지 다른 전략이 돈다)",
+     "quant/live/retrain.py",
+     "            pin = pinned_spec(market, symbol, state_dir)\n"
+     "            if pin:",
+     "            pin = None\n"
+     "            if pin:",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("확인 문구 없이 고정된다(클릭 한 번짜리 '확인'이 된다)",
+     "quant/live/pin.py",
+     "    if ack.strip() != ACK_PHRASE:",
+     "    if False:",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("깨진 고정 파일을 '고정 없음'으로 삼킨다(다른 전략이 조용히 돈다)",
+     "quant/live/pin.py",
+     '        raise RuntimeError(f"고정 파일 손상: {exc}") from exc',
+     "        return {}",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("고정 사실이 화면에서 사라진다(사용자 지정이 심사 결과처럼 읽힌다)",
+     "quant/live/daily.py",
+     '            status["pins"] = {k: {"name": v.get("name"),\n'
+     '                                  "since": v.get("since")}\n'
+     "                              for k, v in _pins.items()}",
+     "            pass",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+
     # ── 위기 재생·스트레스 — 실전 브레이크의 위기 검증 (2026-08-17) ──────
     # 수익이 아니라 위험 층을 과거 위기·가상 시나리오로 재는 장치. 여기의
     # 병은 하나다: 브레이크 없이 계산해 놓고 브레이크를 검증했다고 말하는 것.
