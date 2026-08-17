@@ -20,8 +20,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from quant.live import flag_watch  # noqa: E402
 
+# 이 파일이 재는 것은 **전달 계약**이지 장부의 신선도가 아니다. 오늘을
+# 고정해 두지 않으면 날이 갈수록 감사 264의 정체 경보가 하나씩 더 끼어들어
+# "몇 건 보냈나"가 흔들린다 — 시간이 지나면 깨지는 검사는 검사가 아니다.
+_DAY = "2026-08-11"
 _STATUS = {"paper": {"portfolio:ALL": {"history": [
-    {"date": "2026-08-11", "risk_scale": 0.75, "drawdown_pct": -8.2}]}}}
+    {"date": _DAY, "risk_scale": 0.75, "drawdown_pct": -8.2}]}}}
 
 
 class _Notifier:
@@ -42,14 +46,14 @@ def _saved(tmp_path):
 def test_failed_alert_is_retried_next_run(tmp_path, monkeypatch):
     fail = _Notifier(ok=False)
     monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: fail)
-    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path))
+    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path), today=_DAY)
     assert new == []                       # 보냈다고 보고하지 않는다
     assert len(fail.sent) == 1             # 시도는 했다
     assert not _saved(tmp_path)            # 장부에 '보냄'으로 남기지 않는다
 
     ok = _Notifier(ok=True)
     monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: ok)
-    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path))
+    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path), today=_DAY)
     assert any(k.startswith("killswitch:") for k in new)   # 다음 실행에 재시도
     assert len(ok.sent) == 1
     assert _saved(tmp_path)
@@ -58,8 +62,8 @@ def test_failed_alert_is_retried_next_run(tmp_path, monkeypatch):
 def test_successful_alert_is_not_repeated(tmp_path, monkeypatch):
     ok = _Notifier(ok=True)
     monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: ok)
-    flag_watch.check_and_notify_flags(_STATUS, str(tmp_path))
-    flag_watch.check_and_notify_flags(_STATUS, str(tmp_path))
+    flag_watch.check_and_notify_flags(_STATUS, str(tmp_path), today=_DAY)
+    flag_watch.check_and_notify_flags(_STATUS, str(tmp_path), today=_DAY)
     assert len(ok.sent) == 1               # 같은 경보는 한 번만
 
 
@@ -71,7 +75,7 @@ def test_legacy_notifier_returning_none_counts_as_sent(tmp_path, monkeypatch):
 
     old = _Old()
     monkeypatch.setattr("quant.live.notifications.get_notifier", lambda: old)
-    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path))
+    new = flag_watch.check_and_notify_flags(_STATUS, str(tmp_path), today=_DAY)
     assert new and _saved(tmp_path)
 
 

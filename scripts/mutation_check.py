@@ -3604,7 +3604,7 @@ MUTATIONS = [
 
     ("배분 예산을 매수 비중이라 부른다(관망 종목 방송)",
      "quant/reporting/social.py",
-     "    keep = (list(src) if applied\n"
+     "    keep = ([k for k, _ in _expo.top(applied, len(applied))] if applied\n"
      "            else [k for k in src if _held_on(status, k, date)])",
      "    keep = list(src)",
      "tests/test_alloc_is_not_a_purchase.py"),
@@ -4866,6 +4866,67 @@ MUTATIONS = [
      '        "survivorship_biased": True,',
      '        "survivorship_biased": False,',
      "tests/test_the_long_check_says_it_is_biased.py"),
+
+    # ── 감사 264 — 장부가 숏의 부호를 지우고, 죽은 페이지가 조용했다 ──
+    ("장부가 숏의 부호를 지운다(숏 -30%가 롱 30%로 남는다)",
+     "quant/live/daily.py",
+     "    applied = {k: round(v, 4) for k, v in fitted_w.items() if abs(v) > 0}",
+     "    applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("순노출을 총노출과 같게 만든다(롱숏 반반이 '시장 중립'으로 안 읽힌다)",
+     "quant/live/daily.py",
+     "    net_exposure = sum(fitted_w.values())",
+     "    net_exposure = sum(abs(v) for v in fitted_w.values())",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("증거금 거부를 현금 부족으로 적는다(경보가 원인을 잘못 말한다)",
+     "quant/live/daily.py",
+     '              "short_refused": _rejected_rows(broker, "short_over") or None,',
+     '              "short_refused": _rejected_rows(broker, "need") or None,',
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("'들고 있다'를 롱만으로 본다(숏이 화면에서 통째로 사라진다)",
+     "quant/reporting/exposure.py",
+     "    return math.isfinite(x) and abs(x) > 0",
+     "    return math.isfinite(x) and x > 0",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("상위 노출을 부호로 정렬한다(가장 큰 숏이 목록 맨 끝으로 밀린다)",
+     "quant/reporting/exposure.py",
+     "    rows.sort(key=lambda kv: -abs(kv[1]))",
+     "    rows.sort(key=lambda kv: -kv[1])",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("캡션이 숏을 롱처럼 적는다(팔아 둔 종목이 '배분 상위'로 나간다)",
+     "quant/reporting/social.py",
+     '                 + ("(숏)" if v < 0 else "")',
+     '                 + ""',
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("브라우저 쪽 '들고 있다'만 롱으로 되돌린다(두 언어가 갈라진다)",
+     "docs/assets/exposure.js",
+     "    return isFinite(x) && Math.abs(x) > 0;",
+     "    return isFinite(x) && x > 0;",
+     "tests/test_the_ledger_keeps_the_direction.py"),
+
+    ("오래된 경보에서 날짜 딱지를 뗀다(이틀 전 사고가 오늘 일로 나간다)",
+     "quant/live/flag_watch.py",
+     "    if day and age is not None and age >= 1:",
+     "    if day and age is not None and age >= 3:",
+     "tests/test_the_alarm_says_when_it_happened.py"),
+
+    ("정체 경보 키에서 나이를 뺀다(하루 더 멈춰도 다시 안 울린다)",
+     "quant/live/flag_watch.py",
+     '            flags[f"ledger_stalled:{key}:{_age}"] = (',
+     '            flags[f"ledger_stalled:{key}"] = (',
+     "tests/test_the_alarm_says_when_it_happened.py"),
+
+    ("'오늘의 판단'이 없는 스크립트를 부르게 되돌린다(페이지가 통째로 죽는다)",
+     "docs/today.html",
+     '<script src="assets/tv-symbols.js"></script>',
+     '<script src="assets/tradingview.js"></script>',
+     "tests/test_every_public_page_actually_renders.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

@@ -13,6 +13,45 @@ import json
 import os
 
 
+# 장부가 이 일수 이상 안 늘면 '배치가 멈췄다'로 본다. 통합 계좌에는 24시간
+# 시장(코인)이 들어 있어 주말·휴일에도 매일 늘어야 한다 — 그래서 2일이면
+# 이미 사건이다.
+LEDGER_STALE_DAYS = 2
+
+
+def _ledger_age(last: dict, today: str | None = None) -> tuple[str | None, int | None]:
+    """장부 마지막 기록의 (날짜, 며칠 전인가). 못 재면 (None, None).
+
+    ⚠️ 왜 필요한가 (2026-08-17, 감사 264). 이 파일의 경보들은 전부
+       `history[-1]`을 읽으면서 **그 기록이 오늘 것인지 묻지 않았다.**
+       그래서 배치가 커밋을 못 하면 며칠 전 기록의 경고가 매일 현재형으로
+       나간다. 실제로 그랬다 — 2026-08-16 밤, 이미 이틀 전에 되돌린
+       `cash_short`(감사 254 통화 사고)가 "지금 구조에서는 나올 수 없는
+       값입니다"라며 다시 나갔다.
+
+       오래된 경보를 **끄지는 않는다** — 아직 안 고쳤을 수도 있다. 대신
+       언제 것인지 밝힌다. 그리고 장부가 멈춘 것 자체를 따로 알린다.
+    """
+    import datetime as _dt
+
+    day = str(last.get("date") or "")[:10]
+    if not day:
+        return None, None
+    try:
+        d0 = _dt.date.fromisoformat(day)
+        d1 = (_dt.date.fromisoformat(today) if today else _dt.date.today())
+    except ValueError:
+        return day, None
+    return day, (d1 - d0).days
+
+
+def _as_of(message: str, day: str | None, age: int | None) -> str:
+    """오늘 기록이 아니면 언제 것인지 앞에 붙인다."""
+    if day and age is not None and age >= 1:
+        return f"[{day} 기록 · {age}일 전] {message}"
+    return message
+
+
 def _measured_cost_note(n: int) -> str:
     """실측 비용이 이미 적용 중인지 사실대로 말한다.
 
@@ -29,7 +68,7 @@ def _measured_cost_note(n: int) -> str:
             f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
 
 
-def _current_flags(status: dict) -> dict[str, str]:
+def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
     """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다.
 
     ⚠️ **받은 것만 본다.** 파일을 직접 읽지 않는다 — 2026-08-16에 장중 감시
@@ -144,14 +183,35 @@ def _current_flags(status: dict) -> dict[str, str]:
         if not key.startswith("portfolio:"):
             continue
         last = (p.get("history") or [{}])[-1]
+        # 이 아래 경보들은 전부 '마지막 기록'을 읽는다. 그 기록이 오늘 것인지
+        # 먼저 묻는다 — 안 물으면 며칠 전 사고가 매일 현재형으로 나간다.
+        _day, _age = _ledger_age(last, today)
+        if _age is not None and _age >= LEDGER_STALE_DAYS:
+            # 장부가 멈춘 것 **자체**가 사건이다. 배치 실패 경보는 워크플로가
+            # 따로 보내지만, 그 채널이 죽으면(감사 263) 아무도 모른다.
+            flags[f"ledger_stalled:{key}:{_age}"] = (
+                f"🚨 장부가 {_age}일째 안 늘고 있습니다(마지막 기록 {_day}). "
+                f"새벽 배치가 기록을 남기지 못했다는 뜻입니다 — 아래 경고들은 "
+                f"오늘이 아니라 그날의 상태입니다. 배치 로그를 확인하세요.")
         cs = last.get("cash_short") or []
         if cs:
             names = ", ".join(str(r.get("key")) for r in cs)
-            flags[f"cash_short:{key}:{len(cs)}"] = (
+            flags[f"cash_short:{key}:{len(cs)}"] = _as_of(
                 f"🚨 현금 부족으로 거부된 주문 {len(cs)}건: {names} — 지금 "
                 f"구조에서는 나올 수 없는 값입니다. 레버리지 금지선·수수료 "
                 f"버퍼·매도 우선 순서 중 하나가 새고 있다는 뜻이고, 계좌는 "
-                f"이유 없이 계획보다 덜 산 채로 굴러갑니다.")
+                f"이유 없이 계획보다 덜 산 채로 굴러갑니다.", _day, _age)
+        # 증거금 없이 팔려다 잘린 주문(감사 264). **현금 부족과 다른 사고다** —
+        # 계좌가 덜 산 게 아니라 **계획보다 덜 판** 것이고, 그 종목의 실제
+        # 노출은 장부의 목표와 다르다. 같은 이름으로 묶으면 원인을 잘못 짚는다.
+        sr = last.get("short_refused") or []
+        if sr:
+            names = ", ".join(str(r.get("key")) for r in sr)
+            flags[f"short_refused:{key}:{len(sr)}"] = _as_of(
+                f"🚨 증거금이 모자라 잘린 공매도 {len(sr)}건: {names} — 장부의 "
+                f"목표 노출과 계좌의 실제 보유가 그만큼 어긋나 있습니다. 숏은 "
+                f"아직 링에 없어야 하므로, 이 값이 찍혔다면 전략이나 증거금 "
+                f"설정 중 하나가 예상과 다릅니다.", _day, _age)
         # 요청보다 적은 표본으로 판단한 종목(감사 261). 성적이 나쁜 것이
         # 아니라 **성적을 말할 근거가 얇은** 상태다 — 이걸 모르면 300봉으로
         # 낸 결론을 800봉짜리 확신으로 읽는다. 종목 수가 바뀔 때만 다시
@@ -159,22 +219,22 @@ def _current_flags(status: dict) -> dict[str, str]:
         bs = last.get("bars_short") or {}
         if bs:
             worst = min(bs.items(), key=lambda kv: kv[1]["got"] / kv[1]["asked"])
-            flags[f"bars_short:{key}:{len(bs)}"] = (
+            flags[f"bars_short:{key}:{len(bs)}"] = _as_of(
                 f"⚠️ 표본이 모자란 채로 판단한 종목 {len(bs)}개 — 예: "
                 f"{worst[0]} {worst[1]['got']}/{worst[1]['asked']}봉. "
                 f"데이터 제공처가 요청한 만큼 주지 않았거나 상장 이력이 "
                 f"짧습니다. 이 종목들의 성적·과최적화 지표는 표본 부족의 "
                 f"산물일 수 있습니다(2026-08-15까지 코인 5종목이 800봉 "
-                f"요청에 300봉으로 굴러갔습니다).")
+                f"요청에 300봉으로 굴러갔습니다).", _day, _age)
         fr = last.get("fill_refused") or {}
         if fr:
             names = ", ".join(sorted(fr))
-            flags[f"fill_refused:{key}:{len(fr)}"] = (
+            flags[f"fill_refused:{key}:{len(fr)}"] = _as_of(
                 f"🚨 자릿수가 맞지 않아 거부된 체결 {len(fr)}건: {names} — "
                 f"체결가와 평가가격이 같은 통화가 아닌 것으로 보입니다. "
                 f"2026-08-15에 이 상태로 100만원 계좌가 7,249만원으로 "
                 f"기록됐습니다(감사 254). 대기 주문은 남아 있으므로 고치기 "
-                f"전까지 그 종목은 매일 거부됩니다.")
+                f"전까지 그 종목은 매일 거부됩니다.", _day, _age)
 
     # ③-4 장중 감시가 **예약대로 안 돌고 있다** (감사 262).
     #
@@ -412,7 +472,8 @@ def _current_flags(status: dict) -> dict[str, str]:
     return flags
 
 
-def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
+def check_and_notify_flags(status: dict, state_dir: str = "state",
+                           today: str | None = None) -> list[str]:
     """새로 켜진 플래그만 알림 발송하고 현재 집합을 저장한다. 반환: 새 키들."""
     from quant.utils.jsonio import atomic_write_json
 
@@ -424,7 +485,7 @@ def check_and_notify_flags(status: dict, state_dir: str = "state") -> list[str]:
                 prev = set(json.load(f).get("flags") or [])
         except (OSError, ValueError):
             prev = set()
-    cur = _current_flags(status)
+    cur = _current_flags(status, today)
     new = [k for k in cur if k not in prev]
     # 전송에 실패한 경보는 '보냈다'로 적지 않는다 — 적으면 다음 실행부터
     # '이미 켜져 있던 플래그'로 분류돼 **영원히 다시 오지 않는다**. 웹훅이

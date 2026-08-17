@@ -99,21 +99,32 @@ def _today_numbers(status: dict) -> dict:
     #    쓰면 그날 한 주도 안 산 종목이 "오늘 배분 상위"로 나간다(감사 91).
     #    장부의 applied(종목별 실제 적용 노출)를 쓰고, 그게 없는 옛 기록은
     #    그날 종목 장부의 비중이 0인 종목을 뺀다.
+    # ⚠️ 숏은 부호가 음수다(감사 264). 예전에는 장부가 `abs()`로 적어 부호
+    #    자체가 없었다 — 그래서 여기서 `-kv[1]`로 내림차순 정렬하고
+    #    `v > 0`으로 걸러도 티가 안 났다. 부호를 살린 지금 그대로 두면
+    #    **팔아 둔 종목이 캡션에서 통째로 사라진다.** 판정("잡고 있나")과
+    #    순서("얼마나 크게")는 exposure.py 한 곳에 있다.
+    from quant.reporting import exposure as _expo
+
     names = status.get("symbols") or {}
     applied = last.get("applied") or {}
     src = applied or (last.get("alloc") or {})
-    keep = (list(src) if applied
+    keep = ([k for k, _ in _expo.top(applied, len(applied))] if applied
             else [k for k in src if _held_on(status, k, date)])
-    top = sorted(((k, src[k]) for k in keep), key=lambda kv: -kv[1])[:3]
+    top = (_expo.top(applied, 3) if applied
+           else sorted(((k, src[k]) for k in keep), key=lambda kv: -kv[1])[:3])
     # ⚠️ **아직 안 산 종목에는 그렇게 적는다**(감사 238). 주식은 다음 세션
     #    시가에 체결되므로 오늘 목표를 잡아도 오늘은 한 주도 없다. 실측
     #    2026-08-14 캡션: "배분 상위: 솔라나 · 아마존 · 리플" — 아마존은
     #    그때 **한 주도 없었다.** 감사 91이 alloc→applied로 고친 것과 같은
     #    결함의 남은 절반이다(그때는 '관망 종목이 끼는 것'만 막았다).
     _pending = set(last.get("pending_next_open") or {})
+    # 방향도 함께 적는다 — "배분 상위: 아마존"이 실은 **아마존을 팔아 둔**
+    # 것이라면 그 캡션은 거짓이다. 크기는 절댓값, 방향은 글자로(감사 264).
     top_names = [(names.get(k, {}).get("name") or k.split(":")[-1])
+                 + ("(숏)" if v < 0 else "")
                  + ("(대기)" if k in _pending else "")
-                 for k, v in top if v > 0]
+                 for k, v in top if _expo.held(v)]
     return {
         "date": date,
         "equity": last.get("equity"),

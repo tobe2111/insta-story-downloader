@@ -9,7 +9,14 @@
 <!-- 트레이딩뷰 심볼 매핑은 여기 인라인으로 갖고 있었다. 첫 화면에도 차트를
      넣으면서 파일 하나로 뺐다 — 같은 매핑을 두 곳에 적으면 상장 시장이
      바뀔 때 한쪽만 고쳐진다(FROZEN_IDEAS ①). -->
-<script src="assets/tradingview.js"></script>
+<!-- ⚠️ 이 줄이 `assets/tradingview.js`를 가리키고 있었다 — **그런 파일은 없다.**
+     실제 이름은 tv-symbols.js다. 그래서 2026-08-16부터 이 페이지는 공개
+     사이트에서 통째로 죽어 있었다: QuantTV가 없어 렌더가 던지고, 바깥
+     catch가 그걸 삼켜 "기록을 불러오지 못했습니다." 한 줄만 남았다.
+     감사 245가 첫 화면에 세운 브라우저 검사가 **이 페이지에는 없었다.**
+     그래서 검사는 매일 초록이었다(감사 264). -->
+<script src="assets/tv-symbols.js"></script>
+<script src="assets/exposure.js"></script>
 <style>
 /* 촬영·공유용 한 장짜리 화면 — 다크 고정(방송 화질), 16:9에 맞는 밀도.
    ?card=1 이면 1200×630(공유 카드) 컴팩트 레이아웃으로 전환된다. */
@@ -96,7 +103,9 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
     /* ⚠️ 'N종목 분산'은 **후보 수**지 실제 보유가 아니다(2026-08-12 감사 117).
        감사 113(카드)·114(캡션)를 고치면서 이 페이지를 또 놓쳤다 —
        FROZEN_IDEAS ⑭ 여섯 번째 위반. 절반이 관망인 날도 있다. */
-    const heldN=Object.values((last&&last.applied)||{}).filter(v=>v>0).length;
+    /* ⚠️ 숏도 '보유'다(감사 264). `v>0`으로 세면 팔아 둔 종목이 통째로
+       빠져 보유 수가 실제보다 적게 나온다 — 판정은 assets/exposure.js 한 곳에. */
+    const heldN=QuantExposure.count(last&&last.applied);
     const spread=heldN>0?`오늘 ${heldN}종목 보유 / 후보 ${rest.length}종목`
                         :`후보 ${rest.length}종목`;
     out+=`<div class="hero"><div class="k">통합 계좌 (${spread} · 시작 ${won(p.start_cash||1000000)})</div>
@@ -204,9 +213,14 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 
   // 실시간 차트(TradingView) — 표시 전용. 매매 판단은 새벽 데이터만 쓴다.
   if(!location.search.includes("card=1")){
-    const tvMap=QuantTV.symbol;         // 매핑은 assets/tradingview.js 한 곳에
+    /* ⚠️ `QuantTV.symbol`은 **없는 함수**였다(감사 264) — 이 한 줄 때문에
+       페이지 전체가 죽었다. 실제 이름은 tvSymbol이고, 매핑·차트 삽입은
+       모두 assets/tv-symbols.js 한 곳에 있다.
+       셀렉터에 담는 값도 **우리 종목 키**로 통일한다 — 화면마다 트레이딩뷰
+       심볼과 우리 키를 섞어 들고 다니면 언젠가 한쪽만 고쳐진다. */
+    const tvMap=QuantTV.tvSymbol;
     const opts=rest.map(k=>{const tv=tvMap(k);
-      return tv?`<option value="${tv}">${esc(((st.symbols||{})[k]||{}).name||k)}</option>`:""}).join("");
+      return tv?`<option value="${esc(k)}">${esc(((st.symbols||{})[k]||{}).name||k)}</option>`:""}).join("");
     out+=`<h2 style="font-size:16px;margin:26px 0 6px">실시간 차트
       <span style="font-size:12px;color:var(--muted);font-weight:400">TradingView · 표시 전용(판단은 새벽 데이터)</span>
       <select id="tvsel" style="float:right;background:var(--bg2,#12141a);color:inherit;
@@ -217,13 +231,22 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   // TradingView 위젯 로드 — 셀렉터로 종목 전환(위젯 재생성)
   const tvBox=document.getElementById("tvchart");
   if(tvBox){
-    const load=sym=>QuantTV.mount(tvBox,sym);
+    const load=key=>QuantTV.mount(tvBox,key);
     const sel=document.getElementById("tvsel");
-    load(sel.value);
-    sel.onchange=()=>load(sel.value);
+    if(sel&&sel.value){load(sel.value);sel.onchange=()=>load(sel.value)}
   }
-}).catch(()=>{document.getElementById("content").innerHTML=
-  '<p class="err">기록을 불러오지 못했습니다.</p>'});
+}).catch(e=>{
+  /* ⚠️ 여기는 예외를 **통째로 삼키고 있었다**(감사 245의 결함이 이 페이지에도
+     그대로 있었다). 그래서 스크립트 이름 오타 하나로 페이지가 2026-08-16부터
+     죽어 있었는데, 화면은 "기록을 불러오지 못했습니다"라고만 말했다 —
+     읽는 사람은 그것을 '오늘은 기록이 없나 보다'로 읽는다. 콘솔에도 아무
+     말이 없어 개발자도 못 본다. 원인을 남기고, 어디를 봐야 할지 말한다. */
+  console.error("오늘의 판단 렌더 실패:", e);
+  document.getElementById("content").innerHTML=
+    '<p class="err">이 페이지를 다 그리지 못했습니다 — 아래 숫자가 비어 있는 것은 '
+    +'"오늘은 그런 일이 없었다"가 아니라 <b>표시 실패</b>입니다. 원본 기록은 '
+    +'<a href="status.json">status.json</a>에 그대로 있습니다.</p>';
+});
 </script>
 </body>
 </html>

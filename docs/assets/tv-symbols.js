@@ -103,5 +103,44 @@
     return "https://s.tradingview.com/widgetembed/?" + q.join("&");
   }
 
-  root.QuantTV = { tvSymbol: tvSymbol, tvUrl: tvUrl, tvEmbedUrl: tvEmbedUrl };
+  /**
+   * 차트를 그 칸에 실제로 끼워 넣는다. 반환: 끼웠으면 true, 매핑이 없어
+   * **안 끼웠으면 false**(그 칸은 비운다).
+   *
+   * ⚠️ 왜 이 함수가 여기 생겼나 (2026-08-17, 감사 264).
+   *    첫 화면과 '오늘의 판단'이 둘 다 `QuantTV.mount(...)`를 부르고 있었는데
+   *    **그런 함수가 없었다.** 그리고 '오늘의 판단'은 스크립트 이름까지
+   *    틀려서(`tradingview.js` — 없는 파일) 2026-08-16부터 페이지가 통째로
+   *    죽어 있었다. 두 페이지가 각자 위젯 iframe을 짓지 않고 여기 한 곳을
+   *    부르게 두는 이유이기도 하다(FROZEN_IDEAS ①).
+   *
+   *    검사는 매일 초록이었다 — 브라우저로 띄워 보는 검사가 첫 화면에만
+   *    있었고, 그마저도 이 칸을 열어 보지 않았다.
+   */
+  function mount(host, key, opts) {
+    if (!host) return false;
+    var o = opts || {};
+    if (!o.theme && root.matchMedia) {
+      o = {
+        interval: o.interval,
+        theme: root.matchMedia("(prefers-color-scheme: light)").matches
+          ? "light" : "dark",
+      };
+    }
+    var url = tvEmbedUrl(key, o);
+    if (!url) { host.innerHTML = ""; return false; }
+    var f = document.createElement("iframe");
+    f.src = url;
+    f.style.cssText = "width:100%;height:100%;border:0;display:block";
+    f.setAttribute("loading", "lazy");
+    // 남의 문서다 — 우리 페이지를 건드리지 못하게 최소 권한만 준다.
+    f.setAttribute("sandbox", "allow-scripts allow-same-origin allow-popups");
+    f.setAttribute("referrerpolicy", "no-referrer");
+    host.innerHTML = "";
+    host.appendChild(f);
+    return true;
+  }
+
+  root.QuantTV = { tvSymbol: tvSymbol, tvUrl: tvUrl, tvEmbedUrl: tvEmbedUrl,
+                   mount: mount };
 })(typeof globalThis !== "undefined" ? globalThis : this);

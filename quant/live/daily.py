@@ -1054,6 +1054,39 @@ def _regime_breakdown(history: list, window: int = 20) -> dict | None:
 PRIMARY_SOURCE = {"us_stock": "yfinance", "kr_stock": "yfinance"}
 
 
+def _rejected_rows(broker, kind: str, limit: int = 20) -> list[dict]:
+    """브로커가 거부한 주문 중 **그 종류만** 장부용으로 추린다 (감사 264).
+
+    ⚠️ 왜 종류를 나누나. `broker.rejected`에는 서로 다른 사고가 섞여 들어온다.
+
+        현금 부족   {"symbol", "need", "cash"}        — 감사 233
+        공매도 한도 {"symbol", "short_over", "allowance"} — 감사 260
+
+    장부는 오랫동안 **모든 줄이 현금 부족이라고 가정하고** `r["need"]`를
+    꺼냈다. 그래서 숏이 한 번이라도 거부되면 배치가 `KeyError`로 죽는다 —
+    실제로 그렇게 죽는 것을 실행해서 봤다. 그리고 죽지 않았더라도 더 나쁘다:
+    증거금 사고가 "현금 부족"이라는 **틀린 이름**으로 경보에 나간다.
+
+    ``kind``에 그 종류를 특정하는 열쇠(``need`` 또는 ``short_over``)를 준다.
+    없는 줄은 조용히 건너뛰지 않고 **다른 목록으로 간다** — 어느 쪽에도 안
+    담기는 줄이 생기면 그건 새로 생긴 거부 유형이므로, 여기가 아니라
+    `unknown` 항목으로 드러난다.
+    """
+    rows = []
+    for r in (getattr(broker, "rejected", None) or []):
+        if kind not in r:
+            continue
+        row = {"key": r.get("symbol")}
+        for k, v in r.items():
+            if k == "symbol":
+                continue
+            row[k] = round(float(v), 2) if isinstance(v, (int, float)) else v
+        rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
 def _source_fallbacks(sources: dict) -> dict:
     """1차 소스가 아닌 종목만 추린다 — {키: 실제로 쓴 소스}."""
     out = {}
@@ -2174,7 +2207,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 말할 때 쓸 수 있는 유일한 숫자다. `alloc`은 **배분 예산**이라 모델이
     # 관망한 종목에도 붙어 있고, 그걸 "매수 8%"라 부르면 사지 않은 종목을
     # 샀다고 공개하게 된다(2026-08-11 감사 91). 합은 정의상 weight와 같다.
-    applied = {k: round(abs(v), 4) for k, v in fitted_w.items() if abs(v) > 0}
+    # ⚠️ **부호를 지우면 숏이 롱으로 보인다** (감사 264). 예전에는 `abs()`라
+    #    숏 -0.3과 롱 +0.3이 장부·화면에 똑같이 0.3으로 남았다. 지금은 숏이
+    #    링에 없어 값이 늘 양수지만, 켜는 날 화면이 거짓말을 시작한다 —
+    #    그리고 그날은 아무도 이 줄을 기억하지 못한다.
+    #    회전율(Σ|오늘−어제|)도 부호가 있어야 맞다: +0.3 → -0.3은 회전율
+    #    0이 아니라 0.6이다.
+    applied = {k: round(v, 4) for k, v in fitted_w.items() if abs(v) > 0}
+    # 총노출(gross)과 순노출(net)은 다른 질문이다 — 롱숏이 반반이면 gross는
+    # 100%인데 net은 0%(시장 중립)다. gross만 적으면 그 구별이 사라진다.
+    net_exposure = sum(fitted_w.values())
     # 원금(시작금 + 매칭 입금)과 손익을 분리 — 입금이 수익처럼 보이면 안 된다.
     #
     # ⚠️ 여기가 입금이 **정산되는 유일한 자리**다(감사 211). 위에서 equity를
@@ -2317,10 +2359,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 버퍼·매도 우선 순서가 셋 다 막고 있다. 그래서 여기 숫자가
               # 찍히면 그 셋 중 하나가 새고 있다는 뜻이고, 계좌는 이유 없이
               # 작아진 채로 굴러간다. 조용히 덜 사는 것을 장부에 드러낸다.
-              "cash_short": (getattr(broker, "rejected", None) or None) and [
-                  {"key": r["symbol"], "need": round(float(r["need"]), 2),
-                   "cash": round(float(r["cash"]), 2)}
-                  for r in broker.rejected[:20]],
+              # 순노출 — 숏이 켜지면 gross와 갈린다(감사 264).
+              "net_weight": round(net_exposure, 4),
+              # ⚠️ **거부에는 두 종류가 있다**(감사 264). 여기는 오랫동안
+              #    `broker.rejected`의 모든 줄이 현금 부족이라고 가정하고
+              #    `r["need"]`를 그대로 꺼냈다. 감사 260이 공매도 한도
+              #    거부(`short_over`)를 같은 목록에 넣으면서, 숏이 한 번이라도
+              #    거부되는 순간 **배치 전체가 KeyError로 죽는다.**
+              #    실행해서 찾았다 — 소스만 읽었으면 두 줄이 같은 목록을
+              #    쓴다는 사실이 보이지 않는다.
+              "cash_short": _rejected_rows(broker, "need") or None,
+              # 증거금 없이 팔려다 잘린 주문 — 현금 부족과 **다른 사고**다.
+              # 같은 이름으로 묶으면 경보가 원인을 잘못 말한다.
+              "short_refused": _rejected_rows(broker, "short_over") or None,
               # 자릿수가 안 맞아 **체결을 거부한** 주문(감사 254). 여기 값이
               # 찍히면 통화 환산이 어딘가에서 다시 빠졌다는 뜻이다.
               "fill_refused": fill_refused or None,

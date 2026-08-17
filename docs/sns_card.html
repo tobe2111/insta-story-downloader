@@ -6,6 +6,7 @@
 <title>SNS 카드뉴스</title>
 <link rel="stylesheet" href="assets/pretendard.css">
 <script src="assets/hitrate.js"></script>
+<script src="assets/exposure.js"></script>
 <style>
 /* 인스타그램 카드뉴스 캔버스 — 4:5 (1080×1350) 고정. 캡처 전용 페이지라
    반응형이 아니라 '정확한 픽셀'이 목표다. ?n=1(표지) 2(판단) 3(검증) */
@@ -127,15 +128,20 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
     for(var i=h.length-1;i>=0;i--)if(h[i].date===date)return (h[i].weight||0)>0;
     return false;                           // 기록이 없으면 샀다고 말하지 않는다
   }
+  // ⚠️ 숏은 부호가 음수다(감사 264). `e[1]>0`으로 거르면 팔아 둔 종목이
+  //    카드에서 통째로 사라지고, 내림차순 정렬은 큰 숏을 맨 끝으로 민다.
+  //    "잡고 있나"·"얼마나"의 판정은 assets/exposure.js 한 곳에 있다.
   var src=applied||alloc, wLabel=applied?"노출":"배분";
-  var top=Object.entries(src)
-    .filter(function(e){return e[1]>0 && (applied||heldOn(e[0]))})
-    .sort(function(a,b){return b[1]-a[1]}).slice(0,5)
+  var top=(applied
+      ? QuantExposure.top(applied,5)
+      : Object.entries(alloc)
+          .filter(function(e){return e[1]>0 && heldOn(e[0])})
+          .sort(function(a,b){return b[1]-a[1]}).slice(0,5))
     .map(function(e){var k=e[0];
       return {key:k,name:(names[k]||{}).name||k.split(":")[1]||k,w:e[1]}});
   var held={};top.forEach(function(t){held[t.key]=1});
   var nCash=Object.keys(alloc).filter(function(k){
-    return applied?!(applied[k]>0):!heldOn(k)}).length;
+    return applied?!QuantExposure.held(applied[k]):!heldOn(k)}).length;
 
   // 대표 종목의 새벽 판단 근거 — 배분 1위 종목 페이퍼 장부의 reason
   var lead=top[0]||null, leadReason=[];
@@ -244,7 +250,10 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
   }else if(n===4){
     var rows=top.map(function(t){
       return '<div class="row"><b>'+esc(t.name)+'</b>'
-        +'<span class="w">'+wLabel+' '+(t.w*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
+        // 숏은 크기를 절댓값으로, 방향은 **글자로** 적는다 — "-30%"라고만
+        // 쓰면 방송에서 "손실 30%"로 읽힌다(감사 264).
+        +'<span class="w">'+wLabel+' '+QuantExposure.side(t.w)
+        +(Math.abs(t.w)*100).toFixed(1).replace(/\.0$/,"")+'%</span></div>'}).join("");
     if(!top.length)rows='<div class="row"><b>전 종목</b><span class="cash">관망 (현금 100%)</span></div>';
     else if(nCash>0)rows+='<div class="row"><b>나머지 '+nCash+'종목</b><span class="cash">관망 (현금)</span></div>';
     html=page("오늘 새벽 AI의 배분",

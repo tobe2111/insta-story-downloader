@@ -28,6 +28,7 @@
      반드시 어긋난다(FROZEN_IDEAS ①). 파이썬 짝은 robustness/accuracy.py이고,
      tests/hitrate_check.mjs가 이 파일을 그대로 실행해 값으로 확인한다. -->
 <script src="assets/hitrate.js"></script>
+<script src="assets/exposure.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -211,12 +212,10 @@ th:first-child,td:first-child{text-align:left}
 th{color:var(--muted);font-weight:600;font-size:11.5px;
   position:sticky;top:0;background:var(--bg2)}
 tbody tr:hover{background:var(--bg3)}
-/* 차트를 열 수 있는 행만 눌러지는 것처럼 보이게 한다 — 못 여는 행이
-   손 모양이면 눌러 보고 아무 일이 없어 고장으로 읽힌다. */
-tr.symrow.clickable{cursor:pointer}
-tr.symrow.clickable:focus{outline:2px solid var(--accent);outline-offset:-2px}
-tr.symrow .chev{opacity:.45}
-tr.symrow.clickable:hover .chev{opacity:1}
+/* ⚠️ 여기 있던 `tr.symrow.clickable` 규칙들은 지웠다(감사 264) — **그런
+   클래스를 붙이는 코드가 어디에도 없었다.** 지워진 화면을 위한 스타일이
+   남아 있으면, 다음 사람은 그 화면이 살아 있다고 믿는다. 종목 줄의
+   손 모양은 아래 `#symtable tbody tr`가 담당한다(줄 전체가 눌린다). */
 
 /* ============ 하단 다운로드 밴드 ============ */
 .band{border-radius:18px;border:1px solid var(--line-strong);
@@ -388,25 +387,14 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
           <th title="위: 과거 400봉에 오늘의 챔피언 전략을 적용해 잰 방향 적중률입니다. ⚠️ 이 400봉은 그 챔피언을 뽑은 오디션(800봉)과 100% 겹치고 그중 70%는 선발전 구간이라, 챔피언이 그 데이터에서 이겨서 뽑힌 만큼 실제보다 좋게 나옵니다(인샘플). 아래: 이 계좌의 실제 기록만으로 잰 값 — 아무도 고르지 않은 구간이지만 표본이 작습니다. 두 숫자 모두 괄호 안에 95% 신뢰구간과 표본 수가 붙고, 구간이 50%를 품으면 '판정 불가'로 흐리게 나옵니다 — 그 표본으로는 동전던지기와 구별할 수 없다는 뜻입니다.">적중률<br><span class="sub" style="font-weight:400">과거 400봉 · 실전</span></th><th style="text-align:left">새벽 판단</th></tr></thead>
         <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
       </table></div>
-      <!-- 종목을 누르면 그 종목 차트가 여기 열린다(사장님 2026-08-14:
-           "종목을 클릭하면 트레이딩뷰 차트가 보이게끔"). 지금까지는 '오늘의
-           판단' 페이지에만 있었다. -->
-      <div id="symchart-box" style="display:none;margin-top:14px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-          <b id="symchart-name" style="font-size:14px"></b>
-          <span class="sub" style="font-size:11.5px">TradingView · 표시 전용 —
-            여기 실시간 가격은 <b>판단에 쓰이지 않습니다</b>(매매는 새벽 확정
-            데이터로만 합니다)</span>
-          <button id="symchart-close" style="margin-left:auto;background:none;
-            border:1px solid var(--line-strong);color:var(--muted);border-radius:8px;
-            padding:3px 10px;font-size:12px;cursor:pointer">닫기</button>
-        </div>
-        <div id="symchart" style="height:440px;border:1px solid var(--line);
-          border-radius:12px;overflow:hidden"></div>
-        <div class="sub" id="symchart-none" style="display:none;font-size:11.5px">
-          이 종목은 차트를 연결할 수 있는 거래소 코드가 없습니다.
-        </div>
-      </div>
+      <!-- 종목을 누르면 그 종목 차트가 열린다(사장님 2026-08-14: "종목을
+           클릭하면 트레이딩뷰 차트가 보이게끔").
+           ⚠️ 여기 접혀 있던 **인라인 차트 칸은 지웠다**(감사 264). 같은 클릭에
+              두 개의 화면이 달려 있었는데, 아래쪽 상세 창(dialog)만 실제로
+              열리고 이 칸은 `tr.clickable`이라는 **아무 줄도 갖지 않는 클래스**
+              를 기다리며 죽어 있었다. 죽은 화면은 조용히 있지 않는다 — 없는
+              함수(`QuantTV.symbol`)를 부르는 코드를 그 안에 숨겨 두고 있었고,
+              그게 '오늘의 판단' 페이지를 통째로 죽인 것과 같은 오류였다. -->
       <!-- 갱신 주기를 툴팁이 아니라 **화면에** 적는다(사장님 2026-08-13:
            "실시간으로 반영되는거야? 얼마에 한번씩 업데이트 돼?"). 물어봐야
            알 수 있으면 적어 두지 않은 것과 같다. 맨 위 흐르는 시세띠만
@@ -645,7 +633,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     const li=pfLast.lot_infeasible||null;
     const nLot=li?Object.keys(li).length:0;
     const nPlan=(pfLast.alloc?Object.keys(pfLast.alloc).length:0);
-    const nHeld=(applied?Object.keys(applied).filter(k=>Math.abs(applied[k])>0).length:0);
+    const nHeld=QuantExposure.count(applied);
     let why=[];
     if(nLot)why.push("1주 값에 못 미쳐 못 산 종목 "+nLot+"개");
     if(nPlan&&nHeld<nPlan)why.push("목표를 잡은 "+nPlan+"곳 중 "+nHeld+"곳만 담김");
@@ -688,7 +676,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
          놓쳤다** — FROZEN_IDEAS ⑭ 다섯 번째 위반이다. 여기 값은 종목
          계좌 비중이고, 통합 계좌 노출은 그보다 훨씬 작다. */
       '<div class="cd" style="text-align:right" title="그 종목만 굴리는 참고 계좌가 **지금 들고 있는** 비중 — 통합 계좌 보유량이 아닙니다">종목계좌 '+((r.w||0)*100).toFixed(1)+'%'
-      +(applied&&applied[r.k]>0?'<br><span class="sub" style="font-size:10.5px">통합 '+(applied[r.k]*100).toFixed(2)+'%</span>':"")
+      /* ⚠️ 부호를 지우면 숏이 롱으로 보인다(감사 264). 판정("잡고 있나")과
+         표기("숏 30%")는 assets/exposure.js 한 곳에 있다 — 여기서 다시
+         `>0`이라 쓰면 숏이 화면에서 통째로 사라진다. */
+      +(applied&&QuantExposure.held(applied[r.k])?'<br><span class="sub" style="font-size:10.5px">통합 '+QuantExposure.text(applied[r.k])+'</span>':"")
       +'</div></div></div>';
   }).join("");
 
@@ -1167,49 +1158,20 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td class="num">'+(hd
           ?('<b>'+won(hd.value)+'</b>'+
             (hd.marked===false?'<span class="sub" title="오늘 시세를 받지 못해 매입가로 평가돼 있습니다"> ⚠</span>':"")+
-            '<div class="cd">'+(ap==null?"":(ap*100).toFixed(2)+"% · ")+
+            '<div class="cd">'+(QuantExposure.held(ap)?QuantExposure.text(ap)+" · ":"")+
             hqs+'주</div>'+
             '<div class="cd lvv" data-k="'+esc(r.k)+'"></div>')
-          :(ap?('<span class="sub">보유 없음</span><div class="cd">'+
-                (ap*100).toFixed(2)+'% 예정</div>'):"—"))+'</td>'+
+          :(QuantExposure.held(ap)?('<span class="sub">보유 없음</span><div class="cd">'+
+                QuantExposure.text(ap)+' 예정</div>'):"—"))+'</td>'+
         '<td class="num'+(hf.dim?" sub":"")+'">'+hr+
           '<div class="cd">'+lhr+'</div></td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
 
-  /* --- 종목 클릭 → 그 종목의 트레이딩뷰 차트 --- */
-  (function(){
-    const box=document.getElementById("symchart-box");
-    const host=document.getElementById("symchart");
-    const none=document.getElementById("symchart-none");
-    const ttl=document.getElementById("symchart-name");
-    if(!box||!host)return;
-    let openKey=null;
-    const show=tr=>{
-      const k=tr.getAttribute("data-k");
-      const tv=QuantTV.symbol(k);
-      if(!tv)return;
-      if(openKey===k){close();return}          // 같은 종목을 다시 누르면 닫는다
-      openKey=k;
-      ttl.textContent=(tr.getAttribute("data-name")||k)+" · "+tv;
-      box.style.display="";
-      none.style.display=QuantTV.mount(host,tv)?"none":"";
-      box.scrollIntoView({behavior:"smooth",block:"nearest"});
-    };
-    const close=()=>{openKey=null;box.style.display="none";host.innerHTML=""};
-    document.getElementById("symtable").addEventListener("click",e=>{
-      const tr=e.target.closest("tr.clickable");
-      if(tr)show(tr);
-    });
-    /* 키보드로도 열린다 — 마우스로만 되는 기능은 절반만 있는 기능이다. */
-    document.getElementById("symtable").addEventListener("keydown",e=>{
-      if(e.key!=="Enter"&&e.key!==" ")return;
-      const tr=e.target.closest&&e.target.closest("tr.clickable");
-      if(tr){e.preventDefault();show(tr)}
-    });
-    document.getElementById("symchart-close").onclick=close;
-  })();
+  /* 종목 클릭 → 차트는 **아래 상세 창 하나**가 담당한다(파일 끝의
+     openSymbol). 여기 있던 두 번째 구현은 감사 264에서 지웠다 — 같은 클릭에
+     화면 두 개가 달려 있으면 하나가 죽어도 아무도 모른다(㉞). */
 
   /* --- 오답 노트 --- */
   if(pf){
