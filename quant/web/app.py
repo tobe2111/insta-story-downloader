@@ -200,7 +200,7 @@ _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
 _NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
               ("/screener", "종목선별"), ("/sweep", "민감도"),
               ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시"),
-              ("/deposit", "입금")]
+              ("/ingest", "내 전략"), ("/deposit", "입금")]
 
 
 def _nav(active: str = "") -> str:

@@ -38,6 +38,14 @@ from quant.web.app import (
     run_validate_html,
     state_json,
 )
+from quant.web.mystrategy import (
+    render_ingest_form,
+    render_pin_prepare,
+    render_pins_page,
+    run_ingest_html,
+    run_pin_save,
+    run_pin_unpin,
+)
 
 
 class QuantHandler(BaseHTTPRequestHandler):
@@ -69,7 +77,8 @@ class QuantHandler(BaseHTTPRequestHandler):
     #   · 나머지 /run  — 수 초~수 분짜리 연산이라 교차출처에서 반복 호출되면
     #     사장님 PC의 자원을 태운다. 다른 사이트가 이걸 부를 이유는 없다.
     # 조회 경로(/api/state·/monitor 등)는 막지 않는다 — 로컬 도구의 사용성.
-    _MUTATING = ("/deposit/run", "/optimize/run", "/sweep/run",
+    _MUTATING = ("/ingest/run", "/pin/save", "/pin/unpin",
+                 "/deposit/run", "/optimize/run", "/sweep/run",
                  "/portfolio/run", "/screener/run", "/validate/run",
                  "/backtest")
 
@@ -212,6 +221,19 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_deposit_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_deposit_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/ingest":
+            self._send(render_ingest_form())
+        elif parsed.path == "/pins":
+            try:
+                self._send(render_pins_page())
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_form(f"고정 페이지 오류: {exc}"), status=400)
+        elif parsed.path == "/pin/prepare":
+            params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            try:
+                self._send(render_pin_prepare(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_form(f"성적표 오류: {exc}"), status=400)
         elif parsed.path == "/sweep":
             self._send(render_sweep_form())
         elif parsed.path == "/sweep/run":
@@ -220,6 +242,50 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_sweep_html(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_sweep_form(f"실행 오류: {exc}"), status=400)
+        else:
+            self._send(render_form("알 수 없는 경로입니다."), status=404)
+
+    def do_POST(self) -> None:  # noqa: N802
+        """전략 등록·고정처럼 **긴 본문**과 **상태 변경**이 있는 경로만 POST.
+
+        GET과 같은 세 관문(Host·교차출처·토큰)을 똑같이 지난다 — 메서드가
+        다르다고 관문이 얇아지면 CSRF 방지(2026-08-11 감사)가 반쪽이 된다.
+        """
+        parsed = urlparse(self.path)
+        if not self._host_ok():
+            self._send("허용되지 않은 Host 헤더입니다(로컬 전용 도구).",
+                       status=403, content_type="text/plain; charset=utf-8")
+            return
+        if not self._same_site_ok(parsed):
+            self._send("교차 출처 요청은 거부됩니다(CSRF 방지).",
+                       status=403, content_type="text/plain; charset=utf-8")
+            return
+        if not self._authorized(parsed):
+            self._send("인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.",
+                       status=401, content_type="text/plain; charset=utf-8")
+            return
+        try:
+            length = min(int(self.headers.get("Content-Length") or 0),
+                         2_000_000)          # 자료 본문 상한 2MB — 폭주 방지
+            body = self.rfile.read(length).decode("utf-8", errors="replace")
+            params = {k: v[0] for k, v in parse_qs(body).items()}
+        except Exception:  # noqa: BLE001
+            params = {}
+        if parsed.path == "/ingest/run":
+            try:
+                self._send(run_ingest_html(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_ingest_form(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/pin/save":
+            try:
+                self._send(run_pin_save(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_pins_page(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/pin/unpin":
+            try:
+                self._send(run_pin_unpin(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_pins_page(f"실행 오류: {exc}"), status=400)
         else:
             self._send(render_form("알 수 없는 경로입니다."), status=404)
 

@@ -2367,6 +2367,46 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # ── 웹 조종석 '내 전략' — CLI와 같은 관문을 웹에서도 (2026-08-17) ────
+    ("웹이 미리보기 없이 바로 저장한다(붙여넣자마자 도전자가 늘어난다)",
+     "quant/web/mystrategy.py",
+     '    if str(params.get("save") or "") == "1":',
+     "    if True:",
+     "tests/test_the_web_cockpit_keeps_the_same_gates.py"),
+    ("못 옮긴 문장 경고가 웹 화면에서 사라진다(비개발자일수록 다 반영된 줄 안다)",
+     "quant/web/mystrategy.py",
+     "    if spec.notes:",
+     "    if False:",
+     "tests/test_the_web_cockpit_keeps_the_same_gates.py"),
+    ("웹이 확인 문구를 대신 채워 넣는다(타이핑 관문이 장식이 된다)",
+     "quant/web/mystrategy.py",
+     '    typed = str(params.get("ack") or "")',
+     "    from quant.live.pin import ACK_PHRASE as typed",
+     "tests/test_the_web_cockpit_keeps_the_same_gates.py"),
+    ("POST가 교차출처 관문을 건너뛴다(아무 웹페이지가 고정을 걸 수 있다)",
+     "quant/web/server.py",
+     "        if not self._same_site_ok(parsed):\n"
+     "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
+     "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if not self._authorized(parsed):\n"
+     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
+     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        try:\n"
+     "            length = min(int(self.headers.get(\"Content-Length\") or 0),",
+     "        if False:\n"
+     "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
+     "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if not self._authorized(parsed):\n"
+     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
+     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        try:\n"
+     "            length = min(int(self.headers.get(\"Content-Length\") or 0),",
+     "tests/test_the_web_cockpit_keeps_the_same_gates.py"),
+
     # ── 자료 읽기 사전 확장 — 손절/익절·볼린저·거래량·연속봉·MACD (2026-08-17) ──
     # 여기의 병: 읽었다면서 실행이 다르거나, 미래를 보거나, 못 읽은 것을
     # 조용히 넘기거나.
@@ -3632,8 +3672,8 @@ MUTATIONS = [
 
     ("입금 라우트를 CSRF 보호 목록에서 뺀다(<img> 한 줄로 가짜 입금)",
      "quant/web/server.py",
-     '    _MUTATING = ("/deposit/run", "/optimize/run", "/sweep/run",',
-     '    _MUTATING = ("/optimize/run", "/sweep/run",',
+     '                 "/deposit/run", "/optimize/run", "/sweep/run",',
+     '                 "/optimize/run", "/sweep/run",',
      "tests/test_the_cockpit_does_not_hand_out_the_wheel.py"),
 
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
@@ -3867,8 +3907,24 @@ MUTATIONS = [
 
     ("CSRF 가드를 끈다",
      "quant/web/server.py",
-     "if not self._same_site_ok(parsed):",
-     "if False and not self._same_site_ok(parsed):",
+     "        if not self._same_site_ok(parsed):\n"
+     "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
+     "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if not self._authorized(parsed):\n"
+     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
+     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if parsed.path in (\"/\", \"/index.html\"):",
+     "        if False:\n"
+     "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
+     "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if not self._authorized(parsed):\n"
+     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
+     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
+     "            return\n"
+     "        if parsed.path in (\"/\", \"/index.html\"):",
      "tests/test_web_csrf.py"),
 
     # chrono는 2026-08-11 감사 102에서 의존성 없는 ledger_basics로 옮겼다
