@@ -19,10 +19,16 @@ jobs:
     #    통과했으니 코드 결함이 아니라 멈춤이다(테스트 단계가 in_progress인
     #    채로 잡이 종료됐고, 이후 단계는 pending이었다).
     #    문제는 그때 **로그가 남지 않아 원인을 끝내 못 봤다는 것**이다.
-    #    전체 검사는 평소 2분이므로 15분이면 충분히 여유롭고, 매달리면
-    #    GitHub가 깔끔히 끊으면서 **로그를 보존**한다 — 다음에 또 나면
-    #    어느 검사에서 멈췄는지 볼 수 있다.
-    timeout-minutes: 15
+    #    매달리면 GitHub가 깔끔히 끊으면서 **로그를 보존**한다 — 다음에 또
+    #    나면 어느 검사에서 멈췄는지 볼 수 있다.
+    #
+    #    ⚠️ 2026-08-17(감사 278)에 15분 → 25분. 공개 페이지를 진짜
+    #       브라우저로 띄워 보는 검사가 이날부터 **실제로 돌기 시작**했다
+    #       (그전에는 브라우저가 없어 조용히 건너뛰었다). 실측이 2분에서
+    #       **10분**으로 늘었다. 15분이면 여유가 5분뿐이라 러너가 조금만
+    #       느린 날 관문이 헛울린다 — 헛울리는 관문은 곧 무시당하고,
+    #       무시당하는 관문은 없는 관문이다.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +52,19 @@ jobs:
           # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
           # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
           pip install -r requirements.txt -r requirements-extra.txt
+
+      # 공개 페이지가 **진짜로 그려지는가**를 보는 검사들은 브라우저를 띄운다.
+      # 브라우저가 없으면 그 검사들은 조용히 건너뛴다 — 그리고 2026-08-17까지
+      # 정확히 그 상태였다(감사 278). 첫 화면·잔고·금액·보유 대비 성적 계약이
+      # CI에서 한 번도 돈 적이 없었다. 여기서 받는다.
+      - name: 브라우저 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('requirements-extra.txt') }}
+
+      - name: 크로미움 설치 (화면 렌더 검사용)
+        run: python -m playwright install --with-deps chromium
 
       - name: Syntax check (py_compile)
         run: python -m py_compile $(find quant examples tests -name "*.py")

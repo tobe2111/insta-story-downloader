@@ -45,7 +45,13 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
+# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
+# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _browser import block_external, chrome_exe  # noqa: E402
+
+CHROME = chrome_exe()
 
 
 def _money(text: str) -> list[int]:
@@ -100,6 +106,7 @@ def browser(site):
 @pytest.fixture()
 def page(browser, site):
     pg = browser.new_page(viewport={"width": 1600, "height": 1000})
+    block_external(pg)
     errors = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(f"{site}/index.html")
@@ -226,6 +233,7 @@ def test_the_bridge_is_quiet_when_there_is_nothing_to_explain(browser, site,
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
         pg = browser.new_page()
+        block_external(pg)
         pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
         pg.wait_for_timeout(2400)
         bridge = pg.locator("#bal-bridge").inner_text()
@@ -286,6 +294,7 @@ def test_the_live_total_appears_in_both_places_at_once(browser, site):
     머물렀다 — 같은 화면이 두 금액을 말했다.
     """
     pg = browser.new_page(viewport={"width": 1600, "height": 1000})
+    block_external(pg)
     _fake_quotes(pg)
     pg.goto(f"{site}/index.html")
     pg.wait_for_timeout(3000)
@@ -320,6 +329,7 @@ def test_a_live_total_with_a_missing_rate_is_not_shown(browser, site, ledger):
     "지금 35,969,655원"에 '참고'라고 적어도 100만원 계좌에서는 거짓이다.
     """
     pg = browser.new_page(viewport={"width": 1600, "height": 1000})
+    block_external(pg)
     _fake_quotes(pg, drift=35.0)          # 확정값의 36배 — 환율 누락과 같은 모양
     pg.goto(f"{site}/index.html")
     pg.wait_for_timeout(3000)

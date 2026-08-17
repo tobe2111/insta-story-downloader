@@ -114,33 +114,49 @@ def test_todays_commit_is_inside_the_window(name, wf, lag, delay):
         f"[{start:%m-%d %H:%M} ~ {run:%m-%d %H:%M}] 밖이다 — 헛경보가 난다")
 
 
+@pytest.mark.parametrize("yday_delay", [0, 30, MAX_CRON_DELAY_MIN])
 @pytest.mark.parametrize("delay", [0, 30, MAX_CRON_DELAY_MIN])
 @pytest.mark.parametrize("name,wf,lag", BATCHES)
-def test_yesterdays_commit_is_outside_the_window(name, wf, lag, delay):
+def test_yesterdays_commit_is_outside_the_window(name, wf, lag, delay,
+                                                 yday_delay):
     """② 어제 커밋은 창 밖 — 아니면 하루짜리 누락을 못 잡는다.
 
     이 검사가 없어서 SNS 항목이 **구조적으로** 하루 누락을 못 잡았다:
     어제 커밋 23:19가 26시간 창(시작 21:56) 안에 1.3시간 여유로 들어왔다.
+
+    ⚠️ 그런데 이 검사도 반쪽이었다(2026-08-17 감사 278). **오늘의 감시는
+       늦을 수 있다고 보면서 어제의 배치는 늘 정시라고 가정했다.** 늦는 것은
+       크론의 성질이지 날짜의 성질이 아니다 — 어제 배치가 밀린 날은 어제
+       커밋이 창 안으로 다시 걸어 들어온다. 야간 변이 전수가 창을 26시간으로
+       되돌려도 검사가 초록이었던 이유가 이것이다. 두 쪽 모두 밀린다고 본다.
     """
     run = _deadman_run_utc(delay)
     start = run - dt.timedelta(hours=_window_hours())
-    yday = _latest_commit_utc(wf, lag, _batch_day(run) - dt.timedelta(days=1))
+    yday = _latest_commit_utc(wf, lag + yday_delay,
+                              _batch_day(run) - dt.timedelta(days=1))
     assert yday < start, (
-        f"{name}: 어제 커밋 {yday:%m-%d %H:%M}이 아직 창 안이다"
-        f"(창 시작 {start:%m-%d %H:%M}, 여유 "
+        f"{name}: 어제 커밋 {yday:%m-%d %H:%M}(크론 {yday_delay}분 지연)이 "
+        f"아직 창 안이다(창 시작 {start:%m-%d %H:%M}, 여유 "
         f"{(yday - start).total_seconds() / 3600:+.2f}시간) — "
         "오늘 그 배치가 죽어도 어제 것으로 통과한다")
 
 
 def test_the_window_has_real_margin_on_both_sides():
-    """여유를 숫자로 못 박는다 — 아슬아슬하면 언젠가 뒤집힌다."""
-    run = _deadman_run_utc(MAX_CRON_DELAY_MIN)
-    start = run - dt.timedelta(hours=_window_hours())
+    """여유를 숫자로 못 박는다 — 아슬아슬하면 언젠가 뒤집힌다.
+
+    두 쪽의 **최악**을 각각 본다. 오늘 쪽은 감시가 가장 늦게 뜰 때가 최악이고
+    (창이 뒤로 밀려 오늘 커밋을 놓칠 뻔한다), 어제 쪽은 감시가 정시인데 어제
+    배치만 밀렸을 때가 최악이다(어제 커밋이 창 안으로 들어온다).
+    """
     for name, wf, lag in BATCHES:
-        day = _batch_day(run)
-        newest = _latest_commit_utc(wf, lag, day)
-        yday = _latest_commit_utc(wf, lag, day - dt.timedelta(days=1))
-        inside = (newest - start).total_seconds() / 3600
+        late = _deadman_run_utc(MAX_CRON_DELAY_MIN)
+        inside = ((_latest_commit_utc(wf, lag, _batch_day(late))
+                   - (late - dt.timedelta(hours=_window_hours())))
+                  .total_seconds() / 3600)
+        punctual = _deadman_run_utc(0)
+        start = punctual - dt.timedelta(hours=_window_hours())
+        yday = _latest_commit_utc(wf, lag + MAX_CRON_DELAY_MIN,
+                                  _batch_day(punctual) - dt.timedelta(days=1))
         outside = (start - yday).total_seconds() / 3600
         assert inside >= 1.0, f"{name}: 오늘 커밋 여유 {inside:.2f}시간뿐"
         assert outside >= 1.0, (

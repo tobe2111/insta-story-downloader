@@ -232,7 +232,13 @@ def test_python_and_javascript_do_not_drift():
 
 # ── ⑤ 화면이 실제로 그렇게 그리는가 (진짜 브라우저) ──────────────
 
-CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
+# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
+# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _browser import block_external, chrome_exe  # noqa: E402
+
+CHROME = chrome_exe()
 
 
 def _render(tmp_path, page_name: str, applied: dict, selector: str) -> str:
@@ -273,6 +279,7 @@ def _render(tmp_path, page_name: str, applied: dict, selector: str) -> str:
         with pw.sync_playwright() as p:
             b = p.chromium.launch(executable_path=CHROME)
             page = b.new_page()
+            block_external(page)
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(f"http://127.0.0.1:{srv.server_address[1]}/{page_name}")

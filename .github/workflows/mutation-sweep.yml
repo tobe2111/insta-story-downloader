@@ -37,7 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     # 실측 기준(로컬) 항목당 10~40초 × 121건. 러너는 더 느리므로 넉넉히.
     # 매달림 방어(감사 77) — 무제한이면 몇 시간을 태우고 로그도 안 남는다.
-    timeout-minutes: 120
+    #
+    # ⚠️ 2026-08-17(감사 278)에 120분 → 180분. 항목이 819건으로 늘었고,
+    #    그중 스물몇 건은 브라우저를 띄우는 검사가 지킨다 — 그 검사 한 번이
+    #    몇 초가 아니라 1분 안팎이다. 여유가 모자라면 전수가 도중에 끊기고,
+    #    끊긴 전수는 "아직 안 본 항목"과 "지켜지는 항목"을 구별하지 못한다.
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash          # 명시적 bash → -e -o pipefail
@@ -57,6 +62,18 @@ jobs:
           # 검사도 실전과 **같은 파일**로 설치한다(감사 130) — 두 환경이
           # 갈라지면 한쪽에만 있는 결함은 다른 쪽에서 안 보인다.
           pip install -r requirements.txt -r requirements-extra.txt
+
+      # ⚠️ 브라우저가 없으면 화면 계약 검사가 통째로 건너뛰고, 변이 전수는
+      #    그것을 **놓침**으로 센다(맞는 판정이다 — 건너뜀은 통과가 아니다).
+      #    2026-08-17 전수가 놓친 21건 중 16건이 그 자리였다(감사 278).
+      - name: 브라우저 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('requirements-extra.txt') }}
+
+      - name: 크로미움 설치 (화면 렌더 검사용)
+        run: python -m playwright install --with-deps chromium
 
       # ⚠️ 이 도구는 실행 중 소스 파일을 잠깐 고쳤다가 되돌린다. 중단되면
       #    변조된 채로 남을 수 있으므로, 러너를 버리는 이 잡에서만 돌린다

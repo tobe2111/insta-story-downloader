@@ -38,7 +38,13 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
+# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
+# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _browser import block_external, chrome_exe  # noqa: E402
+
+CHROME = chrome_exe()
 
 # (경로, 그 페이지가 '못 그렸다'고 말할 때 쓰는 문구)
 PAGES = [
@@ -97,6 +103,7 @@ def browser(site):
 def _visit(browser, site, path):
     """반환: (본문 텍스트, 스크립트 예외들, 우리 서버 404들)."""
     page = browser.new_page()
+    block_external(page)
     errors, missing = [], []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("response", lambda r: (
@@ -137,6 +144,7 @@ def test_the_harness_would_notice_a_dead_page(browser, site):
     (감사 229 — 검사는 초록인데 기능은 죽어 있다).
     """
     page = browser.new_page()
+    block_external(page)
     missing = []
     page.on("response", lambda r: (
         missing.append(r.url) if r.status == 404 else None))
@@ -162,6 +170,7 @@ def test_clicking_a_symbol_opens_its_chart(browser, site):
     클래스를 기다리며 없는 함수를 부르고 있었다(감사 264).
     """
     page = browser.new_page()
+    block_external(page)
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     try:

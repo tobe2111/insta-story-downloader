@@ -29,6 +29,15 @@ sys.path.insert(0, str(ROOT))
 DAILY = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
 INDEX = (ROOT / "docs" / "index.html").read_text("utf-8")
 
+# 속성값(title·aria-label·style…)을 걷어낸 '눈에 보이는 글'. 툴팁에만 적힌
+# 설명은 마우스를 올려야 보이고 휴대폰에서는 아예 안 보인다 — 화면에 적힌
+# 것으로 쳐 주면 라벨이 통째로 사라져도 검사가 초록이 된다(감사 278).
+_ATTR = re.compile(r'''\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*')''')
+
+
+def _visible(src: str) -> str:
+    return _ATTR.sub(" ", src)
+
 
 def test_the_ledger_records_the_sample_size():
     assert '"hit_n": acc.get("n")' in DAILY, (
@@ -132,9 +141,19 @@ def test_the_label_does_not_claim_a_window_the_value_does_not_have():
     #    했다. 지금 라벨은 '과거 400봉 · 인샘플/실전'이다 — 기간만이 아니라
     #    출처까지 밝힌다. 여기서 지킬 것은 특정 글자가 아니라 **기간과 출처를
     #    밝히는가**이므로 그쪽을 본다.
+    #
+    # ⚠️⚠️ 그런데 이 검사는 2026-08-17까지 그것조차 못 지키고 있었다
+    #      (감사 278). 야간 변이 전수가 index.html의 라벨을 통째로
+    #      '적중률(전체)'로 되돌려도 초록이었다 — 같은 `<th>`의 **툴팁
+    #      (title 속성)** 안에 "과거 400봉"이 남아 있었기 때문이다.
+    #      툴팁은 마우스를 올려야 보이고 휴대폰에서는 아예 안 보인다.
+    #      **속성에 적힌 말은 화면에 적힌 말이 아니다.** 그래서 속성값을
+    #      걷어낸 '눈에 보이는 글'만 본다.
     for page in ("paper.html", "index.html"):
-        src = (ROOT / "docs" / page).read_text("utf-8")
-        assert "과거 400봉" in src, f"{page}: 적중률이 무엇을 잰 값인지 안 밝힌다"
+        src = _visible((ROOT / "docs" / page).read_text("utf-8"))
+        assert "과거 400봉" in src, (
+            f"{page}: 적중률이 무엇을 잰 값인지 **화면 글자로는** 안 밝힌다 "
+            "(툴팁에만 적혀 있으면 휴대폰에서는 없는 것과 같다)")
         assert "인샘플" in src, f"{page}: 인샘플이라는 사실을 안 밝힌다"
 
 
