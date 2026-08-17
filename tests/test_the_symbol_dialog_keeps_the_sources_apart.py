@@ -96,7 +96,7 @@ def test_the_dialog_copies_the_row_it_does_not_recompute():
     body = IDX[i:i + 2000]
     # ⚠️ 예전에는 `cells[i].innerText`(칸 번호)를 요구했다. 그러면 이 창은
     #    종목표 한 곳에서만 맞고, 잔고·거래내역에서 열면 엉뚱한 칸을 읽는다.
-    #    지금은 **그 표의 머리글을 읽어** 짝지운다(감사 266) — 여전히 표의
+    #    지금은 **그 표의 머리글을 읽어** 짝지운다(감사 274) — 여전히 표의
     #    값을 그대로 옮길 뿐, 다시 계산하지는 않는다. 실제로 세 표에서
     #    열어 보는 것은 tests/test_the_first_screen_answers_the_first_question.py.
     assert "td.innerText" in body, "표의 값을 그대로 옮기지 않는다"

@@ -1,4 +1,4 @@
-"""사이트가 **계좌보다 큰 금액**을 사실처럼 보여주고 있었다 (감사 265).
+"""사이트가 **계좌보다 큰 금액**을 사실처럼 보여주고 있었다 (감사 273).
 
 사장님 지적: *"홈페이지 내에서 지금 숫자들이 다 맞진 않은 것 같은데?
 금액이 말이야."* 맞았습니다. 자산 997,198원짜리 계좌의 2026-08-15 기록입니다.
@@ -234,7 +234,7 @@ def _render(tmp_path, page, selector, detail=False):
                       "bar": "2026-08-14 00:00:00", "side": "buy",
                       "quantity": 0.0322824708, "amount": 27929.95,
                       "type": "즉시"}]
-    # 거래내역 표는 `trades`를 읽는다 — 같은 사고의 세 번째 자리(감사 266).
+    # 거래내역 표는 `trades`를 읽는다 — 같은 사고의 세 번째 자리(감사 274).
     st["paper"]["portfolio:ALL"]["trades"] = [
         {"key": "us_stock:AMZN", "price": 264.880005, "date": "2026-08-15",
          "side": "buy", "quantity": 24017.2448278807, "amount": 6361687.93,
@@ -268,7 +268,7 @@ def _render(tmp_path, page, selector, detail=False):
             pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/{page}")
             pg.wait_for_timeout(2200)
             if detail and pg.locator("#morebtn").count():
-                pg.locator("#morebtn").click()   # 간단 보기에선 접혀 있다(감사 266)
+                pg.locator("#morebtn").click()   # 간단 보기에선 접혀 있다(감사 274)
                 pg.wait_for_timeout(400)
             out = pg.locator(selector).inner_text()
             b.close()
@@ -311,7 +311,7 @@ def test_the_front_page_says_the_amounts_do_not_add_up(tmp_path):
 def test_a_normal_over_budget_line_survives(tmp_path):
     """대조군 — 같은 날의 **정상** 예산 초과는 지우지 않는다.
 
-    (감사 266에서 이 줄은 '자세히 보기' 뒤로 접혔으므로 펴서 확인한다.)
+    (감사 274에서 이 줄은 '자세히 보기' 뒤로 접혔으므로 펴서 확인한다.)
     """
     txt = _render(tmp_path, "index.html", "#side-flags", detail=True)
     assert "이더리움" in txt and "80,582원" in txt, (
@@ -354,7 +354,7 @@ def test_a_batch_never_writes_a_refused_order_as_a_fill(tmp_path, monkeypatch):
 def test_the_trade_history_refuses_the_impossible_amount(tmp_path):
     """거래내역 표도 같은 판정을 써야 한다.
 
-    감사 265에서 '오늘의 판단'의 체결 표와 첫 화면 경고는 고쳤는데
+    감사 273에서 '오늘의 판단'의 체결 표와 첫 화면 경고는 고쳤는데
     **이 표만 남아 있었다** — 한 곳을 고치면 거울이 하나 더 있다
     (FROZEN_IDEAS ⑭). 화면으로 보고서야 알았다.
     """

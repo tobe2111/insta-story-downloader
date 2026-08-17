@@ -626,6 +626,53 @@ def _cmd_ingest(args) -> None:
           "검증까지 통과해야 실제 비중을 받습니다. 대부분은 떨어집니다.")
 
 
+def _cmd_pin(args) -> None:
+    """내 전략 고정 — 성적표를 먼저 보여주고, 확인 문구를 타이핑해야 고정.
+
+    전략은 사용자의 것, 브레이크는 우리의 것: 고정해도 킬스위치·변동성
+    타깃·검증 게이트·레버리지 금지선은 그대로 걸린다.
+    """
+    from quant.live.pin import ACK_PHRASE, save_pin, scorecard
+
+    for line in scorecard(args.market, args.symbol, args.name,
+                          state_dir=args.state_dir):
+        print(line)
+    print(f"\n고정하려면 다음 문구를 그대로 입력하세요:\n  {ACK_PHRASE}")
+    typed = input("> ").strip()
+    try:
+        entry = save_pin(args.market, args.symbol, args.name, typed,
+                         state_dir=args.state_dir)
+    except ValueError as exc:
+        print(f"❌ {exc}")
+        raise SystemExit(1) from exc
+    print(f"\n📌 고정됨: {args.market}/{args.symbol} ← {entry['name']} "
+          f"({entry['since']}부터)")
+    print("   오디션은 계속 돕니다 — 성적표가 매일 갱신되고, `unpin`으로 "
+          "언제든 시스템 판단으로 돌아갈 수 있습니다.")
+
+
+def _cmd_unpin(args) -> None:
+    from quant.live.pin import remove_pin
+
+    if remove_pin(args.market, args.symbol, state_dir=args.state_dir):
+        print(f"↩️ 고정 해제: {args.market}/{args.symbol} — 다음 실행부터 "
+              "시스템 챔피언 판단이 복귀합니다.")
+    else:
+        print(f"고정돼 있지 않습니다: {args.market}/{args.symbol}")
+
+
+def _cmd_pins(args) -> None:
+    from quant.live.pin import load_pins
+
+    pins = load_pins(args.state_dir)
+    if not pins:
+        print("고정된 전략이 없습니다 — 모든 종목이 심사(오디션) 결과를 따릅니다.")
+        return
+    for key, v in sorted(pins.items()):
+        print(f"📌 {key} ← {v.get('name')} ({v.get('since')}부터) — "
+              "심사 결과가 아니라 사용자 지정입니다")
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
@@ -1381,6 +1428,26 @@ def build_parser() -> argparse.ArgumentParser:
     ig.add_argument("--dry-run", action="store_true", dest="dry_run",
                     help="저장하지 않고 무엇이 뽑혔는지만 본다")
     ig.set_defaults(func=_cmd_ingest)
+
+    pn = sub.add_parser(
+        "pin",
+        help="내 전략을 이 종목에 고정 — 심사와 무관하게 내 전략으로 매매"
+             "(설치형 사용자용, 성적표 확인 + 타이핑 확인 필요)")
+    pn.add_argument("--market", required=True)
+    pn.add_argument("--symbol", required=True)
+    pn.add_argument("--name", required=True, help="ingest로 저장한 전략 이름")
+    pn.add_argument("--state-dir", default="state", dest="state_dir")
+    pn.set_defaults(func=_cmd_pin)
+
+    up = sub.add_parser("unpin", help="고정 해제 — 시스템 챔피언 판단이 즉시 복귀")
+    up.add_argument("--market", required=True)
+    up.add_argument("--symbol", required=True)
+    up.add_argument("--state-dir", default="state", dest="state_dir")
+    up.set_defaults(func=_cmd_unpin)
+
+    ps = sub.add_parser("pins", help="지금 고정된 전략 목록")
+    ps.add_argument("--state-dir", default="state", dest="state_dir")
+    ps.set_defaults(func=_cmd_pins)
 
     gd = sub.add_parser(
         "guard",

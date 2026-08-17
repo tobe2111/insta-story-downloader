@@ -1258,9 +1258,8 @@ MUTATIONS = [
     # 코인 보조 거래소 — 단일 거래소 의존이 야간 자동화의 최약점이었다.
     ("코인이 기본 거래소만 시도한다(점검·지역차단 하나로 그날 기록이 빈다)",
      "quant/data/crypto.py",
-     "        attempts += [(ex, None) for ex in _FALLBACK_EXCHANGES\n"
-     "                     if ex != self.exchange_id]",
-     "        pass",
+     "        ladder = spot_ladder(self.exchange_id)",
+     "        ladder = (self.exchange_id,)",
      "tests/test_data_fallback.py"),
 
     # 데이터 계약 — 중복 타임스탬프가 남으면 같은 봉이 두 번 계산된다.
@@ -2368,7 +2367,187 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
-    # 감사 264 — 사용자 자료에서 **못 옮긴 규칙을 말하지 않던** 자리.
+    # ── 내 전략 고정(pin) — 설치형 사용자의 강제 적용 (2026-08-17) ───────
+    # 전략은 사용자의 것, 브레이크는 우리의 것. 여기의 병 세 가지:
+    # 고정이 안 먹거나 / 확인 없이 먹거나 / 고정 사실이 숨거나.
+    ("고정이 챔피언 결정에 안 먹힌다(사용자는 자기 전략이 돈다고 믿는다)",
+     "quant/live/retrain.py",
+     "    pin = pinned_spec(market, symbol, state_dir)\n"
+     "    if pin:\n"
+     "        return pin",
+     "    pin = None\n"
+     "    if pin:\n"
+     "        return pin",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("핫리로드 경로에서 고정이 무시된다(재시작 전까지 다른 전략이 돈다)",
+     "quant/live/retrain.py",
+     "            pin = pinned_spec(market, symbol, state_dir)\n"
+     "            if pin:",
+     "            pin = None\n"
+     "            if pin:",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("확인 문구 없이 고정된다(클릭 한 번짜리 '확인'이 된다)",
+     "quant/live/pin.py",
+     "    if ack.strip() != ACK_PHRASE:",
+     "    if False:",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("깨진 고정 파일을 '고정 없음'으로 삼킨다(다른 전략이 조용히 돈다)",
+     "quant/live/pin.py",
+     '        raise RuntimeError(f"고정 파일 손상: {exc}") from exc',
+     "        return {}",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+    ("고정 사실이 화면에서 사라진다(사용자 지정이 심사 결과처럼 읽힌다)",
+     "quant/live/daily.py",
+     '            status["pins"] = {k: {"name": v.get("name"),\n'
+     '                                  "since": v.get("since")}\n'
+     "                              for k, v in _pins.items()}",
+     "            pass",
+     "tests/test_a_pinned_strategy_keeps_the_brakes.py"),
+
+    # ── 위기 재생·스트레스 — 실전 브레이크의 위기 검증 (2026-08-17) ──────
+    # 수익이 아니라 위험 층을 과거 위기·가상 시나리오로 재는 장치. 여기의
+    # 병은 하나다: 브레이크 없이 계산해 놓고 브레이크를 검증했다고 말하는 것.
+    ("재생에서 킬스위치를 뗀다(폭락을 지나도 발동 기록이 없다)",
+     "quant/risk/replay.py",
+     "        ks = _kill_switch(ks, dd)",
+     "        ks = 1.0",
+     "tests/test_the_brakes_survive_a_crash_replay.py"),
+    ("브레이크가 자산 곡선에 안 실린다(밟아도 낙폭이 그대로다)",
+     "quant/risk/replay.py",
+     "        eq_br *= 1.0 + day_r * exposure",
+     "        eq_br *= 1.0 + day_r",
+     "tests/test_the_brakes_survive_a_crash_replay.py"),
+    ("시뮬레이션 표식을 뗀다(가상 성적이 실측처럼 읽힌다)",
+     "quant/risk/replay.py",
+     '        "kind": "simulation",       # ← 실측이 아니다. 읽는 쪽이 반드시 표시할 것',
+     '        "kind": "live",',
+     "tests/test_the_brakes_survive_a_crash_replay.py"),
+    ("정직한 한계에서 비용 미반영 고지를 지운다",
+     "quant/risk/replay.py",
+     '            "거래 비용·슬리피지 미반영 — 낙폭·변동성 측정 목적. 수익 배수를 성과로 읽지 말 것",',
+     '            "",',
+     "tests/test_the_brakes_survive_a_crash_replay.py"),
+    ("폭락 경로 중간의 브레이크 개입을 뗀다(끝에서 한 번 묻는 척만 한다)",
+     "quant/risk/stress.py",
+     "            exposure = gross_weight * ks",
+     "            exposure = gross_weight",
+     "tests/test_stress_scenarios_ask_the_real_brakes.py"),
+    ("현금 완충을 무시한다(노출 40% 계좌에 시장 손실을 통째로 적는다)",
+     "quant/risk/stress.py",
+     "            eq *= 1.0 + exposure * shock",
+     "            eq *= 1.0 + shock",
+     "tests/test_stress_scenarios_ask_the_real_brakes.py"),
+    ("환율 충격이 원화 자산까지 때린다(외화 비중이 산수에서 빠진다)",
+     "quant/risk/stress.py",
+     "        eq = equity * (1.0 + gross_weight * fx_share * fx_move)",
+     "        eq = equity * (1.0 + gross_weight * fx_move)",
+     "tests/test_stress_scenarios_ask_the_real_brakes.py"),
+    ("멈춘 시세 시나리오가 브레이크가 잡는 척한다(실명이 요점인데)",
+     "quant/risk/stress.py",
+     '        "kill_switch_after": None,      # 못 본다 — 그것이 이 시나리오의 요점',
+     '        "kill_switch_after": 1.0,',
+     "tests/test_stress_scenarios_ask_the_real_brakes.py"),
+    ("야간 배치에서 위험 리포트를 뺀다(만들어 두고 아무도 안 돌린다)",
+     ".github/workflows/nightly-validate.yml",
+     "        run: python3 scripts/risk_report.py",
+     "        run: echo skip",
+     "tests/test_the_brakes_survive_a_crash_replay.py"),
+
+    # ── 감사 272 — 한국 수급 실패가 '세 가지 중 하나'로만 남던 자리 ──────
+    # 실측: 장부의 사유가 "pykrx 미설치·코드 불일치·조회 실패 가능"이었다.
+    #       배치에는 pykrx가 설치돼 있으므로 첫 번째는 애초에 답이 아니다.
+    ("서로 다른 KRX 고장을 한 문장으로 뭉갠다(매번 처음부터 조사하게 된다)",
+     "quant/data/krx.py",
+     "        raise RuntimeError(\n"
+     '            f"KRX 조회 실패({type(exc).__name__}: {exc})") from exc',
+     "        return None",
+     "tests/test_feature_health.py"),
+    ("열 이름이 바뀌어도 뭐가 왔는지 안 적는다(값은 멀쩡한데 피처만 사라진다)",
+     "quant/data/krx.py",
+     "            f\"'외국인' 컬럼이 없다 — 받은 컬럼: {list(raw.columns)[:6]}\")",
+     "            \"'외국인' 컬럼이 없다\")",
+     "tests/test_feature_health.py"),
+    ("원인이 아닌 것을 사유에 다시 적는다(사람이 엉뚱한 곳을 뒤진다)",
+     "quant/data/krx.py",
+     '                                f"KRX 투자자별 순매수가 비어 있음({symbol}이 "\n'
+     '                                "한국 종목 코드가 아닐 수 있다)")',
+     '                                "KRX 순매수가 비어 있음(pykrx 미설치 가능)")',
+     "tests/test_feature_health.py"),
+
+    # ── 감사 271 — 90일 시계가 '선언한 피처'만 보고 돌던 자리 ───────────
+    # 실측: 코인 펀딩·미결제약정 3개가 몇 주 동안 하나도 안 붙었는데
+    #       FEATURE_SET 태그는 내내 같았다 → 되살리면 표본이 섞인다.
+    ("실측 피처가 바뀌어도 시계를 안 멈춘다(90일 표본이 섞인 채 발표된다)",
+     "quant/live/daily.py",
+     "            if r_since > since:\n"
+     "                since = r_since",
+     "            if False:\n"
+     "                since = r_since",
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("확정 전에 세대 교체를 선언한다(공개 시계가 0일차로 떨어졌다 되돌아온다)",
+     "quant/live/daily.py",
+     "    current = (newest if (run >= GEN_CONFIRM_NIGHTS or run == len(nights))\n"
+     "               else nights[-run - 1][1])",
+     "    current = newest",
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("하룻밤 소스 장애도 세대 교체로 친다(시계가 90일에 영영 못 닿는다)",
+     "quant/live/daily.py",
+     "GEN_CONFIRM_NIGHTS = 3",
+     "GEN_CONFIRM_NIGHTS = 1",
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("시장을 섞어 날짜로만 묶는다(코인/주식 기준일이 달라 매일 뒤집힌다)",
+     "quant/live/daily.py",
+     '            mkt = str(r.get("market") or "?")',
+     '            mkt = "?"',
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("기록에 없는 옛 밤을 '아무것도 안 붙었다'로 읽는다(없던 변화가 생긴다)",
+     "quant/live/daily.py",
+     "            used = r.get(\"features_used\")\n"
+     "            if used is None:\n"
+     "                continue",
+     "            used = r.get(\"features_used\") or []",
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("이름표가 개수만 본다(구성이 달라도 같은 세대로 읽힌다)",
+     "quant/live/daily.py",
+     '    return f"opt{len(features)}:{h}"',
+     '    return f"opt{len(features)}"',
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+    ("밤마다 붙은 피처를 안 남긴다(구성이 바뀐 날을 영원히 못 찾는다)",
+     "quant/live/retrain.py",
+     "        return sorted(optional_features_from_df(df))",
+     "        return []",
+     "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
+
+    # ── 감사 270 — 부가 지표가 시세와 다른 사다리를 타던 자리 ────────────
+    # 실측: 장부의 data_source는 코인 5종목 전부 okx인데, 펀딩·미결제약정은
+    #       binance/binanceusdm이 박혀 있어 몇 주 동안 하나도 안 붙었다.
+    ("파생 사다리를 한 거래소로 고정한다(막히면 그날로 끝, 원래 사고 그대로)",
+     "quant/data/derivatives.py",
+     "    for spot in spot_ladder(preferred):",
+     '    for spot in ("binance",):',
+     "tests/test_the_side_data_walks_the_same_ladder.py"),
+    ("현물 심볼을 그대로 물어본다(거래소가 '펀딩 없음'을 돌려준다)",
+     "quant/data/derivatives.py",
+     "    return f\"{s}:{s.split('/', 1)[1]}\"",
+     "    return s",
+     "tests/test_the_side_data_walks_the_same_ladder.py"),
+    ("빈 응답을 성공으로 센다(사다리가 첫 칸에서 멈춘 채 매일 빈손이다)",
+     "quant/data/derivatives.py",
+     "        if s is not None and len(s) > 0:",
+     "        if s is not None:",
+     "tests/test_the_side_data_walks_the_same_ladder.py"),
+    ("실패 사유에서 거래소 이름을 뺀다(다음 사람이 처음부터 다시 조사한다)",
+     "quant/data/derivatives.py",
+     '    parts = ", ".join(f"{ex}={why}" for ex, why in tried.items())',
+     '    parts = "알 수 없음"',
+     "tests/test_the_side_data_walks_the_same_ladder.py"),
+    ("시세를 준 거래소를 안 물어본다(같은 종목을 서로 다른 장부로 본다)",
+     "quant/data/funding.py",
+     "                _price_source(df), symbol,",
+     "                None, symbol,",
+     "tests/test_the_side_data_walks_the_same_ladder.py"),
+
+    # 감사 269 — 사용자 자료에서 **못 옮긴 규칙을 말하지 않던** 자리.
     # 실측: "손절 -8%, 익절 +20%"가 언급조차 없이 사라졌다.
     ("못 옮긴 규칙을 조용히 버린다(사용자는 전부 반영된 줄 안다)",
      "quant/ingest/extract.py",
@@ -2380,7 +2559,7 @@ MUTATIONS = [
      'rf"위로\\s*(?:돌파|뚫)|아래로\\s*(?:돌파|뚫)|"',
      'rf"위로\\s*돌파|아래로\\s*돌파|"',
      "tests/test_only_real_rules_become_strategies.py"),
-    # 감사 263 — 실제로 돈이 나가는 경로에 킬스위치·검증 게이트가 없던 자리.
+    # 감사 268 — 실제로 돈이 나가는 경로에 킬스위치·검증 게이트가 없던 자리.
     # 실측: run_daily_live는 어드민 노출 배수만 곱하고 있었다.
     ("킬스위치가 실거래 노출에 안 걸린다(낙폭이 깊어도 그대로 산다)",
      "quant/live/daily_live.py",
@@ -2407,7 +2586,7 @@ MUTATIONS = [
      "        return dict.fromkeys(keys, 0.5)",
      "        return dict.fromkeys(keys, 1.0)",
      "tests/test_the_real_money_path_has_the_same_brakes.py"),
-    # 감사 262 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
+    # 감사 267 — 장중 감시가 예약대로 안 도는 것을 아무도 안 읽던 자리.
     # 실측: 예약 15분 / 관측 최악 간격 558분(2026-08-16 심장박동).
     ("감시가 몇 시간 멈춰도 알림이 안 나간다(문서는 계속 15분이라 말한다)",
      "quant/live/flag_watch.py",
@@ -2429,7 +2608,7 @@ MUTATIONS = [
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',
      '            status["_guard_unused"] = {"observed_gap_min": round(float(_gap), 1),',
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
-    # 감사 261 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
+    # 감사 266 — 몇 봉으로 판단했는지를 장부가 말하지 않던 자리.
     # 실측: 코인 5종목이 800봉 요청에 300봉 수신(2026-08-15 스냅샷).
     ("표본이 모자라도 장부에 안 남는다(300봉짜리 결론이 800봉으로 읽힌다)",
      "quant/live/daily.py",
@@ -2451,7 +2630,7 @@ MUTATIONS = [
      '            worst = min(bs.items(), key=lambda kv: kv[1]["got"] / kv[1]["asked"])',
      "            worst = max(bs.items(), key=lambda kv: kv[1][\"got\"] / kv[1][\"asked\"])",
      "tests/test_the_ledger_says_how_many_bars_it_judged_on.py"),
-    # 감사 260 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
+    # 감사 265 — 배치가 만든 기록에 아무 검사도 안 걸리던 자리.
     # 실측: 2026-08-15 +7,150% 기록이 [skip actions] 구멍으로 반나절 생존.
     ("장부 관문이 실패를 삼킨다(오염된 기록이 그대로 커밋된다)",
      ".github/workflows/daily-paper.yml",
@@ -4928,7 +5107,7 @@ MUTATIONS = [
      '<script src="assets/tradingview.js"></script>',
      "tests/test_every_public_page_actually_renders.py"),
 
-    # ── 감사 265 — 사이트가 계좌보다 큰 금액을 사실처럼 보여줬다 ──
+    # ── 감사 273 — 사이트가 계좌보다 큰 금액을 사실처럼 보여줬다 ──
     ("거부된 주문을 체결로 적는다(한 주도 안 샀는데 '매수'로 방송된다)",
      "quant/live/daily.py",
      '        _filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)\n'
@@ -4975,7 +5154,7 @@ MUTATIONS = [
      '      const bad=false;',
      "tests/test_the_amounts_add_up.py"),
 
-    # ── 감사 266 — 첫 화면이 첫 질문에 답하지 않았다 ──
+    # ── 감사 274 — 첫 화면이 첫 질문에 답하지 않았다 ──
     ("오래된 숫자를 오늘처럼 말한다(이틀 전 금액이 '지금'으로 읽힌다)",
      "docs/index.html",
      "        (age!==null&&age>=1",
@@ -5012,7 +5191,7 @@ MUTATIONS = [
      '통합 비중',
      "tests/test_the_first_screen_answers_the_first_question.py"),
 
-    # ── 감사 267 — 같은 화면의 숫자들이 서로 안 맞았다 ──
+    # ── 감사 275 — 같은 화면의 숫자들이 서로 안 맞았다 ──
     ("잔고 합계에서 현금을 도로 뺀다(줄이 스스로 안 맞는다)",
      "docs/index.html",
      "      '<td class=\"num\">'+won(sumCost+cashB)+'</td>'+",

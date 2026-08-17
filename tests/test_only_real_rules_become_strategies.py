@@ -223,7 +223,7 @@ def test_warmup_bars_take_no_position():
     assert float(sig.iloc[:199].abs().sum()) == 0.0, "워밍업 구간에 포지션이 있다"
 
 
-# ── 못 옮긴 것을 말하는가 (감사 264) ────────────────────────────
+# ── 못 옮긴 것을 말하는가 (감사 269) ────────────────────────────
 
 def test_a_rule_we_cannot_translate_is_named_not_silently_dropped():
     """지어내지 않는 것과 **말하지 않는 것**은 다르다.

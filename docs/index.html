@@ -112,7 +112,7 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
 .c5{grid-column:span 5} .c4{grid-column:span 4} .c3{grid-column:span 3}
 .stackcol{display:flex;flex-direction:column;gap:14px}
 
-/* ── 간단 보기 / 자세히 보기 (감사 266) ───────────────────────────
+/* ── 간단 보기 / 자세히 보기 (감사 274) ───────────────────────────
    사장님 2026-08-17: "너무 정보가 많아. 얼마를 언제 투자를 했고, 지금 얼마
    손해 혹은 이익인지 그 정도만 나오는게 맞지 않아? 지금은 처음 보면
    복잡해서 이해를 못해."
@@ -128,7 +128,7 @@ body.detail .adv.stackcol{display:flex}
    맞춰 주지 않으면 접히지 않는다. 실제로 안 접혀서 화면으로 보고 알았다. */
 .proof .p.adv{display:none}
 body.detail .proof .p.adv{display:flex}
-/* 사이드바도 벽이다(감사 266). 간단 보기에서는 **빨간 경고만** 남긴다 —
+/* 사이드바도 벽이다(감사 274). 간단 보기에서는 **빨간 경고만** 남긴다 —
    숨기는 것이 아니라 순서를 정하는 것이다. 급한 것이 위에 하나 있어야
    나머지를 안 읽어도 손해가 없다. */
 body:not(.detail) #side-gen,
@@ -324,7 +324,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 <div class="shell">
   <main class="main">
 
-    <!-- ★ 한눈에 — 처음 온 사람이 가장 먼저 알고 싶은 것 (감사 266)
+    <!-- ★ 한눈에 — 처음 온 사람이 가장 먼저 알고 싶은 것 (감사 274)
          "얼마를 언제 넣었고, 지금 얼마 손해 혹은 이익인가." 이 한 카드가
          그 질문에만 답한다. 나머지는 전부 '자세히 보기' 뒤로 접었다. -->
     <section class="card c12" id="glance">
@@ -332,7 +332,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <div id="glance-body" class="sub" style="margin-top:10px">불러오는 중…</div>
     </section>
 
-    <!-- 다운로드 히어로 — 제품 소개. **계좌 요약 아래로 내렸다**(감사 266):
+    <!-- 다운로드 히어로 — 제품 소개. **계좌 요약 아래로 내렸다**(감사 274):
          첫 화면이 "1,000,000원으로 굴리는 자동매매"라는 광고 문구로 시작하고
          정작 "지금 얼마인가"는 오른쪽 구석에 전문용어와 섞여 있었다. -->
     <section class="hero">
@@ -370,7 +370,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
             <span class="pv" id="pv-eq">—</span>
             <span class="pd" id="pd-eq">기록 불러오는 중</span></div>
           <!-- ⚠️ '판정 시계'·'검증한 도전자'는 이 제품을 아는 사람에게만
-               뜻이 통하는 말이다(감사 266). 처음 온 사람에게는 숫자가 셋이면
+               뜻이 통하는 말이다(감사 274). 처음 온 사람에게는 숫자가 셋이면
                어느 것이 자기 돈인지 알 수 없다 — 접어 둔다. -->
           <div class="p adv"><span class="pk">판정 시계</span><span class="pv" id="pv-gen">—</span>
             <span class="pd" id="pd-gen">구조가 바뀌면 0일부터</span></div>
@@ -388,7 +388,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         · <span style="color:var(--accent)">●</span> 챔피언 교체</div>
     </section>
 
-    <!-- 차트 옆 신뢰 카드 2개 (세로 스택) — 기본 접힘(감사 266) -->
+    <!-- 차트 옆 신뢰 카드 2개 (세로 스택) — 기본 접힘(감사 274) -->
     <div class="c4 stackcol adv">
       <section class="card"><h2>🕰 판정 시계</h2>
         <div id="c-gen" class="sub" style="margin-top:8px">불러오는 중…</div></section>
@@ -464,7 +464,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       </div>
     </section>
 
-    <!-- 여기부터 아래는 **읽고 싶은 사람만** 본다(감사 266). 숫자를 지우지는
+    <!-- 여기부터 아래는 **읽고 싶은 사람만** 본다(감사 274). 숫자를 지우지는
          않는다 — 공개 장부에서 값을 없애는 것은 답이 아니다. 접어 둘 뿐이다. -->
     <div class="moreline">
       <button class="morebtn" id="morebtn" aria-expanded="false"
@@ -472,15 +472,17 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         style="font-weight:400">판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · 탈락자</span></button>
     </div>
 
-    <!-- 표 옆 카드 2개 — 기본 접힘(감사 266) -->
+    <!-- 표 옆 카드 2개 — 기본 접힘(감사 274) -->
     <div class="c4 stackcol adv">
       <section class="card"><h2>🧾 체결 가정 검증</h2>
         <div id="c-fill" class="sub" style="margin-top:8px">불러오는 중…</div></section>
+      <section class="card"><h2>🧨 위기 재생·스트레스 <span class="tag">시뮬레이션</span></h2>
+        <div id="c-risk" class="sub" style="margin-top:8px">불러오는 중…</div></section>
       <section class="card"><h2>오답 노트 <span class="tag">상시 공개</span></h2>
         <div id="c-wrong" class="sub" style="margin-top:8px">불러오는 중…</div></section>
     </div>
 
-    <!-- 탈락자 아카이브 — 기본 접힘(감사 266) -->
+    <!-- 탈락자 아카이브 — 기본 접힘(감사 274) -->
     <section class="card c4 adv"><h2>탈락자 아카이브 <span class="tag">다중검정 정직성</span></h2>
       <div id="c-ring" class="sub" style="margin-top:8px">불러오는 중…</div></section>
 
@@ -557,7 +559,7 @@ function cls(v){return v>0.004?"up":v<-0.004?"down":""}
 function zp(v){return Math.abs(v)<0.005?"0.00%":pct(v)}
 function num(v){return Number(v).toLocaleString("ko-KR")}
 
-/* 간단 보기 ↔ 자세히 보기 (감사 266).
+/* 간단 보기 ↔ 자세히 보기 (감사 274).
    ⚠️ 접는 것은 **화면만**이다. 숫자는 그대로 문서 안에 있고, 한 번 펴면
       선택이 기억된다. 공개 장부에서 값을 지우는 것은 답이 아니다 — 처음 온
       사람에게 벽을 세우지 않는 것이 목적이다. */
@@ -599,6 +601,42 @@ function num(v){return Number(v).toLocaleString("ko-KR")}
 })();
 
 /* ============ status.json 렌더링 ============ */
+/* ---- 위기 재생·스트레스 (risk.json) — 실측 장부와 다른 파일에 사는
+   시뮬레이션이다. kind="simulation" 표식과 함께가 아니면 표시하지 않는다. */
+fetch("risk.json").then(r=>r.ok?r.json():null).then(rk=>{
+  const el=document.getElementById("c-risk");
+  if(!el)return;
+  if(!rk||rk.kind!=="simulation"){el.textContent="아직 위험 리포트가 없습니다 — 야간 검증 배치가 만듭니다.";return;}
+  const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const pc=v=>(v*100).toFixed(1)+"%";
+  let h="";
+  if(rk.replay){
+    const rp=rk.replay;
+    h+='<b>지난 위기 재생</b> ('+esc(rp.period.from)+'~'+esc(rp.period.to)+' · '+rp.n_symbols+'종목 · <b>시뮬레이션</b>)'+
+      '<div class="tw" style="margin-top:6px"><table><tr><th></th><th>브레이크 없음</th><th>브레이크 적용</th></tr>'+
+      '<tr><td>최대낙폭</td><td class="down">'+pc(rp.raw.mdd)+'</td><td><b>'+pc(rp.braked.mdd)+'</b></td></tr>'+
+      '<tr><td>연 변동성</td><td>'+pc(rp.raw.ann_vol)+'</td><td>'+pc(rp.braked.ann_vol)+' <span class="sub" style="font-size:10.5px">(목표 '+pc(rp.target_vol)+')</span></td></tr>'+
+      '<tr><td>최악 20일</td><td class="down">'+pc(rp.raw.worst_20d)+'</td><td>'+pc(rp.braked.worst_20d)+'</td></tr></table></div>'+
+      '<div style="margin-top:6px;font-size:11.5px">킬스위치 발동 '+rp.kill_switch_episodes.length+'회'+
+      (rp.kill_switch_episodes[0]?' — 첫 발동 '+esc(rp.kill_switch_episodes[0].from)+' (실제 급락일과 일치)':'')+
+      ' · 실현 변동성이 목표보다 높습니다: 변동성 추정은 폭락을 하루이틀 늦게 따라갑니다. 이 지연은 구조적이며 숨기지 않습니다.</div>';
+  }
+  if(rk.stress){
+    const stx=rk.stress;
+    h+='<div style="margin-top:10px"><b>내일 아침 스트레스</b> (지금 노출 '+pc(stx.inputs.gross_weight)+' 기준 · <b>시뮬레이션</b>)</div>'+
+      '<div class="tw" style="margin-top:6px"><table><tr><th style="text-align:left">시나리오</th><th>계좌 손실</th><th>브레이크 반응</th></tr>'+
+      stx.scenarios.map(s=>'<tr><td style="text-align:left;font-size:11px">'+esc(s.desc)+'</td>'+
+        '<td class="'+(s.loss_pct<0?"down":"up")+'">'+s.loss_pct.toFixed(1)+'%</td>'+
+        '<td style="font-size:11px">'+(s.blind?'⚠️ 못 봄 — 멈춘 시세 감시가 방어선':
+          s.kill_switch_after===0?'⛔ 전량 관망':
+          s.kill_switch_after===0.5?'🟡 노출 절반'+(s.engaged_on_day?' ('+s.engaged_on_day+'일째)':''):
+          '정상 유지')+'</td></tr>').join("")+'</table></div>';
+  }
+  h+='<div class="sub" style="margin-top:8px;font-size:11px">여기 숫자는 전부 <b>시뮬레이션</b>입니다(실측 장부와 다른 파일에 삽니다). '+
+    (rk.replay?rk.replay.honest_limits.map(esc).join(" · "):"")+'</div>';
+  el.innerHTML=h||"위험 리포트가 비어 있습니다.";
+}).catch(()=>{const el=document.getElementById("c-risk");if(el)el.textContent="위험 리포트를 불러오지 못했습니다.";});
+
 fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   if(!st)return;
   const paper=st.paper||{}, syms=st.symbols||{};
@@ -705,7 +743,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const held={};
   ((pf&&pf.holdings)||[]).forEach(h=>{if(h&&h.key)held[h.key]=h;});
 
-  /* ── 한눈에 (감사 266) ──────────────────────────────────────────
+  /* ── 한눈에 (감사 274) ──────────────────────────────────────────
      사장님 2026-08-17: "얼마를 언제 투자를 했고, 지금 얼마 손해 혹은 이익인지
      그 정도만 나오는게 맞지 않아? 지금은 처음 보면 복잡해서 이해를 못해."
 
@@ -764,7 +802,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           '<b>'+won(cashVal)+'</b>은 현금입니다.'+
         '</div>'+
         /* ⚠️ 준실시간 시세가 들어오면 **잔고 표만** "지금 999,xxx원"으로
-           움직이고 이 카드는 확정값에 머물러 있었다(감사 267 · 사장님
+           움직이고 이 카드는 확정값에 머물러 있었다(감사 275 · 사장님
            "실시간으로 페이지의 숫자들이 다 일치가 돼야 해"). 두 곳이 다른
            숫자를 말하면 읽는 사람은 어느 쪽이 자기 돈인지 알 수 없다.
            **여기서 다시 계산하지 않는다** — 잔고 표와 같은 `.lvv` 자리를
@@ -967,7 +1005,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   {
     const lp=pfLast.lot_priority||null;
     const nm=k=>esc((syms[k]||{}).name||k.split(":")[1]||k);
-    /* ⚠️ **계좌보다 큰 금액은 사실처럼 적지 않는다**(감사 265). 2026-08-15
+    /* ⚠️ **계좌보다 큰 금액은 사실처럼 적지 않는다**(감사 273). 2026-08-15
        기록에는 자산 997,198원짜리 계좌에 "비앤비 4,526,594원 · 리플
        4,084,420원"이 남아 있고, 이 줄이 그걸 그대로 읽어 주고 있었다.
        기록은 고치지 않는다 — 대신 못 믿을 값이라고 **말한다.** */
@@ -1010,7 +1048,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     Object.keys(rh).forEach(k=>{
       const r=rh[k]||{}, lab=nmk[k]||k;
       const nf=Number(r.failed)||0;
-      /* 🚨를 앞에 붙인다(감사 266) — 새벽 배치가 절반 실패한 날은 '상태
+      /* 🚨를 앞에 붙인다(감사 274) — 새벽 배치가 절반 실패한 날은 '상태
          설명'이 아니라 **지금 뭔가 잘못된** 일이다. 간단 보기에서도 남는다. */
       if(nf>0)flags.push("🚨 <b>"+esc(lab)+" 부분 실패 "+nf+"종목</b> — "+
         (r.failed_keys||[]).slice(0,5).map(x=>rname(x)).join(" · ")+
@@ -1102,7 +1140,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   document.getElementById("side-flags").innerHTML=
     '<div class="t">🚩 지금 켜진 경고</div>'+
     /* 🚨로 시작하는 것은 **지금 뭔가 잘못된** 경고다. 나머지는 상태 설명이다.
-       간단 보기에서는 앞의 것만 남긴다(감사 266) — 여덟 줄이 나란히 있으면
+       간단 보기에서는 앞의 것만 남긴다(감사 274) — 여덟 줄이 나란히 있으면
        급한 것과 안 급한 것이 구별되지 않아 전부 배경음이 된다. */
     (flags.length?flags.map(f=>'<div class="flag'+
       (/^\s*🚨/.test(String(f).replace(/<[^>]*>/g,""))?" crit":"")+'">'+f+'</div>').join("")
@@ -1133,7 +1171,14 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       (g.structure?'<div class="sub" style="margin-top:8px;font-size:11.5px">'+
         '마지막 리셋 '+esc(g.structure.epoch)+' — '+esc(g.structure.why)+
         '. 피처뿐 아니라 <b>사이징·체결 구조</b>가 바뀌어도 리셋합니다: 노출이 다른 '+
-        '두 구간의 수익률은 같은 통계가 아니기 때문입니다.</div>':'')+ar;
+        '두 구간의 수익률은 같은 통계가 아니기 때문입니다.</div>':'')+
+      /* 실측 피처 구성 — 선언한 이름표가 아니라 그날 밤 실제로 붙은 것 */
+      (g.realized?'<div class="sub" style="margin-top:8px;font-size:11.5px">'+
+        '지금 모델이 <b>실제로 보고 있는</b> 참고 지표 <b>'+g.realized.n+'개</b>'+
+        ' — '+esc(g.realized.since)+'부터 이 구성이 유지되고 있습니다. 외부 자료가 '+
+        '끊기거나 되살아나 <b>보는 것이 달라지면</b>('+g.realized.confirm_nights+
+        '일 연속) 그날부터 시계를 다시 셉니다. "무엇을 본다"고 적어 둔 이름표만 '+
+        '믿으면, 자료가 끊긴 구간과 살아 있던 구간이 한 통계로 섞입니다.</div>':'')+ar;
   }
   if(st.fill_check&&st.fill_check.markets){
     const fc=st.fill_check,nm={crypto:"코인",kr_stock:"한국주식",us_stock:"미국주식"};
@@ -1223,7 +1268,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
          0.000078주). 고정 소수점으로 찍으면 한쪽이 통째로 0이 된다. */
       const q=Number(r.quantity)||0;
       const qs=q>=100?num(Math.round(q)):(q>=1?q.toFixed(3):q.toPrecision(3));
-      /* 줄에 종목 키를 붙인다 — 누르면 차트 창이 이 값으로 열린다(감사 266). */
+      /* 줄에 종목 키를 붙인다 — 누르면 차트 창이 이 값으로 열린다(감사 274). */
       return '<tr data-k="'+esc(r.key)+'" data-name="'+esc(nm)+
         '" data-code="'+esc(r.key.split(":")[1]||r.key)+
         '" title="누르면 차트와 장부를 함께 봅니다">'+
@@ -1251,7 +1296,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '<td class="num"><b>'+won(cashB)+'</b></td><td class="num">—</td>'+
       '<td class="num">—</td><td class="num">'+
         (eqB?(cashB/eqB*100).toFixed(1):"0.0")+'%</td></tr>'+
-      /* ⚠️ **이 줄이 앞뒤가 안 맞았다**(감사 267 · 사장님 지적 "숫자들이 다
+      /* ⚠️ **이 줄이 앞뒤가 안 맞았다**(감사 275 · 사장님 지적 "숫자들이 다
          일치가 돼야 해"). 매입금액 칸은 현금을 빼고 271,221원, 평가금액 칸은
          현금을 넣어 997,198원이었다 — 같은 줄에서 두 칸이 서로 다른 것을
          세고 있었다. 빼 보면 +725,977원 '이익'이 나온다.
@@ -1280,7 +1325,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     if(stale)note+=" ⚠ 표시된 "+stale+"종목은 시세를 받지 못해 매입가로 "+
       "평가돼 있습니다(손익이 0으로 보입니다).";
     document.getElementById("bal-note").textContent=note;
-    /* ⚠️ **한 화면에 '손익'이 둘 있었다**(감사 267 · 사장님 지적).
+    /* ⚠️ **한 화면에 '손익'이 둘 있었다**(감사 275 · 사장님 지적).
          맨 위 '한눈에'는 −2,802원(원금 대비), 이 표 합계는 −2,396원(매입 대비).
        둘 다 맞는 값이고 정의가 다를 뿐인데, 이름이 같고 설명이 없으면
        읽는 사람은 **하나가 틀렸다**고 결론짓는다. 차이는 이미 낸 수수료다 —
@@ -1308,8 +1353,8 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         증거가 아니라 이야기가 된다. */
   if(pf&&(pf.trades||[]).length){
     let noQty=0, noAmt=0;
-    /* ⚠️ **이 표도 계좌보다 큰 금액을 그대로 보여주고 있었다**(감사 266).
-       감사 265에서 '오늘의 판단'의 체결 표와 첫 화면 경고는 고쳤는데
+    /* ⚠️ **이 표도 계좌보다 큰 금액을 그대로 보여주고 있었다**(감사 274).
+       감사 273에서 '오늘의 판단'의 체결 표와 첫 화면 경고는 고쳤는데
        **거래내역 표만 남아 있었다** — 같은 결함의 세 번째 자리다
        (FROZEN_IDEAS ⑭: 한 곳을 고치면 거울이 하나 더 있다).
        체결이 일어난 **그날의 자산**과 견준다. 오늘 자산과 견주면 옛 체결이
@@ -1512,7 +1557,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       if(k==="__total__"){
         /* 확정값과 **다른 숫자**이므로 라벨 없이 내보내지 않는다. 같은
            문구를 쓰는 자리가 둘(잔고 합계·한눈에)이라 여기서 한 번만 만든다.
-           ⚠️ 자릿수가 다르면 라벨을 붙여도 참이 되지 않는다(감사 267) —
+           ⚠️ 자릿수가 다르면 라벨을 붙여도 참이 되지 않는다(감사 275) —
               환율이 빠지면 코인 평가액이 1,400배로 튄다. 그런 값은 안 낸다. */
         const liveEq=m.sumLive+cash;
         n.innerHTML=!m.complete?''
@@ -1685,7 +1730,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const el=document.getElementById("side-flags");
   if(!el)return;
   el.innerHTML='<div class="t">⚠️ 화면을 다 그리지 못했습니다</div>'+
-    /* ⚠️ `crit`을 반드시 붙인다(감사 266). 간단 보기는 급하지 않은 경고를
+    /* ⚠️ `crit`을 반드시 붙인다(감사 274). 간단 보기는 급하지 않은 경고를
        접는데, **"화면이 고장났다"는 안내까지 접히면** 빈 화면이 정상으로
        보인다 — 감사 245가 막으려던 바로 그 일이 되돌아온다. */
     '<div class="flag crit">이 페이지의 일부가 비어 있을 수 있습니다 — '+
@@ -1781,7 +1826,7 @@ fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/lat
        종목표 한 곳에서만 맞고, 잔고·거래내역에서 열면 엉뚱한 칸을 "현재가"라고
        읽는다 — 사장님이 "잔고·거래내역·운용종목에서도 눌러서 차트를 보고 싶다"
        (2026-08-17)고 하셔서, 표마다 창을 하나씩 만드는 대신 **그 표의 머리글을
-       읽어** 짝지운다(감사 266). 표가 바뀌어도 창은 따라온다. */
+       읽어** 짝지운다(감사 274). 표가 바뀌어도 창은 따라온다. */
     var tbl=tr.closest("table");
     var heads=[].map.call((tbl&&tbl.querySelectorAll("thead th"))||[],
       function(th){return (th.innerText||"").replace(/\s+/g," ").trim()});
@@ -1825,7 +1870,7 @@ fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/lat
   }
 
   /* 표는 나중에 그려지므로 위임으로 잡는다.
-     ⚠️ **세 표 모두**에 건다(감사 266) — 잔고·거래내역·종목별 현황.
+     ⚠️ **세 표 모두**에 건다(감사 274) — 잔고·거래내역·종목별 현황.
         한 곳에만 걸어 두면 "여기선 눌리는데 저기선 안 눌린다"가 되고,
         읽는 사람은 그것을 고장으로 읽는다. */
   ["symtable","baltable","trtable"].forEach(function(id){
