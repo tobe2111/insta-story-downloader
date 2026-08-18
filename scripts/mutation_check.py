@@ -3033,6 +3033,14 @@ MUTATIONS = [
      "            z = ((s5 - mu) / sd).astype(float)",
      "tests/test_attached_features_cannot_see_the_future.py"),
 
+    # 2026-08-18 — 3주체 부착. 개인 수급을 x_ 이름으로 붙이면 챔피언 피처
+    # 빌더(x_* 자동 포함)에 새어 들어 구조 동결이 조용히 깨진다.
+    ("개인 수급을 x_ 이름으로 붙인다(챔피언 입력이 조용히 바뀐다)",
+     "quant/data/krx.py",
+     '                          ("indi", "flow_indi5")):',
+     '                          ("indi", "x_indi5")):',
+     "tests/test_alpha10_prune_krx.py"),
+
     ("미결제약정을 후진충전으로 붙인다(다음 값이 이번 봉에 실린다 = 룩어헤드)",
      "quant/data/openinterest.py",
      '        out["oi"] = pd.Series(s.reindex(target, method="ffill").to_numpy(),',
@@ -4028,6 +4036,20 @@ MUTATIONS = [
      "    if clamp_screen and select_t > confirm_t:",
      "    if False and select_t > confirm_t:",
      "tests/test_audition_gates_bind.py"),
+
+    # 2026-08-18 — 동시검정(현실성 검사). confirm_threshold의 상한이 큰 시도
+    # 수에서 보정을 잃는 빈틈을 막는 관문 — 이게 꺼지면 후보를 많이 세울수록
+    # 우연한 승격이 다시 쉬워진다.
+    ("결승이 '후보 N명 중 최고'라는 사실을 잊는다(동시검정 해제)",
+     "quant/live/retrain.py",
+     '            if rc_res["p"] > RC_ALPHA:',
+     "            if False:",
+     "tests/test_the_finals_face_all_rivals_at_once.py"),
+    ("동시검정 α가 느슨해져도 아무도 모른다",
+     "quant/live/retrain.py",
+     "RC_ALPHA = 0.10",
+     "RC_ALPHA = 0.999",
+     "tests/test_the_finals_face_all_rivals_at_once.py"),
 
     ("무효 후보(챔피언 사본)를 링에 그대로 세운다",
      "quant/live/retrain.py",
@@ -5749,6 +5771,14 @@ MUTATIONS = [
      "quant/live/daily.py",
      '                status["paper"][key]["universe_excluded"] = True',
      "                pass",
+     "tests/test_the_universe_is_chosen_by_rule.py"),
+
+    # 미국 순위 소스 (2026-08-18 저녁 부착) — 복수클래스 표기를 거르지 않으면
+    # 같은 회사가 두 번 들어와 분산이 명목만 늘어난다(KR 우선주 제외와 동일).
+    ("미국 순위가 복수클래스·워런트 표기를 통과시킨다(같은 회사 중복)",
+     "quant/universe.py",
+     '        if not sym or any(ch in sym for ch in "^./ "):',
+     "        if not sym:",
      "tests/test_the_universe_is_chosen_by_rule.py"),
 
     # ── 지정가 그림자 (2026-08-18) — 체결 조건이 굽으면 공짜 체결이 된다 ──

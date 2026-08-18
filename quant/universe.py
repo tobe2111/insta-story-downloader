@@ -11,9 +11,11 @@
     (거래소 공개 티커 — 무료·공개라 재현 가능).
   · kr_stock: 시장 지수 ETF(KODEX 200) 고정 + 기준일 시가총액 상위 6
     (KRX 공개 통계, pykrx — 우선주 제외).
-  · us_stock: 지수 ETF(SPY·QQQ) 고정 + 현행 종목 유지 — 공개 시총 순위
-    소스를 아직 붙이지 못했다. **즉흥으로 고르는 대신 그 사실을 스냅샷에
-    적는다**(조용한 대체 금지). 순위 소스가 붙으면 규칙으로 바꾼다.
+  · us_stock: 지수 ETF(SPY·QQQ) 고정 + 기준일 시가총액 상위 6
+    (나스닥 공개 스크리너, NASDAQ·NYSE 합산 — 무료·공개. 2026-08-18 부착;
+    그 전에는 순위 소스가 없어 "현행 유지"를 규칙으로 명시했었다).
+    점(.)·캐럿(^)이 든 심볼(복수 클래스·워런트 표기)은 제외한다 —
+    같은 회사를 두 번 세지 않기 위해서이고, 시세 소스 심볼 규약과도 맞다.
   · 산출에 쓴 순위표를 스냅샷(state/universe.json)에 저장 — 언제 다시
     봐도 같은 근거를 볼 수 있다.
 
@@ -40,6 +42,7 @@ CRYPTO_TOP = 3
 KR_CORE = ["069500.KS"]           # KODEX 200 — 시장 전체 대표
 KR_TOP = 6
 US_CORE = ["SPY", "QQQ"]
+US_TOP = 6
 
 
 def _path(state_dir: str) -> str:
@@ -116,9 +119,61 @@ def _rank_kr(asof: str) -> list[str]:
     return out
 
 
+def _fetch_us_screener_rows() -> list[dict]:
+    """나스닥 공개 스크리너 — NASDAQ·NYSE 상장 주식 전체(시총 포함).
+
+    무료·공개 JSON이라 재현 가능하다. 실패는 예외로 올라가고, rebuild가
+    '직전 구성 유지 + 사유'로 처리한다(즉흥 선정 금지 원칙 그대로).
+    """
+    import urllib.request as _rq
+    rows: list[dict] = []
+    for ex in ("nasdaq", "nyse"):
+        url = ("https://api.nasdaq.com/api/screener/stocks"
+               f"?tableonly=true&download=true&exchange={ex}")
+        req = _rq.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; quant-universe)",
+            "Accept": "application/json"})
+        with _rq.urlopen(req, timeout=25) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        rows += ((data.get("data") or {}).get("rows") or [])
+    return rows
+
+
+def _rank_us(fetch_rows=_fetch_us_screener_rows) -> list[str]:
+    """기준일 시가총액 상위 — 나스닥 공개 스크리너. 파싱은 결정적.
+
+    점(.)·캐럿(^)·슬래시(/)가 든 심볼은 제외한다: 복수 클래스(BRK.A 등)·
+    워런트·우선 표기라 같은 회사를 두 번 세게 되고, 시세 소스(야후) 심볼
+    규약과도 어긋난다 — KR의 우선주 제외와 같은 원리다.
+    """
+    scored: list[tuple[str, float]] = []
+    for row in fetch_rows():
+        sym = str(row.get("symbol", "")).strip().upper()
+        if not sym or any(ch in sym for ch in "^./ "):
+            continue
+        cap_raw = str(row.get("marketCap", "")).replace(",", "").replace("$", "")
+        try:
+            cap = float(cap_raw)
+        except ValueError:
+            continue
+        if cap > 0:
+            scored.append((sym, cap))
+    if not scored:
+        raise RuntimeError("나스닥 스크리너가 시총 있는 종목을 하나도 안 줬다")
+    scored.sort(key=lambda x: -x[1])
+    seen: set[str] = set()
+    out = []
+    for sym, _cap in scored:            # 두 거래소 목록의 중복 제거(첫 순위 유지)
+        if sym not in seen:
+            seen.add(sym)
+            out.append(sym)
+    return out
+
+
 def rebuild(state_dir: str = "state",
             today: _dt.date | None = None,
-            rank_crypto=_rank_crypto, rank_kr=_rank_kr) -> dict:
+            rank_crypto=_rank_crypto, rank_kr=_rank_kr,
+            rank_us=_rank_us) -> dict:
     """규칙대로 유니버스를 다시 계산해 스냅샷으로 저장한다.
 
     시장별로 독립 실패한다 — 한 시장의 조회 실패가 다른 시장의 갱신을
@@ -159,13 +214,19 @@ def rebuild(state_dir: str = "state",
         rationale["kr_stock"] = {"kept_previous": True,
                                  "reason": f"{type(exc).__name__}: {exc}"}
 
-    # 미국: 공개 시총 순위 소스가 아직 없다 — 현행 유지를 규칙으로 명시.
-    markets["us_stock"] = prev_by_market.get(
-        "us_stock", [s for m, s in AUTO_TARGETS if m == "us_stock"])
-    rationale["us_stock"] = {
-        "rule": "지수 ETF(SPY·QQQ) 고정 + 현행 유지",
-        "note": "공개 시총 순위 소스 미부착 — 즉흥 선정 대신 현행 유지, "
-                "소스가 붙으면 규칙으로 전환"}
+    try:
+        ranked = rank_us()
+        extra = [s for s in ranked if s not in US_CORE][:US_TOP]
+        markets["us_stock"] = US_CORE + extra
+        rationale["us_stock"] = {
+            "rule": f"지수 ETF(SPY·QQQ) 고정 + 시총 상위 {US_TOP}"
+                    " (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
+            "top10": ranked[:10]}
+    except Exception as exc:  # noqa: BLE001 — 실패 시 직전 구성 유지
+        markets["us_stock"] = prev_by_market.get(
+            "us_stock", [s for m, s in AUTO_TARGETS if m == "us_stock"])
+        rationale["us_stock"] = {"kept_previous": True,
+                                 "reason": f"{type(exc).__name__}: {exc}"}
 
     targets = ([("crypto", s) for s in markets["crypto"]]
                + [("us_stock", s) for s in markets["us_stock"]]

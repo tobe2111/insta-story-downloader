@@ -87,6 +87,35 @@ def test_thin_history_stays_quiet():
     assert float(sig.abs().max()) == 0.0, "표본 미달인데 신호를 낸다"
 
 
+def test_the_third_flow_joins_when_attached():
+    """개인(flow_indi5)이 붙은 날은 논문 원형인 3주체로 군집화한다.
+
+    2026-08-18 저녁부터 도전자 전용 부착이 켜졌다 — 있으면 쓰고 없으면
+    2주체. 어느 쪽이든 결합이 명확한 데이터에서는 군집을 찾아야 한다.
+    """
+    df, regime = _regime_df()
+    df3 = df.copy()
+    df3["flow_indi5"] = np.where(regime == 1, 2.0, -2.0)   # 3주체째
+    sig = SupplyDemandSOM().generate_signals(df3).to_numpy()
+    tail = slice(300, 419)
+    pos = sig[tail][regime[tail] == 1]
+    neg = sig[tail][regime[tail] == 0]
+    assert pos.mean() > 0.9, f"3주체인데 양의 군집을 못 찾는다: {pos.mean():.2f}"
+    assert neg.mean() < 0.1, f"3주체인데 음의 군집에서 산다: {neg.mean():.2f}"
+    # 재료가 실제로 읽히는지 — 외국인·기관을 상수 0으로 죽이고 **개인만**
+    # 상태를 담게 하면, 세 번째 열 없이는 풀 수 없는 과제가 된다(모멘텀은
+    # 과거 상태의 함수라 오늘 상태와 독립 — 예측력이 없다).
+    df_only = df.copy()
+    df_only["x_frgn5"] = 0.0
+    df_only["x_inst5"] = 0.0
+    df_only["flow_indi5"] = np.where(regime == 1, 2.0, -2.0)
+    sig_only = SupplyDemandSOM().generate_signals(df_only).to_numpy()
+    pos_o = sig_only[tail][regime[tail] == 1]
+    assert pos_o.mean() > 0.9, (
+        f"개인 수급에만 정보가 있는데 군집을 못 찾는다({pos_o.mean():.2f}) — "
+        "세 번째 열이 장식이라는 뜻이다")
+
+
 def test_the_challenger_is_in_the_ring_with_fixed_seed():
     from quant.live.retrain import build_challengers
     ring = build_challengers({"strategy": "ml", "params": {}}, "2026-08-18",

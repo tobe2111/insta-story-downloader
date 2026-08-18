@@ -5,10 +5,11 @@
 주가가 어땠는지를 학습해 매매에 쓴다.
 
 이 틀에서 다른 점 (정직하게):
-    · 논문은 3주체(외국인·기관·개인)를 쓰지만, 여기서는 실전 파이프라인이
-      부착하는 **외국인·기관 2주체**(x_frgn5·x_inst5)로 시작한다. 개인
-      순매수는 2026-08-18부터 수집만 되는 상태다 — 챔피언 피처 구성이
-      동결이라 부착을 늘리지 않았고, 도전자 전용 부착은 다음 단계다.
+    · 논문과 같은 3주체(외국인·기관·개인)를 쓴다 — 단, 개인(flow_indi5)은
+      2026-08-18부터 부착되는 **도전자 전용** 컬럼이라, 그 이전 데이터나
+      부착이 실패한 날에는 외국인·기관 2주체로 동작한다(있으면 쓰고 없으면
+      2주체 — 어느 쪽이었는지는 재료 자체가 말해 준다). 챔피언의 피처
+      구성(동결)은 이 컬럼을 모르므로 아무 영향이 없다.
     · 논문의 신경망(NN) 예측 단계는 **군집별 다음날 수익 통계**로 대체한다.
       신경망 학습은 실행 환경에 따라 결과가 흔들려 "모든 판단은 재현
       가능해야 한다"는 이 저장소의 원칙과 충돌한다. 통계 판정은 같은
@@ -34,7 +35,11 @@ import pandas as pd
 
 from quant.strategies.base import Strategy
 
-FLOW_COLS = ("x_frgn5", "x_inst5")
+FLOW_COLS = ("x_frgn5", "x_inst5")     # 필수 2주체 — 없으면 관망
+# 개인(3주체째) — 있으면 함께 쓴다. 이름이 x_로 시작하지 않는 이유는
+# quant/data/krx.py의 부착 주석 참조(챔피언 피처 빌더의 x_* 자동 포함을
+# 피하는 동결 장치 — 이 컬럼은 도전자 전용이다).
+OPT_FLOW = "flow_indi5"
 
 
 def _train_som(feats: np.ndarray, grid: int, iters: int,
@@ -87,11 +92,12 @@ class SupplyDemandSOM(Strategy):
 
         close = df["close"].to_numpy(dtype=float)
         mom5 = pd.Series(close).pct_change(5).to_numpy()
-        feats = np.column_stack([
-            df[FLOW_COLS[0]].to_numpy(dtype=float),
-            df[FLOW_COLS[1]].to_numpy(dtype=float),
-            np.clip(mom5 * 10.0, -4.0, 4.0),           # 수급 z와 비슷한 스케일
-        ])
+        cols = [df[FLOW_COLS[0]].to_numpy(dtype=float),
+                df[FLOW_COLS[1]].to_numpy(dtype=float)]
+        if OPT_FLOW in df.columns:                     # 개인 — 논문의 3주체째
+            cols.append(df[OPT_FLOW].to_numpy(dtype=float))
+        cols.append(np.clip(mom5 * 10.0, -4.0, 4.0))   # 수급 z와 비슷한 스케일
+        feats = np.column_stack(cols)
         fwd = np.empty(n)
         fwd[:] = np.nan
         fwd[:-1] = close[1:] / close[:-1] - 1.0        # 학습 구간 안에서만 사용
