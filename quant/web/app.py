@@ -9,7 +9,7 @@ import html
 from pathlib import Path
 
 # 폼 셀렉트용 (pandas 임포트를 피하려고 하드코딩; strategies 레지스트리와 일치)
-STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout", "turtle", "bollinger", "psar", "ichimoku",
+STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout", "turtle", "bollinger", "psar", "ichimoku", "dual_thrust",
               "macd", "keltner", "stochastic", "ml", "ensemble"]
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
@@ -25,6 +25,7 @@ STRATEGY_LABELS = {
     "bollinger": "볼린저밴드 · 박스권/수축돌파",
     "psar": "파라볼릭 SAR · 추세 반전점",
     "ichimoku": "일목균형표 · 호전 + 구름 돌파",
+    "dual_thrust": "듀얼 스러스트 · 시가 기준 범위 돌파",
     "macd": "MACD 히스토그램",
     "keltner": "켈트너 채널 돌파",
     "stochastic": "스토캐스틱",

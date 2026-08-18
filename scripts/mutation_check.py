@@ -5666,6 +5666,19 @@ MUTATIONS = [
      '        elif "개인" in str(name):',
      "        elif False:",
      "tests/test_alpha10_prune_krx.py"),
+
+    # ── 듀얼 스러스트 (2026-08-18 자동 수집 1호) — 옮긴 수식이 굽으면 거짓 ──
+    ("듀얼 스러스트 Range에 오늘 봉을 넣는다(룩어헤드 — 돌파 판정이 자기 자신을 본다)",
+     "quant/strategies/dualthrust.py",
+     '        hh = df["high"].rolling(w).max().shift(1)',
+     '        hh = df["high"].rolling(w).max()',
+     "tests/test_the_dual_thrust_obeys_the_public_formula.py"),
+
+    ("듀얼 스러스트의 청산선을 뗀다(시가−K2×Range 아래로 떨어져도 영영 들고 있는다)",
+     "quant/strategies/dualthrust.py",
+     "            elif close[i] < sell_line[i]:",
+     "            elif False:",
+     "tests/test_the_dual_thrust_obeys_the_public_formula.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
