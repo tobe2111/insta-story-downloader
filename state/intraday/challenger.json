@@ -1,11 +1,11 @@
 {
-  "cash": 9156.981262952477,
+  "cash": 8771.94332255061,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "ETH/USDT": 0.005737337177596127,
     "XRP/USDT": 49.72065361201217,
-    "BTC/USDT": 0.01210913785488932
+    "BTC/USDT": 0.018049332047421568
   },
   "rounds": [
     {
@@ -473,15 +473,49 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-08-18T15:20:59+00:00",
+      "equity": 10000.87,
+      "signals": {
+        "BTC/USDT": 0.584,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-18 14:00:00",
+        "ETH/USDT": "2026-08-18 14:00:00",
+        "SOL/USDT": "2026-08-18 14:00:00",
+        "BNB/USDT": "2026-08-18 14:00:00",
+        "XRP/USDT": "2026-08-18 14:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "buy",
+          "notional": 384.46,
+          "price": 64722.0,
+          "cost": 0.5767,
+          "signal": 0.584
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10001.44,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 6.1232924806186295,
+  "cost_paid": 6.699984353412238,
   "last_prices": {
-    "BTC/USDT": 64224.4,
-    "ETH/USDT": 1898.06,
-    "SOL/USDT": 76.22,
-    "BNB/USDT": 600.2,
-    "XRP/USDT": 0.9982
+    "BTC/USDT": 64722.0,
+    "ETH/USDT": 1911.2,
+    "SOL/USDT": 76.79,
+    "BNB/USDT": 602.7,
+    "XRP/USDT": 1.001
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -490,7 +524,7 @@
     "BNB/USDT": 604.0,
     "XRP/USDT": 0.9953
   },
-  "peak_equity": 9999.403065059396,
+  "peak_equity": 10001.44445627607,
   "risk_scale": 1.0,
   "limit_shadow": {
     "since": "2026-08-18T14:50:04+00:00",
@@ -501,7 +535,14 @@
       "XRP/USDT": 49.72065361201217,
       "BTC/USDT": 0.01210913785488932
     },
-    "pending": {},
+    "pending": {
+      "BTC/USDT": {
+        "side": "buy",
+        "limit": 64722.0,
+        "notional": 384.46,
+        "placed_bar": "2026-08-18 14:00:00"
+      }
+    },
     "cost_paid": 0.0,
     "filled_total": 0,
     "unfilled_total": 0
