@@ -131,6 +131,107 @@ def test_no_leverage_cash_never_goes_negative(tmp_path):
     assert st["cash"] > -1e-9, f"현금이 음수다(레버리지): {st['cash']}"
 
 
+# ── ③b 재현성 — 미완성 봉은 판단하지 않는다 ────────────────────
+
+def test_an_unfinished_bar_never_decides(tmp_path):
+    """지금 만들어지는 중인 봉으로 판단하면 같은 회차를 10분 뒤 재현했을 때
+    다른 결정이 나온다 — 재현 불가능한 결정은 이 저장소에 없다."""
+    closes = [100.0] * 99 + [999.0]              # 마지막 봉이 터무니없이 다르다
+    data = {s: _df(closes) for s in IC.UNIVERSE}
+    # '지금'을 마지막 봉이 **방금 열린** 시각으로 둔다 — 그 봉은 미완성이다.
+    now = data["BTC/USDT"].index[-1].isoformat() + "+00:00"
+    IC.run_intraday_round(now, state_dir=str(tmp_path / "state"),
+                          docs_dir=str(tmp_path / "docs"),
+                          data=data, strategy_factory=lambda s: _Const(1.0))
+    st = IC.load_state(str(tmp_path / "state"))
+    assert st["last_prices"]["BTC/USDT"] == 100.0, (
+        f"미완성 봉(999)의 값으로 판단·평가했다: {st['last_prices']['BTC/USDT']}")
+    # 재현 지문 — 어느 봉으로 판단했는지 회차에 남아야 한다.
+    assert st["rounds"][-1]["bar_times"], "판단에 쓴 봉의 시각이 기록에 없다"
+
+
+def test_the_same_round_reproduces_later(tmp_path):
+    """같은 데이터로 10분 뒤 다시 돌려도 같은 가격·같은 신호여야 한다."""
+    closes = [100.0] * 99 + [999.0]
+    data = {s: _df(closes) for s in IC.UNIVERSE}
+    open_t = data["BTC/USDT"].index[-1]
+    px = []
+    for offset in ("00:05:00", "00:25:00"):      # 봉이 닫히기 전의 두 시점
+        d = tmp_path / offset.replace(":", "")
+        h, m, s = offset.split(":")
+        now = (open_t + pd.Timedelta(hours=int(h), minutes=int(m))
+               ).isoformat() + "+00:00"
+        IC.run_intraday_round(now, state_dir=str(d / "state"),
+                              docs_dir=str(d / "docs"),
+                              data=data, strategy_factory=lambda s: _Const(1.0))
+        px.append(IC.load_state(str(d / "state"))["last_prices"]["BTC/USDT"])
+    assert px[0] == px[1], f"같은 봉인데 시점에 따라 판단 가격이 다르다: {px}"
+
+
+# ── ③c 브레이크 — 실전과 같은 킬스위치를 빌려 건다 ─────────────
+
+def test_a_crash_pulls_the_borrowed_kill_switch(tmp_path):
+    """폭락에서 실험 계좌만 맨몸이면 성적 차이가 '빈도의 효과'가 아니라
+    '브레이크 유무의 효과'가 된다 — 실험이 오염된다."""
+    _round(tmp_path, 1.0)                        # 100에 전량 매수
+    v = _round(tmp_path, 1.0, when="2026-08-18T05:00:00+00:00",
+               closes=[100.0] * 99 + [80.0])     # -20% 폭락
+    st = IC.load_state(str(tmp_path / "state"))
+    assert st["risk_scale"] == 0.5, (
+        f"낙폭 -20%인데 킬스위치가 안 걸렸다: scale={st['risk_scale']}")
+    sells = [t for t in st["rounds"][-1]["trades"] if t["side"] == "sell"]
+    assert sells, "노출을 줄이라는데 아무것도 안 팔았다 — 선언만 남은 브레이크다"
+    assert st["rounds"][-1]["kill_switch"]["drawdown"] <= -0.15, v
+
+
+def test_the_kill_switch_thresholds_are_not_restated():
+    """-25%·-15% 문턱이 여기 다시 적히면 실전과 갈라지는 날이 온다."""
+    body = SRC.split('"""', 2)[-1]
+    assert "_kill_switch_scale" in SRC, "실전 킬스위치를 빌려 오지 않는다"
+    for banned in ("-0.25", "-0.15"):
+        assert banned not in body, f"킬스위치 문턱({banned})이 다시 적혀 있다"
+
+
+# ── ③d 점수판 — 기준선·사전 등록 판정·체결 내역 ────────────────
+
+def test_the_report_carries_the_hold_baseline(tmp_path):
+    _round(tmp_path, 1.0)
+    _round(tmp_path, 1.0, when="2026-08-18T05:00:00+00:00",
+           closes=[100.0] * 99 + [110.0])
+    out = json.loads((tmp_path / "docs" / "intraday.json").read_text("utf-8"))
+    assert abs(out["hold_return_pct"] - 10.0) < 0.01, (
+        f"그냥 보유 기준선이 틀렸다: {out['hold_return_pct']} (10% 상승인데)")
+
+
+def test_the_judgement_is_preregistered_and_strict(tmp_path):
+    """판정 기준은 결과가 쌓이기 **전에** 등록돼 있어야 한다."""
+    _round(tmp_path, 1.0)
+    out = json.loads((tmp_path / "docs" / "intraday.json").read_text("utf-8"))
+    j = out["judgement"]
+    assert j["registered_on"] == "2026-08-18" and j["min_days"] >= 30
+    text = " ".join(j["criteria"])
+    for word in ("신뢰구간", "낙폭", "본 계좌"):
+        assert word in text, f"판정 기준에 '{word}'가 빠졌다: {text}"
+    assert out["elapsed_days"] is not None
+
+
+def test_the_report_lists_recent_trades(tmp_path):
+    _round(tmp_path, 1.0)
+    out = json.loads((tmp_path / "docs" / "intraday.json").read_text("utf-8"))
+    assert out["recent_trades"], "체결 내역이 공개되지 않는다 — 장부가 아니다"
+    t = out["recent_trades"][-1]
+    assert t["cost"] > 0 and t["time"], t
+
+
+def test_the_page_shows_judgement_comparison_and_trades():
+    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    for word in ("사전 등록", "본 계좌", "최근 체결", "그냥 보유"):
+        assert word in page, f"공개 페이지에 '{word}' 구획이 없다"
+    assert "status.json" in page, (
+        "본 계좌 비교가 공개 장부(status.json)를 안 읽는다 — 비교 없는 "
+        "실험 점수판은 구경거리다")
+
+
 # ── ④ 통화 봉인 ────────────────────────────────────────────────
 
 def test_the_currency_never_mixes():
