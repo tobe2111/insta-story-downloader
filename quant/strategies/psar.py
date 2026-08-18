@@ -60,6 +60,13 @@ class ParabolicSAR(Strategy):
                     up, sar, ep, af = True, ep, high[i], self.af_step
                 elif low[i] < ep:
                     ep, af = low[i], min(self.af_max, af + self.af_step)
-            out[i] = 1.0 if up else (-1.0 if self.allow_short else 0.0)
+            # 점이 가격 **아래로 분리**돼 있어야 상승 구간이다 — 고저가
+            # 전부 같은 평탄 시장에서는 SAR이 가격에 딱 붙어(sar == low)
+            # 반전도 분리도 없는데, 그때 첫 구간의 임의 씨앗을 신호로
+            # 내보내면 정보 없는 잡음으로 포지션을 잡게 된다(CI 감사).
+            if up and sar < low[i]:
+                out[i] = 1.0
+            elif (not up) and sar > high[i] and self.allow_short:
+                out[i] = -1.0
 
         return self._finalize(pd.Series(out, index=df.index), df.index)

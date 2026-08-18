@@ -5542,6 +5542,12 @@ MUTATIONS = [
      "                    ep, af = high[i], af + self.af_step",
      "tests/test_the_chart_book_strategies_obey_their_pages.py"),
 
+    ("파라볼릭의 분리 조건을 뗀다(평탄 시장에서 임의 씨앗이 그대로 포지션이 된다)",
+     "quant/strategies/psar.py",
+     "            if up and sar < low[i]:",
+     "            if up:",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
     ("볼린저 수축돌파의 청산선을 뗀다(중앙선을 깨도 영영 들고 있는다)",
      "quant/strategies/bollinger.py",
      "                elif pos > 0 and c[i] < mid_np[i]:",
