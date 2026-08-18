@@ -206,7 +206,7 @@ _NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
               ("/screener", "종목선별"), ("/sweep", "민감도"),
               ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시"),
               ("/ingest", "내 전략"), ("/deposit", "입금"),
-              ("/halt", "긴급 정지")]
+              ("/halt", "긴급 정지"), ("/consent", "수집 동의")]
 
 
 def _nav(active: str = "") -> str:
@@ -2375,3 +2375,49 @@ def run_halt_toggle(params: dict, state_dir: str = "state") -> str:
              reason=str(params.get("reason") or ""))
     return render_halt_page("재개했습니다 — 다음 배치부터 정상 운용합니다.",
                             state_dir)
+
+
+# ── 데이터 수집 동의(약관 고지) ────────────────────────────────────
+# 2026-08-18 사장님 지시: 등록 전략과 성과를 제작사가 수집 — 단 약관에
+# 고지하고 동의를 받는다. 이 화면이 '무엇을 모으는지'를 숨김없이 밝히고,
+# 동의 여부를 기록한다. 동의 전에는 텔레메트리가 한 바이트도 나가지 않는다.
+def render_consent_page(message: str = "", state_dir: str = "state") -> str:
+    from quant.telemetry import consent_status
+    st = consent_status(state_dir)
+    now = ("현재 상태: <b>동의함</b>" if st.get("accepted")
+           else "현재 상태: <b>동의 안 함</b>(아무것도 전송되지 않습니다)")
+    at = f" · {html_escape(st.get('at'))}" if st.get("at") else ""
+    body = f"""<p class="kicker">데이터 수집 동의</p>
+<h1>제작사 데이터 수집 안내</h1>
+{_msg_html(message)}
+<p class="sub">{now}{at}</p>
+<div class="errbox">
+<b>이 프로그램을 계속 사용하며 아래에 동의하면, 다음이 제작사(운영자)에게
+전송·수집됩니다.</b>
+<ul style="margin:8px 0 0 18px">
+  <li>등록한 전략의 <b>규칙 명세</b>(무엇을 언제 사고파는지)</li>
+  <li>계좌별 <b>성과 요약</b> — 수익률·최대낙폭·평가자산·기록 길이</li>
+  <li>앱 버전과 <b>익명 설치 식별자</b>(누구인지는 식별하지 않는 임의 번호)</li>
+</ul>
+<p style="margin:10px 0 0"><b>수집하지 않는 것(보안):</b> 비밀번호,
+증권사·거래소 API 키, 세션 토큰 등 자격증명은 <b>절대 전송되지 않습니다</b> —
+이건 동의로도 바뀌지 않는 안전선입니다.</p>
+<p style="margin:8px 0 0">수집 목적: 제품 개선과 전략 성과 파악. 동의는
+언제든 이 화면에서 철회할 수 있고, 철회하면 그 시점부터 전송이 멈춥니다.</p>
+</div>
+<form method="post" action="/consent/run" style="margin-top:14px">
+  <button type="submit" name="accept" value="1">동의하고 수집 허용</button>
+  <button type="submit" name="accept" value="0" class="ghost"
+    style="margin-left:8px">동의 철회 / 수집 안 함</button>
+</form>"""
+    return _page("데이터 수집 동의", body, "/consent")
+
+
+def run_consent_toggle(params: dict, state_dir: str = "state") -> str:
+    from quant.telemetry import set_consent
+    accepted = str(params.get("accept") or "") == "1"
+    set_consent(state_dir, accepted)
+    msg = ("동의를 기록했습니다 — 이제 등록 전략과 성과가 제작사에 전송됩니다."
+           if accepted else
+           "동의를 철회했습니다 — 이 시점부터 아무것도 전송되지 않습니다.")
+    return render_consent_page(msg, state_dir)

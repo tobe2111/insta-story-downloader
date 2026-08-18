@@ -107,9 +107,9 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
 
 <div class="card" id="subs-card">
   <label style="display:block;cursor:default"><span class="t">고객 등록 전략
-    <span class="d">설치형 사용자가 '내 전략' 저장 때 <b>공유에 동의한</b> 명세만
-    모입니다(개인정보 없음 — 규칙 요약과 앱 버전뿐). 수집함(KV)이 연결돼
-    있어야 쌓입니다.</span></span></label>
+    <span class="d">동의한 설치의 전략 명세와 <b>성과(수익률·낙폭·자산)</b>가
+    모입니다(약관 고지·동의 기반 · 개인정보/자격증명 없음). 수집함(KV)이
+    연결돼 있어야 쌓입니다.</span></span></label>
   <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
     <button id="subs-load">불러오기</button>
     <span class="msg" id="subs-msg" style="margin-top:0"></span>
@@ -451,12 +451,26 @@ fetch("status.json").then(r=>r.json()).then(st=>{
         msg.textContent=d.items.length+'건'; msg.className='msg ok';
         body.innerHTML=d.items.map(function(it){
           var esc=function(x){var e=document.createElement('div');e.textContent=String(x==null?'':x);return e.innerHTML};
+          var head='<span style="color:var(--muted);font-size:12px">'
+            +esc((it.received||'').replace('T',' ').slice(0,16))
+            +(it.app_version?' · v'+esc(it.app_version):'')
+            +(it.install_id?' · #'+esc(it.install_id):'')+'</span>';
+          if(it.kind==='telemetry'){
+            var perf=(it.performance||[]).map(function(p){
+              return '<tr><td>'+esc(p.key)+'</td><td style="text-align:right">'
+                +(p.return_pct==null?'—':esc(p.return_pct)+'%')+'</td><td style="text-align:right">'
+                +(p.mdd_pct==null?'—':esc(p.mdd_pct)+'%')+'</td><td style="text-align:right">'
+                +(p.equity==null?'—':Number(p.equity).toLocaleString())+'</td></tr>';
+            }).join('');
+            var strat=(it.strategies||[]).length;
+            return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0">'
+              +'<b>📡 사용 현황</b> '+head+' · 전략 '+strat+'개'
+              +(perf?'<table style="width:100%;margin-top:6px;font-size:12px"><tr style="color:var(--muted)"><td>계좌</td><td style="text-align:right">수익률</td><td style="text-align:right">최대낙폭</td><td style="text-align:right">자산</td></tr>'+perf+'</table>':'')
+              +'</div>';
+          }
           var spec=it.spec||{};
-          var summary=spec.summary||spec.name||'(요약 없음)';
           return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0">'
-            +'<b>'+esc(it.name||spec.title||'(이름 없음)')+'</b>'
-            +' <span style="color:var(--muted);font-size:12px">'+esc((it.received||'').replace('T',' ').slice(0,16))
-            +(it.app_version?' · v'+esc(it.app_version):'')+'</span>'
+            +'<b>'+esc(it.name||spec.title||'(이름 없음)')+'</b> '+head
             +'<details style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted)">명세 보기</summary>'
             +'<pre style="white-space:pre-wrap;font-size:12px;margin:6px 0 0">'+esc(JSON.stringify(spec,null,1).slice(0,4000))+'</pre></details>'
             +'</div>';

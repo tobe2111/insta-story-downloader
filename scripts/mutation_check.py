@@ -5692,6 +5692,19 @@ MUTATIONS = [
      '    if (url.pathname === "/admin.html" || url.pathname.startsWith("/api/admin")) {',
      '    if (url.pathname === "/admin.html") {',
      "tests/test_the_shared_specs_reach_the_admin_desk.py"),
+
+    # ── 텔레메트리 (2026-08-18) — 동의 관문·자격증명 방어선이 뚫리면 재앙 ──
+    ("동의 없이도 텔레메트리를 만든다(동의 안 한 설치의 성과가 전송된다)",
+     "quant/telemetry.py",
+     '    if not st.get("accepted"):\n        return None',
+     "    if False:\n        return None",
+     "tests/test_the_telemetry_is_disclosed_and_bounded.py"),
+
+    ("자격증명 방어선을 무력화한다(비밀번호·API 키가 payload에 섞여도 전송된다)",
+     "quant/telemetry.py",
+     '        if f\'"{banned}"\' in flat or f"{banned}=" in flat:',
+     "        if False:",
+     "tests/test_the_telemetry_is_disclosed_and_bounded.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

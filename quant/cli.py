@@ -273,6 +273,14 @@ def _cmd_paper_daily(args) -> None:
                 f"비중 {rec['weight']:+.2f}")
     if args.docs:
         write_docs_status(args.state_dir)
+    # 사용 원격 측정 — **동의한 경우에만** 등록 전략·성과를 제작사로 보낸다
+    # (2026-08-18, 약관 고지 기반). 동의 없으면 send()가 스스로 아무것도
+    # 하지 않는다. 실패는 배치를 막지 않는다.
+    try:
+        from quant.telemetry import send as _tsend
+        print(_tsend(args.state_dir))
+    except Exception as exc:  # noqa: BLE001
+        print(f"(텔레메트리 생략: {exc})")
     print("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 

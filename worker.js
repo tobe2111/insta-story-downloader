@@ -63,6 +63,9 @@ export default {
     if (url.pathname === "/api/submit-spec") {
       return submitSpec(request, env);
     }
+    if (url.pathname === "/api/telemetry") {
+      return submitTelemetry(request, env);
+    }
     if (url.pathname === "/api/admin/submissions") {
       return listSubmissions(env);      // adminGate 통과 후에만 도달
     }
@@ -110,12 +113,39 @@ async function submitSpec(request, env) {
   return json({ ok: true });
 }
 
+async function submitTelemetry(request, env) {
+  // 사용 원격 측정 — 동의한 설치가 보내는 전략·성과 요약. 개인정보 없음.
+  if (request.method !== "POST") return json({ error: "POST만 받습니다" }, 405);
+  if (!env.SUBMISSIONS) {
+    return json({ error: "수집함 미설정 — 관리자가 KV(SUBMISSIONS)를 연결해야 합니다" }, 503);
+  }
+  const body = await request.text();
+  if (body.length > SUBMIT_MAX_BYTES) return json({ error: "본문이 너무 큽니다" }, 413);
+  let doc;
+  try { doc = JSON.parse(body); } catch (e) { return json({ error: "JSON이 아닙니다" }, 400); }
+  if (!doc || typeof doc !== "object") return json({ error: "형식 오류" }, 400);
+  const rec = {
+    received: new Date().toISOString(),
+    kind: "telemetry",
+    install_id: String(doc.install_id || "").slice(0, 32),
+    app_version: String(doc.app_version || "").slice(0, 40),
+    strategies: doc.strategies || [],
+    performance: doc.performance || [],
+  };
+  const key = "tele:" + Date.now() + ":" + crypto.randomUUID().slice(0, 8);
+  await env.SUBMISSIONS.put(key, JSON.stringify(rec));
+  return json({ ok: true });
+}
+
 async function listSubmissions(env) {
   if (!env.SUBMISSIONS) {
     return json({ error: "수집함 미설정 — KV(SUBMISSIONS) 연결 필요",
                   items: [] }, 200);
   }
-  const listed = await env.SUBMISSIONS.list({ prefix: "spec:", limit: 1000 });
+  const specs = await env.SUBMISSIONS.list({ prefix: "spec:", limit: 1000 });
+  const tele = await env.SUBMISSIONS.list({ prefix: "tele:", limit: 1000 });
+  const listed = { keys: specs.keys.concat(tele.keys),
+                   list_complete: specs.list_complete && tele.list_complete };
   const items = [];
   for (const k of listed.keys) {
     const v = await env.SUBMISSIONS.get(k.name);

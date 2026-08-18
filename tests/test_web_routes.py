@@ -68,6 +68,8 @@ EXPECTED = {
     "/login": "render_login_form",
     # 긴급 정지(수동 킬스위치) 화면 — 상태 확인은 GET, 켜고 끄기는 POST
     "/halt": "render_halt_page",
+    # 데이터 수집 동의(약관 고지) 화면 — 상태 확인은 GET
+    "/consent": "render_consent_page",
 }
 
 # POST 전용 — 긴 본문(자료 붙여넣기)과 상태 변경이 있는 경로.
@@ -81,6 +83,8 @@ EXPECTED_POST = {
     "/login/run": "run_login",
     # 긴급 정지 토글 — 상태 변경이므로 POST 전용(쿼리로 멈추게 하지 않는다)
     "/halt/run": "run_halt_toggle",
+    # 수집 동의 토글 — 상태 변경이므로 POST 전용
+    "/consent/run": "run_consent_toggle",
 }
 
 APP_FUNCS = sorted(set(EXPECTED.values()) | set(EXPECTED_POST.values()))
