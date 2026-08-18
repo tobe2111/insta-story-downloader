@@ -42,12 +42,18 @@ jobs:
         run: pip install -r requirements.txt
       - name: 장중 감시 1회
         run: python -m quant guard --state-dir state
+      # 장중 도전자(2026-08-18, 사장님 지시) — 챔피언 규칙을 1시간봉에 적용하는
+      # **분리 실험**(가상 USDT). 실패해도 심장박동·킬스위치를 못 죽이게
+      # continue-on-error다 — 실험이 안전장치를 볼모로 잡으면 안 된다.
+      - name: 장중 도전자 1회 (실험 — 본 계좌와 분리)
+        continue-on-error: true
+        run: python -m quant intraday-round --state-dir state
       - name: 심장박동·조치 커밋
         run: |
           set -euo pipefail
           git config user.name "quant-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add state/guard_heartbeat.json state/paper || true
+          git add state/guard_heartbeat.json state/paper state/intraday docs/intraday.json || true
           # 바뀐 게 없으면 조용히 끝낸다 — 빈 커밋으로 이력을 더럽히지 않는다.
           if git diff --cached --quiet; then
             echo "변화 없음 — 커밋 생략"

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>장중 도전자 실험 — QUANT</title>
+<meta name="description" content="같은 규칙을 더 자주 돌리면 정말 더 버는가 — 가상 자금으로 공개 측정하는 장중(1시간봉) 실험. 실제 돈이 아닙니다.">
+<!-- ⚠️ 이 페이지는 **실험 트랙**의 공개 장부다(2026-08-18, 사장님 지시:
+     "실시간으로 단타 매매를 하는 퍼포먼스도 보여져야 한다").
+     본 계좌(100만 챌린지)와 완전히 분리돼 있고, 여기 숫자는 그 판단에
+     쓰이지 않는다. 데이터는 guard 배치가 회차마다 커밋하는
+     docs/intraday.json 하나에서만 읽는다 — 화면이 자기 계산을 시작하면
+     장부와 갈라진다(감사 197). -->
+<style>
+:root{
+  --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
+  --muted:#9aa3b2; --dim:#5c6470; --line:#1d2230; --line-strong:#262d3f;
+  --accent:#4f7cff; --up:#f04452; --down:#3182f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark light}
+body{background:var(--bg);color:var(--fg);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+  "Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.6}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f6f7f9; --bg2:#ffffff; --bg3:#eef0f4; --fg:#191f28;
+    --muted:#4e5968; --dim:#8b95a1; --line:#e5e8eb; --line-strong:#d1d6db}
+}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+nav{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+nav b{font-size:17px;letter-spacing:-.3px}
+nav a{color:var(--muted);font-size:13.5px}
+h1{font-size:26px;letter-spacing:-.5px;margin:6px 0 4px}
+h2{font-size:16px;margin:34px 0 10px}
+.tag{display:inline-block;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;
+  margin-left:8px;vertical-align:middle}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px;margin-top:12px}
+.sub{color:var(--muted);font-size:13px}
+.big{font-size:34px;font-weight:800;letter-spacing:-1px}
+.up{color:var(--up)} .down{color:var(--down)}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;margin-top:8px}
+.k{font-size:12px;color:var(--muted);font-weight:600}
+.v{font-size:18px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11.5px}
+.tw{overflow-x:auto}
+.warn{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:13px;
+  background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35)}
+ul{margin:6px 0 0 18px;font-size:13px;color:var(--muted)}
+li{margin-top:4px}
+svg{width:100%;height:180px;display:block;margin-top:10px}
+.err{color:var(--up)}
+footer{margin-top:44px;color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav><b>QUANT.</b>
+  <a href="index.html">← 첫 화면</a>
+  <a href="trust.html">기록 검증</a>
+</nav>
+
+<h1>장중 도전자 실험 <span class="tag">시뮬레이션 · 가상 자금</span></h1>
+<p class="sub">같은 규칙을 <b>더 자주</b> 돌리면 정말 더 버는가 — 믿음이 아니라
+측정으로 답하기 위한 트랙입니다. 본 계좌(100만 챌린지)의 챔피언 규칙과 같은
+비용 모델을 <b>1시간봉</b>에 적용해, 매매를 늘리면 늘어나는 비용(수수료·미끄러짐)을
+우위가 이기는지 잽니다. <b>실제 돈이 아니며</b>, 본 계좌 판단에는 쓰이지 않습니다.</p>
+
+<div class="card" id="sum">불러오는 중…</div>
+
+<h2>자산 곡선 <span class="tag">USDT 기준</span></h2>
+<div class="card"><svg id="curve" viewBox="0 0 800 180" preserveAspectRatio="none"
+  role="img" aria-label="장중 실험 자산 곡선"></svg>
+  <div class="sub" id="curve-note"></div></div>
+
+<h2>지금 들고 있는 것</h2>
+<div class="card tw"><table id="pos">
+  <thead><tr><th>종목</th><th>수량</th></tr></thead>
+  <tbody><tr><td colspan="2" class="sub">불러오는 중…</td></tr></tbody>
+</table>
+<div class="sub" id="pos-note"></div></div>
+
+<h2>정직한 한계</h2>
+<div class="card"><ul id="limits"><li>불러오는 중…</li></ul></div>
+
+<h2>판정은 어떻게 하나</h2>
+<div class="card sub">
+  이 트랙이 <b>같은 기간의 본 계좌(하루 한 번 판단)</b>보다 비용을 빼고도
+  퍼센트 수익률로 앞서는지를 봅니다. 표본이 얇을 때는 단정하지 않습니다 —
+  며칠치 우위는 운과 구별되지 않습니다. 이긴다는 것이 충분한 기록으로
+  증명되면, 지금 진행 중인 90일 공개 측정이 끝나는 경계(2세대)에서 본 계좌
+  적용을 검토합니다. 그 전에는 이 페이지 밖으로 나가지 않습니다.
+</div>
+
+<footer>이 페이지의 숫자는 배치가 회차마다 커밋하는
+<a href="intraday.json">intraday.json</a>에서만 읽습니다 — 원본을 직접 볼 수
+있습니다. 빈칸이 보이면 "그런 일이 없었다"가 아니라 "아직 기록이 없다"입니다.</footer>
+</div>
+
+<script>
+function esc(s){return String(s).replace(/[&<>"']/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function usdt(v){return Number(v).toLocaleString("ko-KR",
+  {maximumFractionDigits:2})+" USDT"}
+fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
+  const sum=document.getElementById("sum");
+  if(!d){
+    sum.innerHTML='<span class="sub">아직 기록이 없습니다 — 첫 회차가 돌면 '+
+      '여기 숫자가 생깁니다. 배치는 15분 간격으로 <b>예약</b>돼 있습니다'+
+      '(실제 간격은 실측으로만 말합니다).</span>';
+    return;
+  }
+  const up=(d.return_pct||0)>=0;
+  /* 예약과 실측을 나란히 — "15분마다 봅니다"라고만 적으면 설정을 옮겨
+     적은 것이지 사실이 아니다(감사 267). */
+  const gap=(d.observed_gap_minutes==null)
+    ?"아직 모름(기록이 모자람)"
+    :Math.round(d.observed_gap_minutes).toLocaleString()+"분";
+  sum.innerHTML=
+    '<div class="k">'+esc(d.label||"장중 도전자 실험")+'</div>'+
+    '<div class="grid">'+
+      '<div><div class="k">시드 (가상)</div><div class="v">'+usdt(d.start_cash)+'</div></div>'+
+      '<div><div class="k">지금 (마지막 회차 기준)</div>'+
+        '<div class="big '+(up?"up":"down")+'">'+usdt(d.equity)+'</div></div>'+
+      '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
+        (up?"+":"")+Number(d.return_pct||0).toFixed(2)+'%</div></div>'+
+      '<div><div class="k">이미 낸 비용</div><div class="v">'+usdt(d.cost_paid||0)+'</div></div>'+
+      '<div><div class="k">체결 / 회차</div><div class="v">'+
+        (d.trades_total||0)+'건 / '+(d.rounds_total||0)+'회</div></div>'+
+    '</div>'+
+    '<div class="sub" style="margin-top:10px">시작 '+esc(d.since||"—")+
+    ' · 마지막 회차 '+esc(d.last_time||"—")+
+    ' · 감시 주기 예약 '+esc(d.booked_interval_minutes)+'분 / <b>실측 최악 '+
+    gap+'</b></div>'+
+    ((d.return_pct||0)<0
+      ?'<div class="warn">지금은 <b>지고 있습니다.</b> 나쁜 숫자도 그대로 '+
+       '적습니다 — 좋은 숫자만 남기는 편집은 이 제품의 정체성을 무너뜨립니다.</div>'
+      :'');
+  /* 자산 곡선 — 회차별 equity를 그대로 잇는다. 값이 없으면 그리지 않는다. */
+  const cv=(d.equity_curve||[]).filter(p=>p&&p[1]!=null);
+  if(cv.length>=2){
+    const ys=cv.map(p=>Number(p[1]));
+    const lo=Math.min(...ys), hi=Math.max(...ys), span=(hi-lo)||1;
+    const pts=cv.map((p,i)=>{
+      const x=i/(cv.length-1)*800;
+      const y=170-((Number(p[1])-lo)/span)*160;
+      return x.toFixed(1)+","+y.toFixed(1);
+    }).join(" ");
+    document.getElementById("curve").innerHTML=
+      '<polyline fill="none" stroke="currentColor" stroke-width="2" points="'+pts+'"/>';
+    document.getElementById("curve-note").textContent=
+      "회차 "+cv.length+"개 · 최저 "+usdt(lo)+" · 최고 "+usdt(hi)+
+      " — 회차 간격은 균등하지 않을 수 있습니다(실측 간격 참고)";
+  }else{
+    document.getElementById("curve-note").textContent=
+      "곡선을 그릴 만큼 기록이 쌓이지 않았습니다.";
+  }
+  const pos=Object.entries(d.positions||{});
+  document.getElementById("pos").querySelector("tbody").innerHTML=
+    pos.length?pos.map(([k,q])=>'<tr><td>'+esc(k)+'</td><td>'+
+      Number(q).toPrecision(6)+'</td></tr>').join("")
+    :'<tr><td colspan="2" class="sub">전량 현금(관망)입니다</td></tr>';
+  const sk=Object.entries(d.last_skipped||{});
+  document.getElementById("pos-note").textContent=sk.length
+    ?("마지막 회차에서 건너뛴 종목: "+sk.map(([k,w])=>k+" ("+w+")").join(" · ")
+      +" — 가짜 시세로 체결을 만들지 않습니다.")
+    :"";
+  document.getElementById("limits").innerHTML=
+    (d.honest_limits||[]).map(t=>'<li>'+esc(t)+'</li>').join("")
+    ||'<li class="sub">—</li>';
+}).catch(()=>{
+  document.getElementById("sum").innerHTML=
+    '<span class="err">기록을 불러오지 못했습니다 — 빈칸을 "그런 일이 없었다"로 '+
+    '읽지 마세요. <a href="intraday.json">원본</a>을 직접 확인할 수 있습니다.</span>';
+});
+</script>
+</body>
+</html>

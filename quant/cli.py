@@ -528,6 +528,20 @@ def _cmd_walkforward(args) -> None:
         print(f"\n💾 저장: {args.save}")
 
 
+def _cmd_intraday_round(args) -> None:
+    """장중 도전자 1회 — 본 계좌와 분리된 실험 트랙(가상 USDT)."""
+    import datetime as dt
+
+    from quant.live.intraday_challenger import run_intraday_round
+
+    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    v = run_intraday_round(now, state_dir=args.state_dir,
+                           docs_dir=args.docs_dir)
+    print(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
+          f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
+          f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
+
+
 def _cmd_guard(args) -> None:
     """장중 감시 1회 — 새벽 배치를 기다리지 않고 지금 낙폭을 잰다.
 
@@ -1456,6 +1470,14 @@ def build_parser() -> argparse.ArgumentParser:
     gd.add_argument("--state-file", default="portfolio_ALL.json",
                     dest="state_file")
     gd.set_defaults(func=_cmd_guard)
+
+    ir = sub.add_parser(
+        "intraday-round",
+        help="장중 도전자 1회 — 챔피언 규칙을 1시간봉에 적용하는 분리 실험"
+             "(가상 USDT · 본 계좌와 무관)")
+    ir.add_argument("--state-dir", default="state", dest="state_dir")
+    ir.add_argument("--docs-dir", default="docs", dest="docs_dir")
+    ir.set_defaults(func=_cmd_intraday_round)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)
