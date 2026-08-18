@@ -5496,6 +5496,30 @@ MUTATIONS = [
      '      return \'<tr\'+(hd?"":\' class="nohold"\')+\' data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
      '      return \'<tr data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
      "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    # ── 감사 282 — 첫 화면은 세 질문에만 답한다 ───────────────────
+    #
+    # 사장님: "근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워."
+    # 지금까지는 어려운 것 **위에 설명을 덧붙여** 왔고, 설명이 늘수록
+    # 페이지는 더 어려워졌다. 그래서 순서를 바꿨다 — 얼마 넣었나 ·
+    # 지금 얼마인가 · 잘하고 있나. 나머지는 전부 접는다(지우지 않는다).
+    ("큰 제품 소개를 첫 화면에 도로 편다(계좌보다 광고를 먼저 읽게 된다)",
+     "docs/index.html",
+     ".hero.adv,.band.adv{display:none}",
+     ".hero.adv{}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("종목별 현황 스무 줄을 첫 화면에 도로 편다",
+     "docs/index.html",
+     '    <section class="card c8 adv">\n      <h2>종목별 현황',
+     '    <section class="card c8">\n      <h2>종목별 현황',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("보유 종목을 먼저 세우지 않는다(접으면 표에 구멍이 뚫린 것처럼 보인다)",
+     "docs/index.html",
+     "  rows.sort((a,b)=>((held[b.k]?1:0)-(held[a.k]?1:0)));",
+     "  rows.sort((a,b)=>0);",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

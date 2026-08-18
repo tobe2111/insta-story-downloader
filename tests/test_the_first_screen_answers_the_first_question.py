@@ -109,11 +109,20 @@ def test_the_money_answer_comes_first(page):
 
     순서가 곧 우선순위다. 광고가 먼저면 이 사이트는 '기록 공개'가 아니라
     '제품 판매' 페이지로 읽힌다.
+
+    ⚠️ 2026-08-18(감사 282)에 한 걸음 더 갔다. 사장님이 *"근본적인 문제를
+       해결해. 지금 이 홈페이지의 내용이 어려워"*라고 하셔서, 큰 제품 소개는
+       **첫 화면에서 아예 뺐다.** 지운 것이 아니라 '자세히 보기' 안으로
+       옮겼고, 대신 한 줄짜리 안내만 남겼다. 그래서 '위에 있는가'가 아니라
+       **'첫 화면에 없는가'**를 본다.
     """
-    g = page.locator("#glance").bounding_box()
-    hero = page.locator("section.hero").bounding_box()
-    assert g and hero, (g, hero)
-    assert g["y"] < hero["y"], f"한눈에({g['y']})가 히어로({hero['y']}) 아래에 있다"
+    assert page.locator("#glance").bounding_box(), "한눈에가 안 보인다"
+    assert not page.locator("section.hero").is_visible(), (
+        "큰 제품 소개가 첫 화면에 그대로 있다 — 처음 온 사람은 계좌보다 "
+        "광고를 먼저 읽게 된다")
+    slim = page.locator(".dlslim")
+    assert slim.is_visible(), "내려받기 통로가 통째로 사라졌다 — 접는 것과 지우는 것은 다르다"
+    assert slim.bounding_box()["y"] > page.locator("#glance").bounding_box()["y"]
 
 
 def test_it_says_how_much_when_and_the_profit(page):
@@ -201,9 +210,13 @@ def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
 
 # ── ③ 처음에는 접혀 있고, 누르면 펴지는가 ────────────────────────
 
+# ⚠️ 2026-08-18(감사 282) 첫 화면은 **세 질문에만** 답한다:
+#    ① 얼마를 언제 넣었나 ② 지금 얼마인가 ③ 그래서 잘하고 있나.
+#    종목별 현황과 제품 소개는 그 세 질문의 답이 아니라서 접힘으로 옮겼다.
 FOLDED = ["🕰 판정 시계", "🎯 리스크 설정", "🧾 체결 가정 검증",
-          "오답 노트", "탈락자 아카이브"]
-ALWAYS = ["한눈에", "통합 계좌", "잔고", "거래내역", "종목별 현황"]
+          "오답 노트", "탈락자 아카이브", "종목별 현황",
+          "지금 받아서 5분 안에 첫 백테스트"]
+ALWAYS = ["한눈에", "통합 계좌", "잔고", "거래내역"]
 
 
 def _visible_headings(pg):
@@ -258,7 +271,10 @@ def test_clicking_a_row_opens_that_symbols_chart(page, table, label):
 
     한 표에서만 눌리면 읽는 사람은 나머지를 **고장**으로 읽는다.
     """
-    rows = page.locator(f"#{table} tbody tr[data-k]")
+    if not page.locator(f"#{table}").is_visible():
+        page.click("#morebtn")          # 접힌 표는 펴고 눌러야 한다(감사 282)
+        page.wait_for_timeout(300)
+    rows = page.locator(f"#{table} tbody tr[data-k]:visible")
     assert rows.count() > 0, f"{label} 표에 누를 수 있는 줄이 없다"
     rows.first.click()
     page.wait_for_timeout(1000)
@@ -297,25 +313,33 @@ def test_the_two_percent_columns_have_different_names(page):
     assert "오늘 목표" in sym, "종목표가 목표 노출을 목표라고 말하지 않는다"
 
 
-# ── ⑥ 안 들고 있는 종목까지 벽처럼 늘어놓지 않는가 (감사 281) ────
+# ── ⑥ 종목별 현황: 접기 + 보유 먼저 (감사 281 · 282) ────────────
 
-def test_the_symbol_table_shows_what_we_actually_hold_first(page):
-    """사장님: *"지금 홈페이지는 보기 힘들어. 이해하기 어렵게 구성이 되어있어."*
+def test_the_symbol_table_is_not_on_the_first_screen(page):
+    """사장님: *"근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워."*
 
-    종목별 현황이 20줄이었고 그중 대부분이 '보유 없음 · 0.00%'였다. 처음 온
-    사람에게 그 표는 정보가 아니라 벽이다. **지우지는 않는다** — 오늘 관망한
-    종목도 공개 장부의 일부다. 다만 오늘 돈이 들어가 있는 것부터 보이게 하고
-    나머지는 접는다.
+    종목별 현황은 스무 줄짜리 전략 표다. **첫 화면의 세 질문**(얼마 넣었나 ·
+    지금 얼마인가 · 잘하고 있나)의 답이 아니다. 지우지 않고 접는다.
     """
-    all_rows = page.locator("#symtable tbody tr[data-k]")
-    shown = page.locator("#symtable tbody tr[data-k]:visible")
-    assert all_rows.count() > shown.count(), (
-        f"접힌 줄이 하나도 없다({all_rows.count()}줄 전부 보임) — "
-        "관망 종목까지 전부 펼쳐져 있으면 처음 온 사람에게 벽이 된다")
-    assert shown.count() >= 1, "보유 종목까지 접혔다 — 그러면 표가 비어 보인다"
-    for i in range(shown.count()):
-        assert "nohold" not in (shown.nth(i).get_attribute("class") or ""), (
-            "안 들고 있는 종목이 간단 보기에 남아 있다")
+    assert not page.locator("#symtable").is_visible(), (
+        "종목별 현황이 첫 화면에 그대로 있다 — 처음 온 사람에게 벽이 된다")
+
+
+def test_unfolded_it_shows_what_we_actually_hold_first(page):
+    """펴 봤을 때도 **오늘 돈이 들어간 종목**이 먼저 보여야 한다.
+
+    스무 줄 중 열다섯 줄이 '보유 없음 · 0.00%'였다. 접어 두었다가 펴면
+    그 벽이 그대로 나온다면 접은 의미가 없다.
+    """
+    page.click("#morebtn")
+    page.wait_for_timeout(300)
+    rows = page.locator("#symtable tbody tr[data-k]")
+    assert rows.count() > 0, "펴도 표가 비어 있다"
+    held = [i for i in range(rows.count())
+            if "nohold" not in (rows.nth(i).get_attribute("class") or "")]
+    assert held, "보유 종목 표시가 하나도 없다 — 표식이 사라졌다"
+    assert held == list(range(len(held))), (
+        f"보유 종목이 관망 종목 뒤로 섞여 있다: 보유 줄 위치 {held}")
 
 
 def test_it_says_how_many_rows_it_folded(page):
@@ -323,14 +347,3 @@ def test_it_says_how_many_rows_it_folded(page):
     tag = page.locator("#sym-tag").inner_text()
     assert "관망" in tag and "자세히 보기" in tag, (
         f"몇 종목을 접었는지, 어디서 볼 수 있는지 말하지 않는다: {tag!r}")
-
-
-def test_detail_view_shows_every_symbol(page):
-    """대조군 — 펴면 전부 보여야 한다. 접는 것과 지우는 것은 다르다."""
-    before = page.locator("#symtable tbody tr[data-k]:visible").count()
-    page.click("#morebtn")
-    page.wait_for_timeout(200)
-    after = page.locator("#symtable tbody tr[data-k]:visible").count()
-    total = page.locator("#symtable tbody tr[data-k]").count()
-    assert after == total > before, (
-        f"자세히 보기에서도 전부 안 보인다 — 접힌 {total}줄 중 {after}줄만")

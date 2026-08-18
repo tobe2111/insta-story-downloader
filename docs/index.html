@@ -127,6 +127,18 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
 .adv{display:none}
 body.detail .adv{display:block}
 body.detail .adv.stackcol{display:flex}
+/* ⚠️ `.hero{display:grid}`·`.band{display:flex}`는 `.adv{display:none}`보다
+   **뒤에** 선언돼 있어 같은 점수로 이긴다 — 그래서 접힘이 안 먹었다.
+   `.proof .p.adv`에서 이미 한 번 걸린 함정이라 이번엔 점수를 맞춰 둔다. */
+.hero.adv,.band.adv{display:none}
+body.detail .hero.adv{display:grid}
+body.detail .band.adv{display:flex}
+/* 간단 보기의 한 줄짜리 내려받기 띠 — 자세히 보기에서는 큰 소개가
+   대신 나오므로 이쪽을 숨긴다(감사 282). */
+.dlslim{grid-column:span 12;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:14px 18px;border:1px solid var(--line);border-radius:12px;
+  background:var(--bg2);font-size:13px;color:var(--muted)}
+body.detail .dlslim{display:none}
 /* ⚠️ `.proof .p`(선택자 점수 0,2,0)가 `.adv`(0,1,0)를 이긴다 — 같은 점수로
    맞춰 주지 않으면 접히지 않는다. 실제로 안 접혀서 화면으로 보고 알았다. */
 .proof .p.adv{display:none}
@@ -345,7 +357,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     <!-- 다운로드 히어로 — 제품 소개. **계좌 요약 아래로 내렸다**(감사 274):
          첫 화면이 "1,000,000원으로 굴리는 자동매매"라는 광고 문구로 시작하고
          정작 "지금 얼마인가"는 오른쪽 구석에 전문용어와 섞여 있었다. -->
-    <section class="hero">
+    <section class="hero adv">
       <div class="heroL">
         <span class="eyebrow">● 매일 새벽 자동 운용 · 기록 전체 공개</span>
         <!-- ⚠️ 금액을 산문에 박지 않는다(2026-08-13). 원금은 매칭 입금으로
@@ -421,7 +433,10 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
           <th title="이 종목의 평가금액이 통합 계좌 자산에서 차지하는 비율입니다 — 실제로 들고 있는 몫. 아래 종목별 현황표의 '오늘 목표'와는 다른 질문의 답입니다.">계좌 비중<br><span class="sub" style="font-weight:400">실제 보유</span></th></tr></thead>
         <tbody></tbody>
       </table></div>
-      <div class="sub" style="margin-top:8px" id="bal-note"></div>
+      <!-- 평가 기준·환율 같은 단서는 접는다(감사 282) — 첫 화면은 세 질문에만
+           답한다. 바로 아래 `bal-bridge`(두 손익이 왜 다른가)는 사장님이
+           직접 물으신 것이라 남긴다. -->
+      <div class="sub adv" style="margin-top:8px" id="bal-note"></div>
       <!-- 같은 화면의 두 '손익'이 왜 다른지 — 숫자를 맞추는 대신 다리를 놓는다 -->
       <div class="sub" style="margin-top:6px" id="bal-bridge"></div>
       <!-- 준실시간 참고 합계 — 확정값 아래에 따로 둔다. 비어 있으면
@@ -444,7 +459,29 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <div class="sub" style="margin-top:8px" id="tr-note"></div>
     </section>
 
-    <section class="card c8">
+    <!-- ⚠️ 여기까지가 **첫 화면이 답해야 할 전부**다(감사 282).
+         사장님: "근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워."
+         맞는 지적이었다. 지금까지는 어려운 것 위에 설명을 덧붙여 왔는데,
+         설명이 늘수록 페이지는 더 어려워졌다. 그래서 순서를 바꾼다 —
+         **세 가지 질문에만 답하고 나머지는 전부 접는다.**
+             ① 얼마를 언제 넣었나  ② 지금 얼마인가  ③ 그래서 잘하고 있나
+         지우는 것이 아니다. 공개 장부에서 값을 없애는 것은 답이 아니다.
+         한 번 누르면 전부 펴지고, 그 선택은 기억된다. -->
+    <div class="dlslim">
+      <span>이 기록을 만든 프로그램을 직접 돌려볼 수 있습니다 —
+        <b>백테스트·검증·모의투자 전용</b>(실거래 기능 없음).</span>
+      <a class="btn" id="dlslim-btn"
+         href="https://github.com/tobe2111/insta-story-downloader/releases/latest/download/quant-cockpit-windows.exe"
+         style="padding:8px 14px;font-size:13px">무료 다운로드</a>
+    </div>
+
+    <div class="moreline">
+      <button class="morebtn" id="morebtn" aria-expanded="false"
+              aria-controls="glance">자세히 보기 ▾ <span class="sub"
+        style="font-weight:400">종목별 현황 · 판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · 탈락자 · 프로그램 소개</span></button>
+    </div>
+
+    <section class="card c8 adv">
       <h2>종목별 현황 <span class="tag" id="sym-tag">매일 새벽 확정 기록</span></h2>
       <div class="tw"><table id="symtable">
         <thead><tr><th>종목</th>
@@ -474,13 +511,6 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       </div>
     </section>
 
-    <!-- 여기부터 아래는 **읽고 싶은 사람만** 본다(감사 274). 숫자를 지우지는
-         않는다 — 공개 장부에서 값을 없애는 것은 답이 아니다. 접어 둘 뿐이다. -->
-    <div class="moreline">
-      <button class="morebtn" id="morebtn" aria-expanded="false"
-              aria-controls="glance">자세히 보기 ▾ <span class="sub"
-        style="font-weight:400">판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · 탈락자</span></button>
-    </div>
 
     <!-- 표 옆 카드 2개 — 기본 접힘(감사 274) -->
     <div class="c4 stackcol adv">
@@ -513,7 +543,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     </section>
 
     <!-- 하단 다운로드 밴드 -->
-    <section class="band c8">
+    <section class="band c8 adv">
       <div style="flex:1 1 380px">
         <h2>지금 받아서 5분 안에 첫 백테스트</h2>
         <p class="sub">받은 프로그램은 백테스트·검증·모의투자·조회 전용입니다.
@@ -582,8 +612,10 @@ function num(v){return Number(v).toLocaleString("ko-KR")}
     btn.setAttribute("aria-expanded",on?"true":"false");
     btn.innerHTML=(on?"간단히 보기 ▴":"자세히 보기 ▾")+
       ' <span class="sub" style="font-weight:400">'+
-      (on?"판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · 탈락자"
-         :"판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · 탈락자")+"</span>";
+      /* 무엇이 접혀 있는지 **이름으로** 말한다(감사 282) — "자세히"만
+         적으면 안에 무엇이 있는지 몰라 아무도 안 누른다. */
+      "종목별 현황 · 판정 시계 · 리스크 설정 · 체결 검증 · 오답 노트 · "+
+      "탈락자 · 프로그램 소개"+"</span>";
   };
   let saved=null;
   try{saved=localStorage.getItem(KEY)}catch(e){}
@@ -752,6 +784,12 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
      종목표도 쓰게 한다. 두 표가 각자 계산하면 언젠가 다른 값을 말한다. */
   const held={};
   ((pf&&pf.holdings)||[]).forEach(h=>{if(h&&h.key)held[h.key]=h;});
+  /* ⚠️ **오늘 돈이 들어간 종목을 먼저 세운다**(감사 282). 그전에는 종목계좌
+     비중 순이라 보유 5종과 관망 15종이 섞여 있었고, 간단 보기에서 관망을
+     접으면 표에 구멍이 뚫린 것처럼 보였다. 접는 것과 순서를 정하는 것은
+     한 쌍이다 — 순서 없이 접으면 그냥 빠진 표가 된다.
+     같은 무리 안에서는 위의 비중 순서를 그대로 지킨다(안정 정렬). */
+  rows.sort((a,b)=>((held[b.k]?1:0)-(held[a.k]?1:0)));
 
   /* ── 한눈에 (감사 274) ──────────────────────────────────────────
      사장님 2026-08-17: "얼마를 언제 투자를 했고, 지금 얼마 손해 혹은 이익인지
@@ -1422,7 +1460,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           '<td style="text-align:left">'+esc(nm)+'</td>'+
           '<td><b>주문 실패</b></td>'+
           '<td class="num">—</td><td class="num">—</td><td class="num">—</td>'+
-          '<td class="sub">'+esc(why)+'으로 한 주도 체결되지 않았습니다</td></tr>';
+          '<td class="sub">'+esc(why)+' — 미체결</td></tr>';
       }
       return '<tr data-k="'+esc(t.key)+'" data-name="'+esc(nm)+
         '" data-code="'+esc(t.key.split(":")[1]||t.key)+
@@ -1443,8 +1481,9 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       "최근 체결 "+(pf.trades.length-noFill)+"건"+
       (noFill?" · 체결되지 않은 주문 "+noFill+"건":"");
     document.getElementById("tr-note").textContent=
-      "체결가는 실제로 반영된 가격입니다. '시가'는 결정 다음 세션의 시가에 "+
-      "체결한 것이고(개장 갭을 감수합니다), '즉시'는 24시간 시장인 코인입니다."+
+      /* 상시 문구는 짧게(감사 282). 길수록 정확해지지만, 아무도 안 읽으면
+         정확한 것이 아니라 없는 것이다. 자세한 설명은 기록 검증 페이지에. */
+      "'시가'는 다음 장 개장가, '즉시'는 24시간 코인 시장입니다."+
       (noQty?" ⚠ 수량·금액은 2026-08-13부터 기록됩니다 — 그 이전 "+noQty+
         "건은 '—'로 두고 추정하지 않습니다.":"")+
       (noAmt?" 🚨 "+noAmt+"건은 그날 계좌 자산보다 큰 금액이 적혀 있어 "+

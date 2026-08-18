@@ -172,7 +172,11 @@ def test_clicking_a_symbol_opens_its_chart(browser, site):
     try:
         page.goto(f"{site}/index.html")
         page.wait_for_timeout(2200)
-        rows = page.locator("#symtable tbody tr[data-k]")
+        # 종목별 현황은 첫 화면에서 접혀 있다(감사 282) — 펴고 눌러야 한다.
+        if not page.locator("#symtable").is_visible():
+            page.click("#morebtn")
+            page.wait_for_timeout(300)
+        rows = page.locator("#symtable tbody tr[data-k]:visible")
         assert rows.count() > 0, "종목표가 안 그려졌다"
         rows.first.click()
         page.wait_for_timeout(1200)
