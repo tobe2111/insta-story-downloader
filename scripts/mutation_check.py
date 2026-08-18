@@ -2367,6 +2367,20 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # ── 재현성 감사 — '기록 없는 날'과 '조작 의심'의 구분 (2026-08-18) ───
+    # 실측: 광복절 연휴에 기록이 없자 "조작 불가능 주장이 걸린 문제" 경보가
+    # 이틀 연속 울렸고, 그 실패가 위험 리포트 갱신·검증 커밋까지 막았다.
+    ("기록 없는 날마다 조작 의심 경보가 울린다(연휴마다 늑대소년)",
+     "quant/live/retrain.py",
+     '        return [{"key": "-", "ok": True, "no_records": True,',
+     '        return [{"key": "-", "ok": False, "no_records": True,',
+     "tests/test_verify_gate.py"),
+    ("기록 파일이 통째로 없어도 초록이 된다(상태 폴더가 날아간 날 침묵)",
+     "quant/live/retrain.py",
+     '        return [{"key": "-", "ok": False, "detail": "재학습 기록 파일 없음"}]',
+     '        return [{"key": "-", "ok": True, "detail": "재학습 기록 파일 없음"}]',
+     "tests/test_verify_gate.py"),
+
     # ── 웹 조종석 '내 전략' — CLI와 같은 관문을 웹에서도 (2026-08-17) ────
     ("웹이 미리보기 없이 바로 저장한다(붙여넣자마자 도전자가 늘어난다)",
      "quant/web/mystrategy.py",
