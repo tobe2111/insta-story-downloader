@@ -1,0 +1,208 @@
+"""규칙 유니버스 — 종목 선정을 사람 손에서 규칙으로.
+
+2026-08-18 외부 검토의 최대 지적("지금 살아남은 대형주를 사람이 고른 것 —
+생존 편향")에 대한 반영이자, 실효 독립 베팅 수(14종목≈9.5개)가 보여준
+분산 부족의 처방이다. 사장님 지시("앞으로는 리셋하지 말고 모두 개선")에
+따라 본 계좌에 직접 적용되며, 변경은 판정 시계의 버전 이력으로 공개된다.
+
+규칙 (사전 등록):
+  · 리밸런스는 **매월 1회** — 그 달의 첫 재계산 시점(기준일을 스냅샷에 기록).
+  · crypto: 시장 대표 BTC·ETH 고정 + 24시간 거래대금(USDT) 상위 3
+    (거래소 공개 티커 — 무료·공개라 재현 가능).
+  · kr_stock: 시장 지수 ETF(KODEX 200) 고정 + 기준일 시가총액 상위 6
+    (KRX 공개 통계, pykrx — 우선주 제외).
+  · us_stock: 지수 ETF(SPY·QQQ) 고정 + 현행 종목 유지 — 공개 시총 순위
+    소스를 아직 붙이지 못했다. **즉흥으로 고르는 대신 그 사실을 스냅샷에
+    적는다**(조용한 대체 금지). 순위 소스가 붙으면 규칙으로 바꾼다.
+  · 산출에 쓴 순위표를 스냅샷(state/universe.json)에 저장 — 언제 다시
+    봐도 같은 근거를 볼 수 있다.
+
+실패 원칙: 어떤 시장의 순위 조회가 실패하면 그 시장은 **직전 구성 유지**
++ 실패 사유 기록. 데이터가 없다고 종목을 즉흥적으로 고르지 않는다.
+
+기록 원칙: 유니버스에서 빠진 종목의 장부는 지우지 않는다 — 기록은 남고
+매매만 멈춘다(선택 편향 없는 공개 실험의 연장).
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import json
+import os
+
+from quant.utils.logging import get_logger
+
+log = get_logger("universe")
+
+FILE = "universe.json"
+RULE_VERSION = "2026-08-18"
+CRYPTO_CORE = ["BTC/USDT", "ETH/USDT"]
+CRYPTO_TOP = 3
+KR_CORE = ["069500.KS"]           # KODEX 200 — 시장 전체 대표
+KR_TOP = 6
+US_CORE = ["SPY", "QQQ"]
+
+
+def _path(state_dir: str) -> str:
+    return os.path.join(state_dir, FILE)
+
+
+def load(state_dir: str = "state") -> dict | None:
+    try:
+        with open(_path(state_dir), encoding="utf-8") as f:
+            d = json.load(f)
+        return d if isinstance(d, dict) and d.get("targets") else None
+    except (OSError, ValueError):
+        return None
+
+
+def active_targets(state_dir: str = "state") -> list[tuple[str, str]]:
+    """지금 운용할 (시장, 종목) 목록 — 스냅샷이 없으면 기존 고정 목록."""
+    from quant.markets import AUTO_TARGETS
+    snap = load(state_dir)
+    if not snap:
+        return list(AUTO_TARGETS)
+    return [tuple(t) for t in snap["targets"]]
+
+
+def due(state_dir: str = "state", today: _dt.date | None = None) -> bool:
+    """이번 달 재계산을 아직 안 했는가 — 매월 1회 규칙."""
+    today = today or _dt.date.today()
+    snap = load(state_dir)
+    if not snap:
+        return True
+    return str(snap.get("asof", ""))[:7] != today.isoformat()[:7]
+
+
+# ── 시장별 순위 (전부 무료·공개 소스) ────────────────────────────────
+
+def _rank_crypto() -> list[str]:
+    """USDT 마켓 24시간 거래대금 상위 — 거래소 공개 티커."""
+    import urllib.request as _rq
+    url = "https://www.okx.com/api/v5/market/tickers?instType=SPOT"
+    with _rq.urlopen(url, timeout=15) as r:
+        data = json.loads(r.read().decode("utf-8"))
+    rows = []
+    for t in data.get("data", []):
+        inst = str(t.get("instId", ""))
+        if not inst.endswith("-USDT"):
+            continue
+        try:
+            vol = float(t.get("volCcy24h") or 0) * float(t.get("last") or 0)
+        except (TypeError, ValueError):
+            continue
+        rows.append((inst.replace("-", "/"), vol))
+    rows.sort(key=lambda x: -x[1])
+    return [s for s, _v in rows]
+
+
+def _rank_kr(asof: str) -> list[str]:
+    """기준일 시가총액 상위 — KRX 공개 통계(pykrx). 우선주 제외."""
+    from pykrx import stock
+    raw = stock.get_market_cap_by_ticker(asof.replace("-", ""), market="KOSPI")
+    if raw is None or len(raw) == 0:
+        raise RuntimeError(f"KRX 시총 표가 비어 있다(기준일 {asof})")
+    col = next((c for c in raw.columns if "시가총액" in str(c)), None)
+    if col is None:
+        raise RuntimeError(f"시가총액 컬럼이 없다 — 받은 컬럼: {list(raw.columns)[:5]}")
+    ranked = raw.sort_values(col, ascending=False)
+    out = []
+    for code in ranked.index:
+        code = str(code)
+        # 우선주(끝자리 0이 아닌 코드) 제외 — 보통주와 같은 회사의 사본이라
+        # 유니버스에 두 번 세면 분산이 명목만 늘어난다.
+        if not code.endswith("0"):
+            continue
+        out.append(f"{code}.KS")
+    return out
+
+
+def rebuild(state_dir: str = "state",
+            today: _dt.date | None = None,
+            rank_crypto=_rank_crypto, rank_kr=_rank_kr) -> dict:
+    """규칙대로 유니버스를 다시 계산해 스냅샷으로 저장한다.
+
+    시장별로 독립 실패한다 — 한 시장의 조회 실패가 다른 시장의 갱신을
+    막지 않고, 실패한 시장은 직전 구성을 유지하며 사유가 기록된다.
+    """
+    from quant.markets import AUTO_TARGETS
+    from quant.utils.jsonio import atomic_write_json
+    today = today or _dt.date.today()
+    asof = today.isoformat()
+    prev = load(state_dir)
+    prev_by_market: dict[str, list[str]] = {}
+    for mk, sym in (tuple(t) for t in (prev or {}).get("targets", AUTO_TARGETS)):
+        prev_by_market.setdefault(mk, []).append(sym)
+
+    rationale: dict = {}
+    markets: dict[str, list[str]] = {}
+
+    try:
+        ranked = rank_crypto()
+        extra = [s for s in ranked if s not in CRYPTO_CORE][:CRYPTO_TOP]
+        markets["crypto"] = CRYPTO_CORE + extra
+        rationale["crypto"] = {"rule": f"BTC·ETH 고정 + 거래대금 상위 {CRYPTO_TOP}",
+                               "top10": ranked[:10]}
+    except Exception as exc:  # noqa: BLE001 — 실패 시 직전 구성 유지
+        markets["crypto"] = prev_by_market.get("crypto", [])
+        rationale["crypto"] = {"kept_previous": True,
+                               "reason": f"{type(exc).__name__}: {exc}"}
+
+    try:
+        ranked = rank_kr(asof)
+        extra = [s for s in ranked if s not in KR_CORE][:KR_TOP]
+        markets["kr_stock"] = KR_CORE + extra
+        rationale["kr_stock"] = {"rule": f"KODEX200 고정 + 시총 상위 {KR_TOP}"
+                                         " (우선주 제외)",
+                                 "top10": ranked[:10]}
+    except Exception as exc:  # noqa: BLE001
+        markets["kr_stock"] = prev_by_market.get("kr_stock", [])
+        rationale["kr_stock"] = {"kept_previous": True,
+                                 "reason": f"{type(exc).__name__}: {exc}"}
+
+    # 미국: 공개 시총 순위 소스가 아직 없다 — 현행 유지를 규칙으로 명시.
+    markets["us_stock"] = prev_by_market.get(
+        "us_stock", [s for m, s in AUTO_TARGETS if m == "us_stock"])
+    rationale["us_stock"] = {
+        "rule": "지수 ETF(SPY·QQQ) 고정 + 현행 유지",
+        "note": "공개 시총 순위 소스 미부착 — 즉흥 선정 대신 현행 유지, "
+                "소스가 붙으면 규칙으로 전환"}
+
+    targets = ([("crypto", s) for s in markets["crypto"]]
+               + [("us_stock", s) for s in markets["us_stock"]]
+               + [("kr_stock", s) for s in markets["kr_stock"]])
+
+    old_set = {tuple(t) for t in (prev or {}).get("targets", [])}
+    changed = old_set != set(targets) if prev else False
+    hist = list((prev or {}).get("history", []))
+    if prev is None or changed:
+        added = sorted({f"{m}:{s}" for m, s in targets} -
+                       {f"{m}:{s}" for m, s in old_set})
+        removed = sorted({f"{m}:{s}" for m, s in old_set} -
+                         {f"{m}:{s}" for m, s in targets})
+        hist.append({"on": asof, "added": added, "removed": removed,
+                     "rule_version": RULE_VERSION})
+    snap = {"asof": asof, "rule_version": RULE_VERSION,
+            "targets": [list(t) for t in targets],
+            "rationale": rationale, "history": hist[-60:]}
+    os.makedirs(state_dir, exist_ok=True)
+    atomic_write_json(_path(state_dir), snap)
+    log.info("유니버스 재계산 — %d종목 (변경 %s)", len(targets),
+             "있음" if changed or prev is None else "없음")
+    return snap
+
+
+def version_entries(state_dir: str = "state",
+                    after: str = "") -> list[dict]:
+    """유니버스 변경 이력 → 판정 시계 버전 이력 재료(리셋 없음, 공개만)."""
+    snap = load(state_dir)
+    if not snap:
+        return []
+    out = []
+    for h in snap.get("history", []):
+        on = str(h.get("on", ""))
+        if not on or on <= after:
+            continue
+        n_add, n_rm = len(h.get("added", [])), len(h.get("removed", []))
+        out.append({"on": on, "axis": "유니버스",
+                    "what": f"편입 {n_add} · 제외 {n_rm} (규칙 {h.get('rule_version')})"})
+    return out

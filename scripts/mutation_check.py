@@ -5721,6 +5721,31 @@ MUTATIONS = [
      '               "amended": JUDGEMENT_AMENDED,',
      '               "amended": None,',
      "tests/test_the_clock_survives_improvement.py"),
+
+    # ── 규칙 유니버스 (2026-08-18) — 규칙이 굽으면 즉흥 선정으로 돌아간다 ──
+    ("조회 실패 시장을 빈 목록으로 만든다(직전 구성 유지 원칙 위반)",
+     "quant/universe.py",
+     '        markets["kr_stock"] = prev_by_market.get("kr_stock", [])',
+     '        markets["kr_stock"] = []',
+     "tests/test_the_universe_is_chosen_by_rule.py"),
+
+    ("월 1회 관문을 뗀다(매일 유니버스가 바뀌어 이력이 소음이 된다)",
+     "quant/universe.py",
+     '    return str(snap.get("asof", ""))[:7] != today.isoformat()[:7]',
+     "    return True",
+     "tests/test_the_universe_is_chosen_by_rule.py"),
+
+    ("변경 이력 기록을 뗀다(편입·제외가 무표기 — 판정 시계 이력도 빈다)",
+     "quant/universe.py",
+     "    if prev is None or changed:",
+     "    if False:",
+     "tests/test_the_universe_is_chosen_by_rule.py"),
+
+    ("제외 표식을 뗀다(빠진 종목의 멈춘 기록이 고장으로 읽힌다)",
+     "quant/live/daily.py",
+     '                status["paper"][key]["universe_excluded"] = True',
+     "                pass",
+     "tests/test_the_universe_is_chosen_by_rule.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
