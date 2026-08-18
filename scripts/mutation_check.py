@@ -5553,6 +5553,19 @@ MUTATIONS = [
      "                elif pos > 0 and c[i] < mid_np[i]:",
      "                elif False:",
      "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    # ── 외부 검토 ①·④ (2026-08-18) — 분산 진단이 낙관으로 굽으면 거짓 ──
+    ("음의 상관 낙관을 공개한다(ENB가 종목 수를 넘는 숫자로 부푼다)",
+     "quant/risk/effective_bets.py",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * max(rho, 0.0))",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * rho)",
+     "tests/test_the_bets_are_counted_honestly.py"),
+
+    ("하락일 필터를 뗀다(하락일 상관이 전체 평균의 복사가 된다)",
+     "quant/risk/effective_bets.py",
+     "    down = df[df.mean(axis=1) < 0]",
+     "    down = df",
+     "tests/test_the_bets_are_counted_honestly.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
