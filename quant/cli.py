@@ -177,7 +177,17 @@ def _notify_extra(message: str) -> None:
 
     설정이 없으면 조용히 아무것도 안 한다 — 야간 자동화 잡에서 알림은 옵션이다.
     GitHub Secrets에 TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID를 넣으면 켜진다.
+
+    ⚠️ `QUANT_DEFER_NOTICE=1`이면 **보내지 않고 쌓아 둔다**(감사 283).
+       배치는 ①계산 →②알림 →③장부 관문 →④커밋 순서인데, ③에서 죽으면
+       ②는 이미 나간 뒤다. 2026-08-17 밤 실제로 그랬다 — 폰에는
+       "자산 999,078원", "챔피언 교체 SPY·QQQ"가 남았는데 장부에는
+       그런 일이 없다. 커밋이 끝난 뒤 `quant notify --flush`가 내보낸다.
     """
+    from quant.live import notice_queue
+    if notice_queue.deferring():
+        notice_queue.stage(message)
+        return
     try:
         from quant.live.notifications import ConsoleNotifier, get_notifier
         n = get_notifier()
@@ -473,6 +483,32 @@ def _cmd_live(args) -> None:
             daily_max_loss=args.daily_max_loss, market=market_guard)
     print(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
     trader.run(interval_sec=args.interval, max_iters=args.iters)
+
+
+def _cmd_notify(args) -> None:
+    """미뤄 둔 알림을 **지금** 내보낸다 (감사 283).
+
+    커밋·푸시가 끝난 뒤에만 부른다. 그전에 죽으면 대기열은 그대로 버려지고
+    실패 경보만 나간다 — **저장된 것만 방송한다.**
+    """
+    from quant.live import notice_queue
+
+    if args.discard:
+        n = len(notice_queue.pending())
+        notice_queue.discard()
+        print(f"🗑 미뤄 둔 알림 {n}건을 버렸습니다(저장되지 않은 일이라 방송하지 않습니다).")
+        return
+    if not args.flush:
+        print(f"미뤄 둔 알림 {len(notice_queue.pending())}건 "
+              f"({notice_queue.queue_path()}). 보내려면 --flush.")
+        return
+
+    # 여기서는 대기를 끄고 보낸다 — 안 그러면 자기 자신을 다시 쌓는다.
+    import os
+    os.environ.pop(notice_queue.ENV_DEFER, None)
+    sent = notice_queue.flush(_notify_extra)
+    print(f"📨 미뤄 둔 알림 {sent}건을 보냈습니다." if sent
+          else "보낼 알림이 없습니다.")
 
 
 def _cmd_verify(args) -> None:
@@ -1426,6 +1462,14 @@ def build_parser() -> argparse.ArgumentParser:
                     help="종목 표본 수(0=전체). 날짜 시드로 결정적 선택 — "
                          "매일 다른 표본이라 한 주면 전 종목을 훑는다")
     vf.set_defaults(func=_cmd_verify)
+
+    nt = sub.add_parser(
+        "notify",
+        help="미뤄 둔 알림 내보내기 — 커밋·푸시가 끝난 뒤에만 부른다(감사 283)")
+    nt.add_argument("--flush", action="store_true", help="쌓인 알림을 보낸다")
+    nt.add_argument("--discard", action="store_true",
+                    help="쌓인 알림을 버린다(저장되지 않은 일은 방송하지 않는다)")
+    nt.set_defaults(func=_cmd_notify)
 
     bf = sub.add_parser(
         "briefing",

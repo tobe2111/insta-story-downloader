@@ -266,6 +266,7 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
         from quant.live.guard import GUARD_LATE_FACTOR
         g = status.get("guard") or {}
         gap = g.get("observed_gap_min")
+        mid = g.get("median_gap_min")
         interval = float(g.get("interval_min") or 0.0)
         limit = interval * GUARD_LATE_FACTOR
         booked = f"{interval:g}"                   # 15.0이 아니라 15로 읽히게
@@ -273,7 +274,13 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
             flags[f"guard_late:{int(gap // 60)}h"] = (
                 f"⚠️ 장중 감시가 예약대로 돌지 않습니다 — 예약 {booked}분 "
                 f"간격인데 실제로 관측된 최악 간격은 **{gap:,.0f}분**"
-                f"({gap / 60:.1f}시간)입니다. 레버리지 한도는 실측 간격으로 "
+                f"({gap / 60:.1f}시간)입니다"
+                # ⚠️ 최악만 적으면 꼬리 하나가 전체를 설명한다(감사 285).
+                #    실측 중앙값을 함께 적어야 '그래서 실제로 어느 정도인가'에
+                #    답이 된다 — 나쁜 쪽만 적는 것도 사실과 다르다.
+                + (f" · 보통은 {mid:,.0f}분 간격입니다(중앙값)"
+                   if isinstance(mid, (int, float)) else "")
+                + f". 레버리지 한도는 **최악** 간격으로 "
                 f"계산하므로 안전 쪽으로 기울지만, 문서·대외 문구에서 "
                 f"'{booked}분마다 본다'고 말하면 안 됩니다.")
     except Exception:  # noqa: BLE001 — 감시 기록이 없어도 다른 플래그는 살린다
