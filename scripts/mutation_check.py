@@ -5761,6 +5761,13 @@ MUTATIONS = [
      '            if notional + fee > sh["cash"]:            # 레버리지 금지',
      "            if False:",
      "tests/test_the_limit_orders_wait_for_their_price.py"),
+
+    # ── 주기 사다리 (2026-08-18) — 멱등이 죽으면 같은 봉을 반복 매매한다 ──
+    ("사다리의 같은-봉 멱등 관문을 뗀다(크론마다 같은 봉을 또 매매 — 비용 폭증)",
+     "quant/live/intraday_challenger.py",
+     "        if bar_times and bar_times == last_bars:",
+     "        if False:",
+     "tests/test_the_frequency_ladder_measures_not_guesses.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

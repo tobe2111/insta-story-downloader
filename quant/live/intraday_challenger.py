@@ -46,6 +46,14 @@ log = get_logger("live.intraday")
 UNIVERSE = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT"]
 
 TIMEFRAME = "1h"            # 장중 봉 — 일봉 챔피언 규칙을 이 빈도로 돌린다
+# 주기 사다리(2026-08-18, 사장님 "최대한 이상적으로") — 최적 주기를 사람이
+# 고르지 않고 **나란히 돌려서 곡선이 고르게** 한다. 같은 전략·같은 브레이크·
+# 같은 체결 규칙(_execute_targets)에 봉 주기만 다르다. 트랙이 늘수록 우연한
+# 승자가 나올 확률도 늘어난다 — 공개 리포트가 그 사실을 함께 말한다.
+# 5분보다 빠른 주기는 이 인프라(크론 배치)에서 판단 간격을 보장할 수 없어
+# 사다리에 넣지 않는다 — 넣으면 '측정'이 아니라 '장식'이 된다.
+LADDER_TIMEFRAMES = ["15m", "5m"]
+LADDER_ROUNDS_KEEP = 4000
 LOOKBACK_BARS = 800         # 오디션과 같은 깊이의 창
 MIN_BARS = 60               # 이보다 얇으면 판단하지 않는다
 
@@ -131,17 +139,17 @@ def _champion_factory(state_dir: str):
     return make
 
 
-def _fetch_real(symbol: str):
-    """실데이터 1h봉. 합성 폴백이면 None — 가짜 시세로 체결을 만들지 않는다."""
+def _fetch_real(symbol: str, timeframe: str = TIMEFRAME):
+    """실데이터 봉. 합성 폴백이면 None — 가짜 시세로 체결을 만들지 않는다."""
     from quant.data.crypto import CryptoDataProvider
-    df = CryptoDataProvider().get_ohlcv(symbol, timeframe=TIMEFRAME,
+    df = CryptoDataProvider().get_ohlcv(symbol, timeframe=timeframe,
                                         limit=LOOKBACK_BARS)
     if df is None or len(df) == 0 or not df.attrs.get("source"):
         return None
     return df
 
 
-def confirmed_bars(df, now_iso: str):
+def confirmed_bars(df, now_iso: str, timeframe: str = TIMEFRAME):
     """**닫힌 봉만** 남긴다 — 같은 회차를 언제 다시 돌려도 같은 판단.
 
     ⚠️ 왜 필요한가 (2026-08-18 자체 감사). 거래소는 '지금 만들어지는 중'인
@@ -161,7 +169,7 @@ def confirmed_bars(df, now_iso: str):
     idx = pd.DatetimeIndex(df.index)
     if idx.tz is not None:
         idx = idx.tz_convert("UTC").tz_localize(None)
-    keep = (idx + pd.Timedelta(TIMEFRAME)) <= now
+    keep = (idx + pd.Timedelta(timeframe)) <= now
     return df[list(keep)]
 
 
@@ -220,6 +228,45 @@ def mark_equity(st: dict, prices: dict) -> float:
         if px:
             eq += float(qty) * float(px)
     return eq
+
+
+def _execute_targets(st: dict, signals: dict, prices: dict,
+                     equity: float, scale: float, per_side: float) -> list:
+    """목표 비중 → 체결 — 본 트랙과 주기 사다리가 **같은 규칙을 한 곳**에서 쓴다.
+
+    여기서 갈라지면 주기 비교가 체결 규칙 비교로 오염된다. 시장가 즉시
+    체결 + 편도 비용(수수료+슬리피지), 레버리지 금지, 최소 조정 문턱.
+    """
+    trades: list[dict] = []
+    slice_budget = equity / len(UNIVERSE)        # 고정 균등 슬라이스
+    for sym in UNIVERSE:
+        sig = signals.get(sym)
+        px = prices.get(sym)
+        if sig is None or not px:
+            continue
+        cur_qty = float((st["positions"] or {}).get(sym, 0.0))
+        delta = slice_budget * sig * scale - cur_qty * px  # 목표 − 현재 (USDT)
+        if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
+            continue
+        fee = abs(delta) * per_side
+        if delta > 0:
+            # 레버리지 금지선 — 현금이 모자라면 살 수 있는 만큼만 산다.
+            afford = st["cash"] / (1.0 + per_side)
+            if delta > afford:
+                delta = afford
+                fee = abs(delta) * per_side
+            if delta < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
+                continue
+        qty = delta / px
+        st["cash"] = float(st["cash"]) - delta - fee
+        st["positions"][sym] = cur_qty + qty
+        if abs(st["positions"][sym]) * px < 1e-6:
+            st["positions"].pop(sym, None)
+        st["cost_paid"] = float(st["cost_paid"]) + fee
+        trades.append({"symbol": sym, "side": "buy" if delta > 0 else "sell",
+                       "notional": round(delta, 2), "price": px,
+                       "cost": round(fee, 4), "signal": round(sig, 4)})
+    return trades
 
 
 def run_intraday_round(now_iso: str, *, state_dir: str = "state",
@@ -320,6 +367,13 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
                                           bar_times)
     except Exception as exc:  # noqa: BLE001
         log.warning("지정가 그림자 실패(본 실험 무관): %s", exc)
+    # 주기 사다리 — 15분·5분 트랙. 실패해도 본 실험을 막지 않는다.
+    try:
+        run_ladder(now_iso, state_dir=state_dir,
+                   data=None if data is None else {},
+                   strategy_factory=strategy_factory)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("주기 사다리 실패(본 실험 무관): %s", exc)
     last = dict(st.get("last_prices") or {})
     last.update(prices)
     st["last_prices"] = last
@@ -339,7 +393,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     os.makedirs(_dir(state_dir), exist_ok=True)
     from quant.utils.jsonio import atomic_write_json
     atomic_write_json(_path(state_dir), st)
-    write_public_report(st, docs_dir=docs_dir)
+    write_public_report(st, docs_dir=docs_dir, state_dir=state_dir)
     verdict = {"time": str(now_iso), "equity": round(equity_after, 2),
                "trades": len(trades), "skipped": len(skipped),
                "cost_paid": round(float(st["cost_paid"]), 2),
@@ -464,6 +518,116 @@ def _limit_shadow_round(st: dict, dfs: dict, signals: dict, prices: dict,
             "pending": len(sh["pending"])}
 
 
+def _track_path(state_dir: str, timeframe: str) -> str:
+    return os.path.join(_dir(state_dir), f"track_{timeframe}.json")
+
+
+def _load_track(state_dir: str, timeframe: str) -> dict:
+    try:
+        with open(_track_path(state_dir, timeframe), encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError):
+        st = {}
+    st.setdefault("timeframe", timeframe)
+    st.setdefault("cash", START_CASH_USDT)
+    st.setdefault("start_cash", START_CASH_USDT)
+    st.setdefault("positions", {})
+    st.setdefault("cost_paid", 0.0)
+    st.setdefault("rounds", [])
+    st.setdefault("risk_scale", 1.0)
+    return st
+
+
+def run_ladder(now_iso: str, *, state_dir: str = "state",
+               data: dict | None = None, strategy_factory=None) -> list[dict]:
+    """주기 사다리 — 15분·5분 봉 트랙을 본 트랙과 같은 규칙으로 1회씩 돈다.
+
+    본 트랙(1h)의 판정을 오염시키지 않는 독립 실험 계좌들이다. 부르는 쪽이
+    예외를 삼킨다 — 사다리 실패가 본 실험을 막으면 안 된다.
+    크론이 5분보다 늦게 돌면 5분 트랙은 봉을 건너뛴다 — 그 실측 간격은
+    회차 기록(시각)이 그대로 말한다(숨기지 않는다).
+    """
+    from quant.live.daily import _kill_switch_scale, measured_cost_model
+    from quant.live.ledger_basics import drawdown_from_index
+    from quant.utils.jsonio import atomic_write_json
+
+    factory = strategy_factory or _champion_factory(state_dir)
+    cost = measured_cost_model("crypto", state_dir)
+    per_side = float(cost.fee + cost.slippage)
+    out = []
+    for tf in LADDER_TIMEFRAMES:
+        st = _load_track(state_dir, tf)
+        prices: dict[str, float] = {}
+        signals: dict[str, float | None] = {}
+        bar_times: dict[str, str] = {}
+        for sym in UNIVERSE:
+            df = ((data or {}).get(tf, {}) or {}).get(sym) if data is not None \
+                else _fetch_real(sym, timeframe=tf)
+            if df is not None:
+                df = confirmed_bars(df, now_iso, timeframe=tf)
+            if df is None or len(df) < MIN_BARS:
+                signals[sym] = None
+                continue
+            prices[sym] = float(df["close"].iloc[-1])
+            bar_times[sym] = str(df.index[-1])
+            try:
+                sig = float(factory(sym).generate_signals(df).iloc[-1])
+            except Exception:  # noqa: BLE001
+                signals[sym] = None
+                continue
+            signals[sym] = max(0.0, min(1.0, sig))
+        if not prices:
+            # 한 종목도 판단 재료가 없다 — 빈 회차를 장부에 쓰지 않는다.
+            out.append({"timeframe": tf, "skipped": "닫힌 봉/데이터 없음"})
+            continue
+        # 같은 봉으로 이미 판단했으면 이 트랙은 이번 회차를 쉰다(멱등) —
+        # 5분 트랙이 15분 크론에서 세 번 같은 봉을 매매하는 것을 막는다.
+        last_bars = (st.get("rounds") or [{}])[-1].get("bar_times") or {}
+        if bar_times and bar_times == last_bars:
+            out.append({"timeframe": tf, "skipped": "같은 봉 재실행"})
+            continue
+        equity = mark_equity(st, prices)
+        if prices and not st.get("first_prices"):
+            st["first_prices"] = dict(prices)
+        peak = max(float(st.get("peak_equity") or 0.0), equity)
+        st["peak_equity"] = peak
+        dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
+        scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
+        st["risk_scale"] = scale
+        trades = _execute_targets(st, signals, prices, equity, scale, per_side)
+        equity_after = mark_equity(st, prices)
+        rec = {"time": str(now_iso), "equity": round(equity_after, 2),
+               "bar_times": bar_times, "trades": trades}
+        st["rounds"] = (st.get("rounds") or [])[-(LADDER_ROUNDS_KEEP - 1):] + [rec]
+        os.makedirs(_dir(state_dir), exist_ok=True)
+        atomic_write_json(_track_path(state_dir, tf), st)
+        out.append({"timeframe": tf, "equity": round(equity_after, 2),
+                    "trades": len(trades)})
+    return out
+
+
+def ladder_public(state_dir: str = "state") -> list[dict]:
+    """주기 사다리의 공개 요약 — 주기별 수익률·보유 기준·비용을 나란히."""
+    out = []
+    for tf in LADDER_TIMEFRAMES:
+        st = _load_track(state_dir, tf)
+        rounds = st.get("rounds") or []
+        if not rounds:
+            continue
+        eq = float(rounds[-1].get("equity") or st["start_cash"])
+        out.append({
+            "timeframe": tf,
+            "equity": round(eq, 2),
+            "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
+            "hold_return_pct": hold_baseline_pct(st),
+            "trades_total": sum(len(r.get("trades") or []) for r in rounds),
+            "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
+            "rounds_total": len(rounds),
+            "since": rounds[0].get("time"),
+        })
+    return out
+
+
 def _shadow_public(st: dict, lastr: dict) -> dict | None:
     """지정가 그림자의 공개 요약 — 본 실험과 나란히 읽히는 비교 숫자."""
     sh = st.get("limit_shadow")
@@ -487,7 +651,8 @@ def _shadow_public(st: dict, lastr: dict) -> dict | None:
     }
 
 
-def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
+def write_public_report(st: dict, docs_dir: str = "docs",
+                        state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
     rounds = st.get("rounds") or []
     lastr = rounds[-1] if rounds else {}
@@ -523,6 +688,13 @@ def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
         # 체결 방식의 효과다. 지정가는 슬리피지를 아끼는 대신 못 사는
         # 위험(미체결)을 진다 — 어느 쪽이 이기는지는 곡선이 답한다.
         "limit_shadow": _shadow_public(st, lastr),
+        # 주기 사다리 — 트랙이 많을수록 우연한 승자 확률도 커진다는 사실을
+        # 숫자와 함께 싣는다(다중검정 정직성 — 오디션과 같은 원칙).
+        "ladder": ladder_public(state_dir),
+        "ladder_note": ("주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 "
+                        "다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 "
+                        "나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 "
+                        "90일 기준만 유효하고, 사다리는 참고 진단입니다."),
         "elapsed_days": _elapsed_days(rounds),
         # 최근 체결 — 숫자만 보여주는 페이지는 장부가 아니다.
         "recent_trades": [
