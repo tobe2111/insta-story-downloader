@@ -57,9 +57,77 @@ export default {
     if (url.pathname === "/api/quotes") {
       return quotes(url, env, ctx);
     }
+    // 고객이 동의하고 보낸 전략 명세 수집함 (2026-08-18 사장님 지시:
+    // "고객들이 등록하는 자료들은 내 어드민 대시보드에서도 확보").
+    // 저장은 KV(SUBMISSIONS)가 연결돼 있을 때만 — 미설정이면 정직한 503.
+    if (url.pathname === "/api/submit-spec") {
+      return submitSpec(request, env);
+    }
+    if (url.pathname === "/api/admin/submissions") {
+      return listSubmissions(env);      // adminGate 통과 후에만 도달
+    }
     return env.ASSETS.fetch(request);
   },
 };
+
+// ── 고객 등록 전략 수집함 ─────────────────────────────────────────
+// 개인정보는 받지 않는다 — 클라이언트가 보내는 것은 전략 명세(규칙)와
+// 앱 버전뿐이고, 동의 체크박스를 켠 제출만 여기 도착한다.
+
+const SUBMIT_MAX_BYTES = 65536;        // 64KB — 명세는 이보다 훨씬 작다
+
+async function submitSpec(request, env) {
+  if (request.method !== "POST") {
+    return json({ error: "POST만 받습니다" }, 405);
+  }
+  if (!env.SUBMISSIONS) {
+    return json({ error: "수집함 미설정 — 관리자가 Cloudflare에서 KV " +
+                 "네임스페이스(SUBMISSIONS)를 연결해야 저장됩니다" }, 503);
+  }
+  const body = await request.text();
+  if (body.length > SUBMIT_MAX_BYTES) {
+    return json({ error: "명세가 너무 큽니다(64KB 상한)" }, 413);
+  }
+  let doc;
+  try { doc = JSON.parse(body); } catch (e) {
+    return json({ error: "JSON이 아닙니다" }, 400);
+  }
+  if (!doc || typeof doc !== "object" || !doc.spec) {
+    return json({ error: "spec 필드가 없습니다" }, 400);
+  }
+  const rec = {
+    received: new Date().toISOString(),
+    app_version: String(doc.app_version || "").slice(0, 40),
+    name: String(doc.name || "").slice(0, 120),
+    spec: doc.spec,
+  };
+  const key = "spec:" + Date.now() + ":" + crypto.randomUUID().slice(0, 8);
+  await env.SUBMISSIONS.put(key, JSON.stringify(rec));
+  return json({ ok: true });
+}
+
+async function listSubmissions(env) {
+  if (!env.SUBMISSIONS) {
+    return json({ error: "수집함 미설정 — KV(SUBMISSIONS) 연결 필요",
+                  items: [] }, 200);
+  }
+  const listed = await env.SUBMISSIONS.list({ prefix: "spec:", limit: 1000 });
+  const items = [];
+  for (const k of listed.keys) {
+    const v = await env.SUBMISSIONS.get(k.name);
+    if (!v) continue;
+    try { items.push({ key: k.name, ...JSON.parse(v) }); } catch (e) { /* skip */ }
+  }
+  items.sort((a, b) => (b.received || "").localeCompare(a.received || ""));
+  return json({ items: items, truncated: Boolean(listed.list_complete === false) });
+}
+
+function json(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
 
 /**
  * 라이선스 키 발급(서버측) — 발급 비밀은 Cloudflare 시크릿 LICENSE_SECRET에만

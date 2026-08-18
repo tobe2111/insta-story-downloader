@@ -25,6 +25,49 @@ def _e(s) -> str:
     return html.escape(str(s or ""))
 
 
+# ── 제작사 공유 (동의 시에만) ──────────────────────────────────────
+# 2026-08-18 사장님 지시: "고객들이 등록하는 자료들은 내 어드민 대시보드
+# 에서도 확보할 수 있도록". 원칙:
+#   · **동의 체크박스를 켠 제출만** 보낸다 — 기본값은 꺼짐.
+#   · 보내는 것은 전략 명세(규칙)와 앱 버전뿐 — 개인정보·계좌·성적 없음.
+#   · 전송 실패는 등록을 막지 않는다 — 결과만 정직하게 알려준다.
+SITE_URL = "https://quant.jiwon-1a2.workers.dev"
+
+
+def _share_spec(spec, transport=None) -> str:
+    """명세를 제작사 수집함으로 전송하고 결과 한 줄을 돌려준다."""
+    import json as _json
+    import os as _os
+    import urllib.request as _rq
+    url = (_os.getenv("QUANT_SITE_URL") or SITE_URL).rstrip("/") + "/api/submit-spec"
+    try:
+        version = open("VERSION", encoding="utf-8").read().strip()
+    except OSError:
+        version = ""
+    payload = _json.dumps({"name": spec.name or "", "app_version": version,
+                           "spec": spec.to_dict()}, ensure_ascii=False)
+    try:
+        if transport is not None:
+            status, body = transport(url, payload)
+        else:
+            req = _rq.Request(url, data=payload.encode("utf-8"),
+                              headers={"Content-Type": "application/json"},
+                              method="POST")
+            with _rq.urlopen(req, timeout=6) as resp:
+                status, body = resp.status, resp.read().decode("utf-8", "replace")
+        if status == 200:
+            return "제작사 공유: 전송됐습니다(동의하신 명세만 전송)."
+        try:
+            import json as _j
+            reason = _j.loads(body).get("error") or f"HTTP {status}"
+        except Exception:  # noqa: BLE001
+            reason = f"HTTP {status}"
+        return f"제작사 공유: 실패({reason}) — 등록에는 영향 없습니다."
+    except Exception as exc:  # noqa: BLE001 — 공유 실패가 등록을 막으면 안 된다
+        return (f"제작사 공유: 실패({type(exc).__name__}) — "
+                "등록에는 영향 없습니다.")
+
+
 # ── 자료 → 전략 ────────────────────────────────────────────────────
 
 
@@ -107,6 +150,10 @@ def run_ingest_html(params: dict, state_dir: str = STATE_DIR) -> str:
 
     if str(params.get("save") or "") == "1":
         path = save_spec(spec, state_dir=state_dir)
+        # 동의(share=1)한 제출만 제작사 수집함으로 — 기본은 보내지 않는다.
+        share_note = ""
+        if str(params.get("share") or "") == "1":
+            share_note = f'<p class="sub">{_e(_share_spec(spec))}</p>'
         body = f"""<p class="kicker">My Strategy</p>
 <h1>저장됐습니다 — 오늘 밤부터 심사를 받습니다</h1>
 <pre class="panel" style="white-space:pre-wrap">{_e(spec.summary())}</pre>
@@ -115,7 +162,8 @@ def run_ingest_html(params: dict, state_dir: str = STATE_DIR) -> str:
 <p class="sub">이제 매일 밤 재학습에서 <b>도전자로</b> 링에 섭니다. 등록만으로는
 매매하지 않습니다 — 다른 후보와 같은 2단계 심사를 이기고 과최적화 검증까지
 통과해야 실제 비중을 받습니다. <b>대부분은 떨어집니다.</b> 그것이 이 제품이
-파는 것입니다. 심사와 무관하게 지금 바로 쓰려면 → <a href="/pins">고정(pin)</a></p>"""
+파는 것입니다. 심사와 무관하게 지금 바로 쓰려면 → <a href="/pins">고정(pin)</a></p>
+{share_note}"""
         return _page("전략 저장됨", body, "/ingest")
 
     # 미리보기 — 저장 버튼이 같은 내용을 save=1로 다시 보낸다.
@@ -129,6 +177,11 @@ def run_ingest_html(params: dict, state_dir: str = STATE_DIR) -> str:
   <input type="hidden" name="text" value="{_e(text)}">
   <input type="hidden" name="name" value="{_e(name)}">
   <input type="hidden" name="save" value="1">
+  <label style="display:block;margin:0 0 10px;font-size:13px;cursor:pointer">
+    <input type="checkbox" name="share" value="1" style="vertical-align:-2px">
+    이 전략 명세를 제작사에 공유합니다 (선택) — 규칙 요약과 앱 버전만 전송되고
+    개인정보·계좌·성적은 담기지 않습니다. 심사와는 무관합니다.
+  </label>
   <button type="submit">이대로 저장 (도전자로 등록)</button>
   <a href="/ingest" style="margin-left:10px">다시 쓰기</a>
 </form>"""
