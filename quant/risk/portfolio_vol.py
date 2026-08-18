@@ -122,8 +122,12 @@ def edge_proven(state_dir: str = "state") -> tuple[bool, str]:
         if not gen:
             return False, "판정 시계 정보 없음"
         if gen["days"] < gen["target_days"]:
+            # 수정 공지(2026-08-18) — 시계는 개선해도 리셋되지 않는 연속
+            # 시계다. 대신 시계가 도는 동안의 구조 변경 횟수를 함께 말한다.
+            nv = len(gen.get("versions") or [])
             return False, (f"판정 시계 진행 중 — {gen['feature_set']} "
-                           f"{gen['days']}일차/{gen['target_days']}일")
+                           f"{gen['days']}일차/{gen['target_days']}일"
+                           + (f" · 그동안 개선 {nv}회 공개" if nv else ""))
         # ⚠️ 보관본(*.pre-*.json)을 빼야 한다(감사 228). 사본이 섞이면 같은
         #    기록이 두 번 세어져 표본 n만 부풀고, 윌슨 하한은 n이 커질수록
         #    올라간다 — 적중 55%에서 n=200(하한 48.1%, 미입증)이 n=400(하한

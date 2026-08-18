@@ -964,7 +964,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '<div class="sub" style="margin-bottom:7px">구조 <b>'+esc(g.feature_set)+
       '</b> 관찰 <b>'+g.days+'일차</b> / '+g.target_days+'일</div>'+
       '<div class="gauge"><i style="width:'+Math.max(1.5,p)+'%"></i></div>'+
-      '<div class="sub" style="margin-top:6px;font-size:11px">엣지 판정은 시계가 다 돌기 전엔 하지 않습니다.</div>';
+      '<div class="sub" style="margin-top:6px;font-size:11px">엣지 판정은 시계가 다 돌기 전엔 하지 않습니다.</div>'+
+      /* 수정 공지(2026-08-18) — 개선해도 시계는 리셋되지 않는다. 대신
+         시계가 도는 동안의 모든 구조 변경이 여기 날짜와 함께 공개된다 —
+         착시를 막는 것은 리셋이 아니라 공개된 경계다. */
+      (g.amended?'<div class="sub" style="margin-top:5px;font-size:10.5px">📝 수정 공지 '+esc(g.amended.on)+
+        ': 개선해도 시계는 리셋하지 않습니다 — 대신 변경 이력을 전부 공개합니다.'+
+        (g.versions&&g.versions.length?' 이력 '+g.versions.length+'건: '+
+          g.versions.map(v=>esc(v.on)+' '+esc(v.axis)).join(' · '):' (아직 변경 없음)')+
+        '</div>':'');
   }
 
   /* --- 사이드바: 지금 켜진 경고 --- */

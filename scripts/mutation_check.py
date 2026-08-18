@@ -2576,12 +2576,15 @@ MUTATIONS = [
     # ── 감사 271 — 90일 시계가 '선언한 피처'만 보고 돌던 자리 ───────────
     # 실측: 코인 펀딩·미결제약정 3개가 몇 주 동안 하나도 안 붙었는데
     #       FEATURE_SET 태그는 내내 같았다 → 되살리면 표본이 섞인다.
-    ("실측 피처가 바뀌어도 시계를 안 멈춘다(90일 표본이 섞인 채 발표된다)",
+    # 수정 공지(2026-08-18) 반영: 경계는 이제 시계를 되돌리지 않고 버전
+    # 이력으로 공개된다. 이 앵커는 '경계가 이력에서 조용히 사라지는' 변이를
+    # 잡는다 — 리셋 없는 세계에서 이력 누락은 리셋 누락보다 나쁘다.
+    ("실측 피처 변경이 이력에서 사라진다(섞인 표본이 무표기 발표된다)",
      "quant/live/daily.py",
-     "            if r_since > since:\n"
-     "                since = r_since",
+     "            if r_since > STRUCTURE_EPOCH:\n"
+     '                versions.append({"on": r_since, "axis": "실측 피처 구성",',
      "            if False:\n"
-     "                since = r_since",
+     '                versions.append({"on": r_since, "axis": "실측 피처 구성",',
      "tests/test_the_clock_counts_what_the_model_actually_saw.py"),
     ("확정 전에 세대 교체를 선언한다(공개 시계가 0일차로 떨어졌다 되돌아온다)",
      "quant/live/daily.py",
@@ -5705,6 +5708,19 @@ MUTATIONS = [
      '        if f\'"{banned}"\' in flat or f"{banned}=" in flat:',
      "        if False:",
      "tests/test_the_telemetry_is_disclosed_and_bounded.py"),
+
+    # ── 연속 판정 시계 (2026-08-18 수정 공지) — 이력·공지가 빠지면 거짓 ──
+    ("피처 선언 변경이 이력에서 사라진다(바뀐 사실이 무표기 발표된다)",
+     "quant/live/daily.py",
+     "        if since > STRUCTURE_EPOCH:",
+     "        if False:",
+     "tests/test_dist_guard_generation.py"),
+
+    ("수정 공지를 뗀다(시계 규칙이 바뀐 사실이 화면·데이터에서 사라진다)",
+     "quant/live/daily.py",
+     '               "amended": JUDGEMENT_AMENDED,',
+     '               "amended": None,',
+     "tests/test_the_clock_survives_improvement.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
