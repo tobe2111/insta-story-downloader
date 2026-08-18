@@ -5764,6 +5764,19 @@ MUTATIONS = [
      "            if False:",
      "tests/test_the_limit_orders_wait_for_their_price.py"),
 
+    # ── 수급 SOM (2026-08-18, 논문 재현) — 관문이 굽으면 잡음이 신호가 된다 ──
+    ("수급 없는 시장 관문을 뗀다(재료 없는 종목에서 의견을 낸다/죽는다)",
+     "quant/strategies/supplysom.py",
+     "        if not all(c in df.columns for c in FLOW_COLS):",
+     "        if False:",
+     "tests/test_the_supply_som_reads_the_flows.py"),
+
+    ("군집 통계 관문을 뗀다(표본·부호와 무관하게 산다 — 음의 군집에서도 매수)",
+     "quant/strategies/supplysom.py",
+     "            if cnt >= self.min_cluster and s / cnt > 0.0:",
+     "            if cnt >= 0:",
+     "tests/test_the_supply_som_reads_the_flows.py"),
+
     # ── 주기 사다리 (2026-08-18) — 멱등이 죽으면 같은 봉을 반복 매매한다 ──
     ("사다리의 같은-봉 멱등 관문을 뗀다(크론마다 같은 봉을 또 매매 — 비용 폭증)",
      "quant/live/intraday_challenger.py",

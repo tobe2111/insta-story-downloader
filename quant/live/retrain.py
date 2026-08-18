@@ -732,6 +732,11 @@ def build_challengers(current_spec: dict, seed: str,
     challengers += [
         {"strategy": "dual_thrust", "params": {"window": 4, "k1": 0.5, "k2": 0.5}},
     ]
+    # 수급 논문 재현(사장님 자료, 2026-08-18) — SOM 군집 + 군집별 통계.
+    # 수급 피처가 없는 시장에서는 관망만 내는 무해한 후보다.
+    challengers += [
+        {"strategy": "supply_som", "params": {}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
