@@ -141,6 +141,64 @@ def _fetch_real(symbol: str):
     return df
 
 
+def confirmed_bars(df, now_iso: str):
+    """**닫힌 봉만** 남긴다 — 같은 회차를 언제 다시 돌려도 같은 판단.
+
+    ⚠️ 왜 필요한가 (2026-08-18 자체 감사). 거래소는 '지금 만들어지는 중'인
+       마지막 봉도 내려준다. 그 봉은 매 순간 바뀌므로, 그것으로 판단하면
+       같은 회차를 10분 뒤 재현했을 때 **다른 결정**이 나온다 — 이 저장소의
+       재현성 원칙(모든 결정은 값으로 재현 가능)과 정면 충돌한다.
+       봉의 시각은 여는 시각이므로, 여는 시각+봉 길이가 지금보다 뒤면
+       아직 닫히지 않은 봉이다.
+    """
+    import datetime as dt
+
+    import pandas as pd
+
+    now = dt.datetime.fromisoformat(str(now_iso).replace("Z", "+00:00"))
+    if now.tzinfo is not None:
+        now = now.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    idx = pd.DatetimeIndex(df.index)
+    if idx.tz is not None:
+        idx = idx.tz_convert("UTC").tz_localize(None)
+    keep = (idx + pd.Timedelta(TIMEFRAME)) <= now
+    return df[list(keep)]
+
+
+def hold_baseline_pct(st: dict) -> float | None:
+    """같은 종목을 첫 회차 가격에 사서 **그냥 들고만 있었다면** 몇 %인가.
+
+    실험 데이터 안에서만 계산한다(본 계좌 장부를 읽지 않는다). 첫 회차에
+    가격이 없던 종목은 비교에서 빠지고, 그 사실은 표본 크기로 드러난다.
+    """
+    first = st.get("first_prices") or {}
+    last = st.get("last_prices") or {}
+    rets = [float(last[s]) / float(first[s]) - 1.0
+            for s in first if s in last and float(first[s]) > 0]
+    if not rets:
+        return None
+    return round(sum(rets) / len(rets) * 100, 4)
+
+
+# 판정 기준 — **결과를 보기 전에** 등록한다(2026-08-18). 기준을 나중에
+# 정하면 좋은 구간만 골라 "이겼다"고 말하는 유혹이 생기고, 그 순간 이
+# 실험은 선택 편향 없는 공개 실험이라는 정체성을 잃는다.
+PREREGISTERED_JUDGEMENT = {
+    "registered_on": "2026-08-18",
+    "min_days": 30,
+    "criteria": [
+        "관찰 30일 이상 — 충족 전에는 어떤 승패 판정도 내리지 않는다",
+        "비용을 뺀 누적 수익률이 같은 기간 본 계좌(하루 1회 판단)보다 높다",
+        "일별 수익률 차이의 95% 신뢰구간이 0을 배제한다 — 우연으로 "
+        "설명되는 차이는 무승부다",
+        "실험의 최대 낙폭이 같은 기간 본 계좌의 1.5배를 넘지 않는다 — "
+        "수익이 위험을 사서 온 것이면 승리가 아니다",
+    ],
+    "note": "이 기준은 첫 기록이 쌓이기 전에 등록했고 바꾸지 않는다. "
+            "바꿔야 한다면 그 사실과 이유를 이 자리에 함께 공개한다.",
+}
+
+
 def mark_equity(st: dict, prices: dict) -> float:
     """지금 가격으로 잰 자산. 가격을 못 받은 보유분은 **직전 표시 가격**을 쓴다."""
     eq = float(st["cash"])
@@ -171,14 +229,19 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
     skipped: dict[str, str] = {}
+    bar_times: dict[str, str] = {}
     for sym in UNIVERSE:
         df = (data or {}).get(sym) if data is not None else _fetch_real(sym)
+        if df is not None:
+            # 닫힌 봉만 — 미완성 봉으로 판단하면 회차가 재현 불가능해진다.
+            df = confirmed_bars(df, now_iso)
         if df is None or len(df) < MIN_BARS:
             signals[sym] = None
             skipped[sym] = ("실데이터 시세를 받지 못함" if df is None
-                            else f"봉 부족({len(df)}<{MIN_BARS})")
+                            else f"닫힌 봉 부족({len(df)}<{MIN_BARS})")
             continue
         prices[sym] = float(df["close"].iloc[-1])
+        bar_times[sym] = str(df.index[-1])       # 재현 지문 — 어느 봉으로 판단했나
         try:
             sig = float(factory(sym).generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다
@@ -188,6 +251,22 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
         signals[sym] = max(0.0, min(1.0, sig))   # 숏·레버리지 없음
 
     equity = mark_equity(st, prices)
+    # 그냥 보유 기준선 — 첫 회차 가격을 고정해 둔다(실험 데이터 안에서만).
+    if prices and not st.get("first_prices"):
+        st["first_prices"] = dict(prices)
+    # 실전과 같은 킬스위치를 **빌려** 건다(FROZEN_IDEAS ①) — 브레이크 없는
+    # 실험 계좌는 폭락장에서 본 계좌와 다른 조건으로 달리게 되고, 그러면
+    # 성적 차이가 '빈도의 효과'가 아니라 '브레이크 유무의 효과'가 된다.
+    from quant.live.daily import _kill_switch_scale
+    from quant.live.ledger_basics import drawdown_from_index
+    peak = max(float(st.get("peak_equity") or 0.0), equity)
+    st["peak_equity"] = peak
+    # 낙폭도 공용 헬퍼로 잰다 — 직접 적으면 언젠가 실전과 갈라진다(감사가
+    # 실제로 이 자리를 잡아냈다. 위기 재생 때와 같은 실수, 같은 교훈).
+    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
+    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
+    st["risk_scale"] = scale
+
     trades: list[dict] = []
     slice_budget = equity / len(UNIVERSE)        # 고정 균등 슬라이스
     for sym in UNIVERSE:
@@ -196,7 +275,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
         if sig is None or not px:
             continue
         cur_qty = float((st["positions"] or {}).get(sym, 0.0))
-        delta = slice_budget * sig - cur_qty * px      # 목표 − 현재 (USDT)
+        delta = slice_budget * sig * scale - cur_qty * px  # 목표 − 현재 (USDT)
         if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
             continue
         fee = abs(delta) * per_side
@@ -225,7 +304,10 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     rec = {"time": str(now_iso), "equity": round(equity_after, 2),
            "signals": {k: (round(v, 4) if v is not None else None)
                        for k, v in signals.items()},
+           "bar_times": bar_times,               # 재현 지문 — 판단에 쓴 마지막 닫힌 봉
            "trades": trades}
+    if scale < 1.0:
+        rec["kill_switch"] = {"drawdown": round(dd, 4), "scale": scale}
     if skipped:
         rec["skipped"] = skipped
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
@@ -242,6 +324,22 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     log.info("🏃 장중 도전자 — 자산 %.2f USDT · 체결 %d건 · 건너뜀 %d종목",
              equity_after, len(trades), len(skipped))
     return verdict
+
+
+def _elapsed_days(rounds: list[dict]) -> float | None:
+    """첫 회차부터 마지막 회차까지 며칠 지났나 — 판정 최소 기간의 진도."""
+    import datetime as dt
+
+    if len(rounds) < 2:
+        return 0.0 if rounds else None
+    try:
+        a = dt.datetime.fromisoformat(
+            str(rounds[0]["time"]).replace("Z", "+00:00"))
+        b = dt.datetime.fromisoformat(
+            str(rounds[-1]["time"]).replace("Z", "+00:00"))
+    except (ValueError, KeyError):
+        return None
+    return round((b - a).total_seconds() / 86400.0, 2)
 
 
 def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
@@ -267,9 +365,19 @@ def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
         "observed_gap_minutes": observed_gap_minutes(rounds),
         "positions": {k: round(float(v), 8)
                       for k, v in (st.get("positions") or {}).items()},
+        "risk_scale": float(st.get("risk_scale", 1.0)),
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]
                          for r in rounds[-CURVE_KEEP:]],
+        # 같은 기간 그냥 보유(첫 회차 가격 기준, 균등 분산) — 점수의 기준선.
+        "hold_return_pct": hold_baseline_pct(st),
+        # 판정 기준 — 결과가 쌓이기 전에 등록했고 바꾸지 않는다.
+        "judgement": PREREGISTERED_JUDGEMENT,
+        "elapsed_days": _elapsed_days(rounds),
+        # 최근 체결 — 숫자만 보여주는 페이지는 장부가 아니다.
+        "recent_trades": [
+            {"time": r.get("time"), **t}
+            for r in rounds for t in (r.get("trades") or [])][-40:],
         "honest_limits": HONEST_LIMITS,
         "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — "
                 "빈도의 효과만 분리해 잽니다",
