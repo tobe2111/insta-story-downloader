@@ -94,7 +94,15 @@ def attach_krx_flows(df: pd.DataFrame, symbol: str,
             return df
         out = df.copy()
         target = pd.DatetimeIndex(out.index).normalize()
-        for col, feat in (("frgn", "x_frgn5"), ("inst", "x_inst5")):
+        # flow_indi5(개인)는 2026-08-18부터 붙는 **도전자 전용** 컬럼이다.
+        # ⚠️ 이름이 x_로 시작하지 않는 것은 실수가 아니라 동결 장치다:
+        #    챔피언의 피처 빌더(ml._features)는 x_* 컬럼을 **전부 자동
+        #    포함**하므로, x_indi5로 붙이면 챔피언 입력이 조용히 바뀐다
+        #    (구조 동결 위반). x_ 규약 밖 이름은 챔피언 세계(피처 행렬·
+        #    건강 계측기)에 보이지 않고, 수급 3주체를 함께 보는 도전자
+        #    (supply_som)만 이 컬럼을 읽는다(논문 원형 재현).
+        for col, feat in (("frgn", "x_frgn5"), ("inst", "x_inst5"),
+                          ("indi", "flow_indi5")):
             if col not in flows.columns:
                 continue
             s5 = flows[col].rolling(5).sum()

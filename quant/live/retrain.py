@@ -446,6 +446,7 @@ def nightly_retrain(
     next_open_fill: bool = False,
     rebalance_band: float = 0.0,
     clamp_screen: bool = True,
+    reality_gate: bool = True,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -569,9 +570,39 @@ def nightly_retrain(
             "best_candidate": best, "final": final,
             "candidates": candidates, "inert": inert}
 
-    return {"promoted": True, "champion": best["spec"], "reason": (
-        f"선발전 t={best['t_stat']:.2f}, 결승전 t={final['t_stat']:.2f} 모두 통과 "
-        "— 새 챔피언으로 승격."),
+    # 동시검정(현실성 검사) — 결승 t를 넘어도 '후보 N명 중 최고'는 혼자만의
+    # 검정이 아니다(2026-08-18). confirm_threshold의 로그+상한 보정은 시도가
+    # 아주 많아지면 상한에 붙어 더 오르지 않는다 — 그 빈틈을 여기서 막는다:
+    # 오늘 링에 선 **모든** 실제 후보의 홀드아웃 수익 차이를 놓고, "이 중
+    # 최고 성적이 순전히 우연으로 나올 확률"을 블록 부트스트랩으로 직접 잰다.
+    # 후보가 늘수록 이 확률은 자동으로 커진다 — 상한이 필요 없는 보정이다.
+    rc_res = None
+    if reality_gate:
+        bt = dict(cost_model=cost_model, next_open_fill=next_open_fill,
+                  rebalance_band=rebalance_band)
+        mat = _holdout_diff_matrix(champion_spec, [c["spec"] for c in candidates],
+                                   df, confirm_window, build, bt)
+        if mat is None or mat.shape[0] < RC_MIN_N:
+            rc_res = {"skipped": True, "reason": (
+                f"홀드아웃 표본 부족(<{RC_MIN_N}봉) — 동시검정 생략(관문 미적용)")}
+        else:
+            rc_res = reality_check(mat)
+            if rc_res["p"] > RC_ALPHA:
+                return {"promoted": False, "reality_check": rc_res, "reason": (
+                    f"결승 t={final['t_stat']:.2f}는 넘었지만, 오늘 링에 선 "
+                    f"{rc_res['n_cand']}개 후보를 **동시에** 놓고 보면 이 정도 "
+                    f"성적이 우연으로 나올 확률 p={rc_res['p']:.3f} > "
+                    f"{RC_ALPHA} — 승격 보류(부트스트랩 동시검정). 후보를 많이 "
+                    "세울수록 하나쯤은 우연히 좋아 보인다는 사실의 값이다."),
+                    "best_candidate": best, "final": final,
+                    "candidates": candidates, "inert": inert}
+
+    return {"promoted": True, "champion": best["spec"], "reality_check": rc_res,
+            "reason": (
+        f"선발전 t={best['t_stat']:.2f}, 결승전 t={final['t_stat']:.2f} 모두 통과"
+        + (f", 동시검정 p={rc_res['p']:.3f}≤{RC_ALPHA}"
+           if rc_res and not rc_res.get("skipped") else "")
+        + " — 새 챔피언으로 승격."),
         "best_candidate": best, "final": final,
         "candidates": candidates, "inert": inert}
 
@@ -732,6 +763,11 @@ def build_challengers(current_spec: dict, seed: str,
     challengers += [
         {"strategy": "dual_thrust", "params": {"window": 4, "k1": 0.5, "k2": 0.5}},
     ]
+    # 수급 논문 재현(사장님 자료, 2026-08-18) — SOM 군집 + 군집별 통계.
+    # 수급 피처가 없는 시장에서는 관망만 내는 무해한 후보다.
+    challengers += [
+        {"strategy": "supply_som", "params": {}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
@@ -767,6 +803,82 @@ def build_challengers(current_spec: dict, seed: str,
 # 총계 trials_total은 투명성 표시용으로 계속 쌓는다).
 TRIALS_WINDOW_DAYS = 365
 CONFIRM_T_CAP = 1.35
+
+# ── 동시검정(현실성 검사) — 상한이 필요 없는 다중검정 보정 ────────────
+# confirm_threshold는 로그+상한이라 시도가 아주 많아지면(연 1만+ 시도) 상한에
+# 붙어 더 오르지 않는다 — "후보를 더 세워도 문턱이 그대로"인 구간이 생긴다
+# (2026-08-18 CI가 실측으로 드러냄). 그래서 결승 통과자에게 한 관문을 더 건다:
+# 오늘 링의 **모든** 실제 후보가 홀드아웃에서 낸 (도전자−챔피언) 일수익 차를
+# 놓고, 각 후보의 평균을 0으로 옮긴 귀무 세계를 블록 부트스트랩으로 재생해
+# "N명 중 최고 t가 이만큼 나올 확률" p를 직접 잰다(화이트 현실성 검사의
+# 경량판). 후보가 늘면 귀무 세계의 최고 t도 자연히 커져 p가 정직하게
+# 커진다 — 로그 공식도 상한도 필요 없다.
+# 시드는 고정 하나(42) — SOM과 같은 원칙: 좋은 결과를 주는 시드 채택 금지.
+RC_BOOT = 500          # 부트스트랩 반복 수
+RC_BLOCK = 5           # 블록 길이(봉) — 며칠 단위 자기상관 보존
+RC_ALPHA = 0.10        # 승격에 요구하는 최대 p — 결승 t 상한(1.35≈p 0.09)과 동급
+RC_MIN_N = 20          # 이보다 짧은 홀드아웃이면 검정 자체가 무의미 — 생략 명시
+RC_SEED = 42
+
+
+def reality_check(diffs, *, n_boot: int = RC_BOOT, block: int = RC_BLOCK,
+                  seed: int = RC_SEED) -> dict:
+    """'후보 N명 중 최고 성적'이 우연으로 나올 확률 p — 완전 결정적.
+
+    diffs: (봉 수 × 후보 수) 행렬. 각 열은 그 후보의 (도전자−챔피언) 일수익 차.
+    반환: {"p", "t_max", "n", "n_cand"} — p가 작을수록 우연으로 보기 어렵다.
+    """
+    import numpy as np
+
+    d = np.asarray(diffs, dtype=float)
+    if d.ndim == 1:
+        d = d[:, None]
+    d = d[~np.isnan(d).any(axis=1)]
+    n, k = d.shape
+    if n < 3 or k < 1:
+        raise ValueError(f"동시검정에 쓸 표본이 없다(n={n}, k={k})")
+
+    def _max_t(mat) -> float:
+        m = mat.mean(axis=0)
+        se = mat.std(axis=0, ddof=1) / math.sqrt(len(mat))
+        # 차이가 상수(분산 0)인 열은 정보가 없다 — t=0으로 둔다(0/0 방지).
+        t = np.divide(m, se, out=np.zeros_like(m), where=se > 1e-300)
+        return float(t.max())
+
+    t_obs = _max_t(d)
+    centered = d - d.mean(axis=0)          # 귀무가설: 아무도 챔피언을 못 이긴다
+    rng = np.random.RandomState(seed)
+    n_blocks = -(-n // block)              # ceil
+    hits = 0
+    for _ in range(n_boot):
+        starts = rng.randint(0, n, size=n_blocks)
+        idx = (starts[:, None] + np.arange(block)[None, :]).ravel()[:n] % n
+        if _max_t(centered[idx]) >= t_obs:
+            hits += 1
+    return {"p": round((1 + hits) / (n_boot + 1), 4),
+            "t_max": round(t_obs, 4), "n": n, "n_cand": k}
+
+
+def _holdout_diff_matrix(champion_spec: dict, specs: list[dict], df,
+                         tail: int, build, bt_kwargs: dict):
+    """오늘 링의 모든 후보를 홀드아웃에서 재생해 수익 차 행렬을 만든다.
+
+    평가에 실패한 후보는 열에서 빠진다(n_cand가 그만큼 줄어 장부에 남는다).
+    """
+    import numpy as np
+
+    from quant.backtest import Backtester
+
+    r_champ = Backtester(build(champion_spec), **bt_kwargs).run(df).returns
+    cols = []
+    for spec in specs:
+        try:
+            r_ch = Backtester(build(spec), **bt_kwargs).run(df).returns
+        except Exception as exc:  # noqa: BLE001 — 한 후보 실패로 검정을 죽이지 않는다
+            log.warning("동시검정 후보 재생 실패 %s: %s", spec, exc)
+            continue
+        cols.append((r_ch - r_champ).iloc[-tail:].fillna(0.0).to_numpy())
+    return np.column_stack(cols) if cols else None
 
 
 
@@ -896,6 +1008,9 @@ def verify_retrain(asof: str, *, market: str | None = None,
             # 생겼다. 옛 기록(v1)은 그 규칙이 없던 세계의 결정이므로 그대로
             # 재현한다. 과거 기록은 고치지 않는다.
             clamp_screen=int(rec.get("gate_version", 1)) >= 2,
+            # v3부터 결승 통과자에게 동시검정(현실성 검사)이 붙었다. 옛
+            # 기록(v1·v2)은 그 관문이 없던 세계의 결정 — 그대로 재현한다.
+            reality_gate=int(rec.get("gate_version", 1)) >= 3,
             # 그날의 오디션 조건을 장부에서 그대로 되살린다. 실측 비용은
             # 날마다 변하므로 '오늘 값'으로 어제 결정을 재생하면 재현이
             # 깨진다 — 결정의 전제는 결정과 함께 보존돼야 한다.
@@ -1139,8 +1254,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         "select_t_used": round(effective_select_t(select_t_eff, confirm_t_eff), 3),
         "select_folds": SELECT_FOLDS,  # 폴드 일관성 게이트 — verify 재현용
         # 관문 세대 — v2: 선발전은 선별기, 다중검정 보정은 결승전이 맡는다.
+        # v3(2026-08-18): 결승 통과자에게 동시검정(현실성 검사)이 추가됐다 —
+        # 오늘 링 전체를 놓고 '최고 성적이 우연일 확률'을 부트스트랩으로 잰다.
         # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
-        "gate_version": 2,
+        "gate_version": 3,
+        # 동시검정 결과 — 결승까지 간 날만 값이 있다(그 외 None). p가 클수록
+        # "후보가 많아 하나쯤 우연히 좋아 보였을" 가능성이 크다는 뜻.
+        "reality_check": decision.get("reality_check"),
         # 그날 실제로 나온 숫자(감사 235). 문턱만 적고 기록을 안 적으면
         # "왜 안 바뀌었나"에 장부가 답하지 못한다.
         "audition_result": audition_evidence(decision),
