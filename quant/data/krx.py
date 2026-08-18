@@ -63,6 +63,13 @@ def fetch_investor_net(symbol: str, limit: int = 160) -> pd.DataFrame | None:
             cols.setdefault("frgn", raw[name])
         elif "기관" in str(name):
             cols.setdefault("inst", raw[name])
+        elif "개인" in str(name):
+            # 개인 순매수 (2026-08-18) — 사장님이 주신 수급 논문 재현 재료.
+            # ⚠️ **수집만 한다.** 챔피언 피처 부착(attach_krx_flows)은
+            #    외국인·기관 그대로다 — 피처 구성은 동결(STRUCTURE_EPOCH)
+            #    상태고, 외부 검토 ③도 "피처는 추가가 아니라 삭제"였다.
+            #    이 열은 수급 3주체를 함께 보는 **도전자**만 읽는다.
+            cols.setdefault("indi", raw[name])
     if "frgn" not in cols:
         # 컬럼 이름이 바뀌면 값은 멀쩡한데 피처만 사라진다 — 가장 찾기 어려운
         # 고장이므로, 실제로 뭐가 왔는지를 장부에 그대로 남긴다.

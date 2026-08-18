@@ -5597,6 +5597,12 @@ MUTATIONS = [
      '    if str(params.get("confirm") or "").strip() != RESUME_WORD:',
      "    if False:",
      "tests/test_the_owner_can_pull_the_handbrake.py"),
+
+    ("개인 순매수 수집을 뗀다(수급 논문 도전자의 재료가 조용히 사라진다)",
+     "quant/data/krx.py",
+     '        elif "개인" in str(name):',
+     "        elif False:",
+     "tests/test_alpha10_prune_krx.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
