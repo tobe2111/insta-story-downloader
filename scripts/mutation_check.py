@@ -5431,13 +5431,13 @@ MUTATIONS = [
     # 열여섯 계약이 한꺼번에 무방비가 되기 때문이다.
     ("CI가 브라우저를 안 받는다(화면 계약 16건이 조용히 건너뛰어진다)",
      ".github/workflows/ci.yml",
-     "        run: python -m playwright install --with-deps chromium",
+     "        run: python -m playwright install chromium",
      "        run: echo '브라우저 없이 간다'",
      "tests/test_the_page_contracts_actually_run.py"),
 
     ("야간 변이 전수가 브라우저를 안 받는다(놓침이 다시 21건이 된다)",
      ".github/workflows/mutation-sweep.yml",
-     "        run: python -m playwright install --with-deps chromium",
+     "        run: python -m playwright install chromium",
      "        run: echo '브라우저 없이 간다'",
      "tests/test_the_page_contracts_actually_run.py"),
 
