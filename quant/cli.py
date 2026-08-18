@@ -194,6 +194,17 @@ def _cmd_paper_daily(args) -> None:
         run_daily_paper, run_daily_paper_all, write_docs_status,
     )
 
+    # 수동 킬스위치 — 사장님이 조종석에서 멈춰 둔 날은 아무 주문도 내지
+    # 않고 장부도 건드리지 않는다. 다만 status.json은 갱신해서(스위치
+    # 상태가 실린다) 사이트가 "왜 오늘 기록이 없는지"를 말할 수 있게 한다.
+    from quant.live.manual_halt import gate_message
+    _halt = gate_message(args.state_dir)
+    if _halt:
+        print(_halt)
+        if args.docs:
+            write_docs_status(args.state_dir)
+        return
+
     common = dict(timeframe=args.timeframe, lookback=args.lookback,
                   state_dir=args.state_dir,
                   require_real_data=not args.allow_synthetic)
@@ -556,6 +567,14 @@ def _cmd_intraday_round(args) -> None:
     import datetime as dt
 
     from quant.live.intraday_challenger import run_intraday_round
+
+    # 수동 킬스위치는 실험 트랙에도 걸린다 — 본 계좌만 멈추고 실험이 계속
+    # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.
+    from quant.live.manual_halt import gate_message
+    _halt = gate_message(args.state_dir)
+    if _halt:
+        print(_halt)
+        return
 
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     v = run_intraday_round(now, state_dir=args.state_dir,

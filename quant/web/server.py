@@ -46,6 +46,7 @@ from quant.web.mystrategy import (
     run_pin_save,
     run_pin_unpin,
 )
+from quant.web.app import render_halt_page, run_halt_toggle
 from quant.web.auth import render_login_form, run_login
 
 # 로그인 없이도 닿아야 하는 경로 — 로그인 화면 자체와 라이브니스 체크.
@@ -108,7 +109,7 @@ class QuantHandler(BaseHTTPRequestHandler):
     #   · 나머지 /run  — 수 초~수 분짜리 연산이라 교차출처에서 반복 호출되면
     #     사장님 PC의 자원을 태운다. 다른 사이트가 이걸 부를 이유는 없다.
     # 조회 경로(/api/state·/monitor 등)는 막지 않는다 — 로컬 도구의 사용성.
-    _MUTATING = ("/login/run", "/ingest/run", "/pin/save", "/pin/unpin",
+    _MUTATING = ("/login/run", "/halt/run", "/ingest/run", "/pin/save", "/pin/unpin",
                  "/deposit/run", "/optimize/run", "/sweep/run",
                  "/portfolio/run", "/screener/run", "/validate/run",
                  "/backtest")
@@ -177,6 +178,9 @@ class QuantHandler(BaseHTTPRequestHandler):
             self._send(render_form())
         elif parsed.path == "/login":
             self._send(render_login_form())
+        elif parsed.path == "/halt":
+            # 긴급 정지 화면 — 상태 확인은 GET, 켜고 끄기는 POST만.
+            self._send(render_halt_page())
         elif parsed.path == "/health":
             self._send("ok")
         elif parsed.path == "/backtest":
@@ -319,6 +323,11 @@ class QuantHandler(BaseHTTPRequestHandler):
                 html = render_login_form("로그인 처리 중 오류가 났습니다.")
             self._extra_headers = hdrs or None
             self._send(html)
+        elif parsed.path == "/halt/run":
+            try:
+                self._send(run_halt_toggle(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_halt_page(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/ingest/run":
             try:
                 self._send(run_ingest_html(params))

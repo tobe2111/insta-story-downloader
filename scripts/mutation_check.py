@@ -5566,6 +5566,37 @@ MUTATIONS = [
      "    down = df[df.mean(axis=1) < 0]",
      "    down = df",
      "tests/test_the_bets_are_counted_honestly.py"),
+
+    # ── 수동 킬스위치 (2026-08-18, 구축 사례 채택) — 핸드브레이크가 헛돌면 거짓 ──
+    ("일일 배치의 수동 정지 관문을 뗀다(멈춰 놔도 매매가 돈다)",
+     "quant/cli.py",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if _halt:\n"
+     "        print(_halt)\n"
+     "        if args.docs:",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if False:\n"
+     "        print(_halt)\n"
+     "        if args.docs:",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
+
+    ("장중 실험의 수동 정지 관문을 뗀다(본 계좌만 멈추고 실험은 계속 돈다)",
+     "quant/cli.py",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if _halt:\n"
+     "        print(_halt)\n"
+     "        return\n",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if False:\n"
+     "        print(_halt)\n"
+     "        return\n",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
+
+    ("재개 확인 단어를 뗀다(아무 글자나 넣어도 매매가 재개된다)",
+     "quant/web/app.py",
+     '    if str(params.get("confirm") or "").strip() != RESUME_WORD:',
+     "    if False:",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
