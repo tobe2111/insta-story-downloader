@@ -49,6 +49,7 @@ PAGES = [
     ("index.html", "다 그리지 못했습니다"),
     ("today.html", "다 그리지 못했습니다"),
     ("paper.html", None),
+    ("intraday.html", None),
     ("weekly.html", None),
     ("trust.html", None),
     ("admin.html", None),

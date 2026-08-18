@@ -49,11 +49,10 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
 </style>
 </head>
 <body>
-<nav><div class="wrap">
-  <a class="logo" href="index.html">QUANT<em>.</em></a>
-  <span class="pill">어드민</span>
-  <a href="index.html" style="font-size:13.5px;color:var(--muted);margin-left:auto">← 홈</a>
-</div></nav>
+<!-- 상단 바는 공용(assets/nav.js) — 모든 페이지가 같은 바를 쓴다.
+     '어드민' 표식은 이 페이지 고유 요소라 data-qnav-extra로 바 안에 들어간다. -->
+<script src="assets/nav.js" defer></script>
+<span class="pill" data-qnav-extra>어드민</span>
 <div class="wrap">
 <h1>운영 설정</h1>
 <p>여기서 바꾼 값은 <b style="color:var(--fg)">config/settings.json</b> 커밋으로
