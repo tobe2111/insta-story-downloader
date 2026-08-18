@@ -727,6 +727,11 @@ def build_challengers(current_spec: dict, seed: str,
         {"strategy": "psar", "params": {}},
         {"strategy": "ichimoku", "params": {}},
     ]
+    # 자동 자료 수집 라운드(2026-08-18, 사장님 승인 "수집 주기적으로 해")가
+    # 가져온 첫 도전자 — 듀얼 스러스트(공개 수식, 시가 기준 범위 돌파).
+    challengers += [
+        {"strategy": "dual_thrust", "params": {"window": 4, "k1": 0.5, "k2": 0.5}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)

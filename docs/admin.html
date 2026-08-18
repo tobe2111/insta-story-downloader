@@ -105,6 +105,18 @@ button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut
   </div>
 </div>
 
+<div class="card" id="subs-card">
+  <label style="display:block;cursor:default"><span class="t">고객 등록 전략
+    <span class="d">설치형 사용자가 '내 전략' 저장 때 <b>공유에 동의한</b> 명세만
+    모입니다(개인정보 없음 — 규칙 요약과 앱 버전뿐). 수집함(KV)이 연결돼
+    있어야 쌓입니다.</span></span></label>
+  <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+    <button id="subs-load">불러오기</button>
+    <span class="msg" id="subs-msg" style="margin-top:0"></span>
+  </div>
+  <div id="subs-body" style="margin-top:8px;font-size:13.5px"></div>
+</div>
+
 <div class="card" id="sns-card">
   <label style="display:block;cursor:default"><span class="t">오늘의 SNS 콘텐츠 (수동 게시용)
     <span class="d">매일 아침 자동 생성됩니다. 캡션을 눌러 복사하고, 이미지를
@@ -424,6 +436,35 @@ fetch("status.json").then(r=>r.json()).then(st=>{
     el.textContent="참고: 장부에 사전추정 변동성 기록이 아직 없습니다.";
   }
 }).catch(()=>{});
+
+// ── 고객 등록 전략 목록 (adminGate 뒤의 API — 로그인된 어드민만 호출 가능)
+(function(){
+  var btn=document.getElementById('subs-load'); if(!btn)return;
+  btn.addEventListener('click', function(){
+    var msg=document.getElementById('subs-msg'), body=document.getElementById('subs-body');
+    msg.textContent='불러오는 중…'; msg.className='msg';
+    fetch('/api/admin/submissions',{cache:'no-store'})
+      .then(function(r){return r.json()})
+      .then(function(d){
+        if(d.error){msg.textContent=d.error; msg.className='msg bad'; return}
+        if(!d.items||!d.items.length){msg.textContent='아직 공유된 전략이 없습니다.'; body.innerHTML=''; return}
+        msg.textContent=d.items.length+'건'; msg.className='msg ok';
+        body.innerHTML=d.items.map(function(it){
+          var esc=function(x){var e=document.createElement('div');e.textContent=String(x==null?'':x);return e.innerHTML};
+          var spec=it.spec||{};
+          var summary=spec.summary||spec.name||'(요약 없음)';
+          return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0">'
+            +'<b>'+esc(it.name||spec.title||'(이름 없음)')+'</b>'
+            +' <span style="color:var(--muted);font-size:12px">'+esc((it.received||'').replace('T',' ').slice(0,16))
+            +(it.app_version?' · v'+esc(it.app_version):'')+'</span>'
+            +'<details style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted)">명세 보기</summary>'
+            +'<pre style="white-space:pre-wrap;font-size:12px;margin:6px 0 0">'+esc(JSON.stringify(spec,null,1).slice(0,4000))+'</pre></details>'
+            +'</div>';
+        }).join('');
+      })
+      .catch(function(e){msg.textContent='불러오기 실패: '+e; msg.className='msg bad'});
+  });
+})();
 </script>
 </body>
 </html>
