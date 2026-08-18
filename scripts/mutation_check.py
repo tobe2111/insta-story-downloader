@@ -5553,7 +5553,9 @@ MUTATIONS = [
 
     ("현금 한도를 무시하고 산다(실험 계좌에 몰래 레버리지가 생긴다)",
      "quant/live/intraday_challenger.py",
+     '            afford = st["cash"] / (1.0 + per_side)\n'
      "            if delta > afford:",
+     '            afford = st["cash"] / (1.0 + per_side)\n'
      "            if False:",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
@@ -5746,6 +5748,19 @@ MUTATIONS = [
      '                status["paper"][key]["universe_excluded"] = True',
      "                pass",
      "tests/test_the_universe_is_chosen_by_rule.py"),
+
+    # ── 지정가 그림자 (2026-08-18) — 체결 조건이 굽으면 공짜 체결이 된다 ──
+    ("매수 지정가의 가격 조건을 뗀다(안 닿아도 체결 — 공짜 체결)",
+     "quant/live/intraday_challenger.py",
+     '        if od["side"] == "buy" and float(after["low"].min()) <= limit:',
+     '        if od["side"] == "buy":',
+     "tests/test_the_limit_orders_wait_for_their_price.py"),
+
+    ("그림자의 레버리지 금지선을 뗀다(현금보다 큰 체결로 빚을 낸다)",
+     "quant/live/intraday_challenger.py",
+     '            if notional + fee > sh["cash"]:            # 레버리지 금지',
+     "            if False:",
+     "tests/test_the_limit_orders_wait_for_their_price.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
