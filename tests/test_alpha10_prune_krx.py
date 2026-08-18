@@ -117,15 +117,17 @@ def test_krx_wired_into_three_paths_and_workflows():
 
 
 def test_the_individual_column_is_collected_but_never_a_champion_feature():
-    """개인 순매수 (2026-08-18, 수급 논문 재현 재료) — 수집과 동결의 경계.
+    """개인 순매수 (2026-08-18, 수급 논문 재현 재료) — 부착과 동결의 경계.
 
-    수집기는 개인(indi) 열을 담아야 하지만, 챔피언 피처 부착은 여전히
-    외국인·기관 둘뿐이어야 한다 — 피처 구성은 동결 상태고, 외부 검토 ③은
-    "피처는 추가가 아니라 삭제"였다. 개인 수급은 도전자만 읽는다.
+    처음에는 수집만 하고 부착하지 않았다(보수적 경계). 같은 날 저녁,
+    약속했던 다음 단계인 **도전자 전용 부착**이 구현되면서 경계가 옮겨졌다:
+    개인 수급은 이제 flow_indi5로 데이터에 붙지만, 챔피언의 입력은 한 개도
+    변하지 않아야 한다. ⚠️ 이름이 x_indi5가 **아닌** 것이 동결의 핵심이다 —
+    챔피언 피처 빌더(_features)는 x_* 컬럼을 전부 자동 포함하므로, x_로
+    붙였다면 챔피언 구조가 조용히 바뀌었을 것이다. 외부 검토 ③("피처는
+    추가가 아니라 삭제")은 챔피언에 대한 말이고, 도전자(supply_som)는
+    오디션에서 검증받는 것이 일이다.
     """
-    import pathlib
-    src = pathlib.Path("quant/data/krx.py").read_text("utf-8")
-    assert '"indi"' in src, "수집기가 개인 순매수를 담지 않는다"
     df = _df(120)
     flows = pd.DataFrame({
         "frgn": np.linspace(-1e9, 1e9, 100),
@@ -134,8 +136,18 @@ def test_the_individual_column_is_collected_but_never_a_champion_feature():
     }, index=pd.date_range("2025-01-01", periods=100, freq="D"))
     out = attach_krx_flows(df, "005930.KS", fetch=lambda s: flows)
     assert "x_frgn5" in out.columns and "x_inst5" in out.columns
-    assert "x_indi5" not in out.columns, (
-        "개인 수급이 챔피언 피처로 새어 들어갔다 — 구조 동결 위반")
+    assert "flow_indi5" in out.columns, (
+        "개인 수급이 부착되지 않는다 — 3주체 도전자가 재료 없이 돈다")
+    z = out["flow_indi5"].dropna()
+    assert len(z) and z.abs().max() <= 4.0 + 1e-9          # 같은 z 규약
+    # 동결의 실체 — 이름표가 아니라 **행동**으로 잰다: 챔피언 피처 행렬에
+    # 이 컬럼이 실제로 들어가지 않는다.
+    from quant.strategies.ml import OPTIONAL_FEATURES, _features
+    feats = _features(out)
+    assert "flow_indi5" not in feats.columns, (
+        "개인 수급이 챔피언 피처 행렬에 들어갔다 — 구조 동결 위반")
+    assert "x_indi5" not in feats.columns and "x_indi5" not in OPTIONAL_FEATURES, (
+        "x_ 이름으로 붙어 챔피언 세계에 새어 들었다")
 
 
 def test_the_collector_maps_all_three_investor_columns(monkeypatch):
