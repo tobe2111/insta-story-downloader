@@ -718,6 +718,15 @@ def build_challengers(current_spec: dict, seed: str,
         {"strategy": "turtle", "params": {"entry_window": 20, "exit_window": 10}},
         {"strategy": "turtle", "params": {"entry_window": 55, "exit_window": 20}},
     ]
+    # 사장님이 공유한 차트 자료(2026-08-18)에서 옮긴 결정적 전략 3종 —
+    # 볼린저 두 활용법·파라볼릭 SAR·일목균형표. 링은 넓어지고, 다중검정
+    # 문턱은 후보 수만큼 자동으로 올라간다.
+    challengers += [
+        {"strategy": "bollinger", "params": {"mode": "reversion"}},
+        {"strategy": "bollinger", "params": {"mode": "squeeze"}},
+        {"strategy": "psar", "params": {}},
+        {"strategy": "ichimoku", "params": {}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)

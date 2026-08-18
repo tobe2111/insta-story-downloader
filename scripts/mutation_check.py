@@ -5528,6 +5528,25 @@ MUTATIONS = [
      '        upper = df["high"].rolling(self.entry_window).max().shift(1).to_numpy()',
      '        upper = df["high"].rolling(self.entry_window).max().to_numpy()',
      "tests/test_the_turtle_earns_its_seat.py"),
+
+    # ── 차트 자료 전략 3종 — 옮긴 규칙이 자료와 갈라지면 심사가 거짓 ──
+    ("일목 구름을 미래에서 본다(선행스팬을 뒤로 밀지 않는 룩어헤드)",
+     "quant/strategies/ichimoku.py",
+     "        span_a = ((tenkan + kijun) / 2.0).shift(self.shift)",
+     "        span_a = (tenkan + kijun) / 2.0",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("파라볼릭 가속변수의 상한을 없앤다(SAR 폭주 — 자료의 0.2 상한 위반)",
+     "quant/strategies/psar.py",
+     "                    ep, af = high[i], min(self.af_max, af + self.af_step)",
+     "                    ep, af = high[i], af + self.af_step",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("볼린저 수축돌파의 청산선을 뗀다(중앙선을 깨도 영영 들고 있는다)",
+     "quant/strategies/bollinger.py",
+     "                elif pos > 0 and c[i] < mid_np[i]:",
+     "                elif False:",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

@@ -21,6 +21,9 @@ from quant.strategies.rsi import RSIReversion
 from quant.strategies.stochastic import Stochastic
 from quant.strategies.stop_guard import TrailingStopGuard
 from quant.strategies.turtle import TurtleStrategy
+from quant.strategies.bollinger import BollingerStrategy
+from quant.strategies.psar import ParabolicSAR
+from quant.strategies.ichimoku import IchimokuStrategy
 
 # 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐/ADX는 다른 전략을 인자로 받아 별도 취급)
 _REGISTRY = {
@@ -30,6 +33,9 @@ _REGISTRY = {
     "rsi": RSIReversion,
     "breakout": Breakout,
     "turtle": TurtleStrategy,
+    "bollinger": BollingerStrategy,
+    "psar": ParabolicSAR,
+    "ichimoku": IchimokuStrategy,
     "macd": MACD,
     "keltner": KeltnerBreakout,
     "stochastic": Stochastic,
@@ -50,6 +56,9 @@ __all__ = [
     "RSIReversion",
     "Breakout",
     "TurtleStrategy",
+    "BollingerStrategy",
+    "ParabolicSAR",
+    "IchimokuStrategy",
     "MACD",
     "KeltnerBreakout",
     "Stochastic",
