@@ -96,7 +96,19 @@ def test_adding_user_specs_raises_the_promotion_bar(tmp_path):
                                   state_dir=str(tmp_path)))
     assert after == base + 5, f"후보가 안 늘었다: {base} → {after}"
     # 후보 수가 시도 수로 넘어가면 문턱이 오른다(호출부가 len(challengers)를 센다).
-    assert confirm_threshold(after * 100) > confirm_threshold(base * 100), (
+    #
+    # ×10 = 링 열흘치 시도. 처음에는 ×100(백일치)이었는데, 2026-08-18에
+    # 링이 46개로 크면서 두 값 모두 상한(CONFIRM_T_CAP) 위로 넘어가
+    # 1.35 == 1.35로 깨졌다. 상한에서 문턱이 멈추는 것은 **의도된 설계**다
+    # (영원히 오르면 진화가 완전히 멈춘다 — retrain.py의 주석과
+    # test_rigor.py의 상한 검사가 그 사실을 지킨다). 이 검사의 몫은
+    # 상한 **아래** 구간에서 보정이 살아 있는가이므로, 비교 지점이 상한을
+    # 넘지 않는지 함께 못박는다 — 링이 또 커지면 여기서 시끄럽게 깨진다.
+    from quant.live.retrain import CONFIRM_T_CAP
+    assert confirm_threshold(after * 10) < CONFIRM_T_CAP, (
+        f"링 {after}개 × 열흘이면 벌써 문턱 상한에 붙는다 — 이 검사의 비교"
+        " 구간과 상한 설계를 다시 살필 때다")
+    assert confirm_threshold(after * 10) > confirm_threshold(base * 10), (
         "후보가 늘었는데 결승 문턱이 그대로다 — 다중검정 보정이 안 걸린다")
 
 
