@@ -258,9 +258,12 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     # 실험 계좌는 폭락장에서 본 계좌와 다른 조건으로 달리게 되고, 그러면
     # 성적 차이가 '빈도의 효과'가 아니라 '브레이크 유무의 효과'가 된다.
     from quant.live.daily import _kill_switch_scale
+    from quant.live.ledger_basics import drawdown_from_index
     peak = max(float(st.get("peak_equity") or 0.0), equity)
     st["peak_equity"] = peak
-    dd = (equity / peak - 1.0) if peak > 0 else 0.0
+    # 낙폭도 공용 헬퍼로 잰다 — 직접 적으면 언젠가 실전과 갈라진다(감사가
+    # 실제로 이 자리를 잡아냈다. 위기 재생 때와 같은 실수, 같은 교훈).
+    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
     scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
     st["risk_scale"] = scale
 
