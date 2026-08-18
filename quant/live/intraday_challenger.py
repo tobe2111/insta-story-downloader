@@ -242,6 +242,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     signals: dict[str, float | None] = {}
     skipped: dict[str, str] = {}
     bar_times: dict[str, str] = {}
+    dfs: dict[str, object] = {}          # 지정가 그림자의 체결 판정 재료
     for sym in UNIVERSE:
         df = (data or {}).get(sym) if data is not None else _fetch_real(sym)
         if df is not None:
@@ -254,6 +255,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
             continue
         prices[sym] = float(df["close"].iloc[-1])
         bar_times[sym] = str(df.index[-1])       # 재현 지문 — 어느 봉으로 판단했나
+        dfs[sym] = df
         try:
             sig = float(factory(sym).generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다
@@ -310,6 +312,14 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
                        "cost": round(fee, 4), "signal": round(sig, 4)})
 
     equity_after = mark_equity(st, prices)
+    # 지정가 그림자 — 같은 신호, 다른 체결. 실패해도 본 실험을 막지 않는다.
+    shadow_info = None
+    try:
+        shadow_info = _limit_shadow_round(st, dfs, signals, prices,
+                                          float(cost.fee), scale, now_iso,
+                                          bar_times)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("지정가 그림자 실패(본 실험 무관): %s", exc)
     last = dict(st.get("last_prices") or {})
     last.update(prices)
     st["last_prices"] = last
@@ -320,6 +330,8 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
            "trades": trades}
     if scale < 1.0:
         rec["kill_switch"] = {"drawdown": round(dd, 4), "scale": scale}
+    if shadow_info:
+        rec["limit_shadow"] = shadow_info
     if skipped:
         rec["skipped"] = skipped
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
@@ -354,6 +366,127 @@ def _elapsed_days(rounds: list[dict]) -> float | None:
     return round((b - a).total_seconds() / 86400.0, 2)
 
 
+def _limit_shadow_round(st: dict, dfs: dict, signals: dict, prices: dict,
+                        fee_only: float, scale: float, now_iso: str,
+                        bar_times: dict) -> dict | None:
+    """지정가 그림자 계좌 — 같은 신호, 다른 체결 (실험 속 실험, 2026-08-18).
+
+    본 실험은 판단 봉 종가에 시장가(수수료+슬리피지)로 즉시 체결한다.
+    이 그림자는 활성화 순간 본 계좌를 **그대로 복제**한 뒤, 같은 신호로
+    판단 봉 종가에 지정가를 걸고 다음 닫힌 봉들이 그 가격에 닿아야만
+    체결한다(매수: 저가≤지정가 · 매도: 고가≥지정가). 체결되면 슬리피지
+    없이 수수료만 문다 — 그 대가는 **못 사는 위험**(미체결)이다.
+
+    복제에서 출발하므로 이후 두 곡선의 차이는 순수하게 체결 방식의 효과다.
+    판정(90일)은 본 실험의 것이고, 이 그림자는 체결 비교의 재료일 뿐이다.
+    그림자 실패가 본 실험을 막으면 안 된다 — 부르는 쪽이 예외를 삼킨다.
+    """
+    sh = st.get("limit_shadow")
+    if sh is None:
+        # 활성화 — 본 계좌 복제. 이 시점부터 갈라지는 것만 잰다.
+        eq0 = float(st.get("cash", 0.0)) + sum(
+            float(q) * float(prices.get(sym, 0.0))
+            for sym, q in (st.get("positions") or {}).items())
+        sh = {"since": str(now_iso), "start_equity": round(eq0, 2),
+              "cash": float(st.get("cash", 0.0)),
+              "positions": dict(st.get("positions") or {}),
+              "pending": {}, "cost_paid": 0.0,
+              "filled_total": 0, "unfilled_total": 0}
+        st["limit_shadow"] = sh
+
+    filled = 0
+    # ① 대기 주문 체결 판정 — 주문을 낸 봉 **이후의 닫힌 봉**들만 본다.
+    for sym, od in list((sh.get("pending") or {}).items()):
+        df = dfs.get(sym)
+        if df is None or sym not in prices:
+            continue
+        after = df[[str(i) > str(od.get("placed_bar", "")) for i in df.index]]
+        if len(after) == 0:
+            continue
+        limit = float(od["limit"])
+        notional = float(od["notional"])
+        if od["side"] == "buy" and float(after["low"].min()) <= limit:
+            fee = notional * fee_only
+            if notional + fee > sh["cash"]:            # 레버리지 금지
+                notional = max(0.0, sh["cash"] / (1.0 + fee_only))
+                fee = notional * fee_only
+            if notional > 0:
+                sh["cash"] -= notional + fee
+                sh["positions"][sym] = (float(sh["positions"].get(sym, 0.0))
+                                        + notional / limit)
+                sh["cost_paid"] += fee
+                filled += 1
+            sh["pending"].pop(sym, None)
+        elif od["side"] == "sell" and float(after["high"].max()) >= limit:
+            qty = min(notional / limit,
+                      float(sh["positions"].get(sym, 0.0)))
+            if qty > 0:
+                got = qty * limit
+                fee = got * fee_only
+                sh["cash"] += got - fee
+                sh["positions"][sym] = float(sh["positions"].get(sym, 0.0)) - qty
+                if abs(sh["positions"][sym]) * limit < 1e-6:
+                    sh["positions"].pop(sym, None)
+                sh["cost_paid"] += fee
+                filled += 1
+            sh["pending"].pop(sym, None)
+
+    # ② 안 닿은 주문은 취소하고(취소-재주문), 지금 신호로 다시 건다.
+    cancelled = len(sh.get("pending") or {})
+    sh["unfilled_total"] = int(sh.get("unfilled_total", 0)) + cancelled
+    sh["filled_total"] = int(sh.get("filled_total", 0)) + filled
+    sh["pending"] = {}
+    eq = float(sh["cash"]) + sum(float(q) * float(prices.get(sym, 0.0))
+                                 for sym, q in sh["positions"].items())
+    if eq > 0:
+        budget = sh["cash"]                  # 대기 매수 합계가 현금을 못 넘게
+        slice_budget = eq / len(UNIVERSE)
+        for sym in UNIVERSE:
+            sig = signals.get(sym)
+            px = prices.get(sym)
+            if sig is None or not px:
+                continue
+            cur = float(sh["positions"].get(sym, 0.0))
+            delta = slice_budget * sig * scale - cur * px
+            if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * eq):
+                continue
+            if delta > 0:
+                afford = budget / (1.0 + fee_only)
+                if delta > afford:
+                    delta = afford
+                if delta < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * eq):
+                    continue
+                budget -= delta * (1.0 + fee_only)
+            sh["pending"][sym] = {"side": "buy" if delta > 0 else "sell",
+                                  "limit": px, "notional": round(abs(delta), 2),
+                                  "placed_bar": bar_times.get(sym, "")}
+    return {"equity": round(eq, 2), "filled": filled, "cancelled": cancelled,
+            "pending": len(sh["pending"])}
+
+
+def _shadow_public(st: dict, lastr: dict) -> dict | None:
+    """지정가 그림자의 공개 요약 — 본 실험과 나란히 읽히는 비교 숫자."""
+    sh = st.get("limit_shadow")
+    if not sh:
+        return None
+    rec = (lastr.get("limit_shadow") or {})
+    eq = rec.get("equity")
+    base = float(sh.get("start_equity") or 0.0)
+    return {
+        "since": sh.get("since"),
+        "start_equity": base,
+        "equity": eq,
+        "return_pct_since": (round((float(eq) / base - 1) * 100, 4)
+                             if eq and base > 0 else None),
+        "cost_paid": round(float(sh.get("cost_paid") or 0.0), 2),
+        "filled_total": int(sh.get("filled_total") or 0),
+        "unfilled_total": int(sh.get("unfilled_total") or 0),
+        "note": ("같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 "
+                 "미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 "
+                 "효과입니다."),
+    }
+
+
 def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
     rounds = st.get("rounds") or []
@@ -385,6 +518,11 @@ def write_public_report(st: dict, docs_dir: str = "docs") -> dict:
         "hold_return_pct": hold_baseline_pct(st),
         # 판정 기준 — 결과가 쌓이기 전에 등록했고 바꾸지 않는다.
         "judgement": PREREGISTERED_JUDGEMENT,
+        # 지정가 그림자(2026-08-18) — 같은 신호를 지정가로만 체결한 복제
+        # 계좌. 활성화 순간 본 실험을 복제했으므로 두 자산의 차이가 곧
+        # 체결 방식의 효과다. 지정가는 슬리피지를 아끼는 대신 못 사는
+        # 위험(미체결)을 진다 — 어느 쪽이 이기는지는 곡선이 답한다.
+        "limit_shadow": _shadow_public(st, lastr),
         "elapsed_days": _elapsed_days(rounds),
         # 최근 체결 — 숫자만 보여주는 페이지는 장부가 아니다.
         "recent_trades": [

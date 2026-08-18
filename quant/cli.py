@@ -208,10 +208,22 @@ def _cmd_paper_daily(args) -> None:
     common = dict(timeframe=args.timeframe, lookback=args.lookback,
                   state_dir=args.state_dir,
                   require_real_data=not args.allow_synthetic)
+    # 규칙 유니버스 — 매월 1회 재계산(2026-08-18). 실패해도 배치를 막지
+    # 않고 직전 구성이 유지된다(사유는 스냅샷에 기록).
+    try:
+        from quant.universe import due as _uni_due, rebuild as _uni_rebuild
+        if _uni_due(args.state_dir):
+            snap = _uni_rebuild(args.state_dir)
+            print(f"🗺 규칙 유니버스 재계산 — {len(snap['targets'])}종목 "
+                  f"(기준일 {snap['asof']})")
+    except Exception as exc:  # noqa: BLE001
+        print(f"⚠️ 유니버스 재계산 실패 — 직전 구성 유지: {exc}")
+
     if args.all:
         from quant.live.daily import run_daily_portfolio
-        from quant.markets import AUTO_TARGETS
-        print(f"📅 매일 자동 페이퍼 — 전체 {len(AUTO_TARGETS)}종목 (챔피언 추종)")
+        from quant.universe import active_targets as _uni_targets
+        print(f"📅 매일 자동 페이퍼 — 전체 {len(_uni_targets(args.state_dir))}종목"
+              " (챔피언 추종)")
         out = run_daily_paper_all(**common)
         lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
                  for k, r in out["records"].items() if not r.get("skipped")]

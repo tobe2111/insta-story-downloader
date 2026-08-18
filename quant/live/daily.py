@@ -1090,6 +1090,13 @@ def _generation_info(state_dir: str) -> dict | None:
                 "confirm_nights": GEN_CONFIRM_NIGHTS,
                 "by_market": {m: {"since": v[0], "n": len(v[1])}
                               for m, v in sorted(per_market.items())}}
+        # 유니버스 변경도 이력에 싣는다 — 종목 구성이 바뀐 날은 공개된다
+        # (리셋 없음, 수정 공지와 같은 원칙).
+        try:
+            from quant.universe import version_entries
+            versions += version_entries(state_dir, after=STRUCTURE_EPOCH)
+        except Exception:  # noqa: BLE001 — 표시 재료일 뿐
+            pass
         days = (today - _dt.date.fromisoformat(since)).days
         out = {"feature_set": tag,
                "since": since, "days": max(0, days), "target_days": 90,
@@ -1678,8 +1685,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     from quant.data import get_provider
     from quant.utils.jsonio import atomic_write_json, cap_history
 
-    from quant.markets import AUTO_TARGETS
-    targets = targets or AUTO_TARGETS
+    # 규칙 유니버스(2026-08-18) — 스냅샷이 있으면 그 목록, 없으면 기존
+    # 고정 목록. 빠진 종목의 장부는 지우지 않는다(기록 보존, 매매만 정지).
+    from quant.universe import active_targets
+    targets = targets or active_targets(state_dir)
 
     path = os.path.join(state_dir, "paper", state_file)
     mkt_tag = "portfolio" if use_champions else "portfolio_shadow"
@@ -2738,8 +2747,9 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
 
     전 종목이 실패했을 때만 예외를 올린다(조기 경보). 반환에 성공/실패 요약.
     """
-    from quant.markets import AUTO_TARGETS
-    targets = targets or AUTO_TARGETS
+    # 규칙 유니버스(2026-08-18) — 통합 계좌와 같은 목록을 본다.
+    from quant.universe import active_targets
+    targets = targets or active_targets(kwargs.get("state_dir", STATE_DIR))
 
     ok, failed, records, skipped = [], {}, {}, []
     for market, symbol in targets:
@@ -3272,6 +3282,15 @@ def write_docs_status(state_dir: str = STATE_DIR,
             "mdd_pct": round(mdd * 100, 2),
             "history": hist[-90:],            # 사이트에는 최근 90일이면 충분
         }
+        # 규칙 유니버스에서 빠진 종목 표식(2026-08-18) — 장부는 남기되,
+        # "왜 이 종목만 기록이 멈췄나"가 고장으로 읽히지 않게 사실을 싣는다.
+        try:
+            from quant.universe import active_targets
+            _act = {f"{m}:{s}" for m, s in active_targets(state_dir)}
+            if st.get("market") != "portfolio" and key not in _act:
+                status["paper"][key]["universe_excluded"] = True
+        except Exception:  # noqa: BLE001
+            pass
         if st.get("market") == "portfolio":   # 100만 챌린지(100만원 → 1억) 필드
             deposits = st.get("deposits", [])
             sc = float(st.get("start_cash", PORTFOLIO_START_CASH))
