@@ -328,35 +328,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
     st["risk_scale"] = scale
 
-    trades: list[dict] = []
-    slice_budget = equity / len(UNIVERSE)        # 고정 균등 슬라이스
-    for sym in UNIVERSE:
-        sig = signals.get(sym)
-        px = prices.get(sym)
-        if sig is None or not px:
-            continue
-        cur_qty = float((st["positions"] or {}).get(sym, 0.0))
-        delta = slice_budget * sig * scale - cur_qty * px  # 목표 − 현재 (USDT)
-        if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
-            continue
-        fee = abs(delta) * per_side
-        if delta > 0:
-            # 레버리지 금지선 — 현금이 모자라면 살 수 있는 만큼만 산다.
-            afford = st["cash"] / (1.0 + per_side)
-            if delta > afford:
-                delta = afford
-                fee = abs(delta) * per_side
-            if delta < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
-                continue
-        qty = delta / px
-        st["cash"] = float(st["cash"]) - delta - fee
-        st["positions"][sym] = cur_qty + qty
-        if abs(st["positions"][sym]) * px < 1e-6:
-            st["positions"].pop(sym, None)
-        st["cost_paid"] = float(st["cost_paid"]) + fee
-        trades.append({"symbol": sym, "side": "buy" if delta > 0 else "sell",
-                       "notional": round(delta, 2), "price": px,
-                       "cost": round(fee, 4), "signal": round(sig, 4)})
+    trades = _execute_targets(st, signals, prices, equity, scale, per_side)
 
     equity_after = mark_equity(st, prices)
     # 지정가 그림자 — 같은 신호, 다른 체결. 실패해도 본 실험을 막지 않는다.

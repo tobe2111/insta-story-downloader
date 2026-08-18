@@ -5561,13 +5561,15 @@ MUTATIONS = [
 
     ("미완성 봉으로 판단한다(같은 회차를 다시 돌리면 다른 결정이 나온다)",
      "quant/live/intraday_challenger.py",
-     "    keep = (idx + pd.Timedelta(TIMEFRAME)) <= now",
+     "    keep = (idx + pd.Timedelta(timeframe)) <= now",
      "    keep = idx <= idx.max()",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
     ("실험 계좌의 킬스위치를 뗀다(폭락장에서 실험이 본 계좌와 다른 조건으로 달린다)",
      "quant/live/intraday_challenger.py",
+     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
      '    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)',
+     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
      "    scale = 1.0",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
