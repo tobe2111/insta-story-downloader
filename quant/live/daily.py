@@ -3201,6 +3201,14 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001
         status["diversification"] = None
 
+    # 수동 킬스위치 상태 — 사장님이 멈춘 날의 공백이 고장처럼 보이지 않게,
+    # "왜 기록이 없는지"를 사이트가 말할 수 있는 재료를 싣는다.
+    try:
+        from quant.live.manual_halt import status as _halt_status
+        status["manual_halt"] = _halt_status(state_dir)
+    except Exception:  # noqa: BLE001
+        status["manual_halt"] = None
+
     pf_state = None                       # 통합 계좌 원본(세대별 분해 재료)
     # ⚠️ 보관본을 빼지 않으면 같은 키를 **덮어쓴다**(감사 212).
     #    `portfolio_ALL.pre-krw.json`이 알파벳순으로 뒤라, 새 원화
