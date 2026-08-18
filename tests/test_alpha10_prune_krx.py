@@ -114,3 +114,50 @@ def test_krx_wired_into_three_paths_and_workflows():
         assert "pykrx" in y or "-r requirements-extra.txt" in y, (
             f"{wf}가 pykrx를 설치하지 않는다 — 한국주식 수급 피처가 "
             f"통째로 사라진다")
+
+
+def test_the_individual_column_is_collected_but_never_a_champion_feature():
+    """개인 순매수 (2026-08-18, 수급 논문 재현 재료) — 수집과 동결의 경계.
+
+    수집기는 개인(indi) 열을 담아야 하지만, 챔피언 피처 부착은 여전히
+    외국인·기관 둘뿐이어야 한다 — 피처 구성은 동결 상태고, 외부 검토 ③은
+    "피처는 추가가 아니라 삭제"였다. 개인 수급은 도전자만 읽는다.
+    """
+    import pathlib
+    src = pathlib.Path("quant/data/krx.py").read_text("utf-8")
+    assert '"indi"' in src, "수집기가 개인 순매수를 담지 않는다"
+    df = _df(120)
+    flows = pd.DataFrame({
+        "frgn": np.linspace(-1e9, 1e9, 100),
+        "inst": np.linspace(1e9, -1e9, 100),
+        "indi": np.linspace(-5e8, 5e8, 100),
+    }, index=pd.date_range("2025-01-01", periods=100, freq="D"))
+    out = attach_krx_flows(df, "005930.KS", fetch=lambda s: flows)
+    assert "x_frgn5" in out.columns and "x_inst5" in out.columns
+    assert "x_indi5" not in out.columns, (
+        "개인 수급이 챔피언 피처로 새어 들어갔다 — 구조 동결 위반")
+
+
+def test_the_collector_maps_all_three_investor_columns(monkeypatch):
+    """KRX 실제 컬럼 이름(기관합계·외국인합계·개인)이 frgn/inst/indi로 옮겨진다.
+
+    이 컨테이너에서는 KRX가 막혀 있어(프록시) 실호출 검증은 야간 배치의
+    몫이다 — 여기서는 pykrx를 가짜로 꽂아 **매핑 로직**만 정확히 잰다.
+    """
+    import sys
+    import types
+    idx = pd.date_range("2025-01-01", periods=10, freq="D")
+    raw = pd.DataFrame({
+        "기관합계": np.arange(10) * 1e8,
+        "기타법인": np.ones(10),
+        "개인": -np.arange(10) * 1e8,
+        "외국인합계": np.arange(10) * 2e8,
+        "전체": np.zeros(10),
+    }, index=idx)
+    fake_stock = types.SimpleNamespace(
+        get_market_trading_value_by_date=lambda s, e, c: raw)
+    monkeypatch.setitem(sys.modules, "pykrx", types.SimpleNamespace(stock=fake_stock))
+    from quant.data.krx import fetch_investor_net
+    out = fetch_investor_net("005930.KS", limit=10)
+    assert set(out.columns) == {"frgn", "inst", "indi"}, out.columns
+    assert (out["indi"] <= 0).all() and (out["frgn"] >= 0).all()
