@@ -241,16 +241,27 @@ def test_no_test_guards_the_browser_with_a_bare_path_check():
 
 
 def test_every_browser_test_asks_the_shared_guard():
-    """launch에 넘기는 경로는 반드시 그 관문을 통과한 값이어야 한다."""
+    """launch에 넘기는 경로는 반드시 그 관문을 통과한 값이어야 한다.
+
+    ⚠️ 글자 하나를 못 박지는 않는다. `chromium_or_skip()`을 launch 자리에
+       바로 쓰든, 먼저 변수에 받아 두든(사이트를 만들기 **전에** 건너뛰게
+       하려면 그쪽이 낫다) 둘 다 옳다. 막아야 할 것은 관문을 **안 거친**
+       값이 playwright로 넘어가는 것이다 — 그 값이 빈 문자열이면
+       `Path("")`가 현재 디렉터리가 되어 배치까지 죽는다(감사 280).
+    """
     bad = []
     for p in sorted(TESTS.glob("test_*.py")):
+        if p.name == Path(__file__).name:    # 규칙을 설명하는 자기 자신
+            continue
         src = p.read_text("utf-8")
         if "sync_playwright" not in src:
             continue
-        if "executable_path=chromium_or_skip()" not in src:
-            bad.append(p.name)
-    assert not bad, (
-        f"공용 관문을 안 거치고 브라우저를 띄우는 검사: {bad}")
+        if "chromium_or_skip(" not in src:
+            bad.append(f"{p.name}: 공용 관문을 아예 안 부른다")
+        elif "executable_path=CHROME" in src:
+            bad.append(f"{p.name}: 관문을 안 거친 값을 launch에 넘긴다")
+    assert not bad, ("공용 관문을 안 거치고 브라우저를 띄우는 검사:\n  "
+                     + "\n  ".join(bad))
 
 
 def test_the_guard_skips_instead_of_handing_over_a_bogus_path(monkeypatch):

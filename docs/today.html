@@ -18,6 +18,7 @@
 <script src="assets/tv-symbols.js"></script>
 <script src="assets/exposure.js"></script>
 <script src="assets/amounts.js"></script>
+<script src="assets/fills.js"></script>
 <style>
 /* 촬영·공유용 한 장짜리 화면 — 다크 고정(방송 화질), 16:9에 맞는 밀도.
    ?card=1 이면 1200×630(공유 카드) 컴팩트 레이아웃으로 전환된다. */
@@ -173,6 +174,17 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         /* 계좌보다 큰 금액은 사실처럼 적지 않는다 — 기록은 그대로 두고
            화면에서만 "못 믿을 값"이라고 말한다(모르는 것과 아닌 것은 다르다). */
         const bad=badF.has(f.key);
+        /* ⚠️ **한 주도 안 샀으면 매수가 아니다**(감사 281). 같은 기록에
+           `cash_short`로 "돈이 모자라 못 샀다"가 함께 적혀 있으면, 금액만
+           가리고 "매수"라고 두는 것은 절반만 고친 것이다. 첫 화면의
+           거래내역과 **같은 판정**을 쓴다(assets/fills.js). */
+        const why=QuantFills.refusal(rec, f.key);
+        if(why) return `<tr style="opacity:.65"><td style="text-align:left"><b>${esc(nm(f.key))}</b>
+            <span style="color:var(--muted);font-size:12px">주문 실패</span></td>
+          <td>${t==="즉시"?"즉시(코인)":"다음 시가(주식)"}</td>
+          <td colspan="2">${esc(why)}으로 <b>한 주도 체결되지 않았습니다</b> —
+            그래서 잔고에도 없습니다(<a href="trust.html">경위</a>)</td>
+          <td>${when}</td></tr>`;
         return `<tr${bad?' style="opacity:.6"':""}><td style="text-align:left"><b>${esc(nm(f.key))}</b>${
           f.side?` <span style="color:var(--muted);font-size:12px">${f.side==="buy"?"매수":"매도"}</span>`:""}</td>
           <td>${t==="즉시"?"즉시(코인)":"다음 시가(주식)"}</td>

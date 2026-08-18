@@ -144,6 +144,26 @@ def test_a_stale_number_says_it_is_stale(page):
     assert "지금" not in txt.split("기준입니다")[0].split("넣은 돈")[0], txt
 
 
+def test_the_gap_says_it_was_not_a_market_holiday(page):
+    """**왜 없는지를 말하지 않으면 읽는 사람이 지어낸다**(감사 281).
+
+    사장님이 이 띠를 보시고 *"8월 17일은 광복절 대체휴무긴 했지만 미국
+    주식은 쉬지 않잖아"*라고 하셨다. 정확한 지적이고, 그 추측을 하게 만든
+    것이 화면이다 — "새벽 배치가 기록을 남기지 못했습니다"는 **누가 왜**를
+    말하지 않아, 읽는 사람이 달력에서 이유를 찾게 된다.
+
+    빈칸의 이유는 우리가 먼저 말한다: 휴장이 아니라 **우리 쪽 고장**이다.
+    """
+    txt = page.locator("#glance").inner_text()
+    assert "시장이 쉰 것이 아니라" in txt, (
+        f"빈칸이 휴장 때문인지 고장 때문인지 말하지 않는다:\n{txt}")
+    assert "배치가" in txt and "실패" in txt, (
+        f"무엇이 실패했는지 말하지 않는다:\n{txt}")
+    assert "채워 넣지 않습니다" in txt, (
+        f"빠진 날을 나중에 채우지 않는다는 사실을 말하지 않는다 — "
+        f"읽는 사람은 '곧 채워지겠지'로 읽는다:\n{txt}")
+
+
 def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
     """대조군 — 오늘 기록이면 경고 띠가 뜨면 안 된다.
 
@@ -275,3 +295,42 @@ def test_the_two_percent_columns_have_different_names(page):
     page.wait_for_timeout(300)
     sym = page.locator("#symtable").inner_text()
     assert "오늘 목표" in sym, "종목표가 목표 노출을 목표라고 말하지 않는다"
+
+
+# ── ⑥ 안 들고 있는 종목까지 벽처럼 늘어놓지 않는가 (감사 281) ────
+
+def test_the_symbol_table_shows_what_we_actually_hold_first(page):
+    """사장님: *"지금 홈페이지는 보기 힘들어. 이해하기 어렵게 구성이 되어있어."*
+
+    종목별 현황이 20줄이었고 그중 대부분이 '보유 없음 · 0.00%'였다. 처음 온
+    사람에게 그 표는 정보가 아니라 벽이다. **지우지는 않는다** — 오늘 관망한
+    종목도 공개 장부의 일부다. 다만 오늘 돈이 들어가 있는 것부터 보이게 하고
+    나머지는 접는다.
+    """
+    all_rows = page.locator("#symtable tbody tr[data-k]")
+    shown = page.locator("#symtable tbody tr[data-k]:visible")
+    assert all_rows.count() > shown.count(), (
+        f"접힌 줄이 하나도 없다({all_rows.count()}줄 전부 보임) — "
+        "관망 종목까지 전부 펼쳐져 있으면 처음 온 사람에게 벽이 된다")
+    assert shown.count() >= 1, "보유 종목까지 접혔다 — 그러면 표가 비어 보인다"
+    for i in range(shown.count()):
+        assert "nohold" not in (shown.nth(i).get_attribute("class") or ""), (
+            "안 들고 있는 종목이 간단 보기에 남아 있다")
+
+
+def test_it_says_how_many_rows_it_folded(page):
+    """말없이 접으면 그건 숨긴 것이다."""
+    tag = page.locator("#sym-tag").inner_text()
+    assert "관망" in tag and "자세히 보기" in tag, (
+        f"몇 종목을 접었는지, 어디서 볼 수 있는지 말하지 않는다: {tag!r}")
+
+
+def test_detail_view_shows_every_symbol(page):
+    """대조군 — 펴면 전부 보여야 한다. 접는 것과 지우는 것은 다르다."""
+    before = page.locator("#symtable tbody tr[data-k]:visible").count()
+    page.click("#morebtn")
+    page.wait_for_timeout(200)
+    after = page.locator("#symtable tbody tr[data-k]:visible").count()
+    total = page.locator("#symtable tbody tr[data-k]").count()
+    assert after == total > before, (
+        f"자세히 보기에서도 전부 안 보인다 — 접힌 {total}줄 중 {after}줄만")

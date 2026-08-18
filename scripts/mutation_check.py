@@ -4569,10 +4569,14 @@ MUTATIONS = [
     # 감사 89 — 사이트의 '20종목' 주장이 실제 유니버스와 연결돼 있지 않던 자리.
     # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
     # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
-    ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
+    # ⚠️ 표적이 옮겨졌다(감사 281). 종목 수는 이제 산문에 없다 — 화면이
+    #    장부에서 세어 적는다. 그래서 "다른 숫자를 적는다"가 아니라
+    #    **"세지 않고 고정값을 적는다"**를 찌른다. 막으려는 사고는 같다:
+    #    설정이 바뀌어도 사이트만 조용히 옛 숫자를 말하는 것.
+    ("사이트가 종목 수를 세지 않고 고정값으로 되돌린다",
      "docs/index.html",
-     '매일 새벽 확정 기록 · 20종목',
-     '매일 새벽 확정 기록 · 25종목',
+     '      : "매일 새벽 확정 기록 · "+nAll+"종목";',
+     '      : "매일 새벽 확정 기록 · 25종목";',
      "tests/test_site_numbers_track_the_code.py"),
 
     # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면
@@ -5456,6 +5460,42 @@ MUTATIONS = [
      '    "tests/test_one_account_cannot_hold_two_currencies.py",\n'
      '    "tests/test_the_screen_says_who_took_the_budget.py",',
      "tests/test_the_page_contracts_actually_run.py"),
+
+    # ── 감사 281 — 화면이 사지 않은 것을 샀다고 말하고 있었다 ─────
+    #
+    # 사장님 지적(2026-08-18): "잔고는 코인뿐인데 거래내역에는 주식이 있다."
+    # 2026-08-15 기록에는 아마존이 fills(샀다)와 cash_short(못 샀다)에
+    # 동시에 있고 잔고에는 없다. 감사 273·274는 **금액만** 가렸다 —
+    # 숫자를 가려도 "매수"라는 주장은 그대로 남았다.
+    ("거부된 주문을 다시 체결로 친다(한 주도 안 샀는데 '매수'로 나간다)",
+     "docs/assets/fills.js",
+     "  function settled(rec, key) { return refusal(rec, key) === null; }",
+     "  function settled(rec, key) { return true; }",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("거래내역이 거부 사유를 안 읽는다(잔고와 어긋난 채로 나간다)",
+     "docs/index.html",
+     '      const why=QuantFills.refusal(recOn[String(t.date||"").slice(0,10)], t.key);',
+     "      const why=null;",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("'오늘의 판단'만 옛 판정으로 되돌린다(두 페이지가 다른 말을 한다)",
+     "docs/today.html",
+     "        const why=QuantFills.refusal(rec, f.key);",
+     "        const why=null;",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("빈칸의 이유를 다시 뭉갠다(읽는 사람이 휴장이라고 지어낸다)",
+     "docs/index.html",
+     "            '일 전.</b> 시장이 쉰 것이 아니라 <b>기록을 만드는 자동 배치가 '+",
+     "            '일 전.</b> 그 뒤로 기록이 없습니다. '+",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("관망 종목까지 첫 화면에 다시 펼친다(스무 줄이 벽이 된다)",
+     "docs/index.html",
+     '      return \'<tr\'+(hd?"":\' class="nohold"\')+\' data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
+     '      return \'<tr data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

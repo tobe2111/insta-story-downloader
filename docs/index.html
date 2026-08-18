@@ -31,6 +31,8 @@
 <script src="assets/exposure.js"></script>
 <script src="assets/amounts.js"></script>
 <script src="assets/benchmark.js"></script>
+<!-- 거부된 주문을 체결로 적지 않는다(감사 281) -->
+<script src="assets/fills.js"></script>
 <style>
 :root{
   --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
@@ -138,6 +140,9 @@ body:not(.detail) #sidelist,
 body:not(.detail) .side .sh,
 body:not(.detail) #side-swaps,
 body:not(.detail) .side .flag:not(.crit){display:none}
+/* 안 들고 있는 종목은 간단 보기에서 접는다(감사 281) — 지우는 것이
+   아니라 순서를 정하는 것이다. 몇 줄을 접었는지는 표 제목이 말한다. */
+body:not(.detail) #symtable tbody tr.nohold{display:none}
 .moreline{grid-column:span 12;display:flex;justify-content:center;margin:2px 0}
 .morebtn{background:var(--bg2);border:1px solid var(--line-strong);
   color:var(--muted);border-radius:999px;padding:9px 20px;font-size:13.5px;
@@ -440,7 +445,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     </section>
 
     <section class="card c8">
-      <h2>종목별 현황 <span class="tag">매일 새벽 확정 기록 · 20종목</span></h2>
+      <h2>종목별 현황 <span class="tag" id="sym-tag">매일 새벽 확정 기록</span></h2>
       <div class="tw"><table id="symtable">
         <thead><tr><th>종목</th>
           <th title="그 종목이 거래되는 통화 그대로입니다 — 미국주식은 달러, 코인은 USDT, 한국주식은 원. 위 잔고 표(원화 환산)와 단위가 다릅니다.">현재가<br><span class="sub" style="font-weight:400">현지 통화</span></th><th>일간</th><th>누적</th>
@@ -796,9 +801,17 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         /* 기준일 — 오늘이 아니면 **크게** 말한다. 작게 적으면 아무도 안 읽고,
            그러면 이틀 전 숫자를 오늘로 읽는다. */
         (age!==null&&age>=1
+          /* ⚠️ **왜 없는지를 말하지 않으면 읽는 사람이 지어낸다**(감사 281).
+             사장님이 이 띠를 보시고 "8월 17일은 광복절 대체휴무였으니까"라고
+             읽으셨다. 아니다 — 휴장과 상관없는 **우리 쪽 고장**이었고, 그날
+             미국 시장은 열려 있었다. 빈칸의 이유를 우리가 먼저 말한다. */
           ? '<div class="stale">⏳ <b>이 숫자는 '+esc(day)+' 기준입니다 — '+age+
-            '일 전.</b> 그 뒤로 새벽 배치가 기록을 남기지 못했습니다. '+
-            '오늘 시세가 아니라 <b>'+esc(day)+' 시세로 평가된 금액</b>입니다.'+
+            '일 전.</b> 시장이 쉰 것이 아니라 <b>기록을 만드는 자동 배치가 '+
+            '실패했습니다</b>(그 사이 열려 있던 시장도 있습니다). '+
+            '오늘 시세가 아니라 <b>'+esc(day)+' 시세로 평가된 금액</b>입니다. '+
+            '빠진 날은 나중에 채워 넣지 않습니다 — 지금 계산하면 그날 실제로 '+
+            '한 일이 아니라 오늘 다시 계산한 값이기 때문입니다. '+
+            '<a href="trust.html">무슨 일이었는지</a>'+
             '</div>'
           : '<div class="sub" style="margin-top:12px">기준일 <b>'+esc(day)+
             '</b> — 매일 새벽 한 번 확정합니다(실시간이 아닙니다).</div>')+
@@ -1380,6 +1393,14 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
        엉뚱하게 걸리거나 빠진다. */
     const eqOn={};
     ((pf.history)||[]).forEach(r=>{if(r&&r.date)eqOn[String(r.date).slice(0,10)]=r.equity});
+    /* ⚠️ **한 주도 안 샀으면 그 줄은 매수가 아니다**(감사 281). 사장님 지적:
+       "잔고는 코인뿐인데 거래내역에는 주식이 있다." 맞다 — 2026-08-15
+       기록에는 아마존이 `fills`(샀다)와 `cash_short`(돈이 모자라 못 샀다)에
+       **동시에** 들어 있고, 잔고에 아마존은 없다. 감사 273·274는 금액만
+       가렸고 "매수"라는 말은 그대로 뒀다. 숫자를 가려도 주장은 남는다.
+       기록은 고치지 않되, 화면은 같은 기록의 다른 칸을 읽어 사실을 고른다. */
+    const recOn=QuantFills.byDate(pf.history);
+    let noFill=0;
     const body=pf.trades.map(t=>{
       const nm=(syms[t.key]||{}).name||t.key.split(":")[1]||t.key;
       const sell=(t.side==="sell");
@@ -1391,6 +1412,18 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const bad=QuantAmounts.impossible(
         eqOn[String(t.date||"").slice(0,10)], t.amount);
       if(bad)noAmt++;
+      const why=QuantFills.refusal(recOn[String(t.date||"").slice(0,10)], t.key);
+      if(why){
+        noFill++;
+        return '<tr class="sub" data-k="'+esc(t.key)+'" data-name="'+esc(nm)+
+          '" data-code="'+esc(t.key.split(":")[1]||t.key)+
+          '" title="주문은 냈지만 체결되지 않았습니다 — 누르면 차트와 장부를 함께 봅니다">'+
+          '<td style="text-align:left" class="num">'+esc(t.date||"")+'</td>'+
+          '<td style="text-align:left">'+esc(nm)+'</td>'+
+          '<td><b>주문 실패</b></td>'+
+          '<td class="num">—</td><td class="num">—</td><td class="num">—</td>'+
+          '<td class="sub">'+esc(why)+'으로 한 주도 체결되지 않았습니다</td></tr>';
+      }
       return '<tr data-k="'+esc(t.key)+'" data-name="'+esc(nm)+
         '" data-code="'+esc(t.key.split(":")[1]||t.key)+
         '" title="누르면 차트와 장부를 함께 봅니다">'+
@@ -1407,7 +1440,8 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     document.getElementById("trtable").querySelector("tbody").innerHTML=body;
     document.getElementById("trades-card").style.display="";
     document.getElementById("tr-count").textContent=
-      "최근 체결 "+pf.trades.length+"건";
+      "최근 체결 "+(pf.trades.length-noFill)+"건"+
+      (noFill?" · 체결되지 않은 주문 "+noFill+"건":"");
     document.getElementById("tr-note").textContent=
       "체결가는 실제로 반영된 가격입니다. '시가'는 결정 다음 세션의 시가에 "+
       "체결한 것이고(개장 갭을 감수합니다), '즉시'는 24시간 시장인 코인입니다."+
@@ -1415,7 +1449,12 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         "건은 '—'로 두고 추정하지 않습니다.":"")+
       (noAmt?" 🚨 "+noAmt+"건은 그날 계좌 자산보다 큰 금액이 적혀 있어 "+
         "'확인 필요'로 두었습니다 — 통화 환산이 빠졌을 때 생기는 모양입니다. "+
-        "기록은 지우지 않았고, 경위는 기록 검증 페이지에 있습니다.":"");
+        "기록은 지우지 않았고, 경위는 기록 검증 페이지에 있습니다.":"")+
+      /* 잔고와 거래내역이 어긋나 보이는 이유를 **표 바로 아래에서** 설명한다.
+         사장님이 "잔고는 코인뿐인데 거래내역엔 주식이 있다"고 하신 그 자리다. */
+      (noFill?" ⚠ '주문 실패' "+noFill+"건은 주문은 냈지만 한 주도 체결되지 "+
+        "않은 것입니다 — 그래서 잔고에도 없습니다. 장부에 남은 그날의 기록은 "+
+        "지우지 않고 그대로 두고, 무엇이 사실이었는지만 여기서 밝힙니다.":"");
   }
 
   document.getElementById("symtable").querySelector("tbody").innerHTML=
@@ -1445,7 +1484,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const hqs=hq>=100?num(Math.round(hq)):(hq>=1?hq.toFixed(3):hq.toPrecision(3));
       /* 종목 키를 줄에 붙여 둔다 — 누르면 상세 창이 이 값으로 열린다.
          창은 이 줄의 숫자를 **그대로 옮겨** 보여주고 다시 계산하지 않는다. */
-      return '<tr data-k="'+esc(r.k)+'" data-name="'+esc(r.name)+
+      /* ⚠️ **안 들고 있는 종목까지 스무 줄을 늘어놓으면 벽이 된다**(감사 281).
+         사장님: "지금 홈페이지는 보기 힘들어. 이해하기 어렵게 구성이 되어있어."
+         지우지는 않는다 — 오늘 관망한 종목도 공개 장부의 일부다. 다만
+         **오늘 돈이 들어가 있는 것부터** 보이게 하고 나머지는 접는다. */
+      return '<tr'+(hd?"":' class="nohold"')+' data-k="'+esc(r.k)+'" data-name="'+esc(r.name)+
         '" data-code="'+esc(r.code)+'" title="누르면 차트와 장부를 함께 봅니다">'+
         '<td><b>'+esc(r.name)+'</b> <span class="sub">'+esc(r.code)+'</span></td>'+
         '<td class="num">'+(r.px!=null?num(Math.round(r.px*100)/100):"—")+'</td>'+
@@ -1473,6 +1516,16 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
         'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
+  /* 접힌 줄이 **몇 개인지 말한다.** 말없이 접으면 그건 숨긴 것이다. */
+  {
+    const nAll=rows.length;
+    const nHold=rows.filter(r=>held[r.k]).length;
+    const tag=document.getElementById("sym-tag");
+    if(tag)tag.textContent=(nAll>nHold)
+      ? "매일 새벽 확정 기록 · 오늘 보유 "+nHold+"종목 표시 · 관망 "+
+        (nAll-nHold)+"종목은 '자세히 보기'에서"
+      : "매일 새벽 확정 기록 · "+nAll+"종목";
+  }
 
   /* 종목 클릭 → 차트는 **아래 상세 창 하나**가 담당한다(파일 끝의
      openSymbol). 여기 있던 두 번째 구현은 감사 264에서 지웠다 — 같은 클릭에
