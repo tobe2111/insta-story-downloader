@@ -158,7 +158,17 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add state/validation.json docs/risk.json
             git commit -m "야간 검증 기록: $(date -u +%F) [skip actions]"
-            git push
+            # 장중 감시가 5분마다 main에 커밋을 쌓는다 — 맨몸 push는 그 사이
+            # 리모트가 앞서가면 거부된다(2026-08-16~18 사흘 연속 실측:
+            # 검증은 성공하고 push만 죽어 risk.json이 사흘 묵었다).
+            # 다른 배치 전부가 쓰는 재시도 패턴과 같은 모양으로 맞춘다.
+            for i in 1 2 3 4; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                exit 0
+              fi
+              echo "push 경합 — ${i}번째 재시도"; sleep $((i * 5))
+            done
+            echo "::error::4회 재시도에도 push 실패"; exit 1
           else
             echo "검증 결과 변화 없음 — 커밋 생략"
           fi

@@ -350,7 +350,12 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         <td class="${day==null?"":day>=0?"pos":"neg"}">${day==null?"–":pct(day)}</td>
         <td>${won(r.equity)}</td>
         <td class="${r.return_pct>=0?"pos":"neg"}">${pct(Number(r.return_pct))}</td>
-        <td>${(r.weight*100).toFixed(0)}%</td><td>${hr}</td></tr>`}).join("");
+        <td>${(r.weight*100).toFixed(0)}%${
+          /* 순노출(net_weight) — 숏이 켜지면 총노출과 갈린다(감사 264).
+             장부에만 두면 그날의 실제 방향(롱-숏 합)이 화면에 없다. */
+          isPf&&r.net_weight!=null&&Math.abs(r.net_weight-r.weight)>0.0005
+            ?` <span class="sub" title="순노출(롱−숏) — 총노출과 다르면 숏이 섞여 있다는 뜻">순 ${(r.net_weight*100).toFixed(0)}%</span>`:""
+        }</td><td>${hr}</td></tr>`}).join("");
     return `<div class="card"><h2>${esc(k)}</h2>
       <div class="big ${cls}">${won(p.equity)} <span style="font-size:18px">(${pct(Number(ret))})</span></div>
       <div class="sub" style="margin:2px 0 0">${won(p.start_cash||10000)}으로 시작한 가상 자금${
