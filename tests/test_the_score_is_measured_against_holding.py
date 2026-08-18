@@ -191,8 +191,11 @@ def _render(tmp_path, history, principal):
             pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
             pg.wait_for_timeout(2400)
             # '한눈에' 카드는 사장님 지시(2026-08-18)로 내렸다 — 보유 대비
-            # 점수는 잔고 카드 아래 #bal-bench로 자리를 옮겼다.
-            txt = pg.locator("#bal-bench").inner_text()
+            # 점수는 '한눈에' 카드 안에 있다(감사 282). 잠시 잔고 카드
+            # 아래(#bal-bench)에 있었지만, 첫 화면이 세 질문에만 답하도록
+            # 정리하면서 **'지금 얼마인가' 바로 옆**으로 돌아왔다 —
+            # "그래서 잘하고 있나"는 그 셋 중 하나다.
+            txt = pg.locator("#glance").inner_text()
             b.close()
     finally:
         srv.shutdown()

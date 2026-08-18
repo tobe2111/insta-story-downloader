@@ -108,7 +108,12 @@ def page(browser, site):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(f"{site}/index.html")
     pg.wait_for_timeout(2600)
-    # 접이식은 사장님 지시(2026-08-18)로 되돌렸다 — 펼 것이 없다.
+    # 첫 화면은 세 질문에만 답하고 나머지는 접힌다(감사 282). 이 파일은
+    # 접힌 자리의 숫자까지 대조하므로 펴고 읽는다 — 접힌 글자는
+    # inner_text()에 들어오지 않는다.
+    if pg.locator("#morebtn").count():
+        pg.click("#morebtn")
+        pg.wait_for_timeout(300)
     yield pg
     assert not errors, f"스크립트가 던졌다 — {errors}"
     pg.close()

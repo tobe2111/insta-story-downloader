@@ -4577,10 +4577,14 @@ MUTATIONS = [
     # 감사 89 — 사이트의 '20종목' 주장이 실제 유니버스와 연결돼 있지 않던 자리.
     # 기존 검사는 코드(len==20)와 HTML("20종목")을 **따로** 고정해, 유니버스를
     # 바꾸면 사이트만 옛 숫자를 말한 채 통과했다.
-    ("사이트가 실제 유니버스와 다른 종목 수를 말한다",
+    # ⚠️ 표적이 옮겨졌다(감사 281). 종목 수는 이제 산문에 없다 — 화면이
+    #    장부에서 세어 적는다. 그래서 "다른 숫자를 적는다"가 아니라
+    #    **"세지 않고 고정값을 적는다"**를 찌른다. 막으려는 사고는 같다:
+    #    설정이 바뀌어도 사이트만 조용히 옛 숫자를 말하는 것.
+    ("사이트가 종목 수를 세지 않고 고정값으로 되돌린다",
      "docs/index.html",
-     '매일 새벽 확정 기록 · 20종목',
-     '매일 새벽 확정 기록 · 25종목',
+     '      : "매일 새벽 확정 기록 · "+nAll+"종목";',
+     '      : "매일 새벽 확정 기록 · 25종목";',
      "tests/test_site_numbers_track_the_code.py"),
 
     # 감사 90 — 어드민이 '코드 기본값'을 산문에 박아, 코드가 바뀌면
@@ -5460,6 +5464,65 @@ MUTATIONS = [
      '    "tests/test_the_screen_says_who_took_the_budget.py",',
      "tests/test_the_page_contracts_actually_run.py"),
 
+    # ── 감사 281 — 화면이 사지 않은 것을 샀다고 말하고 있었다 ─────
+    #
+    # 사장님 지적(2026-08-18): "잔고는 코인뿐인데 거래내역에는 주식이 있다."
+    # 2026-08-15 기록에는 아마존이 fills(샀다)와 cash_short(못 샀다)에
+    # 동시에 있고 잔고에는 없다. 감사 273·274는 **금액만** 가렸다 —
+    # 숫자를 가려도 "매수"라는 주장은 그대로 남았다.
+    ("거부된 주문을 다시 체결로 친다(한 주도 안 샀는데 '매수'로 나간다)",
+     "docs/assets/fills.js",
+     "  function settled(rec, key) { return refusal(rec, key) === null; }",
+     "  function settled(rec, key) { return true; }",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("거래내역이 거부 사유를 안 읽는다(잔고와 어긋난 채로 나간다)",
+     "docs/index.html",
+     '      const why=QuantFills.refusal(recOn[String(t.date||"").slice(0,10)], t.key);',
+     "      const why=null;",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("'오늘의 판단'만 옛 판정으로 되돌린다(두 페이지가 다른 말을 한다)",
+     "docs/today.html",
+     "        const why=QuantFills.refusal(rec, f.key);",
+     "        const why=null;",
+     "tests/test_the_screen_does_not_claim_a_purchase_that_never_happened.py"),
+
+    ("빈칸의 이유를 다시 뭉갠다(읽는 사람이 휴장이라고 지어낸다)",
+     "docs/index.html",
+     "            '일 전.</b> 시장이 쉰 것이 아니라 <b>기록을 만드는 자동 배치가 '+",
+     "            '일 전.</b> 그 뒤로 기록이 없습니다. '+",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("관망 종목까지 첫 화면에 다시 펼친다(스무 줄이 벽이 된다)",
+     "docs/index.html",
+     '      return \'<tr\'+(hd?"":\' class="nohold"\')+\' data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
+     '      return \'<tr data-k="\'+esc(r.k)+\'" data-name="\'+esc(r.name)+',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    # ── 감사 282 — 첫 화면은 세 질문에만 답한다 ───────────────────
+    #
+    # 사장님: "근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워."
+    # 지금까지는 어려운 것 **위에 설명을 덧붙여** 왔고, 설명이 늘수록
+    # 페이지는 더 어려워졌다. 그래서 순서를 바꿨다 — 얼마 넣었나 ·
+    # 지금 얼마인가 · 잘하고 있나. 나머지는 전부 접는다(지우지 않는다).
+    ("큰 제품 소개를 첫 화면에 도로 편다(계좌보다 광고를 먼저 읽게 된다)",
+     "docs/index.html",
+     ".hero.adv,.band.adv{display:none}",
+     ".hero.adv{}",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("종목별 현황 스무 줄을 첫 화면에 도로 편다",
+     "docs/index.html",
+     '    <section class="card c8 adv">\n      <h2>종목별 현황',
+     '    <section class="card c8">\n      <h2>종목별 현황',
+     "tests/test_the_first_screen_answers_the_first_question.py"),
+
+    ("보유 종목을 먼저 세우지 않는다(접으면 표에 구멍이 뚫린 것처럼 보인다)",
+     "docs/index.html",
+     "  rows.sort((a,b)=>((held[b.k]?1:0)-(held[a.k]?1:0)));",
+     "  rows.sort((a,b)=>0);",
+     "tests/test_the_first_screen_answers_the_first_question.py"),
     # ── 장중 도전자 — 빈도 실험은 자기 차선을 지킨다 (2026-08-18) ──────
     ("체결이 비용을 물지 않는다(비용 없는 단타 실험은 광고다)",
      "quant/live/intraday_challenger.py",

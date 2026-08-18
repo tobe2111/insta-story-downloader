@@ -247,6 +247,15 @@ def _render(tmp_path, page, selector, detail=False):
          "type": "즉시"}]
     for r in st["paper"]["portfolio:ALL"]["history"]:
         r["equity"] = EQ                      # 그날 자산과 견주므로 채워 준다
+        # ⚠️ **두 계약을 한 줄에서 시험하지 않는다**(감사 281). 실제 기록에는
+        #    아마존이 `cash_short`(현금 부족으로 못 샀다)에도 들어 있어서,
+        #    이제 그 줄은 금액을 가리는 대신 아예 **'주문 실패'**로 나간다.
+        #    그쪽 계약은 test_the_screen_does_not_claim_a_purchase_that_never
+        #    _happened.py가 지킨다. 여기서 지킬 것은 그것과 다른 것 —
+        #    **거부 기록이 없는데도 금액이 계좌보다 큰** 경우를 가리는가다.
+        #    (그런 날이 실제로 있다: 통화 환산만 빠지고 체결은 된 경우.)
+        for k in ("cash_short", "short_refused", "rejected"):
+            r.pop(k, None)
     last["lot_priority"] = {
         "crypto:BNB/USDT": {"budget": 4501932.95, "spent": 4526594.72,
                             "price": 860614.0, "gave_way": []},

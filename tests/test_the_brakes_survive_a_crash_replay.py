@@ -130,18 +130,29 @@ def test_the_nightly_batch_actually_runs_it_and_commits_the_result():
         "증거는 감시가 아니다")
 
 
-def test_the_site_no_longer_shows_the_card_by_owner_decision():
-    """공개 화면의 위기 재생 카드는 **사장님 지시(2026-08-18)로 내렸다**.
+def test_the_site_keeps_the_card_folded_not_deleted():
+    """위기 재생 카드는 **접혀 있고, 지워지지 않았다** (사장님 지시, 08-18 오후).
 
-    내린 것은 표시뿐이다 — 데이터(docs/risk.json)와 야간 갱신 배선은
-    그대로 돈다(위의 배선 검사와 아래 데이터 검사가 계속 지킨다).
-    카드를 다시 올리려면 이 검사를 **의도적으로** 되돌려야 한다 —
-    화면 구성이 소리 없이 바뀌는 것을 막는 자물쇠다.
+    ⚠️ 이 자리에는 정반대의 잠금 검사가 있었다 — "카드를 내렸다,
+       다시 올리려면 이 검사를 의도적으로 되돌려라". 그 절차대로 되돌린다.
+       같은 날 오후에 사장님이 *"근본적인 문제를 해결해. 지금 이 홈페이지의
+       내용이 어려워. 복잡하고"*라고 하셔서, 첫 화면은 세 질문에만 답하고
+       나머지는 **접는** 쪽으로 정리했다. 접는 것과 지우는 것은 다르다 —
+       공개 장부에서 값을 없애는 것은 답이 아니다.
+
+    자물쇠의 성격은 그대로다: 화면 구성이 **소리 없이** 오가면 안 된다.
     """
     index = (ROOT / "docs" / "index.html").read_text("utf-8")
-    assert "risk.json" not in index, (
-        "내리기로 한 위기 재생 카드가 첫 화면에 다시 나타났다 — 의도한 "
-        "복원이면 이 검사를 함께 고치라")
+    assert "risk.json" in index, (
+        "위기 재생 카드가 첫 화면에서 통째로 사라졌다 — 접기로 했지 "
+        "지우기로 하지 않았다")
+    body = index.split("위기 재생", 1)
+    assert len(body) > 1, "카드 제목을 못 찾았다 — 검사가 낡았다"
+    head = index[:index.index("위기 재생")]
+    blk = head.rfind("<div class=")
+    assert "adv" in head[blk:blk + 200], (
+        "위기 재생 카드가 접힘(adv) 밖에 있다 — 첫 화면은 세 질문에만 답한다:\n"
+        f"  …{head[blk:blk + 120]}…")
 
 
 def test_the_committed_report_is_a_simulation_and_parses():

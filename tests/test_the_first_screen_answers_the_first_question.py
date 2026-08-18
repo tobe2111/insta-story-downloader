@@ -98,26 +98,59 @@ def page(browser, site):
 
 # ── ① 돈 이야기가 화면에 있는가 ──────────────────────────────────
 
-def test_the_account_and_its_profit_are_on_screen(page):
-    """히어로 증거 칸이 계좌 금액과 손익률을 말해야 한다."""
-    txt = page.locator("#pv-eq").inner_text()
+def test_the_money_answer_comes_first(page):
+    """돈 이야기가 **다운로드 광고보다 위에** 있어야 한다.
+
+    순서가 곧 우선순위다. 광고가 먼저면 이 사이트는 '기록 공개'가 아니라
+    '제품 판매' 페이지로 읽힌다.
+
+    ⚠️ 2026-08-18(감사 282)에 한 걸음 더 갔다. 사장님이 *"근본적인 문제를
+       해결해. 지금 이 홈페이지의 내용이 어려워"*라고 하셔서, 큰 제품 소개는
+       **첫 화면에서 아예 뺐다.** 지운 것이 아니라 '자세히 보기' 안으로
+       옮겼고, 대신 한 줄짜리 안내만 남겼다. 그래서 '위에 있는가'가 아니라
+       **'첫 화면에 없는가'**를 본다.
+    """
+    assert page.locator("#glance").bounding_box(), "한눈에가 안 보인다"
+    assert not page.locator("section.hero").is_visible(), (
+        "큰 제품 소개가 첫 화면에 그대로 있다 — 처음 온 사람은 계좌보다 "
+        "광고를 먼저 읽게 된다")
+    slim = page.locator(".dlslim")
+    assert slim.is_visible(), "내려받기 통로가 통째로 사라졌다 — 접는 것과 지우는 것은 다르다"
+    assert slim.bounding_box()["y"] > page.locator("#glance").bounding_box()["y"]
+
+
+def test_it_says_how_much_when_and_the_profit(page):
+    txt = page.locator("#glance").inner_text()
+    assert "1,000,000원" in txt, f"넣은 돈이 없다:\n{txt}"
+    assert "2026-08-13" in txt, f"언제 시작했는지가 없다:\n{txt}"
     assert "997,198원" in txt, f"지금 얼마인지가 없다:\n{txt}"
     assert "0.28%" in txt, f"손익 비율이 없다:\n{txt}"
     amt = page.locator("#hero-amt").inner_text()
     assert "1,000,000원" in amt, f"원금이 없다:\n{amt}"
 
 
-def test_the_glance_card_stays_removed_by_owner_decision(page):
-    """'한눈에' 카드는 사장님 지시(2026-08-18)로 내렸다.
+def test_the_glance_card_is_back_by_owner_decision(page):
+    """'한눈에' 카드와 접이식은 **되살렸다** (사장님 지시, 2026-08-18 오후).
 
-    이 검사는 그 결정의 자물쇠다 — 카드를 다시 올리려면 이 검사를
-    **의도적으로** 되돌려야 한다. 화면 구성이 소리 없이 오가는 것을 막는다.
+    ⚠️ 이 자리에는 정반대의 잠금 검사가 있었다 —
+       `test_the_glance_card_stays_removed_by_owner_decision`
+       ("사장님 지시(2026-08-18)로 내렸다"). 그 검사는 스스로 이렇게 적어
+       두었다: *"카드를 다시 올리려면 이 검사를 **의도적으로** 되돌려야
+       한다."* 지금이 그 순간이고, 절차대로 되돌린다.
+
+    같은 날 오후에 사장님이 다시 말씀하셨다:
+        *"근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워. 복잡하고"*
+
+    그래서 첫 화면은 세 질문에만 답한다 — 얼마를 언제 넣었나 · 지금
+    얼마인가 · 그래서 잘하고 있나. 나머지는 지우지 않고 접는다.
+
+    화면 구성이 **소리 없이** 오가는 것을 막는 자물쇠라는 성격은 그대로다.
+    다음에 또 내리려면 이 검사를 다시 의도적으로 고쳐야 한다.
     """
-    assert page.locator("#glance").count() == 0, (
-        "내리기로 한 '한눈에' 카드가 되살아났다 — 의도한 복원이면 이 검사를 "
-        "함께 고치라")
-    assert page.locator("#morebtn").count() == 0, (
-        "내리기로 한 접이식 버튼이 되살아났다")
+    assert page.locator("#glance").count() == 1, (
+        "'한눈에' 카드가 없다 — 되살리기로 한 결정이 소리 없이 뒤집혔다")
+    assert page.locator("#morebtn").count() == 1, (
+        "접이식 버튼이 없다 — 접은 것을 펼 방법이 사라지면 그건 지운 것이다")
 
 
 # ── ② 오래된 숫자를 오늘처럼 말하지 않는가 ───────────────────────
@@ -125,13 +158,37 @@ def test_the_glance_card_stays_removed_by_owner_decision(page):
 def test_a_stale_number_says_it_is_stale(page):
     """사장님이 "지금 상황이 이거 맞아?"라고 물어야 했던 이유가 여기다.
 
-    기준일(2026-08-15)이 오늘이 아니면 사이드바 경고가 🚨로 말해야 한다.
+    기준일(2026-08-15)이 오늘이 아니면 **금액 바로 아래에서** 말해야 한다.
+
+    ⚠️ 잠시 이 경고가 사이드바에만 있었다(2026-08-18 오전, 한눈에 카드가
+       내려가 있던 동안). 같은 사실을 두 곳에 띄우는 대신, 사람이 금액을
+       읽는 바로 그 자리에서 말한다 — 경고는 숫자 옆에 있을 때만 읽힌다.
     """
-    side = page.locator("#side-flags").inner_text()
-    assert DAY in side, f"기준일이 없다:\n{side[:600]}"
-    assert "일 전" in side, f"며칠 전 숫자인지 말하지 않는다:\n{side[:600]}"
-    assert "시세로 평가된 금액" in side, (
-        f"낡은 숫자의 의미(그날 시세 평가)를 말하지 않는다:\n{side[:600]}")
+    txt = page.locator("#glance").inner_text()
+    assert DAY in txt, f"기준일이 없다:\n{txt}"
+    assert "일 전" in txt, f"며칠 전 숫자인지 말하지 않는다:\n{txt}"
+    assert "시세로 평가된 금액" in txt, (
+        f"낡은 숫자의 의미(그날 시세 평가)를 말하지 않는다:\n{txt}")
+
+
+def test_the_gap_says_it_was_not_a_market_holiday(page):
+    """**왜 없는지를 말하지 않으면 읽는 사람이 지어낸다**(감사 281).
+
+    사장님이 이 띠를 보시고 *"8월 17일은 광복절 대체휴무긴 했지만 미국
+    주식은 쉬지 않잖아"*라고 하셨다. 정확한 지적이고, 그 추측을 하게 만든
+    것이 화면이다 — "새벽 배치가 기록을 남기지 못했습니다"는 **누가 왜**를
+    말하지 않아, 읽는 사람이 달력에서 이유를 찾게 된다.
+
+    빈칸의 이유는 우리가 먼저 말한다: 휴장이 아니라 **우리 쪽 고장**이다.
+    """
+    txt = page.locator("#glance").inner_text()
+    assert "시장이 쉰 것이 아니라" in txt, (
+        f"빈칸이 휴장 때문인지 고장 때문인지 말하지 않는다:\n{txt}")
+    assert "배치가" in txt and "실패" in txt, (
+        f"무엇이 실패했는지 말하지 않는다:\n{txt}")
+    assert "채워 넣지 않습니다" in txt, (
+        f"빠진 날을 나중에 채우지 않는다는 사실을 말하지 않는다 — "
+        f"읽는 사람은 '곧 채워지겠지'로 읽는다:\n{txt}")
 
 
 def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
@@ -170,20 +227,40 @@ def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
 
 # ── ③ 아무것도 접혀 있지 않은가 ──────────────────────────────────
 
-CARDS = ["🕰 판정 시계", "🎯 리스크 설정", "🧾 체결 가정 검증",
-         "오답 노트", "탈락자 아카이브"]
+# ⚠️ 2026-08-18(감사 282) 첫 화면은 **세 질문에만** 답한다:
+#    ① 얼마를 언제 넣었나 ② 지금 얼마인가 ③ 그래서 잘하고 있나.
+#    종목별 현황과 제품 소개는 그 세 질문의 답이 아니라서 접힘으로 옮겼다.
+FOLDED = ["🕰 판정 시계", "🎯 리스크 설정", "🧾 체결 가정 검증",
+          "오답 노트", "탈락자 아카이브", "종목별 현황",
+          "지금 받아서 5분 안에 첫 백테스트"]
+ALWAYS = ["한눈에", "통합 계좌", "잔고", "거래내역"]
 
 
-def test_every_card_is_visible_from_the_start(page):
-    """접이식은 되돌렸다(2026-08-18) — 전부 처음부터 보여야 한다.
+def _visible_headings(pg):
+    return [h.inner_text().split("\n")[0].strip()
+            for h in pg.locator("main h2").all() if h.is_visible()]
 
-    반쯤 되돌리면 최악이다: 접혔는데 펴는 버튼이 없으면 그 숫자는
-    공개 장부에서 **지워진 것**과 같다.
-    """
-    vis = [h.inner_text().split("\n")[0].strip()
-           for h in page.locator("main h2").all() if h.is_visible()]
-    for name in CARDS:
-        assert name in vis, f"'{name}'이 화면에 없다: {vis}"
+
+def test_the_advanced_cards_start_folded(page):
+    """첫 화면은 세 질문에만 답한다 — 나머지는 접혀 있어야 한다."""
+    vis = _visible_headings(page)
+    for name in FOLDED:
+        assert name not in vis, f"'{name}'이 처음부터 펴져 있다: {vis}"
+    for name in ALWAYS:
+        assert name in vis, f"'{name}'이 사라졌다: {vis}"
+
+
+def test_pressing_the_button_unfolds_everything(page):
+    """접는 것과 지우는 것은 다르다 — 누르면 전부 나와야 한다."""
+    page.locator("#morebtn").click()
+    page.wait_for_timeout(400)
+    vis = _visible_headings(page)
+    for name in FOLDED + ALWAYS:
+        assert name in vis, f"'{name}'이 펴지지 않았다: {vis}"
+    # 다시 누르면 접힌다 — 한 방향으로만 가는 버튼은 함정이다.
+    page.locator("#morebtn").click()
+    page.wait_for_timeout(400)
+    assert "탈락자 아카이브" not in _visible_headings(page), "다시 접히지 않는다"
 
 
 def test_a_red_alarm_is_visually_urgent(page):
@@ -208,7 +285,10 @@ def test_clicking_a_row_opens_that_symbols_chart(page, table, label):
 
     한 표에서만 눌리면 읽는 사람은 나머지를 **고장**으로 읽는다.
     """
-    rows = page.locator(f"#{table} tbody tr[data-k]")
+    if not page.locator(f"#{table}").is_visible():
+        page.click("#morebtn")          # 접힌 표는 펴고 눌러야 한다(감사 282)
+        page.wait_for_timeout(300)
+    rows = page.locator(f"#{table} tbody tr[data-k]:visible")
     assert rows.count() > 0, f"{label} 표에 누를 수 있는 줄이 없다"
     rows.first.click()
     page.wait_for_timeout(1000)
@@ -243,3 +323,39 @@ def test_the_two_percent_columns_have_different_names(page):
     assert "통합 비중" not in heads, f"옛 이름이 남아 있다:\n{heads}"
     sym = page.locator("#symtable").inner_text()
     assert "오늘 목표" in sym, "종목표가 목표 노출을 목표라고 말하지 않는다"
+
+
+# ── ⑥ 종목별 현황: 접기 + 보유 먼저 (감사 281 · 282) ────────────
+
+def test_the_symbol_table_is_not_on_the_first_screen(page):
+    """사장님: *"근본적인 문제를 해결해. 지금 이 홈페이지의 내용이 어려워."*
+
+    종목별 현황은 스무 줄짜리 전략 표다. **첫 화면의 세 질문**(얼마 넣었나 ·
+    지금 얼마인가 · 잘하고 있나)의 답이 아니다. 지우지 않고 접는다.
+    """
+    assert not page.locator("#symtable").is_visible(), (
+        "종목별 현황이 첫 화면에 그대로 있다 — 처음 온 사람에게 벽이 된다")
+
+
+def test_unfolded_it_shows_what_we_actually_hold_first(page):
+    """펴 봤을 때도 **오늘 돈이 들어간 종목**이 먼저 보여야 한다.
+
+    스무 줄 중 열다섯 줄이 '보유 없음 · 0.00%'였다. 접어 두었다가 펴면
+    그 벽이 그대로 나온다면 접은 의미가 없다.
+    """
+    page.click("#morebtn")
+    page.wait_for_timeout(300)
+    rows = page.locator("#symtable tbody tr[data-k]")
+    assert rows.count() > 0, "펴도 표가 비어 있다"
+    held = [i for i in range(rows.count())
+            if "nohold" not in (rows.nth(i).get_attribute("class") or "")]
+    assert held, "보유 종목 표시가 하나도 없다 — 표식이 사라졌다"
+    assert held == list(range(len(held))), (
+        f"보유 종목이 관망 종목 뒤로 섞여 있다: 보유 줄 위치 {held}")
+
+
+def test_it_says_how_many_rows_it_folded(page):
+    """말없이 접으면 그건 숨긴 것이다."""
+    tag = page.locator("#sym-tag").inner_text()
+    assert "관망" in tag and "자세히 보기" in tag, (
+        f"몇 종목을 접었는지, 어디서 볼 수 있는지 말하지 않는다: {tag!r}")
