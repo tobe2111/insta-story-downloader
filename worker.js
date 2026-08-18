@@ -126,12 +126,8 @@ async function listSubmissions(env) {
   return json({ items: items, truncated: Boolean(listed.list_complete === false) });
 }
 
-function json(obj, status) {
-  return new Response(JSON.stringify(obj), {
-    status: status || 200,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
+// json() 헬퍼는 아래 기존 것을 그대로 쓴다 — 같은 이름을 두 번 선언하면
+// ES 모듈 빌드가 통째로 죽는다(2026-08-18 워커 배포 실패의 원인이 그거였다).
 
 /**
  * 라이선스 키 발급(서버측) — 발급 비밀은 Cloudflare 시크릿 LICENSE_SECRET에만
