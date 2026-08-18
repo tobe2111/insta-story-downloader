@@ -46,6 +46,10 @@ from quant.web.mystrategy import (
     run_pin_save,
     run_pin_unpin,
 )
+from quant.web.auth import render_login_form, run_login
+
+# 로그인 없이도 닿아야 하는 경로 — 로그인 화면 자체와 라이브니스 체크.
+_OPEN_PATHS = {"/health", "/login", "/login/run"}
 
 
 class QuantHandler(BaseHTTPRequestHandler):
@@ -55,29 +59,56 @@ class QuantHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        # 로그인 쿠키·리다이렉트용 — 응답 직전에 심고 바로 비운다.
+        for k, v in (getattr(self, "_extra_headers", None) or {}).items():
+            self.send_header(k, v)
+        self._extra_headers = None
         self.end_headers()
         self.wfile.write(data)
 
-    def _authorized(self, parsed) -> bool:
-        """QUANT_WEB_TOKEN이 설정된 경우에만 토큰 인증을 요구한다.
+    def _session_ok(self) -> bool:
+        """로그인 세션 쿠키가 유효한가 — 서명·만료를 함께 본다."""
+        import time as _time
 
-        기본(토큰 미설정)은 게이트 없음 — 로컬 전용 도구라 무리 없다. 비-로컬
-        주소에 바인딩해 노출할 때 이 토큰을 켜면 무인증 접근을 막는다. /health는
-        라이브니스 체크용으로 항상 허용.
+        from quant.web import auth as _auth
+        raw = self.headers.get("Cookie") or ""
+        for part in raw.split(";"):
+            name, _, val = part.strip().partition("=")
+            if name == _auth.COOKIE_NAME:
+                return _auth.check_session(val, _time.time())
+        return False
+
+    def _authorized(self, parsed) -> bool:
+        """로그인(세션 쿠키) 또는 토큰 — 설정된 관문은 모두 지켜야 한다.
+
+        · 아이디/비밀번호가 설정돼 있으면(web-passwd) 로그인 세션을 요구한다
+          (사장님 2026-08-18: "모두가 다 접속 가능하면 안되니까").
+        · QUANT_WEB_TOKEN은 화면 없는 접근(OBS 방송 소스 등)용으로 계속
+          유효하다 — 둘 중 하나만 통과하면 된다.
+        · 아무것도 설정 안 된 기본값은 예전처럼 게이트 없음 — 127.0.0.1
+          바인딩이라 본인 컴퓨터에서만 열린다.
+        · /health와 로그인 화면 자체는 항상 허용(_OPEN_PATHS).
         """
-        token = os.environ.get("QUANT_WEB_TOKEN", "")
-        if not token or parsed.path == "/health":
+        from quant.web import auth as _auth
+        if parsed.path in _OPEN_PATHS:
             return True
-        q = parse_qs(parsed.query)
-        supplied = q["token"][0] if q.get("token") else self.headers.get("X-Auth-Token", "")
-        return hmac.compare_digest(supplied, token)
+        token = os.environ.get("QUANT_WEB_TOKEN", "")
+        if token:
+            q = parse_qs(parsed.query)
+            supplied = (q["token"][0] if q.get("token")
+                        else self.headers.get("X-Auth-Token", ""))
+            if hmac.compare_digest(supplied, token):
+                return True
+        if _auth.configured():
+            return self._session_ok()
+        return not token
 
     # 교차출처에서 유발되면 안 되는 경로.
     #   · /deposit/run — 바깥 세상을 바꾼다(입금 워크플로 디스패치)
     #   · 나머지 /run  — 수 초~수 분짜리 연산이라 교차출처에서 반복 호출되면
     #     사장님 PC의 자원을 태운다. 다른 사이트가 이걸 부를 이유는 없다.
     # 조회 경로(/api/state·/monitor 등)는 막지 않는다 — 로컬 도구의 사용성.
-    _MUTATING = ("/ingest/run", "/pin/save", "/pin/unpin",
+    _MUTATING = ("/login/run", "/ingest/run", "/pin/save", "/pin/unpin",
                  "/deposit/run", "/optimize/run", "/sweep/run",
                  "/portfolio/run", "/screener/run", "/validate/run",
                  "/backtest")
@@ -132,11 +163,20 @@ class QuantHandler(BaseHTTPRequestHandler):
                        status=403, content_type="text/plain; charset=utf-8")
             return
         if not self._authorized(parsed):
-            self._send("인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.",
-                       status=401, content_type="text/plain; charset=utf-8")
+            from quant.web import auth as _auth
+            if _auth.configured():
+                # 사람이 브라우저로 온 경우 — 401 글자벽 대신 로그인 화면으로.
+                self._extra_headers = {"Location": "/login"}
+                self._send("로그인이 필요합니다.", status=302,
+                           content_type="text/plain; charset=utf-8")
+            else:
+                self._send("인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.",
+                           status=401, content_type="text/plain; charset=utf-8")
             return
         if parsed.path in ("/", "/index.html"):
             self._send(render_form())
+        elif parsed.path == "/login":
+            self._send(render_login_form())
         elif parsed.path == "/health":
             self._send("ok")
         elif parsed.path == "/backtest":
@@ -271,7 +311,15 @@ class QuantHandler(BaseHTTPRequestHandler):
             params = {k: v[0] for k, v in parse_qs(body).items()}
         except Exception:  # noqa: BLE001
             params = {}
-        if parsed.path == "/ingest/run":
+        if parsed.path == "/login/run":
+            hdrs: dict = {}
+            try:
+                html = run_login(params, hdrs)
+            except Exception:  # noqa: BLE001 — 로그인 오류도 한 문장으로만
+                html = render_login_form("로그인 처리 중 오류가 났습니다.")
+            self._extra_headers = hdrs or None
+            self._send(html)
+        elif parsed.path == "/ingest/run":
             try:
                 self._send(run_ingest_html(params))
             except Exception as exc:  # noqa: BLE001
@@ -315,6 +363,12 @@ def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
         print("   같은 네트워크의 누구나 포지션·손익(/api/state)을 보고 백테스트를 돌릴 수 있습니다.")
         if not os.environ.get("QUANT_WEB_TOKEN"):
             print("   → QUANT_WEB_TOKEN 환경변수를 설정하면 토큰 인증이 켜집니다(권장).")
+    from quant.web import auth as _auth
+    if _auth.configured():
+        print("🔐 로그인 켜짐 — 브라우저에서 아이디/비밀번호를 물어봅니다.")
+    else:
+        print("🔓 로그인 미설정 — 이 컴퓨터에서만 열립니다. 다른 기기에서도 보려면")
+        print("   먼저 `python -m quant web-passwd` 로 아이디·비밀번호를 만드세요.")
     global _BIND_HOST
     _BIND_HOST = str(host).lower()
     server = ThreadingHTTPServer((host, port), QuantHandler)

@@ -711,6 +711,13 @@ def build_challengers(current_spec: dict, seed: str,
     """
     challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
     challengers += _user_specs(state_dir)
+    # 터틀 트레이딩(사장님 제안 2026-08-18) — 규칙이 완전히 공개된 결정적
+    # 추세추종. 시스템1(20/10)과 시스템2(55/20) 둘 다 링에 세운다.
+    # 전설이라도 심사는 똑같다 — 이겨야 챔피언이다.
+    challengers += [
+        {"strategy": "turtle", "params": {"entry_window": 20, "exit_window": 10}},
+        {"strategy": "turtle", "params": {"entry_window": 55, "exit_window": 20}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
