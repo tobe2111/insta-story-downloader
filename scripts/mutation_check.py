@@ -5465,6 +5465,37 @@ MUTATIONS = [
      '    "tests/test_one_account_cannot_hold_two_currencies.py",\n'
      '    "tests/test_the_screen_says_who_took_the_budget.py",',
      "tests/test_the_page_contracts_actually_run.py"),
+
+    # ── 장중 도전자 — 빈도 실험은 자기 차선을 지킨다 (2026-08-18) ──────
+    ("체결이 비용을 물지 않는다(비용 없는 단타 실험은 광고다)",
+     "quant/live/intraday_challenger.py",
+     '        st["cash"] = float(st["cash"]) - delta - fee',
+     '        st["cash"] = float(st["cash"]) - delta',
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("실험 표식을 뗀다(가상 성적이 실측처럼 읽힌다)",
+     "quant/live/intraday_challenger.py",
+     '        "kind": KIND,',
+     '        "kind": "live",',
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("감시 간격을 예약값으로 지어낸다(설정을 옮겨 적은 것은 사실이 아니다)",
+     "quant/live/intraday_challenger.py",
+     "    return max(gaps) if gaps else None",
+     "    return float(BOOKED_INTERVAL_MINUTES)",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("부스러기 매매 문턱을 없앤다(회차마다 비용만 태운다)",
+     "quant/live/intraday_challenger.py",
+     "        if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):",
+     "        if False:",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("현금 한도를 무시하고 산다(실험 계좌에 몰래 레버리지가 생긴다)",
+     "quant/live/intraday_challenger.py",
+     "            if delta > afford:",
+     "            if False:",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

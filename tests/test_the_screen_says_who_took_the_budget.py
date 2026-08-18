@@ -104,8 +104,9 @@ def _flags(tmp_path_factory):
                     pg.on("pageerror", lambda e: errs.append(str(e)))
                     pg.goto(f"{url}/index.html")
                     pg.wait_for_timeout(2400)
-                    pg.click("#morebtn")     # 자세히 보기 — 상태 경고까지 편다
-                    pg.wait_for_timeout(200)
+                    # 접이식은 사장님 지시(2026-08-18)로 되돌렸다 — 경고는
+                    # 처음부터 전부 펴져 있다. 펴는 버튼이 되살아나면
+                    # test_the_first_screen…이 그 사실을 잡는다.
                     out[name] = pg.locator("#side-flags").inner_text()
                     assert not errs, f"{name}: 스크립트가 던졌다 — {errs}"
                     pg.close()
