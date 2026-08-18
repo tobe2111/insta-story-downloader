@@ -96,10 +96,13 @@ def test_features_used_reflects_the_frame():
 
 # ── ② 구성이 바뀌면 시계가 다시 센다 ──────────────────────────
 
-def test_a_new_feature_appearing_restarts_the_clock(tmp_path):
-    """죽었던 피처가 되살아나면 그날부터 새 세대다.
+def test_a_new_feature_appearing_is_published_not_a_reset(tmp_path):
+    """죽었던 피처가 되살아나면 — 경계는 찾아서 **공개**하되 시계는 그대로.
 
-    이것이 감사 271의 핵심이다 — 안 막으면 90일 표본이 섞인다.
+    감사 271의 핵심(90일 표본이 섞이는 걸 숨기면 안 된다)은 유지된다.
+    수정 공지(2026-08-18, 사장님 결정 "개선하는 것도 과정이니까"): 경계는
+    시계를 되돌리지 않고 버전 이력(versions)으로 날짜와 함께 공개된다 —
+    착시를 막는 것은 리셋이 아니라 공개된 경계다.
     """
     rows = [_rec(_day(i), "crypto", ["x_btc"]) for i in range(20, 3, -1)]
     rows += [_rec(_day(i), "crypto", ["x_btc", "x_funding", "x_oi_chg5"])
@@ -107,8 +110,11 @@ def test_a_new_feature_appearing_restarts_the_clock(tmp_path):
     gen = D._generation_info(_write(tmp_path, rows))
     assert gen["realized"]["since"] == _day(3), (
         f"펀딩이 되살아난 날을 경계로 안 잡는다: {gen['realized']}")
-    assert gen["since"] == _day(3) and gen["days"] == 3, (
-        f"경계는 찾았는데 최종 시계에 반영되지 않았다: {gen['since']}")
+    assert gen["since"] == D.STRUCTURE_EPOCH, (
+        f"수정 공지 위반 — 경계가 시계를 되돌렸다: {gen['since']}")
+    assert any(v["axis"] == "실측 피처 구성" and v["on"] == _day(3)
+               for v in gen["versions"]), (
+        f"경계가 이력에서 사라졌다 — 리셋보다 나쁘다: {gen['versions']}")
 
 
 def test_a_steady_setup_keeps_counting(tmp_path):
@@ -239,16 +245,18 @@ def test_markets_are_not_lumped_together_by_date(tmp_path):
     assert set(gen["realized"]["by_market"]) == {"crypto", "us_stock"}
 
 
-def test_one_market_changing_is_enough_to_reset(tmp_path):
-    """코인 입력만 바뀌어도 그날부터는 다른 시스템이다."""
+def test_one_market_changing_is_enough_to_mark_a_version(tmp_path):
+    """코인 입력만 바뀌어도 그날은 이력에 남는다 — 시계는 흐르지만."""
     rows = []
     for i in range(20, -1, -1):
         coin = ["x_btc", "x_funding"] if i <= 2 else ["x_btc"]
         rows.append(_rec(_day(i), "crypto", coin))
         rows.append(_rec(_day(i + 1), "us_stock", ["x_spy"]))
     gen = D._generation_info(_write(tmp_path, rows))
-    assert gen["since"] == _day(2), (
-        f"한 시장의 입력이 바뀌었는데 시계가 안 멈췄다: {gen['since']}")
+    assert any(v["axis"] == "실측 피처 구성" and v["on"] == _day(2)
+               for v in gen["versions"]), (
+        f"한 시장의 입력 변경이 이력에 없다: {gen['versions']}")
+    assert gen["since"] == D.STRUCTURE_EPOCH, "시계가 리셋됐다(수정 공지 위반)"
 
 
 # ── 사람에게 닿는가 ────────────────────────────────────────────

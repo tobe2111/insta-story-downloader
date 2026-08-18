@@ -665,6 +665,28 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
 # 실행 구조를 바꿀 때는 EPOCH를 그날로, TAG를 다음 번호로 올린다.
 STRUCTURE_TAG = "krw1"
 STRUCTURE_EPOCH = "2026-08-13"
+
+# 판정 시계 수정 공지 (2026-08-18, 사장님 결정: "앞으로는 리셋하지 말고
+# 모두 개선해줘. 개선하는 것도 과정이니까").
+#
+# 측정 대상을 재선언한다: '얼어붙은 전략 하나'가 아니라 **개선을 계속하는
+# 과정 전체**다. 그래서 구조가 바뀌어도 시계는 리셋되지 않고 계좌 탄생일
+# (STRUCTURE_EPOCH)부터 연속으로 흐른다. 대신 정직 장치 세 개가 그 자리를
+# 지킨다:
+#   ① 모든 변경은 날짜와 함께 **버전 이력**으로 공개된다(versions).
+#   ② 과거 기록은 절대 소급 수정하지 않는다.
+#   ③ 누적 성적과 구간별 성적을 함께 볼 수 있게 경계 날짜를 남긴다 —
+#      옛 성적으로 새 구성을 포장하는 착시를 막는 것은 리셋이 아니라
+#      **공개된 경계**다.
+# 직전 리셋(2026-08-17) 이틀 뒤, 결과가 쌓이기 전의 수정이라 골대 이동이
+# 아니다 — 장중 실험의 30일→90일 수정과 같은 원칙이다.
+JUDGEMENT_AMENDED = {
+    "on": "2026-08-18",
+    "what": "구조 변경 시 시계 리셋 → 연속 시계 + 변경 이력 공개",
+    "why": "측정 대상을 '개선하는 과정'으로 재선언(사장님 결정). 결과가 "
+           "쌓이기 전의 수정이며, 이후 모든 구조 변경은 리셋 대신 날짜 "
+           "박힌 버전 이력으로 공개된다.",
+}
 STRUCTURE_WHY = ("계좌 통화를 원화로 통일(감사 212) — 그전에는 해외 종목"
                  " 가격을 환산하지 않아 한 계좌에 원화(한국주식)와 달러"
                  "(미국주식·코인)가 섞여 있었다. 자산 합계가 진짜 원화가"
@@ -1033,12 +1055,23 @@ def _generation_info(state_dir: str) -> dict | None:
         today = _dt.date.today()
         if since is None:
             since = today.isoformat()
-        # 실행 구조가 더 최근에 바뀌었으면 그날부터 다시 센다
-        if STRUCTURE_EPOCH > since:
-            since = STRUCTURE_EPOCH
-        # 실측 피처 구성이 더 최근에 바뀌었으면 또 그날부터 다시 센다.
-        # 시장마다 따로 재고, **가장 최근 경계**를 세대의 시작으로 삼는다 —
-        # 한 시장의 입력이 바뀌면 그날부터는 다른 시스템이다.
+        # ⚠️ 수정 공지(2026-08-18, JUDGEMENT_AMENDED) — 아래 경계들은 이제
+        #    시계를 **리셋하지 않는다.** 시계는 현 계좌 탄생일
+        #    (STRUCTURE_EPOCH)부터 연속으로 흐르고, 경계들은 '언제 무엇이
+        #    바뀌었나'의 버전 이력(versions)으로 공개된다. 측정 대상이
+        #    '얼어붙은 전략'이 아니라 '개선하는 과정'이기 때문이다 —
+        #    착시는 리셋이 아니라 공개된 경계 날짜가 막는다.
+        versions: list[dict] = []
+        if since > STRUCTURE_EPOCH:
+            # 피처 선언이 계좌 탄생 뒤에 바뀐 적 있음 — 버전으로 남긴다
+            versions.append({"on": since, "axis": "피처 선언",
+                             "what": FEATURE_SET})
+        since = STRUCTURE_EPOCH
+        # 실측 피처 구성의 변경 — 예전엔 시계를 다시 세웠지만, 이제는
+        # 버전 이력으로 남긴다(수정 공지). 시장마다 따로 재고, 가장 최근
+        # 경계를 '가장 최근 버전'으로 기록한다 — 그날부터 다른 입력을 보는
+        # 시스템이라는 사실은 여전히 공개된다. 다만 그것이 시계를 되돌리진
+        # 않는다.
         tag = f"{FEATURE_SET}/{STRUCTURE_TAG}"
         info_realized = None
         per_market = {m: _realized_since(nights)
@@ -1047,8 +1080,9 @@ def _generation_info(state_dir: str) -> dict | None:
         if per_market:
             r_since = max(v[0] for v in per_market.values())
             r_feats = frozenset().union(*(v[1] for v in per_market.values()))
-            if r_since > since:
-                since = r_since
+            if r_since > STRUCTURE_EPOCH:
+                versions.append({"on": r_since, "axis": "실측 피처 구성",
+                                 "what": f"확인된 피처 {len(r_feats)}개"})
             tag = f"{tag}/{_realized_tag(r_feats)}"
             info_realized = {
                 "since": r_since, "n": len(r_feats),
@@ -1059,6 +1093,10 @@ def _generation_info(state_dir: str) -> dict | None:
         days = (today - _dt.date.fromisoformat(since)).days
         out = {"feature_set": tag,
                "since": since, "days": max(0, days), "target_days": 90,
+               # 연속 시계의 정직 장치 — 시계가 도는 동안 무엇이 언제
+               # 바뀌었는지. 리셋 대신 이 목록이 착시를 막는다.
+               "versions": sorted(versions, key=lambda v: v["on"]),
+               "amended": JUDGEMENT_AMENDED,
                "structure": {"tag": STRUCTURE_TAG, "epoch": STRUCTURE_EPOCH,
                              "why": STRUCTURE_WHY}}
         if info_realized:

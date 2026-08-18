@@ -90,7 +90,7 @@ def test_e2e_marker_blocks_cli_subprocess():
 
 
 def test_generation_info_from_ledger(monkeypatch, tmp_path):
-    """세대는 피처셋 첫 등장일부터 — 실행 구조가 더 옛날이면 그대로 쓴다."""
+    """피처 선언 변경은 이력으로 남고 시계는 탄생일부터 — 수정 공지 반영."""
     from quant.live import daily as _daily
     from quant.live.daily import _generation_info
     from quant.strategies.ml import FEATURE_SET
@@ -104,7 +104,10 @@ def test_generation_info_from_ledger(monkeypatch, tmp_path):
     ledger.write_text("\n".join(json.dumps(r) for r in rows) + "\n", "utf-8")
     g = _generation_info(str(tmp_path))
     assert g["feature_set"].startswith(FEATURE_SET)
-    assert g["since"] == "2026-08-05"          # 이전 세대 날짜는 무시
+    # 수정 공지(2026-08-18): 피처 선언 변경은 리셋이 아니라 이력이 된다
+    assert g["since"] == "2026-01-01", "시계가 리셋됐다(수정 공지 위반)"
+    assert any(v["axis"] == "피처 선언" and v["on"] == "2026-08-05"
+               for v in g["versions"]), g["versions"]
     assert g["days"] >= 0 and g["target_days"] == 90
 
 
@@ -129,10 +132,11 @@ def test_structure_change_also_resets_the_clock(monkeypatch, tmp_path):
     assert g["structure"]["why"]               # 왜 리셋했는지 사유가 남는다
 
 
-def test_generation_info_empty_ledger_is_day_zero(tmp_path):
-    from quant.live.daily import _generation_info
-    g = _generation_info(str(tmp_path))        # 장부 없음 → 오늘부터 0일차
-    assert g is not None and g["days"] == 0
+def test_generation_info_empty_ledger_counts_from_inception(tmp_path):
+    """장부가 없어도 시계는 계좌 탄생일부터 — 연속 시계(수정 공지)."""
+    from quant.live.daily import STRUCTURE_EPOCH, _generation_info
+    g = _generation_info(str(tmp_path))
+    assert g is not None and g["since"] == STRUCTURE_EPOCH and g["days"] >= 0
 
 
 def test_generation_archive_splits_prev_and_current():

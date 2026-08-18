@@ -46,7 +46,8 @@ from quant.web.mystrategy import (
     run_pin_save,
     run_pin_unpin,
 )
-from quant.web.app import render_halt_page, run_halt_toggle
+from quant.web.app import (render_consent_page, render_halt_page,
+                          run_consent_toggle, run_halt_toggle)
 from quant.web.auth import render_login_form, run_login
 
 # 로그인 없이도 닿아야 하는 경로 — 로그인 화면 자체와 라이브니스 체크.
@@ -109,7 +110,7 @@ class QuantHandler(BaseHTTPRequestHandler):
     #   · 나머지 /run  — 수 초~수 분짜리 연산이라 교차출처에서 반복 호출되면
     #     사장님 PC의 자원을 태운다. 다른 사이트가 이걸 부를 이유는 없다.
     # 조회 경로(/api/state·/monitor 등)는 막지 않는다 — 로컬 도구의 사용성.
-    _MUTATING = ("/login/run", "/halt/run", "/ingest/run", "/pin/save", "/pin/unpin",
+    _MUTATING = ("/login/run", "/halt/run", "/consent/run", "/ingest/run", "/pin/save", "/pin/unpin",
                  "/deposit/run", "/optimize/run", "/sweep/run",
                  "/portfolio/run", "/screener/run", "/validate/run",
                  "/backtest")
@@ -181,6 +182,9 @@ class QuantHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/halt":
             # 긴급 정지 화면 — 상태 확인은 GET, 켜고 끄기는 POST만.
             self._send(render_halt_page())
+        elif parsed.path == "/consent":
+            # 데이터 수집 동의(약관 고지) — 상태 확인은 GET, 변경은 POST.
+            self._send(render_consent_page())
         elif parsed.path == "/health":
             self._send("ok")
         elif parsed.path == "/backtest":
@@ -328,6 +332,11 @@ class QuantHandler(BaseHTTPRequestHandler):
                 self._send(run_halt_toggle(params))
             except Exception as exc:  # noqa: BLE001
                 self._send(render_halt_page(f"실행 오류: {exc}"), status=400)
+        elif parsed.path == "/consent/run":
+            try:
+                self._send(run_consent_toggle(params))
+            except Exception as exc:  # noqa: BLE001
+                self._send(render_consent_page(f"실행 오류: {exc}"), status=400)
         elif parsed.path == "/ingest/run":
             try:
                 self._send(run_ingest_html(params))
