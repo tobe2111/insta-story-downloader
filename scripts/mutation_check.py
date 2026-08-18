@@ -2697,12 +2697,12 @@ MUTATIONS = [
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     ("지각 문턱이 실제 사고(558분)를 놓친다",
      "quant/live/guard.py",
-     "GUARD_LATE_FACTOR = 4.0",
-     "GUARD_LATE_FACTOR = 100.0",
+     "GUARD_LATE_FACTOR = 12.0",
+     "GUARD_LATE_FACTOR = 200.0",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     ("예약 주기가 워크플로와 갈라져도 아무도 모른다",
      "quant/live/guard.py",
-     "GUARD_INTERVAL_MINUTES = 15",
+     "GUARD_INTERVAL_MINUTES = 5",
      "GUARD_INTERVAL_MINUTES = 60",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
@@ -5561,13 +5561,15 @@ MUTATIONS = [
 
     ("미완성 봉으로 판단한다(같은 회차를 다시 돌리면 다른 결정이 나온다)",
      "quant/live/intraday_challenger.py",
-     "    keep = (idx + pd.Timedelta(TIMEFRAME)) <= now",
+     "    keep = (idx + pd.Timedelta(timeframe)) <= now",
      "    keep = idx <= idx.max()",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
     ("실험 계좌의 킬스위치를 뗀다(폭락장에서 실험이 본 계좌와 다른 조건으로 달린다)",
      "quant/live/intraday_challenger.py",
+     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
      '    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)',
+     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
      "    scale = 1.0",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
@@ -5761,6 +5763,26 @@ MUTATIONS = [
      '            if notional + fee > sh["cash"]:            # 레버리지 금지',
      "            if False:",
      "tests/test_the_limit_orders_wait_for_their_price.py"),
+
+    # ── 수급 SOM (2026-08-18, 논문 재현) — 관문이 굽으면 잡음이 신호가 된다 ──
+    ("수급 없는 시장 관문을 뗀다(재료 없는 종목에서 의견을 낸다/죽는다)",
+     "quant/strategies/supplysom.py",
+     "        if not all(c in df.columns for c in FLOW_COLS):",
+     "        if False:",
+     "tests/test_the_supply_som_reads_the_flows.py"),
+
+    ("군집 통계 관문을 뗀다(표본·부호와 무관하게 산다 — 음의 군집에서도 매수)",
+     "quant/strategies/supplysom.py",
+     "            if cnt >= self.min_cluster and s / cnt > 0.0:",
+     "            if cnt >= 0:",
+     "tests/test_the_supply_som_reads_the_flows.py"),
+
+    # ── 주기 사다리 (2026-08-18) — 멱등이 죽으면 같은 봉을 반복 매매한다 ──
+    ("사다리의 같은-봉 멱등 관문을 뗀다(크론마다 같은 봉을 또 매매 — 비용 폭증)",
+     "quant/live/intraday_challenger.py",
+     "        if bar_times and bar_times == last_bars:",
+     "        if False:",
+     "tests/test_the_frequency_ladder_measures_not_guesses.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

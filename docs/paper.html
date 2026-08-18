@@ -69,16 +69,12 @@ th{color:var(--muted);font-weight:600;font-size:12px}
 </style>
 </head>
 <body>
-<nav><div class="wrap">
-  <a class="logo" href="index.html">QUANT<em>.</em></a>
-  <a href="today.html" style="font-size:13.5px;color:var(--muted)">오늘의 판단</a>
-  <a href="weekly.html" style="font-size:13.5px;color:var(--muted)">주간 아카이브</a>
-  <a href="trust.html" style="font-size:13.5px;color:var(--muted)">기록 검증</a>
-  <a id="livebtn" href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
-    font-weight:700;color:#fff;background:var(--rec);padding:5px 13px;border-radius:99px">
-    ● 라이브 보는 중</a>
-  <a href="index.html" style="font-size:13.5px;color:var(--muted);margin-left:auto">← 홈</a>
-</div></nav>
+<!-- 상단 바는 공용(assets/nav.js) — 모든 페이지가 같은 바를 쓴다.
+     livebtn은 이 페이지 고유 요소라 data-qnav-extra로 바 안에 들어간다. -->
+<script src="assets/nav.js" defer></script>
+<a id="livebtn" data-qnav-extra href="#" target="_blank" rel="noopener" style="display:none;font-size:13px;
+  font-weight:700;color:#fff;background:var(--rec);padding:5px 13px;border-radius:99px">
+  ● 라이브 보는 중</a>
 <div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>
 <div class="wrap">
 <h1>100만 챌린지 — 매일 자동 페이퍼</h1>

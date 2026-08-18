@@ -109,7 +109,7 @@ def test_a_nine_hour_gap_reaches_a_human(tmp_path):
     hit = [v for k, v in flags.items() if k.startswith("guard_late")]
     assert hit, f"9시간 넘게 감시가 멈췄는데 아무 말이 없다: {sorted(flags)}"
     assert "558" in hit[0], "실제 간격이 몇 분이었는지 숫자가 안 나온다"
-    assert "15" in hit[0], "예약 주기와 비교해 주지 않는다"
+    assert str(G.GUARD_INTERVAL_MINUTES) in hit[0], "예약 주기와 비교해 주지 않는다"
 
 
 def test_a_guard_running_on_schedule_stays_quiet(tmp_path):
@@ -123,7 +123,7 @@ def test_a_mildly_late_run_stays_quiet(tmp_path):
     """크론이 조금 밀린 정도로 울리면 사람이 무시하기 시작한다."""
     flags = _flags_with_beats(tmp_path, _every(G.MIN_BEATS_FOR_GAP + 5, 25))
     assert not [k for k in flags if k.startswith("guard_late")], (
-        "25분 간격(예약 15분)에 경보가 울린다 — 너무 예민하다")
+        "25분 간격(크론 밀림 수준)에 경보가 울린다 — 너무 예민하다")
 
 
 # ── ③ 표본이 얇으면 판정하지 않는가 ─────────────────────────────

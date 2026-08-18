@@ -19,7 +19,9 @@ name: Intraday Guard
 
 on:
   schedule:
-    - cron: "*/15 * * * *"      # 15분마다 (실제 간격은 심장박동이 말한다)
+    - cron: "*/5 * * * *"       # 5분마다 — 주기 사다리(5분봉 트랙)의 판단
+                                # 간격 하한. 공개 저장소라 Actions 무료이고,
+                                # 실제 간격은 심장박동·회차 시각이 말한다.
   workflow_dispatch:
 
 concurrency:

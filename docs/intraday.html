@@ -60,10 +60,8 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 </head>
 <body>
 <div class="wrap">
-<nav><b>QUANT.</b>
-  <a href="index.html">← 첫 화면</a>
-  <a href="trust.html">기록 검증</a>
-</nav>
+<!-- 상단 바는 공용(assets/nav.js) — 모든 페이지가 같은 바를 쓴다. -->
+<script src="assets/nav.js" defer></script>
 
 <h1>장중 도전자 실험 <span class="tag">시뮬레이션 · 가상 자금</span></h1>
 <p class="sub">같은 규칙을 <b>더 자주</b> 돌리면 정말 더 버는가 — 믿음이 아니라
@@ -81,6 +79,11 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 
 <h2>본 계좌와 나란히 <span class="tag">같은 기간 · % 수익률</span></h2>
 <div class="card" id="vs">불러오는 중…</div>
+
+<h2>주기 사다리 <span class="tag">1시간 vs 15분 vs 5분 — 어느 주기가 비용을 이기나</span></h2>
+<!-- 최적 주기를 사람이 고르지 않는다(2026-08-18). 같은 전략·같은 체결 규칙에
+     봉 주기만 다른 트랙들을 나란히 돌려, 곡선이 답하게 한다. -->
+<div class="card" id="ladder">불러오는 중…</div>
 
 <h2>체결 방식 실험 <span class="tag">같은 신호 · 시장가 vs 지정가</span></h2>
 <!-- 실험 속 실험(2026-08-18): 활성화 순간 본 실험 계좌를 그대로 복제해,
@@ -242,6 +245,24 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
       '실험 시작('+esc(since||"—")+') 이후의 변화율끼리 비교합니다 — '+
       '표본이 판정 기준(위)을 채우기 전의 우열은 운과 구별되지 않습니다.</div>';
   }).catch(()=>{});
+  /* ── 주기 사다리 — 주기별 수익률·보유·비용 비교 ── */
+  {
+    const el=document.getElementById("ladder");
+    const f=v=>(v==null?"—":((v>=0?"+":"")+Number(v).toFixed(2)+"%"));
+    const rows=[{timeframe:"1시간 (본 실험)",return_pct:d.return_pct,
+                 hold_return_pct:d.hold_return_pct,trades_total:d.trades_total,
+                 cost_paid:d.cost_paid}]
+      .concat((d.ladder||[]).map(t=>({...t,timeframe:t.timeframe==="15m"?"15분":(t.timeframe==="5m"?"5분":t.timeframe)})));
+    if(rows.length<=1&&!(d.ladder||[]).length){
+      el.innerHTML='<div class="sub">15분·5분 트랙이 아직 첫 회차를 돌지 않았습니다 — 다음 회차부터 쌓입니다.</div>';
+    }else{
+      el.innerHTML='<div style="overflow-x:auto"><table><thead><tr><th>주기</th><th>수익률</th><th>같은 기간 보유</th><th>체결</th><th>누적 비용</th></tr></thead><tbody>'+
+        rows.map(t=>'<tr><td>'+esc(t.timeframe)+'</td><td class="'+((t.return_pct||0)>=0?"up":"down")+'">'+f(t.return_pct)+
+          '</td><td>'+f(t.hold_return_pct)+'</td><td>'+(t.trades_total||0)+'</td><td>'+usdt(t.cost_paid||0)+'</td></tr>').join('')+
+        '</tbody></table></div>'+
+        '<div class="sub" style="margin-top:8px">'+esc(d.ladder_note||"")+'</div>';
+    }
+  }
   /* ── 체결 방식 실험 — 시장가(본 실험) vs 지정가(그림자) ── */
   {
     const el=document.getElementById("limitshadow");

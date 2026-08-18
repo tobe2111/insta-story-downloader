@@ -310,7 +310,10 @@ def test_docs_have_table_and_weekly_and_hero():
     # 여기서는 '종목별 표가 있다'만 보고, 이름 규칙은
     # tests/test_two_ledgers_are_not_confused.py가 검사한다.
     assert "종목별" in paper                          # 증권사 시세표
-    assert 'href="weekly.html"' in paper
+    # 주간 아카이브로 가는 길은 2026-08-18부터 공용 상단 바(assets/nav.js)가
+    # 놓는다 — 바에 weekly 링크가 실제로 있는지는
+    # tests/test_the_site_wears_one_navbar.py가 홈과 대조해 지킨다.
+    assert 'src="assets/nav.js"' in paper
     weekly = (root / "weekly.html").read_text(encoding="utf-8")
     assert "주간 아카이브" in weekly and "status.json" in weekly
     assert "종목별 주간 수익률" in weekly
@@ -389,7 +392,9 @@ def test_today_page_markers():
     assert "status.json" in t and "오늘의 자세" in t
     assert "수익을 보장하지 않습니다" in t
     paper = (root / "paper.html").read_text(encoding="utf-8")
-    assert 'href="today.html"' in paper
+    # 오늘의 판단으로 가는 길은 공용 상단 바(assets/nav.js)가 놓는다 —
+    # 바의 링크 구성은 tests/test_the_site_wears_one_navbar.py가 지킨다.
+    assert 'src="assets/nav.js"' in paper
 
 
 def test_card_generation_step_and_og():
