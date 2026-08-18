@@ -130,12 +130,18 @@ def test_the_nightly_batch_actually_runs_it_and_commits_the_result():
         "증거는 감시가 아니다")
 
 
-def test_the_site_shows_it_with_the_simulation_label():
+def test_the_site_no_longer_shows_the_card_by_owner_decision():
+    """공개 화면의 위기 재생 카드는 **사장님 지시(2026-08-18)로 내렸다**.
+
+    내린 것은 표시뿐이다 — 데이터(docs/risk.json)와 야간 갱신 배선은
+    그대로 돈다(위의 배선 검사와 아래 데이터 검사가 계속 지킨다).
+    카드를 다시 올리려면 이 검사를 **의도적으로** 되돌려야 한다 —
+    화면 구성이 소리 없이 바뀌는 것을 막는 자물쇠다.
+    """
     index = (ROOT / "docs" / "index.html").read_text("utf-8")
-    assert "risk.json" in index, "사이트가 위험 리포트를 안 읽는다"
-    seg = index[index.index("risk.json") - 500: index.index("risk.json") + 3000]
-    assert "시뮬레이션" in seg, (
-        "사이트가 시뮬레이션 표식 없이 숫자만 보여준다 — 실측처럼 읽힌다")
+    assert "risk.json" not in index, (
+        "내리기로 한 위기 재생 카드가 첫 화면에 다시 나타났다 — 의도한 "
+        "복원이면 이 검사를 함께 고치라")
 
 
 def test_the_committed_report_is_a_simulation_and_parses():
