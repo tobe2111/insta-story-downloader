@@ -52,3 +52,17 @@ def test_extraction_failure_reasons_reach_the_screen():
     src = (ROOT / "quant" / "web" / "mystrategy.py").read_text("utf-8")
     assert "result.reasons" in src, (
         "'내 전략' 화면이 추출 실패 사유를 보여주지 않는다")
+
+
+def test_a_pasted_pine_body_is_never_mistaken_for_a_path():
+    """붙여넣은 코드 본문이 길면 경로 확인 자체가 OS 오류를 던진다.
+
+    리눅스는 경로 한 조각이 255바이트를 넘으면 exists()가 False가 아니라
+    OSError(이름이 너무 김)를 던진다 — 길이 4096 관문만으로는 못 막는다.
+    2026-08-18 공개 스크립트 수집 시연에서 실제로 죽었던 자리다.
+    """
+    from quant.ingest.sources import load_pine
+    body = ("Script Name: Donchian test\n" + "x" * 300 + "\n"
+            "ta.crossover(ta.sma(close, 20), ta.sma(close, 60))\n")
+    doc = load_pine(body)                 # 죽지 않고 본문으로 다뤄야 한다
+    assert doc.text.strip(), "붙여넣은 본문이 통째로 사라졌다"

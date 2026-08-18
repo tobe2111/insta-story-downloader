@@ -125,7 +125,16 @@ _PINE_HINT = re.compile(r"\b(ta\.(?:sma|ema|rsi|crossover|crossunder|highest|low
 def load_pine(path_or_text: str) -> Loaded:
     """Pine Script → 글자. 파일 경로거나 코드 본문."""
     p = Path(path_or_text)
-    if len(str(path_or_text)) < 4096 and p.exists():
+    # ⚠️ 붙여넣은 **코드 본문**을 경로로 착각해 exists()를 부르면, 리눅스는
+    #    한 경로 조각이 255바이트를 넘는 순간 False가 아니라 OSError(이름이
+    #    너무 김)를 던진다 — 길이 4096 관문만으로는 못 막는다(2026-08-18,
+    #    공개 스크립트 수집 시연에서 실제로 죽었다). 경로 확인이 어떤 이유로든
+    #    실패하면 그냥 본문으로 다룬다 — 붙여넣기가 죽는 것보다 낫다.
+    try:
+        is_file = len(str(path_or_text)) < 4096 and p.exists()
+    except OSError:
+        is_file = False
+    if is_file:
         body, title = p.read_text(encoding="utf-8", errors="replace"), p.stem
     else:
         body, title = str(path_or_text), "pine"
