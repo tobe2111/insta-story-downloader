@@ -64,6 +64,8 @@ EXPECTED = {
     "/ingest": "render_ingest_form",
     "/pins": "render_pins_page",
     "/pin/prepare": "render_pin_prepare",
+    # 로그인 화면(2026-08-18 사장님: "모두가 다 접속 가능하면 안되니까")
+    "/login": "render_login_form",
 }
 
 # POST 전용 — 긴 본문(자료 붙여넣기)과 상태 변경이 있는 경로.
@@ -73,6 +75,8 @@ EXPECTED_POST = {
     "/ingest/run": "run_ingest_html",
     "/pin/save": "run_pin_save",
     "/pin/unpin": "run_pin_unpin",
+    # 로그인 제출 — 비밀번호가 본문에 실리므로 POST 전용(쿼리에 남기지 않는다)
+    "/login/run": "run_login",
 }
 
 APP_FUNCS = sorted(set(EXPECTED.values()) | set(EXPECTED_POST.values()))

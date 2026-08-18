@@ -208,11 +208,18 @@ def test_the_judgement_is_preregistered_and_strict(tmp_path):
     _round(tmp_path, 1.0)
     out = json.loads((tmp_path / "docs" / "intraday.json").read_text("utf-8"))
     j = out["judgement"]
-    assert j["registered_on"] == "2026-08-18" and j["min_days"] >= 30
+    assert j["registered_on"] == "2026-08-18" and j["min_days"] == 90, (
+        "판정 기간이 90일이 아니다 — 외부 검토(2026-08-18) 반영: 수익률 "
+        "차이의 신뢰구간은 봉 수가 아니라 기간이 지배한다")
+    # 수정은 숨기지 않는다 — 무엇을 왜 언제 바꿨는지가 기준과 함께 실린다.
+    assert j["amended"]["on"] == "2026-08-18" and "30일" in j["amended"]["what"]
+    assert "골대 이동" in j["amended"]["why"]
     text = " ".join(j["criteria"])
-    for word in ("신뢰구간", "낙폭", "본 계좌"):
+    for word in ("신뢰구간", "낙폭", "본 계좌", "90일"):
         assert word in text, f"판정 기준에 '{word}'가 빠졌다: {text}"
     assert out["elapsed_days"] is not None
+    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    assert "수정 공지" in page, "수정 사실이 공개 페이지에 안 나간다"
 
 
 def test_the_report_lists_recent_trades(tmp_path):

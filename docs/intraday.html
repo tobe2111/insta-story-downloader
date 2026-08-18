@@ -184,6 +184,11 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
     document.getElementById("judge").innerHTML=
       '<div class="sub">등록일 <b>'+esc(j.registered_on)+'</b> — '+
       esc(j.note)+'</div>'+
+      /* 기준을 고쳤다면 그 사실이 기준보다 먼저 보여야 한다 — 조용한
+         수정은 골대 이동과 구별되지 않는다. */
+      (j.amended?('<div class="warn" style="margin-top:10px">📝 <b>수정 공지 ('+
+        esc(j.amended.on)+')</b>: '+esc(j.amended.what)+' — '+
+        esc(j.amended.why)+'</div>'):"")+
       '<ul>'+(j.criteria||[]).map(c=>'<li>'+esc(c)+'</li>').join("")+'</ul>'+
       '<div class="sub" style="margin-top:10px">관찰 진도: <b>'+
       (days!=null?days.toFixed(1):"0")+'일 / '+j.min_days+'일</b>'+

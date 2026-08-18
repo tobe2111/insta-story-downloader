@@ -528,6 +528,29 @@ def _cmd_walkforward(args) -> None:
         print(f"\n💾 저장: {args.save}")
 
 
+def _cmd_web_passwd(args) -> None:
+    """조종석 로그인 설정 — 비밀번호는 화면에도, 파일에도 평문으로 안 남는다."""
+    import getpass
+
+    from quant.web.auth import set_credentials
+
+    user = input("아이디(이메일 등): ").strip()
+    if not user:
+        print("아이디가 비어 있습니다 — 중단합니다.")
+        raise SystemExit(1)
+    pw = getpass.getpass("비밀번호(입력해도 화면에 안 보입니다): ")
+    pw2 = getpass.getpass("확인을 위해 한 번 더: ")
+    if pw != pw2:
+        print("두 입력이 다릅니다 — 중단합니다.")
+        raise SystemExit(1)
+    if len(pw) < 8:
+        print("8자 이상으로 해주세요 — 중단합니다.")
+        raise SystemExit(1)
+    set_credentials(user, pw)
+    print("🔐 저장했습니다(.env — 해시만 저장, 커밋 금지 목록). "
+          "웹 조종석을 다시 켜면 로그인 화면이 뜹니다.")
+
+
 def _cmd_intraday_round(args) -> None:
     """장중 도전자 1회 — 본 계좌와 분리된 실험 트랙(가상 USDT)."""
     import datetime as dt
@@ -1470,6 +1493,11 @@ def build_parser() -> argparse.ArgumentParser:
     gd.add_argument("--state-file", default="portfolio_ALL.json",
                     dest="state_file")
     gd.set_defaults(func=_cmd_guard)
+
+    wp = sub.add_parser(
+        "web-passwd",
+        help="웹 조종석 로그인 설정 — 아이디·비밀번호(해시로만 저장)")
+    wp.set_defaults(func=_cmd_web_passwd)
 
     ir = sub.add_parser(
         "intraday-round",

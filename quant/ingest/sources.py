@@ -87,7 +87,18 @@ def load_youtube(url: str, *, languages=("ko", "en")) -> Loaded:
             "유튜브 자막을 받으려면 youtube-transcript-api가 필요합니다 — "
             "`pip install youtube-transcript-api` 후 다시 시도해 주세요.") from exc
     try:
-        parts = YouTubeTranscriptApi.get_transcript(vid, languages=list(languages))
+        # ⚠️ 라이브러리 1.x에서 API가 통째로 바뀌었다(2026-08-18 실측):
+        #    구버전 classmethod `get_transcript`가 사라지고 인스턴스
+        #    `.fetch()`가 됐다. 새로 설치한 사용자는 전부 신버전을 받으므로
+        #    두 세대를 모두 지원한다 — 안 하면 "자막이 없다"는 엉뚱한
+        #    안내가 나간다(실제 원인은 우리 호출 방식).
+        if hasattr(YouTubeTranscriptApi, "get_transcript"):
+            parts = YouTubeTranscriptApi.get_transcript(
+                vid, languages=list(languages))
+        else:
+            fetched = YouTubeTranscriptApi().fetch(vid,
+                                                   languages=list(languages))
+            parts = [{"text": getattr(s, "text", "")} for s in fetched]
     except Exception as exc:        # noqa: BLE001
         raise SourceError(
             f"이 영상의 자막을 받지 못했습니다({exc}). 자막이 꺼져 있거나 "

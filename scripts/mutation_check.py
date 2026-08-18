@@ -3692,8 +3692,8 @@ MUTATIONS = [
 
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
-     "        return hmac.compare_digest(supplied, token)",
-     "        return True",
+     "            if hmac.compare_digest(supplied, token):",
+     "            if True:",
      "tests/test_web.py"),
 
     ("합성 폴백 데이터 배너를 끈다(가짜 데이터를 진짜처럼)",
@@ -3926,19 +3926,13 @@ MUTATIONS = [
      "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
      "            return\n"
      "        if not self._authorized(parsed):\n"
-     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
-     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
-     "            return\n"
-     "        if parsed.path in (\"/\", \"/index.html\"):",
+     "            from quant.web import auth as _auth",
      "        if False:\n"
      "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
      "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
      "            return\n"
      "        if not self._authorized(parsed):\n"
-     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
-     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
-     "            return\n"
-     "        if parsed.path in (\"/\", \"/index.html\"):",
+     "            from quant.web import auth as _auth",
      "tests/test_web_csrf.py"),
 
     # chrono는 2026-08-11 감사 102에서 의존성 없는 ledger_basics로 옮겼다
@@ -5508,6 +5502,70 @@ MUTATIONS = [
      '    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)',
      "    scale = 1.0",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    # ── 조종석 로그인 — 잠근다고 말했으면 실제로 잠겨야 한다 (2026-08-18) ──
+    ("아무 비밀번호나 통과시킨다(로그인이 장식이 된다)",
+     "quant/web/auth.py",
+     "        return hmac.compare_digest(dk.hex(), want)",
+     "        return True",
+     "tests/test_the_cockpit_asks_who_you_are.py"),
+
+    ("로그인 설정을 무시하고 문을 연다",
+     "quant/web/server.py",
+     "        if _auth.configured():\n            return self._session_ok()",
+     "        if _auth.configured():\n            return True",
+     "tests/test_the_cockpit_asks_who_you_are.py"),
+
+    # ── 터틀 트레이딩 — 규칙이 공개된 전략은 검사도 규칙 그대로 ──────────
+    ("2N 손절을 뗀다(터틀의 영혼이 빠진다)",
+     "quant/strategies/turtle.py",
+     "                hit_stop = (not np.isnan(stop)) and c < stop",
+     "                hit_stop = False",
+     "tests/test_the_turtle_earns_its_seat.py"),
+
+    ("돌파 채널에 자기 봉을 넣는다(룩어헤드 — 종가가 자기 고가를 못 넘어 영영 진입 못 한다)",
+     "quant/strategies/turtle.py",
+     '        upper = df["high"].rolling(self.entry_window).max().shift(1).to_numpy()',
+     '        upper = df["high"].rolling(self.entry_window).max().to_numpy()',
+     "tests/test_the_turtle_earns_its_seat.py"),
+
+    # ── 차트 자료 전략 3종 — 옮긴 규칙이 자료와 갈라지면 심사가 거짓 ──
+    ("일목 구름을 미래에서 본다(선행스팬을 뒤로 밀지 않는 룩어헤드)",
+     "quant/strategies/ichimoku.py",
+     "        span_a = ((tenkan + kijun) / 2.0).shift(self.shift)",
+     "        span_a = (tenkan + kijun) / 2.0",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("파라볼릭 가속변수의 상한을 없앤다(SAR 폭주 — 자료의 0.2 상한 위반)",
+     "quant/strategies/psar.py",
+     "                    ep, af = high[i], min(self.af_max, af + self.af_step)",
+     "                    ep, af = high[i], af + self.af_step",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("파라볼릭의 분리 조건을 뗀다(평탄 시장에서 임의 씨앗이 그대로 포지션이 된다)",
+     "quant/strategies/psar.py",
+     "            if up and sar < low[i]:",
+     "            if up:",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("볼린저 수축돌파의 청산선을 뗀다(중앙선을 깨도 영영 들고 있는다)",
+     "quant/strategies/bollinger.py",
+     "                elif pos > 0 and c[i] < mid_np[i]:",
+     "                elif False:",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    # ── 외부 검토 ①·④ (2026-08-18) — 분산 진단이 낙관으로 굽으면 거짓 ──
+    ("음의 상관 낙관을 공개한다(ENB가 종목 수를 넘는 숫자로 부푼다)",
+     "quant/risk/effective_bets.py",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * max(rho, 0.0))",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * rho)",
+     "tests/test_the_bets_are_counted_honestly.py"),
+
+    ("하락일 필터를 뗀다(하락일 상관이 전체 평균의 복사가 된다)",
+     "quant/risk/effective_bets.py",
+     "    down = df[df.mean(axis=1) < 0]",
+     "    down = df",
+     "tests/test_the_bets_are_counted_honestly.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
