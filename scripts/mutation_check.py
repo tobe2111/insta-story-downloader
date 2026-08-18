@@ -4850,10 +4850,14 @@ MUTATIONS = [
      "    if False:\n",
      "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
 
-    ("심장박동이 모자라도 간격을 0으로 친다(모름을 '완벽한 감시'로 읽는다)",
+    # ⚠️ 표적이 옮겨졌다(감사 285). 최악값과 중앙값이 **같은 재료**를 보도록
+    #    파싱을 한 함수로 모으면서, 예전 변이(`return None` → `return 0.0`)는
+    #    0.0이 falsy라 부르는 쪽에서 그대로 None이 됐다 — 즉 아무것도 안
+    #    망가뜨리는 변이가 됐다. 표본 관문 자체를 없애는 쪽으로 바꾼다.
+    ("심장박동이 모자라도 간격을 판정한다(세 번 뛴 기록이 '완벽한 감시'가 된다)",
      "quant/live/guard.py",
-     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return None",
-     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return 0.0",
+     "    if len(stamps) < MIN_BEATS_FOR_GAP:\n        return None\n    stamps.sort()",
+     "    stamps.sort()",
      "tests/test_leverage_stays_locked_until_all_three_gates_pass.py"),
 
     ("장중 감시가 킬스위치 규칙을 자기가 다시 적는다(새벽 배치와 갈라진다)",
@@ -5449,13 +5453,13 @@ MUTATIONS = [
     # 열여섯 계약이 한꺼번에 무방비가 되기 때문이다.
     ("CI가 브라우저를 안 받는다(화면 계약 16건이 조용히 건너뛰어진다)",
      ".github/workflows/ci.yml",
-     "        run: python -m playwright install --with-deps chromium",
+     "        run: python -m playwright install chromium",
      "        run: echo '브라우저 없이 간다'",
      "tests/test_the_page_contracts_actually_run.py"),
 
     ("야간 변이 전수가 브라우저를 안 받는다(놓침이 다시 21건이 된다)",
      ".github/workflows/mutation-sweep.yml",
-     "        run: python -m playwright install --with-deps chromium",
+     "        run: python -m playwright install chromium",
      "        run: echo '브라우저 없이 간다'",
      "tests/test_the_page_contracts_actually_run.py"),
 
@@ -5793,6 +5797,43 @@ MUTATIONS = [
      '            if notional + fee > sh["cash"]:            # 레버리지 금지',
      "            if False:",
      "tests/test_the_limit_orders_wait_for_their_price.py"),
+    # ── 감사 283 — 저장되지 않은 일을 방송한다 ──────────────────
+    #
+    # 2026-08-17 밤, 폰에는 "자산 999,078원"과 "챔피언 교체 SPY·QQQ"가
+    # 남았는데 장부에는 그런 일이 없다. 배치가 ①계산 →②알림 →③관문 →④커밋
+    # 순서였고 ③에서 죽었다. 알림은 이미 나간 뒤였다.
+    ("알림을 다시 커밋 전에 내보낸다(일어나지 않은 일이 방송된다)",
+     "quant/cli.py",
+     "    if notice_queue.deferring():",
+     "    if False:",
+     "tests/test_only_saved_things_are_broadcast.py"),
+
+    ("밤 배치가 알림 미루기를 끈다(관문에서 죽어도 숫자가 먼저 나간다)",
+     ".github/workflows/daily-paper.yml",
+     '  QUANT_DEFER_NOTICE: "1"',
+     '  QUANT_DEFER_NOTICE: "0"',
+     "tests/test_only_saved_things_are_broadcast.py"),
+
+    # ── 감사 284 — 묵은 봉이 '오늘 이미 했다'로 읽혔다 ──────────
+    ("묵은 봉으로도 재학습을 통과시킨다(165일 전 시세로 챔피언을 뽑는다)",
+     "quant/live/retrain.py",
+     "    if require_real_data:\n        _age = _bar_age_days(asof)",
+     "    if False:\n        _age = _bar_age_days(asof)",
+     "tests/test_stale_bars_do_not_pass_as_today.py"),
+
+    ("코인 봉 나이 허용치를 반년으로 넓힌다(관문이 장식이 된다)",
+     "quant/live/retrain.py",
+     'MAX_BAR_AGE_DAYS = {"crypto": 2, "": 5}',
+     'MAX_BAR_AGE_DAYS = {"crypto": 200, "": 5}',
+     "tests/test_stale_bars_do_not_pass_as_today.py"),
+
+    # ── 감사 285 — 최악만 적으면 꼬리가 전체를 설명한다 ─────────
+    ("보통 간격을 최악값으로 바꿔 적는다(감시가 실제보다 나빠 보인다)",
+     "quant/live/guard.py",
+     "    return statistics.median(gaps) if gaps else None",
+     "    return max(gaps) if gaps else None",
+     "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+
 
     # ── 수급 SOM (2026-08-18, 논문 재현) — 관문이 굽으면 잡음이 신호가 된다 ──
     ("수급 없는 시장 관문을 뗀다(재료 없는 종목에서 의견을 낸다/죽는다)",

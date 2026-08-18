@@ -3427,11 +3427,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
     # 검사들이 "경보 없음"을 확인하지 못하고 무너졌다. 재료는 여기서 모으고
     # 판정은 저기서 한다 — 원래 이 파일들이 나눠 갖던 역할이다.
     try:
-        from quant.live.guard import GUARD_INTERVAL_MINUTES, observed_gap_minutes
+        from quant.live.guard import (GUARD_INTERVAL_MINUTES,
+                                      observed_gap_median,
+                                      observed_gap_minutes)
         _gap = observed_gap_minutes(state_dir)
         if _gap is not None:
+            # 최악만 실으면 꼬리 하나가 전체를 설명한다 — 중앙값도 함께
+            # 싣는다(감사 285). 한도 계산은 계속 최악값이다(안전 쪽).
+            _mid = observed_gap_median(state_dir)
             status["guard"] = {"observed_gap_min": round(float(_gap), 1),
                                "interval_min": GUARD_INTERVAL_MINUTES}
+            if _mid is not None:
+                status["guard"]["median_gap_min"] = round(float(_mid), 1)
     except Exception:  # noqa: BLE001 — 감시 기록이 없어도 사이트는 갱신된다
         pass
 

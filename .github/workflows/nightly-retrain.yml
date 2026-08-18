@@ -16,6 +16,13 @@ on:
 permissions:
   contents: write   # state/ 결정 기록을 main에 커밋하기 위함
 
+# ⚠️ 알림은 **저장이 끝난 뒤에** 나간다(감사 283). 이 값이 켜져 있으면
+#    배치는 알림을 보내지 않고 대기열에 쌓고, 커밋·푸시가 성공한 뒤
+#    `quant notify --flush`가 그때 내보낸다. 관문에서 죽으면 대기열은
+#    러너와 함께 사라진다 — 일어나지 않은 일은 방송하지 않는다.
+env:
+  QUANT_DEFER_NOTICE: "1"
+
 jobs:
   retrain:
     runs-on: ubuntu-latest
@@ -96,7 +103,16 @@ jobs:
           git commit -m "야간 재학습 기록: $(date -u +%F) 챔피언 결정 [skip actions]"
           # 다른 커밋과 경합할 수 있으므로 리베이스 후 푸시(최대 4회 재시도)
           for i in 1 2 3 4; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              # ⚠️ **저장이 끝난 뒤에야 방송한다**(감사 283). 배치는
+              #    ①계산 →②알림 →③장부 관문 →④커밋 순서였고, ③에서
+              #    죽으면 ②는 이미 나간 뒤였다. 2026-08-17 밤 실제로 그랬다 —
+              #    폰에는 "자산 999,078원", "챔피언 교체 SPY·QQQ"가 남았는데
+              #    장부에는 그런 일이 없다. 관문에서 죽으면 대기열은 러너와
+              #    함께 사라지고 실패 경보만 나간다.
+              python -m quant notify --flush || true
+              exit 0
+            fi
             sleep $((2**i))
           done
           echo "❌ state/ 커밋 푸시 실패"; exit 1

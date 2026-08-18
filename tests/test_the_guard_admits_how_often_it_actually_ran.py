@@ -233,3 +233,72 @@ def test_the_public_page_does_not_state_the_interval_as_a_bare_fact():
     assert "558" in trust, (
         "실측 간격이 예약과 크게 다르다는 사실이 공개 페이지에 없다 — "
         "'15분마다 봅니다'만 남아 있으면 그건 사실이 아닌 문장이다")
+
+
+# ── 최악만 적으면 꼬리 하나가 전체를 설명한다 (감사 285) ─────────
+
+def _beats(tmp_path, minutes: list[int]):
+    """0분부터 주어진 간격으로 심장박동을 찍는다."""
+    import datetime as dt
+    import json
+
+    t = dt.datetime(2026, 8, 15, 0, 0, tzinfo=dt.timezone.utc)
+    out = [t.isoformat()]
+    for m in minutes:
+        t = t + dt.timedelta(minutes=m)
+        out.append(t.isoformat())
+    (tmp_path / "guard_heartbeat.json").write_text(
+        json.dumps({"beats": out, "actions": []}), encoding="utf-8")
+    return out
+
+
+def test_it_reports_the_typical_gap_too(tmp_path):
+    """실측 117회의 중앙값은 29분인데 경보는 558분만 말했다(감사 285).
+
+    최악만 적으면 감시가 거의 안 도는 것처럼 읽힌다 — 나쁜 쪽만 적는 것도
+    이 저장소가 하지 않는 일이다.
+    """
+    from quant.live.guard import observed_gap_median, observed_gap_minutes
+
+    # MIN_BEATS_FOR_GAP만큼은 있어야 판정한다 — 표본이 판정한다(감사 111).
+    _beats(tmp_path, [15] * 10 + [600] + [15] * 3)
+    assert observed_gap_minutes(str(tmp_path)) == 600
+    assert observed_gap_median(str(tmp_path)) == 15
+
+
+def test_the_median_never_replaces_the_worst_case(tmp_path):
+    """⚠️ 한도 계산은 **계속 최악값**이어야 한다 — 중앙값으로 바꾸면 안전장치가
+    느슨해진다. 이 검사가 그 자리를 못 박는다.
+    """
+    import inspect
+
+    from quant.risk import leverage_gate as LG
+
+    src = inspect.getsource(LG)
+    assert "observed_gap_median" not in src, (
+        "레버리지 관문이 중앙값을 쓴다 — 한도는 최악 간격으로만 계산한다")
+
+
+def test_a_thin_record_declares_no_median(tmp_path):
+    """대조군 — 표본이 모자라면 중앙값도 말하지 않는다(적중률과 같은 규칙)."""
+    from quant.live.guard import observed_gap_median
+
+    _beats(tmp_path, [15, 15])       # MIN_BEATS_FOR_GAP(10)에 한참 못 미친다
+    assert observed_gap_median(str(tmp_path)) is None
+
+
+def test_the_alarm_carries_both_numbers():
+    """경보가 최악과 보통을 함께 말하는가 — 그리고 없으면 지어내지 않는가."""
+    from quant.live.flag_watch import _current_flags
+
+    st = {"guard": {"observed_gap_min": 558.0, "interval_min": 15.0,
+                    "median_gap_min": 29.0}}
+    msg = " ".join(v for k, v in _current_flags(st, today="2026-08-18").items()
+                   if k.startswith("guard_late"))
+    assert "558" in msg and "29분" in msg and "중앙값" in msg, msg
+
+    st["guard"].pop("median_gap_min")
+    msg2 = " ".join(v for k, v in _current_flags(st, today="2026-08-18").items()
+                    if k.startswith("guard_late"))
+    assert "558" in msg2, msg2
+    assert "중앙값" not in msg2, f"모르는 중앙값을 지어냈다: {msg2}"

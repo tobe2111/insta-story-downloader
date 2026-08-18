@@ -175,7 +175,11 @@ def test_retrain_injects_event_wrap_challenger(tmp_path, monkeypatch):
 
     import quant.live.retrain as rt
 
-    idx = pd.date_range("2024-01-01", periods=400, freq="D")
+    # ⚠️ 마지막 봉이 **오늘**이어야 한다(감사 284). 고정 과거 날짜를 쓰면
+    #    "묵은 시세로는 챔피언을 다시 뽑지 않는다" 관문에 걸린다 — 이 검사가
+    #    보려는 것은 링에 오르는 후보이지 시세 신선도가 아니다.
+    idx = pd.date_range(end=pd.Timestamp.today().normalize(), periods=400,
+                        freq="D")
     rng = np.random.default_rng(0)
     close = pd.Series(100 * np.cumprod(1 + rng.normal(0, 0.01, len(idx))), index=idx)
     df = pd.DataFrame({"open": close, "high": close, "low": close,

@@ -1037,6 +1037,24 @@ def verify_retrain(asof: str, *, market: str | None = None,
     return results
 
 
+# 마지막 봉이 며칠까지 묵어도 되는가. 코인은 24시간 시장이라 짧고,
+# 주식은 주말·연휴가 있어 길다. 넘으면 그 종목은 **실패**로 멈춘다 —
+# 묵은 시세로 챔피언을 다시 뽑는 것보다 안 뽑는 쪽이 낫다(감사 284).
+MAX_BAR_AGE_DAYS = {"crypto": 2, "": 5}
+
+
+def _bar_age_days(asof: str, today: str | None = None) -> int | None:
+    """마지막 봉이 며칠 묵었나. 날짜를 못 읽으면 None(판단하지 않는다)."""
+    import datetime as _dt
+
+    try:
+        day = _dt.date.fromisoformat(str(asof)[:10])
+        now = (_dt.date.fromisoformat(today) if today else _dt.date.today())
+    except (TypeError, ValueError):
+        return None
+    return (now - day).days
+
+
 def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,
@@ -1074,10 +1092,33 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     current_spec = {"strategy": entry["strategy"], "params": entry["params"]}
     asof = str(df.index[-1])[:10]              # 기준 시점 = 데이터 마지막 봉(재현 가능)
 
+    # ⚠️ **묵은 봉이 '오늘 이미 했다'로 읽히고 있었다**(감사 284).
+    #    2026-08-16 밤, 코인 5종의 마지막 봉이 **2026-03-04**였다(감사 261의
+    #    페이지네이션 결함). 그런데 챔피언의 last_run_asof도 2026-03-04이라
+    #    아래 멱등 가드가 그대로 걸렸고, 화면에는 "오늘 이미 재학습함,
+    #    건너뜀"이 찍혔다. **'오늘'이 아니라 165일 전이었다.**
+    #
+    #    그래서 시세 공급이 얼어붙은 165일 동안, 코인 5종은 오디션을 한 번도
+    #    열지 못한 채 옛 챔피언으로 **실제 돈을 굴렸고** 배치는 매일 조용했다.
+    #    정체 경보(감사 243)가 뒤늦게 잡아 주긴 했지만, 그건 사후 보고다 —
+    #    멈춰야 할 자리에서 멈추지 않았다.
+    #
+    #    개수를 채웠다와 최신까지 받았다가 다르듯, **같은 봉이다**와
+    #    **오늘 것이다**도 다르다. 데이터가 묵었으면 조용히 건너뛰지 말고
+    #    시끄럽게 실패한다 — 그 종목만 실패로 잡히고 나머지는 계속 돈다.
+    if require_real_data:
+        _age = _bar_age_days(asof)
+        _cap = MAX_BAR_AGE_DAYS.get(market, MAX_BAR_AGE_DAYS[""])
+        if _age is not None and _age > _cap:
+            raise RuntimeError(
+                f"{market}/{symbol}: 마지막 봉이 {asof}로 {_age}일 묵었습니다"
+                f"(허용 {_cap}일). 묵은 시세로 챔피언을 다시 뽑지 않습니다 — "
+                "시세 공급 경로를 확인하세요.")
+
     # 멱등 가드 — 같은 봉(같은 날)에 이미 대결했으면 통째로 건너뛴다.
     # 예비(재시도) 크론이 성공한 날을 다시 돌려 기록을 중복시키지 않게 한다.
     if entry.get("last_run_asof") == asof:
-        print(f"[{asof}] {market}/{symbol} — 오늘 이미 재학습함, 건너뜀")
+        print(f"[{asof}] {market}/{symbol} — 같은 봉으로 이미 재학습함, 건너뜀")
         return {"skipped": True, "key": key, "champion": entry}
 
     # 도전자 = 고정 기본 후보 + 챔피언 돌연변이(진화 탐색) + 레짐/이벤트 변형.

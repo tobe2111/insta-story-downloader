@@ -108,6 +108,22 @@ def observed_gap_minutes(state_dir: str = "state",
     now_iso를 주면 '마지막 심장박동 이후 지금까지'도 간격으로 센다.
     감시가 **지금 멈춰 있는** 상태를 못 보면 이 함수는 반쪽이다.
     """
+    gaps = _gaps_or_none(state_dir, now_iso)
+    return max(gaps) if gaps else None
+
+
+def _gaps(stamps: list) -> list[float]:
+    return [(b - a).total_seconds() / 60.0
+            for a, b in zip(stamps, stamps[1:]) if b > a]
+
+
+def _gaps_or_none(state_dir: str, now_iso: str | None) -> list[float] | None:
+    """심장박동 → 간격 목록. 표본이 모자라면 None(판정하지 않는다).
+
+    ⚠️ 최악값과 중앙값이 **같은 재료**를 봐야 한다(감사 285). 각자 파싱하게
+       두면 언젠가 한쪽만 고쳐지고 두 숫자가 다른 이야기를 한다 —
+       이 저장소가 ①번 규칙으로 못 박아 온 바로 그 모양이다.
+    """
     import datetime as dt
 
     st = load_heartbeat(state_dir)
@@ -126,9 +142,26 @@ def observed_gap_minutes(state_dir: str = "state",
     if len(stamps) < MIN_BEATS_FOR_GAP:
         return None
     stamps.sort()
-    gaps = [(b - a).total_seconds() / 60.0
-            for a, b in zip(stamps, stamps[1:]) if b > a]
-    return max(gaps) if gaps else None
+    return _gaps(stamps)
+
+
+def observed_gap_median(state_dir: str = "state",
+                        *, now_iso: str | None = None) -> float | None:
+    """관측된 감시 간격의 **중앙값**(분). 모르면 None.
+
+    ⚠️ 왜 최악만으로는 모자란가 (2026-08-18, 감사 285). 경보는 최악 간격
+       **558분(9.3시간)**만 말한다. 그 숫자만 보면 감시가 거의 안 도는 것처럼
+       읽히지만, 실측 117회의 중앙값은 **29분**이고 60분을 넘은 것은 3%다.
+       꼬리 하나로 전체를 설명하면 그것도 사실과 다르다.
+
+       레버리지 한도는 **계속 최악값으로** 계산한다(안전 쪽). 중앙값은
+       사람에게 '이 감시가 실제로 어느 정도인가'를 알려 주는 용도다 —
+       나쁜 쪽만 적는 것도, 좋은 쪽만 적는 것도 이 저장소가 하지 않는 일이다.
+    """
+    import statistics
+
+    gaps = _gaps_or_none(state_dir, now_iso)
+    return statistics.median(gaps) if gaps else None
 
 
 @dataclass(frozen=True)
