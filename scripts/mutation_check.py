@@ -5277,17 +5277,12 @@ MUTATIONS = [
      "        (false",
      "tests/test_the_first_screen_answers_the_first_question.py"),
 
-    ("고급 카드를 처음부터 펴 둔다(처음 온 사람에게 벽이 된다)",
-     "docs/index.html",
-     "\n.adv{display:none}\nbody.detail .adv{display:block}",
-     "\n.adv{display:block}\nbody.detail .adv{display:block}",
-     "tests/test_the_first_screen_answers_the_first_question.py"),
-
-    ("급한 경고까지 접는다(접힌 경고는 없는 경고다)",
-     "docs/index.html",
-     "body:not(.detail) .side .flag:not(.crit){display:none}",
-     "body:not(.detail) .side .flag{display:none}",
-     "tests/test_the_first_screen_answers_the_first_question.py"),
+    # ⚠️ 여기 있던 두 항목('고급 카드를 처음부터 펴 둔다'·'급한 경고까지
+    #    접는다')은 내렸다 — 사장님 지시(2026-08-18)로 첫 화면을 08-17 아침
+    #    구성(전체 화면·접이식 없음)으로 복원하면서 대상 코드(간단/자세히
+    #    보기)가 사라졌다. 접힌 것이 없으니 '접힌 경고'도 없다. 감사 274의
+    #    데이터 정직성(오래된 숫자 경고·🚨 구분·세 표 차트 창·종목 키)은
+    #    옛 화면에 이식되어 위·아래 항목들이 계속 지킨다.
 
     ("차트 창을 종목표 한 곳에만 건다(다른 표는 눌러도 안 열린다)",
      "docs/index.html",
@@ -5320,11 +5315,11 @@ MUTATIONS = [
      "      const el=null;",
      "tests/test_the_numbers_on_the_page_agree.py"),
 
-    ("준실시간 합계를 잔고 표에만 칠한다(한 화면이 두 금액을 말한다)",
-     "docs/index.html",
-     "        '<div class=\"sub lvv\" data-k=\"__total__\" style=\"margin-top:6px\"></div>';",
-     "        '';",
-     "tests/test_the_numbers_on_the_page_agree.py"),
+    # ⚠️ '준실시간 합계를 잔고 표에만 칠한다' 항목도 내렸다(2026-08-18) —
+    #    대상이던 '한눈에' 카드의 __total__ 자리가 화면 복원으로 사라져,
+    #    준실시간 합계를 말하는 자리는 잔고 표와 live-note 두 곳이 됐고
+    #    둘 다 paintLive() 한 곳이 같은 값을 칠한다. 자릿수 관문은 아래
+    #    항목이 계속 지킨다.
 
     ("자릿수가 다른 준실시간 값도 그대로 내보낸다(환율이 빠지면 1,400배)",
      "docs/index.html",

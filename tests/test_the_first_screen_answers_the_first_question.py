@@ -1,25 +1,21 @@
-"""첫 화면이 **처음 온 사람의 첫 질문**에 답하지 않았다 (감사 274).
+"""첫 화면이 **처음 온 사람의 첫 질문**에 답하는가 (감사 274 · 2026-08-18 개정).
 
-사장님 2026-08-17:
-  *"너무 정보가 많아. 얼마를 언제 투자를 했고, 지금 얼마 손해 혹은 이익인지
-   그 정도만 나오는게 맞지 않아? 지금은 처음 보면 복잡해서 이해를 못해."*
+감사 274는 사장님의 "너무 정보가 많아" 지적에 접이식 화면('한눈에' 카드 +
+간단/자세히 보기)으로 답했다. 하루 뒤 사장님이 다시 지시하셨다:
 
-맞는 지적입니다. 첫 화면은 다음 순서였습니다.
+  *"일단 이 페이지 예전으로 돌려줘. 지금은 페이지 전체를 가득 채우는 형태의
+   UI가 무너졌어."* (2026-08-18)
 
-    ① 다운로드 광고 ("1,000,000원으로 굴리는 자동매매")
-    ② 오른쪽 구석에 작은 글씨로 997,198원 · 판정 시계 · 검증한 도전자 3,880개
-    ③ 사이드바에 경고 여덟 줄
-    ④ 카드 열둘 · 표 셋
+그래서 화면은 **08-17 아침의 전체 화면 구성**으로 되돌렸다. 되돌린 것은
+**배치**뿐이다 — 감사 274·275가 고친 데이터 정직성은 옛 화면에 그대로
+이식했고, 이 파일이 그것을 지킨다:
 
-**"내 돈이 지금 얼마인가"가 광고 문구보다 아래에 있었습니다.**
-
-그리고 같은 날 사장님이 물으셨습니다: *"997,198원 지금 상황이 이거 맞아?"*
-물어봐야 알 수 있었다는 것 자체가 답입니다 — 그 숫자는 **이틀 전** 것이었고
-(08-16 밤 배치가 본실행·재시도 모두 실패했고, 08-17 배치는 아직 돌기 전이었습니다)
-화면 어디에도 그 사실이 크게 적혀 있지 않았습니다.
-
-**숫자를 지우지는 않습니다.** 공개 장부에서 값을 없애는 것은 답이 아닙니다.
-기본을 접어 두고, 누르면 펴지게 합니다.
+  ① 계좌 금액·손익이 화면에 있고 스크립트 오류 없이 그려진다
+  ② 오래된 숫자는 오래됐다고 말한다(🚨 경고 — 사장님이 "지금 상황이 이거
+     맞아?"라고 물어봐야 했던 그 자리)
+  ③ 아무것도 접히지 않는다 — 접이식을 되돌렸으니 접힌 경고도 없어야 한다
+  ④ 세 표(잔고·거래내역·종목별 현황) 어디서든 종목을 누르면 차트 창이 열린다
+  ⑤ 두 비중 열은 다른 이름을 가진다(같은 질문의 두 답으로 읽히지 않게)
 """
 
 from __future__ import annotations
@@ -38,9 +34,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278). 이 줄이
-# 파일마다 컨테이너 전용 경로를 적고 있던 탓에, GitHub 러너에서는
-# 일곱 파일의 화면 계약이 통째로 조용히 건너뛰어지고 있었다.
+# 브라우저를 어디서 찾는지는 **한 곳에서만** 정한다(감사 278).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _browser import block_external, chromium_or_skip  # noqa: E402
 
@@ -102,50 +96,46 @@ def page(browser, site):
     pg.close()
 
 
-# ── ① 첫 질문에 답하는가 ─────────────────────────────────────────
+# ── ① 돈 이야기가 화면에 있는가 ──────────────────────────────────
 
-def test_the_money_answer_comes_first(page):
-    """돈 이야기가 **다운로드 광고보다 위에** 있어야 한다.
-
-    순서가 곧 우선순위다. 광고가 먼저면 이 사이트는 '기록 공개'가 아니라
-    '제품 판매' 페이지로 읽힌다.
-    """
-    g = page.locator("#glance").bounding_box()
-    hero = page.locator("section.hero").bounding_box()
-    assert g and hero, (g, hero)
-    assert g["y"] < hero["y"], f"한눈에({g['y']})가 히어로({hero['y']}) 아래에 있다"
-
-
-def test_it_says_how_much_when_and_the_profit(page):
-    txt = page.locator("#glance").inner_text()
-    assert "1,000,000원" in txt, f"넣은 돈이 없다:\n{txt}"
-    assert "2026-08-13" in txt, f"언제 시작했는지가 없다:\n{txt}"
+def test_the_account_and_its_profit_are_on_screen(page):
+    """히어로 증거 칸이 계좌 금액과 손익률을 말해야 한다."""
+    txt = page.locator("#pv-eq").inner_text()
     assert "997,198원" in txt, f"지금 얼마인지가 없다:\n{txt}"
-    assert "2,802원" in txt, f"손익 금액이 없다:\n{txt}"
     assert "0.28%" in txt, f"손익 비율이 없다:\n{txt}"
-    assert "손해" in txt, f"이익인지 손해인지 말하지 않는다:\n{txt}"
+    amt = page.locator("#hero-amt").inner_text()
+    assert "1,000,000원" in amt, f"원금이 없다:\n{amt}"
 
 
-def test_the_biggest_number_on_the_screen_is_the_account(page):
-    """가장 큰 글씨가 계좌 금액이어야 한다 — 크기가 곧 '이게 중요하다'는 말이다."""
-    size = page.evaluate(
-        """() => parseFloat(getComputedStyle(
-             document.querySelector('#glance .gnum')).fontSize)""")
-    assert size >= 30, f"계좌 금액이 {size}px로 작다"
+def test_the_glance_card_stays_removed_by_owner_decision(page):
+    """'한눈에' 카드는 사장님 지시(2026-08-18)로 내렸다.
+
+    이 검사는 그 결정의 자물쇠다 — 카드를 다시 올리려면 이 검사를
+    **의도적으로** 되돌려야 한다. 화면 구성이 소리 없이 오가는 것을 막는다.
+    """
+    assert page.locator("#glance").count() == 0, (
+        "내리기로 한 '한눈에' 카드가 되살아났다 — 의도한 복원이면 이 검사를 "
+        "함께 고치라")
+    assert page.locator("#morebtn").count() == 0, (
+        "내리기로 한 접이식 버튼이 되살아났다")
 
 
 # ── ② 오래된 숫자를 오늘처럼 말하지 않는가 ───────────────────────
 
 def test_a_stale_number_says_it_is_stale(page):
-    """사장님이 "지금 상황이 이거 맞아?"라고 물어야 했던 이유가 여기다."""
-    txt = page.locator("#glance").inner_text()
-    assert DAY in txt, f"기준일이 없다:\n{txt}"
-    assert "일 전" in txt, f"며칠 전 숫자인지 말하지 않는다:\n{txt}"
-    assert "지금" not in txt.split("기준입니다")[0].split("넣은 돈")[0], txt
+    """사장님이 "지금 상황이 이거 맞아?"라고 물어야 했던 이유가 여기다.
+
+    기준일(2026-08-15)이 오늘이 아니면 사이드바 경고가 🚨로 말해야 한다.
+    """
+    side = page.locator("#side-flags").inner_text()
+    assert DAY in side, f"기준일이 없다:\n{side[:600]}"
+    assert "일 전" in side, f"며칠 전 숫자인지 말하지 않는다:\n{side[:600]}"
+    assert "시세로 평가된 금액" in side, (
+        f"낡은 숫자의 의미(그날 시세 평가)를 말하지 않는다:\n{side[:600]}")
 
 
 def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
-    """대조군 — 오늘 기록이면 경고 띠가 뜨면 안 된다.
+    """대조군 — 오늘 기록이면 경고가 뜨면 안 된다.
 
     이게 없으면 "항상 낡았다고 적는다"도 통과하고, 그러면 진짜 정체를
     구별할 수 없다.
@@ -171,60 +161,40 @@ def test_a_fresh_number_is_not_scolded(browser, site, tmp_path):
         block_external(pg)
         pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
         pg.wait_for_timeout(2400)
-        txt = pg.locator("#glance").inner_text()
+        side = pg.locator("#side-flags").inner_text()
         pg.close()
     finally:
         srv.shutdown()
-    assert "일 전" not in txt, f"오늘 기록인데 낡았다고 말한다:\n{txt}"
-    assert today in txt, txt
+    assert "기준입니다" not in side, f"오늘 기록인데 낡았다고 말한다:\n{side[:600]}"
 
 
-# ── ③ 처음에는 접혀 있고, 누르면 펴지는가 ────────────────────────
+# ── ③ 아무것도 접혀 있지 않은가 ──────────────────────────────────
 
-FOLDED = ["🕰 판정 시계", "🎯 리스크 설정", "🧾 체결 가정 검증",
-          "오답 노트", "탈락자 아카이브"]
-ALWAYS = ["한눈에", "통합 계좌", "잔고", "거래내역", "종목별 현황"]
-
-
-def _visible_headings(pg):
-    return [h.inner_text().split("\n")[0].strip()
-            for h in pg.locator("main h2").all() if h.is_visible()]
+CARDS = ["🕰 판정 시계", "🎯 리스크 설정", "🧾 체결 가정 검증",
+         "오답 노트", "탈락자 아카이브"]
 
 
-def test_the_advanced_cards_start_folded(page):
-    vis = _visible_headings(page)
-    for name in FOLDED:
-        assert name not in vis, f"'{name}'이 처음부터 펴져 있다: {vis}"
-    for name in ALWAYS:
-        assert name in vis, f"'{name}'이 사라졌다: {vis}"
+def test_every_card_is_visible_from_the_start(page):
+    """접이식은 되돌렸다(2026-08-18) — 전부 처음부터 보여야 한다.
 
-
-def test_pressing_the_button_unfolds_everything(page):
-    page.locator("#morebtn").click()
-    page.wait_for_timeout(400)
-    vis = _visible_headings(page)
-    for name in FOLDED + ALWAYS:
-        assert name in vis, f"'{name}'이 펴지지 않았다: {vis}"
-    # 다시 누르면 접힌다 — 한 방향으로만 가는 버튼은 함정이다.
-    page.locator("#morebtn").click()
-    page.wait_for_timeout(400)
-    assert "오답 노트" not in _visible_headings(page)
-
-
-def test_nothing_is_deleted_only_folded(page):
-    """접는 것은 화면뿐이다 — 값은 문서 안에 그대로 있어야 한다.
-
-    공개 장부에서 숫자를 **지우면** 그때부터 이건 장부가 아니다.
+    반쯤 되돌리면 최악이다: 접혔는데 펴는 버튼이 없으면 그 숫자는
+    공개 장부에서 **지워진 것**과 같다.
     """
-    for name in FOLDED:
-        assert page.get_by_text(name, exact=False).count() > 0, (
-            f"'{name}'이 문서에서 아예 사라졌다")
+    vis = [h.inner_text().split("\n")[0].strip()
+           for h in page.locator("main h2").all() if h.is_visible()]
+    for name in CARDS:
+        assert name in vis, f"'{name}'이 화면에 없다: {vis}"
 
 
-def test_a_red_alarm_survives_the_fold(page):
-    """🚨 경고는 접으면 안 된다 — 접힌 경고는 없는 경고다."""
-    side = page.locator("aside.side").inner_text()
-    assert "🚨" in side, f"급한 경고가 간단 보기에서 사라졌다:\n{side[:400]}"
+def test_a_red_alarm_is_visually_urgent(page):
+    """🚨 경고는 상태 설명과 **다르게 보여야** 한다.
+
+    여덟 줄이 같은 회색으로 나란히 있으면 급한 것이 배경음이 된다(감사 274).
+    낡은 기준일 경고(위 검사)가 켜져 있으므로 crit 표시가 있어야 한다.
+    """
+    crit = page.locator("#side-flags .flag.crit")
+    assert crit.count() > 0, "🚨 경고가 crit 표시 없이 회색으로 묻혀 있다"
+    assert "🚨" in crit.first.inner_text()
 
 
 # ── ④ 세 표 모두에서 차트가 열리는가 ─────────────────────────────
@@ -271,7 +241,5 @@ def test_the_two_percent_columns_have_different_names(page):
     heads = page.locator("#baltable thead").inner_text()
     assert "계좌 비중" in heads and "실제 보유" in heads, heads
     assert "통합 비중" not in heads, f"옛 이름이 남아 있다:\n{heads}"
-    page.locator("#morebtn").click()
-    page.wait_for_timeout(300)
     sym = page.locator("#symtable").inner_text()
     assert "오늘 목표" in sym, "종목표가 목표 노출을 목표라고 말하지 않는다"

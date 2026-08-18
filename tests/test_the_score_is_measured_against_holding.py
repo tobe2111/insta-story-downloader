@@ -190,7 +190,9 @@ def _render(tmp_path, history, principal):
             pg.on("pageerror", lambda e: errors.append(str(e)))
             pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/index.html")
             pg.wait_for_timeout(2400)
-            txt = pg.locator("#glance").inner_text()
+            # '한눈에' 카드는 사장님 지시(2026-08-18)로 내렸다 — 보유 대비
+            # 점수는 잔고 카드 아래 #bal-bench로 자리를 옮겼다.
+            txt = pg.locator("#bal-bench").inner_text()
             b.close()
     finally:
         srv.shutdown()
