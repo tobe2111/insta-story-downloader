@@ -3,20 +3,21 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 9998.61,
-  "return_pct": -0.0139,
-  "cost_paid": 1.65,
-  "trades_total": 8,
-  "rounds_total": 3,
+  "equity": 9998.2,
+  "return_pct": -0.018,
+  "cost_paid": 2.14,
+  "trades_total": 9,
+  "rounds_total": 4,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-18T05:56:38+00:00",
+  "last_time": "2026-08-18T06:28:08+00:00",
   "booked_interval_minutes": 15,
-  "observed_gap_minutes": 30.316666666666666,
+  "observed_gap_minutes": 31.5,
   "positions": {
-    "BTC/USDT": 0.00630169,
+    "BTC/USDT": 0.01134468,
     "ETH/USDT": 0.00573734,
     "XRP/USDT": 49.72065361
   },
+  "risk_scale": 1.0,
   "last_skipped": {},
   "equity_curve": [
     [
@@ -30,7 +31,107 @@
     [
       "2026-08-18T05:56:38+00:00",
       9998.61
+    ],
+    [
+      "2026-08-18T06:28:08+00:00",
+      9998.2
     ]
+  ],
+  "hold_return_pct": 0.0,
+  "judgement": {
+    "registered_on": "2026-08-18",
+    "min_days": 30,
+    "criteria": [
+      "관찰 30일 이상 — 충족 전에는 어떤 승패 판정도 내리지 않는다",
+      "비용을 뺀 누적 수익률이 같은 기간 본 계좌(하루 1회 판단)보다 높다",
+      "일별 수익률 차이의 95% 신뢰구간이 0을 배제한다 — 우연으로 설명되는 차이는 무승부다",
+      "실험의 최대 낙폭이 같은 기간 본 계좌의 1.5배를 넘지 않는다 — 수익이 위험을 사서 온 것이면 승리가 아니다"
+    ],
+    "note": "이 기준은 첫 기록이 쌓이기 전에 등록했고 바꾸지 않는다. 바꿔야 한다면 그 사실과 이유를 이 자리에 함께 공개한다."
+  },
+  "elapsed_days": 0.06,
+  "recent_trades": [
+    {
+      "time": "2026-08-18T05:00:03+00:00",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "notional": 212.06,
+      "price": 64219.5,
+      "cost": 0.3181,
+      "signal": 0.106
+    },
+    {
+      "time": "2026-08-18T05:00:03+00:00",
+      "symbol": "ETH/USDT",
+      "side": "buy",
+      "notional": 154.37,
+      "price": 1896.59,
+      "cost": 0.2316,
+      "signal": 0.0772
+    },
+    {
+      "time": "2026-08-18T05:00:03+00:00",
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "notional": 224.23,
+      "price": 0.9946,
+      "cost": 0.3363,
+      "signal": 0.1121
+    },
+    {
+      "time": "2026-08-18T05:30:22+00:00",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "notional": 111.88,
+      "price": 64236.3,
+      "cost": 0.1678,
+      "signal": 0.162
+    },
+    {
+      "time": "2026-08-18T05:30:22+00:00",
+      "symbol": "ETH/USDT",
+      "side": "sell",
+      "notional": -52.84,
+      "price": 1895.51,
+      "cost": 0.0793,
+      "signal": 0.0507
+    },
+    {
+      "time": "2026-08-18T05:30:22+00:00",
+      "symbol": "XRP/USDT",
+      "side": "sell",
+      "notional": -175.08,
+      "price": 0.9963,
+      "cost": 0.2626,
+      "signal": 0.0248
+    },
+    {
+      "time": "2026-08-18T05:56:38+00:00",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "notional": 80.79,
+      "price": 64222.3,
+      "cost": 0.1212,
+      "signal": 0.2024
+    },
+    {
+      "time": "2026-08-18T05:56:38+00:00",
+      "symbol": "ETH/USDT",
+      "side": "sell",
+      "notional": -90.59,
+      "price": 1895.99,
+      "cost": 0.1359,
+      "signal": 0.0054
+    },
+    {
+      "time": "2026-08-18T06:28:08+00:00",
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "notional": 323.94,
+      "price": 64235.4,
+      "cost": 0.4859,
+      "signal": 0.3644
+    }
   ],
   "honest_limits": [
     "가상 자금(USDT)입니다 — 실제 돈이 아니고, 실제 호가·유동성을 겪지 않습니다",
