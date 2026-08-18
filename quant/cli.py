@@ -194,6 +194,17 @@ def _cmd_paper_daily(args) -> None:
         run_daily_paper, run_daily_paper_all, write_docs_status,
     )
 
+    # 수동 킬스위치 — 사장님이 조종석에서 멈춰 둔 날은 아무 주문도 내지
+    # 않고 장부도 건드리지 않는다. 다만 status.json은 갱신해서(스위치
+    # 상태가 실린다) 사이트가 "왜 오늘 기록이 없는지"를 말할 수 있게 한다.
+    from quant.live.manual_halt import gate_message
+    _halt = gate_message(args.state_dir)
+    if _halt:
+        print(_halt)
+        if args.docs:
+            write_docs_status(args.state_dir)
+        return
+
     common = dict(timeframe=args.timeframe, lookback=args.lookback,
                   state_dir=args.state_dir,
                   require_real_data=not args.allow_synthetic)
@@ -526,6 +537,51 @@ def _cmd_walkforward(args) -> None:
         with open(args.save, "w", encoding="utf-8") as f:
             _json.dump(rep, f, ensure_ascii=False, indent=1)
         print(f"\n💾 저장: {args.save}")
+
+
+def _cmd_web_passwd(args) -> None:
+    """조종석 로그인 설정 — 비밀번호는 화면에도, 파일에도 평문으로 안 남는다."""
+    import getpass
+
+    from quant.web.auth import set_credentials
+
+    user = input("아이디(이메일 등): ").strip()
+    if not user:
+        print("아이디가 비어 있습니다 — 중단합니다.")
+        raise SystemExit(1)
+    pw = getpass.getpass("비밀번호(입력해도 화면에 안 보입니다): ")
+    pw2 = getpass.getpass("확인을 위해 한 번 더: ")
+    if pw != pw2:
+        print("두 입력이 다릅니다 — 중단합니다.")
+        raise SystemExit(1)
+    if len(pw) < 8:
+        print("8자 이상으로 해주세요 — 중단합니다.")
+        raise SystemExit(1)
+    set_credentials(user, pw)
+    print("🔐 저장했습니다(.env — 해시만 저장, 커밋 금지 목록). "
+          "웹 조종석을 다시 켜면 로그인 화면이 뜹니다.")
+
+
+def _cmd_intraday_round(args) -> None:
+    """장중 도전자 1회 — 본 계좌와 분리된 실험 트랙(가상 USDT)."""
+    import datetime as dt
+
+    from quant.live.intraday_challenger import run_intraday_round
+
+    # 수동 킬스위치는 실험 트랙에도 걸린다 — 본 계좌만 멈추고 실험이 계속
+    # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.
+    from quant.live.manual_halt import gate_message
+    _halt = gate_message(args.state_dir)
+    if _halt:
+        print(_halt)
+        return
+
+    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    v = run_intraday_round(now, state_dir=args.state_dir,
+                           docs_dir=args.docs_dir)
+    print(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
+          f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
+          f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
 
 
 def _cmd_guard(args) -> None:
@@ -1456,6 +1512,19 @@ def build_parser() -> argparse.ArgumentParser:
     gd.add_argument("--state-file", default="portfolio_ALL.json",
                     dest="state_file")
     gd.set_defaults(func=_cmd_guard)
+
+    wp = sub.add_parser(
+        "web-passwd",
+        help="웹 조종석 로그인 설정 — 아이디·비밀번호(해시로만 저장)")
+    wp.set_defaults(func=_cmd_web_passwd)
+
+    ir = sub.add_parser(
+        "intraday-round",
+        help="장중 도전자 1회 — 챔피언 규칙을 1시간봉에 적용하는 분리 실험"
+             "(가상 USDT · 본 계좌와 무관)")
+    ir.add_argument("--state-dir", default="state", dest="state_dir")
+    ir.add_argument("--docs-dir", default="docs", dest="docs_dir")
+    ir.set_defaults(func=_cmd_intraday_round)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)

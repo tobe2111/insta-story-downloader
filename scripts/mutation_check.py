@@ -2367,6 +2367,20 @@ MUTATIONS = [
      '        detail = exc.read().decode(errors="replace")[:2000]',
      "tests/test_credentials_do_not_leak_over_http.py"),
 
+    # ── 재현성 감사 — '기록 없는 날'과 '조작 의심'의 구분 (2026-08-18) ───
+    # 실측: 광복절 연휴에 기록이 없자 "조작 불가능 주장이 걸린 문제" 경보가
+    # 이틀 연속 울렸고, 그 실패가 위험 리포트 갱신·검증 커밋까지 막았다.
+    ("기록 없는 날마다 조작 의심 경보가 울린다(연휴마다 늑대소년)",
+     "quant/live/retrain.py",
+     '        return [{"key": "-", "ok": True, "no_records": True,',
+     '        return [{"key": "-", "ok": False, "no_records": True,',
+     "tests/test_verify_gate.py"),
+    ("기록 파일이 통째로 없어도 초록이 된다(상태 폴더가 날아간 날 침묵)",
+     "quant/live/retrain.py",
+     '        return [{"key": "-", "ok": False, "detail": "재학습 기록 파일 없음"}]',
+     '        return [{"key": "-", "ok": True, "detail": "재학습 기록 파일 없음"}]',
+     "tests/test_verify_gate.py"),
+
     # ── 웹 조종석 '내 전략' — CLI와 같은 관문을 웹에서도 (2026-08-17) ────
     ("웹이 미리보기 없이 바로 저장한다(붙여넣자마자 도전자가 늘어난다)",
      "quant/web/mystrategy.py",
@@ -3678,8 +3692,8 @@ MUTATIONS = [
 
     ("웹 토큰 인증을 통과시킨다(노출 시 무인증 접근)",
      "quant/web/server.py",
-     "        return hmac.compare_digest(supplied, token)",
-     "        return True",
+     "            if hmac.compare_digest(supplied, token):",
+     "            if True:",
      "tests/test_web.py"),
 
     ("합성 폴백 데이터 배너를 끈다(가짜 데이터를 진짜처럼)",
@@ -3912,19 +3926,13 @@ MUTATIONS = [
      "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
      "            return\n"
      "        if not self._authorized(parsed):\n"
-     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
-     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
-     "            return\n"
-     "        if parsed.path in (\"/\", \"/index.html\"):",
+     "            from quant.web import auth as _auth",
      "        if False:\n"
      "            self._send(\"교차 출처 요청은 거부됩니다(CSRF 방지).\",\n"
      "                       status=403, content_type=\"text/plain; charset=utf-8\")\n"
      "            return\n"
      "        if not self._authorized(parsed):\n"
-     "            self._send(\"인증이 필요합니다: ?token=... 또는 X-Auth-Token 헤더를 제공하세요.\",\n"
-     "                       status=401, content_type=\"text/plain; charset=utf-8\")\n"
-     "            return\n"
-     "        if parsed.path in (\"/\", \"/index.html\"):",
+     "            from quant.web import auth as _auth",
      "tests/test_web_csrf.py"),
 
     # chrono는 2026-08-11 감사 102에서 의존성 없는 ledger_basics로 옮겼다
@@ -5267,17 +5275,12 @@ MUTATIONS = [
      "        (false",
      "tests/test_the_first_screen_answers_the_first_question.py"),
 
-    ("고급 카드를 처음부터 펴 둔다(처음 온 사람에게 벽이 된다)",
-     "docs/index.html",
-     "\n.adv{display:none}\nbody.detail .adv{display:block}",
-     "\n.adv{display:block}\nbody.detail .adv{display:block}",
-     "tests/test_the_first_screen_answers_the_first_question.py"),
-
-    ("급한 경고까지 접는다(접힌 경고는 없는 경고다)",
-     "docs/index.html",
-     "body:not(.detail) .side .flag:not(.crit){display:none}",
-     "body:not(.detail) .side .flag{display:none}",
-     "tests/test_the_first_screen_answers_the_first_question.py"),
+    # ⚠️ 여기 있던 두 항목('고급 카드를 처음부터 펴 둔다'·'급한 경고까지
+    #    접는다')은 내렸다 — 사장님 지시(2026-08-18)로 첫 화면을 08-17 아침
+    #    구성(전체 화면·접이식 없음)으로 복원하면서 대상 코드(간단/자세히
+    #    보기)가 사라졌다. 접힌 것이 없으니 '접힌 경고'도 없다. 감사 274의
+    #    데이터 정직성(오래된 숫자 경고·🚨 구분·세 표 차트 창·종목 키)은
+    #    옛 화면에 이식되어 위·아래 항목들이 계속 지킨다.
 
     ("차트 창을 종목표 한 곳에만 건다(다른 표는 눌러도 안 열린다)",
      "docs/index.html",
@@ -5310,11 +5313,11 @@ MUTATIONS = [
      "      const el=null;",
      "tests/test_the_numbers_on_the_page_agree.py"),
 
-    ("준실시간 합계를 잔고 표에만 칠한다(한 화면이 두 금액을 말한다)",
-     "docs/index.html",
-     "        '<div class=\"sub lvv\" data-k=\"__total__\" style=\"margin-top:6px\"></div>';",
-     "        '';",
-     "tests/test_the_numbers_on_the_page_agree.py"),
+    # ⚠️ '준실시간 합계를 잔고 표에만 칠한다' 항목도 내렸다(2026-08-18) —
+    #    대상이던 '한눈에' 카드의 __total__ 자리가 화면 복원으로 사라져,
+    #    준실시간 합계를 말하는 자리는 잔고 표와 live-note 두 곳이 됐고
+    #    둘 다 paintLive() 한 곳이 같은 값을 칠한다. 자릿수 관문은 아래
+    #    항목이 계속 지킨다.
 
     ("자릿수가 다른 준실시간 값도 그대로 내보낸다(환율이 빠지면 1,400배)",
      "docs/index.html",
@@ -5520,6 +5523,143 @@ MUTATIONS = [
      "  rows.sort((a,b)=>((held[b.k]?1:0)-(held[a.k]?1:0)));",
      "  rows.sort((a,b)=>0);",
      "tests/test_the_first_screen_answers_the_first_question.py"),
+    # ── 장중 도전자 — 빈도 실험은 자기 차선을 지킨다 (2026-08-18) ──────
+    ("체결이 비용을 물지 않는다(비용 없는 단타 실험은 광고다)",
+     "quant/live/intraday_challenger.py",
+     '        st["cash"] = float(st["cash"]) - delta - fee',
+     '        st["cash"] = float(st["cash"]) - delta',
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("실험 표식을 뗀다(가상 성적이 실측처럼 읽힌다)",
+     "quant/live/intraday_challenger.py",
+     '        "kind": KIND,',
+     '        "kind": "live",',
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("감시 간격을 예약값으로 지어낸다(설정을 옮겨 적은 것은 사실이 아니다)",
+     "quant/live/intraday_challenger.py",
+     "    return max(gaps) if gaps else None",
+     "    return float(BOOKED_INTERVAL_MINUTES)",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("부스러기 매매 문턱을 없앤다(회차마다 비용만 태운다)",
+     "quant/live/intraday_challenger.py",
+     "        if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):",
+     "        if False:",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("현금 한도를 무시하고 산다(실험 계좌에 몰래 레버리지가 생긴다)",
+     "quant/live/intraday_challenger.py",
+     "            if delta > afford:",
+     "            if False:",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("미완성 봉으로 판단한다(같은 회차를 다시 돌리면 다른 결정이 나온다)",
+     "quant/live/intraday_challenger.py",
+     "    keep = (idx + pd.Timedelta(TIMEFRAME)) <= now",
+     "    keep = idx <= idx.max()",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    ("실험 계좌의 킬스위치를 뗀다(폭락장에서 실험이 본 계좌와 다른 조건으로 달린다)",
+     "quant/live/intraday_challenger.py",
+     '    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)',
+     "    scale = 1.0",
+     "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
+
+    # ── 조종석 로그인 — 잠근다고 말했으면 실제로 잠겨야 한다 (2026-08-18) ──
+    ("아무 비밀번호나 통과시킨다(로그인이 장식이 된다)",
+     "quant/web/auth.py",
+     "        return hmac.compare_digest(dk.hex(), want)",
+     "        return True",
+     "tests/test_the_cockpit_asks_who_you_are.py"),
+
+    ("로그인 설정을 무시하고 문을 연다",
+     "quant/web/server.py",
+     "        if _auth.configured():\n            return self._session_ok()",
+     "        if _auth.configured():\n            return True",
+     "tests/test_the_cockpit_asks_who_you_are.py"),
+
+    # ── 터틀 트레이딩 — 규칙이 공개된 전략은 검사도 규칙 그대로 ──────────
+    ("2N 손절을 뗀다(터틀의 영혼이 빠진다)",
+     "quant/strategies/turtle.py",
+     "                hit_stop = (not np.isnan(stop)) and c < stop",
+     "                hit_stop = False",
+     "tests/test_the_turtle_earns_its_seat.py"),
+
+    ("돌파 채널에 자기 봉을 넣는다(룩어헤드 — 종가가 자기 고가를 못 넘어 영영 진입 못 한다)",
+     "quant/strategies/turtle.py",
+     '        upper = df["high"].rolling(self.entry_window).max().shift(1).to_numpy()',
+     '        upper = df["high"].rolling(self.entry_window).max().to_numpy()',
+     "tests/test_the_turtle_earns_its_seat.py"),
+
+    # ── 차트 자료 전략 3종 — 옮긴 규칙이 자료와 갈라지면 심사가 거짓 ──
+    ("일목 구름을 미래에서 본다(선행스팬을 뒤로 밀지 않는 룩어헤드)",
+     "quant/strategies/ichimoku.py",
+     "        span_a = ((tenkan + kijun) / 2.0).shift(self.shift)",
+     "        span_a = (tenkan + kijun) / 2.0",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("파라볼릭 가속변수의 상한을 없앤다(SAR 폭주 — 자료의 0.2 상한 위반)",
+     "quant/strategies/psar.py",
+     "                    ep, af = high[i], min(self.af_max, af + self.af_step)",
+     "                    ep, af = high[i], af + self.af_step",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    ("파라볼릭의 분리 조건을 뗀다(평탄 시장에서 임의 씨앗이 그대로 포지션이 된다)",
+     "quant/strategies/psar.py",
+     "            if up and sar < low[i]:",
+     "            if up:",
+     "tests/test_every_strategy_obeys_its_own_rule.py"),
+
+    ("볼린저 수축돌파의 청산선을 뗀다(중앙선을 깨도 영영 들고 있는다)",
+     "quant/strategies/bollinger.py",
+     "                elif pos > 0 and c[i] < mid_np[i]:",
+     "                elif False:",
+     "tests/test_the_chart_book_strategies_obey_their_pages.py"),
+
+    # ── 외부 검토 ①·④ (2026-08-18) — 분산 진단이 낙관으로 굽으면 거짓 ──
+    ("음의 상관 낙관을 공개한다(ENB가 종목 수를 넘는 숫자로 부푼다)",
+     "quant/risk/effective_bets.py",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * max(rho, 0.0))",
+     "    enb = n_sym / (1.0 + (n_sym - 1) * rho)",
+     "tests/test_the_bets_are_counted_honestly.py"),
+
+    ("하락일 필터를 뗀다(하락일 상관이 전체 평균의 복사가 된다)",
+     "quant/risk/effective_bets.py",
+     "    down = df[df.mean(axis=1) < 0]",
+     "    down = df",
+     "tests/test_the_bets_are_counted_honestly.py"),
+
+    # ── 수동 킬스위치 (2026-08-18, 구축 사례 채택) — 핸드브레이크가 헛돌면 거짓 ──
+    ("일일 배치의 수동 정지 관문을 뗀다(멈춰 놔도 매매가 돈다)",
+     "quant/cli.py",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if _halt:\n"
+     "        print(_halt)\n"
+     "        if args.docs:",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if False:\n"
+     "        print(_halt)\n"
+     "        if args.docs:",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
+
+    ("장중 실험의 수동 정지 관문을 뗀다(본 계좌만 멈추고 실험은 계속 돈다)",
+     "quant/cli.py",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if _halt:\n"
+     "        print(_halt)\n"
+     "        return\n",
+     "    _halt = gate_message(args.state_dir)\n"
+     "    if False:\n"
+     "        print(_halt)\n"
+     "        return\n",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
+
+    ("재개 확인 단어를 뗀다(아무 글자나 넣어도 매매가 재개된다)",
+     "quant/web/app.py",
+     '    if str(params.get("confirm") or "").strip() != RESUME_WORD:',
+     "    if False:",
+     "tests/test_the_owner_can_pull_the_handbrake.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

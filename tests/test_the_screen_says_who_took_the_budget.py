@@ -104,8 +104,11 @@ def _flags(tmp_path_factory):
                     pg.on("pageerror", lambda e: errs.append(str(e)))
                     pg.goto(f"{url}/index.html")
                     pg.wait_for_timeout(2400)
-                    pg.click("#morebtn")     # 자세히 보기 — 상태 경고까지 편다
-                    pg.wait_for_timeout(200)
+                    # 🚨가 아닌 경고는 간단 보기에서 접혀 있다(감사 274·282).
+                    # 접힌 글자는 inner_text에 안 들어오므로 펴고 읽는다 —
+                    # "접힌 화면은 없는 화면이 아니다"(FROZEN_IDEAS ㊿+㊾).
+                    pg.click("#morebtn")
+                    pg.wait_for_timeout(300)
                     out[name] = pg.locator("#side-flags").inner_text()
                     assert not errs, f"{name}: 스크립트가 던졌다 — {errs}"
                     pg.close()

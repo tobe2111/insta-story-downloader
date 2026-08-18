@@ -265,6 +265,9 @@ body:not(.detail) #symtable tbody tr.nohold{display:none}
   padding:8px 10px;border-radius:9px;background:var(--bg3);
   border:1px solid var(--line);margin-bottom:7px}
 .flag b{color:var(--up)}
+/* 🚨로 시작하는 경고는 **지금 뭔가 잘못된** 것이다(감사 274) — 상태 설명과
+   같은 회색이면 급한 것이 배경음이 된다. */
+.flag.crit{border-color:rgba(240,68,82,.45);background:rgba(240,68,82,.07)}
 
 /* ============ 표 ============ */
 .tw{overflow-x:auto;margin-top:12px}
@@ -328,6 +331,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   <a class="lnk" href="paper.html">실시간 현황</a>
   <a class="lnk" href="today.html">오늘의 판단</a>
   <a class="lnk" href="trust.html">기록 검증</a>
+  <a class="lnk" href="intraday.html">장중 실험</a>
   <a class="lnk" href="weekly.html">주간 아카이브</a>
   <span class="navsp"></span>
   <a class="navcta" id="navdl"
@@ -1685,7 +1689,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     });
     const note=document.getElementById("live-note");
     if(!note)return;
-    if(m.complete){
+    /* live-note도 **같은 자릿수 관문**을 지난다(감사 275의 형제, PR #233).
+       잔고 표 합계는 거부하는데 이 줄만 36배짜리 값을 읽어 주면, 같은
+       화면이 서로 다른 기준으로 말하는 것이다. */
+    const bookEq2=(window.__bookEquity!=null)?window.__bookEquity:(m.sumBook+cash);
+    if(m.complete&&!QuantAmounts.livePlausible(bookEq2,m.sumLive+cash)){
+      note.innerHTML='<span class="sub">준실시간 합계는 표시하지 않습니다 — '+
+        '확정 자산('+won(bookEq2)+')과 자릿수가 달라(계산값 '+
+        won(m.sumLive+cash)+') 환율·단위가 빠진 것으로 보입니다.</span>';
+    }else if(m.complete){
       const fr=QuantLive.freshness(all,live);
       const diff=m.sumLive-m.sumBook;
       note.innerHTML='참고 · 지금 <b>'+won(m.sumLive+cash)+'</b>'+

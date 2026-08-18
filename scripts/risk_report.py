@@ -28,11 +28,20 @@ def build(state_dir: str = "state") -> dict:
     replay = replay_risk_layer(
         load_snapshot_closes(str(ROOT / state_dir / "snapshots")))
     stress = stress_from_state(str(ROOT / state_dir))
+    # 평시 vs 하락일 상관 병기 — 2026-08-18 외부 검토 ④: "시장이 떨어지는
+    # 날의 상관은 1로 몰린다. 평시 평균만 보여주면 분산 효과를 과대평가한다".
+    # 진단 전용이며 실패해도 리포트를 막지 않는다.
+    try:
+        from quant.risk.effective_bets import correlation_regimes
+        corr = correlation_regimes(str(ROOT / state_dir))
+    except Exception:  # noqa: BLE001
+        corr = None
     return {
         "kind": "simulation",
         "generated": dt.date.today().isoformat(),
         "replay": replay,
         "stress": stress,
+        "correlation": corr,
     }
 
 

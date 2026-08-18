@@ -9,7 +9,7 @@ import html
 from pathlib import Path
 
 # 폼 셀렉트용 (pandas 임포트를 피하려고 하드코딩; strategies 레지스트리와 일치)
-STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout",
+STRATEGIES = ["ma_cross", "momentum", "mean_reversion", "rsi", "breakout", "turtle", "bollinger", "psar", "ichimoku",
               "macd", "keltner", "stochastic", "ml", "ensemble"]
 MARKETS = ["synthetic", "crypto", "us_stock", "kr_stock"]
 
@@ -21,6 +21,10 @@ STRATEGY_LABELS = {
     "mean_reversion": "평균회귀 · 되돌림 매수",
     "rsi": "RSI 과매도 반등",
     "breakout": "채널 돌파 · 추세추종",
+    "turtle": "터틀 트레이딩 · 20일 돌파 + 2N 손절",
+    "bollinger": "볼린저밴드 · 박스권/수축돌파",
+    "psar": "파라볼릭 SAR · 추세 반전점",
+    "ichimoku": "일목균형표 · 호전 + 구름 돌파",
     "macd": "MACD 히스토그램",
     "keltner": "켈트너 채널 돌파",
     "stochastic": "스토캐스틱",
@@ -200,7 +204,8 @@ _FAVICON = ('<link rel="icon" href="data:image/svg+xml,'
 _NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
               ("/screener", "종목선별"), ("/sweep", "민감도"),
               ("/optimize", "최적화"), ("/validate", "검증"), ("/monitor", "감시"),
-              ("/ingest", "내 전략"), ("/deposit", "입금")]
+              ("/ingest", "내 전략"), ("/deposit", "입금"),
+              ("/halt", "긴급 정지")]
 
 
 def _nav(active: str = "") -> str:
@@ -2313,3 +2318,59 @@ setInterval(()=>candleTick(true),45000);
 setTimeout(()=>candleTick(false),800);
 setInterval(()=>{{document.getElementById("clock").textContent=new Date().toLocaleString("ko-KR")}},1000);
 </script></body></html>"""
+
+
+# ── 수동 킬스위치(긴급 정지) — 구축 사례(2026-08-18)에서 채택 ─────────
+# 자동 브레이크가 못 보는 이상(뉴스로만 아는 사고, 데이터 직감)을 사람이
+# 먼저 봤을 때 누를 스위치. 정지는 한 번에, 해제는 단어 타이핑 확인.
+def render_halt_page(message: str = "", state_dir: str = "state") -> str:
+    from quant.live.manual_halt import RESUME_WORD, status as halt_status
+    st = halt_status(state_dir)
+    if st:
+        why = html_escape(st.get("reason") or "(사유 없음)")
+        body = (
+            '<h1>🛑 긴급 정지 — 켜져 있음</h1>'
+            + _msg_html(message)
+            + f'<div class="errbox"><b>전체 매매가 멈춰 있습니다.</b> '
+              f'{html_escape(st.get("at") or "")}부터 · 사유: {why}<br>'
+              '멈춘 동안 일일 페이퍼·통합 계좌·장중 실험 배치는 아무 주문도 '
+              '내지 않고 장부도 건드리지 않습니다. 보유 포지션을 강제 청산하지는 '
+              '않습니다 — 청산 여부는 사람이 판단할 문제입니다.</div>'
+            '<form method="post" action="/halt/run">'
+            '<input type="hidden" name="on" value="0">'
+            f'<p>재개하려면 아래에 <b>{RESUME_WORD}</b>를 정확히 입력하세요 — '
+            '클릭 실수로 다시 돌기 시작하면 안 되니까요.</p>'
+            f'<p><input name="confirm" placeholder="{RESUME_WORD}" autocomplete="off"> '
+            '<button type="submit">매매 재개</button></p></form>')
+    else:
+        body = (
+            '<h1>🟢 긴급 정지 — 꺼져 있음(정상 운용 중)</h1>'
+            + _msg_html(message)
+            + '<p>무언가 이상하다고 느끼면 아래 버튼으로 <b>전체 매매를 즉시 '
+              '멈출 수 있습니다.</b> 자동 브레이크(킬스위치·서킷브레이커)와 '
+              '별개로 동작하며, 멈춰도 보유 포지션은 그대로 둡니다.</p>'
+            '<form method="post" action="/halt/run">'
+            '<input type="hidden" name="on" value="1">'
+            '<p><input name="reason" placeholder="사유(선택) — 나중에 성적을 읽을 때 각주가 됩니다" '
+            'style="min-width:320px" autocomplete="off"> '
+            '<button type="submit" style="background:#c0392b;color:#fff">'
+            '지금 전체 매매 정지</button></p></form>')
+    return _page("긴급 정지", body, "/halt")
+
+
+def run_halt_toggle(params: dict, state_dir: str = "state") -> str:
+    from quant.live.manual_halt import RESUME_WORD, set_halt
+    if str(params.get("on") or "") == "1":
+        set_halt(state_dir, True, who="cockpit",
+                 reason=str(params.get("reason") or ""))
+        return render_halt_page("정지했습니다 — 다음 매매 배치부터 주문을 내지 "
+                                "않습니다.", state_dir)
+    # 해제 — 확인 단어가 정확해야 한다. 정지는 급해도, 재개는 급하지 않다.
+    if str(params.get("confirm") or "").strip() != RESUME_WORD:
+        return render_halt_page(
+            f"실행 오류: 재개하려면 '{RESUME_WORD}'를 정확히 입력해야 합니다.",
+            state_dir)
+    set_halt(state_dir, False, who="cockpit",
+             reason=str(params.get("reason") or ""))
+    return render_halt_page("재개했습니다 — 다음 배치부터 정상 운용합니다.",
+                            state_dir)

@@ -82,6 +82,48 @@ def test_old_records_do_not_trip_the_alarm():
 
 # ── 진짜 사건 ───────────────────────────────────────────────────
 
+def test_a_day_without_records_is_not_a_tampering_alarm():
+    """기록이 **없는 날**은 재현성 사건이 아니다 (2026-08-18 실측).
+
+    광복절 연휴에 배치가 정당하게 기록을 안 남겼는데, verify가 ✘를 돌려줘
+    "🚨 조작 불가능 주장이 걸린 문제"라는 최고 수위 경보가 이틀 연속
+    울렸다. 재현성 감사의 주장은 존재하는 기록에 대한 것이다 — 기록의
+    부재는 배치 경보·데드맨이 따로 본다. 같은 사건에 틀린 이름(조작
+    의심)의 경보가 겹치면, 진짜 조작이 난 날에도 무시된다.
+    """
+    from quant.live.retrain import verify_retrain
+    import json as _json
+    import tempfile, os
+    d = tempfile.mkdtemp()
+    with open(os.path.join(d, "retrain_history.jsonl"), "w",
+              encoding="utf-8") as fh:
+        fh.write(_json.dumps({"asof": "2026-08-15", "market": "crypto",
+                              "symbol": "BTC/USDT"}) + "\n")
+    out = verify_retrain("2026-08-16", state_dir=d)
+    assert len(out) == 1 and out[0]["ok"] is True, out
+    assert "재현할 결정이 없는" in out[0]["detail"], out
+    assert "따로 감시" in out[0]["detail"], (
+        "부재를 누가 감시하는지 말하지 않으면, 읽는 사람이 '그럼 아무도 "
+        "안 보나'라고 걱정하거나 반대로 안심해 버린다")
+    # 관문도 이 줄을 사건으로 읽지 않아야 한다
+    line = f"  ✔ -: {out[0]['detail']}"
+    code, log, sent = _run(line)
+    assert code == 0 and not sent, (log, sent)
+
+
+def test_a_missing_history_file_is_still_a_failure():
+    """반대 방향 — 기록 **파일 자체가 없는 것**은 설치가 깨진 것이다.
+
+    '기록 없는 날'을 통과로 바꾸면서 이것까지 초록이 되면, 상태 폴더가
+    통째로 날아간 날 아무도 모른다.
+    """
+    from quant.live.retrain import verify_retrain
+    import tempfile
+    out = verify_retrain("2026-08-16", state_dir=tempfile.mkdtemp())
+    assert out[0]["ok"] is False
+    assert "파일 없음" in out[0]["detail"]
+
+
 def test_a_real_mismatch_fails_and_notifies():
     code, out, sent = _run(f"{REAL_PASS_LINE}\n{MISMATCH_LINE}\n")
     assert code != 0, f"결정이 달라졌는데 통과시켰다\n{out}"

@@ -253,12 +253,14 @@ def test_one_market_changing_is_enough_to_reset(tmp_path):
 
 # ── 사람에게 닿는가 ────────────────────────────────────────────
 
-def test_the_reason_reaches_the_front_page():
-    """시계가 0일차로 돌아간 이유를 사이트가 말해야 한다.
+def test_the_reason_reaches_the_reader():
+    """시계가 0일차로 돌아간 이유가 공개 기록 어딘가에는 있어야 한다.
 
-    아무 설명 없이 90일차가 4일차로 떨어지면, 보는 사람은 사고로 읽는다.
+    첫 화면의 실측 문단은 사장님 지시(2026-08-18)로 내렸다. 하지만
+    아무 설명 없이 90일차가 4일차로 떨어지면 보는 사람은 사고로 읽는다 —
+    날짜 박힌 설명은 신뢰 페이지(trust.html)에 남는다. 과거 기록은
+    다시 쓰지 않는다는 규칙이 이 문단을 지킨다.
     """
-    index = (ROOT / "docs" / "index.html").read_text("utf-8")
-    assert "g.realized" in index, (
-        "실측 피처 구성이 사이트에 안 나온다 — 시계가 왜 다시 시작했는지 "
-        "설명이 없다")
+    trust = (ROOT / "docs" / "trust.html").read_text("utf-8")
+    assert "90일 시계를 0일차로 되돌렸습니다" in trust, (
+        "시계가 왜 다시 시작했는지 날짜 박힌 설명이 공개 기록에서 사라졌다")

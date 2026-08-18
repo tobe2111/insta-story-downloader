@@ -108,8 +108,12 @@ def page(browser, site):
     pg.on("pageerror", lambda e: errors.append(str(e)))
     pg.goto(f"{site}/index.html")
     pg.wait_for_timeout(2600)
-    pg.locator("#morebtn").click()          # 접힌 곳까지 전부 대조한다
-    pg.wait_for_timeout(400)
+    # 첫 화면은 세 질문에만 답하고 나머지는 접힌다(감사 282). 이 파일은
+    # 접힌 자리의 숫자까지 대조하므로 펴고 읽는다 — 접힌 글자는
+    # inner_text()에 들어오지 않는다.
+    if pg.locator("#morebtn").count():
+        pg.click("#morebtn")
+        pg.wait_for_timeout(300)
     yield pg
     assert not errors, f"스크립트가 던졌다 — {errors}"
     pg.close()
@@ -118,11 +122,14 @@ def page(browser, site):
 # ── ① 자산은 화면 어디서나 같은 값인가 ──────────────────────────
 
 def test_the_account_value_is_the_same_everywhere(page, ledger):
-    """티커띠·한눈에·히어로·잔고 합계가 같은 자산을 말해야 한다."""
+    """티커띠·히어로·잔고 합계가 같은 자산을 말해야 한다.
+
+    ('한눈에' 카드는 사장님 지시(2026-08-18)로 내렸다 — 남은 자리끼리도
+    갈라질 수 있으므로 검사는 그대로 산다.)
+    """
     want = round(float(ledger["equity"]))
     places = {
         "티커띠": page.locator(".strip").inner_text(),
-        "한눈에": page.locator("#glance").inner_text(),
         "히어로 우측": page.locator("#proof").inner_text(),
         "잔고 합계": page.locator("#baltable").inner_text(),
     }
@@ -131,14 +138,15 @@ def test_the_account_value_is_the_same_everywhere(page, ledger):
             f"{name}에 자산 {want:,}원이 없다:\n{txt[:400]}")
 
 
-def test_the_cash_and_holdings_agree_between_card_and_sidebar(page, ledger):
-    """'한눈에'와 사이드바가 같은 현금·보유를 말해야 한다."""
+def test_the_cash_and_holdings_agree_between_table_and_sidebar(page, ledger):
+    """잔고 표와 사이드바가 장부와 같은 현금·보유를 말해야 한다."""
     cash = round(float(ledger["cash"]))
     heldv = round(sum(float(h["value"]) for h in ledger["holdings"]))
-    for sel, name in (("#glance", "한눈에"), ("#side-cash", "사이드바")):
-        got = _money(page.locator(sel).inner_text())
-        assert cash in got, f"{name}에 현금 {cash:,}원이 없다: {got}"
-        assert heldv in got, f"{name}에 보유 {heldv:,}원이 없다: {got}"
+    got = _money(page.locator("#side-cash").inner_text())
+    assert cash in got, f"사이드바에 현금 {cash:,}원이 없다: {got}"
+    assert heldv in got, f"사이드바에 보유 {heldv:,}원이 없다: {got}"
+    bal = _money(page.locator("#baltable").inner_text())
+    assert cash in bal, f"잔고 표에 현금 {cash:,}원이 없다: {bal}"
 
 
 # ── ② 잔고 표가 스스로 앞뒤가 맞는가 ────────────────────────────
@@ -285,10 +293,11 @@ def _fake_quotes(page, drift=0.01):
 
 
 def test_the_live_total_appears_in_both_places_at_once(browser, site):
-    """준실시간 합계는 **한 곳에서 계산해 두 곳에 칠한다.**
+    """준실시간 합계는 **한 곳에서 계산해 여러 곳에 칠한다.**
 
-    예전에는 잔고 표만 "지금 999,xxx원"으로 움직이고 '한눈에'는 확정값에
-    머물렀다 — 같은 화면이 두 금액을 말했다.
+    자리는 지금 둘이다: 잔고 합계 줄(.lvv)과 표 아래 참고 줄(#live-note).
+    ('한눈에' 카드의 세 번째 자리는 사장님 지시(2026-08-18)로 화면과 함께
+    내렸다.) 한쪽만 움직이면 같은 화면이 두 금액을 말하게 된다.
     """
     pg = browser.new_page(viewport={"width": 1600, "height": 1000})
     block_external(pg)
@@ -296,16 +305,22 @@ def test_the_live_total_appears_in_both_places_at_once(browser, site):
     pg.goto(f"{site}/index.html")
     pg.wait_for_timeout(3000)
     nodes = pg.locator('.lvv[data-k="__total__"]')
-    assert nodes.count() >= 2, (
-        f"준실시간 합계를 보여줄 자리가 {nodes.count()}곳뿐이다 — "
-        f"잔고와 '한눈에'가 함께 움직이지 않는다")
+    assert nodes.count() >= 1, "잔고 합계 줄에 준실시간 자리가 없다"
     texts = [nodes.nth(i).inner_text().strip() for i in range(nodes.count())]
+    note = pg.locator("#live-note").inner_text().strip()
     pg.close()
     shown = [t for t in texts if t]
     assert len(shown) == len(texts), (
         f"준실시간 합계가 일부 자리에만 찍혔다 — 화면이 두 금액을 말한다: {texts}")
-    assert len(set(shown)) == 1, f"두 자리가 다른 값을 말한다: {shown}"
-    assert "확정" in shown[0], f"확정값과 다른 숫자인데 그 말이 없다: {shown[0]}"
+    assert note, "잔고 표는 움직였는데 참고 줄(#live-note)은 조용하다"
+    # 두 자리가 **같은 금액**을 말해야 한다 — 문구는 달라도 숫자는 하나다.
+    amounts = {tuple(sorted(_money(t))) for t in shown}
+    assert len(amounts) == 1, f"준실시간 자리끼리 다른 값을 말한다: {shown}"
+    live_amt = max(_money(shown[0]))
+    assert live_amt in _money(note), (
+        f"참고 줄이 다른 금액을 말한다: lvv {shown[0]!r} vs note {note!r}")
+    assert "확정" in shown[0] and "확정" in note, (
+        f"확정값과 다른 숫자인데 그 말이 없다: {shown[0]!r} / {note!r}")
 
 
 def test_the_live_number_never_pretends_to_be_the_ledger(page):
@@ -332,10 +347,10 @@ def test_a_live_total_with_a_missing_rate_is_not_shown(browser, site, ledger):
     pg.wait_for_timeout(3000)
     nodes = pg.locator('.lvv[data-k="__total__"]')
     texts = [nodes.nth(i).inner_text().strip() for i in range(nodes.count())]
+    texts.append(pg.locator("#live-note").inner_text().strip())
     pg.close()
     assert texts and all(t for t in texts), f"아무 말도 안 한다: {texts}"
+    # 잔고 줄과 참고 줄이 **같은 판정**을 해야 한다 — 한 곳만 숨기면 더 나쁘다.
     for t in texts:
         assert "표시하지 않습니다" in t, f"터무니없는 값을 그대로 보여준다: {t}"
         assert "35,969,655" not in t and "환율" in t, t
-    # 두 자리가 **같은 말**을 해야 한다 — 한 곳만 숨기면 그게 더 나쁘다.
-    assert len(set(texts)) == 1, texts

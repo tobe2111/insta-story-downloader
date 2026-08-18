@@ -711,6 +711,22 @@ def build_challengers(current_spec: dict, seed: str,
     """
     challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
     challengers += _user_specs(state_dir)
+    # 터틀 트레이딩(사장님 제안 2026-08-18) — 규칙이 완전히 공개된 결정적
+    # 추세추종. 시스템1(20/10)과 시스템2(55/20) 둘 다 링에 세운다.
+    # 전설이라도 심사는 똑같다 — 이겨야 챔피언이다.
+    challengers += [
+        {"strategy": "turtle", "params": {"entry_window": 20, "exit_window": 10}},
+        {"strategy": "turtle", "params": {"entry_window": 55, "exit_window": 20}},
+    ]
+    # 사장님이 공유한 차트 자료(2026-08-18)에서 옮긴 결정적 전략 3종 —
+    # 볼린저 두 활용법·파라볼릭 SAR·일목균형표. 링은 넓어지고, 다중검정
+    # 문턱은 후보 수만큼 자동으로 올라간다.
+    challengers += [
+        {"strategy": "bollinger", "params": {"mode": "reversion"}},
+        {"strategy": "bollinger", "params": {"mode": "squeeze"}},
+        {"strategy": "psar", "params": {}},
+        {"strategy": "ichimoku", "params": {}},
+    ]
     if not evolve:
         return challengers
     challengers += mutate_champion(current_spec, seed=seed)
@@ -808,8 +824,21 @@ def verify_retrain(asof: str, *, market: str | None = None,
             and (market is None or r.get("market") == market)
             and (symbol is None or r.get("symbol") == symbol)]
     if not todo:
-        return [{"key": "-", "ok": False,
-                 "detail": f"{asof} 기록 없음(--date 확인)"}]
+        # ⚠️ 기록이 **없는 날**은 재현성 사건이 아니다 (2026-08-18 실측).
+        #    광복절 연휴에 배치가 정당하게 기록을 안 남겼는데, 이 자리가
+        #    ✘를 돌려줘 "🚨 재현성 감사 불일치 — 조작 불가능 주장이 걸린
+        #    문제"라는 최고 수위 경보가 이틀 연속 울렸다. 재현성 감사의
+        #    주장은 **존재하는 기록**에 대한 것이다 — 없는 기록은 재현할
+        #    수 없는 게 아니라 재현할 것이 없다.
+        #
+        #    기록의 **부재**를 감시하는 장치는 따로 있다(배치 실패 경보·
+        #    멈춘 장부 데드맨). 여기서 또 울리면 같은 사건에 다른 이름의
+        #    경보가 두 번 울리고, 그중 하나는 틀린 이름(조작 의심)이다 —
+        #    늑대소년이 된 경보는 진짜 조작이 난 날에도 무시된다.
+        return [{"key": "-", "ok": True, "no_records": True,
+                 "detail": f"{asof} 기록 없음 — 재현할 결정이 없는 날입니다"
+                           "(휴장 건너뜀·배치 미실행). 기록의 부재는 배치 "
+                           "경보·데드맨이 따로 감시합니다"}]
 
     # 표본 감사 — 20종목 전체 재현은 몇십 분이 걸려 매일 자동으로 돌리기
     # 어렵다. 날짜를 시드로 결정적으로 골라 매일 다른 종목을 감사하면,
