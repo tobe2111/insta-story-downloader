@@ -6161,6 +6161,18 @@ MUTATIONS = [
      "    for(let t=_t(h[0].date);t<=_t(h[h.length-1].date);t+=_DAY)allDays.push(_iso(t));",
      "    h.forEach(r=>allDays.push(r.date));",
      "tests/test_the_chart_does_not_draw_days_it_has_no_record_of.py"),
+
+    # ── 공식 시세로 갈아탈 수 있는가 (2026-08-19) ────────────────────
+    ("키가 있어도 공식 소스를 안 쓴다(시크릿을 넣어도 야후로 계속 돈다)",
+     "quant/data/stock.py",
+     '        if self.market == "us_stock" and alpaca_configured():',
+     "        if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("키 없이도 공식 소스를 시도한다(키 없는 기계·PR 검사에서 매번 헛걸음)",
+     "quant/data/stock.py",
+     '    return all((os.environ.get(k) or "").strip() for k in _ALPACA_ENV)',
+     "    return True",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

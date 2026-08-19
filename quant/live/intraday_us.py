@@ -47,6 +47,7 @@ TIMEFRAME = "1h"
 #    조용히 비는 트랙**이 된다 — 돌지 않는 실험은 실험이 아니다.
 #    키가 필요한 정식 소스(예: 브로커 시세 API)를 붙이면 그때 되돌린다.
 LADDER_TIMEFRAMES = ["15m"]
+LADDER_TIMEFRAMES_KEYED = ["15m", "5m"]   # 공식 시세(알파카) 키가 있을 때
 LADDER_ROUNDS_KEEP = 4000
 LOOKBACK_BARS = 800
 MIN_BARS = 60
@@ -98,6 +99,19 @@ PREREGISTERED_JUDGEMENT = {
             "바꿔야 한다면 그 사실과 이유를 사전 등록 원장(prereg)의 "
             "수정 이력에 공개한다.",
 }
+
+
+def ladder_timeframes() -> list[str]:
+    """사다리 눈금 — 공식 시세 키가 있으면 5분 트랙을 되돌린다.
+
+    ⚠️ 트랙이 늘고 주는 것은 **판정에 영향을 준다**(다중검정). 그래서
+       조용히 바뀌면 안 되고, 공개 JSON이 지금 어떤 눈금으로 돌고 있는지와
+       왜 그런지를 함께 싣는다(ladder_note). 사다리는 참고 진단이고 확정
+       판정은 1시간 트랙만 한다는 규칙은 그대로다.
+    """
+    from quant.data.stock import alpaca_configured
+    return list(LADDER_TIMEFRAMES_KEYED if alpaca_configured()
+                else LADDER_TIMEFRAMES)
 
 
 def _dir(state_dir: str) -> str:
@@ -390,7 +404,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
     cost = measured_cost_model("us_stock", state_dir)
     per_side = float(cost.fee + cost.slippage)
     out = []
-    for tf in LADDER_TIMEFRAMES:
+    for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
         if data is None and not bar_could_have_closed(st, tf, now_iso):
             out.append({"timeframe": tf, "skipped": "새 봉 없음 — 요청 생략"})
@@ -424,7 +438,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
 def ladder_public(state_dir: str = "state") -> list[dict]:
     from quant.live.intraday_challenger import hold_baseline_pct
     out = []
-    for tf in LADDER_TIMEFRAMES:
+    for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
         rounds = st.get("rounds") or []
         if not rounds:
@@ -441,6 +455,25 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "since": rounds[0].get("time"),
         })
     return out
+
+
+def _quote_source() -> str:
+    """지금 어떤 시세로 도는가 — 키 값이 아니라 **어느 경로인지**만 말한다."""
+    from quant.data.stock import ALPACA_FEED, alpaca_configured
+    if alpaca_configured():
+        return (f"알파카 공식 무료 시세({ALPACA_FEED.upper()} 거래소) — "
+                "전체 시장 통합 시세(SIP)가 아니라 일부 거래소 체결이라, "
+                "통합 시세와 조금 다를 수 있습니다")
+    return ("무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 "
+            "있습니다. 못 받은 종목은 그 회차를 쉽니다")
+
+
+def _ladder_reason() -> str:
+    from quant.data.stock import alpaca_configured
+    if alpaca_configured():
+        return "공식 시세 키가 있어 5분 트랙까지 돌고 있습니다."
+    return ("지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 "
+            "요청이 막혀 오히려 기록이 비기 때문입니다.")
 
 
 def write_public_report(st: dict, docs_dir: str = "docs",
@@ -468,6 +501,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "observed_gap_minutes": observed_gap_minutes(rounds),
         "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — "
                         "장 밖 회차는 기록이 없습니다",
+        # 어느 시세로 돌고 있는지 — 화면이 지어내지 않게 장부가 말한다.
+        "quote_source": _quote_source(),
         "positions": {k: round(float(v), 8)
                       for k, v in (st.get("positions") or {}).items()},
         "risk_scale": float(st.get("risk_scale", 1.0)),
@@ -481,7 +516,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "ladder_note": ("주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 "
                         "다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 "
                         "나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 "
-                        "90일 기준만 유효하고, 사다리는 참고 진단입니다."),
+                        "90일 기준만 유효하고, 사다리는 참고 진단입니다. "
+                        + _ladder_reason()),
         "recent_trades": [
             {"time": r.get("time"), **t}
             for r in rounds for t in (r.get("trades") or [])][-40:],

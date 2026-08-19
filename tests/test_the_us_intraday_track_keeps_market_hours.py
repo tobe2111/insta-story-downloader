@@ -197,3 +197,67 @@ def test_the_limit_shadow_runs_here_too(tmp_path):
     src = (ROOT / "quant" / "live" / "intraday_us.py").read_text("utf-8")
     assert "def _limit_shadow_round" not in src, (
         "체결 판정을 복사했다 — 두 트랙의 '지정가'가 갈라질 길을 만들었다")
+
+
+# ── 공식 시세로 갈아탈 수 있는가 (2026-08-19, 사장님 "알파카로 하고") ──
+#
+# 키는 저장소에 없다(깃허브 시크릿에만). 그래서 "있으면 쓰고 없으면 하던
+# 대로"가 유일하게 정직한 구조다 — 키를 전제로 짜면 키 없는 곳에서 조용히
+# 죽고, 야후만 전제로 짜면 키가 있어도 안 쓴다.
+
+def test_the_official_source_leads_only_when_keyed(monkeypatch):
+    from quant.data.stock import StockDataProvider
+    for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    names = [n for n, _ in StockDataProvider("us_stock")._sources()]
+    assert names[0] == "yfinance" and "alpaca" not in names, (
+        f"키가 없는데 알파카를 시도한다: {names}")
+
+    monkeypatch.setenv("ALPACA_KEY_ID", "test-key")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "test-secret")
+    names = [n for n, _ in StockDataProvider("us_stock")._sources()]
+    assert names[0] == "alpaca", f"키가 있는데 안 쓴다: {names}"
+    assert "yfinance" in names, "공식 소스가 죽었을 때 물러설 곳이 없다"
+    # 한국 주식은 알파카가 다루지 않는다 — 엉뚱한 소스를 앞에 세우지 않는다.
+    kr = [n for n, _ in StockDataProvider("kr_stock")._sources()]
+    assert "alpaca" not in kr, f"한국 시장에 미국 소스를 붙였다: {kr}"
+
+
+def test_the_five_minute_track_returns_with_the_key(monkeypatch):
+    for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    assert IU.ladder_timeframes() == ["15m"], (
+        "무료 공개 시세인데 5분 트랙을 돌린다 — 막혀서 기록이 빈다")
+    monkeypatch.setenv("ALPACA_KEY_ID", "test-key")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "test-secret")
+    assert IU.ladder_timeframes() == ["15m", "5m"], (
+        "공식 시세 키가 있는데 5분 트랙이 돌아오지 않는다")
+
+
+def test_the_screen_says_which_source_it_ran_on(monkeypatch, tmp_path):
+    """어느 시세로 돈 기록인지 화면이 말해야 한다 — 출처가 곧 신뢰도다."""
+    _run(tmp_path, OPEN_NOW)
+    pub = json.loads((tmp_path / "docs" / "intraday_us.json")
+                     .read_text("utf-8"))
+    assert pub.get("quote_source"), "장부가 시세 출처를 안 남긴다"
+    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    assert "u.quote_source" in page, (
+        "화면이 출처를 장부에서 읽지 않는다 — 산문에 박으면 어긋난다")
+
+
+def test_the_key_never_leaves_the_environment():
+    """키는 환경에서만 읽고 어디에도 복사하지 않는다(동의로도 못 푸는 보안선)."""
+    src = (ROOT / "quant" / "data" / "stock.py").read_text("utf-8")
+    # 헤더를 만드는 한 함수 밖에서 환경변수를 읽으면 안 된다.
+    outside = [ln for ln in src.splitlines()
+               if "ALPACA_SECRET_KEY" in ln and "_ALPACA_ENV" not in ln
+               and "os.environ.get(" in ln]
+    assert len(outside) <= 1, (
+        f"시크릿을 여러 곳에서 읽는다 — 새는 길이 늘어난다: {outside}")
+    for leak in ("log.info", "log.warning", "log.error"):
+        for ln in src.splitlines():
+            if leak in ln and "ALPACA" in ln:
+                raise AssertionError(f"키가 로그로 나갈 수 있다: {ln}")
+    guard = (ROOT / ".github" / "workflows" / "guard.yml").read_text("utf-8")
+    assert "secrets.ALPACA_KEY_ID" in guard, (
+        "감시 작업에 키가 전달되지 않는다 — 시크릿을 넣어도 안 쓰인다")

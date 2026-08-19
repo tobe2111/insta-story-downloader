@@ -60,6 +60,11 @@ jobs:
       # continue-on-error다 — 실험이 안전장치를 볼모로 잡으면 안 된다.
       - name: 장중 도전자 1회 (실험 — 본 계좌와 분리)
         continue-on-error: true
+        # 미국 시세 키(있으면 공식 소스, 없으면 야후). 값은 시크릿에만 있고
+        # 저장소·로그·장부 어디에도 남지 않는다 — 깃허브가 로그에서 가린다.
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python -m quant intraday-round --state-dir state
       - name: 심장박동·조치 커밋
         run: |

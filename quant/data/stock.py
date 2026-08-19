@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+import os
+
 from datetime import datetime
 from typing import Optional
 
@@ -20,6 +22,29 @@ log = get_logger("data.stock")
 
 # yfinance interval 매핑
 _TF_MAP = {"1d": "1d", "1h": "1h", "1wk": "1wk", "1m": "1m", "5m": "5m", "15m": "15m"}
+
+# ── 알파카(공식 무료 시세) ───────────────────────────────────────────
+#
+# 키가 환경에 있을 때만 쓴다. 값은 **환경에서만** 읽고 어디에도 복사하지
+# 않는다 — 키를 변수에 담아 장부·로그·예외로 흘리는 순간 보안선이 깨진다.
+ALPACA_DATA_BASE = "https://data.alpaca.markets/v2"
+ALPACA_FEED = "iex"          # 무료 티어. 통합 시세(SIP)는 유료 — 정직하게 표기
+_ALPACA_TF = {"1d": "1Day", "1h": "1Hour", "15m": "15Min",
+              "5m": "5Min", "1m": "1Min", "1wk": "1Week"}
+_ALPACA_ENV = ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY")
+
+
+def alpaca_configured() -> bool:
+    """알파카 키가 환경에 갖춰졌는가 — 값 자체는 돌려주지 않는다."""
+    return all((os.environ.get(k) or "").strip() for k in _ALPACA_ENV)
+
+
+def _alpaca_headers() -> dict:
+    """요청 헤더. 이 함수 밖으로 키가 나가지 않는다."""
+    return {"APCA-API-KEY-ID": os.environ.get("ALPACA_KEY_ID", "").strip(),
+            "APCA-API-SECRET-KEY": os.environ.get(
+                "ALPACA_SECRET_KEY", "").strip(),
+            "User-Agent": "quant/1.0"}
 
 
 class StockDataProvider(DataProvider):
@@ -47,9 +72,7 @@ class StockDataProvider(DataProvider):
         end: Optional[datetime] = None,
         limit: int = 500,
     ) -> pd.DataFrame:
-        sources = (("yfinance", self._via_yfinance),
-                   ("yahoo-http", self._via_yahoo_http),
-                   ("stooq", self._via_stooq))
+        sources = self._sources()
         for name, fetch in sources:
             try:
                 df = fetch(symbol, timeframe, start, end, limit)
@@ -84,6 +107,61 @@ class StockDataProvider(DataProvider):
         # 폴백 표식 — 캐시가 더미 데이터를 실제 시세로 저장·재사용하지 않게.
         fb.attrs["synthetic_fallback"] = True
         return fb
+
+    def _sources(self):
+        """시도 순서. 알파카 키가 **환경에 있으면** 맨 앞에 선다.
+
+        ⚠️ 왜 조건부인가 (2026-08-19, 사장님 지시 "알파카로 하고").
+           미국 장중 시세를 야후로 받으면 요청을 조일 때 차단당한다 —
+           비공식 경로라 한도를 사전에 알 수도, 항의할 수도 없다. 알파카는
+           공식 무료 티어(분당 200요청)라 그 위험이 사라진다.
+
+           그런데 키는 **저장소에 없다.** 깃허브 시크릿에만 있고, 개발
+           기계와 공개 PR 검사에는 없다. 그래서 "키가 있으면 쓰고 없으면
+           지금까지 하던 대로"가 유일하게 정직한 구조다 — 키를 전제로
+           짜면 키 없는 곳에서 조용히 죽고, 야후만 전제로 짜면 키가 있어도
+           안 쓴다.
+
+        ⚠️ 무료 티어는 **IEX 거래소 시세**다(전체 시장의 일부). 야후보다
+           안정적이지만 통합 시세(SIP)와는 다를 수 있다 — 체결 가정 검증이
+           그 차이를 그대로 드러낸다. 숨기지 않는다.
+        """
+        chain = []
+        if self.market == "us_stock" and alpaca_configured():
+            chain.append(("alpaca", self._via_alpaca))
+        chain += [("yfinance", self._via_yfinance),
+                  ("yahoo-http", self._via_yahoo_http),
+                  ("stooq", self._via_stooq)]
+        return tuple(chain)
+
+    def _via_alpaca(self, symbol, timeframe, start, end, limit) -> pd.DataFrame:
+        """알파카 시세 API — 공식 무료 티어(IEX). 키는 환경에서만 읽는다.
+
+        ⚠️ 키를 로그·장부·예외 메시지에 절대 싣지 않는다. 이 저장소의
+           보안선(자격증명은 수집도 저장도 하지 않는다)은 동의로도 풀리지
+           않으며, 검사가 소스에 자격증명 문자열이 있는지 감시한다.
+        """
+        import urllib.parse
+
+        from quant.utils.http import get_json
+
+        tf = _ALPACA_TF.get(timeframe)
+        if tf is None:
+            raise ValueError(f"알파카 어댑터가 모르는 눈금: {timeframe}")
+        url = (f"{ALPACA_DATA_BASE}/stocks/{urllib.parse.quote(symbol)}/bars"
+               f"?timeframe={tf}&limit={max(1, min(int(limit), 10000))}"
+               f"&feed={ALPACA_FEED}&adjustment=raw")
+        data = get_json(url, _alpaca_headers(), timeout=15)
+        bars = data.get("bars") or []
+        if not bars:
+            raise ValueError("알파카: 빈 결과")
+        df = pd.DataFrame(
+            {"open": [b["o"] for b in bars], "high": [b["h"] for b in bars],
+             "low": [b["l"] for b in bars], "close": [b["c"] for b in bars],
+             "volume": [b.get("v", 0) for b in bars]},
+            index=pd.to_datetime([b["t"] for b in bars], utc=True),
+        ).dropna(subset=_PRICE_COLS)
+        return _cut_range(df, start, end, limit)
 
     def _drop_unclosed(self, df: pd.DataFrame, now=None) -> pd.DataFrame:
         """미완결·유령 일봉 제거 — 장 마감 전의 '오늘' 봉과 미래 날짜 봉을 버린다.
