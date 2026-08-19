@@ -39,17 +39,30 @@ def test_the_rule_composes_each_market(tmp_path):
     snap = U.rebuild(str(tmp_path), today=dt.date(2026, 8, 18),
                      rank_crypto=_fake_crypto, rank_kr=_fake_kr, rank_us=_fake_us)
     t = {f"{m}:{s}" for m, s in (tuple(x) for x in snap["targets"])}
-    # 코인: 고정 2 + 순위 상위 3(고정 제외)
-    assert {"crypto:BTC/USDT", "crypto:ETH/USDT", "crypto:SOL/USDT",
-            "crypto:DOGE/USDT", "crypto:XRP/USDT"} <= t
-    assert "crypto:TON/USDT" not in t, "상위 3을 넘겨 뽑았다"
-    # 한국: KODEX200 고정 + 시총 상위 6
+    # ⚠️ 개수는 **규칙 상수에서 읽는다**(2026-08-19). 예전에는 "상위 3"처럼
+    #    숫자를 검사에 박아 뒀는데, 자산군을 늘리려고 상수를 바꾸자 규칙이
+    #    옳게 동작하는데도 검사가 빨개졌다. 지켜야 할 계약은 **"코어는 반드시
+    #    들어가고, 선언한 개수보다 더 뽑지 않는다"**이지 특정 숫자가 아니다.
+    def _count(prefix):
+        return len([1 for x in t if x.startswith(prefix)])
+
+    # 코인: 고정 코어 + 순위 상위 CRYPTO_TOP(코어 제외)
+    assert {"crypto:BTC/USDT", "crypto:ETH/USDT"} <= t, "코어가 빠졌다"
+    assert _count("crypto:") <= len(U.CRYPTO_CORE) + U.CRYPTO_TOP, (
+        "선언한 개수보다 많이 뽑았다")
+    # 한국: KODEX200 + 자산군 ETF 고정 + 시총 상위 KR_TOP
     assert "kr_stock:069500.KS" in t and "kr_stock:005930.KS" in t
-    assert "kr_stock:068270.KS" in t and "kr_stock:035420.KS" not in t
-    # 미국: SPY·QQQ 고정 + 시총 상위 6
+    for core in U.KR_ASSET_CORE:
+        assert f"kr_stock:{core}" in t, f"자산군 코어 {core}가 빠졌다"
+    assert _count("kr_stock:") <= len(U.KR_CORE) + len(U.KR_ASSET_CORE) \
+        + U.KR_TOP, "선언한 개수보다 많이 뽑았다"
+    # 미국: SPY·QQQ + 자산군 ETF 고정 + 시총 상위 US_TOP
     assert "us_stock:SPY" in t and "us_stock:QQQ" in t
+    for core in U.US_ASSET_CORE:
+        assert f"us_stock:{core}" in t, f"자산군 코어 {core}가 빠졌다"
     assert "us_stock:NVDA" in t and "us_stock:META" in t
-    assert "us_stock:AVGO" not in t, "상위 6을 넘겨 뽑았다"
+    assert _count("us_stock:") <= len(U.US_CORE) + len(U.US_ASSET_CORE) \
+        + U.US_TOP, "선언한 개수보다 많이 뽑았다"
     assert snap["rationale"]["us_stock"]["rule"].startswith("지수 ETF")
     assert snap["rationale"]["us_stock"]["top10"][0] == "NVDA"
 
@@ -63,7 +76,8 @@ def test_a_failed_market_keeps_previous_and_says_why(tmp_path):
     snap = U.rebuild(str(tmp_path), today=dt.date(2026, 9, 1),
                      rank_crypto=_fake_crypto, rank_kr=boom, rank_us=_fake_us)
     kr = [s for m, s in (tuple(x) for x in snap["targets"]) if m == "kr_stock"]
-    assert "005930.KS" in kr and len(kr) == 1 + U.KR_TOP, (
+    assert "005930.KS" in kr and len(kr) == len(U.KR_CORE) \
+        + len(U.KR_ASSET_CORE) + U.KR_TOP, (
         "실패한 시장이 직전 구성을 유지하지 않는다")
     assert "KRX 점검 중" in snap["rationale"]["kr_stock"]["reason"]
 
@@ -179,7 +193,8 @@ def test_us_failure_keeps_previous_and_says_why(tmp_path):
     snap = U.rebuild(str(tmp_path), today=dt.date(2026, 9, 1),
                      rank_crypto=_fake_crypto, rank_kr=_fake_kr, rank_us=boom)
     us = [s for m, s in (tuple(x) for x in snap["targets"]) if m == "us_stock"]
-    assert "NVDA" in us and len(us) == len(U.US_CORE) + U.US_TOP, (
+    assert "NVDA" in us and len(us) == len(U.US_CORE) \
+        + len(U.US_ASSET_CORE) + U.US_TOP, (
         "실패한 시장이 직전 구성을 유지하지 않는다")
     assert snap["rationale"]["us_stock"]["kept_previous"] is True
     assert "스크리너 점검 중" in snap["rationale"]["us_stock"]["reason"]
