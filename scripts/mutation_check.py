@@ -6024,6 +6024,28 @@ MUTATIONS = [
      '        cut = (self._crypto_asof if (self._market == "crypto"',
      "        cut = self._asof or (",
      "tests/test_a_recovered_bar_must_match_the_log.py"),
+
+    # ── 빈칸을 빈칸으로 두지 않는다 (2026-08-19) ─────────────────────
+    ("빠진 날 설명을 통째로 지운다 — 빈칸이 '그런 일이 없었다'로 읽힌다",
+     "docs/index.html",
+     "  if(!g||!g.days)return;",
+     "  return;",
+     "tests/test_the_gap_days_are_not_a_blank.py"),
+    ("그날 시스템이 말한 자산을 안 보여준다 — 알면서 모른 척한다",
+     "docs/index.html",
+     '  const said=g.days.filter(d=>typeof d.equity==="number");',
+     "  const said=[];",
+     "tests/test_the_gap_days_are_not_a_blank.py"),
+    ("결과가 아예 없던 날(08-16)을 성적 나쁜 날과 같이 취급한다",
+     "docs/index.html",
+     '  const none=g.days.filter(d=>typeof d.equity!=="number");',
+     "  const none=[];",
+     "tests/test_the_gap_days_are_not_a_blank.py"),
+    ("다시 계산하면 더 좋게 나온다는 사실을 감춘다 — 안 채우는 이유가 사라진다",
+     "docs/index.html",
+     "  const r=g.recompute_attempt;",
+     "  const r=null;",
+     "tests/test_the_gap_days_are_not_a_blank.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

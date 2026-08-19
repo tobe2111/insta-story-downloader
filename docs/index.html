@@ -169,6 +169,10 @@ body:not(.detail) #symtable tbody tr.nohold{display:none}
 #glance .stale{margin-top:14px;padding:10px 12px;border-radius:10px;
   background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35);
   font-size:13px;line-height:1.6}
+#glance .gapdays{margin-top:9px;padding-top:9px;font-size:12.5px;
+  border-top:1px dashed rgba(255,176,32,.45)}
+#glance .gapdays b{color:var(--fg)}
+#glance .gapdays .gd{margin-top:4px}
 #glance .bench{margin-top:14px;padding:10px 12px;border-radius:10px;
   font-size:13.5px;line-height:1.6;border:1px solid var(--line-strong)}
 #glance .bench.up{background:rgba(240,68,82,.08)}
@@ -854,6 +858,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '빠진 날은 나중에 채워 넣지 않습니다 — 지금 계산하면 그날 실제로 '+
             '한 일이 아니라 오늘 다시 계산한 값이기 때문입니다. '+
             '<a href="trust.html">무슨 일이었는지</a>'+
+            '<div class="gapdays"></div>'+
             '</div>'
           : '<div class="sub" style="margin-top:12px">기준일 <b>'+esc(day)+
             '</b> — 매일 새벽 한 번 확정합니다(실시간이 아닙니다).</div>')+
@@ -1901,6 +1906,65 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
 });
 
 /* --- 후원 랭킹 — sponsors.json에 기록이 있을 때만 노출 --- */
+/* --- 장부에 없는 날: 그날 로그에 남은 값 -------------------------------
+   ⚠️ **빈칸을 "그런 일이 없었다"로 읽게 두지 않는다.**
+      2026-08-16~18 사흘은 배치가 판단을 끝내 놓고 저장을 못 한 날이다.
+      그날 실행 로그에는 자산이 그대로 찍혀 있고, 그 로그는 깃허브가
+      보관하며 우리가 고칠 수 없다. 그러니 "모른다"가 아니라 "알지만
+      장부에는 못 넣었다"가 사실이다. 둘은 다르다.
+
+      **장부에 넣지 않는 이유도 함께 말한다.** 실제로 2026-08-19에 그날을
+      다시 계산해 봤더니 자산이 1,051,671원 — 그날 실제로 말한 999,268원보다
+      5.24% 높게 나왔다. 그날의 입력(시세 공급처·한국 ETF 봉)이 더는
+      존재하지 않기 때문이다. 하필 좋아 보이는 쪽으로 틀렸다. 그런 숫자를
+      장부에 넣는 것이 이 실험이 가장 하면 안 되는 일이다.
+
+      숫자는 여기 박아 두지 않고 gap_days.json에서 읽는다 — 산문에 박으면
+      다음에 또 갈라진다(이 저장소가 세 번 겪은 결함). */
+fetch("gap_days.json").then(r=>r.ok?r.json():null).then(g=>{
+  if(!g||!g.days)return;
+  /* ⚠️ 이 자리는 status.json이 그려진 **뒤에야** 생긴다. 두 요청은 서로
+     순서를 보장하지 않으므로, 없으면 잠깐 기다렸다 다시 본다. 한 번 보고
+     포기하면 어떤 날은 뜨고 어떤 날은 안 뜨는 — 가장 찾기 어려운 종류의
+     결함이 된다. 끝내 없으면 조용히 그만둔다(띠 자체가 없는 날 = 기록이
+     최신인 날이고, 그때는 할 말이 없는 게 맞다). */
+  let tries=0;
+  (function paint(){
+    const box=document.querySelector("#glance .gapdays");
+    if(!box){ if(++tries<40) return setTimeout(paint,120); return; }
+    fill(box);
+  })();
+  function fill(box){
+  const won=n=>Number(n).toLocaleString("ko-KR",{maximumFractionDigits:0})+"원";
+  const esc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>(
+    {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const said=g.days.filter(d=>typeof d.equity==="number");
+  const none=g.days.filter(d=>typeof d.equity!=="number");
+  let h='<b>그날 시스템이 뭐라고 했는지는 남아 있습니다</b> — 장부에 못 넣었을 뿐입니다.';
+  said.forEach(d=>{
+    h+='<div class="gd">· <b>'+esc(d.date)+'</b> 자산 <b>'+won(d.equity)+'</b>'+
+       (typeof d.return_pct==="number"
+         ? ' ('+(d.return_pct>=0?"+":"")+d.return_pct.toFixed(2)+'%)' : "")+
+       (typeof d.gross==="number"
+         ? ' · 목표 노출 '+Math.round(d.gross*100)+'%' : "")+
+       ' <a href="'+esc(d.run)+'" target="_blank" rel="noopener">실행 기록</a></div>';
+  });
+  none.forEach(d=>{
+    h+='<div class="gd">· <b>'+esc(d.date)+'</b> — 이 날은 <b>결과 자체가 없습니다</b>. '+
+       esc(d.what_happened)+
+       ' <a href="'+esc(d.run)+'" target="_blank" rel="noopener">실행 기록</a></div>';
+  });
+  const r=g.recompute_attempt;
+  if(r)h+='<div class="gd">· 그래서 <b>'+esc(r.on)+'에 다시 계산해 봤습니다</b>: '+
+    esc(r.bar)+' 자산이 '+won(r.recomputed_equity)+'로 나왔습니다 — 그날 실제로 '+
+    '말한 '+won(r.logged_equity)+'보다 <b>'+r.diff_pct.toFixed(2)+'% 높습니다.</b> '+
+    '그날의 시세 공급이 더는 남아 있지 않아서입니다. '+
+    '<b>좋아 보이는 쪽으로 틀린 숫자는 넣지 않습니다.</b> '+
+    '<a href="'+esc(r.run)+'" target="_blank" rel="noopener">그 계산 기록</a></div>';
+  box.innerHTML=h;
+  }
+}).catch(()=>{});
+
 fetch("sponsors.json").then(r=>r.ok?r.json():null).then(j=>{
   const list=(j&&j.sponsors)||[];
   if(!list.length)return;
