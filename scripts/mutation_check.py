@@ -6243,6 +6243,23 @@ MUTATIONS = [
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
 
+    # ── 미국 트랙: 낡은 봉 관문 (2026-08-19 첫 회차 실측) ──────────────
+    ("낡은 봉으로도 판단한다(어제 가격으로 오늘을 산다)",
+     "quant/live/intraday_us.py",
+     "        if bar_is_stale(bar_times[sym], timeframe, now_iso):",
+     "        if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("낡음 기준을 봉 길이가 아니라 고정 분으로 본다(5분봉과 1시간봉이 같아진다)",
+     "quant/live/intraday_us.py",
+     "        minutes=STALE_BAR_FACTOR * _tf_minutes(timeframe))",
+     "        minutes=STALE_BAR_FACTOR * 60)",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("개장 직후 스로틀을 뗀다(어제 봉을 5분마다 다시 받아 차단당한다)",
+     "quant/live/intraday_us.py",
+     "    if open_utc is not None and last < open_utc:",
+     "    if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+
     # ── 2세대 집중 (2026-08-19) — 집중이 아니면 균등 조각과 같아진다 ────
     ("상위 K개 제한을 없앤다(전부 담아 균등 조각과 구별이 사라진다)",
      "quant/live/gen2.py",
