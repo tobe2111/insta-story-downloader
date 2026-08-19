@@ -33,6 +33,17 @@ from quant.live import notice_queue as NQ  # noqa: E402
 
 WF = ROOT / ".github" / "workflows"
 
+# ⚠️ **버리는 것도 결정이다** (2026-08-19). 알림을 쌓아 두고 아무 말도 안
+#    하는 것과, 버리기로 정하고 버리는 것은 다른 일이다 — 전자는 잊은
+#    것이고 후자는 판단이다. 그래서 면제는 목록에 이름과 이유를 적어야
+#    받는다(OFF_SCREEN_OK와 같은 방식). 이유를 못 적겠으면 그건 잊은 것이다.
+DISCARDS_ON_PURPOSE = {
+    "recover-bars.yml":
+        "이미 지나간 날을 다시 계산하는 잡이라, 그 알림은 '오늘 자산 "
+        "999,267원'처럼 읽힌다 — 보내면 지난 일을 오늘 일로 방송하게 된다. "
+        "되살렸다는 사실은 기록 검증 페이지에 적는다.",
+}
+
 # 장부를 커밋하는 배치들 — 여기서 알림이 먼저 나가면 사고가 반복된다.
 LEDGER_JOBS = sorted(p.name for p in WF.glob("*.yml")
                      if "ledger_gate.py" in p.read_text("utf-8"))
@@ -51,15 +62,69 @@ def test_there_are_ledger_jobs_to_protect():
     assert len(LEDGER_JOBS) >= 3, LEDGER_JOBS
 
 
-def test_it_stages_instead_of_sending_while_deferring(monkeypatch):
+@pytest.fixture
+def _channel(monkeypatch):
+    """바깥으로 나가는 채널이 하나 있는 상태 — 없으면 미룰 것도 없다."""
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://example.invalid/hook")
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+
+
+def test_it_stages_instead_of_sending_while_deferring(monkeypatch, _channel):
     from quant import cli
 
-    sent: list[str] = []
-    monkeypatch.setattr(cli, "get_notifier", lambda: None, raising=False)
     monkeypatch.setenv(NQ.ENV_DEFER, "1")
     cli._notify_extra("자산 999,078원")
     assert NQ.pending() == ["자산 999,078원"], NQ.pending()
-    assert sent == [], "미루기로 했는데 그대로 보냈다"
+
+
+# ── ①-b 어느 길로 나가든 같은 문을 지난다 (감사 287) ─────────────
+#
+# 감사 283은 미루는 판단을 cli의 알림 함수 한 군데에 넣었다. 그런데 같은
+# 밤, 페이퍼 배치가 관문에서 죽어 기록이 또 안 남았는데 디스코드에는
+# "🚩 새 플래그 알림 발송: miscal:60-70, ..."가 먼저 도착했다 — 플래그
+# 파수꾼은 그 함수를 안 거치고 알림기를 직접 부르기 때문이다.
+# 고친 결함의 형제를 찾기 전까지는 고친 게 아니다(FROZEN_IDEAS ⑭).
+
+def test_every_path_out_is_deferred_not_just_the_cli_one(monkeypatch, _channel):
+    from quant.live.notifications import get_notifier
+
+    monkeypatch.setenv(NQ.ENV_DEFER, "1")
+    n = get_notifier()
+    assert n.send("🚩 새 플래그 알림 발송: guard_late:9h") is True
+    assert NQ.pending() == ["🚩 새 플래그 알림 발송: guard_late:9h"], NQ.pending()
+
+
+def test_the_notifier_sends_for_real_when_not_deferring(monkeypatch, _channel):
+    """대조군 — 미루지 않는 밤에는 바깥 채널이 그대로 살아 있어야 한다.
+
+    이게 없으면 "언제나 대기열"도 통과하고, 그러면 사람이 손으로 돌릴 때
+    알림이 영영 안 나간다.
+    """
+    from quant.live.notifications import DeferredNotifier, get_notifier
+
+    n = get_notifier()
+    assert not any(isinstance(c, DeferredNotifier)
+                   for c in getattr(n, "notifiers", [])), \
+        "미루지 않는데 대기열이 끼어 있다"
+
+
+def test_with_no_outside_channel_it_does_not_pretend_to_have_sent(monkeypatch):
+    """보낼 곳이 없는데 '보냈다'로 적으면 그 경보는 영영 다시 오지 않는다.
+
+    ⚠️ 감사 175가 이미 겪은 사고다 — 플래그 파수꾼은 send()의 반환값으로
+       '전달됨'을 장부에 적고, 적힌 플래그는 '이미 켜져 있던 것'으로
+       분류돼 다시 알리지 않는다. 대기열이 그 False를 덮으면 안 된다.
+    """
+    for k in ("DISCORD_WEBHOOK_URL", "TELEGRAM_BOT_TOKEN",
+              "TELEGRAM_CHAT_ID", "SLACK_WEBHOOK_URL"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv(NQ.ENV_DEFER, "1")
+    from quant.live.notifications import get_notifier
+
+    assert get_notifier().send("아무도 못 받는 경보") is False, \
+        "보낼 곳이 없는데 '보냈다'고 한다"
+    assert NQ.pending() == [], "보낼 곳도 없는데 대기열에 쌓았다"
 
 
 def test_without_deferring_it_does_not_touch_the_queue():
@@ -137,6 +202,13 @@ def test_the_flush_happens_after_the_push(name):
             for st in (job.get("steps") or [])]
     step = next((r for r in runs if "git push origin HEAD:main" in r), None)
     assert step, f"{name}: 푸시하는 단계를 못 찾았다 — 검사가 낡았다"
+    if name in DISCARDS_ON_PURPOSE:
+        assert "quant notify --discard" in step, (
+            f"{name}: 버리기로 정해 놓고 버리지 않는다 — 쌓아만 두면 "
+            "'잊었다'와 구별되지 않는다")
+        assert "quant notify --flush" not in step, (
+            f"{name}: 버리기로 한 잡이 보내기도 한다 — 둘 중 하나여야 한다")
+        return
     assert "quant notify --flush" in step, (
         f"{name}이 미뤄 둔 알림을 푸시하는 그 단계에서 안 보낸다 — "
         "쌓기만 하면 알림이 영영 사라진다")
@@ -150,3 +222,10 @@ def test_the_gate_still_runs_before_the_commit(name):
     src = (WF / name).read_text("utf-8")
     assert src.index("scripts/ledger_gate.py") < src.index('git commit -m'), (
         f"{name}: 장부 관문이 커밋보다 뒤에 있다")
+
+
+def test_the_discard_list_does_not_rot():
+    """면제 목록에 없는 잡이 남아 있으면 검사가 헐거워진다."""
+    stale = sorted(set(DISCARDS_ON_PURPOSE) - set(LEDGER_JOBS))
+    assert not stale, (
+        f"장부를 커밋하지 않는 잡의 면제가 남아 있다: {stale} — 목록을 정리할 것")

@@ -78,6 +78,38 @@ check("자산이 숫자가 아니면", Q.impossible("백만원", 9e9) === false)
   check("null도 안 터진다", Object.keys(Q.overEquity(null)).length === 0);
 }
 
+/* ── 4-b. 장부가 이미 적어 둔 판정을 읽는가 (감사 286) ────────── */
+{
+  /* 파이썬 쪽 잣대가 조금이라도 달라지는 날, 화면이 그것을 안 읽으면
+     장부는 "못 믿을 금액"이라 적어 두었는데 화면은 태연히 그 숫자를
+     말한다. 여기서는 **화면 잣대로는 멀쩡해 보이는** 값에 장부만
+     표식을 달아 두고, 화면이 그 표식을 따르는지 본다. */
+  const rec = { equity: 1000000,
+                fills: [{ key: "us_stock:AMZN", amount: 12345.67 }],
+                impossible_amounts: {
+                  fills: [{ key: "us_stock:AMZN", amount: 12345.67 }] } };
+  const bad = Q.overEquity(rec);
+  check("장부의 표식을 따른다", (bad.fills || []).length === 1);
+  check("종목 단위 물음도 따른다",
+        Q.flagged(rec, "us_stock:AMZN", "fills") === true);
+  /* 이 필드가 생기기 전(2026-08-15까지) 기록에는 값이 없다 — 그 시절
+     사고가 이 장치를 만든 계기였으므로 다시 계산하는 쪽도 살아 있어야 한다. */
+  const oldRec = { equity: 997197.56,
+                   fills: [{ key: "us_stock:AMZN", amount: 6361687.93 }] };
+  check("옛 기록은 다시 계산해서 잡는다",
+        (Q.overEquity(oldRec).fills || []).length === 1);
+  /* 같은 종목이 양쪽에 걸려도 한 번만 센다 — 두 번 세면 "2건"이라 말한다. */
+  const both = { equity: 997197.56,
+                 fills: [{ key: "us_stock:AMZN", amount: 6361687.93 }],
+                 impossible_amounts: {
+                   fills: [{ key: "us_stock:AMZN", amount: 6361687.93 }] } };
+  check("겹치면 한 번만 센다", (Q.overEquity(both).fills || []).length === 1);
+  /* 대조군 — 장부에 표식이 없고 값도 멀쩡하면 완전히 조용하다. */
+  check("표식 없고 멀쩡하면 조용",
+        Object.keys(Q.overEquity({ equity: 1000000,
+          fills: [{ key: "us_stock:AMZN", amount: 12345.67 }] })).length === 0);
+}
+
 /* ── 5. 준실시간 합계가 같은 세상의 숫자인가 (감사 275) ────────── */
 {
   const book = 997197.56;

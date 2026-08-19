@@ -42,8 +42,12 @@ _EQ = 997197.56
 _LOUD = {"lot_priority": {"crypto:BTC/USDT": {"spent": 200000.0,
                                               "budget": 120000.0,
                                               "gave_way": ["kr_stock:069500"]}},
-         "bar_age_days": {"us_stock": 3, "kr_stock": 0}}
-_QUIET = {"lot_priority": None, "bar_age_days": {"us_stock": 0, "kr_stock": 1}}
+         "bar_age_days": {"us_stock": 3, "kr_stock": 0},
+         # 사는 쪽과 파는 쪽이 섞인 날 — 합계와 순액이 갈린다(감사 286).
+         "weight": 0.42, "net_weight": 0.10}
+_QUIET = {"lot_priority": None, "bar_age_days": {"us_stock": 0, "kr_stock": 1},
+          # 파는 쪽이 없는 평범한 날 — 둘은 같다.
+          "weight": 0.42, "net_weight": 0.42}
 
 
 def _serve(root: Path) -> tuple[str, socketserver.TCPServer]:
@@ -109,7 +113,9 @@ def _flags(tmp_path_factory):
                     # "접힌 화면은 없는 화면이 아니다"(FROZEN_IDEAS ㊿+㊾).
                     pg.click("#morebtn")
                     pg.wait_for_timeout(300)
-                    out[name] = pg.locator("#side-flags").inner_text()
+                    out[name] = {
+                        "flags": pg.locator("#side-flags").inner_text(),
+                        "cash": pg.locator("#side-cash").inner_text()}
                     assert not errs, f"{name}: 스크립트가 던졌다 — {errs}"
                     pg.close()
             finally:
@@ -122,7 +128,7 @@ def _flags(tmp_path_factory):
 
 def test_the_screen_says_who_took_the_budget(_flags):
     """'못 샀다'만 말하고 '그 돈은 누가 가져갔나'를 감추면 절반만 밝힌 것이다."""
-    txt = _flags["loud"]
+    txt = _flags["loud"]["flags"]
     assert "예산을 끌어 쓴 종목" in txt, f"예산을 끌어 쓴 사실이 화면에 없다:\n{txt}"
     assert "BTC/USDT" in txt or "비트코인" in txt, f"어느 종목인지가 없다:\n{txt}"
     assert "자리를 내줬습니다" in txt, f"대신 밀려난 종목을 말하지 않는다:\n{txt}"
@@ -130,13 +136,35 @@ def test_the_screen_says_who_took_the_budget(_flags):
 
 def test_the_screen_says_it_judged_on_a_stale_bar(_flags):
     """묵은 봉으로 낸 판단은 다른 시장과 같은 날로 비교할 수 없다."""
-    txt = _flags["loud"]
+    txt = _flags["loud"]["flags"]
     assert "묵은 봉으로 판단" in txt, f"묵은 봉으로 판단한 시장이 화면에 없다:\n{txt}"
     assert "us_stock 3일 전 봉" in txt, f"어느 시장이 며칠 묵었는지가 없다:\n{txt}"
 
 
 def test_a_fresh_and_full_day_says_neither(_flags):
     """대조군 — 정상인 날에 이 경고가 뜨면 매일 울리는 배경음이 된다."""
-    txt = _flags["quiet"]
+    txt = _flags["quiet"]["flags"]
     assert "예산을 끌어 쓴 종목" not in txt, f"끌어 쓴 적 없는데 경고가 뜬다:\n{txt}"
     assert "묵은 봉으로 판단" not in txt, f"최신 봉인데 묵었다고 한다:\n{txt}"
+
+
+# ── 사는 쪽만 있는 게 아니다 (감사 286) ─────────────────────────
+#
+# 장부는 오래전부터 '합쳐서 얼마를 걸었나'(weight)와 '서로 상쇄하고 남는
+# 몫'(net_weight)을 따로 남겨 왔는데, 화면은 앞의 것만 말했다. 파는 쪽
+# 주문이 켜지는 날 그 둘은 갈라지고, 읽는 사람은 실제로 시장에 걸린 것과
+# 다른 크기의 위험을 보게 된다.
+
+def test_the_screen_separates_gross_from_net_when_they_differ(_flags):
+    txt = _flags["loud"]["cash"]
+    assert "사는 쪽과 파는 쪽이 섞여" in txt, (
+        f"롱·숏이 섞인 날인데 화면이 한 숫자로만 말한다:\n{txt}")
+    assert "42.0%" in txt and "10.0%" in txt, (
+        f"합계와 순액 두 숫자가 다 나오지 않는다:\n{txt}")
+
+
+def test_a_long_only_day_does_not_talk_about_two_numbers(_flags):
+    """대조군 — 둘이 같은 평소에 이 설명이 뜨면 매일 읽히는 배경음이 된다."""
+    txt = _flags["quiet"]["cash"]
+    assert "사는 쪽과 파는 쪽이 섞여" not in txt, (
+        f"파는 쪽이 없는 날인데 섞였다고 말한다:\n{txt}")
