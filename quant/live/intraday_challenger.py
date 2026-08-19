@@ -231,15 +231,20 @@ def mark_equity(st: dict, prices: dict) -> float:
 
 
 def _execute_targets(st: dict, signals: dict, prices: dict,
-                     equity: float, scale: float, per_side: float) -> list:
+                     equity: float, scale: float, per_side: float,
+                     universe: list[str] | None = None) -> list:
     """목표 비중 → 체결 — 본 트랙과 주기 사다리가 **같은 규칙을 한 곳**에서 쓴다.
 
     여기서 갈라지면 주기 비교가 체결 규칙 비교로 오염된다. 시장가 즉시
     체결 + 편도 비용(수수료+슬리피지), 레버리지 금지, 최소 조정 문턱.
+    `universe`는 미국주식 트랙(intraday_us)이 **같은 규칙을 빌려 쓰기 위한**
+    인자다 — 규칙을 복사해 가면 언젠가 두 트랙의 체결이 갈라진다.
+    최소 조정 문턱(10)은 USDT·USD 둘 다 ≈ $10라 그대로 공유한다.
     """
     trades: list[dict] = []
-    slice_budget = equity / len(UNIVERSE)        # 고정 균등 슬라이스
-    for sym in UNIVERSE:
+    universe = universe if universe is not None else UNIVERSE
+    slice_budget = equity / len(universe)        # 고정 균등 슬라이스
+    for sym in universe:
         sig = signals.get(sym)
         px = prices.get(sym)
         if sig is None or not px:
