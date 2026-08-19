@@ -6127,6 +6127,18 @@ MUTATIONS = [
      "lxml>=4.9,<7",
      "# lxml>=4.9,<7",
      "tests/test_the_earnings_guard_knows_something.py"),
+
+    # ── 경보가 원인을 잘못 말한다 (2026-08-19 감사 290) ──────────────
+    ("빈 표를 KRX 탓으로만 말한다 — 우리 설정이 빠진 것을 계속 KRX 탓으로 본다",
+     "quant/data/krx.py",
+     '    missing = [k for k in _CRED_ENV if not (os.environ.get(k) or "").strip()]',
+     "    missing = []",
+     "tests/test_the_error_names_the_real_cause.py"),
+    ("무엇을 설정해야 하는지 목록을 비운다 — 원인을 알아도 말할 이름이 없다",
+     "quant/data/krx.py",
+     '_CRED_ENV = ("KRX_ID", "KRX_PW")',
+     "_CRED_ENV = ()",
+     "tests/test_the_error_names_the_real_cause.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
