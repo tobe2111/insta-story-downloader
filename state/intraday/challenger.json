@@ -1,11 +1,11 @@
 {
-  "cash": 9339.293756196426,
+  "cash": 9407.48457953899,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "ETH/USDT": 0.005737337177596127,
     "XRP/USDT": 49.72065361201217,
-    "BTC/USDT": 0.00932920002859187
+    "BTC/USDT": 0.008266995632258476
   },
   "rounds": [
     {
@@ -1211,15 +1211,49 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-08-19T08:00:50+00:00",
+      "equity": 9999.89,
+      "signals": {
+        "BTC/USDT": 0.2658,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-19 07:00:00",
+        "ETH/USDT": "2026-08-19 07:00:00",
+        "SOL/USDT": "2026-08-19 07:00:00",
+        "BNB/USDT": "2026-08-19 07:00:00",
+        "XRP/USDT": "2026-08-19 07:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "sell",
+          "notional": -68.29,
+          "price": 64293.9,
+          "cost": 0.1024,
+          "signal": 0.2658
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10001.22,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 9.806834062552243,
+  "cost_paid": 9.909273957408372,
   "last_prices": {
-    "BTC/USDT": 64347.4,
-    "ETH/USDT": 1917.52,
-    "SOL/USDT": 77.08,
-    "BNB/USDT": 602.5,
-    "XRP/USDT": 1.0043
+    "BTC/USDT": 64293.9,
+    "ETH/USDT": 1915.84,
+    "SOL/USDT": 76.95,
+    "BNB/USDT": 601.9,
+    "XRP/USDT": 1.0036
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -1239,7 +1273,14 @@
       "XRP/USDT": 49.72065361201217,
       "BTC/USDT": 0.00933007056612444
     },
-    "pending": {},
+    "pending": {
+      "BTC/USDT": {
+        "side": "sell",
+        "limit": 64293.9,
+        "notional": 68.28,
+        "placed_bar": "2026-08-19 07:00:00"
+      }
+    },
     "cost_paid": 2.4557600000000006,
     "filled_total": 7,
     "unfilled_total": 4
