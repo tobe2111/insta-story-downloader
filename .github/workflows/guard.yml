@@ -34,7 +34,12 @@ permissions:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # ⚠️ 10 → 15분(2026-08-19). 미국 장중 트랙이 이 작업 안에 들어오면서
+    #    정규장 시간대에는 주식 시세 요청이 더해진다. 실험 때문에 이 작업이
+    #    시간 초과로 죽으면 **낙폭 킬스위치와 심장박동까지 같이 죽는다** —
+    #    실험이 안전장치를 볼모로 잡는 구조는 만들지 않는다(트랙 쪽에도
+    #    자체 시간 예산 FETCH_BUDGET_SEC이 있어 먼저 물러난다).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -55,6 +60,11 @@ jobs:
       # continue-on-error다 — 실험이 안전장치를 볼모로 잡으면 안 된다.
       - name: 장중 도전자 1회 (실험 — 본 계좌와 분리)
         continue-on-error: true
+        # 미국 시세 키(있으면 공식 소스, 없으면 야후). 값은 시크릿에만 있고
+        # 저장소·로그·장부 어디에도 남지 않는다 — 깃허브가 로그에서 가린다.
+        env:
+          ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python -m quant intraday-round --state-dir state
       - name: 심장박동·조치 커밋
         run: |

@@ -371,6 +371,8 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
           ((t.return_pct||0)>=0?"+":"")+Number(t.return_pct||0).toFixed(2)+"%")
           .join(" · ")+' (참고 진단 — 판정은 1시간 트랙만)</div>'
       :'')+
+    (u.quote_source?'<div class="sub" style="margin-top:8px">시세 출처: '+
+      esc(u.quote_source)+'</div>':'')+
     '<div class="sub" style="margin-top:8px">'+esc(u.market_hours||"")+
     ' · 판정일 '+esc((u.judgement||{}).registered_on?"2026-11-17 (사전 등록)":"—")+
     ' · 시작 '+esc(u.since||"—")+'</div>';

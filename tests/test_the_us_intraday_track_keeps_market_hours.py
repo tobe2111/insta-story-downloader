@@ -130,3 +130,134 @@ def test_the_screen_reads_the_ledger_only():
     page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
     assert "intraday_us.json" in page and "us-sum" in page, (
         "미국 트랙 화면이 없다 — 공개되지 않는 실험은 실험이 아니다")
+
+
+# ── 무료 시세를 조르지 않는다 (2026-08-19) ──────────────────────
+#
+# 장중 감시는 5분마다 돈다. 1시간 트랙은 한 시간에 한 번만 새 판단거리가
+# 생기므로, 나머지 열한 번은 같은 봉을 다시 받아 같은 결론을 내고 버린다.
+# 코인(거래소 공개 API)에서는 공짜였지만 미국 무료 시세는 그 헛걸음에
+# 차단으로 답한다 — 차단당한 실험은 매 회차 조용히 비는 트랙이 된다.
+
+def _bars_ending(end="2026-08-19T14:00", n=80, freq="1h"):
+    """마지막 닫힌 봉이 **지금 직전**인 봉들 — 실제 장중 상황과 같은 모양."""
+    idx = pd.date_range(end=end, periods=n, freq=freq)
+    px = [100.0 + i * 0.1 for i in range(n)]
+    return pd.DataFrame({"open": px, "high": [p * 1.01 for p in px],
+                         "low": [p * 0.99 for p in px], "close": px},
+                        index=idx)
+
+
+def test_no_new_bar_means_no_request(tmp_path, monkeypatch):
+    # 14:00 봉까지 판단한 상태(15:00 회차) — 실제 장중과 같은 배치
+    _run(tmp_path, OPEN_NOW, data={"AAPL": _bars_ending()})
+    st = json.loads(
+        (tmp_path / "intraday" / "us_challenger.json").read_text("utf-8"))
+    assert not IU.bar_could_have_closed(st, "1h", "2026-08-19T15:30:00+00:00"), (
+        "30분 뒤인데 새 봉이 닫혔다고 본다 — 헛걸음 요청이 열린다")
+    assert IU.bar_could_have_closed(st, "1h", "2026-08-19T18:30:00+00:00"), (
+        "세 시간 뒤인데 새 봉이 없다고 본다 — 트랙이 영영 멈춘다")
+
+    # 관문이 실제로 **네트워크를 막는가** — 부르면 검사가 터지게 심어 둔다.
+    def _boom(*a, **k):
+        raise AssertionError("새 봉이 없는데 시세를 불렀다")
+    monkeypatch.setattr(IU, "_fetch_real", _boom)
+    v = IU.run_us_round("2026-08-19T15:30:00+00:00", state_dir=str(tmp_path),
+                        docs_dir=str(tmp_path / "docs"),
+                        strategy_factory=lambda s: _AlwaysLong())
+    assert "새 봉" in str(v.get("skipped")), v
+
+
+def test_the_first_round_always_asks():
+    """기록이 없으면 막지 않는다 — '모름'을 '아님'으로 읽으면 첫 회차가 없다."""
+    assert IU.bar_could_have_closed({}, "1h", OPEN_NOW)
+    assert IU.bar_could_have_closed({"rounds": [{}]}, "1h", OPEN_NOW)
+
+
+def test_the_experiment_yields_before_the_safety_net(tmp_path, monkeypatch):
+    """시세가 느린 날 실험이 먼저 물러난다 — 감시·킬스위치가 인질이 아니다."""
+    monkeypatch.setattr(IU, "FETCH_BUDGET_SEC", -1.0)   # 예산을 다 쓴 상태
+    monkeypatch.setattr(IU, "_fetch_real",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("예산 초과인데 시세를 불렀다")))
+    _p, _s, _b, skipped, _d = IU._judge_symbols(
+        ["AAPL"], OPEN_NOW, "1h", None, lambda s: _AlwaysLong())
+    assert "시간 초과" in skipped["AAPL"], skipped
+
+
+def test_the_limit_shadow_runs_here_too(tmp_path):
+    """주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다."""
+    _run(tmp_path, OPEN_NOW)
+    st = json.loads(
+        (tmp_path / "intraday" / "us_challenger.json").read_text("utf-8"))
+    assert st.get("limit_shadow"), "지정가 그림자가 활성화되지 않았다"
+    pub = json.loads((tmp_path / "docs" / "intraday_us.json")
+                     .read_text("utf-8"))
+    assert pub.get("limit_shadow"), "공개 요약에 그림자가 없다"
+    src = (ROOT / "quant" / "live" / "intraday_us.py").read_text("utf-8")
+    assert "def _limit_shadow_round" not in src, (
+        "체결 판정을 복사했다 — 두 트랙의 '지정가'가 갈라질 길을 만들었다")
+
+
+# ── 공식 시세로 갈아탈 수 있는가 (2026-08-19, 사장님 "알파카로 하고") ──
+#
+# 키는 저장소에 없다(깃허브 시크릿에만). 그래서 "있으면 쓰고 없으면 하던
+# 대로"가 유일하게 정직한 구조다 — 키를 전제로 짜면 키 없는 곳에서 조용히
+# 죽고, 야후만 전제로 짜면 키가 있어도 안 쓴다.
+
+def test_the_official_source_leads_only_when_keyed(monkeypatch):
+    from quant.data.stock import StockDataProvider
+    for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    names = [n for n, _ in StockDataProvider("us_stock")._sources()]
+    assert names[0] == "yfinance" and "alpaca" not in names, (
+        f"키가 없는데 알파카를 시도한다: {names}")
+
+    monkeypatch.setenv("ALPACA_KEY_ID", "test-key")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "test-secret")
+    names = [n for n, _ in StockDataProvider("us_stock")._sources()]
+    assert names[0] == "alpaca", f"키가 있는데 안 쓴다: {names}"
+    assert "yfinance" in names, "공식 소스가 죽었을 때 물러설 곳이 없다"
+    # 한국 주식은 알파카가 다루지 않는다 — 엉뚱한 소스를 앞에 세우지 않는다.
+    kr = [n for n, _ in StockDataProvider("kr_stock")._sources()]
+    assert "alpaca" not in kr, f"한국 시장에 미국 소스를 붙였다: {kr}"
+
+
+def test_the_five_minute_track_returns_with_the_key(monkeypatch):
+    for k in ("ALPACA_KEY_ID", "ALPACA_SECRET_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    assert IU.ladder_timeframes() == ["15m"], (
+        "무료 공개 시세인데 5분 트랙을 돌린다 — 막혀서 기록이 빈다")
+    monkeypatch.setenv("ALPACA_KEY_ID", "test-key")
+    monkeypatch.setenv("ALPACA_SECRET_KEY", "test-secret")
+    assert IU.ladder_timeframes() == ["15m", "5m"], (
+        "공식 시세 키가 있는데 5분 트랙이 돌아오지 않는다")
+
+
+def test_the_screen_says_which_source_it_ran_on(monkeypatch, tmp_path):
+    """어느 시세로 돈 기록인지 화면이 말해야 한다 — 출처가 곧 신뢰도다."""
+    _run(tmp_path, OPEN_NOW)
+    pub = json.loads((tmp_path / "docs" / "intraday_us.json")
+                     .read_text("utf-8"))
+    assert pub.get("quote_source"), "장부가 시세 출처를 안 남긴다"
+    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    assert "u.quote_source" in page, (
+        "화면이 출처를 장부에서 읽지 않는다 — 산문에 박으면 어긋난다")
+
+
+def test_the_key_never_leaves_the_environment():
+    """키는 환경에서만 읽고 어디에도 복사하지 않는다(동의로도 못 푸는 보안선)."""
+    src = (ROOT / "quant" / "data" / "stock.py").read_text("utf-8")
+    # 헤더를 만드는 한 함수 밖에서 환경변수를 읽으면 안 된다.
+    outside = [ln for ln in src.splitlines()
+               if "ALPACA_SECRET_KEY" in ln and "_ALPACA_ENV" not in ln
+               and "os.environ.get(" in ln]
+    assert len(outside) <= 1, (
+        f"시크릿을 여러 곳에서 읽는다 — 새는 길이 늘어난다: {outside}")
+    for leak in ("log.info", "log.warning", "log.error"):
+        for ln in src.splitlines():
+            if leak in ln and "ALPACA" in ln:
+                raise AssertionError(f"키가 로그로 나갈 수 있다: {ln}")
+    guard = (ROOT / ".github" / "workflows" / "guard.yml").read_text("utf-8")
+    assert "secrets.ALPACA_KEY_ID" in guard, (
+        "감시 작업에 키가 전달되지 않는다 — 시크릿을 넣어도 안 쓰인다")

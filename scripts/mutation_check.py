@@ -6106,6 +6106,17 @@ MUTATIONS = [
      "          exit 0\n",
      "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
 
+    # ── 무료 시세를 조르지 않는다 (2026-08-19) ──────────────────────
+    ("새 봉 관문을 뗀다(5분마다 같은 봉을 다시 받는다 — 차단당해 트랙이 빈다)",
+     "quant/live/intraday_us.py",
+     "    if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):",
+     "    if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("실험의 시간 예산을 뗀다(느린 날 감시·킬스위치까지 시간 초과로 죽는다)",
+     "quant/live/intraday_us.py",
+     "        if data is None and time.monotonic() > deadline:",
+     "        if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
     # ── 실적 가드가 아무것도 모른다 (2026-08-19 감사 289) ────────────
     ("발표일 조회가 왜 실패했는지를 안 남긴다 — '못 받았다'가 '없다'로 굳는다",
      "quant/data/earnings.py",
@@ -6150,6 +6161,18 @@ MUTATIONS = [
      "    for(let t=_t(h[0].date);t<=_t(h[h.length-1].date);t+=_DAY)allDays.push(_iso(t));",
      "    h.forEach(r=>allDays.push(r.date));",
      "tests/test_the_chart_does_not_draw_days_it_has_no_record_of.py"),
+
+    # ── 공식 시세로 갈아탈 수 있는가 (2026-08-19) ────────────────────
+    ("키가 있어도 공식 소스를 안 쓴다(시크릿을 넣어도 야후로 계속 돈다)",
+     "quant/data/stock.py",
+     '        if self.market == "us_stock" and alpaca_configured():',
+     "        if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("키 없이도 공식 소스를 시도한다(키 없는 기계·PR 검사에서 매번 헛걸음)",
+     "quant/data/stock.py",
+     '    return all((os.environ.get(k) or "").strip() for k in _ALPACA_ENV)',
+     "    return True",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

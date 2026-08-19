@@ -399,8 +399,12 @@ def _elapsed_days(rounds: list[dict]) -> float | None:
 
 def _limit_shadow_round(st: dict, dfs: dict, signals: dict, prices: dict,
                         fee_only: float, scale: float, now_iso: str,
-                        bar_times: dict) -> dict | None:
+                        bar_times: dict,
+                        universe: list[str] | None = None) -> dict | None:
     """지정가 그림자 계좌 — 같은 신호, 다른 체결 (실험 속 실험, 2026-08-18).
+
+    `universe`는 미국 트랙(intraday_us)이 **같은 체결 판정을 빌려 쓰기
+    위한** 인자다 — 복사해 가면 두 트랙의 '지정가란 무엇인가'가 갈라진다.
 
     본 실험은 판단 봉 종가에 시장가(수수료+슬리피지)로 즉시 체결한다.
     이 그림자는 활성화 순간 본 계좌를 **그대로 복제**한 뒤, 같은 신호로
@@ -469,10 +473,11 @@ def _limit_shadow_round(st: dict, dfs: dict, signals: dict, prices: dict,
     sh["pending"] = {}
     eq = float(sh["cash"]) + sum(float(q) * float(prices.get(sym, 0.0))
                                  for sym, q in sh["positions"].items())
+    syms = universe if universe is not None else UNIVERSE
     if eq > 0:
         budget = sh["cash"]                  # 대기 매수 합계가 현금을 못 넘게
-        slice_budget = eq / len(UNIVERSE)
-        for sym in UNIVERSE:
+        slice_budget = eq / len(syms)
+        for sym in syms:
             sig = signals.get(sym)
             px = prices.get(sym)
             if sig is None or not px:

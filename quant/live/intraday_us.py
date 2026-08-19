@@ -39,10 +39,27 @@ UNIVERSE_FALLBACK = ["SPY", "QQQ", "NVDA", "AAPL", "GOOGL",
                      "GOOG", "MSFT", "AMZN"]
 
 TIMEFRAME = "1h"
-LADDER_TIMEFRAMES = ["15m", "5m"]      # 코인 사다리와 같은 눈금 — 주기 선택을
-LADDER_ROUNDS_KEEP = 4000              # 사람이 아니라 곡선이 하게 한다
+# ⚠️ 코인 사다리는 15분·5분 둘 다지만 미국은 **15분까지만** 둔다(2026-08-19).
+#    이유는 취향이 아니라 시세 제공자의 물리적 한계다: 코인은 거래소 공개
+#    API라 요청이 사실상 무제한이지만, 미국 주식 무료 시세(야후)는 요청을
+#    깐깐하게 조인다. 5분 트랙을 넣으면 정규장 6시간 반 동안 종목마다
+#    5분마다 부르게 되고, 그러면 차단당해 **매 회차 "시세 못 받음"으로
+#    조용히 비는 트랙**이 된다 — 돌지 않는 실험은 실험이 아니다.
+#    키가 필요한 정식 소스(예: 브로커 시세 API)를 붙이면 그때 되돌린다.
+LADDER_TIMEFRAMES = ["15m"]
+LADDER_TIMEFRAMES_KEYED = ["15m", "5m"]   # 공식 시세(알파카) 키가 있을 때
+LADDER_ROUNDS_KEEP = 4000
 LOOKBACK_BARS = 800
 MIN_BARS = 60
+
+# 한 회차가 시세를 기다리는 데 쓸 수 있는 시간(초). 넘으면 남은 종목을
+# 포기하고 그렇게 적는다.
+#
+# ⚠️ 이 실험은 **5분 장중 감시와 같은 작업 안에서** 돈다. 그 작업에는 낙폭
+#    킬스위치와 심장박동이 함께 있다. 시세가 느린 날 미국 트랙이 시간을 다
+#    쓰면 작업 제한에 걸려 **안전장치까지 같이 죽는다** — 실험이 안전장치를
+#    볼모로 잡는 모양이라, 이 저장소가 가장 피해야 할 구조다.
+FETCH_BUDGET_SEC = 90.0
 
 START_CASH_USD = 10_000.0              # 가상 시드(USD). 원화와 절대 섞지 않는다.
 ROUNDS_KEEP = 2000
@@ -82,6 +99,19 @@ PREREGISTERED_JUDGEMENT = {
             "바꿔야 한다면 그 사실과 이유를 사전 등록 원장(prereg)의 "
             "수정 이력에 공개한다.",
 }
+
+
+def ladder_timeframes() -> list[str]:
+    """사다리 눈금 — 공식 시세 키가 있으면 5분 트랙을 되돌린다.
+
+    ⚠️ 트랙이 늘고 주는 것은 **판정에 영향을 준다**(다중검정). 그래서
+       조용히 바뀌면 안 되고, 공개 JSON이 지금 어떤 눈금으로 돌고 있는지와
+       왜 그런지를 함께 싣는다(ladder_note). 사다리는 참고 진단이고 확정
+       판정은 1시간 트랙만 한다는 규칙은 그대로다.
+    """
+    from quant.data.stock import alpaca_configured
+    return list(LADDER_TIMEFRAMES_KEYED if alpaca_configured()
+                else LADDER_TIMEFRAMES)
 
 
 def _dir(state_dir: str) -> str:
@@ -161,6 +191,49 @@ def _fetch_real(symbol: str, timeframe: str = TIMEFRAME):
     return df
 
 
+def _tf_minutes(timeframe: str) -> int:
+    """봉 길이(분). 모르는 눈금은 보수적으로 1분(=항상 새 봉으로 본다)."""
+    tf = str(timeframe).strip().lower()
+    if tf.endswith("h"):
+        return int(tf[:-1] or 1) * 60
+    if tf.endswith("m"):
+        return int(tf[:-1] or 1)
+    if tf.endswith("d"):
+        return int(tf[:-1] or 1) * 1440
+    return 1
+
+
+def bar_could_have_closed(st: dict, timeframe: str, now_iso: str) -> bool:
+    """직전 회차 이후 **새 봉이 닫혔을 수 있는가** — 아니면 시세를 안 부른다.
+
+    ⚠️ 왜 필요한가(2026-08-19). 장중 감시는 5분마다 돈다. 그런데 1시간
+       트랙은 한 시간에 한 번만 새 판단거리가 생긴다 — 나머지 열한 번은
+       **같은 봉을 다시 받아** 같은 결론을 내고 버린다. 코인(거래소 공개
+       API)에서는 공짜였지만 미국 무료 시세에서는 그 헛걸음이 차단을 부른다.
+
+       마지막으로 판단한 봉의 여는 시각을 안다. 그 다음 봉은 (여는 시각
+       + 봉 길이 × 2)에야 닫힌다 — 그 전에는 새로 받을 것이 없다.
+       기록이 없으면(첫 회차) 무조건 부른다.
+    """
+    import datetime as dt
+
+    rounds = st.get("rounds") or []
+    if not rounds:
+        return True
+    bars = rounds[-1].get("bar_times") or {}
+    if not bars:
+        return True
+    try:
+        last = max(dt.datetime.fromisoformat(str(b).replace("Z", "+00:00"))
+                   for b in bars.values())
+    except ValueError:
+        return True                      # 못 읽으면 막지 않는다(모름 ≠ 아님)
+    if last.tzinfo is not None:
+        last = last.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    now = _now_dt(now_iso).astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return now >= last + dt.timedelta(minutes=2 * _tf_minutes(timeframe))
+
+
 def _now_dt(now_iso: str):
     import datetime as dt
     now = dt.datetime.fromisoformat(str(now_iso).replace("Z", "+00:00"))
@@ -172,12 +245,22 @@ def _now_dt(now_iso: str):
 def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
                    data: dict | None, factory) -> tuple[dict, dict, dict, dict]:
     """종목별 (가격, 신호, 판단 봉 시각, 건너뜀 사유) — 닫힌 봉만 쓴다."""
+    import time
+
     from quant.live.intraday_challenger import confirmed_bars
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
     bar_times: dict[str, str] = {}
     skipped: dict[str, str] = {}
+    dfs: dict[str, object] = {}
+    deadline = time.monotonic() + FETCH_BUDGET_SEC
     for sym in syms:
+        # 시간 예산 — 안전장치와 한 작업에 살고 있으므로, 느린 날에는
+        # 실험이 먼저 물러난다. 물러난 사실은 장부에 남는다(조용한 포기 금지).
+        if data is None and time.monotonic() > deadline:
+            signals[sym] = None
+            skipped[sym] = "시세 대기 시간 초과 — 이 회차는 포기(감시 보호)"
+            continue
         df = (data or {}).get(sym) if data is not None \
             else _fetch_real(sym, timeframe=timeframe)
         if df is not None:
@@ -189,6 +272,7 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
             continue
         prices[sym] = float(df["close"].iloc[-1])
         bar_times[sym] = str(df.index[-1])
+        dfs[sym] = df
         try:
             sig = float(factory(sym).generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다
@@ -196,7 +280,7 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
             skipped[sym] = f"신호 계산 실패: {exc}"
             continue
         signals[sym] = max(0.0, min(1.0, sig))   # 숏·레버리지 없음
-    return prices, signals, bar_times, skipped
+    return prices, signals, bar_times, skipped, dfs
 
 
 def _advance_account(st: dict, syms: list[str], prices: dict, signals: dict,
@@ -245,7 +329,10 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     cost = measured_cost_model("us_stock", state_dir)
     per_side = float(cost.fee + cost.slippage)
 
-    prices, signals, bar_times, skipped = _judge_symbols(
+    # 새 봉이 닫혔을 수 없으면 시세를 아예 부르지 않는다(요청 절약).
+    if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):
+        return {"skipped": "새 봉 없음 — 시세 요청 생략", "time": str(now_iso)}
+    prices, signals, bar_times, skipped, dfs = _judge_symbols(
         syms, now_iso, TIMEFRAME, data, factory)
     if not prices:
         return {"skipped": "판단 재료 없음(실데이터 전무)", "time": str(now_iso)}
@@ -256,12 +343,26 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
 
     equity_after, trades = _advance_account(st, syms, prices, signals,
                                             per_side)
+    # 지정가 그림자 — 같은 신호, 다른 체결(코인 트랙과 **같은 함수**).
+    # 주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다.
+    # 실패해도 본 실험을 막지 않는다 — 부르는 쪽이 예외를 삼킨다.
+    shadow_info = None
+    try:
+        from quant.live.intraday_challenger import _limit_shadow_round
+        shadow_info = _limit_shadow_round(
+            st, dfs, signals, prices, float(cost.fee),
+            float(st.get("risk_scale", 1.0)), now_iso, bar_times,
+            universe=syms)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("미국 지정가 그림자 실패(본 실험 무관): %s", exc)
     rec = {"time": str(now_iso), "equity": round(equity_after, 2),
            "signals": {k: (round(v, 4) if v is not None else None)
                        for k, v in signals.items()},
            "bar_times": bar_times, "trades": trades}
     if float(st.get("risk_scale", 1.0)) < 1.0:
         rec["kill_switch"] = {"scale": float(st["risk_scale"])}
+    if shadow_info:
+        rec["limit_shadow"] = shadow_info
     if skipped:
         rec["skipped"] = skipped
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
@@ -303,11 +404,14 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
     cost = measured_cost_model("us_stock", state_dir)
     per_side = float(cost.fee + cost.slippage)
     out = []
-    for tf in LADDER_TIMEFRAMES:
+    for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
+        if data is None and not bar_could_have_closed(st, tf, now_iso):
+            out.append({"timeframe": tf, "skipped": "새 봉 없음 — 요청 생략"})
+            continue
         # 주입 데이터 모드에서는 절대 실데이터로 넘어가지 않는다 — 검사가
         # 몰래 네트워크를 만지는 순간 검사 자체가 재현 불가능해진다.
-        prices, signals, bar_times, _sk = _judge_symbols(
+        prices, signals, bar_times, _sk, _dfs = _judge_symbols(
             syms, now_iso, tf,
             (((data or {}).get(tf) or {}) if data is not None else None),
             factory)
@@ -334,7 +438,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
 def ladder_public(state_dir: str = "state") -> list[dict]:
     from quant.live.intraday_challenger import hold_baseline_pct
     out = []
-    for tf in LADDER_TIMEFRAMES:
+    for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
         rounds = st.get("rounds") or []
         if not rounds:
@@ -353,10 +457,30 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
     return out
 
 
+def _quote_source() -> str:
+    """지금 어떤 시세로 도는가 — 키 값이 아니라 **어느 경로인지**만 말한다."""
+    from quant.data.stock import ALPACA_FEED, alpaca_configured
+    if alpaca_configured():
+        return (f"알파카 공식 무료 시세({ALPACA_FEED.upper()} 거래소) — "
+                "전체 시장 통합 시세(SIP)가 아니라 일부 거래소 체결이라, "
+                "통합 시세와 조금 다를 수 있습니다")
+    return ("무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 "
+            "있습니다. 못 받은 종목은 그 회차를 쉽니다")
+
+
+def _ladder_reason() -> str:
+    from quant.data.stock import alpaca_configured
+    if alpaca_configured():
+        return "공식 시세 키가 있어 5분 트랙까지 돌고 있습니다."
+    return ("지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 "
+            "요청이 막혀 오히려 기록이 비기 때문입니다.")
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
-    from quant.live.intraday_challenger import (hold_baseline_pct,
+    from quant.live.intraday_challenger import (_shadow_public,
+                                                hold_baseline_pct,
                                                 observed_gap_minutes)
     rounds = st.get("rounds") or []
     lastr = rounds[-1] if rounds else {}
@@ -377,6 +501,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "observed_gap_minutes": observed_gap_minutes(rounds),
         "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — "
                         "장 밖 회차는 기록이 없습니다",
+        # 어느 시세로 돌고 있는지 — 화면이 지어내지 않게 장부가 말한다.
+        "quote_source": _quote_source(),
         "positions": {k: round(float(v), 8)
                       for k, v in (st.get("positions") or {}).items()},
         "risk_scale": float(st.get("risk_scale", 1.0)),
@@ -385,11 +511,13 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                          for r in rounds[-CURVE_KEEP:]],
         "hold_return_pct": hold_baseline_pct(st),
         "judgement": PREREGISTERED_JUDGEMENT,
+        "limit_shadow": _shadow_public(st, lastr),
         "ladder": ladder_public(state_dir),
         "ladder_note": ("주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 "
                         "다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 "
                         "나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 "
-                        "90일 기준만 유효하고, 사다리는 참고 진단입니다."),
+                        "90일 기준만 유효하고, 사다리는 참고 진단입니다. "
+                        + _ladder_reason()),
         "recent_trades": [
             {"time": r.get("time"), **t}
             for r in rounds for t in (r.get("trades") or [])][-40:],
