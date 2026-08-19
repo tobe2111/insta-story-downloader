@@ -2776,6 +2776,32 @@ MUTATIONS = [
      '        "correction": "본페로니 3(쌍 3개: 1h-15m·1h-5m·15m-5m)",',
      '        "correction": "보정 없음",',
      "tests/test_the_goalposts_were_planted_before_the_data.py"),
+
+    # 2026-08-19 수집 라운드 — 슈퍼트렌드. 래칫이 풀리면 밴드가 되돌아가
+    # 추격 손절선이 아니게 된다(지표의 정체 상실).
+    ("슈퍼트렌드의 래칫이 풀린다(밴드가 되돌아간다)",
+     "quant/strategies/supertrend.py",
+     "                up_f = bu if (bu < up_f or c[i - 1] > up_f) else up_f",
+     "                up_f = bu",
+     "tests/test_the_supertrend_ratchet_never_lets_go.py"),
+    # 2026-08-19 — 무제약 그림자. 상한이 풀리면 '가상 계좌의 빚'이라는
+    # 존재할 수 없는 숫자가 곡선이 되고, 멱등이 풀리면 두 번 움직인다.
+    ("무제약 그림자에 레버리지가 열린다(가상 계좌가 빚을 낸다)",
+     "quant/live/unshackled.py",
+     "    if gross > 1.0:",
+     "    if False:",
+     "tests/test_the_unshackled_shadow_prices_the_brakes.py"),
+    ("무제약 그림자가 같은 봉에 두 번 움직인다(멱등 해제)",
+     "quant/live/unshackled.py",
+     '    if st["history"] and st["history"][-1].get("date") == bar:',
+     "    if False:",
+     "tests/test_the_unshackled_shadow_prices_the_brakes.py"),
+
+    ("슈퍼트렌드가 링에서 빠진다",
+     "quant/live/retrain.py",
+     '        {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},',
+     '        # {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},',
+     "tests/test_the_supertrend_ratchet_never_lets_go.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',

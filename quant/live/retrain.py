@@ -767,6 +767,8 @@ def build_challengers(current_spec: dict, seed: str,
     # 수급 피처가 없는 시장에서는 관망만 내는 무해한 후보다.
     challengers += [
         {"strategy": "supply_som", "params": {}},
+        # 슈퍼트렌드(2026-08-19 수집 라운드) — ATR 밴드 래칫 추세.
+        {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},
         # 가치 닻(2026-08-19, KIS 사례 채택) — 자기 역사 대비 저PBR 구간만
         # 보유. 재료(val_pbr)는 한국 주식에만 붙는다 — 없는 시장은 관망.
         {"strategy": "value_anchor", "params": {"quantile": 0.4}},

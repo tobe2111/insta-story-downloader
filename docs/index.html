@@ -362,6 +362,14 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <div id="glance-body" class="sub" style="margin-top:10px">불러오는 중…</div>
     </section>
 
+    <!-- 무제약 그림자(2026-08-19, 사장님 질문 "제약을 다 풀면 되잖아") —
+         말 대신 곡선으로 답한다. 이 카드가 앞서 보일수록 최대낙폭을 같이
+         읽어야 한다 — 주의 문구는 장부(note)에서 그대로 읽는다. -->
+    <section class="card c12" id="unshackled-card" style="display:none">
+      <h2>안전장치를 다 풀면? <span class="tag">가상 실험 · 위험 비교용</span></h2>
+      <div id="unshackled-body" class="sub" style="margin-top:10px"></div>
+    </section>
+
     <!-- 다운로드 히어로 — 제품 소개. **계좌 요약 아래로 내렸다**(감사 274):
          첫 화면이 "1,000,000원으로 굴리는 자동매매"라는 광고 문구로 시작하고
          정작 "지금 얼마인가"는 오른쪽 구석에 전문용어와 섞여 있었다. -->
@@ -420,7 +428,12 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 
     <!-- 차트 옆 신뢰 카드 2개 (세로 스택) — 기본 접힘(감사 274) -->
     <div class="c4 stackcol adv">
-      <section class="card"><h2>🕰 판정 시계</h2>
+      <!-- 쉬운 제목(2026-08-19) — "판정 시계"는 아는 사람 말이었다. -->
+      <section class="card"><h2>🕰 이 성적, 언제부터 공식인가
+        <span class="tag">판정 시계</span></h2>
+        <p class="sub" style="font-size:11.5px;margin:4px 0 0">지금 구조로
+        90일을 채워야 "우연이 아니다"라고 말할 수 있어서, 그때까지는 모든
+        수익률을 <b>중간 기록</b>으로만 읽습니다.</p>
         <div id="c-gen" class="sub" style="margin-top:8px">불러오는 중…</div></section>
       <section class="card"><h2>🎯 리스크 설정</h2>
         <div id="c-vol" class="sub" style="margin-top:8px">불러오는 중…</div></section>
@@ -522,7 +535,14 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 
     <!-- 표 옆 카드 2개 — 기본 접힘(감사 274) -->
     <div class="c4 stackcol adv">
-      <section class="card"><h2>🧾 체결 가정 검증</h2>
+      <!-- 쉬운 제목(2026-08-19 사장님 "체결 가정 검증은 뭔데?") — 용어보다
+           질문을 제목으로. 원 용어는 괄호로 남겨 문서·코드와 이어지게. -->
+      <section class="card"><h2>🧾 거래 비용, 가정이 실제와 맞나
+        <span class="tag">체결 가정 검증</span></h2>
+        <p class="sub" style="font-size:11.5px;margin:4px 0 0">백테스트가
+        가정한 수수료·미끄러짐(주문 순간 가격이 살짝 불리해지는 것)이
+        실제 체결과 얼마나 다른지 매일 잽니다 — 가정이 후하면 성적이
+        부풀려 보이기 때문입니다.</p>
         <div id="c-fill" class="sub" style="margin-top:8px">불러오는 중…</div></section>
       <section class="card"><h2>🧨 위기 재생·스트레스 <span class="tag">시뮬레이션</span></h2>
         <div id="c-risk" class="sub" style="margin-top:8px">불러오는 중…</div></section>
@@ -862,10 +882,21 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '</div>'
           : '<div class="sub" style="margin-top:12px">기준일 <b>'+esc(day)+
             '</b> — 매일 새벽 한 번 확정합니다(실시간이 아닙니다).</div>')+
-        '<div class="sub" style="margin-top:10px">'+
-          '이 중 <b>'+won(heldVal)+'</b>이 종목에 들어가 있고, '+
-          '<b>'+won(cashVal)+'</b>은 현금입니다.'+
-        '</div>'+
+        /* 시장별로 얼마씩인지(2026-08-19 사장님 "미국주식은 안 해?") —
+           보유 0인 시장은 "안 하는 것"이 아니라 "신호가 관망 중"이다.
+           그 구별이 화면에 없으면 읽는 사람이 지어낸다. */
+        (function(){
+          const mk={crypto:0,kr_stock:0,us_stock:0};
+          hold.forEach(r=>{const m=String(r.key||"").split(":")[0];
+            if(mk[m]!=null)mk[m]+=Number(r.value)||0});
+          const seg=(nm,v)=>'<b>'+nm+'</b> '+(v>0?won(v)
+            :'0원<span style="font-size:11px"> (신호 관망 중 — 안 하는 게 아닙니다)</span>');
+          return '<div class="sub" style="margin-top:10px">'+
+            '이 중 <b>'+won(heldVal)+'</b>이 종목에 들어가 있고, '+
+            '<b>'+won(cashVal)+'</b>은 현금입니다.<br>'+
+            seg('코인',mk.crypto)+' · '+seg('한국주식',mk.kr_stock)+' · '+
+            seg('미국주식',mk.us_stock)+'</div>';
+        })()+
         /* ⚠️ **이 단계의 진짜 점수는 절대 수익이 아니다**(감사 276).
            같은 기간 그냥 사서 들고만 있었어도 얼마였는지를 함께 적지 않으면,
            시장이 오른 날은 실력처럼 보이고 내린 날은 억울해 보인다.
@@ -890,6 +921,17 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
            계산하는 것은 다른 일이다(㉞). */
         '<div class="sub lvv" data-k="__total__" style="margin-top:6px"></div>';
     }
+  }
+  /* 무제약 그림자 — 제약의 값을 곡선으로. 문구는 장부(note)에서 읽는다. */
+  if(st.unshackled&&st.unshackled.days){
+    const u=st.unshackled;
+    const up2=u.return_pct>=0;
+    document.getElementById("unshackled-card").style.display="";
+    document.getElementById("unshackled-body").innerHTML=
+      '<b class="'+(up2?"up":"down")+'">'+won(u.equity)+'</b> ('+
+      (up2?"+":"")+Number(u.return_pct).toFixed(2)+'%) · 최대낙폭 <b class="down">'+
+      Number(u.worst_mdd_pct).toFixed(1)+'%</b> · '+u.days+'일째'+
+      '<div class="sub" style="margin-top:6px;font-size:12px">'+esc(u.note||"")+'</div>';
   }
   /* --- 사이드바: 돈이 지금 어디 있는가 ---------------------------------
      ⚠️ 사이트가 이걸 안 보여줬다(2026-08-13). 수익률·낙폭·종목표는 있는데
@@ -976,7 +1018,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   if(st.generation){
     const g=st.generation, p=Math.min(100,g.days/g.target_days*100);
     document.getElementById("side-gen").innerHTML=
-      '<div class="t">🕰 판정 시계</div>'+
+      '<div class="t">🕰 언제부터 공식 성적인가 <span style="font-weight:400;font-size:11px">(판정 시계)</span></div>'+
       '<div class="sub" style="margin-bottom:7px">구조 <b>'+esc(g.feature_set)+
       '</b> 관찰 <b>'+g.days+'일차</b> / '+g.target_days+'일</div>'+
       '<div class="gauge"><i style="width:'+Math.max(1.5,p)+'%"></i></div>'+
