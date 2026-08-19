@@ -130,3 +130,70 @@ def test_the_screen_reads_the_ledger_only():
     page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
     assert "intraday_us.json" in page and "us-sum" in page, (
         "미국 트랙 화면이 없다 — 공개되지 않는 실험은 실험이 아니다")
+
+
+# ── 무료 시세를 조르지 않는다 (2026-08-19) ──────────────────────
+#
+# 장중 감시는 5분마다 돈다. 1시간 트랙은 한 시간에 한 번만 새 판단거리가
+# 생기므로, 나머지 열한 번은 같은 봉을 다시 받아 같은 결론을 내고 버린다.
+# 코인(거래소 공개 API)에서는 공짜였지만 미국 무료 시세는 그 헛걸음에
+# 차단으로 답한다 — 차단당한 실험은 매 회차 조용히 비는 트랙이 된다.
+
+def _bars_ending(end="2026-08-19T14:00", n=80, freq="1h"):
+    """마지막 닫힌 봉이 **지금 직전**인 봉들 — 실제 장중 상황과 같은 모양."""
+    idx = pd.date_range(end=end, periods=n, freq=freq)
+    px = [100.0 + i * 0.1 for i in range(n)]
+    return pd.DataFrame({"open": px, "high": [p * 1.01 for p in px],
+                         "low": [p * 0.99 for p in px], "close": px},
+                        index=idx)
+
+
+def test_no_new_bar_means_no_request(tmp_path, monkeypatch):
+    # 14:00 봉까지 판단한 상태(15:00 회차) — 실제 장중과 같은 배치
+    _run(tmp_path, OPEN_NOW, data={"AAPL": _bars_ending()})
+    st = json.loads(
+        (tmp_path / "intraday" / "us_challenger.json").read_text("utf-8"))
+    assert not IU.bar_could_have_closed(st, "1h", "2026-08-19T15:30:00+00:00"), (
+        "30분 뒤인데 새 봉이 닫혔다고 본다 — 헛걸음 요청이 열린다")
+    assert IU.bar_could_have_closed(st, "1h", "2026-08-19T18:30:00+00:00"), (
+        "세 시간 뒤인데 새 봉이 없다고 본다 — 트랙이 영영 멈춘다")
+
+    # 관문이 실제로 **네트워크를 막는가** — 부르면 검사가 터지게 심어 둔다.
+    def _boom(*a, **k):
+        raise AssertionError("새 봉이 없는데 시세를 불렀다")
+    monkeypatch.setattr(IU, "_fetch_real", _boom)
+    v = IU.run_us_round("2026-08-19T15:30:00+00:00", state_dir=str(tmp_path),
+                        docs_dir=str(tmp_path / "docs"),
+                        strategy_factory=lambda s: _AlwaysLong())
+    assert "새 봉" in str(v.get("skipped")), v
+
+
+def test_the_first_round_always_asks():
+    """기록이 없으면 막지 않는다 — '모름'을 '아님'으로 읽으면 첫 회차가 없다."""
+    assert IU.bar_could_have_closed({}, "1h", OPEN_NOW)
+    assert IU.bar_could_have_closed({"rounds": [{}]}, "1h", OPEN_NOW)
+
+
+def test_the_experiment_yields_before_the_safety_net(tmp_path, monkeypatch):
+    """시세가 느린 날 실험이 먼저 물러난다 — 감시·킬스위치가 인질이 아니다."""
+    monkeypatch.setattr(IU, "FETCH_BUDGET_SEC", -1.0)   # 예산을 다 쓴 상태
+    monkeypatch.setattr(IU, "_fetch_real",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("예산 초과인데 시세를 불렀다")))
+    _p, _s, _b, skipped, _d = IU._judge_symbols(
+        ["AAPL"], OPEN_NOW, "1h", None, lambda s: _AlwaysLong())
+    assert "시간 초과" in skipped["AAPL"], skipped
+
+
+def test_the_limit_shadow_runs_here_too(tmp_path):
+    """주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다."""
+    _run(tmp_path, OPEN_NOW)
+    st = json.loads(
+        (tmp_path / "intraday" / "us_challenger.json").read_text("utf-8"))
+    assert st.get("limit_shadow"), "지정가 그림자가 활성화되지 않았다"
+    pub = json.loads((tmp_path / "docs" / "intraday_us.json")
+                     .read_text("utf-8"))
+    assert pub.get("limit_shadow"), "공개 요약에 그림자가 없다"
+    src = (ROOT / "quant" / "live" / "intraday_us.py").read_text("utf-8")
+    assert "def _limit_shadow_round" not in src, (
+        "체결 판정을 복사했다 — 두 트랙의 '지정가'가 갈라질 길을 만들었다")

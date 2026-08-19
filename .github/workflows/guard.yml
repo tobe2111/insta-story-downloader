@@ -34,7 +34,12 @@ permissions:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # ⚠️ 10 → 15분(2026-08-19). 미국 장중 트랙이 이 작업 안에 들어오면서
+    #    정규장 시간대에는 주식 시세 요청이 더해진다. 실험 때문에 이 작업이
+    #    시간 초과로 죽으면 **낙폭 킬스위치와 심장박동까지 같이 죽는다** —
+    #    실험이 안전장치를 볼모로 잡는 구조는 만들지 않는다(트랙 쪽에도
+    #    자체 시간 예산 FETCH_BUDGET_SEC이 있어 먼저 물러난다).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

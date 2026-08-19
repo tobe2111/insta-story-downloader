@@ -6105,6 +6105,18 @@ MUTATIONS = [
      "          exit 1\n",
      "          exit 0\n",
      "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
+
+    # ── 무료 시세를 조르지 않는다 (2026-08-19) ──────────────────────
+    ("새 봉 관문을 뗀다(5분마다 같은 봉을 다시 받는다 — 차단당해 트랙이 빈다)",
+     "quant/live/intraday_us.py",
+     "    if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):",
+     "    if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("실험의 시간 예산을 뗀다(느린 날 감시·킬스위치까지 시간 초과로 죽는다)",
+     "quant/live/intraday_us.py",
+     "        if data is None and time.monotonic() > deadline:",
+     "        if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
