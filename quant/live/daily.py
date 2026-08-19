@@ -3273,6 +3273,14 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001
         status["alloc_ladder"] = None
 
+    # 실험 판정 기준의 사전 등록(2026-08-19) — 골대 이동 방지. 판정일·통계·
+    # 문턱이 데이터보다 먼저 공개돼 있어야 몇 달 뒤의 판정이 의심받지 않는다.
+    try:
+        from quant.live.prereg import public as _prereg_public
+        status["prereg"] = _prereg_public()
+    except Exception:  # noqa: BLE001
+        status["prereg"] = None
+
     # 수동 킬스위치 상태 — 사장님이 멈춘 날의 공백이 고장처럼 보이지 않게,
     # "왜 기록이 없는지"를 사이트가 말할 수 있는 재료를 싣는다.
     try:

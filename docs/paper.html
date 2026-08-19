@@ -581,8 +581,12 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
        <td>${won(t.equity)}</td>
        <td class="${t.return_pct>=0?"pos":"neg"}">${pct(Number(t.return_pct))}</td>
        <td>${t.days}일</td></tr>`).join("");
+    /* 판정 기준은 사전 등록돼 있다(골대 이동 방지) — 날짜를 산문에 박지
+       않고 등록 원문(status.prereg)에서 읽는다. */
+    const preA=(st.prereg&&st.prereg.experiments&&st.prereg.experiments.alloc_ladder)||null;
     allocLad=`<div class="card"><h2>배분 방식 실험 <span style="font-size:12px;color:var(--muted)">가상 자금 · 상대 비교 전용</span></h2>
-      <p class="sub" style="margin:6px 0 4px;font-size:12.5px">${esc(st.alloc_ladder.note||"")}</p>
+      <p class="sub" style="margin:6px 0 4px;font-size:12.5px">${esc(st.alloc_ladder.note||"")}${
+        preA?` <b>판정 ${esc(preA.judge_on)}</b>(사전 등록 — 기준은 <a href="trust.html">기록 검증</a>에 공개)`:""}</p>
       <div class="tablewrap"><table><tr><th style="text-align:left">배분 방법</th>
       <th title="이 실험 전용 가상 계좌(100만원 시작)의 자산 — 본 계좌·참고 계좌와 다른 계좌입니다">실험계좌 자산</th><th>누적</th><th>표본</th></tr>${rows2}</table></div></div>`;
   }

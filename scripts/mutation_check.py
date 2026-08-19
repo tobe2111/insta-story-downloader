@@ -2763,6 +2763,19 @@ MUTATIONS = [
      "                s = s.where(s > 0)",
      "                pass",
      "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+
+    # 2026-08-19 — 사전 등록(골대 이동 방지). 판정일이 조용히 밀리면 등록의
+    # 존재 이유가 부서진다 — 날짜 산수 검사와 공개 페이지 대조가 지킨다.
+    ("배분 실험의 판정일이 조용히 미뤄진다(골대 이동)",
+     "quant/live/prereg.py",
+     '        "judge_on": "2026-12-17",',
+     '        "judge_on": "2027-12-17",',
+     "tests/test_the_goalposts_were_planted_before_the_data.py"),
+    ("사다리 실험의 다중비교 보정 선언이 사라진다",
+     "quant/live/prereg.py",
+     '        "correction": "본페로니 3(쌍 3개: 1h-15m·1h-5m·15m-5m)",',
+     '        "correction": "보정 없음",',
+     "tests/test_the_goalposts_were_planted_before_the_data.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',
