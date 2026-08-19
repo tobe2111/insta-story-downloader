@@ -972,7 +972,22 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     const nHeld=QuantExposure.count(applied);
     let why=[];
     if(nLot)why.push("1주 값에 못 미쳐 못 산 종목 "+nLot+"개");
-    if(nPlan&&nHeld<nPlan)why.push("목표를 잡은 "+nPlan+"곳 중 "+nHeld+"곳만 담김");
+    if(nPlan&&nHeld<nPlan){
+      /* ⚠️ **"몇 곳만 담겼다"만 말하면 절반만 밝힌 것이다**(2026-08-19
+         감사 291 · 감사 274 "그 돈은 누가 가져갔나"와 같은 계열).
+         2026-08-19 실측: 목표를 19곳에 잡고 실제로 담긴 것은 4곳이다.
+         읽는 사람이 가장 먼저 물을 질문은 "왜 15곳이 빠졌나"인데, 화면은
+         숫자만 말하고 이유를 말하지 않았다. 이유는 장부에 이미 있다 —
+         잔돈 10건, 쿨다운 2건. 기록에 있는데 화면에 없는 것은 감사 98이
+         잡겠다고 정한 바로 그 자리다. */
+      const dust=(pfLast.skipped_dust||[]).length;
+      const cool=(pfLast.skipped_cooldown||[]).length;
+      const bits=[];
+      if(dust)bits.push("주문액이 최소 금액에 못 미쳐 "+dust+"곳");
+      if(cool)bits.push("최근에 사고팔아 쉬는 중이라 "+cool+"곳");
+      why.push("목표를 잡은 "+nPlan+"곳 중 "+nHeld+"곳만 담김"+
+        (bits.length?" ("+bits.join(" · ")+")":""));
+    }
     /* 오늘의 목표와 실제 잔고가 다르면 그 사실도 말한다 — 어제까지 사둔
        것을 잔돈·쿨다운 때문에 못 판 상태가 정상적으로 생긴다. */
     const tgt=Math.abs(Number(pfLast.weight)||0);

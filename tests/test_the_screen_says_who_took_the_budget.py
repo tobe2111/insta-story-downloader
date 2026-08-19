@@ -168,3 +168,67 @@ def test_a_long_only_day_does_not_talk_about_two_numbers(_flags):
     txt = _flags["quiet"]["cash"]
     assert "사는 쪽과 파는 쪽이 섞여" not in txt, (
         f"파는 쪽이 없는 날인데 섞였다고 말한다:\n{txt}")
+
+
+# ── "몇 곳만 담겼다"만 말하면 절반만 밝힌 것이다 (감사 291) ──────
+#
+# 2026-08-19 실측: 목표를 19곳에 잡고 실제로 담긴 것은 4곳이었다. 화면은
+# 그 숫자만 말하고 **왜 15곳이 빠졌는지**는 말하지 않았다. 이유는 장부에
+# 이미 있다 — 잔돈 10건, 쿨다운 2건. 기록에 있는데 화면에 없는 것은
+# 감사 98이 잡겠다고 정한 바로 그 자리다.
+
+_MANY = {"skipped_dust": ["us_stock:SPY", "us_stock:AAPL", "us_stock:QQQ"],
+         "skipped_cooldown": ["crypto:SOL/USDT"],
+         "alloc": {f"x{i}": 0.1 for i in range(9)}}
+_NONE = {"skipped_dust": None, "skipped_cooldown": None}
+
+
+@pytest.fixture(scope="module")
+def _cash(tmp_path_factory):
+    """'돈이 지금 어디 있나' 카드 — 빠진 이유가 있는 날 / 없는 날."""
+    pytest.importorskip("playwright.sync_api",
+                        reason="playwright 없음 — 화면 검사 생략")
+    from playwright.sync_api import sync_playwright
+
+    base = tmp_path_factory.mktemp("cash")
+    urls, servers, out = {}, [], {}
+    for name, patch in (("skips", _MANY), ("clean", _NONE)):
+        url, srv = _serve(_make_site(base, "cash_" + name, patch))
+        urls[name] = url
+        servers.append(srv)
+    try:
+        with sync_playwright() as p:
+            b = p.chromium.launch(executable_path=chromium_or_skip())
+            try:
+                for name, url in urls.items():
+                    pg = b.new_page(viewport={"width": 1440, "height": 900})
+                    block_external(pg)
+                    errs = []
+                    pg.on("pageerror", lambda e: errs.append(str(e)))
+                    pg.goto(f"{url}/index.html")
+                    pg.wait_for_timeout(2400)
+                    out[name] = pg.locator("#side-cash").inner_text()
+                    assert not errs, f"{name}: 스크립트가 던졌다 — {errs}"
+                    pg.close()
+            finally:
+                b.close()
+        yield out
+    finally:
+        for srv in servers:
+            srv.shutdown()
+
+
+def test_the_screen_says_why_the_others_were_left_out(_cash):
+    txt = _cash["skips"]
+    assert "곳만 담김" in txt, f"몇 곳만 담겼는지조차 없다:\n{txt}"
+    assert "최소 금액에 못 미쳐" in txt, (
+        f"주문액이 작아 빠진 종목이 있는데 이유를 말하지 않는다:\n{txt}")
+    assert "쉬는 중이라" in txt, (
+        f"쿨다운으로 빠진 종목이 있는데 이유를 말하지 않는다:\n{txt}")
+
+
+def test_a_day_with_no_skips_does_not_invent_reasons(_cash):
+    """대조군 — 빠진 종목이 없는 날에 이 설명이 뜨면 매일 읽히는 배경음이 된다."""
+    txt = _cash["clean"]
+    assert "최소 금액에 못 미쳐" not in txt, f"빠진 적 없는데 이유가 붙는다:\n{txt}"
+    assert "쉬는 중이라" not in txt, txt

@@ -6173,6 +6173,17 @@ MUTATIONS = [
      '    return all((os.environ.get(k) or "").strip() for k in _ALPACA_ENV)',
      "    return True",
      "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    # ── "몇 곳만 담겼다"만 말한다 (2026-08-19 감사 291) ──────────────
+    ("주문액이 작아 빠진 종목 수를 안 읽는다 — 왜 빠졌는지가 화면에서 사라진다",
+     "docs/index.html",
+     "      const dust=(pfLast.skipped_dust||[]).length;",
+     "      const dust=0;",
+     "tests/test_the_screen_says_who_took_the_budget.py"),
+    ("쿨다운으로 빠진 종목 수를 안 읽는다 — 같은 자리의 나머지 절반",
+     "docs/index.html",
+     "      const cool=(pfLast.skipped_cooldown||[]).length;",
+     "      const cool=0;",
+     "tests/test_the_screen_says_who_took_the_budget.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
