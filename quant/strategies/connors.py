@@ -39,12 +39,18 @@ from quant.strategies.rsi import rsi
 class ConnorsRSI2(Strategy):
     name = "connors_rsi2"
 
+    # ⚠️ `allow_short`는 **받되 쓰지 않는다.** 이 규칙은 원문부터 롱 전용이라
+    #    숏을 붙이면 다른 전략이 된다(가치 닻과 같은 규약). 인자를 안 받으면
+    #    전 전략 공통 계약 검사가 이 전략만 건너뛰게 되고, 건너뛴 검사는
+    #    아무것도 지키지 않는다 — 그래서 받아서 무시한다.
     def __init__(self, rsi_period: int = 2, entry: float = 10.0,
-                 exit_ma: int = 5, trend_window: int = 200):
+                 exit_ma: int = 5, trend_window: int = 200,
+                 allow_short: bool = False):
         self.rsi_period = int(rsi_period)
         self.entry = float(entry)
         self.exit_ma = int(exit_ma)
         self.trend_window = int(trend_window)
+        self.allow_short = False        # 롱 전용 — 인자와 무관하게 고정
 
     def generate_signals(self, df: pd.DataFrame) -> pd.Series:
         close = df["close"]
