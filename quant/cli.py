@@ -652,10 +652,17 @@ def _cmd_guard(args) -> None:
     import json as _json
     import os as _os
 
-    from quant.live.guard import guard_once, observed_gap_minutes
+    from quant.live.guard import (check_ledger_freshness, guard_once,
+                                  observed_gap_minutes)
     from quant.live.ledger_basics import chrono
 
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    # 본 계좌 장부 신선도 — 새벽 배치가 죽으면 그 배치의 경보도 함께
+    # 죽으므로(2026-08-16~18 사흘 실측), 살아 있는 이 루프가 대신 잰다.
+    # 낙폭 감시보다 먼저 부른다 — 아래 장부 읽기가 실패해도 이건 돌아야 한다.
+    stale = check_ledger_freshness(args.state_dir)
+    if stale:
+        print(f"   {stale['message']}")
     path = _os.path.join(args.state_dir, "paper", args.state_file)
     try:
         with open(path, encoding="utf-8") as f:

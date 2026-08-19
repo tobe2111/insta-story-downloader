@@ -29,12 +29,20 @@ class RegimeFilter(Strategy):
         use_trend: bool = True,
         vol_window: int = 20,
         max_daily_vol: float | None = None,
+        vol_quantile: float | None = None,
+        vol_lookback: int = 252,
     ):
         self.base = base
         self.trend_window = trend_window
         self.use_trend = use_trend
         self.vol_window = vol_window
         self.max_daily_vol = max_daily_vol
+        # 변동성 **분위수** 필터(2026-08-19) — 절대 한도(max_daily_vol)는
+        # 코인(일 3~5%)과 주식(일 1%)의 체급이 달라 한 값으로 이식이 안 된다.
+        # 문턱을 그 시장 자신의 과거 분위수(추적 창)에서 뽑으면 어느 시장에
+        # 씌워도 "평소보다 유난히 흔들리는 구간"이라는 같은 뜻이 된다.
+        self.vol_quantile = vol_quantile
+        self.vol_lookback = vol_lookback
         self.allow_short = base.allow_short
         # 마지막 봉에서 이 필터가 왜 열렸/닫혔는지 — 설명문이 읽어 간다.
         #
@@ -105,6 +113,31 @@ class RegimeFilter(Strategy):
                             "reason": (f"일간 변동성 {float(last_vol):.2%}가 "
                                        f"한도 {self.max_daily_vol:.2%} 초과"
                                        "(패닉 구간) → 신규 진입 금지")}
+        if self.vol_quantile is not None:
+            vol = df["close"].pct_change().rolling(self.vol_window).std()
+            # 문턱 계산 창은 전부 과거다. shift(1): 오늘 변동성이 문턱에
+            # 스스로 들어가면 급등한 날 문턱도 같이 올라 판정이 무뎌진다.
+            thr = vol.shift(1).rolling(
+                self.vol_lookback,
+                min_periods=self.vol_lookback // 2).quantile(self.vol_quantile)
+            # '모름'(워밍업 NaN)은 보류 — 위 절대 한도 필터가 감사 206에서
+            # NaN 통과로 뚫렸던 그 자리와 같은 규칙을 쓴다.
+            hot = (vol > thr) | vol.isna() | thr.isna()
+            allowed[hot] = 0.0
+            if len(df) and bool(hot.iloc[-1]):
+                last_vol, last_thr = vol.iloc[-1], thr.iloc[-1]
+                if last_vol != last_vol or last_thr != last_thr:   # NaN
+                    gate = {"open": False, "kind": "vol_regime_unknown",
+                            "reason": (f"변동성 분위수 미정(관측 창 부족, "
+                                       f"데이터 {len(df)}봉) → 판정 보류, "
+                                       "진입하지 않음")}
+                else:
+                    gate = {"open": False, "kind": "vol_regime_high",
+                            "reason": (f"일간 변동성 {float(last_vol):.2%}가 "
+                                       f"이 시장 자신의 최근 상위 "
+                                       f"{(1 - self.vol_quantile):.0%} 문턱"
+                                       f"({float(last_thr):.2%})을 넘음 → "
+                                       "평소보다 유난히 흔들리는 구간, 관망")}
         self.last_gate_ = gate
 
         # allowed ∈ {0,1} 이므로 곱셈만으로 롱·숏을 함께 게이팅한다(불리한 국면의

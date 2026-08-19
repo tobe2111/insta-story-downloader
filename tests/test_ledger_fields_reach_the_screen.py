@@ -90,7 +90,37 @@ OFF_SCREEN_OK = {
     "kelly_caps": "종목별 켈리 상한 — 걸렸을 때의 효과가 applied·weight에 이미 반영돼 보인다",
     "data_source": "종목별 시세 제공자 — 문제가 되는 경우(합성 폴백)는 "
                    "data_source_fallback으로 따로 경고한다",
+    # ── 2026-08-19 추가(아래 정적 검사가 종목 기록까지 훑기 시작하면서) ──
+    "data_sha256": "재현용 입력 데이터 지문 — code_sha와 같은 부류로, "
+                   "verify(재현 감사)가 읽는 값이다",
+    "drift_psi": "드리프트 원자료(PSI) — 판정(drift_grade)이 화면에 나가고, "
+                 "숫자-문턱 비교는 기록 쪽이 한다(대표본 관행 문턱을 화면에서 "
+                 "재판정하면 상시 오경보 — 감사 99)",
+    "drift_ref": "드리프트 기준 시점 — 위 원자료의 짝",
+    "fill_cost": "그 시장의 체결 비용 가정치 — 실측과의 비교(fill_check)가 "
+                 "첫 화면 '체결 낙관 의심' 경고로 나간다",
+    "kelly_cap": "종목 켈리 상한(단수형) — 포트폴리오 kelly_caps와 같은 이유: "
+                 "걸렸을 때의 효과가 비중에 이미 반영돼 보인다",
+    "live_hit_flat": "실전 적중률의 관망 표본 수 — 화면의 실전 적중률 표기가 "
+                     "live_hit·live_hit_n으로 같은 사실을 보여준다",
+    "prob_up_cal": "상승확률의 보정판 — 확률 표시는 한 값만 싣는다(둘 다 "
+                   "실으면 어느 쪽이 판단값인지 헷갈린다). 보정 여부는 판단 "
+                   "사유 문구가 밝힌다",
 }
+
+
+def _screen_blob() -> str:
+    """'화면'의 정의 — HTML + 렌더링 스크립트 + 리포팅 코드.
+
+    2026-08-19까지 HTML만 봤는데, 적중률 신뢰구간(hit_hi·hit_lo·
+    hit_conclusive)은 assets/hitrate.js가 그린다 — 화면 스크립트를 빼면
+    실제로 보이는 필드를 '안 보인다'고 잘못 판정한다.
+    """
+    blob = "".join(p.read_text("utf-8") for p in DOCS.glob("*.html"))
+    blob += "".join(p.read_text("utf-8") for p in (DOCS / "assets").glob("*.js"))
+    blob += "".join(p.read_text("utf-8")
+                    for p in (ROOT / "quant" / "reporting").glob("*.py"))
+    return blob
 
 
 def test_every_ledger_field_is_either_shown_or_justified():
@@ -107,9 +137,7 @@ def test_every_ledger_field_is_either_shown_or_justified():
     hist = ((st.get("paper") or {}).get("portfolio:ALL") or {}).get("history") or []
     if not hist:
         return
-    blob = "".join(p.read_text("utf-8") for p in DOCS.glob("*.html"))
-    blob += "".join(p.read_text("utf-8")
-                    for p in (ROOT / "quant" / "reporting").glob("*.py"))
+    blob = _screen_blob()
 
     unshown = []
     for k in hist[-1]:
@@ -135,6 +163,9 @@ def test_the_justification_list_does_not_rot():
     known = set()
     for rec in hist:
         known |= set(rec)
+    # 2026-08-19부터 이 목록은 종목 기록의 필드도 정당화한다(아래 정적
+    # 검사) — 통합 계좌 기록에는 없어도 소스가 만드는 필드면 실존한다.
+    known |= _record_keys_from_source()
     stale = sorted(set(OFF_SCREEN_OK) - known)
     assert not stale, (
         f"장부에 더는 없는 필드의 면제가 남아 있다: {stale} — 목록을 정리할 것")
@@ -177,3 +208,59 @@ def test_the_flag_block_reads_those_fields_from_the_record():
         assert f"pfLast.{field}" in blk, (
             f"{why}을 기록에서 읽지 않는다 — 그 경고는 영영 안 뜬다. "
             "(낱말이 파일 어딘가에 남아 있는 것과 화면에 나오는 것은 다르다)")
+
+
+def _record_keys_from_source() -> set[str]:
+    """quant/live/daily.py가 장부에 기록하는 필드 이름 전부 — 소스에서 직접.
+
+    `record = {...}` 리터럴의 키 + `record["k"] = ...` 대입의 키.
+    """
+    import ast
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    keys: set[str] = set()
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if (isinstance(t, ast.Name) and t.id == "record"
+                        and isinstance(node.value, ast.Dict)):
+                    keys.update(k.value for k in node.value.keys
+                                if isinstance(k, ast.Constant)
+                                and isinstance(k.value, str))
+                if (isinstance(t, ast.Subscript)
+                        and isinstance(t.value, ast.Name)
+                        and t.value.id == "record"
+                        and isinstance(t.slice, ast.Constant)
+                        and isinstance(t.slice.value, str)):
+                    keys.add(t.slice.value)
+    return keys
+
+
+def test_tomorrows_record_fields_are_already_on_screen():
+    """**실배치 전용 실패를 머지 전에 잡는다** (2026-08-19).
+
+    위 검사는 docs/status.json의 마지막 기록을 읽는다 — 새 필드는 실배치가
+    한 번 돌아야 기록에 나타나므로, PR CI에서는 초록이고 **그날 밤 실배치만
+    빨갛게** 된다. 2026-08-16~18 사흘간 새벽 배치가 정확히 이 모양으로
+    멈췄다(신필드 3개가 화면에 없어 배치 사후 검증이 커밋을 차단).
+
+    그래서 여기서는 기록을 기다리지 않고 **소스에서 직접** 뽑는다:
+    quant/live/daily.py에서 `record = {...}` 리터럴의 키와
+    `record["k"] = ...` 대입의 키를 전부 모아, 같은 화면 계약(보이거나,
+    왜 안 보여도 되는지 적히거나)을 검사한다. 필드를 추가하는 PR은
+    화면(또는 정당화)을 함께 싣지 않으면 여기서 멈춘다.
+    """
+    keys = _record_keys_from_source()
+    assert len(keys) >= 50, (
+        f"추출된 필드가 {len(keys)}개뿐 — record 구성이 바뀌어 이 검사가 "
+        "소스를 못 읽고 있다(빈 검사는 통과가 아니다)")
+
+    blob = _screen_blob()
+    unshown = [k for k in sorted(keys)
+               if k not in OFF_SCREEN_OK
+               and not re.search(rf"\b{re.escape(k)}\b", blob)]
+    assert not unshown, (
+        f"오늘 밤 배치가 기록할 필드 중 화면에 없는 것: {unshown}\n"
+        "  → 이 PR에서 화면에 넣거나 OFF_SCREEN_OK에 이유를 적을 것.\n"
+        "  → 지금 안 하면 PR CI는 초록이고 오늘 밤 실배치가 빨갛게 된다 — "
+        "2026-08-16~18 사흘 정지의 재연이다.")

@@ -56,6 +56,77 @@ GUARD_INTERVAL_MINUTES = 5   # 2026-08-18 주기 사다리(5분봉 트랙)와 �
 # 5×12=60분 — 두 조건을 모두 만족하는 문턱이다.
 GUARD_LATE_FACTOR = 12.0
 
+# ── 본 계좌 장부 신선도 — 배치가 죽으면 배치의 경보도 함께 죽는다 ──────
+# 2026-08-16~18 실측: 새벽 배치가 사흘 연속 실패하는 동안 **어떤 경보도
+# 사람에게 닿지 않았다.** 실패 경보는 그 배치의 워크플로가 보내는데 웹훅
+# 채널이 조용했고, flag_watch(계좌 지각 경보)는 배치 안에서 돌기 때문에
+# 배치가 죽으면 같이 죽는다 — 감시가 감시 대상과 같은 배에 타고 있었다.
+# 그 사흘 내내 5분 장중 감시만 살아 있었다. 그래서 **살아 있는 이 루프**가
+# 본 계좌 장부의 나이를 재고, 묵으면 하루 한 번 알린다.
+LEDGER_STALE_DAYS = 2.0     # 정상 주기는 하루 1기록 — 이틀 넘으면 사고다
+# 경보 중복 방지 표식. ⚠️ state/paper/ **안에 두면 안 된다** — 장부 스캔
+# (ledger_basics.ledger_paths)이 그 폴더의 모든 .json을 계좌로 보므로
+# 유령 계좌가 생긴다. 대신 state/ 최상위에 두고, guard 워크플로의
+# git add 목록에 이 파일을 명시해 회차 간에 살아남게 한다(커밋이 안 되면
+# 5분마다 다시 울린다 — 288번 울리는 경보는 꺼진 것과 같다).
+LEDGER_ALERT_FILE = "ledger_stale_alert.json"
+
+
+def ledger_age_days(state_dir: str = "state", now=None) -> float | None:
+    """본 계좌(portfolio_ALL) 마지막 기록이 며칠 묵었나. 장부가 없으면 None."""
+    import datetime as dt
+    path = os.path.join(state_dir, "paper", "portfolio_ALL.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError):
+        return None
+    dates = [str(r.get("date", "")) for r in (st.get("history") or [])
+             if r.get("date")]
+    if not dates:
+        return None
+    try:
+        last = dt.datetime.fromisoformat(max(dates)[:10]).replace(
+            tzinfo=dt.timezone.utc)
+    except ValueError:
+        return None
+    now = now or dt.datetime.now(dt.timezone.utc)
+    return (now - last).total_seconds() / 86400.0
+
+
+def check_ledger_freshness(state_dir: str = "state", now=None,
+                           notify=None) -> dict | None:
+    """장부가 묵었으면 **하루 한 번** 사람에게 알린다.
+
+    반환: 이번 회차에 경보를 보냈으면 {"age_days", "message"}, 아니면 None
+    (신선하거나, 오늘 이미 알렸거나, 장부 자체가 없거나).
+    """
+    import datetime as dt
+    age = ledger_age_days(state_dir, now)
+    if age is None or age <= LEDGER_STALE_DAYS:
+        return None
+    now = now or dt.datetime.now(dt.timezone.utc)
+    today = now.date().isoformat()
+    marker = os.path.join(state_dir, LEDGER_ALERT_FILE)
+    try:
+        with open(marker, encoding="utf-8") as f:
+            if json.load(f).get("date") == today:
+                return None                    # 오늘은 이미 알렸다
+    except (OSError, ValueError):
+        pass
+    from quant.utils.jsonio import atomic_write_json
+    atomic_write_json(marker, {"date": today, "age_days": round(age, 2)})
+    msg = (f"🚨 본 계좌 장부가 {age:.1f}일 묵었습니다 — 새벽 배치가 기록을 "
+           "남기지 못하고 있다는 뜻입니다(정상은 하루 1기록). Actions의 "
+           "Daily Paper 로그를 확인하세요. 이 경보는 5분 장중 감시가 "
+           "보냅니다 — 배치가 죽으면 배치의 경보도 함께 죽기 때문입니다.")
+    if notify is None:
+        from quant.live.notifications import get_notifier
+        notify = get_notifier()
+    notify.send(msg, level="error")
+    log.error(msg)
+    return {"age_days": round(age, 2), "message": msg}
+
 
 @dataclass
 class GuardState:

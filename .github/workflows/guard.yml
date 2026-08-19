@@ -43,6 +43,12 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements.txt
       - name: 장중 감시 1회
+        # 웹훅 시크릿을 여기에도 준다 — 장부 신선도 경보(하루 1회)는 새벽
+        # 배치가 죽었을 때를 위한 것이라, 배치의 알림 채널과 독립이어야 한다.
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m quant guard --state-dir state
       # 장중 도전자(2026-08-18, 사장님 지시) — 챔피언 규칙을 1시간봉에 적용하는
       # **분리 실험**(가상 USDT). 실패해도 심장박동·킬스위치를 못 죽이게
@@ -55,7 +61,7 @@ jobs:
           set -euo pipefail
           git config user.name "quant-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add state/guard_heartbeat.json state/paper state/intraday docs/intraday.json || true
+          git add state/guard_heartbeat.json state/ledger_stale_alert.json state/paper state/intraday docs/intraday.json || true
           # 바뀐 게 없으면 조용히 끝낸다 — 빈 커밋으로 이력을 더럽히지 않는다.
           if git diff --cached --quiet; then
             echo "변화 없음 — 커밋 생략"

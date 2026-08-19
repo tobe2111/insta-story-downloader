@@ -2705,6 +2705,32 @@ MUTATIONS = [
      "GUARD_INTERVAL_MINUTES = 5",
      "GUARD_INTERVAL_MINUTES = 60",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+
+    # 2026-08-19 — 장부 신선도 감시(사흘 정지의 교훈). 문턱이 풀리면 배치가
+    # 죽어도 아무도 모르는 상태로 되돌아간다.
+    ("장부가 며칠을 묵어도 감시가 침묵한다(신선도 문턱 해제)",
+     "quant/live/guard.py",
+     "LEDGER_STALE_DAYS = 2.0",
+     "LEDGER_STALE_DAYS = 999.0",
+     "tests/test_the_watchdog_notices_a_dead_ledger.py"),
+    ("신선도 경보가 5분마다 다시 울린다(중복 방지 해제 — 곧 무시당한다)",
+     "quant/live/guard.py",
+     '            if json.load(f).get("date") == today:',
+     "            if False:",
+     "tests/test_the_watchdog_notices_a_dead_ledger.py"),
+
+    # 2026-08-19 — 변동성 국면 필터(분위수). '모름 통과'는 감사 206이 절대
+    # 한도 필터에서 잡은 바로 그 구멍 — 새 경로에 다시 열리면 안 된다.
+    ("변동성 국면의 '모름'이 통과가 된다(감사 206 재발)",
+     "quant/strategies/regime.py",
+     "            hot = (vol > thr) | vol.isna() | thr.isna()",
+     "            hot = (vol > thr)",
+     "tests/test_the_vol_regime_reads_its_own_market.py"),
+    ("변동성 국면 변형이 링에서 죽는다(문턱 해제)",
+     "quant/live/retrain.py",
+     '                                       "vol_quantile": 0.9}})',
+     '                                       "vol_quantile": None}})',
+     "tests/test_the_vol_regime_reads_its_own_market.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',

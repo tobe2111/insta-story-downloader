@@ -775,6 +775,12 @@ def build_challengers(current_spec: dict, seed: str,
         challengers.append({"strategy": "regime_wrap",
                             "params": {"inner": current_spec,
                                        "trend_window": 200}})
+        # 변동성 국면 변형(2026-08-19) — 문턱을 그 시장 자신의 과거 분위수로
+        # 잡아 코인·주식 체급 차이에 무관하게 이식된다. 사후 대응(킬스위치·
+        # 브레이크)과 상호보완인 **사전 축소** 장치. 채택은 오디션이 결정한다.
+        challengers.append({"strategy": "regime_wrap",
+                            "params": {"inner": current_spec, "use_trend": False,
+                                       "vol_quantile": 0.9}})
     else:
         challengers.append(current_spec["params"]["inner"])
     if current_spec["strategy"] != "event_wrap":
