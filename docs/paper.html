@@ -588,9 +588,26 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       <p class="sub" style="margin:6px 0 4px;font-size:12.5px">${esc(st.alloc_ladder.note||"")}${
         preA?` <b>판정 ${esc(preA.judge_on)}</b>(사전 등록 — 기준은 <a href="trust.html">기록 검증</a>에 공개)`:""}</p>
       <div class="tablewrap"><table><tr><th style="text-align:left">배분 방법</th>
-      <th title="이 실험 전용 가상 계좌(100만원 시작)의 자산 — 본 계좌·참고 계좌와 다른 계좌입니다">실험계좌 자산</th><th>누적</th><th>표본</th></tr>${rows2}</table></div></div>`;
+      <th title="이 실험 전용 가상 계좌(100만원 시작)의 자산 — 본 계좌·참고 계좌와 다른 계좌입니다">실험계좌 자산</th><th>누적</th><th>표본</th></tr>${rows2}</table></div>${seqRows()}</div>`;
   }
   el.innerHTML=pfKeys.map(card).join("")+tbl+allocLad+calib+wrong+ring+why;
+
+  /* 조기 판정 진도(2026-08-19) — 경계를 넘으면 판정일 전이라도 결론이 난다.
+     숫자는 장부(status.sequential)에서만 읽는다. '진행 중'은 '차이 없음'이
+     아니라 '아직 모른다'이며, 그 구별을 화면이 직접 말한다. */
+  function seqRows(){
+    const q=st.sequential; if(!q||!q.pairs)return "";
+    const rows=Object.entries(q.pairs).map(([k,v])=>{
+      const done=String(v.state||"").indexOf("조기 판정")===0;
+      const prog=v.progress!=null?Math.round(v.progress*100)+"%":"—";
+      return `<tr><td style="text-align:left">${esc(k)}</td>
+        <td>${esc(v.state||"")}</td><td>${v.n||0}일</td><td>${prog}</td></tr>`;
+    }).join("");
+    return `<p class="sub" style="margin:10px 0 4px;font-size:12.5px">
+      <b>조기 판정 진도</b> — ${esc(q.note||"")}</p>
+      <div class="tablewrap"><table><tr><th style="text-align:left">비교</th>
+      <th>상태</th><th>표본</th><th>경계까지</th></tr>${rows}</table></div>`;
+  }
   // 판정 시계 — 구조가 바뀌면 통계의 시계도 0으로 리셋된다는 사실을 명시
   if(st.generation){
     const g=st.generation, pct=Math.min(100,g.days/g.target_days*100);

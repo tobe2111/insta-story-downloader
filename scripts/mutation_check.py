@@ -6196,6 +6196,23 @@ MUTATIONS = [
      '    # 부르고, --real이면 실제 계좌로 주문이 나간다(감사 292).\n    if _halted(args):',
      '    # 부르고, --real이면 실제 계좌로 주문이 나간다(감사 292).\n    if False:',
      'tests/test_the_stop_button_stops_everything.py'),
+
+    # ── 조기 판정 (2026-08-19) — 경계가 물러지면 '매일 봐도 된다'가 거짓이 된다 ──
+    ("최소 관찰일수를 없앤다(사흘 우연으로 승리를 선언한다)",
+     "quant/live/sequential.py",
+     "    if n < min_days:",
+     "    if False:",
+     "tests/test_peeking_every_day_stays_honest.py"),
+    ("경계를 고정 상수로 바꾼다(표본이 늘어도 문턱이 안 자라 거짓 승리가 샌다)",
+     "quant/live/sequential.py",
+     "    return math.sqrt((n + rho) * var * math.log(inner))",
+     "    return math.sqrt(var) * 1.96",
+     "tests/test_peeking_every_day_stays_honest.py"),
+    ("짝을 날짜가 아니라 순서로 맞춘다(시장 등락이 안 상쇄돼 비교가 거짓이 된다)",
+     "quant/live/sequential.py",
+     "    days = sorted(set(sa) & set(sb))",
+     "    days = sorted(set(sa) | set(sb))",
+     "tests/test_peeking_every_day_stays_honest.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
