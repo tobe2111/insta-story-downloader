@@ -5429,8 +5429,8 @@ MUTATIONS = [
     # ── 감사 275 — 같은 화면의 숫자들이 서로 안 맞았다 ──
     ("잔고 합계에서 현금을 도로 뺀다(줄이 스스로 안 맞는다)",
      "docs/index.html",
-     "      '<td class=\"num\">'+won(sumCost+cashB)+'</td>'+",
-     "      '<td class=\"num\">'+won(sumCost)+'</td>'+",
+     "      '<td class=\"num\">'+won(sumCost+cashB)+",
+     "      '<td class=\"num\">'+won(sumCost)+",
      "tests/test_the_numbers_on_the_page_agree.py"),
 
     ("두 손익이 왜 다른지 말하지 않는다(하나가 틀렸다고 읽힌다)",
@@ -6139,6 +6139,17 @@ MUTATIONS = [
      '_CRED_ENV = ("KRX_ID", "KRX_PW")',
      "_CRED_ENV = ()",
      "tests/test_the_error_names_the_real_cause.py"),
+    # ── 그래프가 없는 날을 그린다 (2026-08-19) ──────────────────────
+    ("기록이 끊긴 자리를 한 줄로 이어 그린다 — 없던 사흘이 있었던 것처럼 보인다",
+     "docs/index.html",
+     "      if(i&&_t(r.date)-_t(h[i-1].date)>_DAY){runs.push(cur);cur=[]}",
+     "      if(false){runs.push(cur);cur=[]}",
+     "tests/test_the_chart_does_not_draw_days_it_has_no_record_of.py"),
+    ("하루가 비어도 이어 붙인다 — 하루짜리 구멍은 안 보이게 된다",
+     "docs/index.html",
+     "    for(let t=_t(h[0].date);t<=_t(h[h.length-1].date);t+=_DAY)allDays.push(_iso(t));",
+     "    h.forEach(r=>allDays.push(r.date));",
+     "tests/test_the_chart_does_not_draw_days_it_has_no_record_of.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
