@@ -33,6 +33,17 @@ from quant.live import notice_queue as NQ  # noqa: E402
 
 WF = ROOT / ".github" / "workflows"
 
+# ⚠️ **버리는 것도 결정이다** (2026-08-19). 알림을 쌓아 두고 아무 말도 안
+#    하는 것과, 버리기로 정하고 버리는 것은 다른 일이다 — 전자는 잊은
+#    것이고 후자는 판단이다. 그래서 면제는 목록에 이름과 이유를 적어야
+#    받는다(OFF_SCREEN_OK와 같은 방식). 이유를 못 적겠으면 그건 잊은 것이다.
+DISCARDS_ON_PURPOSE = {
+    "recover-bars.yml":
+        "이미 지나간 날을 다시 계산하는 잡이라, 그 알림은 '오늘 자산 "
+        "999,267원'처럼 읽힌다 — 보내면 지난 일을 오늘 일로 방송하게 된다. "
+        "되살렸다는 사실은 기록 검증 페이지에 적는다.",
+}
+
 # 장부를 커밋하는 배치들 — 여기서 알림이 먼저 나가면 사고가 반복된다.
 LEDGER_JOBS = sorted(p.name for p in WF.glob("*.yml")
                      if "ledger_gate.py" in p.read_text("utf-8"))
@@ -191,6 +202,13 @@ def test_the_flush_happens_after_the_push(name):
             for st in (job.get("steps") or [])]
     step = next((r for r in runs if "git push origin HEAD:main" in r), None)
     assert step, f"{name}: 푸시하는 단계를 못 찾았다 — 검사가 낡았다"
+    if name in DISCARDS_ON_PURPOSE:
+        assert "quant notify --discard" in step, (
+            f"{name}: 버리기로 정해 놓고 버리지 않는다 — 쌓아만 두면 "
+            "'잊었다'와 구별되지 않는다")
+        assert "quant notify --flush" not in step, (
+            f"{name}: 버리기로 한 잡이 보내기도 한다 — 둘 중 하나여야 한다")
+        return
     assert "quant notify --flush" in step, (
         f"{name}이 미뤄 둔 알림을 푸시하는 그 단계에서 안 보낸다 — "
         "쌓기만 하면 알림이 영영 사라진다")
@@ -204,3 +222,10 @@ def test_the_gate_still_runs_before_the_commit(name):
     src = (WF / name).read_text("utf-8")
     assert src.index("scripts/ledger_gate.py") < src.index('git commit -m'), (
         f"{name}: 장부 관문이 커밋보다 뒤에 있다")
+
+
+def test_the_discard_list_does_not_rot():
+    """면제 목록에 없는 잡이 남아 있으면 검사가 헐거워진다."""
+    stale = sorted(set(DISCARDS_ON_PURPOSE) - set(LEDGER_JOBS))
+    assert not stale, (
+        f"장부를 커밋하지 않는 잡의 면제가 남아 있다: {stale} — 목록을 정리할 것")

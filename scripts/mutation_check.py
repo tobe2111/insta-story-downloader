@@ -5925,6 +5925,34 @@ MUTATIONS = [
      "    if(d.correction){",
      "    if(false){",
      "tests/test_the_caption_cannot_claim_an_impossible_day.py"),
+
+    # ── 되살린 기록의 검산 (2026-08-19) ──────────────────────────────
+    ("검산을 통과시킨다 — 오늘 계산에 옛 날짜를 붙여 장부에 넣는다",
+     "scripts/recover_missing_bars.py",
+     "            hit = (got_date == bar and diff is not None\n"
+     "                   and diff <= args.tolerance)",
+     "            hit = True",
+     "tests/test_a_recovered_bar_must_match_the_log.py"),
+    ("검산값 없이도 되살리게 한다 — 아무 숫자나 옛 날짜로 들어간다",
+     "scripts/recover_missing_bars.py",
+     "    if len(args.expect) != len(args.bar):",
+     "    if False:",
+     "tests/test_a_recovered_bar_must_match_the_log.py"),
+    ("검산에 실패해도 장부를 안 되돌린다 — 반쯤 고친 장부가 남는다",
+     "scripts/recover_missing_bars.py",
+     "        if not (ok and args.write):",
+     "        if not args.write:",
+     "tests/test_a_recovered_bar_must_match_the_log.py"),
+    ("그날까지 자르지 않는다 — 그날 시스템이 못 봤던 시세로 계산한다",
+     "scripts/recover_missing_bars.py",
+     "        keep = [i for i in df.index if str(i)[:10] <= cut]",
+     "        keep = list(df.index)",
+     "tests/test_a_recovered_bar_must_match_the_log.py"),
+    ("코인만 따로 자르는 길을 막는다 — 고장났던 시세를 재현하지 못한다",
+     "scripts/recover_missing_bars.py",
+     '        cut = (self._crypto_asof if (self._market == "crypto"',
+     "        cut = self._asof or (",
+     "tests/test_a_recovered_bar_must_match_the_log.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
