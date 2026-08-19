@@ -3,18 +3,19 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 10000.03,
-  "return_pct": 0.0003,
-  "cost_paid": 0.52,
-  "trades_total": 7,
-  "rounds_total": 2,
+  "equity": 10000.23,
+  "return_pct": 0.0023,
+  "cost_paid": 0.67,
+  "trades_total": 10,
+  "rounds_total": 3,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-08-20T00:02:29+09:00",
+  "last_time": "2026-08-20T00:41:48+09:00",
   "observed_gap_minutes": 70.46666666666667,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
-    "AAPL": 0.16171192
+    "GOOGL": 0.30236322,
+    "GOOG": 0.2858835
   },
   "risk_scale": 1.0,
   "last_skipped": {},
@@ -26,9 +27,13 @@
     [
       "2026-08-20T00:02:29+09:00",
       10000.03
+    ],
+    [
+      "2026-08-20T00:41:48+09:00",
+      10000.23
     ]
   ],
-  "hold_return_pct": 0.0829,
+  "hold_return_pct": 0.6363,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -43,22 +48,22 @@
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "equity": 10000.3,
-    "return_pct_since": 0.0054,
-    "cost_paid": 0.0,
-    "filled_total": 0,
+    "equity": 10000.61,
+    "return_pct_since": 0.0085,
+    "cost_paid": 0.05,
+    "filled_total": 4,
     "unfilled_total": 0,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10005.2,
-      "return_pct": 0.052,
-      "hold_return_pct": 0.7578,
-      "trades_total": 10,
-      "cost_paid": 1.9,
-      "rounds_total": 2,
+      "equity": 10005.0,
+      "return_pct": 0.05,
+      "hold_return_pct": 0.6712,
+      "trades_total": 12,
+      "cost_paid": 2.04,
+      "rounds_total": 3,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
@@ -126,6 +131,33 @@
       "price": 261.17498779296875,
       "cost": 0.112,
       "signal": 0.0
+    },
+    {
+      "time": "2026-08-20T00:41:48+09:00",
+      "symbol": "AAPL",
+      "side": "sell",
+      "notional": -51.45,
+      "price": 318.17999267578125,
+      "cost": 0.0309,
+      "signal": 0.0
+    },
+    {
+      "time": "2026-08-20T00:41:48+09:00",
+      "symbol": "GOOGL",
+      "side": "buy",
+      "notional": 104.34,
+      "price": 345.0799865722656,
+      "cost": 0.0626,
+      "signal": 0.0835
+    },
+    {
+      "time": "2026-08-20T00:41:48+09:00",
+      "symbol": "GOOG",
+      "side": "buy",
+      "notional": 97.79,
+      "price": 342.07000732421875,
+      "cost": 0.0587,
+      "signal": 0.0782
     }
   ],
   "honest_limits": [
