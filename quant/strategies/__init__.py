@@ -25,6 +25,7 @@ from quant.strategies.bollinger import BollingerStrategy
 from quant.strategies.psar import ParabolicSAR
 from quant.strategies.ichimoku import IchimokuStrategy
 from quant.strategies.dualthrust import DualThrustStrategy
+from quant.strategies.supertrend import SuperTrendStrategy
 from quant.strategies.supplysom import SupplyDemandSOM
 from quant.strategies.valueanchor import ValueAnchor
 
@@ -41,6 +42,7 @@ _REGISTRY = {
     "ichimoku": IchimokuStrategy,
     "dual_thrust": DualThrustStrategy,
     "supply_som": SupplyDemandSOM,
+    "supertrend": SuperTrendStrategy,
     "value_anchor": ValueAnchor,
     "macd": MACD,
     "keltner": KeltnerBreakout,
@@ -63,6 +65,7 @@ __all__ = [
     "Breakout",
     "DualThrustStrategy",
     "SupplyDemandSOM",
+    "SuperTrendStrategy",
     "ValueAnchor",
     "TurtleStrategy",
     "BollingerStrategy",

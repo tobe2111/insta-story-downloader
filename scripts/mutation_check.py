@@ -2776,6 +2776,19 @@ MUTATIONS = [
      '        "correction": "본페로니 3(쌍 3개: 1h-15m·1h-5m·15m-5m)",',
      '        "correction": "보정 없음",',
      "tests/test_the_goalposts_were_planted_before_the_data.py"),
+
+    # 2026-08-19 수집 라운드 — 슈퍼트렌드. 래칫이 풀리면 밴드가 되돌아가
+    # 추격 손절선이 아니게 된다(지표의 정체 상실).
+    ("슈퍼트렌드의 래칫이 풀린다(밴드가 되돌아간다)",
+     "quant/strategies/supertrend.py",
+     "                up_f = bu if (bu < up_f or c[i - 1] > up_f) else up_f",
+     "                up_f = bu",
+     "tests/test_the_supertrend_ratchet_never_lets_go.py"),
+    ("슈퍼트렌드가 링에서 빠진다",
+     "quant/live/retrain.py",
+     '        {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},',
+     '        # {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},',
+     "tests/test_the_supertrend_ratchet_never_lets_go.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',
