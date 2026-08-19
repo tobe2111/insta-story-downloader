@@ -6230,6 +6230,27 @@ MUTATIONS = [
      '        core_us = US_CORE + US_ASSET_CORE',
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
+    # ── 장중 실험 시계는 한국 시간 (2026-08-19 사장님 지시) ──────────
+    ('장중 실험 시각을 UTC로 되돌린다(사장님이 보는 시각이 9시간 어긋난다)',
+     'quant/cli.py',
+     '    now = now_kst_iso()',
+     "    now = __import__('datetime').datetime.now(\n        __import__('datetime').timezone.utc).isoformat(timespec='seconds')",
+     'tests/test_the_intraday_clock_is_korean.py'),
+    ('한국 시간 도장을 UTC로 찍는다(관문은 그대로인데 표기만 거짓이 된다)',
+     'quant/live/market_hours.py',
+     '    return datetime.now(KST).isoformat(timespec="seconds")',
+     '    return datetime.now(timezone.utc).isoformat(timespec="seconds")',
+     'tests/test_the_intraday_clock_is_korean.py'),
+    ('화면이 시각을 옮기지 않고 글자만 자른다(예전 UTC 기록이 9시간 틀리게 나온다)',
+     'docs/intraday.html',
+     '  const k=new Date(ms+9*3600*1000), p=n=>String(n).padStart(2,"0");',
+     '  const k=new Date(ms), p=n=>String(n).padStart(2,"0");',
+     'tests/test_the_intraday_clock_is_korean.py'),
+    ('체결 표가 어느 시계인지 말하지 않는다(읽는 사람이 시각을 못 고른다)',
+     'docs/intraday.html',
+     '<thead><tr><th>시각(한국 시간)</th>',
+     '<thead><tr><th>시각</th>',
+     'tests/test_the_intraday_clock_is_korean.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
