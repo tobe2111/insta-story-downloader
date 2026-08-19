@@ -9,8 +9,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 296,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 341,
       "parliament": [
         {
           "strategy": "ml",
@@ -20,7 +20,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.728
+          "weight": 0.5277
         },
         {
           "strategy": "ml",
@@ -30,31 +30,39 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.272
-        }
-      ]
-    },
-    "crypto:ETH/USDT": {
-      "strategy": "ml",
-      "params": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 296,
-      "parliament": [
+          "weight": 0.2609
+        },
         {
           "strategy": "ml",
           "params": {
             "model": "logreg",
             "threshold": 0.55,
             "train_window": 250,
-            "retrain_every": 20
+            "retrain_every": 20,
+            "label": "triple",
+            "meta": true
           },
-          "weight": 0.6653
+          "weight": 0.2114
+        }
+      ]
+    },
+    "crypto:ETH/USDT": {
+      "strategy": "ma_cross",
+      "params": {
+        "fast": 20,
+        "slow": 60
+      },
+      "promoted_at": "2026-08-19",
+      "promotions": 1,
+      "trials_total": 341,
+      "parliament": [
+        {
+          "strategy": "ma_cross",
+          "params": {
+            "fast": 20,
+            "slow": 60
+          },
+          "weight": 0.4415
         },
         {
           "strategy": "ml",
@@ -65,9 +73,18 @@
             "retrain_every": 20,
             "calibrate": "isotonic"
           },
-          "weight": 0.3347
+          "weight": 0.3272
+        },
+        {
+          "strategy": "breakout",
+          "params": {
+            "window": 55,
+            "exit_window": 20
+          },
+          "weight": 0.2313
         }
-      ]
+      ],
+      "last_run_asof": "2026-08-19"
     },
     "crypto:SOL/USDT": {
       "strategy": "ml",
@@ -78,8 +95,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 296,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 341,
       "parliament": [
         {
           "strategy": "ml",
@@ -89,7 +106,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7254
+          "weight": 0.5626
         },
         {
           "strategy": "ml",
@@ -99,7 +116,18 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.2746
+          "weight": 0.2495
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "universe"
+          },
+          "weight": 0.1878
         }
       ]
     },
@@ -112,8 +140,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 218,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 263,
       "parliament": [
         {
           "strategy": "ml",
@@ -123,7 +151,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.76
+          "weight": 0.5586
         },
         {
           "strategy": "ml",
@@ -133,7 +161,15 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.24
+          "weight": 0.2371
+        },
+        {
+          "strategy": "cross_rank",
+          "params": {
+            "lookback": 60,
+            "top_frac": 0.3
+          },
+          "weight": 0.2043
         }
       ]
     },
@@ -146,8 +182,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 218,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 263,
       "parliament": [
         {
           "strategy": "ml",
@@ -157,7 +193,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7657
+          "weight": 0.5619
         },
         {
           "strategy": "ml",
@@ -168,7 +204,18 @@
             "retrain_every": 20,
             "calibrate": "isotonic"
           },
-          "weight": 0.2343
+          "weight": 0.2236
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "peers"
+          },
+          "weight": 0.2145
         }
       ]
     },
@@ -181,8 +228,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 218,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 263,
       "parliament": [
         {
           "strategy": "ml",
@@ -192,7 +239,18 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7743
+          "weight": 0.5931
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "peers"
+          },
+          "weight": 0.2067
         },
         {
           "strategy": "ml",
@@ -203,7 +261,7 @@
             "retrain_every": 20,
             "calibrate": "isotonic"
           },
-          "weight": 0.2257
+          "weight": 0.2002
         }
       ]
     },
@@ -216,8 +274,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 198,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 243,
       "parliament": [
         {
           "strategy": "ml",
@@ -250,8 +308,8 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-08-18",
-      "trials_total": 238,
+      "last_run_asof": "2026-08-19",
+      "trials_total": 283,
       "parliament": [
         {
           "strategy": "ml",
@@ -261,7 +319,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7274
+          "weight": 0.509
         },
         {
           "strategy": "ml",
@@ -271,7 +329,18 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.2726
+          "weight": 0.2496
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "label": "triple"
+          },
+          "weight": 0.2414
         }
       ]
     },
@@ -284,7 +353,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 296,
+      "trials_total": 341,
       "parliament": [
         {
           "strategy": "ml",
@@ -294,7 +363,18 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.8182
+          "weight": 0.6572
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "calibrate": "isotonic"
+          },
+          "weight": 0.1829
         },
         {
           "strategy": "ml",
@@ -305,10 +385,10 @@
             "retrain_every": 20,
             "calibrate": "sigmoid"
           },
-          "weight": 0.1818
+          "weight": 0.1599
         }
       ],
-      "last_run_asof": "2026-08-18"
+      "last_run_asof": "2026-08-19"
     },
     "crypto:XRP/USDT": {
       "strategy": "ml",
@@ -319,7 +399,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 296,
+      "trials_total": 341,
       "parliament": [
         {
           "strategy": "ml",
@@ -329,7 +409,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7156
+          "weight": 0.5185
         },
         {
           "strategy": "ml",
@@ -339,97 +419,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.2844
-        }
-      ],
-      "last_run_asof": "2026-08-18"
-    },
-    "us_stock:MSFT": {
-      "strategy": "ml",
-      "params": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "promotions": 0,
-      "trials_total": 218,
-      "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.8063
-        },
-        {
-          "strategy": "cross_rank",
-          "params": {
-            "lookback": 60,
-            "top_frac": 0.3
-          },
-          "weight": 0.1937
-        }
-      ],
-      "last_run_asof": "2026-08-18"
-    },
-    "us_stock:AAPL": {
-      "strategy": "ml",
-      "params": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "promotions": 0,
-      "trials_total": 218,
-      "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.7865
-        },
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "rf",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.2135
-        }
-      ],
-      "last_run_asof": "2026-08-18"
-    },
-    "us_stock:AMZN": {
-      "strategy": "ml",
-      "params": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "promotions": 0,
-      "trials_total": 218,
-      "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.7994
+          "weight": 0.2642
         },
         {
           "strategy": "ml",
@@ -441,10 +431,144 @@
             "label": "triple",
             "meta": true
           },
-          "weight": 0.2006
+          "weight": 0.2173
         }
       ],
-      "last_run_asof": "2026-08-18"
+      "last_run_asof": "2026-08-19"
+    },
+    "us_stock:MSFT": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "trials_total": 263,
+      "parliament": [
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.6188
+        },
+        {
+          "strategy": "cross_rank",
+          "params": {
+            "lookback": 60,
+            "top_frac": 0.3
+          },
+          "weight": 0.1984
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.1828
+        }
+      ],
+      "last_run_asof": "2026-08-19"
+    },
+    "us_stock:AAPL": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "trials_total": 263,
+      "parliament": [
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.6014
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "rf",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.2134
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "calibrate": "sigmoid"
+          },
+          "weight": 0.1852
+        }
+      ],
+      "last_run_asof": "2026-08-19"
+    },
+    "us_stock:AMZN": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "trials_total": 263,
+      "parliament": [
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.6114
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "label": "triple",
+            "meta": true
+          },
+          "weight": 0.1958
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "universe"
+          },
+          "weight": 0.1929
+        }
+      ],
+      "last_run_asof": "2026-08-19"
     },
     "us_stock:META": {
       "strategy": "ml",
@@ -455,7 +579,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 218,
+      "trials_total": 263,
       "parliament": [
         {
           "strategy": "ml",
@@ -465,7 +589,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.755
+          "weight": 0.5545
         },
         {
           "strategy": "ml",
@@ -475,10 +599,21 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.245
+          "weight": 0.2621
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "universe"
+          },
+          "weight": 0.1835
         }
       ],
-      "last_run_asof": "2026-08-18"
+      "last_run_asof": "2026-08-19"
     },
     "us_stock:TSLA": {
       "strategy": "ml",
@@ -489,7 +624,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 218,
+      "trials_total": 263,
       "parliament": [
         {
           "strategy": "ml",
@@ -499,20 +634,10 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7608
-        },
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "rf",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.2392
+          "weight": 1.0
         }
       ],
-      "last_run_asof": "2026-08-18"
+      "last_run_asof": "2026-08-19"
     },
     "kr_stock:000660.KS": {
       "strategy": "ml",
@@ -524,7 +649,7 @@
       },
       "promoted_at": "2026-08-10",
       "promotions": 1,
-      "trials_total": 238,
+      "trials_total": 283,
       "parliament": [
         {
           "strategy": "ml",
@@ -534,7 +659,7 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.7569
+          "weight": 0.5765
         },
         {
           "strategy": "ml",
@@ -545,10 +670,20 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.2431
+          "weight": 0.2615
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.162
         }
       ],
-      "last_run_asof": "2026-08-18"
+      "last_run_asof": "2026-08-19"
     },
     "kr_stock:035420.KS": {
       "strategy": "ml",
@@ -2939,6 +3074,56 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 1500000.0,
+          "weight": 0.0369,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10003.57,
+          "return_pct": 0.04,
+          "hit_rate": 0.5615384615384615,
+          "hit_n": 130,
+          "hit_lo": 0.47568843959701845,
+          "hit_hi": 0.6438558575422866,
+          "hit_conclusive": false,
+          "live_hit": 0.3333333333333333,
+          "live_hit_n": 3,
+          "live_hit_flat": 0,
+          "hit_flat": 2,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.52,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "소액 매수 +3.7% — 로지스틱회귀 모델이 내일 상승확률을 약 74%로 추정(기준 52% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 사이징: 신호 원비중 27% → 변동성 타깃 조절 후 4% · 참고: 전 종목 합산으로 모델이 74%±10%p라 말한 40번의 실제 상승 비율 50% (95% 신뢰구간 35%~65% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 2번으로 축적 중) · 🏛 의회 운용: ml 58% + ml 26% + ml 16% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 1545000.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "d4896c794f91f8cd403f2fa0ba6dc54348fb65257702c0c385504253feb92a95",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.7429186328429762,
+          "drift_psi": 0.6024,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
@@ -3250,6 +3435,56 @@
           "accounting": "next_open_v2",
           "prob_up": 0.3525909137552131,
           "drift_psi": 1.0531,
+          "drift_grade": "심한 드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 414000.0,
+          "weight": 0.0,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.4666666666666667,
+          "hit_n": 30,
+          "hit_lo": 0.30232127224128236,
+          "hit_hi": 0.6385798671847496,
+          "hit_conclusive": false,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 1,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 장단기 금리차(경기 신호) +0.52 / 미국 S&P500 5일 흐름 -0.4% / 20일 모멘텀 +3.8%",
+          "fill": {
+            "price": 416000.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "4e72860db9afadfe11ff1c4b80a8660a7755031d41b03a812b6d766061c9bd77",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.32141223998995944,
+          "drift_psi": 1.0822,
           "drift_grade": "심한 드리프트",
           "drift_ref": {
             "p50": 0.1904,
@@ -3615,6 +3850,56 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 247500.0,
+          "weight": 0.0,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.84,
+          "return_pct": 0.01,
+          "hit_rate": 0.5615384615384615,
+          "hit_n": 130,
+          "hit_lo": 0.47568843959701845,
+          "hit_hi": 0.6438558575422866,
+          "hit_conclusive": false,
+          "live_hit": 0.75,
+          "live_hit_n": 4,
+          "live_hit_flat": 0,
+          "hit_flat": 2,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 51% + ml 25% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 251500.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "941a88deced5370c8ab8e94222f7bbd6e647314fcb7084e921f3ec21b4398202",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.2011852707425913,
+          "drift_psi": 0.7475,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
@@ -3938,13 +4223,63 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 208000.0,
+          "weight": 0.0525,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5,
+          "hit_n": 104,
+          "hit_lo": 0.4056302261379199,
+          "hit_hi": 0.5943697738620801,
+          "hit_conclusive": false,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 3,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +5% — 로지스틱회귀 모델이 내일 상승확률을 약 52%로 추정(기준 55% 초과) · 사이징: 신호 원비중 17% → 변동성 타깃 조절 후 5% · 참고: 전 종목 합산으로 모델이 52%±10%p라 말한 53번의 실제 상승 비율 62% (95% 신뢰구간 49%~74% · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 75% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 208500.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0285,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "9e589180d761965000be6b4d2f1b71a806034cdd0d83f1a1ffbe33951765466f",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.5217837128215469,
+          "drift_psi": 0.4757,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
     "kr_stock:051910.KS": {
       "start_cash": 10000.0,
-      "equity": 10009.18,
-      "return_pct": 0.09,
+      "equity": 10026.73,
+      "return_pct": 0.27,
       "mdd_pct": -0.06,
       "history": [
         {
@@ -4261,6 +4596,56 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 266000.0,
+          "weight": 0.1572,
+          "held_weight": 0.107,
+          "fractional_lot": true,
+          "equity": 10026.73,
+          "return_pct": 0.27,
+          "hit_rate": 0.48598130841121495,
+          "hit_n": 107,
+          "hit_lo": 0.39341857591757085,
+          "hit_hi": 0.5795157736407177,
+          "hit_conclusive": false,
+          "live_hit": 0.6,
+          "live_hit_n": 5,
+          "live_hit_flat": 1,
+          "hit_flat": 5,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +16% — 로지스틱회귀 모델이 내일 상승확률을 약 70%로 추정(기준 55% 초과) · 사이징: 신호 원비중 43% → 변동성 타깃 조절 후 16% · 참고: 전 종목 합산으로 모델이 70%±10%p라 말한 51번의 실제 상승 비율 45% (95% 신뢰구간 32%~59% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 74% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 261000.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.1053,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "5817a0ac309bb76a5f9fe03fbc845d7e58342d779381762273db8b8b86458a79",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.7018461208295744,
+          "drift_psi": 0.9309,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
@@ -4565,13 +4950,57 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 101760.0,
+          "weight": 0.0,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10061.0,
+          "return_pct": 0.61,
+          "hit_rate": null,
+          "hit_n": 0,
+          "hit_lo": null,
+          "hit_hi": null,
+          "hit_conclusive": false,
+          "live_hit": 0.5,
+          "live_hit_n": 6,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 75% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 102635.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "3c4919e835b29e14d52566cbbbc4ebdc5284cba2267c40708a05aae377af9f77",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": null,
+          "drift_grade": null,
+          "drift_ref": null,
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
     "kr_stock:105560.KS": {
       "start_cash": 10000.0,
-      "equity": 9964.21,
-      "return_pct": -0.36,
+      "equity": 9949.97,
+      "return_pct": -0.5,
       "mdd_pct": -0.65,
       "history": [
         {
@@ -4877,6 +5306,56 @@
           "accounting": "next_open_v2",
           "prob_up": 0.7060760377261452,
           "drift_psi": 0.9604,
+          "drift_grade": "심한 드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 166400.0,
+          "weight": 0.1533,
+          "held_weight": 0.1134,
+          "fractional_lot": true,
+          "equity": 9949.97,
+          "return_pct": -0.5,
+          "hit_rate": 0.53125,
+          "hit_n": 64,
+          "hit_lo": 0.41071875000475133,
+          "hit_hi": 0.6482421235595515,
+          "hit_conclusive": false,
+          "live_hit": 0.6,
+          "live_hit_n": 5,
+          "live_hit_flat": 1,
+          "hit_flat": 1,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +15% — 로지스틱회귀 모델이 내일 상승확률을 약 73%로 추정(기준 55% 초과) · 사이징: 신호 원비중 31% → 변동성 타깃 조절 후 15% · 참고: 전 종목 합산으로 모델이 73%±10%p라 말한 42번의 실제 상승 비율 48% (95% 신뢰구간 33%~62% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 75% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 165900.0,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.1304,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0014,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "71758bd44e4765721b99c882dfe4f96dc5a80cb58c22afaef24212199caf8b9f",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.7304099305669425,
+          "drift_psi": 0.9625,
           "drift_grade": "심한 드리프트",
           "drift_ref": {
             "p50": 0.1904,
@@ -8119,13 +8598,63 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 316.8299865722656,
+          "weight": 0.0,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 9909.17,
+          "return_pct": -0.91,
+          "hit_rate": 0.5483870967741935,
+          "hit_n": 93,
+          "hit_lo": 0.44733119871635174,
+          "hit_hi": 0.6456040687720004,
+          "hit_conclusive": false,
+          "live_hit": 0.5,
+          "live_hit_n": 4,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 60% + ml 21% + ml 19% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 307.579987,
+            "bar": "2026-08-18 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-17 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "e190cd30aa3e7ceaff9707c94f9114f0b19a9c6f24a371608ca81c643d6f8e78",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.0170761309334958,
+          "drift_psi": 0.2754,
+          "drift_grade": "주의 (표본 잡음 범위)",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
     "us_stock:AMZN": {
       "start_cash": 10000.0,
-      "equity": 9944.93,
-      "return_pct": -0.55,
+      "equity": 9947.65,
+      "return_pct": -0.52,
       "mdd_pct": -1.06,
       "history": [
         {
@@ -8448,6 +8977,56 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 265.8399963378906,
+          "weight": 0.1946,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 9947.65,
+          "return_pct": -0.52,
+          "hit_rate": 0.4791666666666667,
+          "hit_n": 96,
+          "hit_lo": 0.3819724566925992,
+          "hit_hi": 0.577964082785935,
+          "hit_conclusive": false,
+          "live_hit": 0.25,
+          "live_hit_n": 8,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +19% — 로지스틱회귀 모델이 내일 상승확률을 약 86%로 추정(기준 55% 초과) · 사이징: 신호 원비중 42% → 변동성 타깃 조절 후 19% · 참고: 이 확률대(86%±10%p)의 과거 성적은 표본 축적 중 (종목 n=3 · 합산 n=10, 25건부터 표시) · 🏛 의회 운용: ml 61% + ml 20% + ml 19% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 260.845001,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "310c710782406f03b8ac551399050868e2b26de1caa0b9306e3211c6f7fc81aa",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.8587857611199365,
+          "drift_psi": 0.9392,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
@@ -8501,13 +9080,63 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 341.70001220703125,
+          "weight": 0.305,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.352112676056338,
+          "hit_n": 71,
+          "hit_lo": 0.25122584561603256,
+          "hit_hi": 0.4681815427882774,
+          "hit_conclusive": true,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 1,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +31% — 로지스틱회귀 모델이 내일 상승확률을 약 81%로 추정(기준 55% 초과) · 판단 재료: 10일 수익률 -5.1% / 20일선 이격 -0.9%(선 아래) / RSI(14) 55(중립) · 사이징: 신호 원비중 57% → 변동성 타깃 조절 후 31% · 참고: 이 확률대(81%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=21, 25건부터 표시)",
+          "fill": {
+            "price": 339.799988,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "cf4149fc3f55977683cd6d3fb6d4583d421ac79267a73902228e102cf49824a4",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.807790881328454,
+          "drift_psi": 0.0944,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
     "us_stock:GOOGL": {
       "start_cash": 10000.0,
-      "equity": 10000.0,
-      "return_pct": 0.0,
+      "equity": 10009.09,
+      "return_pct": 0.09,
       "mdd_pct": 0.0,
       "history": [
         {
@@ -8542,6 +9171,56 @@
           "accounting": "next_open_v2",
           "prob_up": 0.6806315795372789,
           "drift_psi": 0.1718,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 344.7200012207031,
+          "weight": 0.3538,
+          "held_weight": 0.1521,
+          "fractional_lot": false,
+          "equity": 10009.09,
+          "return_pct": 0.09,
+          "hit_rate": 0.40540540540540543,
+          "hit_n": 74,
+          "hit_lo": 0.3009038972107517,
+          "hit_hi": 0.5192436845450189,
+          "hit_conclusive": false,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +35% — 로지스틱회귀 모델이 내일 상승확률을 약 85%로 추정(기준 55% 초과) · 판단 재료: 20일선 이격 -0.4%(선 아래) / 5일 수익률 +0.3% / 변동성(20일) 일 3.0% · 사이징: 신호 원비중 68% → 변동성 타깃 조절 후 35% · 참고: 이 확률대(85%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=12, 25건부터 표시)",
+          "fill": {
+            "price": 342.454987,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.1513,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "e0413e5f7fb7b3186dea79be8d98ddfc443dda65219bac243f34e30841a4970b",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.8544804823161283,
+          "drift_psi": 0.1523,
           "drift_grade": "안정",
           "drift_ref": {
             "p50": 0.1904,
@@ -8838,8 +9517,8 @@
     },
     "us_stock:MSFT": {
       "start_cash": 10000.0,
-      "equity": 10000.0,
-      "return_pct": 0.0,
+      "equity": 10004.73,
+      "return_pct": 0.05,
       "mdd_pct": 0.0,
       "history": [
         {
@@ -9149,6 +9828,56 @@
           "accounting": "next_open_v2",
           "prob_up": 0.09346190687061556,
           "drift_psi": 0.6544,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 484.30999755859375,
+          "weight": 0.0948,
+          "held_weight": 0.0923,
+          "fractional_lot": false,
+          "equity": 10004.73,
+          "return_pct": 0.05,
+          "hit_rate": 0.5,
+          "hit_n": 174,
+          "hit_lo": 0.4265131896987798,
+          "hit_hi": 0.5734868103012202,
+          "hit_conclusive": false,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 29%로 추정(기준 55% 초과) · 사이징: 신호 원비중 20% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 29%±10%p라 말한 30번의 실제 상승 비율 40% (95% 신뢰구간 25%~58% · 봉이 빠진 16번은 제외 · 이 종목 단독 표본은 4번으로 축적 중) · 🏛 의회 운용: ml 62% + cross_rank 20% + ml 18% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 481.540009,
+            "bar": "2026-08-18 00:00:00",
+            "weight": 0.0919,
+            "decided_bar": "2026-08-17 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "058b83e7579700c21cb4b73cb110b078d2e536d496c04f102480d0a218c641ca",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.28803374120347186,
+          "drift_psi": 0.6525,
           "drift_grade": "드리프트",
           "drift_ref": {
             "p50": 0.1904,
@@ -9504,6 +10233,56 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 217.55999755859375,
+          "weight": 0.2256,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.0,
+          "return_pct": 0.0,
+          "hit_rate": 0.5365853658536586,
+          "hit_n": 123,
+          "hit_lo": 0.44868827716312104,
+          "hit_hi": 0.6222663623242395,
+          "hit_conclusive": false,
+          "live_hit": null,
+          "live_hit_n": 0,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +23% — 로지스틱회귀 모델이 내일 상승확률을 약 85%로 추정(기준 55% 초과) · 사이징: 신호 원비중 42% → 변동성 타깃 조절 후 23% · 참고: 이 확률대(85%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=12, 25건부터 표시) · 🏛 의회 운용: ml 59% + ml 21% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 221.669998,
+            "bar": "2026-08-19 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-18 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "16af3d0ef78fe9b5417f2ace9fcac90169ed81ec3350a3f5a569f8e5ce9df1d2",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.8512055658496025,
+          "drift_psi": 0.9109,
+          "drift_grade": "드리프트",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
         }
       ]
     },
@@ -9836,6 +10615,56 @@
           "prob_up": 0.24569839967020762,
           "drift_psi": 0.3657,
           "drift_grade": "주의 (표본 잡음 범위)",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 716.0800170898438,
+          "weight": 0.0,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10000.53,
+          "return_pct": 0.01,
+          "hit_rate": 0.528169014084507,
+          "hit_n": 142,
+          "hit_lo": 0.44640309470218453,
+          "hit_hi": 0.6084509387148925,
+          "hit_conclusive": false,
+          "live_hit": 0.25,
+          "live_hit_n": 4,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 56% + ml 22% + ml 21% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 720.210022,
+            "bar": "2026-08-18 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-17 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "8045b04920452ec3651c997a96ef6ff8868f689f8240311d7ab7f4f444caee77",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.5484652859753166,
+          "drift_psi": 0.4826,
+          "drift_grade": "드리프트",
           "drift_ref": {
             "p50": 0.1904,
             "p95": 0.4432,
@@ -10190,6 +11019,57 @@
           "kelly_cap": null,
           "bar_partial": null,
           "data_source": "yfinance"
+        },
+        {
+          "date": "2026-08-19",
+          "price": 769.0599975585938,
+          "weight": 0.1831,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 9989.0,
+          "return_pct": -0.11,
+          "hit_rate": 0.5470085470085471,
+          "hit_n": 117,
+          "hit_lo": 0.45674714605677097,
+          "hit_hi": 0.6342811091136339,
+          "hit_conclusive": false,
+          "live_hit": 0.25,
+          "live_hit_n": 4,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "reason": "매수 +18% — 로지스틱회귀 모델이 내일 상승확률을 약 64%로 추정(기준 55% 초과) · 사이징: 신호 원비중 11% → 변동성 타깃 조절 후 18% · 참고: 전 종목 합산으로 모델이 64%±10%p라 말한 65번의 실제 상승 비율 49% (95% 신뢰구간 37%~61% · 보합 2일 포함 · 봉이 빠진 13번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 56% + ml 24% + cross_rank 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": {
+            "price": 768.700012,
+            "bar": "2026-08-18 00:00:00",
+            "weight": 0.0,
+            "decided_bar": "2026-08-17 00:00:00"
+          },
+          "fill_cost": 0.0006,
+          "code_sha": "805ed4148e18",
+          "data_sha256": "ed0ee3610e7db5f3c75746a2604b2d613be8e82facf14e2d6dbd71f8ad124ccb",
+          "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": 0.6394586389345113,
+          "drift_psi": 0.0786,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": null,
+          "bar_partial": null,
+          "data_source": "yfinance",
+          "prob_up_cal": 0.4545
         }
       ]
     },
@@ -10479,153 +11359,14 @@
       "date": "2026-08-10",
       "key": "kr_stock:000660.KS",
       "strategy": "ml"
+    },
+    {
+      "date": "2026-08-19",
+      "key": "crypto:ETH/USDT",
+      "strategy": "ma_cross"
     }
   ],
   "retrain_recent": [
-    {
-      "asof": "2026-08-10",
-      "key": "us_stock:AMZN",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 81
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "us_stock:META",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 81
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "us_stock:TSLA",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 81
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:069500.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 61
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:005930.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:000660.KS",
-      "promoted": true,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:035420.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:005380.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:051910.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-10",
-      "key": "kr_stock:105560.KS",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 101
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "crypto:BTC/USDT",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 129
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "crypto:ETH/USDT",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 129
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "crypto:SOL/USDT",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 129
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "crypto:BNB/USDT",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 129
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "crypto:XRP/USDT",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 129
-    },
-    {
-      "asof": "2026-08-11",
-      "key": "us_stock:SPY",
-      "promoted": false,
-      "n_candidates": 23,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 105
-    },
     {
       "asof": "2026-08-11",
       "key": "us_stock:QQQ",
@@ -11561,18 +12302,155 @@
       "vacuous": false,
       "inert": 3,
       "trials_total": 238
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "crypto:BTC/USDT",
+      "promoted": false,
+      "n_candidates": 41,
+      "vacuous": false,
+      "inert": 3,
+      "trials_total": 341
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "crypto:ETH/USDT",
+      "promoted": true,
+      "n_candidates": 40,
+      "vacuous": false,
+      "inert": 4,
+      "trials_total": 341
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "crypto:SOL/USDT",
+      "promoted": false,
+      "n_candidates": 42,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 341
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "crypto:BNB/USDT",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 341
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "crypto:XRP/USDT",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 341
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:SPY",
+      "promoted": false,
+      "n_candidates": 42,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:QQQ",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:NVDA",
+      "promoted": false,
+      "n_candidates": 42,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:MSFT",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:AAPL",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:AMZN",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:META",
+      "promoted": false,
+      "n_candidates": 42,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "us_stock:TSLA",
+      "promoted": false,
+      "n_candidates": 41,
+      "vacuous": false,
+      "inert": 3,
+      "trials_total": 263
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "kr_stock:069500.KS",
+      "promoted": false,
+      "n_candidates": 0,
+      "vacuous": true,
+      "inert": 0,
+      "trials_total": 243
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "kr_stock:005930.KS",
+      "promoted": false,
+      "n_candidates": 43,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 283
+    },
+    {
+      "asof": "2026-08-19",
+      "key": "kr_stock:000660.KS",
+      "promoted": false,
+      "n_candidates": 44,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 283
     }
   ],
   "live_url": null,
   "diversification": {
-    "enb": 9.53,
-    "method": "등상관 근사 N/(1+(N-1)ρ̄)",
-    "n_symbols": 14,
-    "n_flat_excluded": 6,
-    "n_days": 6,
-    "avg_pairwise_corr": 0.0361,
-    "note": "명목 종목 수보다 작을수록 포지션이 겹쳐 움직인다는 뜻 — 진단 전용이며 사이징에는 반영하지 않는다(2세대 백로그)",
-    "caveat": "관측일 6일 — 20일 미만이라 추정이 불안정하다. 표본이 쌓이면 숫자가 흔들릴 수 있다."
+    "reason": "표본 부족 — 전 종목이 겹치는 관측일 0일 / 최소 5일 (무변동 제외 22종목). 표본이 쌓이면 자동으로 숫자가 나타납니다."
   },
   "alloc_ladder": {
     "tracks": {
@@ -11598,6 +12476,90 @@
       }
     },
     "note": "같은 신호에 배분 방법만 바꾼 가상 계좌들입니다(종가 평가·수수료만, 본 계좌의 변동성 타깃·킬스위치 등은 없음 — 배분 간 상대 비교 전용). 트랙이 4개라 우연히 좋아 보이는 승자가 나올 확률도 4배입니다 — 판정은 곡선이 충분히 갈라진 뒤에만 의미가 있습니다."
+  },
+  "breadth": {
+    "all": {
+      "n": 22,
+      "effective_n": 1.72,
+      "mean_corr": 0.5622,
+      "pairs": 12
+    },
+    "crypto": {
+      "n": 5,
+      "effective_n": 1.59,
+      "mean_corr": 0.5386,
+      "pairs": 10
+    },
+    "kr_stock": {
+      "n": 7,
+      "effective_n": null,
+      "mean_corr": null,
+      "pairs": 0,
+      "reason": "짝이 맞는 날이 10일 미만 — 아직 못 잽니다"
+    },
+    "us_stock": {
+      "n": 10,
+      "effective_n": 1.15,
+      "mean_corr": 0.8585,
+      "pairs": 1
+    },
+    "note": "종목 수가 아니라 **정보의 양**입니다. 같이 움직이는 종목은 여러 개라도 한 개 몫이라, 실효 표본이 종목 수보다 훨씬 작을 수 있습니다. 자산군을 늘리는 이유가 이것입니다. 상관은 구간마다 변하므로 이 숫자는 지금 표본에서의 값이고 미래 보장이 아닙니다."
+  },
+  "sequential": {
+    "registered": {
+      "registered_on": "2026-08-19",
+      "method": "정규혼합 신뢰수열(항시 유효) — 짝지어진 일수익 차이에 적용",
+      "alpha": 0.05,
+      "rho": 30.0,
+      "min_days": 20,
+      "applies_to": [
+        "cadence_ladder",
+        "limit_shadow",
+        "us_limit_shadow",
+        "alloc_ladder"
+      ],
+      "rule": "경계를 넘으면 그 시점에 조기 판정, 안 넘으면 원래 판정일까지 진행. 조기 판정도 결과를 그대로 공개한다.",
+      "honest_note": "속도는 효과 크기로 산다 — 우위가 작으면 이 방법으로도 빨라지지 않는다(실측: 일평균 0.6%p 우위면 중앙 32일, 0.35%p면 66일)."
+    },
+    "pairs": {
+      "alloc:hrp-erc": {
+        "state": "표본 부족",
+        "n": 0,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      },
+      "alloc:hrp-equal": {
+        "state": "표본 부족",
+        "n": 0,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      },
+      "alloc:hrp-inv_vol": {
+        "state": "표본 부족",
+        "n": 0,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      },
+      "cadence:1h-15m": {
+        "state": "표본 부족",
+        "n": 2,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      },
+      "cadence:1h-5m": {
+        "state": "표본 부족",
+        "n": 2,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      },
+      "us_cadence:1h-15m": {
+        "state": "표본 부족",
+        "n": 1,
+        "min_days": 20,
+        "reason": "최소 20일 관찰 전에는 판정하지 않습니다"
+      }
+    },
+    "note": "경계를 넘으면 그 시점에 조기 판정이 납니다. 넘기 전에는 '진행 중'이며, 진행 중은 '아직 모른다'이지 '차이가 없다'가 아닙니다. 이 경계는 결과를 보기 전에 등록했고, 매일 들여다봐도 거짓 승리 확률이 5%를 넘지 않는다는 것을 시뮬레이션 검사로 확인합니다."
   },
   "prereg": {
     "registered_on": "2026-08-19",
@@ -11634,6 +12596,28 @@
         "extra_gate": "지정가가 이겨도 미체결율 20% 초과면 채택 보류(체결 안 되는 이득은 이득이 아니다)",
         "on_fail": "현행(시장가) 유지 + 결과 공개"
       },
+      "intraday_us": {
+        "name": "미국주식 장중 1시간봉 (정규장 내 단타)",
+        "question": "미국 정규장에서 같은 규칙을 장중 빈도로 돌리면 비용을 이기고 더 버는가",
+        "start": "2026-08-19",
+        "judge_on": "2026-11-17",
+        "interim": "2026-09-18 중간 참고 판독(확정 아님)",
+        "statistic": "본 계좌(하루 1회) 대비 일수익 차이의 t-검정(양측) — 통화가 달라 비교는 퍼센트 수익률로만",
+        "alpha": 0.05,
+        "correction": "단일 비교 — 보정 없음(주기 사다리는 참고 진단)",
+        "on_fail": "현행(하루 1회) 유지 + 결과 공개"
+      },
+      "us_limit_shadow": {
+        "name": "미국 지정가 그림자 vs 미국 장중 계좌(시장가)",
+        "question": "주식에서도 값을 걸어 기다리는 체결이 즉시 체결보다 이득인가 — 호가 간격이 코인과 달라 답이 다를 수 있다",
+        "start": "2026-08-19",
+        "judge_on": "2026-11-17",
+        "statistic": "두 계좌 자산 차이(미체결 기회비용 포함)의 t-검정(양측)",
+        "alpha": 0.05,
+        "correction": "단일 비교 — 보정 없음",
+        "extra_gate": "지정가가 이겨도 미체결율 20% 초과면 채택 보류(체결 안 되는 이득은 이득이 아니다)",
+        "on_fail": "현행(시장가) 유지 + 결과 공개"
+      },
       "alloc_ladder": {
         "name": "배분 사다리(HRP vs ERC vs 균등 vs 역변동성)",
         "question": "현행 배분(HRP)이 대안들보다 실제로 나은가",
@@ -11646,26 +12630,34 @@
         "note": "이겨도 본 계좌 적용은 자동이 아니다 — 별도 공지 후 적용"
       }
     },
-    "amendments": []
+    "sequential": {
+      "registered_on": "2026-08-19",
+      "method": "정규혼합 신뢰수열(항시 유효) — 짝지어진 일수익 차이에 적용",
+      "alpha": 0.05,
+      "rho": 30.0,
+      "min_days": 20,
+      "applies_to": [
+        "cadence_ladder",
+        "limit_shadow",
+        "us_limit_shadow",
+        "alloc_ladder"
+      ],
+      "rule": "경계를 넘으면 그 시점에 조기 판정, 안 넘으면 원래 판정일까지 진행. 조기 판정도 결과를 그대로 공개한다.",
+      "honest_note": "속도는 효과 크기로 산다 — 우위가 작으면 이 방법으로도 빨라지지 않는다(실측: 일평균 0.6%p 우위면 중앙 32일, 0.35%p면 66일)."
+    },
+    "amendments": [
+      {
+        "on": "2026-08-19",
+        "what": "고정 판정일에 **조기 판정 경계**를 더한다(판정일 자체는 그대로).",
+        "why": "사장님 지시 '기간을 최대한 단축'. 고정일 방식은 한 번만 볼 수 있어 우위가 뚜렷해도 끝까지 기다려야 했다. 항시 유효 경계를 미리 박으면 매일 봐도 거짓 승리 확률이 유지되면서, 우위가 크면 더 빨리 판정된다. **실험 1~4일차(데이터가 쌓이기 전)에 고친다** — 지금 고치면 정직한 수정이고 10월에 고치면 골대 이동이다. 경계를 넘지 못하면 원래 판정일이 그대로 적용된다."
+      }
+    ]
   },
+  "unshackled": null,
   "manual_halt": null,
   "briefing": {
     "date": "2026-08-19",
     "items": [
-      {
-        "cat": "증시",
-        "title": "[속보]코스피, 6% 급락에 매도 사이드카…국채금리 급등 여파 - 경향신문",
-        "source": "경향신문",
-        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5QakhFaC10THdtZkVUejUwcm1VOTlBVV9nQXQ3Wm4tNVRkQUZBQlVOTUppamxyb2luSVJVTkp5UHNxdjRaaEl1b080NEpTU19jNEVsdGxaODZyd9IBX0FVX3lxTE1ZTjdxTXNya0RMb09YeHUtV3lNQU9XS3BYWjlZT0wxSURXZEZKMU5PR05hSjgzbFo5bUR3M1NsOUtWUzdmaFZvUE9WWmJoQ2tYbmF3enF6S0RQOW1DT3lF?oc=5",
-        "time": "Wed, 19 Aug 2026 00:17:00 GMT"
-      },
-      {
-        "cat": "증시",
-        "title": "코스피 상반기 매출 2천조원…반도체 독주속 순이익 작년 4배로 - 연합뉴스",
-        "source": "연합뉴스",
-        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5fT2tfczlscWs5QU5NdkVzRi1EejdvU29CRzRFSThuTENGOGJlX0M5SFNfZEtIR212ZEw1SWdOdWd5d1YtcGpCSlFEREExanpqTUswdVlCYWJrTGvSAWBBVV95cUxQMWRlRFBTQzNldkZVc25YNFhSTGJCcGEtWHBFUEhLUGRldXpQWTV0UXhlZDF6dnE5UWRVb1VRTUl2RUIyOFlXMzdvV2paTmZxVk55NmFBTWVQeUxjYjFjdHo?oc=5",
-        "time": "Wed, 19 Aug 2026 03:00:01 GMT"
-      },
       {
         "cat": "증시",
         "title": "美 금리 충격에 코스피 급락…매도 사이드카 발동 - 연합뉴스TV",
@@ -11675,38 +12667,52 @@
       },
       {
         "cat": "증시",
-        "title": "'중동 불안'에 코스피 장중 7%↓...매도 사이드카 발동 - YTN",
-        "source": "YTN",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE5rcUFOYVR5a2FZcXFnNXZRUzRfUW5zUE8tTzZKWWE4cmR5OGRhdU4zZjA2MUxwMkpNQ3I2X0syMG9WYkZFX0xIS3NRWUo3dVMzSGhwNmhIRXpIZk9OZUE?oc=5",
-        "time": "Wed, 19 Aug 2026 02:46:00 GMT"
+        "title": "“삼전닉스 주가 이미 반영”…한국 피터린치가 찍은 코스피 3 - 중앙일보",
+        "source": "중앙일보",
+        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE9pMnFMQVFrOFBYd1dqWDRqOUFrRFlHYVM2NHB5YVNfUDJ2VzJmWHlOd0lURElKb0dyT3piWGpmXzAtX2p4TFAwYmVWSERIOFRQTDlnQVl3?oc=5",
+        "time": "Wed, 19 Aug 2026 20:00:02 GMT"
+      },
+      {
+        "cat": "증시",
+        "title": "[뉴욕증시] 재무부 '기습 바이백'에 숨통 트였다…강세 마감 - 연합인포맥스",
+        "source": "연합인포맥스",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9UYzNPSlRSamt6VWJpVFBmOW96Qm5QZnROT3phdmYyUFBNcVBUZGdfMTQyMTRXSHZ3MnRtazRzR25reUtUSjBXS24zLV9oOExaOVNKb2xOa1pRVVZGRFlEUUJCRTRpV19TY3ZVcFE2aXg?oc=5",
+        "time": "Wed, 19 Aug 2026 20:54:01 GMT"
+      },
+      {
+        "cat": "증시",
+        "title": "[食전食후] 코스피, 6400선 급락 후 낙폭 확대…외국인·기관 매도에 6500선 위태 - v.daum.net",
+        "source": "v.daum.net",
+        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBwRk15UUhBcmxKSjdmTjliNnBBckR6bU9LTnp6R2U0aE9vQ2JkcUl1c3U5NzB1ODZxV04tb2dNYmg0cmo3Q0V1ckx5ckJiNTg?oc=5",
+        "time": "Wed, 19 Aug 2026 04:30:02 GMT"
       },
       {
         "cat": "금리·환율",
-        "title": "[김종인] 미국 장기 국채금리 급등…원인과 전망은 - 지디넷코리아",
-        "source": "지디넷코리아",
-        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1LSTVlaUFuNG9EUTRrSVZUMFdMLUFmTlRrY2JkRUxlSHk2a0VkQUlleVZzYTFsdV84aG8yVGRVay0xX2tXYjJTLVQyelJQY3RzMVVTQ1dB?oc=5",
-        "time": "Wed, 19 Aug 2026 01:16:30 GMT"
-      },
-      {
-        "cat": "금리·환율",
-        "title": "美금리 동결 우세·수출 네고에…환율 10개월 반 만에 1,300원대 - 연합뉴스",
-        "source": "연합뉴스",
-        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1xbWVQMlFnczJnQzg1a2xQa0dzbFJoRDVBMURvcWQtc0I1TXZLOERndEloRkZkTi10Y1NtU25QZWJMTmpHcmJHUzcxd2ZmZ3BtWHNXYzh4M003SmfSAWBBVV95cUxPR2ZLNExETWJVdVl6Z2JnSHh0N1hKTm4wVlA5dDd6U2g2bU45MFZTTWpCNVRDREgwQUZHZHBsZ2lQZlctNVZjeHB5UW4yd1RfWE5lUlpEZ1o3Z0QwRGwzTFU?oc=5",
-        "time": "Wed, 19 Aug 2026 03:06:28 GMT"
-      },
-      {
-        "cat": "금리·환율",
-        "title": "금리의 역습, 美·英·日 국채금리 급등 - 조선일보",
+        "title": "환율 다시 1300원대로... 11개월 만에 내려왔다 - 조선일보",
         "source": "조선일보",
-        "link": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxNMElYNFo0bUtSYjQxRkh5dlpIcGRZSEEtdWFpQUo4TmxTUUhyU2p2Wi0zZGR2QzczTnNfYkhkWXR6cFJNRkwxdDVxV2NWeERTc1paaElEc1BzaVN5RmM2V3U5dEVNdGVMaDdiYUl3SGQ3YjZ0SGFIbVBWY2FlWUxkNmxPVW8wMWUtaGZR?oc=5",
-        "time": "Tue, 18 Aug 2026 09:35:00 GMT"
+        "link": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPN3J5aFlMdW1ldjVCMDNyam9DbzgyMTJaZGxUek5WN3dXMnBWWG4zUG9jZ1BJRUtMZUtaWC01Wk9YQXpPcDNzRWFONnh0c2dULTdRQV9aVlFRX2IyNU1FeGFrTmRpY2Fpd2NiRXhfMjdBNDhGdnRuYWhNRFlaekNRMGtfSzdWVTIxektNU1BR?oc=5",
+        "time": "Wed, 19 Aug 2026 08:11:00 GMT"
       },
       {
         "cat": "금리·환율",
-        "title": "[속보] 원·달러 환율 1300원대로 하락…10개월여 만 - JTBC",
-        "source": "JTBC",
+        "title": "원·달러, 미 금리 동결 가능성에 1300원대로 하락…10개월여만 - news.jtbc.co.kr",
+        "source": "news.jtbc.co.kr",
         "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTE9NY3EwXzd6OW9UOWxZWkZ3ODJLc2xTc0ZFdDhTZWs3LVdHM3RzWEVybC1Ka0tiQmU4UXdkbkxLWjBlM1lBTmVvTkk2LUVFNGtTSWdUNQ?oc=5",
         "time": "Wed, 19 Aug 2026 03:06:00 GMT"
+      },
+      {
+        "cat": "금리·환율",
+        "title": "트럼프 \"정말로 금리 내려가야…성공·성장은 인플레 유발 안해\"(상보) - 연합인포맥스",
+        "source": "연합인포맥스",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9QMXkzSmFGdUxwa2E3XzdUR2l0a3hKNnVOVmFQdVdCWjFhd2VuNnkwUlRRWE9HQzU5dmFFMndBbnctVXRMOEdSTy0yOGJpdi1tWjU1bHYzanJRRXRWRkdCbWlkUUxybk02dWZpTGJhd0E?oc=5",
+        "time": "Wed, 19 Aug 2026 21:26:08 GMT"
+      },
+      {
+        "cat": "금리·환율",
+        "title": "[속보] 美금리 동결 우세…원·달러 환율, 10개월 반 만에 1300원대 - 중앙일보",
+        "source": "중앙일보",
+        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1oM242ZF8zWXl2Sy1IeHdqemtzTk9HQ0kxM0tGdDJLUEhFM205M2ltcG5TV2hJQXV1N2U2bU5QZ0FHaXBVdFlldFU5ZVJpVjhiZHV2M2tR?oc=5",
+        "time": "Wed, 19 Aug 2026 03:04:43 GMT"
       },
       {
         "cat": "코인",
@@ -11717,42 +12723,56 @@
       },
       {
         "cat": "코인",
+        "title": "21Shares, 비트코인·이더리움 ETP 수수료 면제 기간 연장 - Investing.com 한국어",
+        "source": "Investing.com 한국어",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5JenlvU3hxdFJCNUJFNGx5U2gyZE9wZnV1X1BKbl9EclFUZ0pRcjdoYU1QQlFOTEdpNjF4dWRLc1lwekdZY1Bpb2R4OWhYa0o0djFqSG8tZE5nYUdBaFoyaFNkdkQzNUtKckZJTlk3QmU?oc=5",
+        "time": "Wed, 19 Aug 2026 09:46:00 GMT"
+      },
+      {
+        "cat": "코인",
+        "title": "트럼프 '친코인' 내세웠지만…취임 후 비트코인 41% '뚝' - 뉴스1",
+        "source": "뉴스1",
+        "link": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE1hdEVuVG9pT29TZGFxRUNTd1BrWXU1Z2hGSlRqYWprbGNEQmJLLW9UQ05lRjhmY0RuV2V5clVNV19CY2RLNXRsaEJ6dkxMa2M2QUdIQmFqVHNBUlRrWmlZaHhHQ2Z0UdIBa0FVX3lxTE5RXzhYeHlKaXM2WV9nV2lQaFBWcVBLeXVLaHZIRzlvZzZpLXRrdHAtcUFvd3EwemdEcjJvQ1FVTEl4NjIzTEttSk9ZcS1uV1ZUeTNJeTV3TGFhSEpsN1dJN0NRaTlTLU9MeEhB?oc=5",
+        "time": "Wed, 19 Aug 2026 20:41:44 GMT"
+      },
+      {
+        "cat": "코인",
         "title": "값 떨어져도 코인 개미들 버텼다…비트코인·이더리움 보유량 늘어 - v.daum.net",
         "source": "v.daum.net",
         "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBvUU9BdDNBRnl2a0UyTEVnblhWdmg4dEpOajZEV2JHaGViam1YcnIyTEdtZHMzQlJPWnU2QnVwakhISVRQUzdFSUYzZTJkeTg?oc=5",
-        "time": "Tue, 18 Aug 2026 05:59:41 GMT",
-        "sym": "crypto:ETH/USDT"
+        "time": "Tue, 18 Aug 2026 05:59:00 GMT"
       },
       {
-        "cat": "코인",
-        "title": "톰리 \"토큰화·AI 활용가치 큰 이더리움, 비트코인보다 더 뛴다\" - 마켓인",
+        "cat": "종목",
+        "title": "美 재무부, 국채 바이백 확대…비트코인·金 동반 상승 - 마켓인",
         "source": "마켓인",
-        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1mSC14ZE5NdHNldXQ1a25tb25QTUFkbE5YMmoyYkpTREhiaTE5WXZwM25fTXcxSC1LQWlEWW5KVkEtbHk3MlI3OE56T0szWl9VRmtNbUk1RW16dGZ4S1FfTzhmUGxscGJzSWtGdDdzUVlsWGM?oc=5",
-        "time": "Mon, 17 Aug 2026 22:38:06 GMT",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE5jOVRTTkNZSDN2Q2JjN2F4STVSUWZQQ0VBZ3pxQ0JEUUl2OWN5cHJ3TFF6N2wwYWVWYzAtUVBuYThWUDBEZGdDUWo0cmNHdEJmamhlMWRSdDRTWTBkb2cxQTVtYldZMmdaclFrYVRfbHEzd3M?oc=5",
+        "time": "Wed, 19 Aug 2026 20:26:05 GMT",
+        "sym": "crypto:BTC/USDT"
+      },
+      {
+        "cat": "종목",
+        "title": "비트코인, 美 국채 바이백에 6만9천 달러 돌파…대규모 숏포지션 청산 - 연합인포맥스",
+        "source": "연합인포맥스",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE8xLW9PUkRhRU5OVU5TcXlBTjZtRlNBWUx2LUQ5YnZabDc2SFFhRmZrU2hpajVCU0tMX2p4RUl2NlpOX094ell6TENhX3R5dXozYzA5ZU9VQ2NBYzNISHBQN1VUT19KcENXR1ZFUDFES1I?oc=5",
+        "time": "Wed, 19 Aug 2026 22:36:22 GMT",
+        "sym": "crypto:BTC/USDT"
+      },
+      {
+        "cat": "종목",
+        "title": "이더리움 가격이 10% 상승 - Investing.com 한국어",
+        "source": "Investing.com 한국어",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9qd3g3WDNjQ0FpdjJhZzZsemNESmdWa1hrbWhsYlhQN0M2dmplb0VTSFZFX0xjTXgyN3YtR0Zpdm9fYXR1Wk5BTEpPak5QTVVNVG1oM2FKWWxwYVA4elZUSGpCaVRTNjhBcjl0TFNJdVY2bjQ?oc=5",
+        "time": "Wed, 19 Aug 2026 20:00:00 GMT",
         "sym": "crypto:ETH/USDT"
       },
       {
-        "cat": "코인",
-        "title": "[코인브리핑] 비트코인 9000만원선 회복…'XRP·이더리움·테더' 하락세 - 아시아타임즈",
-        "source": "아시아타임즈",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE9lYTI2bGJEM0pGWVFEcnV2SDhRbTI0dDZERlBCLVhOMWs2ODd2cDJsUXRydDlRZTZDN21NSzgxMnZxTV9ISkthT3Q1SlphWlRJT2dMRDI3SVRZc3BaOEE?oc=5",
-        "time": "Tue, 18 Aug 2026 07:56:00 GMT"
-      },
-      {
         "cat": "종목",
-        "title": "[비트코인 지금]美 SEC, 가상자산 발행 규제 완화…최대 7500만달러 증권등록 면제 추진 - v.daum.net",
-        "source": "v.daum.net",
-        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9Mc0pVLUdCeS10M1gxUjFJWFZjc2NiMEJmcnFDTmk0SGFvX05EMzJuWTVKZ3U1eEpjTmU0aWNXMHpsRS1wXzNUUGNZR3NDdG8?oc=5",
-        "time": "Wed, 19 Aug 2026 02:27:27 GMT",
-        "sym": "crypto:BTC/USDT"
-      },
-      {
-        "cat": "종목",
-        "title": "글로벌 장기금리 상승 속 금-비트코인 희비 교차 - 연합인포맥스",
-        "source": "연합인포맥스",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5uXzY2ZWN2VXFIYXRkaGc5RlZkdnh0S0c1MFhJWHpZV1JEWE92bW12WEx4UGpCZFJYZHV2SWlPdEMyRWJvOFZnWGlOS3hzZk1ySGNrU2FuRGU5eHMyc1VIRk9rNUdjRi1QQmpydHFtMGk?oc=5",
-        "time": "Wed, 19 Aug 2026 02:44:28 GMT",
-        "sym": "crypto:BTC/USDT"
+        "title": "코인 동반 급등장…비트코인 8%·이더리움 19% 상승 - 이투데이",
+        "source": "이투데이",
+        "link": "https://news.google.com/rss/articles/CBMiVEFVX3lxTFBGUy1uSHhqNF9SX0lwQVhlTFBpNmhST3g0V3gwQ0FpOVRSQkpnbUVIajM1M0xqUWppaHNXX1hETTNFWl9XWU5MazBqZHVSSXpLTkpORA?oc=5",
+        "time": "Wed, 19 Aug 2026 22:06:00 GMT",
+        "sym": "crypto:ETH/USDT"
       },
       {
         "cat": "종목",
@@ -11766,33 +12786,25 @@
         "cat": "종목",
         "title": "비트코인 시세…이더리움·리플·솔라나 가격 - v.daum.net",
         "source": "v.daum.net",
-        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE5pMDg2RGRiYjFzU2F5MVpFQXdtWUxObVJYVEJRQlFXOFVQaEVFajJKa1BhVVU2NEwteVEyWGlod0JQYTd4alhycG9mdmVrRUU?oc=5",
-        "time": "Wed, 19 Aug 2026 02:04:13 GMT",
+        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFAySGRiOGZWZS1PNnN0a0hWZzJ6TUNWMWhRLVE2MGx5TUJyVnVJbW5tenlvZWlyQUo1ZjNsbVIwNG1CN2ZueDRpVG5SRkZXTTA?oc=5",
+        "time": "Wed, 19 Aug 2026 22:11:07 GMT",
         "sym": "crypto:SOL/USDT"
       },
       {
         "cat": "종목",
-        "title": "삼성전자 ‘고배당주’로 변신?…주가 200% 뛴 애플처럼 될까 [오늘, 이 종목] - v.daum.net",
-        "source": "v.daum.net",
-        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE04NEdlVWdPelVXVmowUzZ1SFNhLUZCUVFYMHk2S1RxcTBPdXpwN19sRGh1MDRoM19IOVZWSV80and6bElRcHdxMVFrQlA4X2c?oc=5",
-        "time": "Tue, 18 Aug 2026 07:12:08 GMT",
+        "title": "“40조 소각 효과 좋네”…삼성전자 주주환원 기대 덩달아 ‘쑥’ [줍줍 리포트] - 서울경제",
+        "source": "서울경제",
+        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE9BUG42UEtPMUUzYkZSNDhQSHdGVFZlRGp0dkJmWXJJTE5BWXI4SHkwTFVKNnV2Q0dxbDNLa2ZjWEM0Tmw1QXdfNnh4N1RrZmFkcHc?oc=5",
+        "time": "Wed, 19 Aug 2026 22:00:00 GMT",
         "sym": "kr_stock:005930.KS"
       },
       {
         "cat": "종목",
-        "title": "삼성 다니는 남편 덕분?…\"5만전자 때 주식 샀다\" 이현이 5배 대박 - 머니투데이 - 머니투데이",
-        "source": "머니투데이",
-        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBIRkl2bnhZRzJmY0Q1ZFB1ZHlzQVlsU0VJWDFWaU5lQ0FWZUJFMzNrYmhTTy1kY1kwLVVwRFo1VXNrdnJqOWJOS1lkLUR2T1czXzZaelJWemR0SnFteUtEX19WeDY3eDhZWFV6VFlYN1d0NEHSAXhBVV95cUxPanpkVlRnQUVwSWF3djN3cXBRVk9kRExia3VFRnFWMmxPcm9ZaFVROWJOd3VwLVlDem9CV0M2dUZUUkdXOENGQlZzX2hoNWhFcEM5RVRVTlpQMnhjZXh1WHpXQWYyNUVBcGRIRjhZUWN5cVozbFp0VlI?oc=5",
-        "time": "Tue, 18 Aug 2026 05:52:27 GMT",
+        "title": "\"반도체 우려 정점 지났다\"…3분기에 삼전닉스 주가 재평가 기대 - 연합인포맥스",
+        "source": "연합인포맥스",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9JUGJiM3VYbHRDc0N0ZGxURnE4OF9WSUJ0aU5LR0pDYTloNEVacFFpeVpUN1RGVlBHLWRROEdveGU4T2Q1cEZNb2xFN2tOOWgxbFB3dDBtZkZVRE5ySVlhTFJkeThlN2tTR0QxTzQ4Z0k?oc=5",
+        "time": "Sun, 16 Aug 2026 22:35:00 GMT",
         "sym": "kr_stock:005930.KS"
-      },
-      {
-        "cat": "종목",
-        "title": "[표] 코스피 지수선물·옵션 시세표(18일)-3 - 매일경제 마켓",
-        "source": "매일경제 마켓",
-        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1wVVA4M3lINWVNZmtIZWR0MTNweTgyekdra0p2NjVRR3JJbkZSVVVhbHBSRnNBcjNnUHBLeHNEaDExdWRRSzhtRnVYT2UtblZRb2c?oc=5",
-        "time": "Tue, 18 Aug 2026 07:30:49 GMT",
-        "sym": "kr_stock:069500.KS"
       },
       {
         "cat": "종목",
@@ -11804,50 +12816,58 @@
       },
       {
         "cat": "종목",
-        "title": "\"엔비디아 순환금융 우려 불식하려면 주주환원 높여야\" - 연합인포맥스",
-        "source": "연합인포맥스",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1wcUc3YlYteEZtTnZYdFc1c2FWN3ZrWERCdng4Y05jSkNBVE5qT3ZGRG01MHZpN0xWRVBFTnk2LTAtOGx6T1k4cW9ZYi1hSU9TTGZ6NW5aUUY1SmJxUmZValBUbmp0T2NwNE1oTUZreVI?oc=5",
-        "time": "Wed, 19 Aug 2026 00:21:45 GMT",
+        "title": "신한투자 \"코스피 200일선 방어 성공, 중기 방향은 주당순이익 전망에 달려\" - 비즈니스포스트",
+        "source": "비즈니스포스트",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTE1RQjFQdTR0WTY0Vjd5Qmo5aVlwbE5GajhBcFZjSi1raTBMYnNZZnBkcVZzclRPNFpXVmdBajNzQVRJWGdIUzBpVWhvXzNxR19rbldvQVpfcGwxNUZoeVVBTUhUQy1RWFRwaEh2cEIyVi1fSEk?oc=5",
+        "time": "Wed, 19 Aug 2026 00:15:39 GMT",
+        "sym": "kr_stock:069500.KS"
+      },
+      {
+        "cat": "종목",
+        "title": "엔비디아 주가 0.99% 하락…오픈AI 실적 부진에 전망 흔들 - v.daum.net",
+        "source": "v.daum.net",
+        "link": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9hTy1UQzhJLTVIUGduSEJuVFpfVG1SVDBnU2N3dl9EM2VrV0V3dS12cmtXUFBNeDhUVTcyVC1wbXVDVkwzaXJtSnJfV3pxMEE?oc=5",
+        "time": "Wed, 19 Aug 2026 22:02:43 GMT",
         "sym": "us_stock:NVDA"
       },
       {
         "cat": "종목",
-        "title": "[미국 특징주] BofA \"엔비디아, AI 리스크 과대평가로 최대 50% 저평가\" - 뉴스핌",
-        "source": "뉴스핌",
-        "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTE00dnpyMVFiUlBmYUI2eVZqcmYybGNrendsdzZHQ21zT2g2eTJ3QVFGQUxWREt6TVpWcFN1aFdRYmpDUHVVczhuUTI2V0w0NjhhYUd1R3pnNG11SXcw?oc=5",
-        "time": "Tue, 18 Aug 2026 16:53:00 GMT",
+        "title": "엔비디아 주가 전망, 8월 26일 실적발표 이후 반도체 주가 끌어올릴까? - 네이버 프리미엄콘텐츠",
+        "source": "네이버 프리미엄콘텐츠",
+        "link": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNUElNWDBJVXh2bExDZkdCSFZWeW9Pa2QwVjFnTXllNHBNMVJGVW5kVUVlc2pkaDJ2My1Lc0plakthRFBheFhSV3lkMnIxVC1RZ3Z2LXlvZzVxd1kxMnZ4TG5ZeVUtd0Z5bDZTRXMtVGxheDVzTGViVkE4Wm5nVVBrTjBaUQ?oc=5",
+        "time": "Wed, 19 Aug 2026 11:40:00 GMT",
         "sym": "us_stock:NVDA"
       },
       {
         "cat": "종목",
-        "title": "뉴욕증시, 유가·국채금리 급등에 사흘째 하락…나스닥 1.3%↓ - 경향신문",
-        "source": "경향신문",
-        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFBKM2RQNTVRNFpiOWZicE1VZkFSVTlpemFhZkFmdF9ZbFBZV3h2OW5jQUUzMnFWa0x1ZTE2bng0NzdFZE5uU1ZTU1MwWjREdldaOGJrZVQtUjJTQdIBX0FVX3lxTFBtazVJOHgzT2NMS294UTFObWl6dDFVX0J6V0dYZVh1X3FPV2dxdFFrMjJRR1Q4bFlpTXVmNWIxVXVQTF9Ib2ZyMGNhbE1nVzlFRjlOLUNjdmR5NHNXUnlv?oc=5",
-        "time": "Tue, 18 Aug 2026 22:46:00 GMT",
+        "title": "뉴욕증시, 중동불안·미 국채금리 급등에 하락…나스닥 1.3%↓(종합) - v.daum.net",
+        "source": "v.daum.net",
+        "link": "https://news.google.com/rss/articles/CBMiRkFVX3lxTE9KLTJnM1Z0V1BWcTk3QUZPTFpnanpnYXlFQVVMSHhaRnFiV04yVTdiWDZtZ2FHZ1FQYzVQVnBycFBncjlsemc?oc=5",
+        "time": "Tue, 18 Aug 2026 21:20:57 GMT",
         "sym": "us_stock:QQQ"
       },
       {
         "cat": "종목",
-        "title": "IM 카나비스, 30대1 주식병합 단행..나스닥 최저가 요건 충족 - 매일경제 마켓",
-        "source": "매일경제 마켓",
-        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE5QQ3NGQ1c2YmlWeVh5eFZZc01fZFhRWjgxRlJkV1dPQlU1UmVxRWo5V3BYY2Y0M09SWkpPZlZLOF9aMnJocy1mNEdpWUdKOWhVU2c?oc=5",
-        "time": "Tue, 18 Aug 2026 21:16:23 GMT",
-        "sym": "us_stock:QQQ"
-      },
-      {
-        "cat": "종목",
-        "title": "국채 금리·유가 상승에 월가 하락, 미국 증시 선물 보합세 - Investing.com 한국어",
+        "title": "나스닥, 최저 호가 미달로 OSR 헬스 상장 폐지 결정 - Investing.com 한국어",
         "source": "Investing.com 한국어",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBrdjI2b1otMFZ0NU93Y0UzdWowM054dC1UbUpiODdaQ2JNdWl6bnV6N1BkbnZKWHZUcTVpRThIWXU3M3JQbDRuWEpCaTU2VkFLeXVwWG1VV0lCRTA4SjdtSzlRWUVBTGU3NERhNnNQU08?oc=5",
-        "time": "Wed, 19 Aug 2026 01:08:00 GMT",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1KTW5oZXR2a0l6VXg3WWpMaHhoSjJlcENiOF91WU9FSG1ILTdkXzc0YVlJSWF6eHhMOTRJNmpla0M5WTZOYXJaaDRtd3c3b0wzZzgzRDlNNWFsSXl5V3VPN3hiRGpkR3plVG1UN1FkTXA?oc=5",
+        "time": "Wed, 19 Aug 2026 19:49:00 GMT",
+        "sym": "us_stock:QQQ"
+      },
+      {
+        "cat": "종목",
+        "title": "뉴욕증시, 미국 재무부 국채 바이백 확대에 반등…S&P 0.21%↑[뉴욕마감] - MTN 머니투데이방송",
+        "source": "MTN 머니투데이방송",
+        "link": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE5XNS15SzhzeWJoVGVoMnd5QVZFcXNHTDI0aXBnc004OTJCRHF4YzR6NE5uUG1nbXBUMUFrNkxkRGxKN2lMVXdRQnVrTVoxTEVnc1BKNjVLdkhYRXg1YnE0TlFfUzE?oc=5",
+        "time": "Wed, 19 Aug 2026 21:08:07 GMT",
         "sym": "us_stock:SPY"
       },
       {
         "cat": "종목",
-        "title": "[서울데이터랩] 미국 증시, 기술주·반도체주 약세에 일제히 하락 마감 - 서울신문",
-        "source": "서울신문",
-        "link": "https://news.google.com/rss/articles/CBMib0FVX3lxTE5FbElyanpzZ19LVVJTSUo3UjRWTVJjcGtoX1Jxek9IUUNsUEFPNnFUNzdUZnJWZ2xPNjNDeW4tbDJZc1B4LWJMZEpKTExBNUstTUNmaE9ITXFpR2NjNHRERVNGM1hsUnNJdFZRdWd6Yw?oc=5",
-        "time": "Tue, 18 Aug 2026 21:12:32 GMT",
+        "title": "미국증시, 재무부 장기채 매입 확대에 반등…엔비디아·반도체주는 약세 지속 - 톱스타뉴스",
+        "source": "톱스타뉴스",
+        "link": "https://news.google.com/rss/articles/CBMickFVX3lxTFB1YnZoUWMwOC0wTTdjSVFCb0xxU2pyTVFja0tzREh3U0RtcHpQYVJzcE4zblZrYXU4SkxjMlVpYlJsYjR5X3dCcU9uRWwzNktuXzEzMXBhRnBCRHN3UzVFbmt6TlF3TmZzaEtzVWYyaGd2dw?oc=5",
+        "time": "Wed, 19 Aug 2026 21:39:18 GMT",
         "sym": "us_stock:SPY"
       }
     ],
@@ -11878,15 +12898,15 @@
         "key": "t10y2y",
         "name": "장단기 금리차",
         "unit": "%p",
-        "value": 0.52,
-        "date": "2026-08-18"
+        "value": 0.46,
+        "date": "2026-08-19"
       },
       {
         "key": "hy_spread",
         "name": "하이일드 스프레드",
         "unit": "%p",
-        "value": 2.7,
-        "date": "2026-08-17"
+        "value": 2.75,
+        "date": "2026-08-18"
       },
       {
         "key": "usd_idx",
@@ -11901,7 +12921,7 @@
         "name": "10년 기대인플레",
         "unit": "%",
         "value": 2.3,
-        "date": "2026-08-18"
+        "date": "2026-08-19"
       }
     ],
     "note": "금리 곡선 정상 · 신용시장 안정 · 달러 보합",
@@ -11973,9 +12993,9 @@
   },
   "run_health": {
     "retrain": {
-      "date": "2026-08-18",
-      "runs": 2,
-      "ok": 20,
+      "date": "2026-08-19",
+      "runs": 1,
+      "ok": 16,
       "failed": 0,
       "skipped": 0,
       "ok_keys": [
@@ -11985,12 +13005,8 @@
         "crypto:SOL/USDT",
         "crypto:XRP/USDT",
         "kr_stock:000660.KS",
-        "kr_stock:005380.KS",
         "kr_stock:005930.KS",
-        "kr_stock:035420.KS",
-        "kr_stock:051910.KS",
         "kr_stock:069500.KS",
-        "kr_stock:105560.KS",
         "us_stock:AAPL",
         "us_stock:AMZN",
         "us_stock:META",
@@ -12006,7 +13022,7 @@
     },
     "paper": {
       "date": "2026-08-19",
-      "runs": 1,
+      "runs": 2,
       "ok": 20,
       "failed": 0,
       "skipped": 0,
@@ -12155,7 +13171,7 @@
         "return_pct": 0.0,
         "equity": 10003.57,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:005380.KS": {
@@ -12175,7 +13191,7 @@
         "return_pct": 0.0,
         "equity": 10000.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:005930.KS": {
@@ -12195,7 +13211,7 @@
         "return_pct": 0.0,
         "equity": 10000.84,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:035420.KS": {
@@ -12215,7 +13231,7 @@
         "return_pct": 0.0,
         "equity": 10000.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:051910.KS": {
@@ -12232,10 +13248,10 @@
         "n_days": 5
       },
       "2026-08-17": {
-        "return_pct": -0.01,
-        "equity": 10009.18,
+        "return_pct": 0.17,
+        "equity": 10026.73,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:069500.KS": {
@@ -12255,7 +13271,7 @@
         "return_pct": 0.0,
         "equity": 10061.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "kr_stock:105560.KS": {
@@ -12272,10 +13288,10 @@
         "n_days": 5
       },
       "2026-08-17": {
-        "return_pct": -0.02,
-        "equity": 9964.21,
+        "return_pct": -0.16,
+        "equity": 9949.97,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "portfolio:ALL": {
@@ -12323,7 +13339,7 @@
         "return_pct": 0.0,
         "equity": 9909.17,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:AMZN": {
@@ -12340,10 +13356,10 @@
         "n_days": 5
       },
       "2026-08-17": {
-        "return_pct": 0.04,
-        "equity": 9944.93,
+        "return_pct": 0.07,
+        "equity": 9947.65,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:GOOG": {
@@ -12351,15 +13367,15 @@
         "return_pct": 0.0,
         "equity": 10000.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:GOOGL": {
       "2026-08-17": {
-        "return_pct": 0.0,
-        "equity": 10000.0,
+        "return_pct": 0.09,
+        "equity": 10009.09,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:META": {
@@ -12390,10 +13406,10 @@
         "n_days": 5
       },
       "2026-08-17": {
-        "return_pct": 0.0,
-        "equity": 10000.0,
+        "return_pct": 0.05,
+        "equity": 10004.73,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:NVDA": {
@@ -12413,7 +13429,7 @@
         "return_pct": 0.0,
         "equity": 10000.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:QQQ": {
@@ -12433,7 +13449,7 @@
         "return_pct": 0.0,
         "equity": 10000.53,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:SPY": {
@@ -12453,7 +13469,7 @@
         "return_pct": 0.0,
         "equity": 9989.0,
         "deposit": null,
-        "n_days": 1
+        "n_days": 2
       }
     },
     "us_stock:TSLA": {
@@ -12477,11 +13493,11 @@
     "note": "챔피언을 뽑은 것과 같은 데이터에서 잰 값입니다(인샘플). 종목 간 상관이 있어 유효 표본은 종목 수보다 작습니다.",
     "all": {
       "n": 20,
-      "wins": 12,
-      "win_rate": 0.6,
-      "sharpe_mean": 0.1253,
-      "sharpe_sd": 0.8273,
-      "t": 0.6773
+      "wins": 13,
+      "win_rate": 0.65,
+      "sharpe_mean": 0.2042,
+      "sharpe_sd": 0.7964,
+      "t": 1.1465
     },
     "stocks": {
       "n": 15,
@@ -12494,11 +13510,11 @@
     "markets": {
       "crypto": {
         "n": 5,
-        "wins": 0,
-        "win_rate": 0.0,
-        "sharpe_mean": -0.9722,
-        "sharpe_sd": 0.6176,
-        "t": -3.5199
+        "wins": 1,
+        "win_rate": 0.2,
+        "sharpe_mean": -0.6567,
+        "sharpe_sd": 0.9568,
+        "t": -1.5347
       },
       "kr_stock": {
         "n": 7,
@@ -12545,6 +13561,13 @@
         "bars": 800,
         "total_return": 0.149747,
         "sharpe": 0.8294
+      },
+      {
+        "key": "crypto:ETH/USDT",
+        "market": "crypto",
+        "bars": 800,
+        "total_return": 0.184566,
+        "sharpe": 0.6514
       },
       {
         "key": "kr_stock:005930.KS",
@@ -12631,13 +13654,6 @@
         "sharpe": -0.1655
       },
       {
-        "key": "crypto:ETH/USDT",
-        "market": "crypto",
-        "bars": 800,
-        "total_return": -0.123389,
-        "sharpe": -0.9262
-      },
-      {
         "key": "crypto:BTC/USDT",
         "market": "crypto",
         "bars": 800,
@@ -12662,20 +13678,20 @@
   },
   "fill_check": {
     "window": 90,
-    "total_fills": 54,
+    "total_fills": 61,
     "markets": {
       "kr_stock": {
-        "n": 26,
-        "mean_abs_gap_bp": 125.4,
-        "mean_adverse_bp": 3.0,
-        "worst_adverse_bp": 268.0,
+        "n": 30,
+        "mean_abs_gap_bp": 156.7,
+        "mean_adverse_bp": -9.2,
+        "worst_adverse_bp": 544.9,
         "assumed_bp": 14.0,
         "optimistic": false
       },
       "us_stock": {
-        "n": 28,
-        "mean_abs_gap_bp": 45.1,
-        "mean_adverse_bp": -5.9,
+        "n": 31,
+        "mean_abs_gap_bp": 44.9,
+        "mean_adverse_bp": -7.9,
         "worst_adverse_bp": 207.4,
         "assumed_bp": 6.0,
         "optimistic": false
@@ -12685,33 +13701,239 @@
   "guard": {
     "observed_gap_min": 557.6,
     "interval_min": 5,
-    "median_gap_min": 29.5
+    "median_gap_min": 30.3
   },
   "validation": {
     "crypto:BTC/USDT": {
       "strategy": "ml",
-      "bars": 300,
-      "dsr": null,
-      "pbo": 0.7777777777777778,
-      "skipped": {
-        "dsr": "데이터(300)가 is_window+embargo+oos_window(380)보다 짧습니다."
-      },
-      "peak_only": false
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 2.0728611698772603e-06,
+      "pbo": 0.8293650793650794,
+      "cpcv_worst_return": -0.1660551737430016,
+      "cpcv_min_sharpe": -1.6947321145853091,
+      "skipped": null,
+      "peak_only": true
     },
     "us_stock:SPY": {
       "strategy": "ml",
       "bars": 800,
-      "dsr": 0.007194479760060102,
-      "pbo": 0.01984126984126984,
+      "asof": "2026-08-19",
+      "dsr": 0.00023075945104483742,
+      "pbo": 0.0,
+      "cpcv_worst_return": -0.08040417147361734,
+      "cpcv_min_sharpe": -0.4825421663375561,
+      "skipped": null,
+      "peak_only": false
+    },
+    "crypto:ETH/USDT": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.00696319177146415,
+      "pbo": 0.015873015873015872,
+      "cpcv_worst_return": 0.008289328122225381,
+      "cpcv_min_sharpe": 0.14839404063858397,
+      "skipped": null,
+      "peak_only": false
+    },
+    "crypto:SOL/USDT": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 3.3500067289637947e-06,
+      "pbo": 0.21428571428571427,
+      "cpcv_worst_return": -0.10775764544374111,
+      "cpcv_min_sharpe": -1.2561209796875115,
+      "skipped": null,
+      "peak_only": false
+    },
+    "crypto:BNB/USDT": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.0028386678129423415,
+      "pbo": 0.5753968253968254,
+      "cpcv_worst_return": -0.05830927578614442,
+      "cpcv_min_sharpe": -0.5275226461979394,
+      "skipped": null,
+      "peak_only": false
+    },
+    "crypto:XRP/USDT": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.00274355848854696,
+      "pbo": 0.9404761904761905,
+      "cpcv_worst_return": -0.04051411518063175,
+      "cpcv_min_sharpe": -0.4629920347444969,
+      "skipped": null,
+      "peak_only": true
+    },
+    "us_stock:QQQ": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.020111143608560478,
+      "pbo": 0.1388888888888889,
+      "cpcv_worst_return": -0.13679659160982882,
+      "cpcv_min_sharpe": -0.6687877785069186,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:NVDA": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.15946837035981237,
+      "pbo": 0.35714285714285715,
+      "cpcv_worst_return": 0.020316409975533745,
+      "cpcv_min_sharpe": 0.15147507094540869,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:MSFT": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 6.16855437295949e-05,
+      "pbo": 0.8849206349206349,
+      "cpcv_worst_return": -0.04194763846130278,
+      "cpcv_min_sharpe": -0.16731474300472554,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:AAPL": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 4.687100036315783e-05,
+      "pbo": 0.8333333333333334,
+      "cpcv_worst_return": -0.03728242982741181,
+      "cpcv_min_sharpe": -0.19829454091881335,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:AMZN": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.0057201752263559835,
+      "pbo": 0.0,
+      "cpcv_worst_return": -0.09198422783530968,
+      "cpcv_min_sharpe": -0.5876870035469225,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:META": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.00807050660801445,
+      "pbo": 0.3055555555555556,
+      "cpcv_worst_return": -0.019330476270246644,
+      "cpcv_min_sharpe": -0.08317052718313304,
+      "skipped": null,
+      "peak_only": false
+    },
+    "us_stock:TSLA": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-19",
+      "dsr": 0.0004027391554060067,
+      "pbo": 1.0,
+      "cpcv_worst_return": -0.1430611463256486,
+      "cpcv_min_sharpe": -0.7267003756563529,
+      "skipped": null,
+      "peak_only": false
+    },
+    "kr_stock:069500.KS": {
+      "strategy": "ml",
+      "bars": 20,
+      "asof": "2026-08-19",
+      "dsr": null,
+      "pbo": null,
+      "cpcv_worst_return": null,
+      "cpcv_min_sharpe": null,
+      "skipped": {
+        "dsr": "데이터(20)가 is_window+embargo+oos_window(380)보다 짧습니다.",
+        "pbo": "데이터(20봉)가 너무 짧습니다. 블록당 최소 4봉 필요.",
+        "cpcv": "데이터(20봉)가 그룹 6개로 나누기에 짧습니다."
+      },
+      "peak_only": false
+    },
+    "kr_stock:005930.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.0010511140311031397,
+      "pbo": 0.5952380952380952,
+      "cpcv_worst_return": 0.01790446911329502,
+      "cpcv_min_sharpe": 0.13175816153923325,
+      "skipped": null,
+      "peak_only": false
+    },
+    "kr_stock:000660.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.06006754200012948,
+      "pbo": 0.5753968253968254,
+      "cpcv_worst_return": 0.09131804221990869,
+      "cpcv_min_sharpe": 0.5159797133442704,
+      "skipped": null,
+      "peak_only": true
+    },
+    "kr_stock:035420.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.007688213324159199,
+      "pbo": 0.48412698412698413,
+      "cpcv_worst_return": 0.04345881593447665,
+      "cpcv_min_sharpe": 0.3329407709300994,
+      "skipped": null,
+      "peak_only": false
+    },
+    "kr_stock:005380.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.00042222590708923535,
+      "pbo": 0.9523809523809523,
+      "cpcv_worst_return": -0.05759602325968349,
+      "cpcv_min_sharpe": -0.5573690029782153,
+      "skipped": null,
+      "peak_only": false
+    },
+    "kr_stock:051910.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.005139954722268192,
+      "pbo": 0.4007936507936508,
+      "cpcv_worst_return": 0.04843520812670965,
+      "cpcv_min_sharpe": 0.4315166211928156,
+      "skipped": null,
+      "peak_only": false
+    },
+    "kr_stock:105560.KS": {
+      "strategy": "ml",
+      "bars": 800,
+      "asof": "2026-08-18",
+      "dsr": 0.014319059225679887,
+      "pbo": 0.011904761904761904,
+      "cpcv_worst_return": -0.008161518640901533,
+      "cpcv_min_sharpe": -0.025875028810881124,
       "skipped": null,
       "peak_only": false
     }
   },
   "parliament": {
     "accounts": 20,
-    "single_seat": 1,
-    "multi_seat": 19,
-    "max_seats": 2,
+    "single_seat": 2,
+    "multi_seat": 18,
+    "max_seats": 3,
     "cap": 3,
     "diversified": true
   },

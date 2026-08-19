@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-18 00:00:00",
+  "cash": 8487.0,
+  "quantity": 4.415449631755626,
+  "avg_price": 342.4549865722656,
+  "last_bar": "2026-08-19 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -48,11 +48,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-19",
+      "price": 344.7200012207031,
+      "weight": 0.3538,
+      "held_weight": 0.1521,
+      "fractional_lot": false,
+      "equity": 10009.09,
+      "return_pct": 0.09,
+      "hit_rate": 0.40540540540540543,
+      "hit_n": 74,
+      "hit_lo": 0.3009038972107517,
+      "hit_hi": 0.5192436845450189,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +35% — 로지스틱회귀 모델이 내일 상승확률을 약 85%로 추정(기준 55% 초과) · 판단 재료: 20일선 이격 -0.4%(선 아래) / 5일 수익률 +0.3% / 변동성(20일) 일 3.0% · 사이징: 신호 원비중 68% → 변동성 타깃 조절 후 35% · 참고: 이 확률대(85%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=12, 25건부터 표시)",
+      "fill": {
+        "price": 342.454987,
+        "bar": "2026-08-19 00:00:00",
+        "weight": 0.1513,
+        "decided_bar": "2026-08-18 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "805ed4148e18",
+      "data_sha256": "e0413e5f7fb7b3186dea79be8d98ddfc443dda65219bac243f34e30841a4970b",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.8544804823161283,
+      "drift_psi": 0.1523,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1513,
-    "decided_bar": "2026-08-18 00:00:00"
+    "weight": 0.3538,
+    "decided_bar": "2026-08-19 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOGL",
