@@ -2731,6 +2731,38 @@ MUTATIONS = [
      '                                       "vol_quantile": 0.9}})',
      '                                       "vol_quantile": None}})',
      "tests/test_the_vol_regime_reads_its_own_market.py"),
+
+    # 2026-08-19 — 배분 사다리. 멱등과 빈 회차 금지는 주기 사다리에서 배운
+    # 규칙 그대로 — 풀리면 곡선이 두 번 움직이거나 가짜 평평함을 얻는다.
+    ("배분 사다리가 같은 봉에 두 번 움직인다(멱등 해제)",
+     "quant/live/alloc_ladder.py",
+     '        if st["history"] and st["history"][-1].get("date") == bar:',
+     "        if False:",
+     "tests/test_the_alloc_ladder_measures_the_split.py"),
+    ("시세 없는 날도 배분 계좌가 기록된다(가짜 평평함)",
+     "quant/live/alloc_ladder.py",
+     "    if not marks:",
+     "    if False:",
+     "tests/test_the_alloc_ladder_measures_the_split.py"),
+
+    # 2026-08-19 — 가치 닻(KIS 사례 채택). 재료·링·적자 처리의 계약.
+    ("가치 도전자가 링에서 빠진다",
+     "quant/live/retrain.py",
+     '        {"strategy": "value_anchor", "params": {"quantile": 0.4}},',
+     '        # {"strategy": "value_anchor", "params": {"quantile": 0.4}},',
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+    ("일일 파이프라인이 가치를 부착하지 않는다(도전자가 재료 없이 돈다)",
+     "quant/live/daily.py",
+     "        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.\n"
+     "        df = attach_krx_value(df, symbol)",
+     "        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.\n"
+     "        pass",
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+    ("적자 PER/PBR(음수)이 '싸다'로 읽힌다",
+     "quant/data/krx.py",
+     "                s = s.where(s > 0)",
+     "                pass",
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',

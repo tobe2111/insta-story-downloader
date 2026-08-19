@@ -767,6 +767,9 @@ def build_challengers(current_spec: dict, seed: str,
     # 수급 피처가 없는 시장에서는 관망만 내는 무해한 후보다.
     challengers += [
         {"strategy": "supply_som", "params": {}},
+        # 가치 닻(2026-08-19, KIS 사례 채택) — 자기 역사 대비 저PBR 구간만
+        # 보유. 재료(val_pbr)는 한국 주식에만 붙는다 — 없는 시장은 관망.
+        {"strategy": "value_anchor", "params": {"quantile": 0.4}},
     ]
     if not evolve:
         return challengers
@@ -1085,8 +1088,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_open_interest(df, symbol)
     if market == "kr_stock":
         # 외국인·기관 수급(z-점수) — 한국 주식 고유의 수급 피처(실패 시 생략)
-        from quant.data.krx import attach_krx_flows
+        from quant.data.krx import attach_krx_flows, attach_krx_value
         df = attach_krx_flows(df, symbol)
+        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.
+        df = attach_krx_value(df, symbol)
     # 크로스에셋 컬럼(x_*) — 시장 바깥의 맥락(BTC/SPY/금리/환율). 펀딩과 같은
     # 원리로 스냅샷·해시에 보존된다(실패 시 조용히 생략 — 선택적 피처).
     from quant.data.crossasset import attach_cross_asset

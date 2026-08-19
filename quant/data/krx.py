@@ -80,6 +80,87 @@ def fetch_investor_net(symbol: str, limit: int = 160) -> pd.DataFrame | None:
     return out[~out.index.duplicated(keep="last")].sort_index()
 
 
+def fetch_fundamental(symbol: str, limit: int = 800) -> pd.DataFrame | None:
+    """일자별 PER·PBR·배당수익률 — KRX 공개 통계(pykrx). 한국 종목만.
+
+    2026-08-19, 사장님이 주신 KIS API 가치투자 사례의 채택. KRX가 매일
+    산출·공표하는 값이라 무료·공개·재현 가능하다. 실패 규약은 수급과 같다:
+    원인을 아는 실패는 사유를 들고 예외로 올라간다.
+    """
+    code = symbol.split(".")[0]
+    if not code.isdigit():
+        return None
+    try:
+        from pykrx import stock
+    except ImportError as exc:
+        raise RuntimeError("pykrx 미설치 — 배치에는 설치돼 있어야 한다") from exc
+    end = _dt.date.today()
+    start = end - _dt.timedelta(days=int(limit * 1.6))
+    try:
+        raw = stock.get_market_fundamental_by_date(
+            start.strftime("%Y%m%d"), end.strftime("%Y%m%d"), code)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("KRX 재무 조회 실패 %s: %s", symbol, exc)
+        raise RuntimeError(
+            f"KRX 재무 조회 실패({type(exc).__name__}: {exc})") from exc
+    if raw is None or len(raw) == 0:
+        raise RuntimeError(
+            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 재무 표를 비워서 줬다")
+    cols = {}
+    for name in raw.columns:
+        key = str(name).upper()
+        if key == "PER":
+            cols["per"] = raw[name]
+        elif key == "PBR":
+            cols["pbr"] = raw[name]
+        elif key == "DIV":
+            cols["div"] = raw[name]
+    if "pbr" not in cols:
+        raise RuntimeError(
+            f"PBR 컬럼이 없다 — 받은 컬럼: {list(raw.columns)[:6]}")
+    out = pd.DataFrame(cols)
+    out.index = pd.DatetimeIndex(out.index).normalize()
+    return out[~out.index.duplicated(keep="last")].sort_index()
+
+
+def attach_krx_value(df: pd.DataFrame, symbol: str,
+                     fetch=fetch_fundamental) -> pd.DataFrame:
+    """val_per·val_pbr·val_div를 부착한다(도전자 전용). 실패 시 원본.
+
+    ⚠️ 이름이 x_로 시작하지 않는 것은 flow_indi5와 같은 동결 장치다 —
+       챔피언 피처 빌더(ml._features)는 x_* 컬럼을 전부 자동 포함하므로,
+       x_ 이름으로 붙이면 챔피언 입력이 조용히 바뀐다(구조 동결 위반).
+       이 컬럼들은 가치 도전자(value_anchor)만 읽는다.
+    수준(레벨) 그대로 붙인다 — 가치는 z-점수가 아니라 수준 자체가 뜻이다
+    (PBR 0.8과 8.0의 차이). 0 이하 값(적자 PER 등)은 결측으로 둔다.
+    """
+    try:
+        fund = fetch(symbol)
+        if fund is None or fund.empty:
+            note_source_failure(df, "krx_value",
+                                f"KRX 재무가 비어 있음({symbol}이 한국 종목 "
+                                "코드가 아닐 수 있다)")
+            return df
+        out = df.copy()
+        target = pd.DatetimeIndex(out.index).normalize()
+        for col, feat in (("per", "val_per"), ("pbr", "val_pbr"),
+                          ("div", "val_div")):
+            if col not in fund.columns:
+                continue
+            s = pd.to_numeric(fund[col], errors="coerce")
+            if col in ("per", "pbr"):
+                # 0·음수 PER/PBR(적자·자본잠식 표기)은 '싸다'가 아니라
+                # '재지 못한다'다 — 결측으로 둔다. 배당 0은 진짜 0이다.
+                s = s.where(s > 0)
+            out[feat] = pd.Series(s.reindex(target, method="ffill").to_numpy(),
+                                  index=out.index)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log.warning("KRX 재무 부착 실패 %s: %s", symbol, exc)
+        note_exception(df, "krx_value", exc)
+        return df
+
+
 def attach_krx_flows(df: pd.DataFrame, symbol: str,
                      fetch=fetch_investor_net) -> pd.DataFrame:
     """x_frgn5·x_inst5(5일 순매수 합의 60일 z-점수)를 부착한다. 실패 시 원본."""
