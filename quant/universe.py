@@ -36,12 +36,64 @@ from quant.utils.logging import get_logger
 log = get_logger("universe")
 
 FILE = "universe.json"
-RULE_VERSION = "2026-08-18"
+RULE_VERSION = "2026-08-19"       # 자산군 코어 확대(아래 사유)
+
+# ⚠️ 왜 코어를 늘렸나 (2026-08-19, 사장님 지시 "자산군 최대한 많이").
+#
+#    이전 20종목은 수가 아니라 **성격**이 문제였다: 코인·미국주식·한국주식이
+#    전부 위험자산 한 덩어리라, 시장이 빠지는 날 스무 개가 같이 빠졌다.
+#    통계로 보면 20개의 독립 관측이 아니라 사실상 두세 개에 가깝다 — 비슷한
+#    종목을 더 넣어 봐야 정보는 안 늘고 다중검정 문턱만 올라간다.
+#
+#    그래서 늘린 것은 **종목 수가 아니라 자산군**이다: 금·은·국채·회사채·
+#    원자재·에너지·달러·리츠·방어섹터·해외시장. 이것들은 주식이 빠질 때
+#    다르게 움직여서 **진짜 새 정보**를 준다. 정보가 실제로 늘었는지는
+#    주장하지 않고 상관 기반 실효 표본 수로 잰다(quant/live/breadth.py).
+#
+# ⚠️ 왜 새로 넣는 것이 대부분 ETF인가 — 돈 문제다. 100만원 계좌를 N종목으로
+#    나누면 종목당 100만/N원인데, 한국 개별주는 한 주가 17만~27만원이라
+#    20종목 시점에 이미 세 종목이 "1주도 못 산다"로 기록됐다(2026-08-19
+#    장부 lot_infeasible). 종목을 늘리면 그 문제가 커지므로, 새로 넣는
+#    것은 한 주 값이 싸고 쪼갤 수 있는 ETF·코인 위주로 고른다.
+#
+# ⚠️ 판정 시계는 이것 때문에 리셋되지 않는다. 세대는 ①피처셋 ②실행구조
+#    ③실측 피처 구성 세 축으로만 갈린다(daily.generation_days). 유니버스는
+#    원래 매달 규칙으로 회전하던 것이고, 그때도 시계는 멈추지 않았다.
 CRYPTO_CORE = ["BTC/USDT", "ETH/USDT"]
-CRYPTO_TOP = 3
+CRYPTO_TOP = 8                    # 5 → 10종목(코어 2 + 상위 8)
+
 KR_CORE = ["069500.KS"]           # KODEX 200 — 시장 전체 대표
+# 한국 자산군 코어 — 전부 ETF다(개별주는 한 주 값 때문에 못 담는다).
+KR_ASSET_CORE = [
+    "133690.KS",   # TIGER 미국나스닥100 — 환노출 해외주식
+    "132030.KS",   # KODEX 골드선물(H) — 금
+    "148070.KS",   # KOSEF 국고채10년 — 한국 장기금리
+    "228790.KS",   # TIGER 화장품 → 섹터 분산(경기소비)
+    "273130.KS",   # KODEX 종합채권(AA-이상) — 종합채권
+]
 KR_TOP = 6
+
 US_CORE = ["SPY", "QQQ"]
+# 미국 자산군 코어 — 위험자산과 다르게 움직이는 것들을 모은다.
+# (변동성 ETF(VXX류)는 구조적으로 장기 손실이 나는 상품이라 넣지 않는다 —
+#  '자산군을 늘린다'는 말로 알려진 손실 상품을 담으면 안 된다.)
+US_ASSET_CORE = [
+    "GLD",   # 금
+    "SLV",   # 은
+    "TLT",   # 미국 장기국채(20년+)
+    "IEF",   # 미국 중기국채(7~10년)
+    "LQD",   # 투자등급 회사채
+    "TIP",   # 물가연동국채
+    "DBC",   # 원자재 바스켓
+    "XLE",   # 에너지 섹터
+    "XLU",   # 유틸리티(방어)
+    "XLP",   # 필수소비재(방어)
+    "VNQ",   # 리츠(부동산)
+    "UUP",   # 달러 인덱스
+    "EWJ",   # 일본
+    "VGK",   # 유럽
+    "EEM",   # 신흥국
+]
 US_TOP = 6
 
 
@@ -204,9 +256,10 @@ def rebuild(state_dir: str = "state",
 
     try:
         ranked = rank_kr(asof)
-        extra = [s for s in ranked if s not in KR_CORE][:KR_TOP]
-        markets["kr_stock"] = KR_CORE + extra
-        rationale["kr_stock"] = {"rule": f"KODEX200 고정 + 시총 상위 {KR_TOP}"
+        core_kr = KR_CORE + KR_ASSET_CORE
+        extra = [s for s in ranked if s not in core_kr][:KR_TOP]
+        markets["kr_stock"] = core_kr + extra
+        rationale["kr_stock"] = {"rule": f"KODEX200·자산군 ETF {len(KR_ASSET_CORE)}종 고정 + 시총 상위 {KR_TOP}"
                                          " (우선주 제외)",
                                  "top10": ranked[:10]}
     except Exception as exc:  # noqa: BLE001
@@ -216,10 +269,11 @@ def rebuild(state_dir: str = "state",
 
     try:
         ranked = rank_us()
-        extra = [s for s in ranked if s not in US_CORE][:US_TOP]
-        markets["us_stock"] = US_CORE + extra
+        core_us = US_CORE + US_ASSET_CORE
+        extra = [s for s in ranked if s not in core_us][:US_TOP]
+        markets["us_stock"] = core_us + extra
         rationale["us_stock"] = {
-            "rule": f"지수 ETF(SPY·QQQ) 고정 + 시총 상위 {US_TOP}"
+            "rule": f"지수 ETF(SPY·QQQ)+자산군 ETF {len(US_ASSET_CORE)}종 고정 +  시총 상위 {US_TOP}"
                     " (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
             "top10": ranked[:10]}
     except Exception as exc:  # noqa: BLE001 — 실패 시 직전 구성 유지

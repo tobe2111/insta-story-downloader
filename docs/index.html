@@ -898,6 +898,21 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '</div>'
           : '<div class="sub" style="margin-top:12px">기준일 <b>'+esc(day)+
             '</b> — 매일 새벽 한 번 확정합니다(실시간이 아닙니다).</div>')+
+        /* 실효 표본(2026-08-19) — 종목 수가 아니라 정보의 양. 같이 움직이는
+           종목은 여러 개라도 한 개 몫이라, 이 숫자가 종목 수보다 훨씬 작을
+           수 있다. 자산군을 늘리는 이유가 이것이고, 늘었는지는 이 숫자가
+           답한다. 장부(status.breadth)에서만 읽는다. */
+        (function(){
+          const b=st.breadth&&st.breadth.all; if(!b)return "";
+          if(b.effective_n==null)
+            return '<div class="sub" style="margin-top:6px">종목 '+(b.n||0)+
+              '개 — 서로 얼마나 다르게 움직이는지는 아직 기록이 얇아 못 잽니다.</div>';
+          return '<div class="sub" style="margin-top:6px">종목 <b>'+b.n+
+            '개</b>지만, 서로 비슷하게 움직이는 만큼을 걷어내면 <b>'+
+            b.effective_n+'개 몫</b>의 정보입니다(평균 동조 '+
+            Math.round((b.mean_corr||0)*100)+'%). 이 숫자를 키우려고 금·채권·'+
+            '원자재처럼 <b>다르게 움직이는 자산</b>을 넣습니다.</div>';
+        })()+
         /* 시장별로 얼마씩인지(2026-08-19 사장님 "미국주식은 안 해?") —
            보유 0인 시장은 "안 하는 것"이 아니라 "신호가 관망 중"이다.
            그 구별이 화면에 없으면 읽는 사람이 지어낸다. */

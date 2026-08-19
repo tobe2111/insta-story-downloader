@@ -1375,12 +1375,48 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     반환: {"ok": [키...], "failed": {키: 오류}, "promoted": [키...]}.
     전 종목이 실패했을 때만 예외를 올린다(잡을 크게 실패시켜 조기 경보).
     """
+    import time as _time
+
     from quant.markets import AUTO_TARGETS
-    targets = targets or AUTO_TARGETS
+    targets = list(targets or AUTO_TARGETS)
+
+    # ── 시간 예산 + 이어달리기 (2026-08-19, 유니버스 20 → 45종목) ────────
+    #
+    # ⚠️ 실측: 20종목에 34.5분. 45종목이면 78분쯤인데 잡 한도는 45분이고,
+    #    그 한도를 올리면 "재학습이 끝난 뒤에 배치가 시작한다"는 파이프라인
+    #    계약이 깨진다(배치가 그날 승격된 챔피언을 놓친다).
+    #
+    #    그래서 한도를 늘리는 대신 **오늘 못 돈 종목을 내일 먼저 돈다.**
+    #    커서를 장부에 남기고 매일 그 지점부터 시작하면, 며칠에 걸쳐 전 종목이
+    #    골고루 돌고 어느 날도 잡이 잘리지 않는다. 챔피언 교체는 드문 사건이라
+    #    (20종목 누적 1회) 하루 늦게 도는 것의 손해는 작고, 잡이 시간 초과로
+    #    통째로 죽어 **아무 종목도 못 도는** 손해가 훨씬 크다.
+    #
+    #    ⚠️ 잘린 사실은 반드시 기록에 남긴다 — 조용히 줄면 "45종목 다 돌았다"로
+    #       읽히고, 그게 이 저장소가 반복해서 막아 온 종류의 거짓말이다.
+    budget = float(os.environ.get("QUANT_RETRAIN_BUDGET_SEC") or 0) or None
+    state_dir = kwargs.get("state_dir", STATE_DIR)
+    cursor_path = os.path.join(state_dir, "retrain_cursor.json")
+    start = 0
+    if budget:
+        try:
+            with open(cursor_path, encoding="utf-8") as f:
+                last_key = json.load(f).get("next_key")
+            keys = [_key(m, s) for m, s in targets]
+            if last_key in keys:
+                start = keys.index(last_key)
+        except (OSError, ValueError, KeyError):
+            start = 0
+        targets = targets[start:] + targets[:start]     # 이어달리기 순서
 
     ok, promoted, failed, skipped = [], [], {}, []
-    for market, symbol in targets:
+    deadline = (_time.monotonic() + budget) if budget else None
+    not_reached: list[str] = []
+    for idx, (market, symbol) in enumerate(targets):
         key = _key(market, symbol)
+        if deadline is not None and _time.monotonic() > deadline:
+            not_reached = [_key(m, s) for m, s in targets[idx:]]
+            break
         try:
             out = run_retrain(market, symbol, **kwargs)
             # 멱등 가드에 걸린 종목은 오디션을 **한 번도 안 열었다**.
@@ -1394,8 +1430,20 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             failed[key] = str(exc)
             log.warning("재학습 실패 %s: %s", key, exc)
             print(f"⚠️ {key}: 재학습 실패 — {exc}")
+    if budget:
+        # 다음 밤이 이어받을 지점 — 못 돈 첫 종목(다 돌았으면 처음으로).
+        try:
+            from quant.utils.jsonio import atomic_write_json
+            atomic_write_json(cursor_path, {
+                "next_key": not_reached[0] if not_reached else None,
+                "not_reached": not_reached,
+                "budget_sec": budget})
+        except Exception:  # noqa: BLE001 — 커서 실패가 재학습을 못 죽인다
+            log.warning("재학습 커서 저장 실패")
     print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 건너뜀 "
           f"{len(skipped)} · 실패 {len(failed)}"
+          + (f" · 시간 예산으로 못 돈 종목 {len(not_reached)}"
+             f"(내일 먼저 돕니다)" if not_reached else "")
           + (f" ({', '.join(failed)})" if failed else ""))
     # 부분 실패도 장부에 남긴다 — '전부 실패'만 예외로 올리면 19/20이 실패한
     # 날도 잡이 초록이고, 그 종목들은 옛 챔피언을 그대로 쓰면서 아무 흔적도

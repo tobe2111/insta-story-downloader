@@ -28,6 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     # 매달림 방어(2026-08-11 감사 77) — 무제한이면 배치가 멈춘 채
     # 몇 시간을 태우고 로그도 안 남는다. 값은 실측 최대의 3배 이상.
+    # ⚠️ 한도는 45분 그대로 둔다(2026-08-19). 유니버스가 20 → 45종목으로
+    # 늘어 실측 34.5분이 78분쯤이 되지만, 한도를 올리면 "재학습이 끝난 뒤에
+    # 배치가 시작한다"는 파이프라인 계약이 깨진다 — 배치가 그날 승격된
+    # 챔피언을 놓친다. 대신 재학습이 **시간 예산 안에서 돌고, 못 돈 종목을
+    # 다음 밤에 먼저 돈다**(QUANT_RETRAIN_BUDGET_SEC + 이어달리기 커서).
     timeout-minutes: 45
     defaults:
       run:
@@ -74,6 +79,9 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # 잡 한도(45분)보다 넉넉히 앞서 멈춰, 남은 단계(커밋·경보)가
+          # 반드시 돌게 한다. 못 돈 종목은 내일 먼저 돈다(이어달리기 커서).
+          QUANT_RETRAIN_BUDGET_SEC: "1800"
         run: |
           python -m quant retrain --all --limit 800 | tee retrain-all.txt
 

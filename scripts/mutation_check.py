@@ -6213,6 +6213,23 @@ MUTATIONS = [
      "    days = sorted(set(sa) & set(sb))",
      "    days = sorted(set(sa) | set(sb))",
      "tests/test_peeking_every_day_stays_honest.py"),
+
+    # ── 실효 표본 (2026-08-19) — 종목 수를 정보로 착각하지 않는다 ──────
+    ("상관 보정을 뺀다(종목 수를 그대로 정보량으로 말한다 — 20개가 20개 몫)",
+     "quant/live/breadth.py",
+     "    eff = n / (1.0 + (n - 1) * max(0.0, mean_c))",
+     "    eff = float(n)",
+     "tests/test_more_symbols_is_not_more_information.py"),
+    ("얇은 기록으로도 상관을 재서 말한다(잡음을 사실로 발표한다)",
+     "quant/live/breadth.py",
+     "    if len(days) < MIN_DAYS:",
+     "    if False:",
+     "tests/test_more_symbols_is_not_more_information.py"),
+    ("자산군 코어를 비운다(위험자산 한 덩어리로 되돌아간다)",
+     "quant/universe.py",
+     '        core_us = US_CORE + US_ASSET_CORE',
+     "        core_us = US_CORE",
+     "tests/test_more_symbols_is_not_more_information.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

@@ -3317,6 +3317,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
     # 실험 판정 기준의 사전 등록(2026-08-19) — 골대 이동 방지. 판정일·통계·
     # 문턱이 데이터보다 먼저 공개돼 있어야 몇 달 뒤의 판정이 의심받지 않는다.
     try:
+        from quant.live.breadth import breadth
+        status["breadth"] = breadth(state_dir)
+    except Exception:  # noqa: BLE001 — 계측기가 배치를 못 죽인다
+        status["breadth"] = None
+    try:
         from quant.live.sequential import sequential_status
         status["sequential"] = sequential_status(state_dir)
     except Exception:  # noqa: BLE001 — 진도 표시가 배치를 못 죽인다
