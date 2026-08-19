@@ -6089,6 +6089,28 @@ MUTATIONS = [
      "          exit 1\n",
      "          exit 0\n",
      "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
+
+    # ── 실적 가드가 아무것도 모른다 (2026-08-19 감사 289) ────────────
+    ("발표일 조회가 왜 실패했는지를 안 남긴다 — '못 받았다'가 '없다'로 굳는다",
+     "quant/data/earnings.py",
+     '        entry = {"dates": dates, "error": err,',
+     '        entry = {"dates": dates, "error": "",',
+     "tests/test_the_earnings_guard_knows_something.py"),
+    ("아는 종목 수를 세지 않는다 — 가드가 눈먼 상태가 안 보인다",
+     "quant/data/earnings.py",
+     '        if entry.get("dates"):',
+     "        if True:",
+     "tests/test_the_earnings_guard_knows_something.py"),
+    ("가드가 눈먼 사실을 화면이 말하지 않는다 — 조용한 날과 구별되지 않는다",
+     "docs/index.html",
+     '  if(ec&&ec.symbols&&!ec.known)flags.push("🚨 <b>실적 가드가 지금 아무것도 "+',
+     '  if(false)flags.push("🚨 <b>실적 가드가 지금 아무것도 "+',
+     "tests/test_the_earnings_guard_knows_something.py"),
+    ("발표일 표를 읽을 파서를 설치 목록에서 뺀다 — 가드가 매일 조용히 꺼진다",
+     "requirements.txt",
+     "lxml>=4.9,<7",
+     "# lxml>=4.9,<7",
+     "tests/test_the_earnings_guard_knows_something.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

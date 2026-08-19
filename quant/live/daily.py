@@ -1669,6 +1669,22 @@ def _kill_switch_scale(prev: float, dd: float) -> float:
     return 1.0
 
 
+def _earnings_calendar_health(symbols, state_dir: str) -> dict:
+    """실적 캘린더가 지금 무엇을 알고 있는가 (감사 289).
+
+    캐시만 읽는다 — 네트워크가 없어도, 배치가 실패해도 이 숫자는 남는다.
+    캘린더 자체가 못 읽히면 조용히 빈 값을 돌려준다(장부 기록이 캘린더
+    때문에 죽으면 안 된다). 다만 '조용히'는 여기까지다 — 알아낸 사실은
+    위의 기록과 화면 경고가 그대로 말한다.
+    """
+    try:
+        from quant.data.earnings import calendar_health
+        return calendar_health(sorted(set(symbols or [])), state_dir)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("실적 캘린더 상태 확인 실패: %s", exc)
+        return {}
+
+
 def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                         lookback: int = 400, state_dir: str = STATE_DIR,
                         require_real_data: bool = True,
@@ -1738,6 +1754,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
+    earnings_asked: list = []       # 가드를 물어본 종목 — 아래 건강 기록용
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
@@ -1863,6 +1880,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 from datetime import date as _edate
 
                 from quant.data.earnings import earnings_guard_factor
+                # 가드를 **물어본** 종목을 남긴다(감사 289) — 아래에서
+                # "그래서 몇 종목의 발표일을 알고 있었나"를 같이 적는다.
+                earnings_asked.append(symbol)
                 ef, edate = earnings_guard_factor(
                     symbol, _edate.fromisoformat(str(df_sig.index[-1])[:10]),
                     state_dir=state_dir)
@@ -2591,6 +2611,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "feature_health": feat_health or None,
               # 실적 가드 발동 종목(있을 때만) — 발표 임박으로 비중 절반
               "earnings_guard": earnings_guards or None,
+              # ⚠️ **가드가 발동 안 한 날과, 가드가 아무것도 모르는 날은
+              #    다르다**(2026-08-19 감사 289). 실적 발표일은 yfinance가
+              #    HTML 표로 주는데 그 파싱에 lxml이 필요하다. 그 하나가
+              #    빠져 있어서 조회가 매번 실패했고, 캐시는 6종목 전부
+              #    발표일 0건이었으며, 위 `earnings_guard`는 **하루도
+              #    빠짐없이 비어 있었다.** 화면에서는 '조용한 날'과 똑같이
+              #    보였다. 발표일은 갭이 가장 큰 날이라 무해한 미발동이
+              #    아니다. 그래서 '몇 종목을 물었고 몇 종목의 날짜를
+              #    알았는가'를 숫자로 남긴다.
+              "earnings_calendar": _earnings_calendar_health(
+                  earnings_asked, state_dir) or None,
               # 검증 게이트의 흔적 — 어느 종목이 왜 깎였는지. 감쇠가 걸린
               # 종목만 남긴다(전부 통과한 날은 조용). 이게 없으면 "왜 오늘
               # BTC를 안 샀나"에 장부가 답하지 못한다.
