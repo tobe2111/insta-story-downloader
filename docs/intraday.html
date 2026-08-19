@@ -281,10 +281,12 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
           (exp>=0?"up":"down")+'">'+f(exp)+'</div></div>'+
         '<div><div class="k">본 계좌 (하루 1회) · 같은 기간</div><div class="v '+
           ((mainR||0)>=0?"up":"down")+'">'+f(mainR)+'</div></div>'+
-        '<div><div class="k">그냥 보유 (첫 회차 가격 기준)</div><div class="v '+
+        '<div><div class="k">그냥 보유 (첫 회차에 사서 그대로) · 사는 비용 포함</div><div class="v '+
           ((hold||0)>=0?"up":"down")+'">'+f(hold)+'</div></div>'+
       '</div>'+
-      '<div class="sub" style="margin-top:10px">본 계좌는 하루 한 번 새벽에 '+
+      '<div class="sub" style="margin-top:10px">셋 다 <b>비용을 뺀 뒤</b>의 '+
+      '숫자입니다 — 그냥 보유도 살 때 한 번은 수수료를 냅니다(2026-08-19 '+
+      '교정). 본 계좌는 하루 한 번 새벽에 '+
       '확정되므로 마지막 확정일('+esc(lastDay||"—")+') 기준입니다. '+
       '실험 시작('+esc(since||"—")+') 이후의 변화율끼리 비교합니다 — '+
       '표본이 판정 기준(위)을 채우기 전의 우열은 운과 구별되지 않습니다.</div>';

@@ -174,7 +174,7 @@ def _fill_cost(market: str) -> float:
     """편도 체결 비용(수수료+거래세+슬리피지) — 시장별 현실 프리셋."""
     from quant.backtest.costs import CostModel
     cm = CostModel.for_market(market)
-    return float(cm.fee + cm.slippage)
+    return cm.total_one_way()
 
 
 def _first_bar_after(df, bar_ts: str):
@@ -1991,6 +1991,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
         return {"skipped": True, "last_bar": bar}
 
+    # 누적 비용 칸 — 없으면 지난 기록에서 한 번만 되짚어 채운다.
+    # 이후로는 가짜 브로커가 돈을 뺄 때마다 실제로 센다(2026-08-19).
+    from quant.live.ledger_costs import seed_cost_paid
+    seed_cost_paid(st)
+
     broker = PaperBroker(cash=float(st["cash"]))
     for key, pos in st.get("positions", {}).items():
         if abs(float(pos.get("quantity", 0.0))) > 0:
@@ -2531,8 +2536,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if impossible:
         log.error("금액이 계좌(%s원)를 넘는다 — 통화 환산 누락 의심: %s",
                   f"{equity:,.0f}", impossible)
+    # 오늘 낸 비용 — 브로커가 현금에서 실제로 뺀 금액을 그대로 받는다.
+    # 체결 기록을 되짚어 추정하지 않는다(되짚기는 거부된 주문을 체결로
+    # 오해할 수 있다 — 2026-08-15 장부가 그렇다).
+    cost_today = round(float(getattr(broker, "fee_paid", 0.0) or 0.0), 2)
+    st["cost_paid"] = round(float(st.get("cost_paid") or 0.0) + cost_today, 2)
+
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
+              # 비용은 이미 자산에서 빠져 있다 — 이 두 칸은 **얼마나** 빠졌는지를
+              # 말한다. 예전에는 그 숫자가 장부 어디에도 없어서, 화면이
+              # "수수료로 얼마 냈나"에 답할 수 없었다(사장님 질문 2026-08-19).
+              "cost": cost_today,
+              "cost_paid": st["cost_paid"],
               "return_pct": round((equity / principal - 1) * 100, 2),
               "principal": round(principal, 2),
               "pnl": round(equity - principal, 2),

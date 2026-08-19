@@ -173,11 +173,23 @@ def confirmed_bars(df, now_iso: str, timeframe: str = TIMEFRAME):
     return df[list(keep)]
 
 
-def hold_baseline_pct(st: dict) -> float | None:
+def hold_baseline_pct(st: dict, per_side: float = 0.0) -> float | None:
     """같은 종목을 첫 회차 가격에 사서 **그냥 들고만 있었다면** 몇 %인가.
 
     실험 데이터 안에서만 계산한다(본 계좌 장부를 읽지 않는다). 첫 회차에
     가격이 없던 종목은 비교에서 빠지고, 그 사실은 표본 크기로 드러난다.
+
+    ⚠️ **사는 값은 그냥 보유도 낸다** (2026-08-19 사장님 지적).
+       예전에는 이 기준선이 비용을 한 푼도 물지 않았다. 그런데 화면은 그
+       숫자를 실험 성적 바로 옆에 나란히 놓았다 — 실험은 수수료·슬리피지를
+       전부 문 뒤의 값인데. 같은 자에 눈금이 둘이었던 셈이다.
+
+       기울기는 **우리 쪽에 불리한** 방향이었다(기준선을 실제보다 좋게
+       보이게 했다). 그래도 고친다 — 어느 쪽으로 기울든 비교는 비교다.
+
+       무는 것은 **편도 한 번**이다. 그냥 보유는 사고 나면 팔지 않고, 실험
+       쪽도 아직 들고 있는 몫은 파는 비용을 안 물었다. 양쪽 다 '지금 들고
+       있는 상태'를 재는 것이므로 진입 비용만 맞추면 눈금이 같아진다.
     """
     first = st.get("first_prices") or {}
     last = st.get("last_prices") or {}
@@ -185,7 +197,9 @@ def hold_baseline_pct(st: dict) -> float | None:
             for s in first if s in last and float(first[s]) > 0]
     if not rets:
         return None
-    return round(sum(rets) / len(rets) * 100, 4)
+    gross = sum(rets) / len(rets)
+    # 비용을 물고 산 몫만 시장 수익률을 탄다.
+    return round(((1.0 - float(per_side)) * (1.0 + gross) - 1.0) * 100, 4)
 
 
 # 판정 기준 — **결과를 보기 전에** 등록한다(2026-08-18). 기준을 나중에
@@ -288,7 +302,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     st = load_state(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
     cost = measured_cost_model("crypto", state_dir)
-    per_side = float(cost.fee + cost.slippage)   # 편도, 회전율 대비
+    per_side = cost.total_one_way()   # 편도, 회전율 대비
 
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
@@ -535,7 +549,7 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
 
     factory = strategy_factory or _champion_factory(state_dir)
     cost = measured_cost_model("crypto", state_dir)
-    per_side = float(cost.fee + cost.slippage)
+    per_side = cost.total_one_way()
     out = []
     for tf in LADDER_TIMEFRAMES:
         st = _load_track(state_dir, tf)
@@ -590,6 +604,7 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
 
 def ladder_public(state_dir: str = "state") -> list[dict]:
     """주기 사다리의 공개 요약 — 주기별 수익률·보유 기준·비용을 나란히."""
+    from quant.live.daily import measured_cost_model
     out = []
     for tf in LADDER_TIMEFRAMES:
         st = _load_track(state_dir, tf)
@@ -601,7 +616,8 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "timeframe": tf,
             "equity": round(eq, 2),
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
-            "hold_return_pct": hold_baseline_pct(st),
+            "hold_return_pct": hold_baseline_pct(
+                st, measured_cost_model("crypto", state_dir).total_one_way()),
             "trades_total": sum(len(r.get("trades") or []) for r in rounds),
             "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
             "rounds_total": len(rounds),
@@ -636,6 +652,7 @@ def _shadow_public(st: dict, lastr: dict) -> dict | None:
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
+    from quant.live.daily import measured_cost_model
     rounds = st.get("rounds") or []
     lastr = rounds[-1] if rounds else {}
     eq = float(lastr.get("equity") or st.get("start_cash") or START_CASH_USDT)
@@ -662,7 +679,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "equity_curve": [[r.get("time"), r.get("equity")]
                          for r in rounds[-CURVE_KEEP:]],
         # 같은 기간 그냥 보유(첫 회차 가격 기준, 균등 분산) — 점수의 기준선.
-        "hold_return_pct": hold_baseline_pct(st),
+        "hold_return_pct": hold_baseline_pct(
+                st, measured_cost_model("crypto", state_dir).total_one_way()),
         # 판정 기준 — 결과가 쌓이기 전에 등록했고 바꾸지 않는다.
         "judgement": PREREGISTERED_JUDGEMENT,
         # 지정가 그림자(2026-08-18) — 같은 신호를 지정가로만 체결한 복제

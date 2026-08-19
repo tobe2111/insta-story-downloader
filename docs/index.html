@@ -879,6 +879,20 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             '<div class="gsub '+(up?"up":"down")+'">'+
               (up?"+":"−")+won(Math.abs(pnl))+
               ' <span style="font-size:14px">('+zp(rp)+')</span></div></div>'+
+          /* 이미 낸 비용 (2026-08-19 사장님 질문) — 위의 이익은 이 돈을
+             **뺀 뒤**의 값이다. 예전에는 그 사실이 화면 어디에도 없어서,
+             "수수료도 계산한 거 맞지?"에 답할 자리가 없었다. 장중 실험
+             페이지는 이 줄을 진작부터 크게 띄우고 있었는데 정작 진짜
+             계좌 쪽에만 없었다. */
+          (pfLast.cost_paid!=null
+            ?'<div><div class="gk">이미 낸 비용</div>'+
+               '<div class="gsub">'+won(Number(pfLast.cost_paid))+'</div>'+
+               '<div class="gk" style="font-weight:400">'+
+                 '수수료·세금·미끄러짐 · 위 이익은 이걸 뺀 값'+
+                 (Number(pfLast.cost)>0
+                   ?' · 이 기록일에 '+won(Number(pfLast.cost)):'')+
+               '</div></div>'
+            :'')+
         '</div>'+
         /* 기준일 — 오늘이 아니면 **크게** 말한다. 작게 적으면 아무도 안 읽고,
            그러면 이틀 전 숫자를 오늘로 읽는다. */

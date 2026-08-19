@@ -88,6 +88,15 @@ class CostModel:
         base.update(overrides)
         return cls(**base)
 
+    def total_one_way(self) -> float:
+        """편도 한 번의 비용률(수수료 + 슬리피지).
+
+        이 합을 손으로 쓰는 자리가 네 곳이었다(본 계좌 체결, 장중 코인,
+        장중 미국, 그냥 보유 기준선). 같은 식을 여러 곳에 두면 언젠가
+        갈라진다(FROZEN_IDEAS ①) — 한 자리로 모은다.
+        """
+        return float(self.fee + self.slippage)
+
     def slippage_floor(self, price=None) -> float:
         """**이보다 싸게 체결될 수 없다** — 호가 한 칸의 절반 (2026-08-14).
 
