@@ -90,7 +90,18 @@ def _known_dates(symbol: str, today: _dt.date, state_dir: str,
             ok = False
             log.warning("실적 캘린더 조회 실패 %s: %s", symbol, exc)
             dates = (entry or {}).get("dates", [])   # 옛 캐시라도 쓴다
-        entry = {"dates": dates,
+            err = f"{type(exc).__name__}: {exc}"[:160]
+        else:
+            err = ""
+        # ⚠️ **왜 비어 있는지를 남긴다**(2026-08-19 감사 289). 예전에는
+        #    `dates`가 비면 그걸로 끝이었다 — "이 종목엔 발표가 없다"와
+        #    "받아오지 못했다"가 파일에서 똑같이 `[]`로 보였다.
+        #    실제로 lxml이 없어서 조회가 통째로 실패하고 있었고, 캐시는
+        #    6종목 전부 `dates: []`였으며, 장부의 earnings_guard는 매일
+        #    비어 있었다. **가드가 한 번도 발동한 적이 없는데 화면은
+        #    조용한 날과 구별되지 않았다.**
+        #    모르는 것과 아닌 것은 다르다 — 이 저장소의 규칙 그대로다.
+        entry = {"dates": dates, "error": err,
                  "fetched": today.isoformat() if ok
                  else (entry or {}).get("fetched", "")}
         cache[symbol] = entry
@@ -130,6 +141,44 @@ def nearest_earnings_date(symbol: str, today: _dt.date,
     """
     dates = _known_dates(symbol, today, state_dir, fetch)
     return min(dates, key=lambda d: abs((d - today).days)) if dates else None
+
+
+def calendar_health(symbols, state_dir: str = "state") -> dict:
+    """실적 캘린더가 **지금 무엇을 알고 있는가** — 캐시만 읽는다(감사 289).
+
+    가드는 발표일을 알아야 발동한다. 아무 날짜도 모르면 가드는 매일
+    1.0을 돌려주고, 그 화면은 '발표가 없는 조용한 날'과 똑같이 보인다.
+    그 둘을 구별할 수 있게 숫자로 남긴다.
+
+    반환: {"symbols": 물어본 수, "known": 발표일을 아는 종목 수,
+           "errors": {심볼: 마지막 오류}, "checked": 캐시에 있는 종목 수}
+    아무 문제가 없으면 빈 dict — 장부에 잡음을 남기지 않는다.
+    """
+    path = os.path.join(state_dir, CACHE_FILE)
+    cache: dict = {}
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                cache = json.load(f)
+    except (OSError, ValueError):
+        cache = {}
+    syms = [str(s) for s in (symbols or [])]
+    known, errors, checked = 0, {}, 0
+    for sym in syms:
+        entry = cache.get(sym)
+        if entry is None:
+            continue
+        checked += 1
+        if entry.get("dates"):
+            known += 1
+        if entry.get("error"):
+            errors[sym] = entry["error"]
+    if not syms:
+        return {}
+    out = {"symbols": len(syms), "checked": checked, "known": known}
+    if errors:
+        out["errors"] = errors
+    return out
 
 
 def earnings_guard_factor(symbol: str, asof: _dt.date,
