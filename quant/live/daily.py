@@ -2191,6 +2191,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if budget > 0 and tot > 0:
         cap = 3.0 / n
         slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}
+
+    # 무제약 그림자(2026-08-19, 사장님 지시) — 같은 신호·같은 배분에
+    # 안전장치(변동성 타깃·킬스위치·게이트·켈리)만 뗀 가상 계좌.
+    # 제약의 값을 말이 아니라 곡선으로 공개한다. 실험 실패는 본 계좌 불가침.
+    try:
+        from quant.live.unshackled import run_unshackled
+        run_unshackled(bar=bar, weights=weights, slices=slices,
+                       marks=marks, n_total=n, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("무제약 그림자 실패(본 계좌 무관): %s", exc)
     # 포트폴리오 목표 변동성 — 종목 사이징(20% 목표) × 1/n 슬라이스의 이중
     # 감쇠로 총노출이 우연히 결정되던 것을 명시적 목표로 교정한다. 엣지가
     # 입증되기 전에는 게이트가 검증 목표(연 1%)를 상한으로 강제한다.
@@ -3280,6 +3290,14 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["prereg"] = _prereg_public()
     except Exception:  # noqa: BLE001
         status["prereg"] = None
+
+    # 무제약 그림자 — "제약을 다 풀면?"에 대한 실측 답. 주의 문구(note)가
+    # 요약에 함께 실리고 화면이 그대로 읽는다.
+    try:
+        from quant.live.unshackled import unshackled_public
+        status["unshackled"] = unshackled_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["unshackled"] = None
 
     # 수동 킬스위치 상태 — 사장님이 멈춘 날의 공백이 고장처럼 보이지 않게,
     # "왜 기록이 없는지"를 사이트가 말할 수 있는 재료를 싣는다.

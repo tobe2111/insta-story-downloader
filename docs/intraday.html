@@ -158,6 +158,19 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
       '<div><div class="k">체결 / 회차</div><div class="v">'+
         (d.trades_total||0)+'건 / '+(d.rounds_total||0)+'회</div></div>'+
     '</div>'+
+    /* 쉬운 말 한 줄(2026-08-19 사장님 "그래서 얼마 수익이고 얼마 손해인지
+       알아야지") — 표보다 먼저, 결론부터. */
+    (function(){
+      const pnl=(Number(d.equity)||0)-(Number(d.start_cash)||0);
+      const w=pnl>=0;
+      return '<div style="margin-top:10px;font-size:15px">한 줄 요약: 지금까지 '+
+        '<b class="'+(w?"up":"down")+'">'+(w?"+":"−")+usdt(Math.abs(pnl))+
+        (w?" 이익":" 손해")+'</b>이고, 그중 수수료·미끄러짐으로 <b>'+
+        usdt(d.cost_paid||0)+'</b>을 냈습니다.</div>'+
+        '<div class="sub" style="margin-top:4px;font-size:11.5px">용어: '+
+        '<b>비용</b> = 수수료 + 미끄러짐(주문 순간 가격이 살짝 불리해지는 것) · '+
+        '<b>신호</b> = 전략이 내린 매매 판단(사자/팔자/관망)</div>';
+    })()+
     '<div class="sub" style="margin-top:10px">시작 '+esc(d.since||"—")+
     ' · 마지막 회차 '+esc(d.last_time||"—")+
     ' · 감시 주기 예약 '+esc(d.booked_interval_minutes)+'분 / <b>실측 최악 '+
