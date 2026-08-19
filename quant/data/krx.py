@@ -13,6 +13,7 @@ pykrx 미설치·조회 실패 시 원본 df 그대로(예외 없음) — 선택
 from __future__ import annotations
 
 import datetime as _dt
+import os
 
 import numpy as np
 import pandas as pd
@@ -21,6 +22,33 @@ from quant.data.source_health import note_exception, note_source_failure
 from quant.utils.logging import get_logger
 
 log = get_logger("data.krx")
+
+
+
+# ⚠️ **빈 표를 KRX 탓으로만 말하지 않는다** (2026-08-19 감사 290).
+#    2026-08-19 배치 로그는 이렇게 남았다.
+#
+#        KRX 로그인 실패: KRX_ID 또는 KRX_PW 환경 변수가 설정되지 않았습니다.
+#        KRX 수급 부착 실패 069500.KS: KRX가 … 구간에 빈 표를 줬다
+#
+#    앞줄은 pykrx가 찍은 것이고, 뒷줄은 우리가 적은 것이다. **우리 쪽 설정이
+#    빠져서 빈 표가 온 것인데 우리 문구는 KRX를 탓했다.** 이 파일 머리말이
+#    바로 그 실수를 한 번 겪고 적어 둔 경고인데(원인을 잘못 말한 문구가
+#    엉뚱한 곳을 계속 의심하게 만들었다), 한 겹 위에서 같은 일이 났다.
+#
+#    아는 만큼만, 그러나 아는 것은 전부 말한다 — 단정하지 않고 '그럴 수
+#    있다'로 적는다. 실제로 로그인 없이도 되는 구간이 있을 수 있기 때문이다.
+_CRED_ENV = ("KRX_ID", "KRX_PW")
+
+
+def _credential_hint() -> str:
+    """설정이 빠져 있으면 그 사실을 덧붙일 한 마디. 갖춰져 있으면 빈 문자열."""
+    missing = [k for k in _CRED_ENV if not (os.environ.get(k) or "").strip()]
+    if not missing:
+        return ""
+    return (f" — 다만 {'·'.join(missing)}가 설정돼 있지 않다. 요즘 pykrx는 "
+            "로그인을 요구하므로, 빈 표의 원인이 KRX가 아니라 **우리 설정**일 "
+            "수 있다(로그에 'KRX 로그인 실패'가 함께 찍혔는지 확인할 것)")
 
 
 def fetch_investor_net(symbol: str, limit: int = 160) -> pd.DataFrame | None:
@@ -56,7 +84,8 @@ def fetch_investor_net(symbol: str, limit: int = 160) -> pd.DataFrame | None:
             f"KRX 조회 실패({type(exc).__name__}: {exc})") from exc
     if raw is None or len(raw) == 0:
         raise RuntimeError(
-            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 구간에 빈 표를 줬다")
+            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 구간에 빈 표를 줬다"
+            + _credential_hint())
     cols = {}
     for name in raw.columns:
         if "외국인" in str(name):
@@ -105,7 +134,8 @@ def fetch_fundamental(symbol: str, limit: int = 800) -> pd.DataFrame | None:
             f"KRX 재무 조회 실패({type(exc).__name__}: {exc})") from exc
     if raw is None or len(raw) == 0:
         raise RuntimeError(
-            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 재무 표를 비워서 줬다")
+            f"KRX가 {start:%Y-%m-%d}~{end:%Y-%m-%d} 재무 표를 비워서 줬다"
+            + _credential_hint())
     cols = {}
     for name in raw.columns:
         key = str(name).upper()
