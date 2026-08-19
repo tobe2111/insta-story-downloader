@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-14 00:00:00",
+  "last_bar": "2026-08-18 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -268,11 +268,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-18",
+      "price": 217000.0,
+      "weight": 0.0285,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5,
+      "hit_n": 102,
+      "hit_lo": 0.40474278556489024,
+      "hit_hi": 0.5952572144351097,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 3,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +2.9% — 로지스틱회귀 모델이 내일 상승확률을 약 28%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 사이징: 신호 원비중 10% → 변동성 타깃 조절 후 3% · 참고: 전 종목 합산으로 모델이 28%±10%p라 말한 26번의 실제 상승 비율 42% (95% 신뢰구간 26%~61% · 봉이 빠진 13번은 제외 · 이 종목 단독 표본은 4번으로 축적 중) · 🏛 의회 운용: ml 75% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 225500.0,
+        "bar": "2026-08-18 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-14 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "90bf745e044f",
+      "data_sha256": "ea15cae5568f4992db6a937202fba3ba4c3dea17c694620978cfbdff89d32385",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:dd4304a95ae3",
+      "accounting": "next_open_v2",
+      "prob_up": 0.28122652366914613,
+      "drift_psi": 0.5339,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-14 00:00:00"
+    "weight": 0.0285,
+    "decided_bar": "2026-08-18 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "035420.KS",

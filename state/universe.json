@@ -1,0 +1,140 @@
+{
+  "asof": "2026-08-19",
+  "rule_version": "2026-08-18",
+  "targets": [
+    [
+      "crypto",
+      "BTC/USDT"
+    ],
+    [
+      "crypto",
+      "ETH/USDT"
+    ],
+    [
+      "crypto",
+      "SOL/USDT"
+    ],
+    [
+      "crypto",
+      "BNB/USDT"
+    ],
+    [
+      "crypto",
+      "XRP/USDT"
+    ],
+    [
+      "us_stock",
+      "SPY"
+    ],
+    [
+      "us_stock",
+      "QQQ"
+    ],
+    [
+      "us_stock",
+      "NVDA"
+    ],
+    [
+      "us_stock",
+      "AAPL"
+    ],
+    [
+      "us_stock",
+      "GOOGL"
+    ],
+    [
+      "us_stock",
+      "GOOG"
+    ],
+    [
+      "us_stock",
+      "MSFT"
+    ],
+    [
+      "us_stock",
+      "AMZN"
+    ],
+    [
+      "kr_stock",
+      "069500.KS"
+    ],
+    [
+      "kr_stock",
+      "005930.KS"
+    ],
+    [
+      "kr_stock",
+      "000660.KS"
+    ],
+    [
+      "kr_stock",
+      "035420.KS"
+    ],
+    [
+      "kr_stock",
+      "005380.KS"
+    ],
+    [
+      "kr_stock",
+      "051910.KS"
+    ],
+    [
+      "kr_stock",
+      "105560.KS"
+    ]
+  ],
+  "rationale": {
+    "crypto": {
+      "kept_previous": true,
+      "reason": "HTTPError: HTTP Error 403: Forbidden"
+    },
+    "kr_stock": {
+      "kept_previous": true,
+      "reason": "KeyError: \"None of [Index(['종가', '시가총액', '거래량', '거래대금'], dtype='object')] are in the [columns]\""
+    },
+    "us_stock": {
+      "rule": "지수 ETF(SPY·QQQ) 고정 + 시총 상위 6 (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
+      "top10": [
+        "NVDA",
+        "AAPL",
+        "GOOGL",
+        "GOOG",
+        "MSFT",
+        "AMZN",
+        "TSM",
+        "SPCX",
+        "AVGO",
+        "META"
+      ]
+    }
+  },
+  "history": [
+    {
+      "on": "2026-08-19",
+      "added": [
+        "crypto:BNB/USDT",
+        "crypto:BTC/USDT",
+        "crypto:ETH/USDT",
+        "crypto:SOL/USDT",
+        "crypto:XRP/USDT",
+        "kr_stock:000660.KS",
+        "kr_stock:005380.KS",
+        "kr_stock:005930.KS",
+        "kr_stock:035420.KS",
+        "kr_stock:051910.KS",
+        "kr_stock:069500.KS",
+        "kr_stock:105560.KS",
+        "us_stock:AAPL",
+        "us_stock:AMZN",
+        "us_stock:GOOG",
+        "us_stock:GOOGL",
+        "us_stock:MSFT",
+        "us_stock:NVDA",
+        "us_stock:QQQ",
+        "us_stock:SPY"
+      ],
+      "removed": [],
+      "rule_version": "2026-08-18"
+    }
+  ]
+}

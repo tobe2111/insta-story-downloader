@@ -2,7 +2,7 @@
   "cash": 10000.836816877236,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-14 00:00:00",
+  "last_bar": "2026-08-18 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -298,6 +298,56 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-18",
+      "price": 268500.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.84,
+      "return_pct": 0.01,
+      "hit_rate": 0.5701754385964912,
+      "hit_n": 114,
+      "hit_lo": 0.4784751206157115,
+      "hit_hi": 0.6573003610478098,
+      "hit_conclusive": false,
+      "live_hit": 0.75,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 73% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 283000.0,
+        "bar": "2026-08-18 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-14 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "90bf745e044f",
+      "data_sha256": "2ec8d82d69969b519ce0b6d33d27135e710eafd9ea6da1ed1314d84dbe806ae2",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:dd4304a95ae3",
+      "accounting": "next_open_v2",
+      "prob_up": 0.08443477826977139,
+      "drift_psi": 0.7419,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
@@ -305,6 +355,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-14 00:00:00"
+    "decided_bar": "2026-08-18 00:00:00"
   }
 }

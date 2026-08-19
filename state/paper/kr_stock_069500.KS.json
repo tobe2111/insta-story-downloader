@@ -2,7 +2,7 @@
   "cash": 10061.00407287742,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-14 00:00:00",
+  "last_bar": "2026-08-18 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -255,13 +255,57 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4062
+    },
+    {
+      "date": "2026-08-18",
+      "price": 108550.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10061.0,
+      "return_pct": 0.61,
+      "hit_rate": null,
+      "hit_n": 0,
+      "hit_lo": null,
+      "hit_hi": null,
+      "hit_conclusive": false,
+      "live_hit": 0.6,
+      "live_hit_n": 5,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 75% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 113010.0,
+        "bar": "2026-08-18 00:00:00",
+        "weight": 0.0414,
+        "decided_bar": "2026-08-14 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "90bf745e044f",
+      "data_sha256": "bab1ad5e34b2d73e267014d2cfdf6341b043ed461a18392da71d0b7a6bb78b63",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:dd4304a95ae3",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": null,
+      "drift_grade": null,
+      "drift_ref": null,
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "069500.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0414,
-    "decided_bar": "2026-08-14 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-18 00:00:00"
   }
 }

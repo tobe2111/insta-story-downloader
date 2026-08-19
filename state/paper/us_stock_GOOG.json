@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-18 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-18",
+      "price": 341.2799987792969,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.39473684210526316,
+      "hit_n": 76,
+      "hit_lo": 0.2924641219449393,
+      "hit_hi": 0.5071390924195023,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: VIX 변동성지수(옵션시장 공포) 16(보통 수준) / VIX 기간구조(공포의 급성도) 0.77(깊은 콘탱고(안정)) / 20일선 이격 -1.0%(선 아래)",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "90bf745e044f",
+      "data_sha256": "0a3c3667f78664473ad63853ec3f0dfec139287da51baa808c84f9ab0f232e9a",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:dd4304a95ae3",
+      "accounting": "next_open_v2",
+      "prob_up": 0.46590191158586225,
+      "drift_psi": 0.1119,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.0,
+    "decided_bar": "2026-08-18 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "GOOG",
+  "start_cash": 10000.0
+}

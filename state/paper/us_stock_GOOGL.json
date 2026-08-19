@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-18 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-18",
+      "price": 344.20001220703125,
+      "weight": 0.1513,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.42857142857142855,
+      "hit_n": 77,
+      "hit_lo": 0.32403475215621097,
+      "hit_hi": 0.5398966890819635,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +15% — 로지스틱회귀 모델이 내일 상승확률을 약 68%로 추정(기준 55% 초과) · 판단 재료: VIX 변동성지수(옵션시장 공포) 16(보통 수준) / 변동성(20일) 일 3.0% / VIX 기간구조(공포의 급성도) 0.77(깊은 콘탱고(안정)) · 사이징: 신호 원비중 29% → 변동성 타깃 조절 후 15% · 참고: 전 종목 합산으로 모델이 68%±10%p라 말한 54번의 실제 상승 비율 46% (95% 신뢰구간 34%~59% · 보합 1일 포함 · 봉이 빠진 12번은 제외 · 이 종목 단독 표본은 0번으로 축적 중)",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "90bf745e044f",
+      "data_sha256": "8ec96304838c4173cd8d1a94aa65386631989f9e353fda473a14fcf8872794f3",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:dd4304a95ae3",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6806315795372789,
+      "drift_psi": 0.1718,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.1513,
+    "decided_bar": "2026-08-18 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "GOOGL",
+  "start_cash": 10000.0
+}
