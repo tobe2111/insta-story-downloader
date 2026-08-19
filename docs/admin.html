@@ -385,6 +385,19 @@ fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
       el.appendChild(h);el.appendChild(pre);
     }
     el.textContent="";
+    /* ⚠️ 되돌려진 날의 글은 **올리면 안 되는 글**이다(감사 288).
+       2026-08-15 캡션은 "자산 72,488,498원 · 오늘 +7,149.96%"였고 장부는
+       그 뒤 그 체결을 무효로 되돌렸다. 아카이브 폴더에는 정정문을 넣었지만,
+       글을 복사하는 사람은 폴더가 아니라 이 카드를 본다. 정정문이 있으면
+       숫자보다 **먼저** 그 사실을 말한다. */
+    if(d.correction){
+      var warn=document.createElement("pre");
+      warn.style.cssText="background:#3a1414;border:1px solid var(--bad,#e05260);"
+        +"color:#ffd9dc;border-radius:8px;padding:10px;font-size:12.5px;"
+        +"white-space:pre-wrap;margin:4px 0 12px";
+      warn.textContent="🚫 이 날의 글은 올리지 마세요.\n\n"+d.correction;
+      el.appendChild(warn);
+    }
     var imgs=document.createElement("div");
     imgs.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px";
     (d.images||[]).forEach(function(f){
