@@ -35,8 +35,15 @@ def _rets(seq):
 
 def test_identical_movers_count_as_one():
     """같은 것을 스무 번 사도 정보는 한 개다."""
-    base = [random.Random(3).gauss(0, 0.01) for _ in range(40)]
+    # ⚠️ 시드를 **한 번만** 만든다. 매번 Random(3)을 새로 만들면 40개 값이
+    #    전부 같아져(변동 0) 상관을 아예 못 재고, 그러면 이 검사는 "같이
+    #    움직이면 한 개 몫"을 확인하는 게 아니라 계측기가 못 재는 상황을
+    #    확인하게 된다 — 통과해도 아무것도 지키지 않는 검사가 된다.
+    rng = random.Random(3)
+    base = [rng.gauss(0, 0.01) for _ in range(40)]
     got = B.effective_n({f"s{i}": _rets(base) for i in range(20)})
+    assert got["effective_n"] is not None, (
+        f"상관을 재지 못했다 — 검사 자료가 잘못됐다: {got}")
     assert got["effective_n"] <= 1.2, (
         f"완전히 같이 움직이는 20종목의 실효 표본이 {got['effective_n']} — "
         "종목 수를 정보로 착각하고 있다")
