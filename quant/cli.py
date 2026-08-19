@@ -641,6 +641,21 @@ def _cmd_intraday_round(args) -> None:
           f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
           f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
 
+    # 미국주식 트랙(2026-08-19, 사장님 지시) — 코인 트랙과 분리된 실험.
+    # 미국 트랙 실패가 코인 트랙 기록을 볼모로 잡으면 안 된다.
+    try:
+        from quant.live.intraday_us import run_us_round
+        uv = run_us_round(now, state_dir=args.state_dir,
+                          docs_dir=args.docs_dir)
+        if uv.get("skipped"):
+            print(f"🇺🇸 미국 장중 도전자 — 회차 없음: {uv['skipped']}")
+        else:
+            print(f"🇺🇸 미국 장중 도전자 — 자산 {uv['equity']:,.2f} USD "
+                  f"({uv['return_pct']:+.2f}%) · 체결 {uv['trades']}건 · "
+                  f"누적 비용 {uv['cost_paid']:,.2f} USD")
+    except Exception as exc:  # noqa: BLE001
+        print(f"🇺🇸 미국 장중 도전자 실패(코인 트랙 무관): {exc}")
+
 
 def _cmd_guard(args) -> None:
     """장중 감시 1회 — 새벽 배치를 기다리지 않고 지금 낙폭을 잰다.

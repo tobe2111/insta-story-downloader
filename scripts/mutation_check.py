@@ -6072,6 +6072,22 @@ MUTATIONS = [
      "  const r=g.recompute_attempt;",
      "  const r=null;",
      "tests/test_the_gap_days_are_not_a_blank.py"),
+
+    # ── 미국주식 장중 트랙 (2026-08-19) — 장이 닫히면 펜도 놓는다 ──────
+    ("장 시간 관문을 뗀다(닫힌 장의 가격으로 '체결했다'고 적는다 — 소설)",
+     "quant/live/intraday_us.py",
+     '    if not is_market_open("us_stock", _now_dt(now_iso), holidays):\n'
+     '        return {"skipped": "미국장 휴장", "time": str(now_iso)}',
+     '    if False:\n'
+     '        return {"skipped": "미국장 휴장", "time": str(now_iso)}',
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+    ("같은 봉 멱등을 뗀다(밤새 5분마다 같은 숫자를 장부에 쌓는다 — 소음)",
+     "quant/live/intraday_us.py",
+     "    last_bars = (st.get(\"rounds\") or [{}])[-1].get(\"bar_times\") or {}\n"
+     "    if bar_times and bar_times == last_bars:",
+     "    last_bars = (st.get(\"rounds\") or [{}])[-1].get(\"bar_times\") or {}\n"
+     "    if False:",
+     "tests/test_the_us_intraday_track_keeps_market_hours.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
