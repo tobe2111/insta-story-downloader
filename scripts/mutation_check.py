@@ -5761,29 +5761,17 @@ MUTATIONS = [
      "tests/test_the_bets_are_counted_honestly.py"),
 
     # ── 수동 킬스위치 (2026-08-18, 구축 사례 채택) — 핸드브레이크가 헛돌면 거짓 ──
-    ("일일 배치의 수동 정지 관문을 뗀다(멈춰 놔도 매매가 돈다)",
-     "quant/cli.py",
-     "    _halt = gate_message(args.state_dir)\n"
-     "    if _halt:\n"
-     "        print(_halt)\n"
-     "        if args.docs:",
-     "    _halt = gate_message(args.state_dir)\n"
-     "    if False:\n"
-     "        print(_halt)\n"
-     "        if args.docs:",
-     "tests/test_the_owner_can_pull_the_handbrake.py"),
+    ('일일 배치의 수동 정지 관문을 뗀다(멈춰 놔도 매매가 돈다)',
+     'quant/cli.py',
+     '    # 상태가 실린다) 사이트가 "왜 오늘 기록이 없는지"를 말할 수 있게 한다.\n    if _halted(args):',
+     '    # 상태가 실린다) 사이트가 "왜 오늘 기록이 없는지"를 말할 수 있게 한다.\n    if False:',
+     'tests/test_the_owner_can_pull_the_handbrake.py'),
 
-    ("장중 실험의 수동 정지 관문을 뗀다(본 계좌만 멈추고 실험은 계속 돈다)",
-     "quant/cli.py",
-     "    _halt = gate_message(args.state_dir)\n"
-     "    if _halt:\n"
-     "        print(_halt)\n"
-     "        return\n",
-     "    _halt = gate_message(args.state_dir)\n"
-     "    if False:\n"
-     "        print(_halt)\n"
-     "        return\n",
-     "tests/test_the_owner_can_pull_the_handbrake.py"),
+    ('장중 실험의 수동 정지 관문을 뗀다(본 계좌만 멈추고 실험은 계속 돈다)',
+     'quant/cli.py',
+     '    # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.\n    if _halted(args):',
+     '    # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.\n    if False:',
+     'tests/test_the_owner_can_pull_the_handbrake.py'),
 
     ("재개 확인 단어를 뗀다(아무 글자나 넣어도 매매가 재개된다)",
      "quant/web/app.py",
@@ -6184,6 +6172,18 @@ MUTATIONS = [
      "      const cool=(pfLast.skipped_cooldown||[]).length;",
      "      const cool=0;",
      "tests/test_the_screen_says_who_took_the_budget.py"),
+
+    # ── 정지 버튼이 실거래를 안 멈춘다 (2026-08-19 감사 292) ─────────
+    ("정지 관문이 항상 '안 눌림'을 돌려준다 — 조종석 버튼이 통째로 무력화",
+     'quant/cli.py',
+     '    msg = gate_message(getattr(args, "state_dir", "state"))',
+     '    msg = None',
+     'tests/test_the_stop_button_stops_everything.py'),
+    ('국내주식 실거래 집행만 관문 밖으로 — 진짜 돈 쪽만 안 멈춘다',
+     'quant/cli.py',
+     '    # 부르고, --real이면 실제 계좌로 주문이 나간다(감사 292).\n    if _halted(args):',
+     '    # 부르고, --real이면 실제 계좌로 주문이 나간다(감사 292).\n    if False:',
+     'tests/test_the_stop_button_stops_everything.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
