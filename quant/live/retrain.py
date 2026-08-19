@@ -772,6 +772,12 @@ def build_challengers(current_spec: dict, seed: str,
         # 가치 닻(2026-08-19, KIS 사례 채택) — 자기 역사 대비 저PBR 구간만
         # 보유. 재료(val_pbr)는 한국 주식에만 붙는다 — 없는 시장은 관망.
         {"strategy": "value_anchor", "params": {"quantile": 0.4}},
+        # 코너스 RSI(2) — 200일선 위에서만 극단 눌림을 사고 5일선 복귀에
+        # 판다(2026-08-19 수집). 진입은 기존 부품 조합으로도 표현되지만
+        # **청산이 다르다**(RSI 중심선이 아니라 가격의 단기선 복귀).
+        {"strategy": "connors_rsi2",
+         "params": {"rsi_period": 2, "entry": 10.0, "exit_ma": 5,
+                    "trend_window": 200}},
     ]
     if not evolve:
         return challengers

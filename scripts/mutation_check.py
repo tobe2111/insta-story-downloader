@@ -6173,6 +6173,18 @@ MUTATIONS = [
      '    return all((os.environ.get(k) or "").strip() for k in _ALPACA_ENV)',
      "    return True",
      "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+
+    # ── 코너스 RSI(2) (2026-08-19 수집) — 규칙의 절반은 '안 사는 조건'이다 ──
+    ("추세 관문을 뗀다(하락장에서도 눌림을 산다 — 다른 전략이 된다)",
+     "quant/strategies/connors.py",
+     "                if px[i] > trend[i] and r[i] < self.entry:",
+     "                if r[i] < self.entry:",
+     "tests/test_the_connors_rule_waits_for_the_trend.py"),
+    ("청산을 가격이 아니라 지표로 바꾼다(기존 RSI 반전과 중복이 된다)",
+     "quant/strategies/connors.py",
+     "            elif px[i] > short[i]:      # 가격이 단기선 위로 복귀하면 나간다",
+     "            elif r[i] >= 50:",
+     "tests/test_the_connors_rule_waits_for_the_trend.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
