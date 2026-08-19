@@ -113,31 +113,40 @@ def _serve(root: Path):
     return f"http://127.0.0.1:{srv.server_address[1]}", srv
 
 
+# 지연 띠가 뜨는 상태를 만들기 위한 기준일. 실제 장부가 이 날짜에 멈춰
+# 있기를 **바라지 않는다** — 그날까지만 잘라서 직접 만든다(2026-08-19).
+# 배치가 성공해 기록이 늘어난 날 이 검사가 깨지면, 하필 가장 확인하고 싶은
+# 날 못 쓰게 된다.
+_STALE_UNTIL = "2026-08-15"
+
+
 def _site(base: Path, name: str, *, fresh: bool) -> Path:
     root = base / name
     shutil.copytree(DOCS, root, dirs_exist_ok=True)
-    st = json.loads((DOCS / "status.json").read_text("utf-8"))
-    pf = st["paper"]["portfolio:ALL"]
+    if not fresh:
+        st = json.loads((DOCS / "status.json").read_text("utf-8"))
+        pf = st["paper"]["portfolio:ALL"]
+        pf["history"] = [r for r in pf["history"]
+                         if str(r.get("date")) <= _STALE_UNTIL]
+        assert pf["history"], "기준일까지의 기록이 없다 — 검사가 낡았다"
+        st["updated"] = pf["history"][-1]["date"]
+        # ⚠️ 검사가 만든 장부가 스스로 말이 돼야 한다. 날짜가 중복되거나 거꾸로
+        #    가면 차트 라이브러리는 'Value is null'이라고만 말하고 죽는다 —
+        #    그 한 줄로는 원인을 찾는 데 한참 걸린다(2026-08-19 실측). 여기서
+        #    먼저, 사람이 읽을 수 있는 말로 걸린다.
+        _d = [str(r.get("date")) for r in pf["history"]]
+        assert _d == sorted(set(_d)), f"검사가 만든 장부의 날짜가 중복·역순이다: {_d}"
+        (root / "status.json").write_text(json.dumps(st, ensure_ascii=False),
+                                          "utf-8")
     if fresh:
         # 기록이 오늘이면 지연 띠 자체가 없다 → 할 말도 없어야 한다.
         from datetime import date
+        st = json.loads((DOCS / "status.json").read_text("utf-8"))
+        pf = st["paper"]["portfolio:ALL"]
         pf["history"][-1]["date"] = date.today().isoformat()
         st["updated"] = date.today().isoformat()
-    else:
-        # 사고 당시(마지막 확정 8-15, 사흘 공백) 상태를 **재현**한다.
-        # 처음에는 실제 status.json을 그대로 썼는데, 8-19 새벽 배치가
-        # 장부를 되살리자 지연 띠가 사라져 이 검사가 통째로 헛돌았다 —
-        # 시나리오는 오늘의 장부가 아니라 날짜를 박아 재현해야 한다.
-        # ⚠️ 날짜 덮어쓰기가 아니라 **그날까지 자르기**다. 덮어쓰면 실제
-        #    8-15 기록과 날짜가 중복돼 차트가 시간 오름차순 위반으로 던진다.
-        pf["history"] = [h for h in pf["history"]
-                         if str(h.get("date") or "") <= "2026-08-15"] \
-            or pf["history"][:1]
-        last = pf["history"][-1]
-        pf["equity"] = last.get("equity") or pf.get("equity")
-        st["updated"] = "2026-08-15"
-    (root / "status.json").write_text(json.dumps(st, ensure_ascii=False),
-                                      "utf-8")
+        (root / "status.json").write_text(json.dumps(st, ensure_ascii=False),
+                                          "utf-8")
     return root
 
 

@@ -6088,6 +6088,23 @@ MUTATIONS = [
      "    last_bars = (st.get(\"rounds\") or [{}])[-1].get(\"bar_times\") or {}\n"
      "    if False:",
      "tests/test_the_us_intraday_track_keeps_market_hours.py"),
+
+    # ── 경합에 진 push는 그날 밤을 통째로 버린다 (2026-08-19) ────────
+    ("검증 push에서 다시 맞춰 보기를 뺀다 — 리모트가 앞서면 그날 계산이 버려진다",
+     ".github/workflows/nightly-validate.yml",
+     "              if git pull --rebase origin main && git push origin HEAD:main; then",
+     "              if git push origin HEAD:main; then",
+     "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
+    ("검증 push 재시도 고리를 없앤다 — 한 번 밀리면 끝난다",
+     ".github/workflows/nightly-validate.yml",
+     "            for i in 1 2 3 4; do",
+     "            for i in 1; do",
+     "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
+    ("SNS 마커 push가 실패해도 초록으로 끝난다 — 다음 실행이 같은 글을 또 올린다",
+     ".github/workflows/social-post.yml",
+     "          exit 1\n",
+     "          exit 0\n",
+     "tests/test_a_push_that_loses_a_race_loses_a_night.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
