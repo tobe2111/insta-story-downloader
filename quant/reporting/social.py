@@ -26,10 +26,60 @@ CAPTURE_PLAN = [(f"{i:02d}_card.png", f"sns_card.html?n={i}")
 # 카드뉴스 캔버스 크기 — 인스타 피드 최적(4:5). 워크플로 캡처 창 크기와 일치.
 CARD_SIZE = (1080, 1350)
 
+# 그날 나간 글이 틀렸을 때 같은 폴더에 넣는 정정문의 이름(감사 273·288).
+CORRECTION_FILE = "정정.txt"
+
 DEFAULT_SITE_URL = "https://quant.jiwon-1a2.workers.dev"
 THREADS_TEXT_LIMIT = 500
 
 HASHTAGS = "#퀀트 #AI투자 #모의투자 #알고리즘트레이딩 #100만챌린지"
+
+# ⚠️ **계좌로 설명되지 않는 숫자는 방송하지 않는다** (감사 288).
+#
+#    2026-08-15 새벽 배치가 만든 캡션이 그대로 나갔다.
+#
+#        💰 자산 72,488,498원 (누적 +7148.85% · 오늘 +7149.96%)
+#
+#    원금 100만원짜리 페이퍼 계좌다. 하루에 72배가 되는 일은 없었다 —
+#    통화 환산이 한 곳에서 빠져 해외 종목을 달러 가격 그대로 산 것으로
+#    기록됐기 때문이다(감사 254). 장부는 나중에 그 체결을 무효로 되돌려
+#    997,197원으로 정정했지만, **캡션은 이미 나간 뒤였다.**
+#
+#    아픈 것은 이 관문이 이미 있었다는 점이다. 감사 273이 "계좌보다 큰
+#    금액은 사실처럼 적지 않는다"를 만들었고, 274·281이 그것을 화면 세
+#    곳에 배선했다. 전부 **사이트**였다. 정작 사이트 밖으로 나가 낯선
+#    사람에게 도달하는 유일한 경로에는 아무 관문도 없었다.
+#    이 파일이 이미 세 번 적어 둔 문장 그대로다 — "사이트는 고쳤는데
+#    캡션만 남아 있었다"(감사 218 · 238 · 113/114). 네 번째다.
+#
+#    레버리지가 잠긴 계좌(총노출 상한 100%)에서 하루 수익률의 절댓값이
+#    100%를 넘으려면 한 종목이 하루에 두 배가 되고 거기에 전액이 들어가
+#    있어야 한다. 그런 날은 시장이 아니라 코드가 만든 날이다.
+MAX_DAY_MOVE_PCT = 100.0
+
+
+class ImpossibleNumbers(ValueError):
+    """계좌로 설명되지 않는 숫자 — 조용히 고치지 않고 **멈춘다**.
+
+    고쳐서 내보내면 그날 실제로 무슨 일이 있었는지가 사라진다. 멈추면
+    워크플로가 실패하고 경보가 울린다 — 조용히 틀리느니 시끄럽게 멈춘다.
+    """
+
+
+def impossible_reason(x: dict) -> str:
+    """이 숫자를 방송하면 안 되는 이유. 방송해도 되면 빈 문자열."""
+    dp = x.get("day_pct")
+    if dp is not None and abs(float(dp)) > MAX_DAY_MOVE_PCT:
+        return (f"하루 수익률이 {float(dp):+,.2f}%입니다 — 총노출 상한 100%인 "
+                f"계좌에서 하루에 {MAX_DAY_MOVE_PCT:.0f}%를 넘길 수 없습니다. "
+                "통화 환산이 빠졌을 때 나오는 모양입니다(감사 254·273).")
+    bad = x.get("impossible_amounts")
+    if bad:
+        return ("그날 장부에 계좌보다 큰 금액이 표시돼 있습니다"
+                f"({json.dumps(bad, ensure_ascii=False)[:200]}) — "
+                "그 기록으로 만든 캡션은 종목·배분이 사실과 다를 수 있습니다.")
+    return ""
+
 
 
 def _fmt_won(v: float) -> str:
@@ -152,6 +202,9 @@ def _today_numbers(status: dict) -> dict:
         "day_pct": (last.get("day_pct") if last.get("day_pct") is not None
                     else _day_pct_from_history(hist, port)),
         "twr_pct": last.get("twr_pct"),
+        # 그날 장부가 스스로 "이 금액은 계좌와 안 맞는다"고 표시했는가
+        # (감사 273). 그 기록으로 만든 캡션은 종목·배분까지 흔들린다.
+        "impossible_amounts": last.get("impossible_amounts"),
         "gross": last.get("weight"),
         # ⚠️ **위 gross는 '목표'다. 실제로 시장에 나가 있는 돈이 아니다**
         #    (2026-08-14 감사 238). 캡션은 이 값을 "총노출 46%"라고 불렀는데
@@ -252,6 +305,13 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     스레드는 500자 제한이 있어 짧은 판을 따로 만든다(자르다 만 문장 금지).
     """
     x = _today_numbers(status)
+    # 나가는 문에서 한 번 더 본다 — 여기를 지나야 세상에 나간다(감사 288).
+    why = impossible_reason(x)
+    if why:
+        raise ImpossibleNumbers(
+            f"{x.get('date') or '오늘'} 캡션을 만들지 않습니다 — {why}\n"
+            "숫자를 고쳐서 내보내지 않습니다. 장부를 먼저 바로잡고, "
+            "이미 나간 글이 있으면 docs/trust.html에 공시하세요.")
     date = x["date"] or "오늘"
     day = f"D+{x['day_no']}" if x["day_no"] else ""
     eq = _fmt_won(x["equity"]) if x["equity"] is not None else "—"
@@ -461,15 +521,50 @@ def write_content(docs_dir: str = "docs",
             f.write(text)
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
-    # latest.json — 어드민의 '오늘의 SNS 콘텐츠' 카드가 읽는 포인터.
-    # 수동 게시 흐름: 어드민 열기 → 캡션 복사 → 이미지 저장 → 업로드 끝.
-    latest = {**meta, "path": f"social/{date}",
-              "captions": {"instagram": caps["instagram"],
-                           "threads": caps["threads"]}}
-    with open(os.path.join(docs_dir, "social", "latest.json"), "w",
-              encoding="utf-8") as f:
-        json.dump(latest, f, ensure_ascii=False, indent=2)
+    refresh_latest(docs_dir, date)
     return {**meta, "dir": out_dir}
+
+
+def refresh_latest(docs_dir: str = "docs", date: str | None = None) -> dict:
+    """`latest.json`을 **아카이브 그대로** 다시 만든다 (감사 288).
+
+    이 파일은 아카이브가 아니라 **포인터**다 — 어드민의 '오늘의 SNS 콘텐츠'
+    카드가 이걸 읽고, 사람이 그 글을 복사해 실제로 올린다.
+
+    ⚠️ 왜 따로 떼어 냈나. 2026-08-15 캡션은 "자산 72,488,498원 · 오늘
+       +7,149.96%"였다. 장부는 그 뒤 그 체결을 무효로 되돌려 997,197원으로
+       바로잡았고, 아카이브 폴더에는 정정문을 넣었다. 그런데 **포인터는
+       그대로였다** — 어드민을 열면 되돌려진 그 숫자가 '오늘 올릴 글'로
+       멀쩡히 나와 있었다. 정정문을 폴더에만 두면 그 폴더를 들여다보는
+       사람만 본다. 정작 글을 복사하는 사람은 포인터만 본다.
+
+    캡션 본문은 아카이브 파일에서 **글자 그대로** 읽는다 — 다시 만들지
+    않는다(그러면 그날 하지 않은 말을 한 것으로 남는다). 더해지는 것은
+    하나뿐이다: 그 폴더에 정정문이 있으면 그 사실을 포인터에도 싣는다.
+    """
+    root = os.path.join(docs_dir, "social")
+    if date is None:
+        days = sorted(d for d in os.listdir(root)
+                      if os.path.isdir(os.path.join(root, d)))
+        if not days:
+            raise FileNotFoundError(f"{root} 아래에 게시 폴더가 없습니다")
+        date = days[-1]
+    out_dir = os.path.join(root, date)
+
+    def _read(name: str) -> str:
+        with open(os.path.join(out_dir, name), encoding="utf-8") as f:
+            return f.read()
+
+    latest = {**json.loads(_read("meta.json")), "path": f"social/{date}",
+              "captions": {"instagram": _read("caption_instagram.txt"),
+                           "threads": _read("caption_threads.txt")}}
+    if os.path.exists(os.path.join(out_dir, CORRECTION_FILE)):
+        # 정정문이 있는 날의 글은 **올리면 안 되는 글**이다. 포인터가 그
+        # 사실을 말하지 않으면 어드민은 그것을 오늘의 원고로 내민다.
+        latest["correction"] = _read(CORRECTION_FILE).strip()
+    with open(os.path.join(root, "latest.json"), "w", encoding="utf-8") as f:
+        json.dump(latest, f, ensure_ascii=False, indent=2)
+    return latest
 
 
 def prune_old(docs_dir: str = "docs", keep: int = 14) -> list[str]:
