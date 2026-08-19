@@ -26,6 +26,7 @@ from quant.strategies.psar import ParabolicSAR
 from quant.strategies.ichimoku import IchimokuStrategy
 from quant.strategies.dualthrust import DualThrustStrategy
 from quant.strategies.supplysom import SupplyDemandSOM
+from quant.strategies.valueanchor import ValueAnchor
 
 # 파라미터만으로 생성 가능한 단순 전략 (앙상블/레짐/ADX는 다른 전략을 인자로 받아 별도 취급)
 _REGISTRY = {
@@ -40,6 +41,7 @@ _REGISTRY = {
     "ichimoku": IchimokuStrategy,
     "dual_thrust": DualThrustStrategy,
     "supply_som": SupplyDemandSOM,
+    "value_anchor": ValueAnchor,
     "macd": MACD,
     "keltner": KeltnerBreakout,
     "stochastic": Stochastic,
@@ -61,6 +63,7 @@ __all__ = [
     "Breakout",
     "DualThrustStrategy",
     "SupplyDemandSOM",
+    "ValueAnchor",
     "TurtleStrategy",
     "BollingerStrategy",
     "ParabolicSAR",

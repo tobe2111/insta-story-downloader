@@ -401,8 +401,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
     if market == "kr_stock":
-        from quant.data.krx import attach_krx_flows
+        from quant.data.krx import attach_krx_flows, attach_krx_value
         df = attach_krx_flows(df, symbol)
+        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.
+        df = attach_krx_value(df, symbol)
     from quant.data.crossasset import attach_cross_asset
     df = attach_cross_asset(df, market, symbol)
 
@@ -1795,8 +1797,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 from quant.data.openinterest import attach_open_interest
                 df = attach_open_interest(df, symbol)
             if market == "kr_stock":
-                from quant.data.krx import attach_krx_flows
+                from quant.data.krx import (attach_krx_flows,
+                                            attach_krx_value)
                 df = attach_krx_flows(df, symbol)
+                df = attach_krx_value(df, symbol)
             from quant.data.crossasset import attach_cross_asset
             df = attach_cross_asset(df, market, symbol)
             # 오늘 이 종목에 실제로 붙은 선택 피처 — 외부 소스가 죽으면
@@ -2168,6 +2172,17 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 슬라이스·변동성 타깃보다 앞에 둔다(원 신호 단계에서 걸러야 뒤가 안정).
     weights = _smooth_weights(weights, st.get("prev_weights") or {})
     st["prev_weights"] = {k: round(v, 6) for k, v in weights.items()}
+
+    # 배분 사다리(2026-08-19) — 같은 신호·같은 데이터에 배분 방법만 바꾼
+    # 가상 계좌 4개를 나란히 굴린다(상대 비교 전용, 본 계좌 판정 미사용).
+    # 본 계좌 경로는 이 아래로도 그대로다 — 실험의 어떤 실패도 본 계좌
+    # 배치를 죽이면 안 되므로 예외는 삼키고 사유만 남긴다.
+    try:
+        from quant.live.alloc_ladder import run_alloc_ladder
+        run_alloc_ladder(bar=bar, weights=weights, rets_map=rets_map,
+                         marks=marks, n_total=n, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("배분 사다리 실패(본 계좌 무관): %s", exc)
 
     tilt = _xsec_tilt(weights)
     budget = sum(slices.get(k, 1.0 / n) for k in weights)
@@ -3248,6 +3263,23 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["diversification"] = effective_bets(state_dir)
     except Exception:  # noqa: BLE001
         status["diversification"] = None
+
+    # 배분 사다리(2026-08-19) — 같은 신호에 배분 방법만 바꾼 가상 계좌들.
+    # 상대 비교 전용 실험이라 본 계좌 판정에는 쓰지 않고, 주의 문구가
+    # 요약(note)에 함께 실린다. 실패는 None — 실험이 기록을 막으면 안 된다.
+    try:
+        from quant.live.alloc_ladder import ladder_public
+        status["alloc_ladder"] = ladder_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["alloc_ladder"] = None
+
+    # 실험 판정 기준의 사전 등록(2026-08-19) — 골대 이동 방지. 판정일·통계·
+    # 문턱이 데이터보다 먼저 공개돼 있어야 몇 달 뒤의 판정이 의심받지 않는다.
+    try:
+        from quant.live.prereg import public as _prereg_public
+        status["prereg"] = _prereg_public()
+    except Exception:  # noqa: BLE001
+        status["prereg"] = None
 
     # 수동 킬스위치 상태 — 사장님이 멈춘 날의 공백이 고장처럼 보이지 않게,
     # "왜 기록이 없는지"를 사이트가 말할 수 있는 재료를 싣는다.

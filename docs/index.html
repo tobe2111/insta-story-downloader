@@ -998,6 +998,16 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   const vt=pfLast.vol_target||null;   /* 일별 기록 안에만 존재하는 필드 */
   if(vt&&vt.proven===false)flags.push("<b>리스크 잠금</b> — 엣지 미입증이라 목표 변동성을 연 "+
     (vt.target*100).toFixed(1)+"%로 제한 중");
+  /* 장부 나이 — 배치가 죽으면 status.json도 함께 낡으므로, 이 계산만은
+     서버가 아니라 **읽는 순간의 시계**로 한다(2026-08-16~18 사흘 정지 실측:
+     사이트는 평소 얼굴로 8-15 숫자를 보여주고 있었다). 정상 주기는 하루
+     1기록(기록 날짜는 전일 봉이라 평시 나이 1~2일) — 2.5일부터 경고. */
+  if(pfLast.date){
+    const ageDays=(Date.now()-Date.parse(pfLast.date+"T00:00:00Z"))/86400000;
+    if(ageDays>2.5)flags.push("<b>🚨 장부가 "+Math.floor(ageDays)+"일 묵음</b> — "+
+      "새벽 자동 기록이 멈춰 있습니다. 이 페이지의 숫자는 "+esc(pfLast.date)+
+      " 기준입니다");
+  }
   /* 계좌보다 큰 금액(impossible_amounts, 감사 273) — 통화 환산이 빠졌을 때
      생기는 모양이라 자산·수익률도 함께 의심해야 하는 상태다. 장부와 경보
      (flag_watch)에는 있었는데 화면에는 없었다 — 기록과 표시는 다른 일이다. */

@@ -2705,6 +2705,77 @@ MUTATIONS = [
      "GUARD_INTERVAL_MINUTES = 5",
      "GUARD_INTERVAL_MINUTES = 60",
      "tests/test_the_guard_admits_how_often_it_actually_ran.py"),
+
+    # 2026-08-19 — 장부 신선도 감시(사흘 정지의 교훈). 문턱이 풀리면 배치가
+    # 죽어도 아무도 모르는 상태로 되돌아간다.
+    ("장부가 며칠을 묵어도 감시가 침묵한다(신선도 문턱 해제)",
+     "quant/live/guard.py",
+     "LEDGER_STALE_DAYS = 2.0",
+     "LEDGER_STALE_DAYS = 999.0",
+     "tests/test_the_watchdog_notices_a_dead_ledger.py"),
+    ("신선도 경보가 5분마다 다시 울린다(중복 방지 해제 — 곧 무시당한다)",
+     "quant/live/guard.py",
+     '            if json.load(f).get("date") == today:',
+     "            if False:",
+     "tests/test_the_watchdog_notices_a_dead_ledger.py"),
+
+    # 2026-08-19 — 변동성 국면 필터(분위수). '모름 통과'는 감사 206이 절대
+    # 한도 필터에서 잡은 바로 그 구멍 — 새 경로에 다시 열리면 안 된다.
+    ("변동성 국면의 '모름'이 통과가 된다(감사 206 재발)",
+     "quant/strategies/regime.py",
+     "            hot = (vol > thr) | vol.isna() | thr.isna()",
+     "            hot = (vol > thr)",
+     "tests/test_the_vol_regime_reads_its_own_market.py"),
+    ("변동성 국면 변형이 링에서 죽는다(문턱 해제)",
+     "quant/live/retrain.py",
+     '                                       "vol_quantile": 0.9}})',
+     '                                       "vol_quantile": None}})',
+     "tests/test_the_vol_regime_reads_its_own_market.py"),
+
+    # 2026-08-19 — 배분 사다리. 멱등과 빈 회차 금지는 주기 사다리에서 배운
+    # 규칙 그대로 — 풀리면 곡선이 두 번 움직이거나 가짜 평평함을 얻는다.
+    ("배분 사다리가 같은 봉에 두 번 움직인다(멱등 해제)",
+     "quant/live/alloc_ladder.py",
+     '        if st["history"] and st["history"][-1].get("date") == bar:',
+     "        if False:",
+     "tests/test_the_alloc_ladder_measures_the_split.py"),
+    ("시세 없는 날도 배분 계좌가 기록된다(가짜 평평함)",
+     "quant/live/alloc_ladder.py",
+     "    if not marks:",
+     "    if False:",
+     "tests/test_the_alloc_ladder_measures_the_split.py"),
+
+    # 2026-08-19 — 가치 닻(KIS 사례 채택). 재료·링·적자 처리의 계약.
+    ("가치 도전자가 링에서 빠진다",
+     "quant/live/retrain.py",
+     '        {"strategy": "value_anchor", "params": {"quantile": 0.4}},',
+     '        # {"strategy": "value_anchor", "params": {"quantile": 0.4}},',
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+    ("일일 파이프라인이 가치를 부착하지 않는다(도전자가 재료 없이 돈다)",
+     "quant/live/daily.py",
+     "        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.\n"
+     "        df = attach_krx_value(df, symbol)",
+     "        # 가치(도전자 전용, 2026-08-19) — val_* 이름이라 챔피언 동결 무관.\n"
+     "        pass",
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+    ("적자 PER/PBR(음수)이 '싸다'로 읽힌다",
+     "quant/data/krx.py",
+     "                s = s.where(s > 0)",
+     "                pass",
+     "tests/test_the_value_anchor_buys_its_own_history_cheap.py"),
+
+    # 2026-08-19 — 사전 등록(골대 이동 방지). 판정일이 조용히 밀리면 등록의
+    # 존재 이유가 부서진다 — 날짜 산수 검사와 공개 페이지 대조가 지킨다.
+    ("배분 실험의 판정일이 조용히 미뤄진다(골대 이동)",
+     "quant/live/prereg.py",
+     '        "judge_on": "2026-12-17",',
+     '        "judge_on": "2027-12-17",',
+     "tests/test_the_goalposts_were_planted_before_the_data.py"),
+    ("사다리 실험의 다중비교 보정 선언이 사라진다",
+     "quant/live/prereg.py",
+     '        "correction": "본페로니 3(쌍 3개: 1h-15m·1h-5m·15m-5m)",',
+     '        "correction": "보정 없음",',
+     "tests/test_the_goalposts_were_planted_before_the_data.py"),
     ("status에 감시 실측을 안 싣는다(판정할 재료가 사라진다)",
      "quant/live/daily.py",
      '            status["guard"] = {"observed_gap_min": round(float(_gap), 1),',

@@ -97,14 +97,16 @@ DAILY = ROOT / "quant" / "live" / "daily.py"
 
 
 def declared_record_fields() -> list[str]:
-    """`run_daily_portfolio`가 장부에 쓰는 필드 이름 전부 (소스에서)."""
+    """daily.py가 장부에 쓰는 필드 이름 전부 (소스에서).
+
+    2026-08-19 합류: 두 세션이 같은 검사를 독립적으로 만들었다(감사 286과
+    사흘 정지 복구). 통일하며 범위는 넓은 쪽을 취한다 — 모듈 전체를 훑어
+    통합 계좌(run_daily_portfolio)뿐 아니라 **종목 계좌(run_daily_paper)의
+    record 필드**까지 같은 화면 계약을 받게 한다.
+    """
     tree = ast.parse(DAILY.read_text("utf-8"))
-    fn = next((f for f in ast.walk(tree)
-               if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))
-               and f.name == "run_daily_portfolio"), None)
-    assert fn is not None, "run_daily_portfolio를 찾지 못했다 — 검사가 낡았다"
     out: list[str] = []
-    for node in ast.walk(fn):
+    for node in ast.walk(tree):
         # record = {...}
         if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
             if any(isinstance(t, ast.Name) and t.id == "record"
@@ -177,6 +179,22 @@ OFF_SCREEN_OK = {
     "kelly_caps": "종목별 켈리 상한 — 걸렸을 때의 효과가 applied·weight에 이미 반영돼 보인다",
     "data_source": "종목별 시세 제공자 — 문제가 되는 경우(합성 폴백)는 "
                    "data_source_fallback으로 따로 경고한다",
+    # ── 2026-08-19 추가(아래 정적 검사가 종목 기록까지 훑기 시작하면서) ──
+    "data_sha256": "재현용 입력 데이터 지문 — code_sha와 같은 부류로, "
+                   "verify(재현 감사)가 읽는 값이다",
+    "drift_psi": "드리프트 원자료(PSI) — 판정(drift_grade)이 화면에 나가고, "
+                 "숫자-문턱 비교는 기록 쪽이 한다(대표본 관행 문턱을 화면에서 "
+                 "재판정하면 상시 오경보 — 감사 99)",
+    "drift_ref": "드리프트 기준 시점 — 위 원자료의 짝",
+    "fill_cost": "그 시장의 체결 비용 가정치 — 실측과의 비교(fill_check)가 "
+                 "첫 화면 '체결 낙관 의심' 경고로 나간다",
+    "kelly_cap": "종목 켈리 상한(단수형) — 포트폴리오 kelly_caps와 같은 이유: "
+                 "걸렸을 때의 효과가 비중에 이미 반영돼 보인다",
+    "live_hit_flat": "실전 적중률의 관망 표본 수 — 화면의 실전 적중률 표기가 "
+                     "live_hit·live_hit_n으로 같은 사실을 보여준다",
+    "prob_up_cal": "상승확률의 보정판 — 확률 표시는 한 값만 싣는다(둘 다 "
+                   "실으면 어느 쪽이 판단값인지 헷갈린다). 보정 여부는 판단 "
+                   "사유 문구가 밝힌다",
 }
 
 
