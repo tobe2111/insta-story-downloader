@@ -327,7 +327,7 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     syms = universe(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
     cost = measured_cost_model("us_stock", state_dir)
-    per_side = float(cost.fee + cost.slippage)
+    per_side = cost.total_one_way()
 
     # 새 봉이 닫혔을 수 없으면 시세를 아예 부르지 않는다(요청 절약).
     if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):
@@ -402,7 +402,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
     syms = universe(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
     cost = measured_cost_model("us_stock", state_dir)
-    per_side = float(cost.fee + cost.slippage)
+    per_side = cost.total_one_way()
     out = []
     for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
@@ -436,6 +436,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
 
 
 def ladder_public(state_dir: str = "state") -> list[dict]:
+    from quant.live.daily import measured_cost_model
     from quant.live.intraday_challenger import hold_baseline_pct
     out = []
     for tf in ladder_timeframes():
@@ -448,7 +449,8 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "timeframe": tf,
             "equity": round(eq, 2),
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
-            "hold_return_pct": hold_baseline_pct(st),
+            "hold_return_pct": hold_baseline_pct(
+                st, measured_cost_model("us_stock", state_dir).total_one_way()),
             "trades_total": sum(len(r.get("trades") or []) for r in rounds),
             "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
             "rounds_total": len(rounds),
@@ -479,6 +481,7 @@ def _ladder_reason() -> str:
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
+    from quant.live.daily import measured_cost_model
     from quant.live.intraday_challenger import (_shadow_public,
                                                 hold_baseline_pct,
                                                 observed_gap_minutes)
@@ -509,7 +512,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]
                          for r in rounds[-CURVE_KEEP:]],
-        "hold_return_pct": hold_baseline_pct(st),
+        "hold_return_pct": hold_baseline_pct(
+                st, measured_cost_model("us_stock", state_dir).total_one_way()),
         "judgement": PREREGISTERED_JUDGEMENT,
         "limit_shadow": _shadow_public(st, lastr),
         "ladder": ladder_public(state_dir),

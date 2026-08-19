@@ -195,12 +195,25 @@ def test_the_kill_switch_thresholds_are_not_restated():
 # ── ③d 점수판 — 기준선·사전 등록 판정·체결 내역 ────────────────
 
 def test_the_report_carries_the_hold_baseline(tmp_path):
+    """가격이 10% 오르면 그냥 보유는 **사는 값을 뺀** 만큼 번다.
+
+    ⚠️ 2026-08-19에 기댓값이 바뀌었다. 예전에는 정확히 10.0%를 요구했다 —
+       그냥 보유가 수수료를 한 푼도 안 문다는 뜻이었고, 화면은 그 숫자를
+       비용을 다 문 실험 성적 옆에 나란히 놓고 있었다(사장님 지적).
+       이제 편도 한 번을 문다: (1 − 0.0015) × 1.10 − 1 = 9.835%.
+    """
+    from quant.live.daily import measured_cost_model
+
     _round(tmp_path, 1.0)
     _round(tmp_path, 1.0, when="2026-08-18T05:00:00+00:00",
            closes=[100.0] * 99 + [110.0])
     out = json.loads((tmp_path / "docs" / "intraday.json").read_text("utf-8"))
-    assert abs(out["hold_return_pct"] - 10.0) < 0.01, (
-        f"그냥 보유 기준선이 틀렸다: {out['hold_return_pct']} (10% 상승인데)")
+    one_way = measured_cost_model("crypto", str(tmp_path / "state")).total_one_way()
+    want = ((1.0 - one_way) * 1.10 - 1.0) * 100
+    assert abs(out["hold_return_pct"] - want) < 0.01, (
+        f"그냥 보유 기준선이 틀렸다: {out['hold_return_pct']} (기대 {want:.4f})")
+    assert out["hold_return_pct"] < 10.0, (
+        "그냥 보유가 사는 값을 안 물고 있다 — 실험 쪽만 비용을 무는 비교가 된다")
 
 
 def test_the_judgement_is_preregistered_and_strict(tmp_path):

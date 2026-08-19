@@ -662,16 +662,20 @@ def _cmd_web_passwd(args) -> None:
 
 def _cmd_intraday_round(args) -> None:
     """장중 도전자 1회 — 본 계좌와 분리된 실험 트랙(가상 USDT)."""
-    import datetime as dt
-
     from quant.live.intraday_challenger import run_intraday_round
+    from quant.live.market_hours import now_kst_iso
 
     # 수동 킬스위치는 실험 트랙에도 걸린다 — 본 계좌만 멈추고 실험이 계속
     # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.
     if _halted(args):
         return
 
-    now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    # 회차·체결 시각은 **한국 시간**으로 찍는다(2026-08-19 사장님 지시).
+    # 예전에는 UTC였다 — 같은 순간이지만 기록을 여는 사람이 한국에 있으니
+    # 파일에 적힌 글자가 곧바로 읽히는 쪽이 맞다. 코인 트랙과 미국 트랙이
+    # **같은 값**을 받아야 두 트랙의 회차를 나란히 놓고 볼 수 있으므로
+    # 시각은 여기 한 곳에서만 만든다.
+    now = now_kst_iso()
     v = run_intraday_round(now, state_dir=args.state_dir,
                            docs_dir=args.docs_dir)
     print(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "

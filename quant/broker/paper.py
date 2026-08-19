@@ -55,6 +55,8 @@ class PaperBroker(Broker):
                  allow_margin: bool = False, short_margin: float = 0.0):
         self._cash = cash
         self.fee = fee
+        # 이 계좌가 지금까지 낸 수수료·슬리피지 누적(체결 통화 기준).
+        self.fee_paid = 0.0
         # 신규·추가 **공매도**에 필요한 증거금 비율(|숏 노출| 대비).
         # 0(기본) = 공매도 금지 — 매도는 **보유 수량까지만** 체결된다.
         #
@@ -180,6 +182,14 @@ class PaperBroker(Broker):
         else:
             self._cash += cost - fee
             signed = -quantity
+        # 낸 수수료를 **여기서** 센다 (2026-08-19 사장님 지시).
+        # 현금에서 빼는 것은 예전부터 맞았는데, 얼마를 뺐는지는 아무도
+        # 세지 않았다. 그래서 "이 계좌가 지금까지 비용으로 얼마를 냈나"는
+        # 체결 기록을 되짚어 추정해야만 나오는 값이었다 — 그리고 그
+        # 되짚기는 틀릴 수 있다(2026-08-15 장부에는 현금 부족으로 거부된
+        # 주문이 체결처럼 남아 있다).
+        # 돈을 실제로 빼는 자리에서 세면 되짚을 일이 없다.
+        self.fee_paid += fee
 
         new_qty = old_qty + signed
         if abs(new_qty) < _DUST:          # 부동소수 먼지 제거 → 완전 청산으로 스냅

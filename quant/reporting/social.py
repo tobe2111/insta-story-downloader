@@ -140,7 +140,11 @@ def _vs_hold_of(port: dict) -> dict | None:
     base = port.get("principal")
     if not isinstance(base, (int, float)) or base <= 0:
         base = port.get("start_cash")
-    return vs_hold(port.get("history"), base)
+    # 기준선이 물 사는 값 — 장부가 남긴 값을 그대로 넘긴다. 캡션이
+    # 사이트와 다른 비용률을 쓰면 같은 날 두 성적이 갈린다(㉞).
+    hist = port.get("history") or []
+    last = hist[-1] if hist else {}
+    return vs_hold(hist, base, (last or {}).get("bench_cost_rate") or 0.0)
 
 
 def _today_numbers(status: dict) -> dict:
