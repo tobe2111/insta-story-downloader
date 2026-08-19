@@ -143,6 +143,24 @@ def test_the_real_ledger_agrees_too():
     if not arch or not rep:
         pytest.skip("집계할 기록이 없다")
     last = sorted(arch)[-1]
+    # ⚠️ 두 화면은 창이 다르다 — 아카이브는 **달력 주**(월요일~), 리포트는
+    #    **최근 7일**(마지막 기록일 기준). 계좌의 모든 기록이 한 주 안에
+    #    있던 첫 주에는 우연히 같은 날들을 봤지만, 8-19 배치가 새 주의
+    #    기록을 만들자 두 창이 갈라졌다(아카이브 8-17주=+0.35 vs 리포트
+    #    7일=+0.07 — 둘 다 맞는 숫자다). 같은 날들을 볼 때만 같아야 한다.
+    import datetime as dt
+    import json as _json
+    from quant.live.daily import _monday_of
+    with open(ROOT / "state" / "paper" / "portfolio_ALL.json",
+              encoding="utf-8") as f:
+        dates = [r["date"] for r in _json.load(f).get("history") or []]
+    week_days = {d for d in dates if _monday_of(d) == last}
+    anchor = max(dt.date.fromisoformat(d) for d in dates)
+    start = anchor - dt.timedelta(days=6)
+    rep_days = {d for d in dates if dt.date.fromisoformat(d) >= start}
+    if week_days != rep_days:
+        pytest.skip("달력 주와 최근 7일이 다른 날들을 보는 주 — "
+                    "두 값이 다른 것이 정상이다")
     assert arch[last]["return_pct"] == pytest.approx(rep["week_return_pct"]), (
         f"아카이브 {arch[last]['return_pct']} vs 리포트 "
         f"{rep['week_return_pct']}")

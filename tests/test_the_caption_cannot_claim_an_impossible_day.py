@@ -46,8 +46,12 @@ def _status_with(**patch) -> dict:
 
 def test_the_real_2026_08_15_numbers_are_refused():
     """되돌리기 전 값(장부가 `_restated.before`로 남겨 둔 그 값)으로 시험한다."""
-    rec = STATUS["paper"]["portfolio:ALL"]["history"][-1]
-    before = (rec.get("_restated") or {}).get("before")
+    # ⚠️ 정정 기록은 마지막 항목이 아니라 **정정이 있던 그 날**(8-15)에
+    #    붙어 있다. 처음에는 history[-1]로 읽었는데, 8-19 배치가 새 기록을
+    #    덧붙이자 이 검사가 낡았다 — 표식을 찾아서 읽는다.
+    hist = STATUS["paper"]["portfolio:ALL"]["history"]
+    rec = next((r for r in reversed(hist) if r.get("_restated")), None)
+    before = ((rec or {}).get("_restated") or {}).get("before")
     assert before, "정정 기록이 사라졌다 — 이 검사가 무엇을 재현하는지 알 수 없다"
     with pytest.raises(social.ImpossibleNumbers) as e:
         social.build_captions(_status_with(**before))
