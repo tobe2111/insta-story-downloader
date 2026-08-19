@@ -134,6 +134,9 @@ def _cmd_web(args) -> None:
 
 
 def _cmd_learn(args) -> None:
+    # 수동 킬스위치 — 자동 페이퍼 루프도 주문을 낸다(감사 292).
+    if _halted(args):
+        return
     from quant.broker import PaperBroker
     from quant.data import get_provider
     from quant.live import AutoLearner
@@ -201,6 +204,37 @@ def _notify_extra(message: str) -> None:
         print(f"(알림 전송 실패: {exc})")
 
 
+def _halted(args) -> bool:
+    """수동 킬스위치 관문 — **주문을 낼 수 있는 모든 명령**이 여기를 지난다.
+
+    ⚠️ 이 관문은 원래 `paper-daily`와 `intraday-round` 두 곳에만
+       손으로 박혀 있었다(감사 292). 그래서 **실제 돈이 나가는 쪽**
+       — `live-daily`(KIS 국내주식 실거래, kr-live 워크플로가 매일 부른다),
+       `live --real`, `webhook --live` — 는 스위치가 켜져 있어도 그냥
+       주문을 냈다. 사장님이 조종석에서 "다 멈춤"을 누르고 폰을 덮은 동안
+       실계좌 주문이 계속 나가는 상태였다.
+
+       그 함정을 이 파일이 이미 알고 있었다는 게 더 나쁘다 —
+       `intraday-round` 옆의 주석이 "본 계좌만 멈추고 실험이 계속 돌면,
+       사장님이 '다 멈췄다'고 믿는 동안 매매가 계속되는 셈"이라고 적어
+       두고, 정작 반대쪽(실거래)에는 관문을 안 달았다.
+
+       같은 규칙을 여러 곳에 손으로 박으면 반드시 갈라진다
+       (FROZEN_IDEAS ①). 그래서 규칙은 여기 한 곳이고, 어느 명령이
+       관문을 지나는지는 검사가 목록으로 지킨다
+       (`tests/test_the_stop_button_stops_everything.py`).
+
+    `--state-dir`이 없는 명령(`live`·`learn`·`webhook`)은 운영 상태
+    폴더(`state`)를 본다 — 조종석이 스위치를 쓰는 바로 그 폴더다.
+    """
+    from quant.live.manual_halt import gate_message
+    msg = gate_message(getattr(args, "state_dir", "state"))
+    if not msg:
+        return False
+    print(msg)
+    return True
+
+
 def _cmd_paper_daily(args) -> None:
     from quant.live.daily import (
         run_daily_paper, run_daily_paper_all, write_docs_status,
@@ -209,10 +243,7 @@ def _cmd_paper_daily(args) -> None:
     # 수동 킬스위치 — 사장님이 조종석에서 멈춰 둔 날은 아무 주문도 내지
     # 않고 장부도 건드리지 않는다. 다만 status.json은 갱신해서(스위치
     # 상태가 실린다) 사이트가 "왜 오늘 기록이 없는지"를 말할 수 있게 한다.
-    from quant.live.manual_halt import gate_message
-    _halt = gate_message(args.state_dir)
-    if _halt:
-        print(_halt)
+    if _halted(args):
         if args.docs:
             write_docs_status(args.state_dir)
         return
@@ -344,6 +375,10 @@ def _cmd_redenominate(args) -> None:
 
 def _cmd_live_daily(args) -> None:
     """하루 1회 실거래 집행 — 기본 모의투자, 실전은 이중 안전장치."""
+    # 수동 킬스위치가 가장 먼저 — 이 명령은 kr-live 워크플로가 매일
+    # 부르고, --real이면 실제 계좌로 주문이 나간다(감사 292).
+    if _halted(args):
+        return
     if args.real:
         from quant.utils.dist import block_live_in_distribution
         block_live_in_distribution()     # 배포판: 실거래 금지(소스 설치 전용)
@@ -393,6 +428,11 @@ def _cmd_live(args) -> None:
       · 챔피언 자동 추종: 야간 재학습이 챔피언을 교체하면 재시작 없이
         다음 사이클부터 새 전략이 적용된다 — '그 능력'이 실전에 이어진다.
     """
+    # 수동 킬스위치 — 실시간 루프도 예외가 아니다(감사 292). --real이면
+    # 실제 자금이고, 페이퍼라도 사장님이 "다 멈춤"이라 했으면 멈춘다.
+    if _halted(args):
+        return
+
     from quant.utils.envfile import load_env_file
     load_env_file()                      # setup 마법사가 저장한 API 키 로드
 
@@ -628,10 +668,7 @@ def _cmd_intraday_round(args) -> None:
 
     # 수동 킬스위치는 실험 트랙에도 걸린다 — 본 계좌만 멈추고 실험이 계속
     # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.
-    from quant.live.manual_halt import gate_message
-    _halt = gate_message(args.state_dir)
-    if _halt:
-        print(_halt)
+    if _halted(args):
         return
 
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
@@ -1148,6 +1185,12 @@ def _cmd_setup(args) -> None:
 def _cmd_webhook(args) -> None:
     """트레이딩뷰 등의 알림 웹훅을 받아 주문을 실행한다(기본 페이퍼, 보안 필수)."""
     import os
+
+    # 수동 킬스위치 — 바깥에서 들어온 신호가 주문이 되는 길이라, 정지
+    # 중에는 서버 자체를 열지 않는다(감사 292). 열어 두고 신호마다
+    # 거르면 "멈춤인데 포트는 살아 있는" 애매한 상태가 남는다.
+    if _halted(args):
+        return
 
     from quant.broker import RobustBroker, get_broker
     from quant.data import get_provider
