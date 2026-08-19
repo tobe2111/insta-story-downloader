@@ -6243,6 +6243,28 @@ MUTATIONS = [
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
 
+    # ── 의석 수 ≠ 돈의 분산 (2026-08-19 실측: 39석·11종인데 72.9%가 하나) ──
+    ("상관을 안 보고 대안 비중을 낸다(수익만 보면 지금 규칙과 같아진다)",
+     "quant/live/parliament.py",
+     "            sharpe = float(r.mean()) / sd",
+     "            sharpe = float(r.mean())",
+     "tests/test_seats_are_not_the_same_as_money.py"),
+    ("얇은 기록으로도 최적 비중을 말한다(닷새치 잡음을 사실로 발표한다)",
+     "quant/live/parliament.py",
+     "        if len(mat) < 20:                 # 표본이 얇으면 최적화가 잡음이다",
+     "        if False:",
+     "tests/test_seats_are_not_the_same_as_money.py"),
+    ("못 잰 격차를 0으로 적는다(빈칸이 '문제 없음'으로 읽힌다)",
+     "quant/live/parliament.py",
+     "    if len(pairs) < 2 or any(a is None for _w, a in pairs):",
+     "    if False:",
+     "tests/test_seats_are_not_the_same_as_money.py"),
+    ("의석 현황이 자금 점유를 뺀다(자리 수만 말하고 돈은 안 말한다)",
+     "quant/live/parliament.py",
+     '        "top_spec_share": (round(top, 4) if top is not None else None),',
+     '        "top_spec_share": None,',
+     "tests/test_seats_are_not_the_same_as_money.py"),
+
     # ── 미국 트랙: 낡은 봉 관문 (2026-08-19 첫 회차 실측) ──────────────
     ("낡은 봉으로도 판단한다(어제 가격으로 오늘을 산다)",
      "quant/live/intraday_us.py",

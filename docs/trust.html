@@ -1059,12 +1059,28 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   const p=st.parliament; const el=document.getElementById("seat-now");
   if(!p||!el||!p.accounts)return;
-  el.innerHTML = p.diversified
+  let msg = p.diversified
     ? `지금 ${p.accounts}개 계좌 중 <b>${p.multi_seat}개가 2석 이상</b>으로 `+
       `분산 운용 중입니다(최대 ${p.max_seats}석 / 상한 ${p.cap}석).`
     : `<b>지금은 ${p.accounts}개 계좌 전부가 1석입니다</b> — 즉 이 구조는 `+
       `아직 잠들어 있고, 계좌는 사실상 단일 전략으로 굴러갑니다`+
       `(상한 ${p.cap}석). 승격이 쌓여 서로 다른 전략이 들어와야 켜집니다.`;
+  /* ⚠️ 의석 수만 말하면 절반만 말하는 것이다(2026-08-19). 자리를 여러 개
+     준 것과 **돈을 나눠 준 것**은 다르다 — 실측 39석·11종인데 자금의
+     72.9%가 한 전략에 있었다. 그래서 '가장 큰 하나가 몇 %를 쥐고 있는가'를
+     같은 자리에서 말한다. 좋게 읽히는 숫자만 고르면 이 문단의 존재 이유가
+     사라진다. */
+  if(p.top_spec_share!=null && p.distinct_specs!=null){
+    msg += ` 다만 자리 수와 <b>돈의 분산은 다른 이야기</b>입니다 — 전략은 `+
+      `${p.distinct_specs}종인데 그중 가장 큰 하나가 자금의 `+
+      `<b>${(p.top_spec_share*100).toFixed(1)}%</b>를 쥐고 있습니다.`;
+  }
+  if(p.weight_gap!=null){
+    msg += ` 상관까지 고려한 비중과의 거리는 ${(p.weight_gap*100).toFixed(0)}%`+
+      `입니다(${p.weight_gap_measured}계좌 실측 · 재기만 하고 매매에는 `+
+      `쓰지 않습니다 — 배분을 바꾸면 판정 시계가 리셋되기 때문입니다).`;
+  }
+  el.innerHTML = msg;
 }).catch(()=>{});
 </script>
 </body>
