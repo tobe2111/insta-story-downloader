@@ -2470,6 +2470,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
+    # 그 바구니를 **사는 값** (2026-08-19 사장님 승인).
+    # 지수는 전 종목 균등 매수이므로 진입 비용도 그 종목들이 속한 시장의
+    # 균등 평균이다. 예전에는 이 비용이 0이었다 — 그래서 첫 화면은 비용을
+    # 전부 문 우리 성적을, 한 푼도 안 문 기준선과 나란히 놓고 "앞선다"고
+    # 말했다. 같은 자에 눈금이 둘이었다.
+    # ⚠️ 이 교정은 **우리 쪽에 유리한** 방향이다(기준선이 낮아진다).
+    #    그래서 숫자를 여기서 만들어 장부에 남긴다 — 화면이 제 마음대로
+    #    비용률을 고를 수 없게.
+    bench_cost_rate = round(
+        sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices), 6)
     # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
     # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
     # ⚠️ 여기서 다시 계산하지 않는다. 예전에는 주문 루프와 이 기록이 같은
@@ -2549,6 +2559,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # "수수료로 얼마 냈나"에 답할 수 없었다(사장님 질문 2026-08-19).
               "cost": cost_today,
               "cost_paid": st["cost_paid"],
+              # '그냥 보유' 기준선이 물어야 할 진입 비용률(편도 한 번).
+              "bench_cost_rate": bench_cost_rate,
               "return_pct": round((equity / principal - 1) * 100, 2),
               "principal": round(principal, 2),
               "pnl": round(equity - principal, 2),

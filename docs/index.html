@@ -947,13 +947,23 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
            시장이 오른 날은 실력처럼 보이고 내린 날은 억울해 보인다.
            이 저장소가 증명하려는 것은 '1억'이 아니라 '그냥 보유보다 낫다'다. */
         (function(){
-          const b=QuantBench.vsHold(pf&&pf.history, base);
+          /* 기준선이 물어야 할 사는 값 — **장부가 준 값만** 쓴다.
+             화면이 제 마음대로 비용률을 고르면 유리한 숫자를 고를 수 있다. */
+          const b=QuantBench.vsHold(pf&&pf.history, base,
+                                    pfLast&&pfLast.bench_cost_rate);
           return b?('<div class="'+(b.ahead?"bench up":"bench down")+'">'+
             '📊 같은 기간 <b>그냥 전 종목을 사서 들고만 있었다면</b> '+
             won(b.hold)+'입니다 — 지금 이 시스템은 그보다 <b>'+
             won(Math.abs(b.diff))+' '+(b.ahead?"앞섭니다":"뒤집니다")+
             '</b>('+(b.diff_pct>=0?"+":"")+b.diff_pct.toFixed(2)+'%p).'+
-            '<div class="sub" style="margin-top:4px">지금 증명하려는 것은 '+
+            '<div class="sub" style="margin-top:4px">'+
+            /* 비용을 실제로 물렸을 때만 물렸다고 말한다 — 안 물린 날에
+               "포함"이라고 적으면 그게 거짓말이다. */
+            (b.cost_rate>0
+              ?'양쪽 다 <b>비용을 뺀 뒤</b>의 숫자입니다 — 그냥 보유도 살 때 '+
+               '한 번은 수수료를 냅니다(2026-08-19 교정). '
+              :'')+
+            '지금 증명하려는 것은 '+
             '<b>1억이 아니라 "그냥 보유보다 낫다"</b> 하나입니다.</div></div>'):"";
         })()+
         /* ⚠️ 준실시간 시세가 들어오면 **잔고 표만** "지금 999,xxx원"으로

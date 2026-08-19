@@ -23,17 +23,36 @@ from __future__ import annotations
 import math
 
 
-def vs_hold(history: list | None, principal) -> dict | None:
+def vs_hold(history: list | None, principal, cost_rate=0.0) -> dict | None:
     """전략 vs '첫날 균등 매수 후 보유'. 못 재면 None.
 
-    반환: ``{"hold", "diff", "diff_pct", "ahead"}``
+    반환: ``{"hold", "diff", "diff_pct", "ahead", "cost_rate"}``
       hold      그냥 보유했다면 지금 얼마인가(원)
       diff      전략 − 보유(원). 음수면 지고 있다.
       diff_pct  같은 것을 %p로
       ahead     앞서고 있는가
+      cost_rate 기준선이 실제로 문 진입 비용률(0이면 안 물었다는 뜻)
 
     ⚠️ 하나라도 없으면 **답을 지어내지 않는다.** 기준선을 모르는데
        "이겼다/졌다"를 적는 것이 이 사이트에서 가장 하면 안 되는 일이다.
+
+    ⚠️ **그냥 보유도 살 때 한 번은 돈을 낸다** (2026-08-19 사장님 승인).
+       예전에는 ``cost_rate``가 없어 기준선이 비용을 한 푼도 안 물었다.
+       그런데 우리 성적(``equity``)은 수수료·세금·미끄러짐을 전부 문 뒤의
+       값이다. 같은 자에 눈금이 둘이었고, 그 자로 잰 "그냥 보유보다 낫다"가
+       이 제품이 증명하려는 **단 하나의 주장**이었다.
+
+       무는 것은 **편도 한 번**이다 — 그냥 보유는 사고 나면 팔지 않고,
+       우리도 아직 들고 있는 몫은 파는 비용을 안 물었다. 양쪽 다 '지금
+       들고 있는 상태'를 재므로 진입 비용만 맞추면 눈금이 같아진다.
+
+       비율은 **여기서 고르지 않는다.** 장부가 그날 바구니의 시장 구성으로
+       계산해 ``bench_cost_rate``로 남긴 값을 부르는 쪽이 넘긴다 — 화면이
+       제 마음대로 유리한 숫자를 고르지 못하게.
+
+       기울기는 우리 쪽에 유리하다(기준선이 낮아진다). 그래서 결과에
+       ``cost_rate``를 함께 돌려준다 — 화면이 "사는 값 포함"이라고 말할
+       자격이 있는지를 값으로 확인할 수 있게.
     """
     h = history or []
     if len(h) < 2:
@@ -50,9 +69,17 @@ def vs_hold(history: list | None, principal) -> dict | None:
         return None
     if not (base > 0 and p0 > 0 and pn > 0):
         return None
-    hold = base * pn / p0
+    try:
+        c = float(cost_rate or 0.0)
+    except (TypeError, ValueError):
+        c = 0.0
+    if not (math.isfinite(c) and 0.0 <= c < 1.0):
+        c = 0.0
+    # 비용을 물고 산 몫만 시장을 탄다.
+    hold = base * (1.0 - c) * pn / p0
     if not (hold > 0):
         return None
     diff = eq - hold
     return {"hold": hold, "diff": diff,
-            "diff_pct": (eq / hold - 1) * 100.0, "ahead": diff >= 0}
+            "diff_pct": (eq / hold - 1) * 100.0, "ahead": diff >= 0,
+            "cost_rate": c}

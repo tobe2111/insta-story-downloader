@@ -184,3 +184,92 @@ def test_the_intraday_page_says_the_benchmark_pays_too():
     page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
     assert "사는 비용 포함" in page
     assert "비용을 뺀 뒤" in page
+
+
+# ─────────── ①의 형제 — 첫 화면의 '그냥 보유'도 사는 값을 문다 ───────────
+#
+# ①을 고치고 나서 같은 결함이 **첫 화면**에도 있다는 것을 찾았다(사장님
+# 승인 2026-08-19). 그쪽이 더 중요하다 — 이 제품이 증명하려는 단 하나의
+# 주장("그냥 보유보다 낫다")을 재는 자가 바로 그 숫자다.
+#
+# ⚠️ 이 교정은 **우리 쪽에 유리하다**(기준선이 낮아져 우리가 더 앞서 보인다).
+#    그래서 비용률을 화면이 고르지 못하게 한다 — 장부가 그날 바구니의 시장
+#    구성으로 계산해 남긴 값만 쓴다.
+
+_H = [{"price": 100.0, "equity": 1_000_000.0},
+      {"price": 99.65, "equity": 1_000_669.0}]
+
+
+def test_the_front_page_benchmark_pays_to_buy():
+    from quant.reporting.benchmark import vs_hold
+
+    free = vs_hold(_H, 1_000_000.0)
+    paid = vs_hold(_H, 1_000_000.0, 0.001167)
+    assert paid["hold"] < free["hold"], (paid["hold"], free["hold"])
+    assert abs(paid["hold"] - 1_000_000.0 * (1 - 0.001167) * 99.65 / 100.0) < 0.01
+    # 기준선이 낮아지면 우리 우위는 커진다 — 그래서 더 조심해서 적는다.
+    assert paid["diff_pct"] > free["diff_pct"]
+    assert paid["cost_rate"] == 0.001167 and free["cost_rate"] == 0.0
+
+
+def test_a_zero_rate_leaves_the_front_page_benchmark_alone():
+    """대조군 — 비용률이 없으면 예전 값 그대로여야 한다."""
+    from quant.reporting.benchmark import vs_hold
+
+    assert vs_hold(_H, 1_000_000.0)["hold"] == 996_500.0
+    # 말도 안 되는 비율은 조용히 무시한다(1 이상이면 기준선이 0이 된다).
+    for bad in (None, "", -0.5, 1.0, 2.0, float("nan")):
+        assert vs_hold(_H, 1_000_000.0, bad)["cost_rate"] == 0.0, bad
+
+
+def test_both_languages_agree_on_the_charged_benchmark():
+    """파이썬과 브라우저가 같은 답을 내야 한다 — 갈라지면 사이트와 방송이
+    같은 날 다른 성적을 말한다."""
+    import json
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:
+        import pytest
+        pytest.skip("node 없음 — 두 언어 대조 생략")
+    from quant.reporting.benchmark import vs_hold
+
+    js = subprocess.run(
+        [node, "-e",
+         f"require('{ROOT}/docs/assets/benchmark.js');"
+         "console.log(JSON.stringify(QuantBench.vsHold("
+         f"{json.dumps(_H)}, 1000000, 0.001167)))"],
+        capture_output=True, text=True, timeout=60)
+    assert js.returncode == 0, js.stderr
+    got = json.loads(js.stdout)
+    want = vs_hold(_H, 1_000_000.0, 0.001167)
+    for k in ("hold", "diff", "diff_pct", "cost_rate"):
+        assert abs(got[k] - want[k]) < 1e-6, (k, got[k], want[k])
+
+
+def test_the_ledger_publishes_the_rate_the_benchmark_must_use():
+    import ast
+
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    fn = next(f for f in ast.walk(ast.parse(src))
+              if isinstance(f, ast.FunctionDef) and f.name == "run_daily_portfolio")
+    body = "\n".join(src.splitlines()[fn.lineno - 1:fn.end_lineno])
+    # 바구니를 이루는 종목들의 시장 평균이어야 한다 — 한 시장 값을 쓰면 틀린다.
+    assert 'sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices)' in body
+    assert '"bench_cost_rate": bench_cost_rate,' in body
+
+
+def test_the_screen_and_the_caption_read_that_same_rate():
+    page = (ROOT / "docs" / "index.html").read_text("utf-8")
+    social = (ROOT / "quant" / "reporting" / "social.py").read_text("utf-8")
+    assert "pfLast&&pfLast.bench_cost_rate" in page, (
+        "화면이 비용률을 스스로 고르면 유리한 숫자를 고를 수 있다")
+    assert 'get("bench_cost_rate")' in social, (
+        "캡션이 사이트와 다른 비용률을 쓰면 같은 날 두 성적이 갈린다")
+
+
+def test_the_screen_only_claims_the_cost_when_it_was_charged():
+    """대조군 — 안 물린 날에 '포함'이라고 적으면 그게 거짓말이다."""
+    page = (ROOT / "docs" / "index.html").read_text("utf-8")
+    assert "b.cost_rate>0" in page

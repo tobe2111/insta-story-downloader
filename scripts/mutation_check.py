@@ -5506,7 +5506,8 @@ MUTATIONS = [
 
     ("보유 대비 점수를 화면에서 뺀다(시장이 오른 날의 이익이 실력처럼 보인다)",
      "docs/index.html",
-     "          const b=QuantBench.vsHold(pf&&pf.history, base);",
+     "          const b=QuantBench.vsHold(pf&&pf.history, base,\n"
+     "                                    pfLast&&pfLast.bench_cost_rate);",
      "          const b=null;",
      "tests/test_the_score_is_measured_against_holding.py"),
 
@@ -6287,6 +6288,38 @@ MUTATIONS = [
      'docs/index.html',
      '          (pfLast.cost_paid!=null',
      '          (false',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+
+    # ── 첫 화면 기준선도 사는 값을 문다 (2026-08-19 사장님 승인) ────
+    ('첫 화면 기준선이 사는 값을 안 문다(우리만 비용을 무는 비교로 되돌아간다)',
+     'quant/reporting/benchmark.py',
+     '    hold = base * (1.0 - c) * pn / p0',
+     '    hold = base * pn / p0',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+    ('브라우저 쪽 기준선만 비용을 안 문다(사이트와 방송이 다른 성적을 말한다)',
+     'docs/assets/benchmark.js',
+     '    var hold = base * (1 - c) * pn / p0;',
+     '    var hold = base * pn / p0;',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+    ('장부가 바구니의 사는 값을 한 시장 값으로 적는다(구성이 섞인 계좌에서 틀린다)',
+     'quant/live/daily.py',
+     '        sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices), 6)',
+     '        _fill_cost("us_stock"), 6)',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+    ('화면이 장부 대신 제 값으로 기준선 비용을 정한다(유리한 숫자를 고를 수 있다)',
+     'docs/index.html',
+     '                                    pfLast&&pfLast.bench_cost_rate);',
+     '                                    0);',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+    ('캡션이 사이트와 다른 비용률을 쓴다(같은 날 두 성적이 갈린다)',
+     'quant/reporting/social.py',
+     '    return vs_hold(hist, base, (last or {}).get("bench_cost_rate") or 0.0)',
+     '    return vs_hold(hist, base, 0.0)',
+     'tests/test_the_costs_are_counted_and_shown.py'),
+    ("안 물린 날에도 '비용 포함'이라고 적는다(화면이 거짓을 말한다)",
+     'docs/index.html',
+     '            (b.cost_rate>0',
+     '            (true',
      'tests/test_the_costs_are_counted_and_shown.py'),
 ]
 

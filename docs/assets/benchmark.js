@@ -23,13 +23,20 @@
   "use strict";
 
   /**
-   * 반환: {hold, diff, diff_pct, ahead} — 못 재면 null.
-   *   hold     그냥 보유했다면 지금 얼마인가(원)
-   *   diff     전략 − 보유 (원). 음수면 지고 있다.
-   *   diff_pct 같은 것을 %p로. (전략/보유 − 1) × 100
-   *   ahead    앞서고 있는가
+   * 반환: {hold, diff, diff_pct, ahead, cost_rate} — 못 재면 null.
+   *   hold      그냥 보유했다면 지금 얼마인가(원)
+   *   diff      전략 − 보유 (원). 음수면 지고 있다.
+   *   diff_pct  같은 것을 %p로. (전략/보유 − 1) × 100
+   *   ahead     앞서고 있는가
+   *   cost_rate 기준선이 실제로 문 진입 비용률(0이면 안 물었다는 뜻)
+   *
+   * ⚠️ **그냥 보유도 살 때 한 번은 돈을 낸다** (2026-08-19 사장님 승인).
+   *    예전에는 이 기준선이 비용을 한 푼도 안 물었다. 그런데 우리 성적은
+   *    수수료·세금·미끄러짐을 전부 문 뒤의 값이다 — 같은 자에 눈금이 둘.
+   *    비율은 여기서 고르지 않는다. 장부가 그날 바구니의 시장 구성으로
+   *    계산해 남긴 값을 부르는 쪽이 넘긴다.
    */
-  function vsHold(history, principal) {
+  function vsHold(history, principal, costRate) {
     var h = history || [];
     var base = Number(principal);
     if (!(h.length >= 2) || !isFinite(base) || !(base > 0)) return null;
@@ -41,7 +48,10 @@
     //    "이겼다/졌다"를 적는 것이 이 사이트에서 가장 하면 안 되는 일이다.
     if (!isFinite(p0) || !(p0 > 0) || !isFinite(pn) || !(pn > 0)
         || !isFinite(eq)) return null;
-    var hold = base * pn / p0;
+    var c = Number(costRate);
+    if (!isFinite(c) || !(c >= 0 && c < 1)) c = 0;
+    // 비용을 물고 산 몫만 시장을 탄다.
+    var hold = base * (1 - c) * pn / p0;
     if (!(hold > 0)) return null;
     var diff = eq - hold;
     return {
@@ -49,6 +59,7 @@
       diff: diff,
       diff_pct: (eq / hold - 1) * 100,
       ahead: diff >= 0,
+      cost_rate: c,
     };
   }
 
