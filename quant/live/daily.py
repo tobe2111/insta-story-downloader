@@ -2215,6 +2215,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 무제약 그림자(2026-08-19, 사장님 지시) — 같은 신호·같은 배분에
     # 안전장치(변동성 타깃·킬스위치·게이트·켈리)만 뗀 가상 계좌.
     # 제약의 값을 말이 아니라 곡선으로 공개한다. 실험 실패는 본 계좌 불가침.
+    # 2세대 그림자(2026-08-19, 사장님 "다 살 필요는 없잖아") — 같은 신호를
+    # 줄 세워 상위 K개에만, 점수 비례로 담는 가상 계좌. 배분 방식은 구조
+    # 세대 축이라 본 계좌에 바로 넣으면 판정 시계가 리셋된다 — 그림자로
+    # 재고 판정일에 이기면 졸업시킨다.
+    try:
+        from quant.live.gen2 import run_gen2
+        run_gen2(bar=bar, weights=weights, marks=marks,
+                 grades=valid_grades, tilt=None, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("2세대 그림자 실패(본 계좌 무관): %s", exc)
     try:
         from quant.live.unshackled import run_unshackled
         run_unshackled(bar=bar, weights=weights, slices=slices,
@@ -3316,6 +3326,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
 
     # 실험 판정 기준의 사전 등록(2026-08-19) — 골대 이동 방지. 판정일·통계·
     # 문턱이 데이터보다 먼저 공개돼 있어야 몇 달 뒤의 판정이 의심받지 않는다.
+    try:
+        from quant.live.gen2 import gen2_public
+        status["gen2"] = gen2_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["gen2"] = None
     try:
         from quant.live.breadth import breadth
         status["breadth"] = breadth(state_dir)

@@ -2766,10 +2766,22 @@ MUTATIONS = [
 
     # 2026-08-19 — 사전 등록(골대 이동 방지). 판정일이 조용히 밀리면 등록의
     # 존재 이유가 부서진다 — 날짜 산수 검사와 공개 페이지 대조가 지킨다.
+    # ⚠️ 2026-12-17은 이제 실험 두 개(배분 사다리·2세대 집중)가 함께 쓴다.
+    #    한 줄만 앵커로 잡으면 '원본 문자열 2회'로 건너뛰어져 검사가 조용히
+    #    쉰다 — 각 실험의 고유한 뒷줄까지 포함해 따로 잡는다(2026-08-19).
     ("배분 실험의 판정일이 조용히 미뤄진다(골대 이동)",
      "quant/live/prereg.py",
-     '        "judge_on": "2026-12-17",',
-     '        "judge_on": "2027-12-17",',
+     '        "judge_on": "2026-12-17",       # 시작 + 120일 — 배분 차이는 신호보다\n'
+     '                                        # 느리게 갈라져 90일로는 검정력이 얇다',
+     '        "judge_on": "2027-12-17",       # 시작 + 120일 — 배분 차이는 신호보다\n'
+     '                                        # 느리게 갈라져 90일로는 검정력이 얇다',
+     "tests/test_the_goalposts_were_planted_before_the_data.py"),
+    ("2세대 집중 실험의 판정일이 조용히 미뤄진다(골대 이동)",
+     "quant/live/prereg.py",
+     '        "judge_on": "2026-12-17",       # 시작 + 120일 — 배분 차이는 신호보다\n'
+     '                                        # 느리게 갈라진다(배분 사다리와 같은 이유)',
+     '        "judge_on": "2027-12-17",       # 시작 + 120일 — 배분 차이는 신호보다\n'
+     '                                        # 느리게 갈라진다(배분 사다리와 같은 이유)',
      "tests/test_the_goalposts_were_planted_before_the_data.py"),
     ("사다리 실험의 다중비교 보정 선언이 사라진다",
      "quant/live/prereg.py",
@@ -6230,6 +6242,23 @@ MUTATIONS = [
      '        core_us = US_CORE + US_ASSET_CORE',
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
+
+    # ── 2세대 집중 (2026-08-19) — 집중이 아니면 균등 조각과 같아진다 ────
+    ("상위 K개 제한을 없앤다(전부 담아 균등 조각과 구별이 사라진다)",
+     "quant/live/gen2.py",
+     "    ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:max(1, top_k)]",
+     "    ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))",
+     "tests/test_the_second_generation_concentrates.py"),
+    ("점수 비례를 균등으로 바꾼다(확신이 두 배여도 같은 금액 — 실험의 요점이 사라진다)",
+     "quant/live/gen2.py",
+     "    return {k: v / total for k, v in ranked}",
+     "    return {k: 1.0 / len(ranked) for k, _ in ranked}",
+     "tests/test_the_second_generation_concentrates.py"),
+    ("검증 등급 계수를 무시한다('실패' 종목에도 돈이 간다)",
+     "quant/live/gen2.py",
+     "        s *= GRADE_SCALE.get(str(g), 1.0 if g is None else 0.5)",
+     "        s *= 1.0",
+     "tests/test_the_second_generation_concentrates.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
