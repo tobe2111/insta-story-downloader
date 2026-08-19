@@ -51,11 +51,30 @@ def site(tmp_path_factory):
     shutil.copytree(ROOT / "docs", root, dirs_exist_ok=True)
     # ⚠️ 실제 status.json을 그대로 쓰면 내일 새벽 배치가 이 검사를 깬다.
     #    사고 당시 상태를 **재현해서** 넣는다.
+    #
+    # ⚠️ 재현하는 방법이 틀려 있었다(2026-08-19). 예전에는 마지막 기록의
+    #    **날짜만 덮어썼다** — 장부의 마지막이 늘 2026-08-15일 거라는
+    #    가정이었다. 그러다 08-19 배치가 나흘 만에 성공해 기록이 하나
+    #    늘자, 그 덮어쓰기가 08-19를 08-15로 바꿔 **같은 날이 두 번**
+    #    들어간 장부를 만들었다. 차트 라이브러리는 시간이 뒤죽박죽인
+    #    자료를 받으면 'Value is null'로 죽는다 — 화면 검사 열두 개가
+    #    한꺼번에 무너졌고, 공개 사이트는 멀쩡한데 검사만 빨개졌다.
+    #
+    #    배치가 성공하는 날 깨지는 검사는, 하필 **가장 확인하고 싶은 날**
+    #    못 쓰게 된다. 그러니 덮어쓰지 말고 **그날까지만 잘라 낸다** —
+    #    장부가 몇 줄 더 자라도 이 검사가 보는 세상은 그대로다.
     st = json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
     pf = st["paper"]["portfolio:ALL"]
     pf["equity"], pf["principal"], pf["start_cash"] = EQ, BASE, BASE
-    pf["history"][-1]["date"] = DAY
+    pf["history"] = [r for r in pf["history"] if str(r.get("date")) <= DAY]
+    assert pf["history"], f"{DAY}까지의 기록이 하나도 없다 — 검사가 낡았다"
     pf["history"][-1]["equity"] = EQ
+    # ⚠️ 검사가 만든 장부가 스스로 말이 돼야 한다. 날짜가 중복되거나 거꾸로
+    #    가면 차트 라이브러리는 'Value is null'이라고만 말하고 죽는다 —
+    #    그 한 줄로는 원인을 찾는 데 한참 걸린다(2026-08-19 실측). 여기서
+    #    먼저, 사람이 읽을 수 있는 말로 걸린다.
+    _d = [str(r.get("date")) for r in pf["history"]]
+    assert _d == sorted(set(_d)), f"검사가 만든 장부의 날짜가 중복·역순이다: {_d}"
     (root / "status.json").write_text(json.dumps(st, ensure_ascii=False), "utf-8")
 
     class _Quiet(http.server.SimpleHTTPRequestHandler):

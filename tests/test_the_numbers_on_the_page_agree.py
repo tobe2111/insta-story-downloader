@@ -268,28 +268,43 @@ def _fake_quotes(page, drift=0.01):
        `markHoldings`가 값을 만들지 않는다(1.0으로 때우지 않는 규칙,
        감사 212). 코인만 넣고 검사를 돌리면 영영 건너뛴다.
     """
+    # ⚠️ **보유가 코인뿐이라고 가정하지 않는다**(2026-08-19). 예전에는
+    #    코인이 아닌 보유가 하나라도 있으면 검사가 그 자리에서 죽었다 —
+    #    "이 하네스로는 합계가 안 찬다"고 스스로 적어 두고 그대로 뒀다.
+    #    그러다 08-19 배치가 한국 주식 두 종목을 담는 순간 검사가 깨졌다.
+    #    계좌 구성이 바뀌면 못 쓰게 되는 검사는, 하필 **구성이 바뀐 날**
+    #    필요한데 없다. 이제 시장마다 알맞은 통화로 시세를 물려 준다.
     st = json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
-    keys = [h["key"] for h in st["paper"]["portfolio:ALL"]["holdings"]]
-    coins = [k for k in keys if k.startswith("crypto:")]
-    assert len(coins) == len(keys), (
-        f"코인 아닌 보유가 있다 — 이 하네스로는 합계가 안 찬다: {keys}")
+    hold = {h["key"]: h for h in st["paper"]["portfolio:ALL"]["holdings"]}
+    assert hold, "보유가 하나도 없다 — 이 검사가 볼 것이 없다"
     # ⚠️ 값을 아무렇게나 넣으면 안 된다. 확정 자산과 **자릿수가 맞아야**
     #    화면이 합계를 낸다(감사 275의 환율 누락 방어). 장부의 평가금액에서
     #    거꾸로 계산해 '오늘 조금 오른' 시세를 만든다.
-    hold = {h["key"]: h for h in st["paper"]["portfolio:ALL"]["holdings"]}
-    body = []
-    for k in coins:
-        h = hold[k]
-        px = float(h["value"]) / (float(h["quantity"]) * FAKE_FX) * (1.0 + drift)
-        body.append({"symbol": k.split(":")[1].replace("/", ""),
-                     "lastPrice": f"{px:.8f}", "priceChangePercent": "1.0"})
+    body, quotes = [], {"KRW=X": {"price": FAKE_FX, "change_pct": 0.0,
+                                  "delayed": False}}
+    for k, h in hold.items():
+        qty = float(h["quantity"])
+        if not qty:
+            continue
+        market, ticker = k.split(":", 1)
+        # 원화 종목은 장부 금액이 곧 그 종목의 통화다. 코인·미국 주식은
+        # 달러 호가라 환율로 되돌려야 화면이 다시 곱했을 때 맞는다.
+        unit = float(h["value"]) / qty * (1.0 + drift)
+        if market != "kr_stock":
+            unit /= FAKE_FX
+        if market == "crypto":
+            body.append({"symbol": ticker.replace("/", ""),
+                         "lastPrice": f"{unit:.8f}",
+                         "priceChangePercent": "1.0"})
+        else:
+            # 워커에 가는 것은 **티커**다(장부 키가 아니다 — 감사 229).
+            quotes[ticker] = {"price": unit, "change_pct": 1.0,
+                              "delayed": False}
     page.route(BINANCE, lambda r: r.fulfill(
         status=200, content_type="application/json", body=json.dumps(body)))
     page.route(QUOTES, lambda r: r.fulfill(
         status=200, content_type="application/json",
-        body=json.dumps({"quotes": {"KRW=X": {"price": FAKE_FX,
-                                              "change_pct": 0.0,
-                                              "delayed": False}}})))
+        body=json.dumps({"quotes": quotes})))
 
 
 def test_the_live_total_appears_in_both_places_at_once(browser, site):

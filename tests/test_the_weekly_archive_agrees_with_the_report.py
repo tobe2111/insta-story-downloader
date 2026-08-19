@@ -135,17 +135,71 @@ def test_the_archive_and_the_telegram_report_agree(tmp_path):
 
 
 def test_the_real_ledger_agrees_too():
-    """진짜 장부에서도 두 값이 같아야 한다(합성 데이터만으로는 부족하다)."""
-    if not (ROOT / "state" / "paper" / "portfolio_ALL.json").exists():
+    """진짜 장부에서도 아카이브가 **장부와** 맞아야 한다.
+
+    ⚠️ 예전에는 여기서 "주간 아카이브와 텔레그램 리포트가 같은 값"이라고
+       못 박았다. 계좌가 나흘밖에 안 됐을 때는 맞았다 — 기록이 전부 한 주
+       안에 있었으니 '이번 주'와 '최근 7일'이 같은 구간이었다. 2026-08-19
+       기록이 붙어 주가 갈라지자 둘이 갈라졌다(0.35 vs 0.07).
+
+       **결함이 아니라 서로 다른 두 잣대다.** 아카이브는 달력 주(월~일)로
+       묶고, 리포트는 마지막 기록에서 거꾸로 센 7일을 본다 — 그리고 자기가
+       본 구간을 제목에 그대로 적는다("주간 요약 (2026-08-13 ~ 2026-08-19)").
+
+       같은 것이 아닌 둘을 같다고 우기면, 언젠가 맞추려고 **한쪽을 틀리게**
+       고치게 된다. 그래서 각자가 장부와 맞는지를 본다.
+    """
+    from datetime import date, timedelta
+
+    path = ROOT / "state" / "paper" / "portfolio_ALL.json"
+    if not path.exists():
         pytest.skip("장부 없음")
     arch = weekly_archive("state").get("portfolio:ALL") or {}
-    rep = weekly_summary("state")["markets"].get("portfolio:ALL")
-    if not arch or not rep:
+    if not arch:
         pytest.skip("집계할 기록이 없다")
-    last = sorted(arch)[-1]
-    assert arch[last]["return_pct"] == pytest.approx(rep["week_return_pct"]), (
-        f"아카이브 {arch[last]['return_pct']} vs 리포트 "
-        f"{rep['week_return_pct']}")
+    st = json.loads(path.read_text("utf-8"))
+    hist = sorted(st.get("history") or [], key=lambda r: r["date"])
+    if len(hist) < 2:
+        pytest.skip("기록이 두 줄 미만")
+
+    week = sorted(arch)[-1]
+    monday = date.fromisoformat(week)
+    inside = [r for r in hist
+              if monday <= date.fromisoformat(r["date"]) <= monday + timedelta(6)]
+    before = [r for r in hist if date.fromisoformat(r["date"]) < monday]
+    if not inside or not before:
+        pytest.skip("맨 앞 주는 기준선이 원금이라 이 셈으로 검산할 수 없다")
+    # ⚠️ 입금이 낀 주는 자산 비율이 곧 수익이 아니다(입금은 수익이 아니다).
+    #    그런 주는 이 단순 검산으로 확인할 수 없으므로 건너뛴다 — 건너뛴
+    #    사실을 조용히 넘기지 않고 이유와 함께 남긴다.
+    for d in st.get("deposits", []):
+        bar = str(d.get("settled_bar") or "")[:10]
+        if bar and monday <= date.fromisoformat(bar) <= monday + timedelta(6):
+            pytest.skip(f"{week} 주에 정산된 입금이 있다 — 단순 비율로는 검산 불가")
+
+    naive = (float(inside[-1]["equity"]) / float(before[-1]["equity"]) - 1) * 100
+    assert arch[week]["return_pct"] == pytest.approx(naive, abs=0.01), (
+        f"{week} 주 아카이브 {arch[week]['return_pct']}% 인데 장부로 다시 세면 "
+        f"{naive:.2f}% (기준 {before[-1]['date']} {before[-1]['equity']:,.2f} → "
+        f"{inside[-1]['date']} {inside[-1]['equity']:,.2f})")
+
+
+def test_the_weekly_report_says_which_window_it_used():
+    """서로 다른 두 잣대가 공존하는 한, 리포트는 **자기 구간을 밝혀야** 한다.
+
+    안 밝히면 읽는 사람이 사이트의 '이번 주'와 같은 것으로 읽는다.
+    """
+    from quant.live.daily import format_weekly
+
+    rep = weekly_summary("state")
+    period = rep.get("period")
+    if not period:
+        pytest.skip("집계할 기록이 없다")
+    text = format_weekly(rep)
+    first = text.splitlines()[0]
+    for part in (str(period[0]), str(period[1])):
+        assert part in first, (
+            f"리포트 제목이 본 구간을 안 밝힌다: {first!r} (구간 {period})")
 
 
 # ── 페이지가 계산을 그만뒀는가 ────────────────────────────────
