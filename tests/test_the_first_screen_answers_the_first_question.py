@@ -54,6 +54,13 @@ def site(tmp_path_factory):
     st = json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
     pf = st["paper"]["portfolio:ALL"]
     pf["equity"], pf["principal"], pf["start_cash"] = EQ, BASE, BASE
+    # ⚠️ 마지막 항목의 날짜를 덮어쓰면 안 된다(2026-08-19 실측 사고).
+    #    배치가 8-15 이후 기록을 **추가**하자, 덮어쓴 날짜가 실제 8-15
+    #    기록과 중복돼 차트가 '시간 오름차순 위반'으로 던졌다("Value is
+    #    null" ×3). 재현은 덮어쓰기가 아니라 **그날까지 자르기**로 한다 —
+    #    이러면 장부가 자라도 이 검사는 언제나 사고 당일 상태를 본다.
+    pf["history"] = [h for h in pf["history"]
+                     if str(h.get("date") or "") <= DAY] or pf["history"][:1]
     pf["history"][-1]["date"] = DAY
     pf["history"][-1]["equity"] = EQ
     (root / "status.json").write_text(json.dumps(st, ensure_ascii=False), "utf-8")
