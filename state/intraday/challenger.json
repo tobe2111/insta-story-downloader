@@ -1,10 +1,11 @@
 {
-  "cash": 9940.832626995729,
+  "cash": 9790.25559205733,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "ETH/USDT": 0.005737337177596127,
-    "XRP/USDT": 49.72065361201217
+    "XRP/USDT": 49.72065361201217,
+    "BTC/USDT": 0.002334342636094351
   },
   "rounds": [
     {
@@ -974,15 +975,49 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-08-19T02:09:02+00:00",
+      "equity": 10001.26,
+      "signals": {
+        "BTC/USDT": 0.0752,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-19 01:00:00",
+        "ETH/USDT": "2026-08-19 01:00:00",
+        "SOL/USDT": "2026-08-19 01:00:00",
+        "BNB/USDT": "2026-08-19 01:00:00",
+        "XRP/USDT": "2026-08-19 01:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "buy",
+          "notional": 150.35,
+          "price": 64408.5,
+          "cost": 0.2255,
+          "signal": 0.0752
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10002.26,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 8.455952261942711,
+  "cost_paid": 8.681479523458036,
   "last_prices": {
-    "BTC/USDT": 64730.8,
-    "ETH/USDT": 1917.88,
-    "SOL/USDT": 77.05,
-    "BNB/USDT": 603.9,
-    "XRP/USDT": 1.0019
+    "BTC/USDT": 64408.5,
+    "ETH/USDT": 1913.73,
+    "SOL/USDT": 76.81,
+    "BNB/USDT": 603.5,
+    "XRP/USDT": 0.999
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -1002,7 +1037,14 @@
       "XRP/USDT": 49.72065361201217,
       "BTC/USDT": 6.19869637012889e-08
     },
-    "pending": {},
+    "pending": {
+      "BTC/USDT": {
+        "side": "buy",
+        "limit": 64408.5,
+        "notional": 150.36,
+        "placed_bar": "2026-08-19 01:00:00"
+      }
+    },
     "cost_paid": 1.5551000000000001,
     "filled_total": 3,
     "unfilled_total": 2
