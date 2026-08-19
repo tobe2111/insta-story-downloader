@@ -113,9 +113,31 @@ def _serve(root: Path):
     return f"http://127.0.0.1:{srv.server_address[1]}", srv
 
 
+# 지연 띠가 뜨는 상태를 만들기 위한 기준일. 실제 장부가 이 날짜에 멈춰
+# 있기를 **바라지 않는다** — 그날까지만 잘라서 직접 만든다(2026-08-19).
+# 배치가 성공해 기록이 늘어난 날 이 검사가 깨지면, 하필 가장 확인하고 싶은
+# 날 못 쓰게 된다.
+_STALE_UNTIL = "2026-08-15"
+
+
 def _site(base: Path, name: str, *, fresh: bool) -> Path:
     root = base / name
     shutil.copytree(DOCS, root, dirs_exist_ok=True)
+    if not fresh:
+        st = json.loads((DOCS / "status.json").read_text("utf-8"))
+        pf = st["paper"]["portfolio:ALL"]
+        pf["history"] = [r for r in pf["history"]
+                         if str(r.get("date")) <= _STALE_UNTIL]
+        assert pf["history"], "기준일까지의 기록이 없다 — 검사가 낡았다"
+        st["updated"] = pf["history"][-1]["date"]
+        # ⚠️ 검사가 만든 장부가 스스로 말이 돼야 한다. 날짜가 중복되거나 거꾸로
+        #    가면 차트 라이브러리는 'Value is null'이라고만 말하고 죽는다 —
+        #    그 한 줄로는 원인을 찾는 데 한참 걸린다(2026-08-19 실측). 여기서
+        #    먼저, 사람이 읽을 수 있는 말로 걸린다.
+        _d = [str(r.get("date")) for r in pf["history"]]
+        assert _d == sorted(set(_d)), f"검사가 만든 장부의 날짜가 중복·역순이다: {_d}"
+        (root / "status.json").write_text(json.dumps(st, ensure_ascii=False),
+                                          "utf-8")
     if fresh:
         # 기록이 오늘이면 지연 띠 자체가 없다 → 할 말도 없어야 한다.
         from datetime import date

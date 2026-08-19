@@ -37,6 +37,7 @@ STATUS = json.loads((DOCS / "status.json").read_text("utf-8"))
 
 
 def _status_with(**patch) -> dict:
+    """마지막 기록을 고친 사본. 캡션은 늘 **마지막 기록**으로 만들어진다."""
     st = json.loads(json.dumps(STATUS))
     st["paper"]["portfolio:ALL"]["history"][-1].update(patch)
     return st
@@ -46,7 +47,12 @@ def _status_with(**patch) -> dict:
 
 def test_the_real_2026_08_15_numbers_are_refused():
     """되돌리기 전 값(장부가 `_restated.before`로 남겨 둔 그 값)으로 시험한다."""
-    rec = STATUS["paper"]["portfolio:ALL"]["history"][-1]
+    # ⚠️ **마지막 기록**이 아니라 **그날 기록**을 찾는다(2026-08-19).
+    #    처음에는 history[-1]을 봤는데, 그건 "장부는 08-15에서 안 자란다"는
+    #    가정이었다. 배치가 나흘 만에 성공해 08-19가 붙자 이 검사가 깨졌다 —
+    #    하필 가장 확인하고 싶은 날 못 쓰게 되는 검사다.
+    rec = next((r for r in STATUS["paper"]["portfolio:ALL"]["history"]
+                if r.get("date") == "2026-08-15"), {})
     before = (rec.get("_restated") or {}).get("before")
     assert before, "정정 기록이 사라졌다 — 이 검사가 무엇을 재현하는지 알 수 없다"
     with pytest.raises(social.ImpossibleNumbers) as e:
