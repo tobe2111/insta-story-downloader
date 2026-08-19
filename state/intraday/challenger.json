@@ -1,9 +1,10 @@
 {
-  "cash": 9989.24134020107,
+  "cash": 9307.862963176902,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
-    "ETH/USDT": 0.005737337177596127
+    "ETH/USDT": 0.2929521227382162,
+    "BTC/USDT": 0.0017343583040134516
   },
   "rounds": [
     {
@@ -1519,15 +1520,57 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-08-20T00:02:29+09:00",
+      "equity": 9999.53,
+      "signals": {
+        "BTC/USDT": 0.0572,
+        "ETH/USDT": 0.2886,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-19 14:00:00",
+        "ETH/USDT": "2026-08-19 14:00:00",
+        "SOL/USDT": "2026-08-19 14:00:00",
+        "BNB/USDT": "2026-08-19 14:00:00",
+        "XRP/USDT": "2026-08-19 14:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "buy",
+          "notional": 114.34,
+          "price": 65925.2,
+          "cost": 0.1715,
+          "signal": 0.0572
+        },
+        {
+          "symbol": "ETH/USDT",
+          "side": "buy",
+          "notional": 566.02,
+          "price": 1970.72,
+          "cost": 0.849,
+          "signal": 0.2886
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10002.1,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 2
+      }
     }
   ],
-  "cost_paid": 10.783220017491614,
+  "cost_paid": 11.803756777887273,
   "last_prices": {
-    "BTC/USDT": 65012.6,
-    "ETH/USDT": 1932.8,
-    "SOL/USDT": 78.41,
-    "BNB/USDT": 604.5,
-    "XRP/USDT": 1.0169
+    "BTC/USDT": 65925.2,
+    "ETH/USDT": 1970.72,
+    "SOL/USDT": 80.87,
+    "BNB/USDT": 608.6,
+    "XRP/USDT": 1.0331
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -1546,7 +1589,20 @@
       "ETH/USDT": 0.005737337177596127,
       "BTC/USDT": 1.8846695697995186e-08
     },
-    "pending": {},
+    "pending": {
+      "BTC/USDT": {
+        "side": "buy",
+        "limit": 65925.2,
+        "notional": 114.35,
+        "placed_bar": "2026-08-19 14:00:00"
+      },
+      "ETH/USDT": {
+        "side": "buy",
+        "limit": 1970.72,
+        "notional": 566.11,
+        "placed_bar": "2026-08-19 14:00:00"
+      }
+    },
     "cost_paid": 3.10673886579513,
     "filled_total": 11,
     "unfilled_total": 8
