@@ -183,11 +183,13 @@ def _notify_extra(message: str) -> None:
        ②는 이미 나간 뒤다. 2026-08-17 밤 실제로 그랬다 — 폰에는
        "자산 999,078원", "챔피언 교체 SPY·QQQ"가 남았는데 장부에는
        그런 일이 없다. 커밋이 끝난 뒤 `quant notify --flush`가 내보낸다.
+
+       ⚠️ 그 판단은 **여기 있지 않다**(감사 287). 처음에는 여기 있었는데,
+          알림이 나가는 길이 이 함수 하나가 아니었다 — 플래그 파수꾼은
+          알림기를 직접 부른다. 같은 규칙이 두 곳에 있으면 반드시
+          갈라진다(FROZEN_IDEAS ①). 이제 `get_notifier()`가 미루는 밤에
+          바깥 채널 대신 대기열을 돌려주므로, 어느 길로 오든 한 문을 지난다.
     """
-    from quant.live import notice_queue
-    if notice_queue.deferring():
-        notice_queue.stage(message)
-        return
     try:
         from quant.live.notifications import ConsoleNotifier, get_notifier
         n = get_notifier()

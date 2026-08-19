@@ -103,6 +103,36 @@ class DiscordNotifier(Notifier):
             return False
 
 
+class DeferredNotifier(Notifier):
+    """보내지 않고 **대기열에 쌓는다** — 커밋이 끝난 뒤에 나간다 (감사 287).
+
+    ⚠️ 왜 여기까지 내려왔나 (2026-08-18 밤).
+       감사 283이 "저장된 것만 방송한다"를 만들면서, 미루는 판단을
+       ``quant/cli.py``의 알림 함수 **한 군데**에 넣었다. 그런데 알림을
+       내보내는 길은 거기 하나가 아니었다. 같은 밤, 페이퍼 배치가 장부
+       관문에서 죽어 **그날 기록이 또 안 남았는데** 디스코드에는 이런 줄이
+       먼저 도착했다.
+
+           🚩 새 플래그 알림 발송: miscal:60-70, lot_infeasible:3, guard_late:9h
+
+       플래그 파수꾼은 그 함수를 거치지 않고 알림기를 직접 부르기 때문이다.
+       고친 결함의 **형제를 찾기 전까지는 고친 게 아니다**(FROZEN_IDEAS ⑭).
+       그래서 판단을 '부르는 쪽'이 아니라 **나가는 문**으로 옮긴다 — 어느
+       길로 오든 이 문 하나를 지난다.
+
+    쌓은 것을 '보냈다'로 돌려주는 이유: 부르는 쪽(플래그 파수꾼 등)은 이
+    반환값으로 "이 경보는 처리됐다"를 **장부에 적는다.** 그 장부도, 이
+    대기열도, 커밋이 성공해야 남고 실패하면 러너와 함께 사라진다 — 둘은
+    같은 운명이라 어긋나지 않는다.
+    """
+
+    def send(self, message: str, level: str = "info") -> bool:
+        from quant.live import notice_queue
+
+        notice_queue.stage(message)
+        return True
+
+
 class MultiNotifier(Notifier):
     """여러 채널로 동시에 전송. 개별 채널 실패는 서로 격리된다."""
 
@@ -163,5 +193,18 @@ def get_notifier() -> Notifier:
     if discord:
         channels.append(DiscordNotifier(discord))
         log.info("디스코드 알림 활성화")
+
+    # 미루는 밤이면 **바깥으로 나가는 채널을 대기열로 바꾼다**(감사 287).
+    # 콘솔은 그대로 둔다 — 배치 로그에는 그대로 찍혀야 무슨 일이 있었는지
+    # 사후에 읽을 수 있다.
+    #
+    # ⚠️ 바깥 채널이 하나도 없으면 바꾸지 않는다. 그때는 애초에 보낼 곳이
+    #    없다는 사실을 MultiNotifier가 False로 말해야 하는데, 대기열로
+    #    덮으면 그 말이 사라지고 '전달됨'으로 기록된다(감사 175의 사고).
+    from quant.live import notice_queue
+    has_outside = any(c.external for c in channels)
+    if notice_queue.deferring() and has_outside:
+        log.info("알림 대기 중 — 커밋이 끝난 뒤 한꺼번에 내보냅니다")
+        channels = [c for c in channels if not c.external] + [DeferredNotifier()]
 
     return MultiNotifier(channels)

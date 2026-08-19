@@ -5802,10 +5802,10 @@ MUTATIONS = [
     # 2026-08-17 밤, 폰에는 "자산 999,078원"과 "챔피언 교체 SPY·QQQ"가
     # 남았는데 장부에는 그런 일이 없다. 배치가 ①계산 →②알림 →③관문 →④커밋
     # 순서였고 ③에서 죽었다. 알림은 이미 나간 뒤였다.
-    ("알림을 다시 커밋 전에 내보낸다(일어나지 않은 일이 방송된다)",
-     "quant/cli.py",
-     "    if notice_queue.deferring():",
-     "    if False:",
+    ("미루기 스위치를 항상 꺼진 것으로 읽는다(일어나지 않은 일이 방송된다)",
+     "quant/live/notice_queue.py",
+     '    return str(os.environ.get(ENV_DEFER) or "").strip().lower() in (',
+     "    return False and (",
      "tests/test_only_saved_things_are_broadcast.py"),
 
     ("밤 배치가 알림 미루기를 끈다(관문에서 죽어도 숫자가 먼저 나간다)",
@@ -5854,6 +5854,45 @@ MUTATIONS = [
      "        if bar_times and bar_times == last_bars:",
      "        if False:",
      "tests/test_the_frequency_ladder_measures_not_guesses.py"),
+
+    # ── 장부의 판정과 화면의 판정 (2026-08-18 감사 286) ──────────────
+    ("화면이 장부의 '못 믿을 금액' 표식을 무시하고 자기 잣대만 쓴다",
+     "docs/assets/amounts.js",
+     "    var rekt = rec.impossible_amounts || {};",
+     "    var rekt = {};",
+     "tests/test_the_amounts_add_up.py"),
+    ("같은 종목을 두 번 센다 — '1건'을 '2건'이라 말한다",
+     "docs/assets/amounts.js",
+     "      if (!x || x.key == null || seen[x.key]) return;",
+     "      if (!x || x.key == null) return;",
+     "tests/test_the_amounts_add_up.py"),
+    ("순노출을 기록에서 안 읽는다 — 롱·숏이 섞인 날 합계만 말한다",
+     "docs/index.html",
+     "    const net=pfLast.net_weight;",
+     "    const net=null;",
+     "tests/test_ledger_fields_reach_the_screen.py"),
+    ("합계와 순액이 같은 날에도 '섞여 있다'고 말한다 — 매일 뜨는 설명",
+     "docs/index.html",
+     '    if(eq&&typeof net==="number"&&Math.abs(Math.abs(net)-tgt)>0.005)',
+     '    if(eq&&typeof net==="number")',
+     "tests/test_the_screen_says_who_took_the_budget.py"),
+
+    # ── 알림이 나가는 문 (2026-08-18 감사 287) ───────────────────────
+    ("미루는 밤인데 바깥 채널을 그대로 쓴다 — 저장 안 된 일이 먼저 방송된다",
+     "quant/live/notifications.py",
+     "    if notice_queue.deferring() and has_outside:",
+     "    if False:",
+     "tests/test_only_saved_things_are_broadcast.py"),
+    ("보낼 곳이 없어도 대기열로 덮는다 — 아무도 못 받은 경보를 '전달됨'으로 적는다",
+     "quant/live/notifications.py",
+     "    has_outside = any(c.external for c in channels)",
+     "    has_outside = True",
+     "tests/test_only_saved_things_are_broadcast.py"),
+    ("대기열에 넣고도 '못 보냈다'고 한다 — 플래그가 매일 다시 울린다",
+     "quant/live/notifications.py",
+     "        notice_queue.stage(message)\n        return True",
+     "        notice_queue.stage(message)\n        return False",
+     "tests/test_only_saved_things_are_broadcast.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

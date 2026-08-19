@@ -42,23 +42,48 @@
     return Math.abs(_num(amount)) > eq * SANITY_RATIO;
   }
 
+  /** 두 목록을 key로 합친다(중복 제거) — 순서는 먼저 온 쪽을 지킨다. */
+  function _merge(a, b) {
+    var seen = {}, out = [];
+    (a || []).concat(b || []).forEach(function (x) {
+      if (!x || x.key == null || seen[x.key]) return;
+      seen[x.key] = 1;
+      out.push(x);
+    });
+    return out;
+  }
+
   /**
    * 그날 기록 전체를 훑어 계좌보다 큰 금액을 찾는다.
    * 반환: {fills:[{key,amount}], lot_priority:[{key,spent}], equity} — 없으면 {}.
+   *
+   * ⚠️ **장부가 이미 적어 둔 판정을 먼저 읽는다**(감사 286). 배치는 같은
+   *    검사를 파이썬 쪽에서 돌려 그 결과를 기록에 `impossible_amounts`로
+   *    남긴다. 화면이 그것을 안 읽고 매번 다시 계산하면, 같은 규칙이 두
+   *    곳에 살아 언젠가 갈라진다(FROZEN_IDEAS ①). 잣대가 달라지는 날
+   *    장부는 "못 믿을 금액"이라 적어 두었는데 화면은 아무 일 없다는 듯
+   *    그 숫자를 그대로 말하게 된다 — 가장 잡기 어려운 종류의 거짓말이다.
+   *
+   *    다시 계산하는 쪽도 남긴다. 이 필드가 생기기 전(2026-08-15까지)의
+   *    기록에는 값이 없고, 그 시절 사고가 바로 이 장치를 만든 계기였다.
+   *    둘을 합집합으로 쓴다 — 한쪽만 잡아도 화면은 말한다.
    */
   function overEquity(record) {
     var rec = record || {};
     var eq = Number(rec.equity);
     if (!isFinite(eq) || !(eq > 0)) return {};
     var out = {};
+    var rekt = rec.impossible_amounts || {};
     var f = (rec.fills || []).filter(function (x) {
       return impossible(eq, x && x.amount);
     }).map(function (x) { return { key: x.key, amount: _num(x.amount) }; });
+    f = _merge(rekt.fills, f);
     if (f.length) out.fills = f;
     var lp = rec.lot_priority || {};
     var l = Object.keys(lp).sort().filter(function (k) {
       return impossible(eq, (lp[k] || {}).spent);
     }).map(function (k) { return { key: k, spent: _num((lp[k] || {}).spent) }; });
+    l = _merge(rekt.lot_priority, l);
     if (l.length) out.lot_priority = l;
     if (f.length || l.length) out.equity = eq;
     return out;
