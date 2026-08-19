@@ -145,3 +145,86 @@ def test_a_shadow_crash_cannot_stop_the_main_round(monkeypatch):
     src = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
     assert "지정가 그림자 실패(본 실험 무관)" in src, (
         "그림자 예외가 본 실험으로 새어 나간다")
+
+
+# ── 빚을 막는 자물쇠가 **둘**이라는 사실 (2026-08-19 변이 시험) ──────
+#
+# 야간 변이 시험이 "체결 시점의 레버리지 금지선을 떼도 아무 검사도 안
+# 잡는다"고 알려 줬다. 파 보니 검사가 약한 게 아니라 **자물쇠가 둘**이었다:
+#
+#   ① 주문 시점 — 대기 매수의 합계가 현금을 넘지 않게 예산을 깎는다
+#   ② 체결 시점 — 그래도 현금보다 크면 살 수 있는 만큼만 산다
+#
+# 하나를 떼도 나머지가 막아 주니 한 줄 변이로는 행동이 안 변한다. 그래서
+# **짝을 잠가 놓고 하나씩** 시험한다. 마지막 검사가 핵심이다 — 둘 다 떼면
+# 실제로 빚이 난다는 것을 보여, 위 두 검사가 헛돌지 않음을 증명한다.
+
+_LOCK_ORDER = ("                budget -= delta * (1.0 + fee_only)",
+               "                pass")
+_LOCK_FILL = ('            if notional + fee > sh["cash"]:            '
+              '# 레버리지 금지',
+              "            if False:")
+
+
+def _module_without(*locks):
+    """자물쇠를 뺀 사본 모듈. 원본 줄이 사라졌으면 큰 소리로 실패한다."""
+    import importlib.util
+    import tempfile
+
+    src = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
+    for old, new in locks:
+        assert old in src, f"자물쇠 줄이 코드에서 사라졌다 — 검사를 고쳐라: {old}"
+        src = src.replace(old, new)
+    with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False,
+                                     encoding="utf-8") as f:
+        f.write(src)
+        path = f.name
+    spec = importlib.util.spec_from_file_location("ic_probe", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _overdraft_scenario(IC):
+    """현금 100인데 두 종목이 각각 80씩 사고 싶어 하는 자리 — 그림자 현금."""
+    a, b, held = "BTC/USDT", "SOL/USDT", "ETH/USDT"
+    st = {"cash": 100.0, "start_cash": 10_000.0, "positions": {held: 5.0},
+          "cost_paid": 0.0, "rounds": [], "risk_scale": 1.0}
+    # 들고 있는 ETH는 판단 대상에서 빼 둔다 — 매도로 현금이 들어오면
+    # 빚이 안 나서 자물쇠를 시험할 수 없다.
+    sig = {s: (1.0 if s in (a, b) else None) for s in IC.UNIVERSE}
+    prices = {a: 100.0, b: 100.0, held: 60.0}
+    bars = {a: "2026-08-18 02:00:00", b: "2026-08-18 02:00:00"}
+    IC._limit_shadow_round(st, {a: _df([100] * 3), b: _df([100] * 3)},
+                           sig, prices, fee_only=0.001, scale=1.0,
+                           now_iso="2026-08-18T05:00:00", bar_times=bars)
+    hit = _df([100] * 4, lows=[99, 99, 99, 90])      # 지정가에 닿는다 → 체결
+    IC._limit_shadow_round(st, {a: hit, b: hit}, sig, prices,
+                           fee_only=0.001, scale=1.0,
+                           now_iso="2026-08-18T06:00:00",
+                           bar_times={a: "2026-08-18 03:00:00",
+                                      b: "2026-08-18 03:00:00"})
+    return st["limit_shadow"]["cash"]
+
+
+def test_the_order_budget_alone_prevents_debt():
+    """체결 시점 자물쇠를 잠가 놓아도 주문 예산만으로 빚이 안 난다."""
+    assert _overdraft_scenario(_module_without(_LOCK_FILL)) >= -1e-6
+
+
+def test_the_fill_guard_alone_prevents_debt():
+    """주문 예산을 잠가 놓아도 체결 시점 금지선만으로 빚이 안 난다."""
+    assert _overdraft_scenario(_module_without(_LOCK_ORDER)) >= -1e-6
+
+
+def test_the_scenario_really_can_borrow_when_both_locks_are_gone():
+    """위 두 검사가 헛돌지 않는다는 증명 — 둘 다 떼면 실제로 빚이 난다."""
+    cash = _overdraft_scenario(_module_without(_LOCK_ORDER, _LOCK_FILL))
+    assert cash < 0, (
+        f"자물쇠를 둘 다 뗐는데 빚이 안 났다({cash}) — 이 자리는 더 이상 "
+        "레버리지 금지선을 시험하지 못한다. 시나리오를 고쳐라")
+
+
+def test_the_live_module_keeps_both_locks():
+    """그리고 실제 코드에는 둘 다 있어야 한다."""
+    assert _overdraft_scenario(IC) >= -1e-6
