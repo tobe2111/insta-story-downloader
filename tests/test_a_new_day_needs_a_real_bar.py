@@ -219,13 +219,17 @@ def _run_account(monkeypatch, tmp_path, *, crypto_elapsed: float):
     out = dl.run_daily_portfolio([("crypto", "BTC/USDT"), ("us_stock", "SPY")],
                                  state_dir=str(tmp_path),
                                  require_real_data=False)
-    return out, json.loads(path.read_text("utf-8"))
+    # 날짜를 **여기서 만든 값 그대로** 돌려준다(2026-08-19 자정 실측).
+    # 검증부가 dt.date.today()를 다시 부르면, CI가 23:59에 시작해 검사
+    # 도중 자정을 넘는 날 '오늘'이 둘로 갈라져 거짓 빨강이 된다 —
+    # 이 파일 머리의 교훈("벽시계에 매달린 검사는 무시당한다") 그대로다.
+    return out, json.loads(path.read_text("utf-8")), today, yday
 
 
 def test_a_midnight_retry_is_skipped_by_the_real_account(monkeypatch, tmp_path):
     """자정을 넘겨 뜬 재시도는 계좌를 건드리지 못해야 한다."""
-    out, st = _run_account(monkeypatch, tmp_path, crypto_elapsed=0.0003)
-    yday = (dt.date.today() - dt.timedelta(days=1)).isoformat()
+    out, st, _today, yday = _run_account(monkeypatch, tmp_path,
+                                         crypto_elapsed=0.0003)
     assert out.get("skipped") is True, (
         f"자정 직후 코인 봉으로 새 날을 열었다 — {out.get('last_bar')}")
     assert st["last_bar"] == yday, "다음 날을 선점해 버렸다"
@@ -237,8 +241,8 @@ def test_the_same_account_does_open_a_normal_day(monkeypatch, tmp_path):
 
     이 대조군이 없으면 '무조건 건너뛰는' 코드도 위 검사를 통과한다.
     """
-    out, st = _run_account(monkeypatch, tmp_path, crypto_elapsed=0.9271)
-    today = dt.date.today().isoformat()
+    out, st, today, _yday = _run_account(monkeypatch, tmp_path,
+                                         crypto_elapsed=0.9271)
     assert not out.get("skipped"), "정상 배치까지 막아 버렸다"
     assert st["last_bar"] == today
     assert st["history"], "그날 기록이 남지 않았다"
