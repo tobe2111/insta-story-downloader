@@ -173,6 +173,32 @@ def confirmed_bars(df, now_iso: str, timeframe: str = TIMEFRAME):
     return df[list(keep)]
 
 
+def gross_return_pct(equity, start_cash, cost_paid) -> float | None:
+    """비용을 **물기 전**이었다면 몇 %였나.
+
+    ⚠️ 왜 이 값을 함께 내보내나 (2026-08-20 사장님 지적).
+       사다리 표에는 순수익률(비용 뺀 뒤)만 있었다. 그래서 1시간 +2.03%,
+       15분 +1.57%, 5분 +0.33%을 보고 **"자주 할수록 나빠진다"**고 읽었다.
+       틀린 독해였다 — 비용을 떼면 15분(+2.36%)이 1시간(+2.32%)보다 오히려
+       높다. 순위를 만든 것은 빈도가 아니라 **회전율 × 편도 비용**이었다.
+
+       "신호가 나쁜가"와 "비용을 못 견디는가"는 다른 진단이고, 처방도
+       다르다(전자는 전략 교체, 후자는 체결 개선 — 실제로 지정가 그림자가
+       시장가보다 낫다). 두 열을 나란히 놓으면 그 구별이 눈에 보인다.
+
+       이것은 판정이 아니라 **읽는 재료**다. 우열 판정은 사전 등록한 90일
+       기준으로만 하고, 짧은 구간의 순서는 시장 국면과 비용이 만든 것일 수
+       있다 — 그 문장도 화면에 함께 싣는다.
+    """
+    try:
+        eq, seed, cost = float(equity), float(start_cash), float(cost_paid or 0.0)
+    except (TypeError, ValueError):
+        return None
+    if not (seed > 0):
+        return None
+    return round(((eq + cost) / seed - 1) * 100, 4)
+
+
 def hold_baseline_pct(st: dict, per_side: float = 0.0) -> float | None:
     """같은 종목을 첫 회차 가격에 사서 **그냥 들고만 있었다면** 몇 %인가.
 
@@ -618,6 +644,9 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
             "hold_return_pct": hold_baseline_pct(
                 st, measured_cost_model("crypto", state_dir).total_one_way()),
+            # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다.
+            "gross_return_pct": gross_return_pct(
+                eq, st["start_cash"], st.get("cost_paid")),
             "trades_total": sum(len(r.get("trades") or []) for r in rounds),
             "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
             "rounds_total": len(rounds),
@@ -665,6 +694,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "start_cash": base,
         "equity": round(eq, 2),
         "return_pct": round((eq / base - 1) * 100, 4),
+        # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다(2026-08-20).
+        "gross_return_pct": gross_return_pct(eq, base, st.get("cost_paid")),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
         "trades_total": trades_total,
         "rounds_total": len(rounds),

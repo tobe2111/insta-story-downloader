@@ -6345,6 +6345,18 @@ MUTATIONS = [
      "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+",
      "            ''+",
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+
+    # ── 순위가 신호인지 비용인지 가른다 (2026-08-20 감사 295) ───────
+    ('총수익률을 순수익률과 같게 만든다(비용 차이인지 신호 차이인지 못 가른다)',
+     'quant/live/intraday_challenger.py',
+     '    return round(((eq + cost) / seed - 1) * 100, 4)',
+     '    return round((eq / seed - 1) * 100, 4)',
+     'tests/test_the_frequency_ladder_measures_not_guesses.py'),
+    ('짧은 구간 순서를 결론으로 읽지 말라는 경고를 뗀다(줄 세워 단정하게 된다)',
+     'docs/intraday.html',
+     "        '있어</b> 우열 판정에 쓰지 않습니다. '+",
+     "        '있습니다. '+",
+     'tests/test_the_frequency_ladder_measures_not_guesses.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

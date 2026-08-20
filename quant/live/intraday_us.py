@@ -482,6 +482,7 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
     from quant.live.daily import measured_cost_model
+    from quant.live.intraday_challenger import gross_return_pct
     from quant.live.intraday_challenger import (_shadow_public,
                                                 hold_baseline_pct,
                                                 observed_gap_minutes)
@@ -496,6 +497,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "start_cash": base,
         "equity": round(eq, 2),
         "return_pct": round((eq / base - 1) * 100, 4),
+        # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다(2026-08-20).
+        "gross_return_pct": gross_return_pct(eq, base, st.get("cost_paid")),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
         "trades_total": sum(len(r.get("trades") or []) for r in rounds),
         "rounds_total": len(rounds),
