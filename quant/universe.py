@@ -120,10 +120,28 @@ def active_targets(state_dir: str = "state") -> list[tuple[str, str]]:
 
 
 def due(state_dir: str = "state", today: _dt.date | None = None) -> bool:
-    """이번 달 재계산을 아직 안 했는가 — 매월 1회 규칙."""
+    """재계산할 때인가 — 달이 바뀌었거나 **규칙이 바뀌었거나**.
+
+    ⚠️ 규칙 조건이 없어서 확장이 12일 늦을 뻔했다 (2026-08-20 감사 296).
+       2026-08-19에 자산군 코어를 넣어 규칙을 20종목 → 45종목으로 바꿨는데,
+       이 함수가 **달만** 보고 있어서 스냅샷(같은 달 08-19)이 그대로 남았다.
+       코드는 45종목이라 말하고 계좌는 20종목으로 돌았다. 사장님이 "자산군
+       늘려라"라고 하신 결과가 9월 1일에야 적용될 참이었다.
+
+       규칙을 바꾸는 것은 사람이 의도적으로 하는 일이고, 그 의도가 다음
+       달까지 기다릴 이유가 없다. 스냅샷은 자기를 만든 규칙 버전을 이미
+       적고 있었다 — 그것을 보기만 하면 됐다.
+
+    매월 1회라는 원칙은 그대로다. 규칙이 그대로면 이 함수는 예전과 똑같이
+    달만 본다(잦은 회전은 그 자체가 비용이다).
+    """
     today = today or _dt.date.today()
     snap = load(state_dir)
     if not snap:
+        return True
+    if str(snap.get("rule_version", "")) != RULE_VERSION:
+        log.info("규칙 버전이 바뀌었습니다(%s → %s) — 유니버스를 다시 계산합니다",
+                 snap.get("rule_version"), RULE_VERSION)
         return True
     return str(snap.get("asof", ""))[:7] != today.isoformat()[:7]
 
@@ -243,44 +261,38 @@ def rebuild(state_dir: str = "state",
     rationale: dict = {}
     markets: dict[str, list[str]] = {}
 
-    try:
-        ranked = rank_crypto()
-        extra = [s for s in ranked if s not in CRYPTO_CORE][:CRYPTO_TOP]
-        markets["crypto"] = CRYPTO_CORE + extra
-        rationale["crypto"] = {"rule": f"BTC·ETH 고정 + 거래대금 상위 {CRYPTO_TOP}",
-                               "top10": ranked[:10]}
-    except Exception as exc:  # noqa: BLE001 — 실패 시 직전 구성 유지
-        markets["crypto"] = prev_by_market.get("crypto", [])
-        rationale["crypto"] = {"kept_previous": True,
-                               "reason": f"{type(exc).__name__}: {exc}"}
+    # ⚠️ **고정 코어는 순위가 아니다** (2026-08-20 감사 296).
+    #    예전에는 순위 조회가 실패하면 그 시장 전체를 '직전 유지'로 떨어뜨렸다.
+    #    그래서 금·국채·리츠처럼 **순위와 무관하게 규칙으로 박아 둔 종목**까지
+    #    함께 버려졌다. 2026-08-19 밤 실측: 코인 403, 한국 pykrx 컬럼 변경 —
+    #    두 시장이 통째로 옛 구성으로 남았고, 새로 넣은 자산군은 하나도 안
+    #    들어왔다. 조회가 깨진 것은 **순위**뿐인데 대가는 확장 전체였다.
+    #    이제 코어는 언제나 들어가고, 실패하면 순위로 뽑는 꼬리만 직전 것을 쓴다.
+    def _market(name: str, core: list[str], top: int, rank, rule_text: str):
+        try:
+            ranked = list(rank())
+        except Exception as exc:  # noqa: BLE001 — 순위만 실패한다
+            prev = prev_by_market.get(name, [])
+            extra = [s for s in prev if s not in core][:top]
+            markets[name] = core + extra
+            rationale[name] = {
+                "core_applied": True,          # 코어는 들어갔다
+                "ranking_failed": True,        # 못 받은 것은 순위뿐
+                "kept_previous_tail": extra,
+                "reason": f"{type(exc).__name__}: {exc}"}
+            return
+        extra = [s for s in ranked if s not in core][:top]
+        markets[name] = core + extra
+        rationale[name] = {"rule": rule_text, "top10": ranked[:10]}
 
-    try:
-        ranked = rank_kr(asof)
-        core_kr = KR_CORE + KR_ASSET_CORE
-        extra = [s for s in ranked if s not in core_kr][:KR_TOP]
-        markets["kr_stock"] = core_kr + extra
-        rationale["kr_stock"] = {"rule": f"KODEX200·자산군 ETF {len(KR_ASSET_CORE)}종 고정 + 시총 상위 {KR_TOP}"
-                                         " (우선주 제외)",
-                                 "top10": ranked[:10]}
-    except Exception as exc:  # noqa: BLE001
-        markets["kr_stock"] = prev_by_market.get("kr_stock", [])
-        rationale["kr_stock"] = {"kept_previous": True,
-                                 "reason": f"{type(exc).__name__}: {exc}"}
-
-    try:
-        ranked = rank_us()
-        core_us = US_CORE + US_ASSET_CORE
-        extra = [s for s in ranked if s not in core_us][:US_TOP]
-        markets["us_stock"] = core_us + extra
-        rationale["us_stock"] = {
-            "rule": f"지수 ETF(SPY·QQQ)+자산군 ETF {len(US_ASSET_CORE)}종 고정 +  시총 상위 {US_TOP}"
-                    " (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
-            "top10": ranked[:10]}
-    except Exception as exc:  # noqa: BLE001 — 실패 시 직전 구성 유지
-        markets["us_stock"] = prev_by_market.get(
-            "us_stock", [s for m, s in AUTO_TARGETS if m == "us_stock"])
-        rationale["us_stock"] = {"kept_previous": True,
-                                 "reason": f"{type(exc).__name__}: {exc}"}
+    _market("crypto", CRYPTO_CORE, CRYPTO_TOP, rank_crypto,
+            f"BTC·ETH 고정 + 거래대금 상위 {CRYPTO_TOP}")
+    _market("kr_stock", KR_CORE + KR_ASSET_CORE, KR_TOP, lambda: rank_kr(asof),
+            f"KODEX200·자산군 ETF {len(KR_ASSET_CORE)}종 고정 + 시총 상위 {KR_TOP}"
+            " (우선주 제외)")
+    _market("us_stock", US_CORE + US_ASSET_CORE, US_TOP, rank_us,
+            f"지수 ETF(SPY·QQQ)+자산군 ETF {len(US_ASSET_CORE)}종 고정 + 시총 상위 {US_TOP}"
+            " (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)")
 
     targets = ([("crypto", s) for s in markets["crypto"]]
                + [("us_stock", s) for s in markets["us_stock"]]

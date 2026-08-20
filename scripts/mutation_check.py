@@ -5841,8 +5841,8 @@ MUTATIONS = [
     # ── 규칙 유니버스 (2026-08-18) — 규칙이 굽으면 즉흥 선정으로 돌아간다 ──
     ("조회 실패 시장을 빈 목록으로 만든다(직전 구성 유지 원칙 위반)",
      "quant/universe.py",
-     '        markets["kr_stock"] = prev_by_market.get("kr_stock", [])',
-     '        markets["kr_stock"] = []',
+     '            extra = [s for s in prev if s not in core][:top]',
+     '            extra = []',
      "tests/test_the_universe_is_chosen_by_rule.py"),
 
     ("월 1회 관문을 뗀다(매일 유니버스가 바뀌어 이력이 소음이 된다)",
@@ -6228,9 +6228,12 @@ MUTATIONS = [
      "tests/test_more_symbols_is_not_more_information.py"),
     ("자산군 코어를 비운다(위험자산 한 덩어리로 되돌아간다)",
      "quant/universe.py",
-     '        core_us = US_CORE + US_ASSET_CORE',
-     "        core_us = US_CORE",
-     "tests/test_more_symbols_is_not_more_information.py"),
+     '    _market("us_stock", US_CORE + US_ASSET_CORE, US_TOP, rank_us,',
+     '    _market("us_stock", US_CORE, US_TOP, rank_us,',
+     # 예전 짝(test_more_symbols_is_not_more_information)은 이걸 못 잡았다
+     # — 그 검사는 합성 데이터로 '실효 표본 계측기'를 보지, 실제 코어 목록을
+     #   보지 않는다. 코어가 비면 잡아야 할 검사는 유니버스 쪽이다(감사 296).
+     "tests/test_the_universe_expansion_actually_lands.py"),
     # ── 장중 실험 시계는 한국 시간 (2026-08-19 사장님 지시) ──────────
     ('장중 실험 시각을 UTC로 되돌린다(사장님이 보는 시각이 9시간 어긋난다)',
      'quant/cli.py',
@@ -6357,6 +6360,18 @@ MUTATIONS = [
      "        '있어</b> 우열 판정에 쓰지 않습니다. '+",
      "        '있습니다. '+",
      'tests/test_the_frequency_ladder_measures_not_guesses.py'),
+
+    # ── 늘리기로 한 종목이 실제로 들어오는가 (2026-08-20 감사 296) ──
+    ('규칙이 바뀌어도 다음 달까지 기다린다(코드는 45종목인데 계좌는 20종목으로 돈다)',
+     'quant/universe.py',
+     '    if str(snap.get("rule_version", "")) != RULE_VERSION:',
+     '    if False:',
+     'tests/test_the_universe_expansion_actually_lands.py'),
+    ('순위가 깨지면 고정 코어까지 버린다(금·국채가 통째로 안 들어온다)',
+     'quant/universe.py',
+     '            markets[name] = core + extra\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
+     '            markets[name] = prev\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
+     'tests/test_the_universe_expansion_actually_lands.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

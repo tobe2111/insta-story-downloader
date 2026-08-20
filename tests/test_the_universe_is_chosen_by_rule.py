@@ -184,7 +184,16 @@ def test_us_ranking_parses_and_excludes_share_class_notation():
 
 
 def test_us_failure_keeps_previous_and_says_why(tmp_path):
-    """미국 조회 실패도 다른 시장과 같은 원칙 — 직전 구성 유지 + 사유."""
+    """미국 조회 실패도 다른 시장과 같은 원칙 — 직전 구성 유지 + 사유.
+
+    ⚠️ 2026-08-20에 계약이 조금 날카로워졌다(감사 296). 예전에는 실패하면
+       그 시장을 **통째로** 직전 구성으로 되돌렸는데, 그러면 순위와 무관한
+       고정 코어(금·국채·리츠 ETF)까지 함께 버려졌다. 이제 코어는 언제나
+       들어가고 **순위로 뽑는 꼬리만** 직전 것을 쓴다. 그래서 표식 이름도
+       `kept_previous`(시장 전체) → `ranking_failed` + `kept_previous_tail`
+       (꼬리만)로 바뀌었다. 지켜야 할 것 — 직전 종목이 남고 사유가 적힌다 —
+       은 그대로다.
+    """
     U.rebuild(str(tmp_path), today=dt.date(2026, 8, 18),
               rank_crypto=_fake_crypto, rank_kr=_fake_kr, rank_us=_fake_us)
 
@@ -196,8 +205,14 @@ def test_us_failure_keeps_previous_and_says_why(tmp_path):
     assert "NVDA" in us and len(us) == len(U.US_CORE) \
         + len(U.US_ASSET_CORE) + U.US_TOP, (
         "실패한 시장이 직전 구성을 유지하지 않는다")
-    assert snap["rationale"]["us_stock"]["kept_previous"] is True
-    assert "스크리너 점검 중" in snap["rationale"]["us_stock"]["reason"]
+    r = snap["rationale"]["us_stock"]
+    assert r["ranking_failed"] is True and r["core_applied"] is True
+    assert "NVDA" in r["kept_previous_tail"], (
+        "순위가 죽었으면 꼬리는 직전 것을 써야 한다")
+    assert "스크리너 점검 중" in r["reason"]
+    # 고정 코어는 실패와 무관하게 들어간다 — 이것이 이번 감사의 요지다.
+    for sym in U.US_ASSET_CORE:
+        assert sym in us, f"{sym}은 순위가 필요 없는 고정 코어인데 빠졌다"
 
 
 def test_us_empty_screener_is_a_failure_not_an_empty_universe():
