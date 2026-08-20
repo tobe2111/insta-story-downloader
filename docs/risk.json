@@ -1,32 +1,32 @@
 {
  "kind": "simulation",
- "generated": "2026-08-19",
+ "generated": "2026-08-20",
  "replay": {
   "kind": "simulation",
   "period": {
    "from": "2023-03-28",
-   "to": "2026-08-18",
-   "days": 1158
+   "to": "2026-08-19",
+   "days": 1159
   },
   "n_symbols": 20,
   "target_vol": 0.12,
   "raw": {
-   "final_multiple": 3.794,
-   "ann_vol": 0.2681,
+   "final_multiple": 3.8517,
+   "ann_vol": 0.268,
    "mdd": -0.3823,
    "worst_day": -0.0946,
    "worst_20d": -0.2262,
    "longest_underwater_days": 212
   },
   "braked": {
-   "final_multiple": 2.266,
-   "ann_vol": 0.1624,
+   "final_multiple": 2.274,
+   "ann_vol": 0.1623,
    "mdd": -0.1847,
    "worst_day": -0.0734,
    "worst_20d": -0.1734,
-   "longest_underwater_days": 217
+   "longest_underwater_days": 218
   },
-  "mean_exposure": 0.5271,
+  "mean_exposure": 0.5269,
   "kill_switch_episodes": [
    {
     "from": "2024-08-06",
@@ -47,7 +47,7 @@
     "dd_at_trigger": -0.1556,
     "min_scale": 0.5,
     "to": null,
-    "days": 194
+    "days": 195
    }
   ],
   "ruin": {
@@ -174,11 +174,6 @@
   ]
  },
  "correlation": {
-  "avg_corr_all_days": 0.0361,
-  "n_days": 6,
-  "n_symbols": 14,
-  "n_down_days": 5,
-  "note": "하락일 상관이 평시보다 높으면 분산 효과는 필요한 순간에 줄어든다 — 진단 전용, 실행 미반영(구조 동결)",
-  "avg_corr_down_days": -0.013
+  "reason": "표본 부족 — 겹치는 관측일 0일 / 최소 5일"
  }
 }
