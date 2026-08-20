@@ -8,8 +8,8 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 341,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 386,
     "parliament": [
       {
         "strategy": "ml",
@@ -19,7 +19,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5277
+        "weight": 0.471
       },
       {
         "strategy": "ml",
@@ -29,7 +29,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2609
+        "weight": 0.2731
       },
       {
         "strategy": "ml",
@@ -41,7 +41,7 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.2114
+        "weight": 0.2558
       }
     ]
   },
@@ -53,7 +53,7 @@
     },
     "promoted_at": "2026-08-19",
     "promotions": 1,
-    "trials_total": 341,
+    "trials_total": 386,
     "parliament": [
       {
         "strategy": "ma_cross",
@@ -61,7 +61,7 @@
           "fast": 20,
           "slow": 60
         },
-        "weight": 0.4415
+        "weight": 0.4783
       },
       {
         "strategy": "ml",
@@ -72,41 +72,31 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.3272
+        "weight": 0.3165
       },
       {
-        "strategy": "breakout",
+        "strategy": "cross_rank",
         "params": {
-          "window": 55,
-          "exit_window": 20
+          "lookback": 20,
+          "top_frac": 0.3
         },
-        "weight": 0.2313
+        "weight": 0.2053
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "crypto:SOL/USDT": {
     "strategy": "ml",
     "params": {
-      "model": "logreg",
+      "model": "gb",
       "threshold": 0.55,
       "train_window": 250,
       "retrain_every": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 341,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 386,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.5626
-      },
       {
         "strategy": "ml",
         "params": {
@@ -115,7 +105,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2495
+        "weight": 0.3562
       },
       {
         "strategy": "ml",
@@ -126,7 +116,18 @@
           "retrain_every": 20,
           "pool": "universe"
         },
-        "weight": 0.1878
+        "weight": 0.3279
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "calibrate": "isotonic"
+        },
+        "weight": 0.3159
       }
     ]
   },
@@ -139,8 +140,8 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 263,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -150,7 +151,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5586
+        "weight": 0.4946
       },
       {
         "strategy": "ml",
@@ -160,39 +161,44 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2371
+        "weight": 0.2631
       },
       {
-        "strategy": "cross_rank",
+        "strategy": "ml",
         "params": {
-          "lookback": 60,
-          "top_frac": 0.3
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "pool": "universe"
         },
-        "weight": 0.2043
+        "weight": 0.2423
       }
     ]
   },
   "us_stock:QQQ": {
     "strategy": "ml",
     "params": {
-      "model": "logreg",
+      "model": "gb",
       "threshold": 0.55,
       "train_window": 250,
-      "retrain_every": 20
+      "retrain_every": 20,
+      "pool": "peers"
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 263,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
         "params": {
-          "model": "logreg",
+          "model": "gb",
           "threshold": 0.55,
           "train_window": 250,
-          "retrain_every": 20
+          "retrain_every": 20,
+          "pool": "peers"
         },
-        "weight": 0.5619
+        "weight": 0.355
       },
       {
         "strategy": "ml",
@@ -203,7 +209,7 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2236
+        "weight": 0.3332
       },
       {
         "strategy": "ml",
@@ -212,9 +218,9 @@
           "threshold": 0.55,
           "train_window": 250,
           "retrain_every": 20,
-          "pool": "peers"
+          "pool": "universe"
         },
-        "weight": 0.2145
+        "weight": 0.3118
       }
     ]
   },
@@ -227,8 +233,8 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 263,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -238,7 +244,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5931
+        "weight": 0.5493
       },
       {
         "strategy": "ml",
@@ -249,18 +255,17 @@
           "retrain_every": 20,
           "pool": "peers"
         },
-        "weight": 0.2067
+        "weight": 0.244
       },
       {
         "strategy": "ml",
         "params": {
           "model": "gb",
-          "threshold": 0.55,
+          "threshold": 0.6,
           "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic"
+          "retrain_every": 20
         },
-        "weight": 0.2002
+        "weight": 0.2066
       }
     ]
   },
@@ -273,8 +278,8 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 243,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 288,
     "parliament": [
       {
         "strategy": "ml",
@@ -301,35 +306,16 @@
   "kr_stock:005930.KS": {
     "strategy": "ml",
     "params": {
-      "model": "logreg",
+      "model": "gb",
       "threshold": 0.55,
       "train_window": 250,
-      "retrain_every": 20
+      "retrain_every": 20,
+      "label": "triple"
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-19",
-    "trials_total": 283,
+    "last_run_asof": "2026-08-20",
+    "trials_total": 328,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.509
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.2496
-      },
       {
         "strategy": "ml",
         "params": {
@@ -339,7 +325,17 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.2414
+        "weight": 0.5043
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.4957
       }
     ]
   },
@@ -352,7 +348,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 341,
+    "trials_total": 386,
     "parliament": [
       {
         "strategy": "ml",
@@ -362,7 +358,18 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.6572
+        "weight": 0.5684
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "label": "triple"
+        },
+        "weight": 0.2486
       },
       {
         "strategy": "ml",
@@ -373,21 +380,10 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.1829
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "sigmoid"
-        },
-        "weight": 0.1599
+        "weight": 0.183
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "crypto:XRP/USDT": {
     "strategy": "ml",
@@ -398,7 +394,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 341,
+    "trials_total": 386,
     "parliament": [
       {
         "strategy": "ml",
@@ -408,17 +404,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5185
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.2642
+        "weight": 0.4925
       },
       {
         "strategy": "ml",
@@ -430,10 +416,20 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.2173
+        "weight": 0.292
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "rf",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.2155
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "us_stock:MSFT": {
     "strategy": "ml",
@@ -444,7 +440,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 263,
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -454,15 +450,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.6188
-      },
-      {
-        "strategy": "cross_rank",
-        "params": {
-          "lookback": 60,
-          "top_frac": 0.3
-        },
-        "weight": 0.1984
+        "weight": 0.5642
       },
       {
         "strategy": "ml",
@@ -472,10 +460,21 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.1828
+        "weight": 0.2296
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "pool": "peers"
+        },
+        "weight": 0.2063
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "us_stock:AAPL": {
     "strategy": "ml",
@@ -486,7 +485,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 263,
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -496,7 +495,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.6014
+        "weight": 0.5349
       },
       {
         "strategy": "ml",
@@ -506,7 +505,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2134
+        "weight": 0.245
       },
       {
         "strategy": "ml",
@@ -517,10 +516,10 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.1852
+        "weight": 0.2201
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "us_stock:AMZN": {
     "strategy": "ml",
@@ -531,7 +530,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 263,
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -541,7 +540,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.6114
+        "weight": 0.5454
       },
       {
         "strategy": "ml",
@@ -553,7 +552,7 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.1958
+        "weight": 0.2297
       },
       {
         "strategy": "ml",
@@ -564,32 +563,22 @@
           "retrain_every": 20,
           "pool": "universe"
         },
-        "weight": 0.1929
+        "weight": 0.2249
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "us_stock:META": {
     "strategy": "ml",
     "params": {
-      "model": "logreg",
-      "threshold": 0.55,
+      "model": "gb",
+      "threshold": 0.6,
       "train_window": 250,
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 263,
+    "trials_total": 308,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.5545
-      },
       {
         "strategy": "ml",
         "params": {
@@ -598,122 +587,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2621
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "pool": "universe"
-        },
-        "weight": 0.1835
-      }
-    ],
-    "last_run_asof": "2026-08-19"
-  },
-  "us_stock:TSLA": {
-    "strategy": "ml",
-    "params": {
-      "model": "logreg",
-      "threshold": 0.55,
-      "train_window": 250,
-      "retrain_every": 20
-    },
-    "promotions": 0,
-    "trials_total": 263,
-    "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 1.0
-      }
-    ],
-    "last_run_asof": "2026-08-19"
-  },
-  "kr_stock:000660.KS": {
-    "strategy": "ml",
-    "params": {
-      "model": "logreg",
-      "threshold": 0.52,
-      "train_window": 250,
-      "retrain_every": 20
-    },
-    "promoted_at": "2026-08-10",
-    "promotions": 1,
-    "trials_total": 283,
-    "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.52,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.5765
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "label": "triple"
-        },
-        "weight": 0.2615
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.162
-      }
-    ],
-    "last_run_asof": "2026-08-19"
-  },
-  "kr_stock:035420.KS": {
-    "strategy": "ml",
-    "params": {
-      "model": "logreg",
-      "threshold": 0.55,
-      "train_window": 250,
-      "retrain_every": 20
-    },
-    "promotions": 0,
-    "trials_total": 283,
-    "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.592
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.2241
+        "weight": 0.4128
       },
       {
         "strategy": "ml",
@@ -724,12 +598,23 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.184
+        "weight": 0.295
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "pool": "universe"
+        },
+        "weight": 0.2921
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
-  "kr_stock:005380.KS": {
+  "us_stock:TSLA": {
     "strategy": "ml",
     "params": {
       "model": "logreg",
@@ -738,7 +623,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 283,
+    "trials_total": 308,
     "parliament": [
       {
         "strategy": "ml",
@@ -748,7 +633,45 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.766
+        "weight": 0.7651
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "calibrate": "isotonic"
+        },
+        "weight": 0.2349
+      }
+    ],
+    "last_run_asof": "2026-08-20"
+  },
+  "kr_stock:000660.KS": {
+    "strategy": "ml",
+    "params": {
+      "model": "gb",
+      "threshold": 0.55,
+      "train_window": 250,
+      "retrain_every": 20,
+      "label": "triple"
+    },
+    "promoted_at": "2026-08-10",
+    "promotions": 1,
+    "trials_total": 328,
+    "parliament": [
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "label": "triple"
+        },
+        "weight": 0.4102
       },
       {
         "strategy": "ml",
@@ -760,10 +683,82 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.234
+        "weight": 0.3166
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.2732
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
+  },
+  "kr_stock:035420.KS": {
+    "strategy": "ml",
+    "params": {
+      "model": "logreg",
+      "threshold": 0.55,
+      "train_window": 250,
+      "retrain_every": 20
+    },
+    "promotions": 0,
+    "trials_total": 328,
+    "parliament": [
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "logreg",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.6657
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.3343
+      }
+    ],
+    "last_run_asof": "2026-08-20"
+  },
+  "kr_stock:005380.KS": {
+    "strategy": "ml",
+    "params": {
+      "model": "logreg",
+      "threshold": 0.55,
+      "train_window": 250,
+      "retrain_every": 20,
+      "label": "triple",
+      "meta": true
+    },
+    "promotions": 0,
+    "trials_total": 328,
+    "parliament": [
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "logreg",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "label": "triple",
+          "meta": true
+        },
+        "weight": 1.0
+      }
+    ],
+    "last_run_asof": "2026-08-20"
   },
   "kr_stock:051910.KS": {
     "strategy": "ml",
@@ -774,7 +769,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 283,
+    "trials_total": 328,
     "parliament": [
       {
         "strategy": "ml",
@@ -784,7 +779,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5598
+        "weight": 0.5062
       },
       {
         "strategy": "ml",
@@ -795,22 +790,21 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.2404
+        "weight": 0.2691
       },
       {
         "strategy": "ml",
         "params": {
-          "model": "logreg",
+          "model": "gb",
           "threshold": 0.55,
           "train_window": 250,
           "retrain_every": 20,
-          "label": "triple",
-          "meta": true
+          "sample_weight": "decay"
         },
-        "weight": 0.1997
+        "weight": 0.2247
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   },
   "kr_stock:105560.KS": {
     "strategy": "ml",
