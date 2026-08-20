@@ -5397,7 +5397,7 @@ MUTATIONS = [
     # ── 감사 274 — 첫 화면이 첫 질문에 답하지 않았다 ──
     ("오래된 숫자를 오늘처럼 말한다(이틀 전 금액이 '지금'으로 읽힌다)",
      "docs/index.html",
-     "        (age!==null&&age>=1",
+     "        (age!==null&&age>=_STALE_DAYS",
      "        (false",
      "tests/test_the_first_screen_answers_the_first_question.py"),
 
@@ -6321,6 +6321,18 @@ MUTATIONS = [
      '            (b.cost_rate>0',
      '            (true',
      'tests/test_the_costs_are_counted_and_shown.py'),
+
+    # ── 정상인 날을 고장이라 부르지 않는다 (2026-08-20 감사 293) ───
+    ("지연 문턱을 다시 1일로 내린다(정상인 날마다 '배치 실패'라고 말한다)",
+     'docs/index.html',
+     '      const _STALE_DAYS=2;',
+     '      const _STALE_DAYS=1;',
+     'tests/test_a_normal_day_is_not_called_a_failure.py'),
+    ('하루 전이 정상이라는 말을 뗀다(왜 하루 전인지 아무도 설명 안 한다)',
+     'docs/index.html',
+     "              ? ' 다음 확정 전이라 날짜가 하루 전인 것이 <b>정상</b>입니다.'",
+     "              ? ''",
+     'tests/test_a_normal_day_is_not_called_a_failure.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
