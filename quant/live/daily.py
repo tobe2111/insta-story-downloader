@@ -3583,6 +3583,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
         pass
 
+    # 증명 가능성 — "통과선을 넘으려면 무엇이 필요한가"(2026-08-19).
+    # 검증이 처음 완주한 날 통과가 0종목이었다. 나쁜 결과일수록 숨기지 않고
+    # **왜 그런지까지** 같은 자리에 싣는다 — 좋은 숫자만 남기는 편집이
+    # 이 제품의 정체성을 무너뜨린다.
+    try:
+        from quant.live.provable import provability
+        prov = provability(state_dir)
+        if prov:
+            status["provable"] = prov
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
     # 휴장일 달력 — **브라우저에도 보낸다**(2026-08-14). 사이트는 파이썬을
     # 못 돌리므로, 배치가 아는 것을 파일로 실어 보내지 않으면 화면은 영영
     # 주말만 아는 상태로 남는다. 그러면 명절 내내 15초마다 시세를 조르고

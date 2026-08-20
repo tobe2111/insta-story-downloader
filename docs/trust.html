@@ -163,6 +163,22 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 </ul>
 </div>
 
+<div class="card" id="provable" style="display:none">
+<h2>지금 이 관문을 넘으려면 무엇이 필요한가</h2>
+<p id="provable-body">계산 중…</p>
+<p style="font-size:12.5px;color:var(--muted)">
+<b>이 칸은 나쁜 소식을 적는 자리입니다.</b> 2026-08-19, 전 종목 과최적화
+검증이 처음으로 끝까지 돌았고 <b>통과한 종목은 하나도 없었습니다</b>.
+여기서 "전략이 나쁘다"와 "지금 표본으로는 넘을 수 없는 관문이다"는 대응이
+정반대라, 추측하지 않고 역산했습니다 — 위 숫자가 그 답입니다.
+<br><br>
+<b>관문은 낮추지 않습니다.</b> 결과를 보고 기준을 고치는 것이 이 제품이
+하지 않겠다고 약속한 바로 그 일(골대 이동)입니다. 정공법은 <b>표본을
+늘리는 것</b>이고, 장중 트랙(하루 여러 번 판단하는 별도 실험 계좌)이
+그 실험입니다. 그동안 이 계좌는 <b>절반 이하 노출</b>로 굴러갑니다 —
+고장이 아니라 설계입니다.</p>
+</div>
+
 <div class="card" id="uptime" style="display:none">
 <h2>가동률 — 자동화가 실제로 매일 돌았는가</h2>
 <p id="uptime-body">계산 중…</p>
@@ -1057,6 +1073,27 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 // ⚠️ 문장에 상태를 박아 두면 안 된다. 구조가 잠들어 있는 동안에도 계속
 //    "분산 운용 중"이라고 읽히고, 그게 정확히 이번에 고친 결함이다.
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  /* 증명 가능성 — 통과가 0종목인 날일수록 이유까지 같이 말한다. */
+  const pv=st.provable, pvc=document.getElementById("provable");
+  if(pv && pvc && pv.required_ann_sharpe!=null){
+    pvc.style.display="";
+    const rows=(pv.paths||[]).map(x=>
+      `<tr><td>${x.label}</td><td class="num">${x.bars.toLocaleString()}</td>`+
+      `<td class="num">${x.required_ann_sharpe!=null?x.required_ann_sharpe.toFixed(2):"—"}</td></tr>`
+    ).join("");
+    document.getElementById("provable-body").innerHTML =
+      `${pv.asof} 기준 <b>${pv.symbols}종목</b> 중 통과 <b>${pv.passing}종목</b>. `+
+      `DSR(운이 아니라 실력일 확률) 최고값은 <b>${pv.dsr_best.toFixed(2)}</b>이고 `+
+      `통과선은 <b>${pv.dsr_pass}</b>입니다.<br><br>`+
+      `지금 표본은 종목당 <b>${pv.bars_median.toLocaleString()}봉</b>이고 `+
+      `누적 시행은 <b>${pv.trials_median.toLocaleString()}회</b>입니다. `+
+      `이 조건에서 통과선에 닿으려면 <b>연환산 샤프 `+
+      `${pv.required_ann_sharpe.toFixed(2)}</b>가 필요합니다 — `+
+      `세계 최상위 펀드가 좋은 해에 내는 수준입니다.<br><br>`+
+      `<div style="overflow-x:auto"><table><thead><tr><th>표본을 늘리는 길</th>`+
+      `<th class="num">판단 횟수</th><th class="num">필요 샤프</th></tr></thead>`+
+      `<tbody>${rows}</tbody></table></div>`;
+  }
   const p=st.parliament; const el=document.getElementById("seat-now");
   if(!p||!el||!p.accounts)return;
   let msg = p.diversified
