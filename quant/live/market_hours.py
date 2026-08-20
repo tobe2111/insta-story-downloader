@@ -17,7 +17,7 @@
 """
 from __future__ import annotations
 
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 
 from quant.data.market_calendar import is_holiday
 
@@ -33,6 +33,26 @@ SCHEDULES: dict[str, tuple[str, time, time]] = {
 }
 # 별칭
 _ALIASES = {"us": "us_stock", "kr": "kr_stock", "stock": "us_stock"}
+
+
+# 사장님이 읽는 시간대. 한국은 서머타임이 없어 1년 내내 UTC+9 고정이다.
+KST = timezone(timedelta(hours=9))
+
+
+def now_kst_iso() -> str:
+    """지금을 한국 시간 ISO 문자열로 (예: 2026-08-19T19:31:07+09:00).
+
+    장중 실험의 회차·체결 시각은 이 값으로 찍힌다(2026-08-19 사장님 지시).
+    UTC로 찍어도 같은 순간이지만, 기록을 읽는 사람이 한국에 있으므로
+    파일을 열었을 때 바로 읽히는 쪽을 기본으로 삼는다.
+
+    ⚠️ `+09:00`은 **표기**일 뿐 순간을 옮기지 않는다. 그래서 예전 UTC
+       기록과 섞여 있어도 시간 순서·간격 계산은 그대로 맞는다 — 읽는 쪽이
+       오프셋을 무시하고 글자만 자르지 않는 한. 화면이 글자를 자르지 않고
+       제대로 변환하는지는 검사가 지킨다
+       (`tests/test_the_intraday_clock_is_korean.py`).
+    """
+    return datetime.now(KST).isoformat(timespec="seconds")
 
 
 def _market_now(tzname: str, now: datetime | None) -> datetime:

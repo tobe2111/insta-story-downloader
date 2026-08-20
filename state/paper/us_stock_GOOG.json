@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-18 00:00:00",
+  "last_bar": "2026-08-19 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -48,11 +48,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-19",
+      "price": 341.70001220703125,
+      "weight": 0.305,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.352112676056338,
+      "hit_n": 71,
+      "hit_lo": 0.25122584561603256,
+      "hit_hi": 0.4681815427882774,
+      "hit_conclusive": true,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +31% — 로지스틱회귀 모델이 내일 상승확률을 약 81%로 추정(기준 55% 초과) · 판단 재료: 10일 수익률 -5.1% / 20일선 이격 -0.9%(선 아래) / RSI(14) 55(중립) · 사이징: 신호 원비중 57% → 변동성 타깃 조절 후 31% · 참고: 이 확률대(81%±10%p)의 과거 성적은 표본 축적 중 (종목 n=0 · 합산 n=21, 25건부터 표시)",
+      "fill": {
+        "price": 339.799988,
+        "bar": "2026-08-19 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-18 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "805ed4148e18",
+      "data_sha256": "cf4149fc3f55977683cd6d3fb6d4583d421ac79267a73902228e102cf49824a4",
+      "env": "py3.12.13|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.807790881328454,
+      "drift_psi": 0.0944,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-18 00:00:00"
+    "weight": 0.305,
+    "decided_bar": "2026-08-19 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOG",

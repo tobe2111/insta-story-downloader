@@ -105,7 +105,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 
 <h2>최근 체결 <span class="tag">비용까지 그대로</span></h2>
 <div class="card tw"><table id="tr">
-  <thead><tr><th>시각(UTC)</th><th>종목</th><th>방향</th><th>금액(USDT)</th>
+  <thead><tr><th>시각(한국 시간)</th><th>종목</th><th>방향</th><th>금액(USDT)</th>
     <th>비용(USDT)</th><th>신호</th></tr></thead>
   <tbody><tr><td colspan="6" class="sub">불러오는 중…</td></tr></tbody>
 </table></div>
@@ -139,6 +139,30 @@ function esc(s){return String(s).replace(/[&<>"']/g,
   c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function usdt(v){return Number(v).toLocaleString("ko-KR",
   {maximumFractionDigits:2})+" USDT"}
+/* ── 한국 시간(UTC+9) ────────────────────────────────────────────
+   장중 실험의 회차·체결 시각은 2026-08-19부터 한국 시간으로 저장된다.
+   그전 기록은 UTC로 남아 있는데, **고치지 않는다** — 대신 여기서 옮겨
+   적는다. 저장된 글자가 무엇이든 가리키는 순간은 같으므로, 화면은
+   과거·현재 구분 없이 전부 한국 시간이 된다.
+
+   ⚠️ 글자를 자르면(slice) 안 된다. 예전 UTC 기록의 앞 16글자를 그냥
+      떼면 9시간 어긋난 시각이 아무 표시 없이 그대로 화면에 나간다 —
+      2026-08-19 이전 이 페이지가 그랬다. 한국은 서머타임이 없어
+      1년 내내 +9시간 고정이라 계산으로 옮겨도 안전하다. */
+function _kstParts(iso){
+  let t=String(iso||"").trim();
+  if(!t)return null;
+  /* 오프셋이 없는 값은 UTC로 본다 — 브라우저 지역시로 읽히면
+     보는 사람 위치에 따라 답이 달라진다. */
+  if(!/(Z|[+-]\d{2}:?\d{2})$/.test(t))t+="Z";
+  const ms=Date.parse(t);
+  if(!isFinite(ms))return null;
+  const k=new Date(ms+9*3600*1000), p=n=>String(n).padStart(2,"0");
+  return {day:k.getUTCFullYear()+"-"+p(k.getUTCMonth()+1)+"-"+p(k.getUTCDate()),
+          hm:p(k.getUTCHours())+":"+p(k.getUTCMinutes())};
+}
+function kst(iso){const k=_kstParts(iso);return k?k.day+" "+k.hm:"—"}
+function kstDay(iso){const k=_kstParts(iso);return k?k.day:""}
 fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
   const sum=document.getElementById("sum");
   if(!d){
@@ -178,8 +202,8 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
         '<b>비용</b> = 수수료 + 미끄러짐(주문 순간 가격이 살짝 불리해지는 것) · '+
         '<b>신호</b> = 전략이 내린 매매 판단(사자/팔자/관망)</div>';
     })()+
-    '<div class="sub" style="margin-top:10px">시작 '+esc(d.since||"—")+
-    ' · 마지막 회차 '+esc(d.last_time||"—")+
+    '<div class="sub" style="margin-top:10px">시작 '+esc(kst(d.since))+
+    ' · 마지막 회차 '+esc(kst(d.last_time))+' <b>(한국 시간)</b>'+
     ' · 감시 주기 예약 '+esc(d.booked_interval_minutes)+'분 / <b>실측 최악 '+
     gap+'</b></div>'+
     ((d.return_pct||0)<0
@@ -235,7 +259,7 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
     const el=document.getElementById("vs");
     if(!el)return;
     const hist=(((s||{}).paper||{})["portfolio:ALL"]||{}).history||[];
-    const since=String(d.since||"").slice(0,10);
+    const since=kstDay(d.since);   /* 장부는 한국 날짜로 확정된다 */
     /* 기준점 = 실험 시작일 이전의 마지막 확정 자산. 그런 날이 없으면
        (실험이 장부보다 먼저 시작한 경우) 첫 기록을 쓰고 그 사실은 아래
        문구의 날짜로 드러난다. */
@@ -257,10 +281,12 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
           (exp>=0?"up":"down")+'">'+f(exp)+'</div></div>'+
         '<div><div class="k">본 계좌 (하루 1회) · 같은 기간</div><div class="v '+
           ((mainR||0)>=0?"up":"down")+'">'+f(mainR)+'</div></div>'+
-        '<div><div class="k">그냥 보유 (첫 회차 가격 기준)</div><div class="v '+
+        '<div><div class="k">그냥 보유 (첫 회차에 사서 그대로) · 사는 비용 포함</div><div class="v '+
           ((hold||0)>=0?"up":"down")+'">'+f(hold)+'</div></div>'+
       '</div>'+
-      '<div class="sub" style="margin-top:10px">본 계좌는 하루 한 번 새벽에 '+
+      '<div class="sub" style="margin-top:10px">셋 다 <b>비용을 뺀 뒤</b>의 '+
+      '숫자입니다 — 그냥 보유도 살 때 한 번은 수수료를 냅니다(2026-08-19 '+
+      '교정). 본 계좌는 하루 한 번 새벽에 '+
       '확정되므로 마지막 확정일('+esc(lastDay||"—")+') 기준입니다. '+
       '실험 시작('+esc(since||"—")+') 이후의 변화율끼리 비교합니다 — '+
       '표본이 판정 기준(위)을 채우기 전의 우열은 운과 구별되지 않습니다.</div>';
@@ -302,14 +328,14 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
             (sh.filled_total||0)+' / '+(sh.unfilled_total||0)+'</div></div>'+
         '</div>'+
         '<div class="sub" style="margin-top:10px">'+esc(sh.note||"")+
-        ' (시작 '+esc(String(sh.since||"").slice(0,16).replace("T"," "))+
+        ' (시작 '+esc(kst(sh.since))+
         ' · 그림자 누적 비용 '+usdt(sh.cost_paid||0)+')</div>';
     }
   }
   /* ── 최근 체결 표 ── */
   const trs=(d.recent_trades||[]).slice().reverse();
   document.getElementById("tr").querySelector("tbody").innerHTML=
-    trs.length?trs.map(t=>'<tr><td>'+esc(String(t.time||"").slice(0,16).replace("T"," "))+
+    trs.length?trs.map(t=>'<tr><td>'+esc(kst(t.time))+
       '</td><td>'+esc(t.symbol||"")+'</td><td class="'+
       (t.side==="sell"?"down":"up")+'">'+(t.side==="sell"?"매도":"매수")+
       '</td><td>'+usdt(Math.abs(t.notional||0))+'</td><td>'+
@@ -375,7 +401,7 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
       esc(u.quote_source)+'</div>':'')+
     '<div class="sub" style="margin-top:8px">'+esc(u.market_hours||"")+
     ' · 판정일 '+esc((u.judgement||{}).registered_on?"2026-11-17 (사전 등록)":"—")+
-    ' · 시작 '+esc(u.since||"—")+'</div>';
+    ' · 시작 '+esc(kst(u.since))+' (한국 시간)</div>';
 }).catch(()=>{
   document.getElementById("us-sum").innerHTML=
     '<span class="sub">아직 기록이 없습니다 — 장 밖 시간에는 기록이 없는 것이 '+

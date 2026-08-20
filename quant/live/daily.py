@@ -174,7 +174,7 @@ def _fill_cost(market: str) -> float:
     """편도 체결 비용(수수료+거래세+슬리피지) — 시장별 현실 프리셋."""
     from quant.backtest.costs import CostModel
     cm = CostModel.for_market(market)
-    return float(cm.fee + cm.slippage)
+    return cm.total_one_way()
 
 
 def _first_bar_after(df, bar_ts: str):
@@ -1991,6 +1991,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
         return {"skipped": True, "last_bar": bar}
 
+    # 누적 비용 칸 — 없으면 지난 기록에서 한 번만 되짚어 채운다.
+    # 이후로는 가짜 브로커가 돈을 뺄 때마다 실제로 센다(2026-08-19).
+    from quant.live.ledger_costs import seed_cost_paid
+    seed_cost_paid(st)
+
     broker = PaperBroker(cash=float(st["cash"]))
     for key, pos in st.get("positions", {}).items():
         if abs(float(pos.get("quantity", 0.0))) > 0:
@@ -2475,6 +2480,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 균등가중 지수(첫 관측=100) — 사이트의 '그냥 보유' 벤치마크용
     idx = 100.0 * sum(prices[k] / st["base_prices"][k]
                       for k in prices) / len(prices)
+    # 그 바구니를 **사는 값** (2026-08-19 사장님 승인).
+    # 지수는 전 종목 균등 매수이므로 진입 비용도 그 종목들이 속한 시장의
+    # 균등 평균이다. 예전에는 이 비용이 0이었다 — 그래서 첫 화면은 비용을
+    # 전부 문 우리 성적을, 한 푼도 안 문 기준선과 나란히 놓고 "앞선다"고
+    # 말했다. 같은 자에 눈금이 둘이었다.
+    # ⚠️ 이 교정은 **우리 쪽에 유리한** 방향이다(기준선이 낮아진다).
+    #    그래서 숫자를 여기서 만들어 장부에 남긴다 — 화면이 제 마음대로
+    #    비용률을 고를 수 없게.
+    bench_cost_rate = round(
+        sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices), 6)
     # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
     # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
     # ⚠️ 여기서 다시 계산하지 않는다. 예전에는 주문 루프와 이 기록이 같은
@@ -2541,8 +2556,21 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if impossible:
         log.error("금액이 계좌(%s원)를 넘는다 — 통화 환산 누락 의심: %s",
                   f"{equity:,.0f}", impossible)
+    # 오늘 낸 비용 — 브로커가 현금에서 실제로 뺀 금액을 그대로 받는다.
+    # 체결 기록을 되짚어 추정하지 않는다(되짚기는 거부된 주문을 체결로
+    # 오해할 수 있다 — 2026-08-15 장부가 그렇다).
+    cost_today = round(float(getattr(broker, "fee_paid", 0.0) or 0.0), 2)
+    st["cost_paid"] = round(float(st.get("cost_paid") or 0.0) + cost_today, 2)
+
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
               "equity": round(equity, 2),
+              # 비용은 이미 자산에서 빠져 있다 — 이 두 칸은 **얼마나** 빠졌는지를
+              # 말한다. 예전에는 그 숫자가 장부 어디에도 없어서, 화면이
+              # "수수료로 얼마 냈나"에 답할 수 없었다(사장님 질문 2026-08-19).
+              "cost": cost_today,
+              "cost_paid": st["cost_paid"],
+              # '그냥 보유' 기준선이 물어야 할 진입 비용률(편도 한 번).
+              "bench_cost_rate": bench_cost_rate,
               "return_pct": round((equity / principal - 1) * 100, 2),
               "principal": round(principal, 2),
               "pnl": round(equity - principal, 2),
