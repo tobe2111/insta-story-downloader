@@ -814,6 +814,30 @@ def build_challengers(current_spec: dict, seed: str,
     return challengers
 
 
+# 풀링 후보가 깨어나는 문턱 — 링이 보는 구간(결승 120봉)을 스냅샷이
+# 덮을 수 있게 되는 날부터 참전한다.
+POOL_WAKE_DAYS = 120
+
+
+def _split_sleeping(challengers: list, state_dir: str,
+                    min_days: int = POOL_WAKE_DAYS) -> tuple[list, list]:
+    """지금 돌 수 있는 후보와 **아직 잠든** 후보로 가른다 (감사 297).
+
+    잠든 후보는 오늘 링에서 빠지고 시도 수에도 안 들어간다. 다만 후보
+    목록에서 사라지는 것은 아니다 — 조건이 차면 다음 밤부터 저절로 돌아온다.
+    """
+    from quant.strategies.ml import pool_ready
+    live, asleep = [], []
+    for c in challengers:
+        p = (c.get("params") or {}) if isinstance(c, dict) else {}
+        pool = p.get("pool")
+        if pool is not None and not pool_ready(pool, state_dir, min_days):
+            asleep.append(c)
+        else:
+            live.append(c)
+    return live, asleep
+
+
 # ── 다중검정 문턱 — 롤링 윈도 + 상한 ────────────────────────────
 # 누적 시도 수가 단조 증가하면 문턱도 영원히 올라가 진화가 완전히 멈춘다.
 # 그래서 문턱 계산에는 '최근 1년 시도 수'만 쓰고 상한을 둔다(장부의 누적
@@ -1156,6 +1180,25 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     #    그 보정을 선발전에 또 거는 것은 같은 다중성을 두 번 세는 것이었고,
     #    그 결과 결승전이 한 번도 작동하지 않았다(2026-08-14 실측 15/15).
     #    진짜 다중성은 '매일 반복'이고 그건 결승 문턱이 계속 맡는다.
+    # ⚠️ **못 도는 후보는 '찾아본 것'이 아니다** (2026-08-20 감사 297).
+    #    풀링 후보는 스냅샷이 모자라면 풀을 못 만들고 챔피언과 똑같은 신호를
+    #    낸다. 그걸 시도 수에 넣으면 문턱만 올라가, 진짜로 뒤져서 찾은
+    #    결과까지 같이 깎인다.
+    #
+    #    실측 2026-08-19: 후보 802개 중 35개가 무동작이었고 그중 13개가
+    #    pool="peers"였다(스냅샷 14일치 — 학습 블록 대부분이 자기 시점의
+    #    폴더를 못 찾는다).
+    #
+    #    ⚠️ **후보 목록에서 빼는 것이 아니다**(사장님 지적: "죽은 peers도
+    #       나중엔 성과 좋을 수 있는 거 아니야?"). 맞다 — peers는 성과가
+    #       나쁜 게 아니라 아직 못 도는 것이고, universe와 달리 생존 편향이
+    #       없어 장기적으로는 더 정직한 쪽이다. 스냅샷이 쌓이면 이 관문은
+    #       저절로 열리고 그날부터 링에 다시 선다. 지금 빼는 것은 후보가
+    #       아니라 **헛세기**다.
+    challengers, asleep = _split_sleeping(challengers, state_dir)
+    if asleep:
+        log.info("아직 못 도는 후보 %d개는 시도 수에서 뺍니다(스냅샷 부족) "
+                 "— 목록에는 남고, 쌓이면 다시 링에 섭니다", len(asleep))
     n_cand = len(challengers)
     trials_total = int(entry.get("trials_total", 0)) + n_cand
     entry["trials_total"] = trials_total

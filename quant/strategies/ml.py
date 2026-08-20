@@ -395,6 +395,42 @@ def _build_model(kind: str):
     return logreg()
 
 
+def pool_ready(pool, state_dir: str = "state", min_days: int = 1) -> bool:
+    """이 풀 설정이 **지금** 실제로 표본을 만들 수 있는가.
+
+    ⚠️ 왜 미리 묻나 (2026-08-20 감사 297).
+       다중검정 문턱은 "얼마나 뒤졌나"에 비례해 올라간다. 그런데 풀을 못
+       만들어 챔피언과 똑같은 신호를 내는 후보는 **뒤진 것이 아니라** 같은
+       답을 낸 것이다. 그 후보를 시도 수에 넣으면 문턱만 올라가, 진짜로
+       뒤져서 찾은 결과까지 같이 깎인다.
+
+       실측 2026-08-19: 후보 802개 중 35개가 무동작이었고 그중 13개가
+       `pool="peers"`였다. 스냅샷이 14일치뿐이라 학습 블록 대부분이 자기
+       시점의 스냅샷 폴더를 못 찾는다.
+
+    ⚠️ **후보에서 빼자는 뜻이 아니다** (사장님 지적 2026-08-20:
+       "죽은 peers도 나중엔 성과 좋을 수 있는 거 아니야?"). 맞다 — peers는
+       성과가 나쁜 게 아니라 아직 못 도는 것이고, 스냅샷이 쌓이면 스스로
+       깨어난다. 게다가 universe와 달리 **생존 편향이 없어** 장기적으로는
+       더 정직한 쪽이다. 여기서 하는 일은 '지금 돌 수 있는가'를 묻는 것뿐이고,
+       돌 수 있게 되는 날 이 함수는 저절로 True가 된다.
+    """
+    if pool is None:
+        return True
+    if isinstance(pool, list):
+        return bool(pool)
+    from quant.utils.repro import latest_snapshot_day, snapshot_days
+    if pool == "universe":
+        return latest_snapshot_day(state_dir) is not None
+    if pool == "peers":
+        try:
+            days = snapshot_days(state_dir)
+        except Exception:      # noqa: BLE001 — 못 세면 막지 않는다
+            return True
+        return len(days) >= max(1, int(min_days))
+    return True
+
+
 class MLStrategy(Strategy):
     """워크포워드로 재학습하며 상승확률을 목표비중으로 매핑하는 ML 전략."""
 

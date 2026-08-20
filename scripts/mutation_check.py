@@ -6372,6 +6372,23 @@ MUTATIONS = [
      '            markets[name] = core + extra\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
      '            markets[name] = prev\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
      'tests/test_the_universe_expansion_actually_lands.py'),
+
+    # ── 못 도는 후보는 찾아본 것이 아니다 (2026-08-20 감사 297) ─────
+    ('잠든 후보도 시도 수에 넣는다(못 돈 후보가 문턱을 올려 진짜 발견을 깎는다)',
+     'quant/live/retrain.py',
+     '    challengers, asleep = _split_sleeping(challengers, state_dir)',
+     '    asleep = []',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+    ('풀링 후보를 영영 재운다(스냅샷이 쌓여도 peers가 다시 안 선다)',
+     'quant/strategies/ml.py',
+     '        return len(days) >= max(1, int(min_days))',
+     '        return False',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+    ('풀 안 쓰는 후보까지 재운다(링이 통째로 멈춘다)',
+     'quant/strategies/ml.py',
+     '    if pool is None:\n        return True',
+     '    if pool is None:\n        return False',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
