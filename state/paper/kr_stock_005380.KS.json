@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-19 00:00:00",
+  "last_bar": "2026-08-20 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -368,11 +368,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-20",
+      "price": 417500.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.46153846153846156,
+      "hit_n": 26,
+      "hit_lo": 0.28755582695234905,
+      "hit_hi": 0.6454236379556988,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple",
+        "meta": true
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 평균 진폭(ATR) 일 5.6% / GK 변동성(고저가 기반) 일 3.8% / 장단기 금리차(경기 신호) +0.46",
+      "fill": {
+        "price": 417000.0,
+        "bar": "2026-08-20 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-19 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "84249b222884",
+      "data_sha256": "94acc523715c3439aa6bf127dd421c6764984a9d926f963e272c483d27f3fc31",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.5276,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-19 00:00:00"
+    "decided_bar": "2026-08-20 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "005380.KS",

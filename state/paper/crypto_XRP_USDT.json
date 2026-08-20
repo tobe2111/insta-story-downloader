@@ -2,7 +2,7 @@
   "cash": 9452.32894368668,
   "quantity": 500.0885336035469,
   "avg_price": 1.0001222281976445,
-  "last_bar": "2026-08-19 00:00:00",
+  "last_bar": "2026-08-20 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -370,6 +370,55 @@
       "kelly_cap": null,
       "bar_partial": {
         "elapsed": 0.178,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx"
+    },
+    {
+      "date": "2026-08-20",
+      "price": 1.2606,
+      "weight": 0.0777,
+      "held_weight": 0.0625,
+      "fractional_lot": false,
+      "equity": 10082.74,
+      "return_pct": 0.83,
+      "hit_rate": 0.4523809523809524,
+      "hit_n": 84,
+      "hit_lo": 0.3503554445205683,
+      "hit_hi": 0.5585715331301119,
+      "hit_conclusive": false,
+      "live_hit": 0.4,
+      "live_hit_n": 10,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +8% — 로지스틱회귀 모델이 내일 상승확률을 약 25%로 추정(기준 55% 초과) · 사이징: 신호 원비중 29% → 변동성 타깃 조절 후 8% · 참고: 전 종목 합산으로 모델이 25%±10%p라 말한 34번의 실제 상승 비율 56% (95% 신뢰구간 39%~71% · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 0번으로 축적 중) · 🏛 의회 운용: ml 49% + ml 29% + ml 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "84249b222884",
+      "data_sha256": "7779edb1d6cb7f9c86a2ee31b253e6eed3a10dc2816097fc365bedaa5301e9ad",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.24937959715579508,
+      "drift_psi": 0.3825,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.9497,
         "timeframe": "1d",
         "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
       },
