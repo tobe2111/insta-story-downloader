@@ -809,24 +809,14 @@
   "kr_stock:105560.KS": {
     "strategy": "ml",
     "params": {
-      "model": "logreg",
+      "model": "rf",
       "threshold": 0.55,
       "train_window": 250,
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 283,
+    "trials_total": 328,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.5505
-      },
       {
         "strategy": "ml",
         "params": {
@@ -835,7 +825,17 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2549
+        "weight": 0.396
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.3144
       },
       {
         "strategy": "ml",
@@ -846,9 +846,9 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.1945
+        "weight": 0.2896
       }
     ],
-    "last_run_asof": "2026-08-19"
+    "last_run_asof": "2026-08-20"
   }
 }
