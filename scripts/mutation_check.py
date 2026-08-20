@@ -6333,6 +6333,18 @@ MUTATIONS = [
      "              ? ' 다음 확정 전이라 날짜가 하루 전인 것이 <b>정상</b>입니다.'",
      "              ? ''",
      'tests/test_a_normal_day_is_not_called_a_failure.py'),
+
+    # ── '한눈에'는 상황만 말한다 (2026-08-20 감사 294) ──────────────
+    ('실효 표본 설명을 다시 첫 화면에 편다(숫자 사이에 설명이 끼어 숫자가 안 읽힌다)',
+     'docs/index.html',
+     '          return \'<div class="sub adv" style="margin-top:6px">종목 <b>\'+b.n+',
+     '          return \'<div class="sub" style="margin-top:6px">종목 <b>\'+b.n+',
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+    ('보유·현금 줄을 통째로 뺀다(지금 뭘 들고 있는지가 첫 화면에서 사라진다)',
+     'docs/index.html',
+     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+",
+     "            ''+",
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

@@ -936,10 +936,14 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
            답한다. 장부(status.breadth)에서만 읽는다. */
         (function(){
           const b=st.breadth&&st.breadth.all; if(!b)return "";
+          /* ⚠️ 여기는 '지금 얼마인가'를 보는 자리다(감사 294). 왜 자산군을
+             늘리는지 같은 **설명**은 첫 화면에서 빼고 '자세히 보기' 안으로
+             옮긴다 — 숫자 사이에 설명이 길게 끼면 정작 숫자가 안 읽힌다.
+             지운 것이 아니라 접은 것이다. */
           if(b.effective_n==null)
-            return '<div class="sub" style="margin-top:6px">종목 '+(b.n||0)+
+            return '<div class="sub adv" style="margin-top:6px">종목 '+(b.n||0)+
               '개 — 서로 얼마나 다르게 움직이는지는 아직 기록이 얇아 못 잽니다.</div>';
-          return '<div class="sub" style="margin-top:6px">종목 <b>'+b.n+
+          return '<div class="sub adv" style="margin-top:6px">종목 <b>'+b.n+
             '개</b>지만, 서로 비슷하게 움직이는 만큼을 걷어내면 <b>'+
             b.effective_n+'개 몫</b>의 정보입니다(평균 동조 '+
             Math.round((b.mean_corr||0)*100)+'%). 이 숫자를 키우려고 금·채권·'+
@@ -955,8 +959,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           const seg=(nm,v)=>'<b>'+nm+'</b> '+(v>0?won(v)
             :'0원<span style="font-size:11px"> (신호 관망 중 — 안 하는 게 아닙니다)</span>');
           return '<div class="sub" style="margin-top:10px">'+
-            '이 중 <b>'+won(heldVal)+'</b>이 종목에 들어가 있고, '+
-            '<b>'+won(cashVal)+'</b>은 현금입니다.<br>'+
+            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+
             seg('코인',mk.crypto)+' · '+seg('한국주식',mk.kr_stock)+' · '+
             seg('미국주식',mk.us_stock)+'</div>';
         })()+
@@ -974,7 +977,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
             won(b.hold)+'입니다 — 지금 이 시스템은 그보다 <b>'+
             won(Math.abs(b.diff))+' '+(b.ahead?"앞섭니다":"뒤집니다")+
             '</b>('+(b.diff_pct>=0?"+":"")+b.diff_pct.toFixed(2)+'%p).'+
-            '<div class="sub" style="margin-top:4px">'+
+            '<div class="sub adv" style="margin-top:4px">'+
             /* 비용을 실제로 물렸을 때만 물렸다고 말한다 — 안 물린 날에
                "포함"이라고 적으면 그게 거짓말이다. */
             (b.cost_rate>0
@@ -982,7 +985,8 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
                '한 번은 수수료를 냅니다(2026-08-19 교정). '
               :'')+
             '지금 증명하려는 것은 '+
-            '<b>1억이 아니라 "그냥 보유보다 낫다"</b> 하나입니다.</div></div>'):"";
+            '<b>1억이 아니라 "그냥 보유보다 낫다"</b> 하나입니다.'+
+            '</div></div>'):"";
         })()+
         /* ⚠️ 준실시간 시세가 들어오면 **잔고 표만** "지금 999,xxx원"으로
            움직이고 이 카드는 확정값에 머물러 있었다(감사 275 · 사장님
