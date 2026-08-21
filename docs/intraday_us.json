@@ -3,18 +3,20 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9983.38,
-  "return_pct": -0.1662,
-  "cost_paid": 3.59,
-  "trades_total": 41,
-  "rounds_total": 17,
+  "equity": 9984.31,
+  "return_pct": -0.1569,
+  "cost_paid": 3.9,
+  "trades_total": 44,
+  "rounds_total": 18,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-08-22T00:55:14+09:00",
+  "last_time": "2026-08-22T01:35:05+09:00",
   "observed_gap_minutes": 1099.2,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
-    "AAPL": 2.05023066
+    "AAPL": 0.90895066,
+    "GOOGL": 0.21763102,
+    "GOOG": 0.24183053
   },
   "risk_scale": 1.0,
   "last_skipped": {},
@@ -86,9 +88,13 @@
     [
       "2026-08-22T00:55:14+09:00",
       9983.38
+    ],
+    [
+      "2026-08-22T01:35:05+09:00",
+      9984.31
     ]
   ],
-  "hold_return_pct": -0.3408,
+  "hold_return_pct": -0.2945,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -103,54 +109,27 @@
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "equity": 9986.24,
-    "return_pct_since": -0.1352,
-    "cost_paid": 0.48,
-    "filled_total": 35,
+    "equity": 9987.4,
+    "return_pct_since": -0.1236,
+    "cost_paid": 0.56,
+    "filled_total": 38,
     "unfilled_total": 0,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9974.95,
-      "return_pct": -0.2505,
-      "hold_return_pct": -0.0291,
-      "trades_total": 61,
-      "cost_paid": 10.45,
-      "rounds_total": 17,
+      "equity": 9974.55,
+      "return_pct": -0.2545,
+      "hold_return_pct": -0.2583,
+      "trades_total": 64,
+      "cost_paid": 10.57,
+      "rounds_total": 18,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-08-19T13:52:01+00:00",
-      "symbol": "GOOG",
-      "side": "buy",
-      "notional": 93.74,
-      "price": 341.3699951171875,
-      "cost": 0.0562,
-      "signal": 0.075
-    },
-    {
-      "time": "2026-08-19T13:52:01+00:00",
-      "symbol": "AMZN",
-      "side": "buy",
-      "notional": 185.45,
-      "price": 259.4800109863281,
-      "cost": 0.1113,
-      "signal": 0.1484
-    },
-    {
-      "time": "2026-08-20T00:02:29+09:00",
-      "symbol": "AAPL",
-      "side": "buy",
-      "notional": 51.1,
-      "price": 316.010009765625,
-      "cost": 0.0307,
-      "signal": 0.0409
-    },
     {
       "time": "2026-08-20T00:02:29+09:00",
       "symbol": "GOOGL",
@@ -483,6 +462,33 @@
       "price": 258.8500061035156,
       "cost": 0.1702,
       "signal": 0.0
+    },
+    {
+      "time": "2026-08-22T01:35:05+09:00",
+      "symbol": "AAPL",
+      "side": "sell",
+      "notional": -355.17,
+      "price": 311.20318603515625,
+      "cost": 0.2131,
+      "signal": 0.2266
+    },
+    {
+      "time": "2026-08-22T01:35:05+09:00",
+      "symbol": "GOOGL",
+      "side": "buy",
+      "notional": 74.93,
+      "price": 344.29998779296875,
+      "cost": 0.045,
+      "signal": 0.06
+    },
+    {
+      "time": "2026-08-22T01:35:05+09:00",
+      "symbol": "GOOG",
+      "side": "buy",
+      "notional": 82.55,
+      "price": 341.3399963378906,
+      "cost": 0.0495,
+      "signal": 0.0661
     }
   ],
   "honest_limits": [
