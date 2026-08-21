@@ -3,20 +3,18 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9982.65,
-  "return_pct": -0.1735,
-  "cost_paid": 3.11,
-  "trades_total": 38,
-  "rounds_total": 16,
+  "equity": 9983.38,
+  "return_pct": -0.1662,
+  "cost_paid": 3.59,
+  "trades_total": 41,
+  "rounds_total": 17,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-08-21T23:49:05+09:00",
+  "last_time": "2026-08-22T00:55:14+09:00",
   "observed_gap_minutes": 1099.2,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
-    "AMZN": 1.095794,
-    "AAPL": 0.72172128,
-    "MSFT": 0.20589038
+    "AAPL": 2.05023066
   },
   "risk_scale": 1.0,
   "last_skipped": {},
@@ -84,9 +82,13 @@
     [
       "2026-08-21T23:49:05+09:00",
       9982.65
+    ],
+    [
+      "2026-08-22T00:55:14+09:00",
+      9983.38
     ]
   ],
-  "hold_return_pct": -0.6857,
+  "hold_return_pct": -0.3408,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -101,36 +103,27 @@
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "equity": 9985.09,
-    "return_pct_since": -0.1467,
-    "cost_paid": 0.42,
-    "filled_total": 31,
+    "equity": 9986.24,
+    "return_pct_since": -0.1352,
+    "cost_paid": 0.48,
+    "filled_total": 35,
     "unfilled_total": 0,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9970.37,
-      "return_pct": -0.2963,
-      "hold_return_pct": -0.5793,
-      "trades_total": 59,
-      "cost_paid": 10.08,
-      "rounds_total": 16,
+      "equity": 9974.95,
+      "return_pct": -0.2505,
+      "hold_return_pct": -0.0291,
+      "trades_total": 61,
+      "cost_paid": 10.45,
+      "rounds_total": 17,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-08-19T13:52:01+00:00",
-      "symbol": "GOOGL",
-      "side": "buy",
-      "notional": 124.56,
-      "price": 344.07000732421875,
-      "cost": 0.0747,
-      "signal": 0.0997
-    },
     {
       "time": "2026-08-19T13:52:01+00:00",
       "symbol": "GOOG",
@@ -463,6 +456,33 @@
       "price": 259.69000244140625,
       "cost": 0.0541,
       "signal": 0.228
+    },
+    {
+      "time": "2026-08-22T00:55:14+09:00",
+      "symbol": "AAPL",
+      "side": "buy",
+      "notional": 412.64,
+      "price": 310.6000061035156,
+      "cost": 0.2476,
+      "signal": 0.5103
+    },
+    {
+      "time": "2026-08-22T00:55:14+09:00",
+      "symbol": "MSFT",
+      "side": "sell",
+      "notional": -99.62,
+      "price": 483.8349914550781,
+      "cost": 0.0598,
+      "signal": 0.0
+    },
+    {
+      "time": "2026-08-22T00:55:14+09:00",
+      "symbol": "AMZN",
+      "side": "sell",
+      "notional": -283.65,
+      "price": 258.8500061035156,
+      "cost": 0.1702,
+      "signal": 0.0
     }
   ],
   "honest_limits": [
