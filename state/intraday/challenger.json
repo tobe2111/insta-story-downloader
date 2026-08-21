@@ -1,11 +1,13 @@
 {
-  "cash": 6405.291967382575,
+  "cash": 5248.0907423510735,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "ETH/USDT": 0.892520417580185,
-    "XRP/USDT": 1515.2495083879662,
-    "BNB/USDT": 0.07556030321261359
+    "XRP/USDT": 1604.1178232810682,
+    "BNB/USDT": 0.07556030321261359,
+    "BTC/USDT": 0.0015626403098837095,
+    "SOL/USDT": 10.59459540485763
   },
   "rounds": [
     {
@@ -3585,15 +3587,65 @@
         "cancelled": 2,
         "pending": 2
       }
+    },
+    {
+      "time": "2026-08-21T09:02:17+09:00",
+      "equity": 10451.99,
+      "signals": {
+        "BTC/USDT": 0.0546,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 0.4442,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.9733
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-20 23:00:00",
+        "ETH/USDT": "2026-08-20 23:00:00",
+        "SOL/USDT": "2026-08-20 23:00:00",
+        "BNB/USDT": "2026-08-20 23:00:00",
+        "XRP/USDT": "2026-08-20 23:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "buy",
+          "notional": 114.12,
+          "price": 73031.7,
+          "cost": 0.1712,
+          "signal": 0.0546
+        },
+        {
+          "symbol": "SOL/USDT",
+          "side": "buy",
+          "notional": 928.62,
+          "price": 87.65,
+          "cost": 1.3929,
+          "signal": 0.4442
+        },
+        {
+          "symbol": "XRP/USDT",
+          "side": "buy",
+          "notional": 112.73,
+          "price": 1.2685,
+          "cost": 0.1691,
+          "signal": 0.9733
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10476.22,
+        "filled": 2,
+        "cancelled": 0,
+        "pending": 3
+      }
     }
   ],
-  "cost_paid": 68.64992102726714,
+  "cost_paid": 70.38312306176265,
   "last_prices": {
-    "BTC/USDT": 72677.5,
-    "ETH/USDT": 2314.32,
-    "SOL/USDT": 87.22,
-    "BNB/USDT": 654.0,
-    "XRP/USDT": 1.2564
+    "BTC/USDT": 73031.7,
+    "ETH/USDT": 2326.96,
+    "SOL/USDT": 87.65,
+    "BNB/USDT": 654.8,
+    "XRP/USDT": 1.2685
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -3607,29 +3659,35 @@
   "limit_shadow": {
     "since": "2026-08-18T14:50:04+00:00",
     "start_equity": 9995.2,
-    "cash": 6098.736890940389,
+    "cash": 6368.101230940389,
     "positions": {
       "ETH/USDT": 0.9164218672506543,
-      "XRP/USDT": 1166.1304416412518,
+      "XRP/USDT": 1518.3829090083323,
       "BNB/USDT": 0.0757094434347399,
-      "SOL/USDT": 8.175771428571428
+      "SOL/USDT": 8.988764044204345e-06
     },
     "pending": {
+      "BTC/USDT": {
+        "side": "buy",
+        "limit": 73031.7,
+        "notional": 114.37,
+        "placed_bar": "2026-08-20 23:00:00"
+      },
       "SOL/USDT": {
-        "side": "sell",
-        "limit": 87.22,
-        "notional": 713.09,
-        "placed_bar": "2026-08-20 22:00:00"
+        "side": "buy",
+        "limit": 87.65,
+        "notional": 930.61,
+        "placed_bar": "2026-08-20 23:00:00"
       },
       "XRP/USDT": {
         "side": "buy",
-        "limit": 1.2564,
-        "notional": 442.57,
-        "placed_bar": "2026-08-20 22:00:00"
+        "limit": 1.2685,
+        "notional": 113.13,
+        "placed_bar": "2026-08-20 23:00:00"
       }
     },
-    "cost_paid": 39.31332895694485,
-    "filled_total": 87,
+    "cost_paid": 40.468988956944855,
+    "filled_total": 89,
     "unfilled_total": 67
   }
 }
