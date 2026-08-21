@@ -1,13 +1,12 @@
 {
-  "cash": 4238.5258939921005,
+  "cash": 5985.6849790444785,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "ETH/USDT": 0.892520417580185,
-    "XRP/USDT": 1270.6872127431607,
-    "BNB/USDT": 2.1227887289914236,
-    "BTC/USDT": 0.0029641739548736347,
-    "SOL/USDT": 10.263049765765187
+    "XRP/USDT": 1381.7716463487657,
+    "BNB/USDT": 0.8690655136593501,
+    "BTC/USDT": 0.0009333750434346809
   },
   "rounds": [
     {
@@ -3729,15 +3728,73 @@
         "cancelled": 0,
         "pending": 3
       }
+    },
+    {
+      "time": "2026-08-21T12:56:53+09:00",
+      "equity": 10503.2,
+      "signals": {
+        "BTC/USDT": 0.0331,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.2726,
+        "XRP/USDT": 0.848
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-21 02:00:00",
+        "ETH/USDT": "2026-08-21 02:00:00",
+        "SOL/USDT": "2026-08-21 02:00:00",
+        "BNB/USDT": "2026-08-21 02:00:00",
+        "XRP/USDT": "2026-08-21 02:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "sell",
+          "notional": -151.17,
+          "price": 74440.7,
+          "cost": 0.2268,
+          "signal": 0.0331
+        },
+        {
+          "symbol": "SOL/USDT",
+          "side": "sell",
+          "notional": -916.08,
+          "price": 89.26,
+          "cost": 1.3741,
+          "signal": 0.0
+        },
+        {
+          "symbol": "BNB/USDT",
+          "side": "sell",
+          "notional": -826.2,
+          "price": 659.0,
+          "cost": 1.2393,
+          "signal": 0.2726
+        },
+        {
+          "symbol": "XRP/USDT",
+          "side": "buy",
+          "notional": 143.24,
+          "price": 1.2895,
+          "cost": 0.2149,
+          "signal": 0.848
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10531.71,
+        "filled": 3,
+        "cancelled": 0,
+        "pending": 4
+      }
     }
   ],
-  "cost_paid": 75.93344646109823,
+  "cost_paid": 78.98849779708405,
   "last_prices": {
-    "BTC/USDT": 75131.1,
-    "ETH/USDT": 2359.24,
-    "SOL/USDT": 89.01,
-    "BNB/USDT": 661.6,
-    "XRP/USDT": 1.2963
+    "BTC/USDT": 74440.7,
+    "ETH/USDT": 2345.63,
+    "SOL/USDT": 89.26,
+    "BNB/USDT": 659.0,
+    "XRP/USDT": 1.2895
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -3751,36 +3808,42 @@
   "limit_shadow": {
     "since": "2026-08-18T14:50:04+00:00",
     "start_equity": 9995.2,
-    "cash": 6022.101730940389,
+    "cash": 4198.234810940389,
     "positions": {
       "ETH/USDT": 0.9164218672506543,
-      "XRP/USDT": 1607.5669846882693,
-      "BNB/USDT": 0.0757094434347399,
-      "SOL/USDT": 0.21571877574235643,
+      "XRP/USDT": 1273.639653052074,
+      "BNB/USDT": 2.1277197215484036,
+      "SOL/USDT": 10.286946727657872,
       "BTC/USDT": 0.0029707800743882153
     },
     "pending": {
+      "BTC/USDT": {
+        "side": "sell",
+        "limit": 74440.7,
+        "notional": 151.5,
+        "placed_bar": "2026-08-21 02:00:00"
+      },
       "SOL/USDT": {
-        "side": "buy",
-        "limit": 89.01,
-        "notional": 896.44,
-        "placed_bar": "2026-08-21 01:00:00"
+        "side": "sell",
+        "limit": 89.26,
+        "notional": 918.21,
+        "placed_bar": "2026-08-21 02:00:00"
       },
       "BNB/USDT": {
-        "side": "buy",
-        "limit": 661.6,
-        "notional": 1357.61,
-        "placed_bar": "2026-08-21 01:00:00"
+        "side": "sell",
+        "limit": 659.0,
+        "notional": 828.07,
+        "placed_bar": "2026-08-21 02:00:00"
       },
       "XRP/USDT": {
-        "side": "sell",
-        "limit": 1.2963,
-        "notional": 432.87,
-        "placed_bar": "2026-08-21 01:00:00"
+        "side": "buy",
+        "limit": 1.2895,
+        "notional": 143.75,
+        "placed_bar": "2026-08-21 02:00:00"
       }
     },
-    "cost_paid": 42.64848895694485,
-    "filled_total": 94,
+    "cost_paid": 45.33540895694485,
+    "filled_total": 97,
     "unfilled_total": 67
   }
 }
