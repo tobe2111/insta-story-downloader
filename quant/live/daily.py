@@ -1987,9 +1987,29 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         log.error("포트폴리오: 판정일이 과거로 갔다 — 기록 %s → 오늘 %s. "
                   "시세 공급이 뒤처졌다는 뜻이라 기록하지 않는다.", prev_bar, bar)
         return {"skipped": True, "last_bar": prev_bar, "backwards": str(bar)}
+    # ⚠️ **먼저 기록한 쪽이 이기면 안 된다** (2026-08-19 실측 사고, redo.py).
+    #    사흘 멈춘 배치를 살리려고 04:18에 수동 실행했더니 그날이 봉인됐고,
+    #    20:59에 도착한 과최적화 검증 결과를 정규 밤 배치(22:15/22:30)가
+    #    반영하지 못했다 — 성공했는데 아무것도 못 바꿨다. 그래서 계좌는
+    #    오후 1시의 낡은 검증으로 하루를 굴렀다.
+    #
+    #    그렇다고 그냥 다시 돌리면 그날 매매가 두 번 일어나 비용이 두 배다.
+    #    **되돌림 지점**으로 계좌를 되감은 뒤 처음부터 계산한다 — 매매도
+    #    비용도 한 번이다. 그리고 되돌리는 조건은 딱 하나, **판단의 재료가
+    #    실제로 새로 왔을 때**다. 재료가 그대로면 예전처럼 조용히 건너뛴다.
+    from quant.live.redo import (mark_restore_point, rewind, should_redo,
+                                 validation_stamp)
     if prev_bar == bar:
-        log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
-        return {"skipped": True, "last_bar": bar}
+        redo, why = should_redo(st, bar, state_dir)
+        if not redo or not rewind(st, bar):
+            log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀 (%s)",
+                     bar, why)
+            return {"skipped": True, "last_bar": bar, "redo_why": why}
+        log.warning("포트폴리오: %s", why)
+
+    # 이 봉의 계산을 시작하기 전 상태를 통째로 복사해 둔다(되돌림 지점).
+    mark_restore_point(st, bar)
+    val_stamp = validation_stamp(state_dir)
 
     # 누적 비용 칸 — 없으면 지난 기록에서 한 번만 되짚어 채운다.
     # 이후로는 가짜 브로커가 돈을 뺄 때마다 실제로 센다(2026-08-19).
@@ -2563,6 +2583,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     st["cost_paid"] = round(float(st.get("cost_paid") or 0.0) + cost_today, 2)
 
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
+              # 이 기록이 **어느 검증 장부를 보고** 만들어졌는지(redo.py).
+              # 같은 봉을 다시 돌릴지 판단하는 유일한 근거다 — 없으면
+              # 다시 돌리지 않는다(추측 금지).
+              "validation_stamp": val_stamp,
               "equity": round(equity, 2),
               # 비용은 이미 자산에서 빠져 있다 — 이 두 칸은 **얼마나** 빠졌는지를
               # 말한다. 예전에는 그 숫자가 장부 어디에도 없어서, 화면이
