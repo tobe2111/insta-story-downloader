@@ -1755,6 +1755,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     earnings_asked: list = []       # 가드를 물어본 종목 — 아래 건강 기록용
+    probs: dict = {}                # key → 그날 모델이 말한 상승확률
+    thresholds: dict = {}           # key → 그 종목 챔피언의 진입 문턱
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
@@ -1870,6 +1872,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df_sig)
             weights[key] = float(
                 _risk_for(market).size_positions(df_sig, signals).iloc[-1])
+            # 사이징 사다리 재료(2026-08-22) — 그날 모델이 말한 **확률**과
+            # 그 종목의 진입 문턱. 크기 규칙을 바꿔 보려면 비중이 아니라
+            # 확률이 있어야 한다. 여기서 주워 두면 나중에 백테스트를 다시
+            # 돌릴 필요가 없다 — 즉 선견 편향이 들어갈 자리가 없다.
+            _p = _last_proba(strat)
+            if _p is not None:
+                probs[key] = float(_p)
+                thresholds[key] = float(
+                    (champion_spec(market, symbol, state_dir)["params"] or {})
+                    .get("threshold") or 0.55)
             # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
             # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
             #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
@@ -1987,9 +1999,29 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         log.error("포트폴리오: 판정일이 과거로 갔다 — 기록 %s → 오늘 %s. "
                   "시세 공급이 뒤처졌다는 뜻이라 기록하지 않는다.", prev_bar, bar)
         return {"skipped": True, "last_bar": prev_bar, "backwards": str(bar)}
+    # ⚠️ **먼저 기록한 쪽이 이기면 안 된다** (2026-08-19 실측 사고, redo.py).
+    #    사흘 멈춘 배치를 살리려고 04:18에 수동 실행했더니 그날이 봉인됐고,
+    #    20:59에 도착한 과최적화 검증 결과를 정규 밤 배치(22:15/22:30)가
+    #    반영하지 못했다 — 성공했는데 아무것도 못 바꿨다. 그래서 계좌는
+    #    오후 1시의 낡은 검증으로 하루를 굴렀다.
+    #
+    #    그렇다고 그냥 다시 돌리면 그날 매매가 두 번 일어나 비용이 두 배다.
+    #    **되돌림 지점**으로 계좌를 되감은 뒤 처음부터 계산한다 — 매매도
+    #    비용도 한 번이다. 그리고 되돌리는 조건은 딱 하나, **판단의 재료가
+    #    실제로 새로 왔을 때**다. 재료가 그대로면 예전처럼 조용히 건너뛴다.
+    from quant.live.redo import (mark_restore_point, rewind, should_redo,
+                                 validation_stamp)
     if prev_bar == bar:
-        log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀", bar)
-        return {"skipped": True, "last_bar": bar}
+        redo, why = should_redo(st, bar, state_dir)
+        if not redo or not rewind(st, bar):
+            log.info("포트폴리오: 같은 봉(%s)에 이미 실행됨 — 건너뜀 (%s)",
+                     bar, why)
+            return {"skipped": True, "last_bar": bar, "redo_why": why}
+        log.warning("포트폴리오: %s", why)
+
+    # 이 봉의 계산을 시작하기 전 상태를 통째로 복사해 둔다(되돌림 지점).
+    mark_restore_point(st, bar)
+    val_stamp = validation_stamp(state_dir)
 
     # 누적 비용 칸 — 없으면 지난 기록에서 한 번만 되짚어 채운다.
     # 이후로는 가짜 브로커가 돈을 뺄 때마다 실제로 센다(2026-08-19).
@@ -2220,6 +2252,25 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 무제약 그림자(2026-08-19, 사장님 지시) — 같은 신호·같은 배분에
     # 안전장치(변동성 타깃·킬스위치·게이트·켈리)만 뗀 가상 계좌.
     # 제약의 값을 말이 아니라 곡선으로 공개한다. 실험 실패는 본 계좌 불가침.
+    # 2세대 그림자(2026-08-19, 사장님 "다 살 필요는 없잖아") — 같은 신호를
+    # 줄 세워 상위 K개에만, 점수 비례로 담는 가상 계좌. 배분 방식은 구조
+    # 세대 축이라 본 계좌에 바로 넣으면 판정 시계가 리셋된다 — 그림자로
+    # 재고 판정일에 이기면 졸업시킨다.
+    # 사이징 사다리(2026-08-22, 사장님 "왜 조금씩만 사?") — 같은 확률에
+    # **크기 규칙만** 바꾼 가상 계좌 4개. 이 축은 오디션이 한 번도 흔든 적이
+    # 없다(저장소가 스스로 적어 둔 사실). 진입 조건은 넷이 공유한다.
+    try:
+        from quant.live.sizing_ladder import run_sizing_ladder
+        run_sizing_ladder(bar=bar, probs=probs, thresholds=thresholds,
+                          marks=marks, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("사이징 사다리 실패(본 계좌 무관): %s", exc)
+    try:
+        from quant.live.gen2 import run_gen2
+        run_gen2(bar=bar, weights=weights, marks=marks,
+                 grades=valid_grades, tilt=None, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("2세대 그림자 실패(본 계좌 무관): %s", exc)
     try:
         from quant.live.unshackled import run_unshackled
         run_unshackled(bar=bar, weights=weights, slices=slices,
@@ -2553,6 +2604,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     st["cost_paid"] = round(float(st.get("cost_paid") or 0.0) + cost_today, 2)
 
     record = {"date": bar, "price": round(idx, 2), "weight": round(gross, 4),
+              # 이 기록이 **어느 검증 장부를 보고** 만들어졌는지(redo.py).
+              # 같은 봉을 다시 돌릴지 판단하는 유일한 근거다 — 없으면
+              # 다시 돌리지 않는다(추측 금지).
+              "validation_stamp": val_stamp,
               "equity": round(equity, 2),
               # 비용은 이미 자산에서 빠져 있다 — 이 두 칸은 **얼마나** 빠졌는지를
               # 말한다. 예전에는 그 숫자가 장부 어디에도 없어서, 화면이
@@ -3345,6 +3400,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
     # 실험 판정 기준의 사전 등록(2026-08-19) — 골대 이동 방지. 판정일·통계·
     # 문턱이 데이터보다 먼저 공개돼 있어야 몇 달 뒤의 판정이 의심받지 않는다.
     try:
+        from quant.live.gen2 import gen2_public
+        status["gen2"] = gen2_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["gen2"] = None
+    try:
         from quant.live.breadth import breadth
         status["breadth"] = breadth(state_dir)
     except Exception:  # noqa: BLE001 — 계측기가 배치를 못 죽인다
@@ -3593,6 +3653,18 @@ def write_docs_status(state_dir: str = STATE_DIR,
         census = seat_census(load_champions(state_dir))
         if census["accounts"]:
             status["parliament"] = census
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
+
+    # 증명 가능성 — "통과선을 넘으려면 무엇이 필요한가"(2026-08-19).
+    # 검증이 처음 완주한 날 통과가 0종목이었다. 나쁜 결과일수록 숨기지 않고
+    # **왜 그런지까지** 같은 자리에 싣는다 — 좋은 숫자만 남기는 편집이
+    # 이 제품의 정체성을 무너뜨린다.
+    try:
+        from quant.live.provable import provability
+        prov = provability(state_dir)
+        if prov:
+            status["provable"] = prov
     except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
         pass
 

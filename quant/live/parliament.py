@@ -141,6 +141,97 @@ def _paired_t(a, b) -> float:
         return 0.0
 
 
+# ── 상관까지 본 목표 비중 — **재는 것만 한다** (2026-08-19) ──────────
+#
+# ⚠️ 실측이 먼저다. 2026-08-19 기준 의석은 39개·전략 11종인데, **자금의
+#    72.9%가 한 스펙(logreg 문턱 0.55)**에 있다. 왜 그런가를 코드에서 찾으면
+#    이렇게 갈린다:
+#
+#      · 의석을 **여는 문**은 상관을 본다 — 다양성 의석은 상관 0.5 미만만.
+#      · 의석 **크기를 정하는 규칙**은 수익만 본다 — softmax(홀드아웃 수익).
+#
+#    그래서 다르게 들어온 의원이 시간이 지나면 얇아진다. 포트폴리오 이론이
+#    말하는 것은 반대다: 기대수익이 비슷하고 상관이 낮으면 **비중을 더 줘야**
+#    전체 위험이 준다.
+#
+# ⚠️⚠️ 그런데 이것을 지금 본 계좌에 적용하면 **판정 시계가 리셋된다**
+#      ('얼마를 사는가'는 세대 축 ②다). 사장님 지시: "무슨 수정을 해도 판정
+#      시간은 리셋되면 안 된다." 그래서 여기서는 **재기만 한다** — 대안
+#      비중을 계산해 나란히 적어 두고, 격차가 실제로 큰지 며칠 보고 나서
+#      그림자 계좌로 태울지 정한다. 재지 않고 만드는 것이 더 나쁜 순서다.
+#
+# 계산: 의원들의 홀드아웃 일수익을 섞어 **샤프가 최대가 되는 비중**을
+# 격자탐색(의석 3석 이하라 격자로 충분하고, 최적화 라이브러리 의존이 없다).
+# 짧은 표본에서 최대 샤프는 흔들리므로 **균등으로 절반 당겨** 둔다.
+DIVERSITY_SHRINK = 0.5     # 균등 쪽으로 이만큼 당긴다(짧은 표본 방어)
+DIVERSITY_STEP = 0.05      # 격자 간격
+
+
+def _simplex_grid(k: int, step: float):
+    """합이 1인 비중 조합을 격자로 훑는다(k는 의석 수, 보통 ≤ 3)."""
+    n = int(round(1.0 / step))
+
+    def rec(left: int, slots: int):
+        if slots == 1:
+            yield (left,)
+            return
+        for i in range(left + 1):
+            for rest in rec(left - i, slots - 1):
+                yield (i,) + rest
+
+    for combo in rec(n, k):
+        yield tuple(c / n for c in combo)
+
+
+def diversity_weights(rets: dict, kept: list) -> dict | None:
+    """상관까지 본 목표 비중 — **기록용**이고 매매에 쓰지 않는다.
+
+    rets: {의석 index: 일수익 시계열}, kept: 살아남은 의석 index 목록.
+    못 재면 None(모름을 0으로 적지 않는다).
+    """
+    if len(kept) < 2:
+        return None
+    try:
+        import pandas as pd
+
+        mat = pd.concat([rets[i] for i in kept], axis=1).dropna()
+        if len(mat) < 20:                 # 표본이 얇으면 최적화가 잡음이다
+            return None
+        arr = mat.to_numpy()
+        best, best_sharpe = None, None
+        for w in _simplex_grid(len(kept), DIVERSITY_STEP):
+            r = arr @ w
+            sd = float(r.std(ddof=1))
+            if sd <= 0:
+                continue
+            sharpe = float(r.mean()) / sd
+            if best_sharpe is None or sharpe > best_sharpe:
+                best, best_sharpe = w, sharpe
+        if best is None:
+            return None
+        eq = 1.0 / len(kept)
+        out = {i: round((1 - DIVERSITY_SHRINK) * w + DIVERSITY_SHRINK * eq, 4)
+               for i, w in zip(kept, best)}
+        tot = sum(out.values()) or 1.0
+        return {i: round(v / tot, 4) for i, v in out.items()}
+    except Exception as exc:  # noqa: BLE001 — 계측 실패가 의회를 막지 않는다
+        log.warning("다양성 비중 계측 실패(건너뜀): %s", exc)
+        return None
+
+
+def weight_gap(actual: list[dict]) -> float | None:
+    """지금 비중과 '상관까지 본 비중'의 거리(0~1). 없으면 None.
+
+    0이면 두 규칙이 같은 답을 낸다는 뜻이고, 1에 가까울수록 지금 배분이
+    상관을 무시하고 있다는 뜻이다. 총변동거리(L1의 절반)를 쓴다.
+    """
+    pairs = [(float(m.get("weight", 0.0)), m.get("alt_weight"))
+             for m in (actual or [])]
+    if len(pairs) < 2 or any(a is None for _w, a in pairs):
+        return None
+    return round(sum(abs(w - float(a)) for w, a in pairs) / 2.0, 4)
+
+
 def update_parliament(entry: dict, df, *, build, cost_model=None,
                       confirm_window: int = 120,
                       promoted_spec: dict | None = None,
@@ -294,6 +385,18 @@ def update_parliament(entry: dict, df, *, build, cost_model=None,
         s = sum(m["weight"] for m in out)
         for m in out:
             m["weight"] = round(m["weight"] / s, 4)
+        # 상관까지 본 비중을 **나란히 적어 둔다** — 매매에는 쓰지 않는다.
+        # 위 `out`은 MIN_WEIGHT로 걸러진 뒤라 kept와 명단이 다를 수 있어,
+        # 살아남은 의석만 골라 다시 맞춘다.
+        alive = [i for i in kept
+                 if any(_same(_spec_of(members[i]), _spec_of(m)) for m in out)]
+        alt = diversity_weights(rets, alive)
+        if alt:
+            for m in out:
+                for i in alive:
+                    if _same(_spec_of(members[i]), _spec_of(m)):
+                        m["alt_weight"] = alt[i]
+                        break
         out.sort(key=lambda m: -m["weight"])
         return out
     except Exception as exc:  # noqa: BLE001 — 의회 갱신 실패가 본류를 막으면 안 됨
@@ -337,6 +440,36 @@ def seat_census(champions: dict | None) -> dict:
         except (KeyError, TypeError):
             continue          # 구버전/손상 항목 — 셀 수 없으면 세지 않는다
     multi = sum(1 for v in counts.values() if v >= 2)
+
+    # ⚠️ 의석 수는 절반의 답이다(2026-08-19). 39석·11종인데 **자금의 72.9%가
+    #    한 스펙**에 있었다 — 자리를 여러 개 준 것과 돈을 나눠 준 것은 다른
+    #    이야기다. 그래서 (a) 스펙별 자금 점유와 (b) '상관까지 본 비중'과의
+    #    거리를 함께 낸다. (b)는 재기만 하는 값이다 — 적용하면 판정 시계가
+    #    리셋되므로, 격차가 큰지 먼저 보고 그림자로 태울지 정한다.
+    import json as _json
+
+    share: dict[str, float] = {}
+    gaps: list[float] = []
+    n_acct = 0
+    for entry in (champions or {}).values():
+        if not isinstance(entry, dict) or "strategy" not in entry:
+            continue
+        try:
+            ms = members_of(entry)
+        except (KeyError, TypeError):
+            continue
+        n_acct += 1
+        tot = sum(float(m.get("weight", 0.0)) for m in ms) or 1.0
+        for m in ms:
+            k = m["strategy"] + ":" + _json.dumps(m.get("params"),
+                                                 sort_keys=True)
+            share[k] = share.get(k, 0.0) + float(m.get("weight", 0.0)) / tot
+        g = weight_gap(ms)
+        if g is not None:
+            gaps.append(g)
+    top = max((v / n_acct for v in share.values()), default=None) if n_acct \
+        else None
+
     return {
         "accounts": len(counts),
         "single_seat": len(counts) - multi,
@@ -345,6 +478,14 @@ def seat_census(champions: dict | None) -> dict:
         "cap": PARLIAMENT_K,
         # 지금 실제로 분산 운용 중인가 — 문장이 아니라 이 불리언이 답한다
         "diversified": multi > 0,
+        # 서로 다른 전략 스펙이 몇 종이고, 그중 **가장 큰 하나가 자금의
+        # 몇 %를 쥐고 있는가**. 의석이 많아도 이 값이 크면 베팅은 하나다.
+        "distinct_specs": len(share),
+        "top_spec_share": (round(top, 4) if top is not None else None),
+        # 지금 비중과 '상관까지 본 비중'의 평균 거리(0~1). None이면 아직
+        # 못 잰 것이고, 0으로 적지 않는다.
+        "weight_gap": (round(sum(gaps) / len(gaps), 4) if gaps else None),
+        "weight_gap_measured": len(gaps),
     }
 
 

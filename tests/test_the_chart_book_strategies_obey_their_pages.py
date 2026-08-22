@@ -74,9 +74,23 @@ def test_psar_rides_a_trend_and_flips_on_touch():
 
 
 def test_psar_acceleration_is_capped():
-    """가속변수는 0.2가 최대다(자료의 정의) — 상한이 없으면 SAR이 폭주한다."""
+    """가속변수는 0.2가 최대다(자료의 정의) — 가속하는 **모든 자리**에서.
+
+    ⚠️ 왜 글자 검사인가, 그리고 왜 그것으로 충분하지 않았는가
+       (야간 변이 시험 2026-08-19). 이 구현은 매 봉 SAR을 최근 두 저가
+       아래로 눌러 둔다(와일더의 규칙). 그 눌림이 워낙 세서, 상한을 아예
+       없애도 **행동이 안 변한다** — 무작위 상승 자료 400건에서 신호가
+       한 봉도 달라지지 않았다. 즉 행동으로는 잡을 수 없는 자리다.
+
+       그래서 글자로 지키되, **가속하는 자리가 둘**이라는 사실을 센다.
+       예전 검사는 "한 번이라도 있으면 통과"라, 상승 쪽 상한만 떼도
+       하락 쪽 한 줄 덕분에 초록이었다.
+    """
     src = (ROOT / "quant" / "strategies" / "psar.py").read_text("utf-8")
-    assert "min(self.af_max, af + self.af_step)" in src
+    accel = [ln for ln in src.splitlines() if "af + self.af_step" in ln]
+    assert accel, "가속하는 자리를 못 찾았다 — 검사를 코드에 다시 맞춰라"
+    uncapped = [ln for ln in accel if "min(self.af_max," not in ln]
+    assert not uncapped, f"상한 없이 가속하는 자리가 있다: {uncapped}"
     s = ParabolicSAR(af_step=0.02, af_max=0.2)
     assert s.af_max == 0.2
 
@@ -96,9 +110,29 @@ def test_ichimoku_enters_above_the_cloud_and_exits_below():
 
 def test_ichimoku_cloud_is_from_the_past_not_the_future():
     """선행스팬은 26일 '앞에 기입'된다 — 오늘 비교하는 구름은 26일 전
-    계산값이어야 하고, shift가 빠지면 미래 구름을 미리 보게 된다."""
-    src = (ROOT / "quant" / "strategies" / "ichimoku.py").read_text("utf-8")
-    assert ".shift(self.shift)" in src, "구름이 뒤로 밀리지 않았다(룩어헤드)"
+    계산값이다.
+
+    ⚠️ 예전 판은 소스에 ".shift(self.shift)"가 있는지 **글자로** 훑었다.
+       선행스팬은 두 줄인데 한 줄에서만 shift를 빼도 나머지 한 줄 덕분에
+       그 글자는 남아 있어서, 검사는 초록인 채로 구름이 틀어졌다
+       (야간 변이 시험 2026-08-19). 이제 **숫자로** 확인한다.
+    """
+    s = IchimokuStrategy()
+    df = _df(list(np.linspace(100, 160, 120)))
+    top, bot = s.cloud(df)
+    i = len(df) - 1
+    j = i - s.shift                              # 26봉 전에 계산된 값
+    tenkan = IchimokuStrategy._mid(df, s.tenkan)
+    kijun = IchimokuStrategy._mid(df, s.kijun)
+    a_past = float((tenkan.iloc[j] + kijun.iloc[j]) / 2.0)
+    b_past = float(IchimokuStrategy._mid(df, s.senkou_b).iloc[j])
+    assert abs(float(top.iloc[i]) - max(a_past, b_past)) < 1e-9
+    assert abs(float(bot.iloc[i]) - min(a_past, b_past)) < 1e-9
+    # 그리고 **안 민 값과는 달라야** 한다 — 같다면 이 검사가 아무것도 안 잡는다.
+    a_now = float((tenkan.iloc[i] + kijun.iloc[i]) / 2.0)
+    assert abs(a_now - a_past) > 1e-9, "자료가 평탄해 밀고 안 밀고가 같다"
+    assert abs(float(top.iloc[i]) - max(a_now, b_past)) > 1e-9, (
+        "구름이 26봉 전 값이 아니라 오늘 값이다 — 자료의 정의와 다르다")
 
 
 # ── 심사대 — 셋 다 링에 서고, 특혜는 없다 ──────────────────────

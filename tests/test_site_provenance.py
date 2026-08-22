@@ -40,11 +40,11 @@ def _produced_status_keys() -> set[str]:
     from quant.live.daily import write_docs_status
 
     src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
-    keys = set(re.findall(r'status\["([a-z_]+)"\]', src))
+    keys = set(re.findall(r'status\["([a-z_][a-z_0-9]*)"\]', src))
     with tempfile.TemporaryDirectory() as td:
         st = write_docs_status(str(ROOT / "state"),
                                docs_path=f"{td}/status.json")
-        keys |= {k for k in st if re.fullmatch(r"[a-z_]+", k)}
+        keys |= {k for k in st if re.fullmatch(r"[a-z_][a-z_0-9]*", k)}
     return keys
 
 
@@ -196,7 +196,10 @@ def test_site_reads_only_fields_that_exist():
     """
     produced = _produced_status_keys()
     for page in sorted(DOCS.glob("*.html")):
-        referenced = set(re.findall(r"\bst\.([a-z_]+)", page.read_text("utf-8")))
+        # 숫자를 포함한 키(gen2 등)까지 잡는다 — [a-z_]만 보면 st.gen2가
+        # 'gen'으로 잘려 있지도 않은 필드를 읽는다고 오판했다(2026-08-19).
+        referenced = set(re.findall(r"\bst\.([a-z_][a-z_0-9]*)",
+                                    page.read_text("utf-8")))
         unknown = referenced - produced
         # 이 테스트가 실제로 잡아낸 것: 사이트가 st.vol_target(최상위)을 읽었지만
         # vol_target은 일별 기록 안에만 있어 카드가 영원히 비어 있었다.

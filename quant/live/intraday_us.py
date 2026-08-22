@@ -61,6 +61,19 @@ MIN_BARS = 60
 #    볼모로 잡는 모양이라, 이 저장소가 가장 피해야 할 구조다.
 FETCH_BUDGET_SEC = 90.0
 
+# 정규장 중이라도 **봉이 이만큼(봉 길이 배수)보다 낡았으면 판단하지 않는다.**
+#
+# ⚠️ 왜 필요한가(2026-08-19 첫 회차 실측). 개장 22분 뒤 13:52Z에 첫 회차가
+#    돌았는데, 무료 시세(야후)가 오늘 봉을 아직 안 내줘서 **어제 19:30Z 봉**이
+#    최신이었다. 그래서 이 계좌의 첫 매수는 18시간 전 가격을 보고 내린
+#    판단이 됐다. 장은 열려 있고 데이터도 '받아졌으니' 어떤 관문에도 안
+#    걸렸다 — 조용히 어제를 오늘처럼 쓴 것이다.
+#
+#    3배인 이유: 닫힌 봉만 쓰므로 최신 봉도 최대 2배 나이를 먹을 수 있다
+#    (봉이 열린 시각 기준). 여기에 시세 지연 한 칸을 더 준 것이 3배다.
+#    넘으면 그 종목은 그 회차를 쉬고, 쉰 사유가 장부에 남는다.
+STALE_BAR_FACTOR = 3
+
 START_CASH_USD = 10_000.0              # 가상 시드(USD). 원화와 절대 섞지 않는다.
 ROUNDS_KEEP = 2000
 CURVE_KEEP = 500
@@ -74,6 +87,9 @@ HONEST_LIMITS = [
     "기록 자체가 없습니다",
     "시세 소스(야후)는 지연·결측이 있을 수 있고, 실데이터를 못 받은 종목은 "
     "그 회차를 쉽니다 — 합성 시세로 체결을 만들지 않습니다",
+    "받은 시세가 너무 낡아도(봉 길이의 3배 초과) 그 종목은 그 회차를 "
+    "쉽니다 — 개장 직후 무료 시세가 어제 봉을 최신이라고 주는 일이 "
+    "있어서, 어제 가격으로 오늘을 사지 않으려는 장치입니다",
     "챔피언 파라미터는 일봉에서 뽑혔습니다 — 1시간봉 적용 자체가 이 실험의 "
     "가설이고, 검증된 전략이 아닙니다",
     "본 계좌(100만 챌린지)와 완전히 분리돼 있고 그 판단에 쓰이지 않습니다 — "
@@ -231,7 +247,51 @@ def bar_could_have_closed(st: dict, timeframe: str, now_iso: str) -> bool:
     if last.tzinfo is not None:
         last = last.astimezone(dt.timezone.utc).replace(tzinfo=None)
     now = _now_dt(now_iso).astimezone(dt.timezone.utc).replace(tzinfo=None)
-    return now >= last + dt.timedelta(minutes=2 * _tf_minutes(timeframe))
+    earliest = last + dt.timedelta(minutes=2 * _tf_minutes(timeframe))
+    # 밤을 건넜을 때 — 장이 닫혀 있던 시간에는 봉이 자라지 않는다. 어제
+    # 마지막 봉 + 봉 길이 2배는 새벽에 이미 지나 있어서, 이 식만 쓰면 개장
+    # 직후부터 5분마다 어제 봉을 다시 받는다(무료 시세가 가장 싫어하는 짓).
+    # 오늘 첫 봉은 **개장 + 봉 길이**에야 닫힌다.
+    open_utc = _session_open_utc(now_iso)
+    if open_utc is not None and last < open_utc:
+        earliest = max(earliest,
+                       open_utc + dt.timedelta(minutes=_tf_minutes(timeframe)))
+    return now >= earliest
+
+
+def _session_open_utc(now_iso: str):
+    """오늘(현지 기준) 미국 정규장 개장 시각을 UTC naive로. 못 구하면 None."""
+    import datetime as dt
+
+    try:
+        from quant.live.market_hours import SCHEDULES, _market_now
+        tzname, open_t, _close = SCHEDULES["us_stock"]
+        local = _market_now(tzname, _now_dt(now_iso))
+        op = local.replace(hour=open_t.hour, minute=open_t.minute,
+                           second=0, microsecond=0)
+        return op.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    except Exception:  # noqa: BLE001 — 모르면 막지 않는다(모름 ≠ 아님)
+        return None
+
+
+def bar_is_stale(bar_time: str, timeframe: str, now_iso: str) -> bool:
+    """이 봉이 **지금 판단할 만큼 최근인가** — 아니면 그 종목은 이 회차를 쉰다.
+
+    장이 열려 있다는 것과 시세가 오늘 것이라는 것은 다른 이야기다. 무료
+    시세는 개장 직후 한동안 어제 봉을 최신이라고 준다. 그걸로 매수하면
+    장부에는 '오늘 판단'이라고 적히지만 실제로는 어제를 산 것이다.
+    """
+    import datetime as dt
+
+    try:
+        t = dt.datetime.fromisoformat(str(bar_time).replace("Z", "+00:00"))
+    except ValueError:
+        return False                     # 못 읽으면 막지 않는다(모름 ≠ 낡음)
+    if t.tzinfo is not None:
+        t = t.astimezone(dt.timezone.utc).replace(tzinfo=None)
+    now = _now_dt(now_iso).astimezone(dt.timezone.utc).replace(tzinfo=None)
+    return now - t > dt.timedelta(
+        minutes=STALE_BAR_FACTOR * _tf_minutes(timeframe))
 
 
 def _now_dt(now_iso: str):
@@ -273,6 +333,13 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
         prices[sym] = float(df["close"].iloc[-1])
         bar_times[sym] = str(df.index[-1])
         dfs[sym] = df
+        # 값은 남긴다(들고 있는 것을 평가해야 하므로) — 대신 **판단은 안 한다**.
+        # 신호를 None으로 두면 체결 규칙이 그 종목을 건드리지 않는다.
+        if bar_is_stale(bar_times[sym], timeframe, now_iso):
+            signals[sym] = None
+            skipped[sym] = (f"봉이 낡음({bar_times[sym]}) — 지연된 시세로는 "
+                            "판단하지 않는다")
+            continue
         try:
             sig = float(factory(sym).generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다

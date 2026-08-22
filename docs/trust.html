@@ -163,6 +163,22 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 </ul>
 </div>
 
+<div class="card" id="provable" style="display:none">
+<h2>지금 이 관문을 넘으려면 무엇이 필요한가</h2>
+<p id="provable-body">계산 중…</p>
+<p style="font-size:12.5px;color:var(--muted)">
+<b>이 칸은 나쁜 소식을 적는 자리입니다.</b> 2026-08-19, 전 종목 과최적화
+검증이 처음으로 끝까지 돌았고 <b>통과한 종목은 하나도 없었습니다</b>.
+여기서 "전략이 나쁘다"와 "지금 표본으로는 넘을 수 없는 관문이다"는 대응이
+정반대라, 추측하지 않고 역산했습니다 — 위 숫자가 그 답입니다.
+<br><br>
+<b>관문은 낮추지 않습니다.</b> 결과를 보고 기준을 고치는 것이 이 제품이
+하지 않겠다고 약속한 바로 그 일(골대 이동)입니다. 정공법은 <b>표본을
+늘리는 것</b>이고, 장중 트랙(하루 여러 번 판단하는 별도 실험 계좌)이
+그 실험입니다. 그동안 이 계좌는 <b>절반 이하 노출</b>로 굴러갑니다 —
+고장이 아니라 설계입니다.</p>
+</div>
+
 <div class="card" id="uptime" style="display:none">
 <h2>가동률 — 자동화가 실제로 매일 돌았는가</h2>
 <p id="uptime-body">계산 중…</p>
@@ -276,8 +292,14 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 하는 이유도 같습니다: 지금 고치면 정직한 수정이고, 10월에 고치면 골대
 이동입니다. 매일 봐도 거짓 승리가 늘지 않는다는 것은 주장이 아니라, 차이가
 없는 데이터 400벌을 만들어 매일 들여다보는 검사로 확인합니다.
+<br>
+⑦ <b>2세대 집중 배분</b>(2026-08-19 추가 등록) — 판정 <b>2026-12-17</b>(120일).
+지금 본 계좌는 신호가 켜진 종목에 <b>똑같이</b> 나눠 담습니다. 이 실험은 같은
+신호를 <b>줄 세워 상위 몇 개에만, 점수에 비례해</b> 담습니다 — 확신이 두 배면
+금액도 두 배입니다. 집중이 이겨도 <b>최대낙폭이 본 계좌의 1.5배를 넘으면 채택
+보류</b>입니다(수익이 위험을 사서 온 것이면 승리가 아닙니다).
 <br><br>
-여섯 실험 모두, 기준 미달의 결과는 같습니다: <b>현행 유지 + 결과 그대로 공개.</b>
+일곱 실험 모두, 기준 미달의 결과는 같습니다: <b>현행 유지 + 결과 그대로 공개.</b>
 등록 후 기준을 바꿔야 할 정당한 이유가 생기면 몰래 고치지 않고 이 자리에
 정정을 병기합니다. 등록 원문은 저장소 코드(quant/live/prereg.py)와
 status.json에 그대로 실려 있습니다.</p>
@@ -1042,6 +1064,7 @@ KODEX200 체결이 <code>0.165</code>로 적혀 있습니다 — 같은 날 계�
 <ul>
 <li>이것은 <b>모의투자(가짜 돈)</b>입니다. 실제 주문·체결·세금의 마찰은 근사치
 (수수료·슬리피지 모델)로만 반영됩니다.</li>
+<li><b>⑧ 사이징 사다리</b> — 같은 확률에 <b>얼마를 걸까</b>만 바꾼 가상 계좌 넷(현행·켈리·켈리 절반·전량). 진입 조건은 넷이 같아 크기 축만 격리됩니다. 판정일 <b>2026-12-20</b>(시작 + 120일) · 본페로니 3 · 이겨도 최대낙폭이 현행의 1.5배를 넘으면 채택 보류. 이 축은 오디션이 184회 동안 한 번도 흔들지 않았습니다 — 다만 실측 확률에서 현행은 켈리 절반과 거의 같아(0.087 vs 0.089) <b>틀린 값이 아니라 안 재본 값</b>입니다.
 <li>과거·현재 성과는 <b>미래 수익을 보장하지 않습니다</b>. 이 페이지는 기록이
 진짜임을 보증할 뿐, 전략이 앞으로 돈을 번다는 보증이 아닙니다.</li>
 <li>본 사이트와 방송은 <b>투자 자문·권유가 아닙니다</b>.</li>
@@ -1075,14 +1098,51 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 // ⚠️ 문장에 상태를 박아 두면 안 된다. 구조가 잠들어 있는 동안에도 계속
 //    "분산 운용 중"이라고 읽히고, 그게 정확히 이번에 고친 결함이다.
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  /* 증명 가능성 — 통과가 0종목인 날일수록 이유까지 같이 말한다. */
+  const pv=st.provable, pvc=document.getElementById("provable");
+  if(pv && pvc && pv.required_ann_sharpe!=null){
+    pvc.style.display="";
+    const rows=(pv.paths||[]).map(x=>
+      `<tr><td>${x.label}</td><td class="num">${x.bars.toLocaleString()}</td>`+
+      `<td class="num">${x.required_ann_sharpe!=null?x.required_ann_sharpe.toFixed(2):"—"}</td></tr>`
+    ).join("");
+    document.getElementById("provable-body").innerHTML =
+      `${pv.asof} 기준 <b>${pv.symbols}종목</b> 중 통과 <b>${pv.passing}종목</b>. `+
+      `DSR(운이 아니라 실력일 확률) 최고값은 <b>${pv.dsr_best.toFixed(2)}</b>이고 `+
+      `통과선은 <b>${pv.dsr_pass}</b>입니다.<br><br>`+
+      `지금 표본은 종목당 <b>${pv.bars_median.toLocaleString()}봉</b>이고 `+
+      `누적 시행은 <b>${pv.trials_median.toLocaleString()}회</b>입니다. `+
+      `이 조건에서 통과선에 닿으려면 <b>연환산 샤프 `+
+      `${pv.required_ann_sharpe.toFixed(2)}</b>가 필요합니다 — `+
+      `세계 최상위 펀드가 좋은 해에 내는 수준입니다.<br><br>`+
+      `<div style="overflow-x:auto"><table><thead><tr><th>표본을 늘리는 길</th>`+
+      `<th class="num">판단 횟수</th><th class="num">필요 샤프</th></tr></thead>`+
+      `<tbody>${rows}</tbody></table></div>`;
+  }
   const p=st.parliament; const el=document.getElementById("seat-now");
   if(!p||!el||!p.accounts)return;
-  el.innerHTML = p.diversified
+  let msg = p.diversified
     ? `지금 ${p.accounts}개 계좌 중 <b>${p.multi_seat}개가 2석 이상</b>으로 `+
       `분산 운용 중입니다(최대 ${p.max_seats}석 / 상한 ${p.cap}석).`
     : `<b>지금은 ${p.accounts}개 계좌 전부가 1석입니다</b> — 즉 이 구조는 `+
       `아직 잠들어 있고, 계좌는 사실상 단일 전략으로 굴러갑니다`+
       `(상한 ${p.cap}석). 승격이 쌓여 서로 다른 전략이 들어와야 켜집니다.`;
+  /* ⚠️ 의석 수만 말하면 절반만 말하는 것이다(2026-08-19). 자리를 여러 개
+     준 것과 **돈을 나눠 준 것**은 다르다 — 실측 39석·11종인데 자금의
+     72.9%가 한 전략에 있었다. 그래서 '가장 큰 하나가 몇 %를 쥐고 있는가'를
+     같은 자리에서 말한다. 좋게 읽히는 숫자만 고르면 이 문단의 존재 이유가
+     사라진다. */
+  if(p.top_spec_share!=null && p.distinct_specs!=null){
+    msg += ` 다만 자리 수와 <b>돈의 분산은 다른 이야기</b>입니다 — 전략은 `+
+      `${p.distinct_specs}종인데 그중 가장 큰 하나가 자금의 `+
+      `<b>${(p.top_spec_share*100).toFixed(1)}%</b>를 쥐고 있습니다.`;
+  }
+  if(p.weight_gap!=null){
+    msg += ` 상관까지 고려한 비중과의 거리는 ${(p.weight_gap*100).toFixed(0)}%`+
+      `입니다(${p.weight_gap_measured}계좌 실측 · 재기만 하고 매매에는 `+
+      `쓰지 않습니다 — 배분을 바꾸면 판정 시계가 리셋되기 때문입니다).`;
+  }
+  el.innerHTML = msg;
 }).catch(()=>{});
 </script>
 </body>

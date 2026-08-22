@@ -204,9 +204,26 @@ def _render(tmp_path, history, principal):
 
 
 def test_the_front_page_says_what_holding_would_have_done(tmp_path):
+    """화면이 말하는 '그냥 보유'가 **같은 계산의 결과**와 일치하는가.
+
+    ⚠️ 예전에는 1,005,900원을 글자로 박아 뒀다(2026-08-22 CI 빨간불).
+       그 값은 비용을 안 문 기준선이었는데, 그 뒤 "그냥 보유도 살 때 한 번은
+       수수료를 낸다"가 반영되면서 화면 숫자가 1,004,788원으로 바뀌었다.
+       **화면이 더 정확해졌는데 검사가 틀렸다고 말한 것**이다. 기대값을
+       화면과 같은 함수·같은 비용률에서 뽑아, 계산이 바뀌면 검사도 따라오게
+       한다. 지켜야 할 것은 특정 숫자가 아니라 '화면과 계산이 같다'이다.
+    """
     txt = _render(tmp_path, REAL, BASE)
-    assert "1,005,900원" in txt, f"보유 금액이 없다:\n{txt}"
-    assert "8,702원" in txt, f"차이가 없다:\n{txt}"
+    # 화면이 쓰는 비용률과 같은 값을 장부에서 읽는다(없으면 0).
+    live = json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
+    last = (live["paper"]["portfolio:ALL"]["history"] or [{}])[-1]
+    rate = last.get("bench_cost_rate") or 0.0
+    b = vs_hold(REAL, BASE, rate)
+    assert b is not None
+    assert f"{round(b['hold']):,}원" in txt, (
+        f"보유 금액이 없다(기대 {round(b['hold']):,}원 · 비용률 {rate}):\n{txt}")
+    assert f"{abs(round(b['diff'])):,}원" in txt, (
+        f"차이가 없다(기대 {abs(round(b['diff'])):,}원):\n{txt}")
     assert "뒤집니다" in txt, f"지고 있다고 말하지 않는다:\n{txt}"
     # 이 단계의 목표가 무엇인지도 함께 말해야 한다.
     assert "1억이 아니라" in txt, txt
