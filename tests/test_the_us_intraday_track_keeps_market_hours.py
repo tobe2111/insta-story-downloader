@@ -11,7 +11,11 @@
 - 실데이터가 아니면(합성 폴백) 그 종목은 쉰다.
 - 판정 기준은 첫 회차 전에 사전 등록됐다(prereg와 날짜가 일치).
 - 배선: 5분 러너(cli)가 try로 감싸 부르고, guard.yml이 공개 JSON을 커밋한다.
-- 화면(intraday.html)이 intraday_us.json에서만 읽는다.
+- 화면(us.html)이 intraday_us.json에서만 읽는다.
+  ⚠️ 2026-08-22(감사 305)에 페이지가 옮겨졌다. 예전에는 코인 페이지
+     (intraday.html) 안의 한 섹션이었는데, 사장님 지시로 트랙마다
+     페이지를 나누면서 자기 페이지가 생겼다 — "100만원 투자 1페이지,
+     코인투자 1페이지, 선물투자 1페이지, 미국주식 1페이지".
 """
 from __future__ import annotations
 
@@ -127,7 +131,7 @@ def test_the_wiring_cannot_kill_the_coin_track():
 
 
 def test_the_screen_reads_the_ledger_only():
-    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    page = (ROOT / "docs" / "us.html").read_text("utf-8")
     assert "intraday_us.json" in page and "us-sum" in page, (
         "미국 트랙 화면이 없다 — 공개되지 않는 실험은 실험이 아니다")
 
@@ -240,7 +244,7 @@ def test_the_screen_says_which_source_it_ran_on(monkeypatch, tmp_path):
     pub = json.loads((tmp_path / "docs" / "intraday_us.json")
                      .read_text("utf-8"))
     assert pub.get("quote_source"), "장부가 시세 출처를 안 남긴다"
-    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    page = (ROOT / "docs" / "us.html").read_text("utf-8")
     assert "u.quote_source" in page, (
         "화면이 출처를 장부에서 읽지 않는다 — 산문에 박으면 어긋난다")
 
