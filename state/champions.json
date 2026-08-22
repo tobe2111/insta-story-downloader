@@ -5,22 +5,14 @@
       "model": "logreg",
       "threshold": 0.55,
       "train_window": 250,
-      "retrain_every": 20
+      "retrain_every": 20,
+      "label": "triple",
+      "meta": true
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-21",
-    "trials_total": 431,
+    "last_run_asof": "2026-08-22",
+    "trials_total": 480,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20
-        },
-        "weight": 0.4472
-      },
       {
         "strategy": "ml",
         "params": {
@@ -31,7 +23,8 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.3267
+        "weight": 0.415,
+        "alt_weight": 0.2667
       },
       {
         "strategy": "ml",
@@ -42,7 +35,17 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2261
+        "weight": 0.3089,
+        "alt_weight": 0.5666
+      },
+      {
+        "strategy": "ma_cross",
+        "params": {
+          "fast": 20,
+          "slow": 60
+        },
+        "weight": 0.2761,
+        "alt_weight": 0.1667
       }
     ]
   },
@@ -54,7 +57,7 @@
     },
     "promoted_at": "2026-08-19",
     "promotions": 1,
-    "trials_total": 431,
+    "trials_total": 478,
     "parliament": [
       {
         "strategy": "ma_cross",
@@ -62,7 +65,8 @@
           "fast": 20,
           "slow": 60
         },
-        "weight": 0.4986
+        "weight": 0.4984,
+        "alt_weight": 0.3167
       },
       {
         "strategy": "ml",
@@ -73,7 +77,8 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2837
+        "weight": 0.2555,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "cross_rank",
@@ -81,10 +86,11 @@
           "lookback": 20,
           "top_frac": 0.3
         },
-        "weight": 0.2177
+        "weight": 0.2461,
+        "alt_weight": 0.5166
       }
     ],
-    "last_run_asof": "2026-08-21"
+    "last_run_asof": "2026-08-22"
   },
   "crypto:SOL/USDT": {
     "strategy": "ml",
@@ -96,8 +102,8 @@
       "pool": "universe"
     },
     "promotions": 0,
-    "last_run_asof": "2026-08-21",
-    "trials_total": 431,
+    "last_run_asof": "2026-08-22",
+    "trials_total": 480,
     "parliament": [
       {
         "strategy": "ml",
@@ -108,18 +114,8 @@
           "retrain_every": 20,
           "pool": "universe"
         },
-        "weight": 0.3792
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic"
-        },
-        "weight": 0.3703
+        "weight": 0.5912,
+        "alt_weight": 0.75
       },
       {
         "strategy": "ml",
@@ -129,7 +125,8 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2505
+        "weight": 0.4088,
+        "alt_weight": 0.25
       }
     ]
   },
@@ -369,7 +366,7 @@
       "label": "triple"
     },
     "promotions": 0,
-    "trials_total": 431,
+    "trials_total": 480,
     "parliament": [
       {
         "strategy": "ml",
@@ -380,18 +377,8 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.4385
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "sizing": "binary"
-        },
-        "weight": 0.2886
+        "weight": 0.4845,
+        "alt_weight": 0.3667
       },
       {
         "strategy": "ml",
@@ -402,10 +389,23 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2729
+        "weight": 0.2817,
+        "alt_weight": 0.1667
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "logreg",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "label": "triple"
+        },
+        "weight": 0.2338,
+        "alt_weight": 0.4667
       }
     ],
-    "last_run_asof": "2026-08-21"
+    "last_run_asof": "2026-08-22"
   },
   "crypto:XRP/USDT": {
     "strategy": "ml",
@@ -416,7 +416,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 431,
+    "trials_total": 480,
     "parliament": [
       {
         "strategy": "ml",
@@ -426,7 +426,8 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5464
+        "weight": 0.4341,
+        "alt_weight": 0.4917
       },
       {
         "strategy": "ml",
@@ -438,10 +439,22 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.4536
+        "weight": 0.4015,
+        "alt_weight": 0.3417
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "vote",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20
+        },
+        "weight": 0.1644,
+        "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-08-21"
+    "last_run_asof": "2026-08-22"
   },
   "us_stock:MSFT": {
     "strategy": "ml",
