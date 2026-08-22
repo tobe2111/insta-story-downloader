@@ -1,23 +1,23 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-23T04:53:49+09:00",
+  "updated": "2026-08-23T05:17:04+09:00",
   "start_cash": 10000.0,
-  "equity": 10077.0258,
-  "return_pct": 0.7703,
-  "cost_paid": 12.0061,
-  "funding_paid": 0.154784,
+  "equity": 10084.6184,
+  "return_pct": 0.8462,
+  "cost_paid": 13.5996,
+  "funding_paid": 0.170413,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 1.0,
   "short_stop_pct": 0.25,
-  "gross_exposure": 4517.7506,
-  "long_positions": 2,
-  "short_positions": 2,
+  "gross_exposure": 4332.4299,
+  "long_positions": 3,
+  "short_positions": 1,
   "long_only_symbols": [
     "ETH/USDT"
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 8,
+  "rounds": 9,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -51,66 +51,70 @@
     {
       "at": "2026-08-23T04:53:49+09:00",
       "equity": 10077.0258
+    },
+    {
+      "at": "2026-08-23T05:17:04+09:00",
+      "equity": 10084.6184
     }
   ],
   "positions": {
     "ETH/USDT": 0.8295485182,
-    "BNB/USDT": 2.6550184599,
-    "XRP/USDT": -40.656396349,
-    "BTC/USDT": -0.0076310509
+    "BNB/USDT": 1.8404539409,
+    "XRP/USDT": 179.0549691161,
+    "BTC/USDT": -0.0097431862
   },
   "holdings": [
     {
       "symbol": "BNB/USDT",
       "direction": "long",
-      "quantity": 2.6550184599,
+      "quantity": 1.8404539409,
       "avg_cost": 688.4,
-      "last_price": 698.3,
+      "last_price": 698.6,
       "currency": "USDT",
-      "value": 1853.9994,
-      "cost": 1827.7147,
-      "pnl": 26.2847,
-      "pnl_pct": 1.4381
+      "value": 1285.7411,
+      "cost": 1266.9685,
+      "pnl": 18.7726,
+      "pnl_pct": 1.4817
     },
     {
       "symbol": "BTC/USDT",
       "direction": "short",
-      "quantity": -0.0076310509,
-      "avg_cost": 77282.2600041,
-      "last_price": 77266.7,
+      "quantity": -0.0097431862,
+      "avg_cost": 77311.74001847,
+      "last_price": 77418.25,
       "currency": "USDT",
-      "value": -589.6261,
-      "cost": 589.7449,
-      "pnl": 0.1187,
-      "pnl_pct": 0.0201
+      "value": -754.3004,
+      "cost": 753.2627,
+      "pnl": -1.0377,
+      "pnl_pct": -0.1378
     },
     {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 0.8295485182,
       "avg_cost": 2410.95,
-      "last_price": 2427.31,
+      "last_price": 2439.41,
       "currency": "USDT",
-      "value": 2013.5714,
+      "value": 2023.609,
       "cost": 2000.0,
-      "pnl": 13.5714,
-      "pnl_pct": 0.6786
+      "pnl": 23.609,
+      "pnl_pct": 1.1804
     },
     {
       "symbol": "XRP/USDT",
-      "direction": "short",
-      "quantity": -40.656396349,
-      "avg_cost": 1.4894,
-      "last_price": 1.4894,
+      "direction": "long",
+      "quantity": 179.0549691161,
+      "avg_cost": 1.5011,
+      "last_price": 1.5011,
       "currency": "USDT",
-      "value": -60.5536,
-      "cost": 60.5536,
-      "pnl": -0.0,
-      "pnl_pct": -0.0
+      "value": 268.7794,
+      "cost": 268.7794,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     }
   ],
   "holdings_total": {
-    "pnl": 39.9748,
+    "pnl": 41.3439,
     "counted": 4,
     "unknown": 0
   },
@@ -212,6 +216,40 @@
       "realized_pnl": 1.0911,
       "avg_cost": 1.4395,
       "at": "2026-08-23T04:06:49+09:00"
+    },
+    {
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "direction": "숏",
+      "notional": -163.52,
+      "price": 77418.25,
+      "cost": 0.2453,
+      "signal": -0.3739,
+      "at": "2026-08-23T05:17:04+09:00"
+    },
+    {
+      "symbol": "BNB/USDT",
+      "side": "sell",
+      "direction": "롱",
+      "notional": -569.05,
+      "price": 698.6,
+      "cost": 0.8536,
+      "signal": 0.6374,
+      "realized_pnl": 7.455,
+      "avg_cost": 688.4,
+      "at": "2026-08-23T05:17:04+09:00"
+    },
+    {
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 329.81,
+      "price": 1.5011,
+      "cost": 0.4947,
+      "signal": 0.1332,
+      "realized_pnl": -0.9704,
+      "avg_cost": 1.4894,
+      "at": "2026-08-23T05:17:04+09:00"
     }
   ],
   "limits": [
