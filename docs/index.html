@@ -489,6 +489,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         <thead><tr><th style="text-align:left">날짜</th>
           <th style="text-align:left">종목</th><th>구분</th>
           <th title="실제로 체결된 가격">체결가</th><th>수량</th><th>금액</th>
+          <th title="판 시점에 확정된 손익입니다 — 평균 매입가와 비교하고, 그 거래의 수수료·세금·미끄러짐까지 뺀 값입니다. 매수에는 없습니다(아직 확정된 것이 없으므로).">실현 손익<br><span class="sub" style="font-weight:400">매도만 · 비용 뺀 뒤</span></th>
           <th title="시가=결정 다음 세션 시가에 체결 · 즉시=코인 24시간 시장">체결 방식</th>
           </tr></thead>
         <tbody></tbody>
@@ -1665,6 +1666,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           '<td style="text-align:left">'+esc(nm)+'</td>'+
           '<td><b>주문 실패</b></td>'+
           '<td class="num">—</td><td class="num">—</td><td class="num">—</td>'+
+          '<td class="num">—</td>'+
           '<td class="sub">'+esc(why)+' — 미체결</td></tr>';
       }
       return '<tr data-k="'+esc(t.key)+'" data-name="'+esc(nm)+
@@ -1678,6 +1680,16 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td class="num">'+(bad
           ?'<span class="sub" title="그날 계좌 자산보다 큰 금액이 적혀 있습니다 — 통화 환산이 빠졌을 때 생기는 모양입니다. 기록은 지우지 않고 그대로 두었습니다.">확인 필요</span>'
           :(t.amount==null?"—":won(t.amount)))+'</td>'+
+        /* 실현 손익 — **매도에만** 있다. 살 때 값을 장부가 모르는 매도
+           (장부 시작 전부터 들고 있던 종목 등)에는 아예 없다. 그때는
+           0이 아니라 '—'다 — 0으로 적으면 본전이라는 뜻이 되고, 그건
+           모르는 것을 아는 척하는 것이다. 금액이 '확인 필요'인 줄에서는
+           손익도 믿을 수 없으므로 함께 비운다. */
+        '<td class="num">'+((bad||t.realized_pnl==null)
+          ?'<span class="sub">—</span>'
+          :'<b class="'+(t.realized_pnl>=0?"up":"down")+'">'+
+            (t.realized_pnl>=0?"+":"−")+won(Math.abs(t.realized_pnl))+'</b>')+
+          '</td>'+
         '<td class="sub">'+esc(t.type||"")+'</td></tr>';
     }).join("");
     document.getElementById("trtable").querySelector("tbody").innerHTML=body;
