@@ -106,8 +106,9 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <h2>최근 체결 <span class="tag">비용까지 그대로</span></h2>
 <div class="card tw"><table id="tr">
   <thead><tr><th>시각(한국 시간)</th><th>종목</th><th>방향</th><th>금액(USDT)</th>
+    <th title="판 시점에 실제로 확정된 손익 — 평균 매입가와 비교하고, 그 거래의 비용까지 뺀 값입니다. 매수에는 없습니다(아직 확정된 것이 없으므로).">실현 손익<br><span class="sub" style="font-weight:400">매도만 · 비용 뺀 뒤</span></th>
     <th>비용(USDT)</th><th>신호</th></tr></thead>
-  <tbody><tr><td colspan="6" class="sub">불러오는 중…</td></tr></tbody>
+  <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
 </table></div>
 
 <h2>지금 들고 있는 것</h2>
@@ -346,12 +347,21 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
   /* ── 최근 체결 표 ── */
   const trs=(d.recent_trades||[]).slice().reverse();
   document.getElementById("tr").querySelector("tbody").innerHTML=
-    trs.length?trs.map(t=>'<tr><td>'+esc(kst(t.time))+
+    trs.length?trs.map(t=>{
+      /* 실현 손익 — **매도에만** 있고, 옛 기록에는 아예 없다(그때 평균
+         매입가를 안 세었다). 없는 것은 '—'로 비운다. 0원과 '모른다'는
+         다른 사건이고, 모르는 것을 0으로 적으면 그게 거짓말이다. */
+      const r=t.realized_pnl;
+      const pnl=(r==null)?'<span class="sub">—</span>'
+        :'<b class="'+(r>=0?"up":"down")+'">'+(r>=0?"+":"−")+
+          usdt(Math.abs(r))+'</b>';
+      return '<tr><td>'+esc(kst(t.time))+
       '</td><td>'+esc(t.symbol||"")+'</td><td class="'+
       (t.side==="sell"?"down":"up")+'">'+(t.side==="sell"?"매도":"매수")+
-      '</td><td>'+usdt(Math.abs(t.notional||0))+'</td><td>'+
-      usdt(t.cost||0)+'</td><td>'+Number(t.signal||0).toFixed(2)+'</td></tr>').join("")
-    :'<tr><td colspan="6" class="sub">아직 체결이 없습니다</td></tr>';
+      '</td><td>'+usdt(Math.abs(t.notional||0))+'</td><td>'+pnl+'</td><td>'+
+      usdt(t.cost||0)+'</td><td>'+Number(t.signal||0).toFixed(2)+'</td></tr>';
+    }).join("")
+    :'<tr><td colspan="7" class="sub">아직 체결이 없습니다</td></tr>';
   const pos=Object.entries(d.positions||{});
   document.getElementById("pos").querySelector("tbody").innerHTML=
     pos.length?pos.map(([k,q])=>'<tr><td>'+esc(k)+'</td><td>'+

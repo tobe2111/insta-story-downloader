@@ -76,6 +76,8 @@ def _views(tmp_path_factory):
                 pg.goto(f"{url}/index.html")
                 pg.wait_for_timeout(2200)
                 out["접음"] = pg.inner_text("#glance-body")
+                out["라벨"] = pg.locator(
+                    "#glance-body .gk").all_inner_texts()
                 out["높이"] = pg.locator("#glance").bounding_box()["height"]
                 pg.click("#morebtn")
                 pg.wait_for_timeout(600)
@@ -125,3 +127,48 @@ def test_the_card_is_actually_shorter():
         "실효 표본 설명이 접이식 표식(adv)을 안 달았다")
     assert page.count('<div class="sub adv" style="margin-top:4px">') == 1, (
         "'그냥 보유' 구호가 접이식 표식(adv)을 안 달았다")
+
+
+def test_only_one_number_is_called_now(_views):
+    """'지금'이라 불리는 숫자는 화면에 하나뿐이어야 한다 (감사 299).
+
+    사장님 지적(2026-08-22): *"준실시간 시세는 라이브인데 '지금 (마지막
+    기록일 기준)'과 시점이 안 맞는 것 같다."*
+
+    맞는 지적이었고, 원인은 계산이 아니라 **이름**이었다. 첫 화면에는 성격이
+    다른 두 숫자가 있다.
+
+      · 새벽 배치가 하루 한 번 **확정한** 자산 — 어제 종가로 굳은 값
+      · 준실시간 시세로 **방금 다시 계산한** 참고 합계 — 초 단위로 움직인다
+
+    그런데 카드 라벨이 확정값을 "지금 (마지막 기록일 기준)"이라 불렀다. 바로
+    아래 줄은 "준실시간 시세로 다시 계산하면 **지금** …"이라 말한다. 같은
+    화면에서 서로 다른 두 숫자가 둘 다 '지금'이면, 읽는 사람은 둘이 안 맞는
+    것을 **고장으로** 읽는다 — 실제로는 둘 다 맞는 값인데도.
+
+    확정값은 '지금'이 아니라 **그날 확정된 값**이다. 그래서 날짜로 부른다.
+    '지금'이라는 말은 준실시간 쪽 한 곳만 쓴다.
+
+    ⚠️ 여기서 재는 것은 라벨이지 숫자가 아니다. 숫자 두 개가 다른 것은
+       정상이고(하나는 어제 종가, 하나는 방금 시세), 고쳐야 할 것은
+       **다른 것을 같은 이름으로 부른 것**뿐이었다.
+    """
+    called_now = [t for t in _views["라벨"] if "지금" in t]
+    assert not called_now, (
+        "확정 자산 카드가 아직 '지금'이라 불린다 — 바로 아래 준실시간 줄도 "
+        f"'지금'이라 말하므로 두 숫자가 같은 이름을 갖는다: {called_now}")
+
+
+def test_the_confirmed_card_says_which_day_it_confirmed(_views):
+    """대조군 — 라벨을 지우는 것으로는 통과할 수 없다.
+
+    위 검사만 있으면 "라벨을 통째로 비운다"도 초록이 된다. 확정값 카드는
+    **어느 날 확정된 값인지**를 말해야 한다 — 날짜 없는 '확정'은 언제
+    것인지 모르는 숫자고, 그건 '지금'이라 부르는 것만큼이나 못 읽는다.
+    """
+    import re
+    dated = [t for t in _views["라벨"]
+             if re.match(r"^\d{4}-\d{2}-\d{2} 확정$", t.strip())]
+    assert dated, (
+        "확정 자산 카드에 'YYYY-MM-DD 확정' 라벨이 없다 — 라벨을 지우는 것은 "
+        f"이름을 고치는 것이 아니다: {_views['라벨']}")

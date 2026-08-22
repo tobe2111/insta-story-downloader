@@ -303,14 +303,43 @@ def _execute_targets(st: dict, signals: dict, prices: dict,
             if delta < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
                 continue
         qty = delta / px
+        # ── 평균 매입가와 실현 손익 (2026-08-22 사장님 요청) ─────────────
+        #
+        # 예전 체결 기록에는 "얼마어치 샀다/팔았다"만 있었다. 그래서 **판
+        # 시점에 얼마를 벌었는지 잃었는지**를 화면이 말할 수 없었다 — 체결
+        # 표를 봐도 그 매도가 이익 실현인지 손절인지 알 수가 없다.
+        #
+        # 평균 매입가를 들고 다니면 그 자리에서 답이 나온다:
+        #     실현 손익 = 판 수량 × (판 가격 − 평균 매입가) − 그 거래 비용
+        #
+        # ⚠️ 비용을 **뺀 뒤**의 값이다. "팔아서 100 벌었는데 수수료로 120을
+        #    냈다"면 그 매도는 이익이 아니다.
+        # ⚠️ 옛 기록에는 이 값이 없다(그때 안 셌으므로). 과거는 고치지 않고
+        #    화면이 '—'로 비워 둔다 — 없는 숫자를 지어내지 않는다.
+        avg = dict(st.get("avg_cost") or {})
+        prev_avg = float(avg.get(sym) or 0.0)
+        realized = None
+        if delta > 0:                       # 매수 — 평균 단가를 갱신
+            new_qty = cur_qty + qty
+            if new_qty > 1e-12:
+                avg[sym] = (cur_qty * prev_avg + qty * px) / new_qty
+        elif prev_avg > 0:                  # 매도 — 실현 손익을 확정
+            sold = min(abs(qty), max(cur_qty, 0.0))
+            realized = round(sold * (px - prev_avg) - fee, 4)
         st["cash"] = float(st["cash"]) - delta - fee
         st["positions"][sym] = cur_qty + qty
         if abs(st["positions"][sym]) * px < 1e-6:
             st["positions"].pop(sym, None)
+            avg.pop(sym, None)              # 다 팔았으면 단가도 지운다
+        st["avg_cost"] = avg
         st["cost_paid"] = float(st["cost_paid"]) + fee
-        trades.append({"symbol": sym, "side": "buy" if delta > 0 else "sell",
-                       "notional": round(delta, 2), "price": px,
-                       "cost": round(fee, 4), "signal": round(sig, 4)})
+        rec = {"symbol": sym, "side": "buy" if delta > 0 else "sell",
+               "notional": round(delta, 2), "price": px,
+               "cost": round(fee, 4), "signal": round(sig, 4)}
+        if realized is not None:
+            rec["realized_pnl"] = realized
+            rec["avg_cost"] = round(prev_avg, 6)
+        trades.append(rec)
     return trades
 
 
