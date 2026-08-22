@@ -1755,6 +1755,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     earnings_asked: list = []       # 가드를 물어본 종목 — 아래 건강 기록용
+    probs: dict = {}                # key → 그날 모델이 말한 상승확률
+    thresholds: dict = {}           # key → 그 종목 챔피언의 진입 문턱
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
@@ -1870,6 +1872,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             signals = strat.generate_signals(df_sig)
             weights[key] = float(
                 _risk_for(market).size_positions(df_sig, signals).iloc[-1])
+            # 사이징 사다리 재료(2026-08-22) — 그날 모델이 말한 **확률**과
+            # 그 종목의 진입 문턱. 크기 규칙을 바꿔 보려면 비중이 아니라
+            # 확률이 있어야 한다. 여기서 주워 두면 나중에 백테스트를 다시
+            # 돌릴 필요가 없다 — 즉 선견 편향이 들어갈 자리가 없다.
+            _p = _last_proba(strat)
+            if _p is not None:
+                probs[key] = float(_p)
+                thresholds[key] = float(
+                    (champion_spec(market, symbol, state_dir)["params"] or {})
+                    .get("threshold") or 0.55)
             # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
             # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
             #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
@@ -2244,6 +2256,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 줄 세워 상위 K개에만, 점수 비례로 담는 가상 계좌. 배분 방식은 구조
     # 세대 축이라 본 계좌에 바로 넣으면 판정 시계가 리셋된다 — 그림자로
     # 재고 판정일에 이기면 졸업시킨다.
+    # 사이징 사다리(2026-08-22, 사장님 "왜 조금씩만 사?") — 같은 확률에
+    # **크기 규칙만** 바꾼 가상 계좌 4개. 이 축은 오디션이 한 번도 흔든 적이
+    # 없다(저장소가 스스로 적어 둔 사실). 진입 조건은 넷이 공유한다.
+    try:
+        from quant.live.sizing_ladder import run_sizing_ladder
+        run_sizing_ladder(bar=bar, probs=probs, thresholds=thresholds,
+                          marks=marks, state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("사이징 사다리 실패(본 계좌 무관): %s", exc)
     try:
         from quant.live.gen2 import run_gen2
         run_gen2(bar=bar, weights=weights, marks=marks,

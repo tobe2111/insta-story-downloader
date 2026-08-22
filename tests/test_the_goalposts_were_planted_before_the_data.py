@@ -32,7 +32,8 @@ EXPECTED = {"intraday_1h": ("2026-08-18", 90),
             "intraday_us": ("2026-08-19", 90),
             "us_limit_shadow": ("2026-08-19", 90),
             "gen2_concentration": ("2026-08-19", 120),
-            "alloc_ladder": ("2026-08-19", 120)}
+            "alloc_ladder": ("2026-08-19", 120),
+            "sizing_ladder": ("2026-08-22", 120)}
 
 REQUIRED = ("name", "question", "start", "judge_on", "statistic",
             "alpha", "correction", "on_fail")
@@ -59,7 +60,7 @@ def test_the_date_arithmetic_is_honest():
 
 
 def test_multi_track_experiments_declare_their_correction():
-    for key in ("cadence_ladder", "alloc_ladder"):
+    for key in ("cadence_ladder", "alloc_ladder", "sizing_ladder"):
         assert "본페로니" in prereg.PREREGISTERED[key]["correction"], (
             f"{key}는 비교가 여러 쌍인데 다중비교 보정 선언이 없다")
 

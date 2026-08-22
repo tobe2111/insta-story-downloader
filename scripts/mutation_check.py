@@ -6244,6 +6244,42 @@ MUTATIONS = [
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
 
+    # ── 사이징 축을 처음으로 잰다 (2026-08-22, 사장님 "왜 조금씩만 사?") ──
+    ("데드존을 규칙마다 다르게 한다(크기 축이 진입 축과 섞여 판정 불가)",
+     "quant/live/sizing_ladder.py",
+     "    if p < thr:\n        return 0.0                       # 데드존 — 넷 다 관망",
+     "    if p < thr and sizer != 'allin':\n        return 0.0",
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+    ("확률을 모르는 종목을 0.5로 채운다('모른다'가 '관망 판단'이 된다)",
+     "quant/live/sizing_ladder.py",
+     '    usable = {k: float(p) for k, p in (probs or {}).items()\n'
+     '              if isinstance(p, (int, float)) and 0.0 <= float(p) <= 1.0\n'
+     '              and k in marks}',
+     '    usable = {k: (float(p) if isinstance(p, (int, float)) else 0.5)\n'
+     '              for k in (probs or {}) if k in marks\n'
+     '              for p in [(probs or {}).get(k)]}',
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+    ("담을 것이 없는 날에도 빈 회차를 남긴다(곡선이 가짜 평평함을 얻는다)",
+     "quant/live/sizing_ladder.py",
+     "    if not usable:\n        return None",
+     "    if False:\n        return None",
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+    ("같은 봉을 다시 돌리면 기록이 늘어난다(하루가 두 줄이 된다)",
+     "quant/live/sizing_ladder.py",
+     '        if st["history"] and st["history"][-1].get("date") == bar:',
+     "        if False:",
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+    ("크기 규칙을 전부 현행으로 만든다(사다리가 네 개의 같은 계좌가 된다)",
+     "quant/live/sizing_ladder.py",
+     '    if sizer == "kelly":\n        return min(1.0, max(0.0, 2.0 * p - 1.0))',
+     '    if sizer == "kelly":\n        return min(1.0, max(0.0, (p - thr) / (1.0 - thr)))',
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+    ("확률을 안 주워 둔다(크기 규칙을 바꿔 볼 재료가 사라진다)",
+     "quant/live/daily.py",
+     "                probs[key] = float(_p)",
+     "                pass",
+     "tests/test_the_size_of_the_bet_is_finally_measured.py"),
+
     # ── 먼저 기록한 쪽이 이기면 안 된다 (2026-08-19 실측 사고) ──────────
     ("재료가 그대로인데도 같은 봉을 다시 돌린다(그날 매매·비용이 두 배가 된다)",
      "quant/live/redo.py",
