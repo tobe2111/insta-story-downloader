@@ -160,7 +160,7 @@ def test_python_and_javascript_do_not_drift():
 
 # ── ⑤ 화면이 실제로 그 말을 하는가 ──────────────────────────────
 
-def _render(tmp_path, history, principal):
+def _render(tmp_path, history, principal, expand=False):
     pytest.importorskip("playwright.sync_api",
                         reason="playwright 없음 — 화면 검사 생략")
     from playwright.sync_api import sync_playwright
@@ -195,6 +195,14 @@ def _render(tmp_path, history, principal):
             # 아래(#bal-bench)에 있었지만, 첫 화면이 세 질문에만 답하도록
             # 정리하면서 **'지금 얼마인가' 바로 옆**으로 돌아왔다 —
             # "그래서 잘하고 있나"는 그 셋 중 하나다.
+            # ⚠️ 설명문은 '자세히 보기' 안으로 접혀 있다(감사 294). 접힌
+            #    것과 지워진 것은 다르므로, 설명을 보려면 펼쳐서 읽는다.
+            if expand:
+                try:
+                    pg.click("#morebtn")
+                    pg.wait_for_timeout(400)
+                except Exception:  # noqa: BLE001
+                    pass          # 버튼이 없으면 접힌 것이 없다는 뜻
             txt = pg.locator("#glance").inner_text()
             b.close()
     finally:
@@ -203,13 +211,71 @@ def _render(tmp_path, history, principal):
     return txt
 
 
+def _bench_cost_rate() -> float:
+    """화면이 기준선에 물릴 비용률 — 장부가 남긴 값 그대로.
+
+    ⚠️ `_render`는 장부(docs/status.json)의 **마지막 기록을 깔고** 그 위에
+       시험용 값을 덮는다. 그래서 `bench_cost_rate`도 장부에서 따라온다 —
+       화면이 쓰는 비율이 곧 이 값이다. 여기서 다시 읽는 이유가 그것이다.
+    """
+    st = json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
+    hist = st["paper"]["portfolio:ALL"]["history"]
+    return float((hist[-1] or {}).get("bench_cost_rate") or 0.0)
+
+
 def test_the_front_page_says_what_holding_would_have_done(tmp_path):
+    """화면의 기준선 금액이 계산의 짝과 **같은 값**인가.
+
+    ⚠️ 예전에는 여기에 숫자를 박아 두었다("1,005,900원"). 그 숫자는 비용을
+       한 푼도 안 문 기준선의 값이었는데, 2026-08-19에 기준선도 살 때 한 번은
+       비용을 물게 바뀌면서(사장님 승인) 화면 값이 달라졌다 — 그런데 박아
+       둔 숫자는 안 따라왔다. 그때부터 이 검사는 **원본 코드에서 이미
+       실패**하는 상태였고, 그러면 이 검사가 지키던 변이 6건은 전부
+       "검사 자체 고장"으로 찍힌다. 지켜지는 것이 하나도 없다.
+
+       게다가 그 숫자는 **매일 밤 바뀌는 장부 값에 딸려 있었다.** 장부의
+       비용률이 조금만 움직여도 다시 깨진다. 상수로 둘 수 없는 값을
+       상수로 둔 것이 진짜 결함이었다.
+
+    그래서 이제 숫자를 박지 않고 **같은 입력으로 짝을 계산해** 비교한다.
+    이 검사가 지키는 계약은 "화면이 계산의 짝과 같은 말을 한다"이지
+    "화면이 1,005,900을 적는다"가 아니다.
+    """
+    rate = _bench_cost_rate()
+    want = vs_hold(REAL, BASE, cost_rate=rate)
+    assert want is not None
     txt = _render(tmp_path, REAL, BASE)
-    assert "1,005,900원" in txt, f"보유 금액이 없다:\n{txt}"
-    assert "8,702원" in txt, f"차이가 없다:\n{txt}"
+    assert f"{round(want['hold']):,}원" in txt, (
+        f"보유 금액이 계산의 짝({round(want['hold']):,}원)과 다르다:\n{txt}")
+    assert f"{abs(round(want['diff'])):,}원" in txt, (
+        f"차이가 계산의 짝({abs(round(want['diff'])):,}원)과 다르다:\n{txt}")
     assert "뒤집니다" in txt, f"지고 있다고 말하지 않는다:\n{txt}"
-    # 이 단계의 목표가 무엇인지도 함께 말해야 한다.
-    assert "1억이 아니라" in txt, txt
+    # 이 단계의 목표가 무엇인지도 함께 말해야 한다 — 다만 설명문은
+    # '자세히 보기' 안에 접혀 있다(감사 294). 접힌 것은 지워진 것이 아니다.
+    full = _render(tmp_path, REAL, BASE, expand=True)
+    assert "1억이 아니라" in full, (
+        f"펼쳐도 이 단계의 목표를 말하지 않는다 — 접은 게 아니라 지운 것이다:"
+        f"\n{full}")
+
+
+def test_the_holding_benchmark_actually_pays_to_buy(tmp_path):
+    """대조군 — 기준선이 비용을 **정말 문다**.
+
+    위 검사만 있으면 "비용률을 조용히 0으로 되돌린다"도 통과한다(짝과 화면이
+    나란히 0이 되니까). 그러면 우리 성적만 비용을 문 채로 비교되고, 같은
+    자에 눈금이 둘이 된다 — 감사 296이 고친 바로 그 자리다.
+
+    ⚠️ 장부에 비용률이 아직 없는 날에는 잴 것이 없다. '못 쟀다'와 '틀렸다'는
+       다른 사건이므로 그때는 건너뛴다(비율이 0인지 여기서 단정하지 않는다).
+    """
+    rate = _bench_cost_rate()
+    if rate <= 0:
+        pytest.skip("장부에 기준선 비용률이 아직 없다 — 잴 것이 없다")
+    costed = vs_hold(REAL, BASE, cost_rate=rate)
+    free = vs_hold(REAL, BASE)
+    assert costed["hold"] < free["hold"], (
+        "비용을 물렸는데 기준선 금액이 안 줄었다 — 비용이 어디로 갔나: "
+        f"{costed} vs {free}")
 
 
 def test_the_front_page_says_it_plainly_when_ahead(tmp_path):
