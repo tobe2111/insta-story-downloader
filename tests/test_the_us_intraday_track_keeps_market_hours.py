@@ -42,8 +42,15 @@ class _AlwaysLong:
         return pd.Series(1.0, index=df.index)
 
 
-def _bars(n=80, freq="1h", start="2026-08-10"):
-    idx = pd.date_range(start, periods=n, freq=freq)
+def _bars(n=80, freq="1h", end="2026-08-19T14:00:00"):
+    """`end`에서 끝나는 봉 n개.
+
+    ⚠️ 예전 판은 고정 시작일(2026-08-10)로 만들어서, 검사 시각(8/19)에는
+    봉이 엿새쯤 낡아 있었다. 그때는 아무 관문도 없어서 통과했지만 —
+    실제로 그 상태가 첫 회차에서 벌어졌다(어제 봉으로 매수). 이제 낡은
+    봉은 판단에서 빠지므로, 검사도 **살아 있는 봉**으로 한다.
+    """
+    idx = pd.date_range(end=end, periods=n, freq=freq)
     px = [100.0 + i * 0.1 for i in range(n)]
     return pd.DataFrame({"open": px, "high": [p * 1.01 for p in px],
                          "low": [p * 0.99 for p in px], "close": px},
@@ -88,7 +95,7 @@ def test_same_bar_is_idempotent(tmp_path):
 
 def test_the_ladder_runs_its_own_ledger(tmp_path):
     data = {"AAPL": _bars(),
-            "15m": {"AAPL": _bars(freq="15min", start="2026-08-18")},
+            "15m": {"AAPL": _bars(freq="15min", end="2026-08-19T14:45:00")},
             "5m": {}}
     _run(tmp_path, OPEN_NOW, data=data)
     t15 = json.loads(
@@ -265,3 +272,55 @@ def test_the_key_never_leaves_the_environment():
     guard = (ROOT / ".github" / "workflows" / "guard.yml").read_text("utf-8")
     assert "secrets.ALPACA_KEY_ID" in guard, (
         "감시 작업에 키가 전달되지 않는다 — 시크릿을 넣어도 안 쓰인다")
+
+
+# ── 낡은 봉으로는 판단하지 않는다 (2026-08-19 첫 회차 실측에서 나온 관문) ──
+#
+# 첫 회차(13:52Z, 개장 22분 뒤)가 **어제 19:30Z 봉**으로 세 종목을 샀다.
+# 장은 열려 있었고 시세도 '받아졌으니' 어떤 관문에도 안 걸렸다 — 조용히
+# 어제를 오늘처럼 쓴 것이다. 장이 열렸다는 것과 시세가 오늘 것이라는 건
+# 다른 이야기다.
+
+
+def test_a_stale_bar_does_not_get_traded(tmp_path):
+    """어제 봉이 최신으로 와도 사지 않는다 — 그리고 왜 쉬었는지 남긴다."""
+    stale = {"AAPL": _bars(end="2026-08-18T19:30:00")}   # 하루 전 봉
+    v = _run(tmp_path, OPEN_NOW, data=stale)
+    assert v.get("trades", 0) == 0, "18시간 낡은 봉으로 체결했다"
+    st = json.loads(
+        (tmp_path / "intraday" / "us_challenger.json").read_text("utf-8"))
+    reason = (st["rounds"][-1].get("skipped") or {}).get("AAPL", "")
+    assert "낡" in reason, f"쉰 사유가 장부에 없다: {reason}"
+    assert not st.get("positions"), "안 샀다면서 보유가 생겼다"
+
+
+def test_a_fresh_bar_still_trades(tmp_path):
+    """관문이 생겼다고 정상 회차까지 막으면 실험이 죽는다."""
+    v = _run(tmp_path, OPEN_NOW)          # 기본 데이터 = 살아 있는 봉
+    assert v.get("trades", 0) >= 1, v
+
+
+def test_the_staleness_line_is_measured_in_bar_lengths():
+    """봉 길이가 다르면 허용 나이도 달라야 한다 — 고정 분(分)이 아니다."""
+    now = "2026-08-19T15:00:00+00:00"
+    # 15분봉 기준 40분 전 봉은 살아 있고(3배=45분), 1시간봉 기준으로도 산다.
+    assert not IU.bar_is_stale("2026-08-19 14:20:00", "15m", now)
+    assert not IU.bar_is_stale("2026-08-19 14:20:00", "1h", now)
+    # 2시간 전 봉은 15분봉엔 낡았고, 1시간봉엔(3배=3시간) 아직 산다.
+    assert IU.bar_is_stale("2026-08-19 13:00:00", "15m", now)
+    assert not IU.bar_is_stale("2026-08-19 13:00:00", "1h", now)
+
+
+def test_it_does_not_refetch_yesterdays_bar_all_morning(tmp_path):
+    """개장 직후 스로틀 — 어제 봉을 5분마다 다시 받으면 차단당한다.
+
+    어제 마지막 봉 + 봉 길이 2배는 새벽에 이미 지나 있다. 그 식만 쓰면
+    개장 직후부터 매 회차 시세를 부른다. 오늘 첫 봉은 **개장 + 봉 길이**에야
+    닫히므로 그 전에는 부를 이유가 없다.
+    """
+    st = {"rounds": [{"bar_times": {"AAPL": "2026-08-18 19:30:00"}}]}
+    # 개장(13:30Z) 직후 — 1시간봉은 14:30Z에야 첫 봉이 닫힌다
+    assert not IU.bar_could_have_closed(st, "1h", "2026-08-19T13:52:00+00:00")
+    assert IU.bar_could_have_closed(st, "1h", "2026-08-19T14:35:00+00:00")
+    # 15분봉은 13:45Z면 닫힌다
+    assert IU.bar_could_have_closed(st, "15m", "2026-08-19T13:52:00+00:00")

@@ -44,15 +44,29 @@ class IchimokuStrategy(Strategy):
     def _mid(df: pd.DataFrame, n: int) -> pd.Series:
         return (df["high"].rolling(n).max() + df["low"].rolling(n).min()) / 2.0
 
-    def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+    def cloud(self, df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+        """오늘 자리에서 **보이는** 구름(위·아래).
+
+        검사에서 숫자로 확인할 수 있게 밖으로 뺐다(2026-08-19). 예전에는
+        구름이 generate_signals 안에만 있어서, 검사가 "소스에 shift가
+        있나"를 글자로 훑는 수밖에 없었다 — 선행스팬 두 줄 중 하나에서만
+        shift를 빼도 나머지 한 줄 덕분에 그 글자 검사는 통과했다.
+        """
         tenkan = self._mid(df, self.tenkan)
         kijun = self._mid(df, self.kijun)
         # 선행스팬은 26일 앞에 기입된다 — 오늘 자리에서 보이는 구름은
         # 26일 전에 계산된 값이므로 shift(+26)로 뒤로 민다.
         span_a = ((tenkan + kijun) / 2.0).shift(self.shift)
         span_b = self._mid(df, self.senkou_b).shift(self.shift)
-        cloud_top = np.maximum(span_a.to_numpy(), span_b.to_numpy())
-        cloud_bot = np.minimum(span_a.to_numpy(), span_b.to_numpy())
+        both = pd.concat([span_a, span_b], axis=1)
+        return both.max(axis=1), both.min(axis=1)
+
+    def generate_signals(self, df: pd.DataFrame) -> pd.Series:
+        tenkan = self._mid(df, self.tenkan)
+        kijun = self._mid(df, self.kijun)
+        top, bot = self.cloud(df)
+        cloud_top = top.to_numpy()
+        cloud_bot = bot.to_numpy()
         t = tenkan.to_numpy()
         k = kijun.to_numpy()
         c = df["close"].to_numpy()

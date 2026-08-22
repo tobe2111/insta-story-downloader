@@ -795,6 +795,10 @@ def build_challengers(current_spec: dict, seed: str,
         {"strategy": "connors_rsi2",
          "params": {"rsi_period": 2, "entry": 10.0, "exit_ma": 5,
                     "trend_window": 200}},
+        # 내부 봉 강도(2026-08-22 수집) — 종가가 **그날 범위의 어디에**
+        # 앉았는가. 링의 다른 후보들이 못 보는 정보다(대부분 종가만 보고,
+        # 고저가를 보는 것들도 여러 봉에 걸친 극단을 본다).
+        {"strategy": "ibs", "params": {"entry": 0.2, "exit": 0.8}},
     ]
     if not evolve:
         return challengers

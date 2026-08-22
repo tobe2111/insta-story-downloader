@@ -374,6 +374,38 @@ def test_unfolded_it_shows_what_we_actually_hold_first(page):
         f"보유 종목이 관망 종목 뒤로 섞여 있다: 보유 줄 위치 {held}")
 
 
+def test_the_fold_marker_matches_what_we_actually_hold(page):
+    """관망 표식(nohold)이 **실제로 안 들고 있는 줄에만** 붙는가.
+
+    ⚠️ 위 검사에는 구멍이 있었다(야간 변이 시험 2026-08-19). 표식을 아예
+       안 붙이게 만들면 "보유 줄이 앞에 모여 있다"는 조건이 **전부 보유
+       줄로 읽혀 그냥 통과**한다. 즉 접는 장치를 통째로 뜯어내도 초록이었다.
+       표식이 붙는지, 그리고 그 표식이 돈이 들어간 줄과 맞는지를 본다.
+    """
+    page.click("#morebtn")
+    page.wait_for_timeout(300)
+    rows = page.locator("#symtable tbody tr[data-k]")
+    n = rows.count()
+    assert n > 0, "펴도 표가 비어 있다"
+    marked = 0
+    for i in range(n):
+        cls = rows.nth(i).get_attribute("class") or ""
+        money = rows.nth(i).locator("td").nth(5).inner_text().strip()
+        # 돈이 들어간 줄은 금액을 적고, 아닌 줄은 "보유 없음"이나 "—"를 적는다.
+        has_money = bool(money) and "보유 없음" not in money \
+            and money.strip("—- \n") != ""
+        if "nohold" in cls:
+            marked += 1
+            assert not has_money, (
+                f"{i}번 줄은 관망 표식인데 보유 금액이 있다: {money!r}")
+        else:
+            assert has_money, (
+                f"{i}번 줄은 보유 줄인데 금액 칸이 비어 있다: {money!r}")
+    assert marked > 0, (
+        "관망 표식이 한 줄도 없다 — 접는 장치가 죽었는데 화면은 "
+        "'접었다'고 말하고 있다")
+
+
 def test_it_says_how_many_rows_it_folded(page):
     """말없이 접으면 그건 숨긴 것이다."""
     tag = page.locator("#sym-tag").inner_text()

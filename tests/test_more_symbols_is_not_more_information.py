@@ -59,8 +59,40 @@ def test_unrelated_movers_count_separately():
 
 
 def test_a_thin_record_says_so_instead_of_guessing():
-    got = B.effective_n({"a": _rets([0.01] * 3), "b": _rets([0.02] * 3)})
+    """⚠️ 예전 판은 **상수** 계열(0.01 세 번)로 얇은 기록을 흉내 냈다. 그러면
+    최소 일수 관문을 통째로 떼어도 '변동이 0이라 못 잰다'는 다른 관문에
+    걸려 결과가 같았다 — 즉 이 검사는 최소 일수를 **지키지 않아도 초록**
+    이었다(돌연변이 검사 2026-08-19). 실제로 상관이 계산되는 값을 쓴다:
+    관문이 없으면 사흘치로도 숫자를 뱉는다.
+    """
+    thin = {"a": _rets([0.01, -0.02, 0.03]), "b": _rets([0.02, -0.01, 0.04])}
+    got = B.effective_n(thin)
     assert got["effective_n"] is None and "못 잽" in got.get("reason", ""), got
+    # 같은 자료가 **길기만 하면** 재진다 — 위 결과가 '자료가 나빠서'가
+    # 아니라 '짧아서'임을 못 박는다.
+    rng = random.Random(11)
+    long = {k: _rets([rng.gauss(0, 0.01) for _ in range(B.MIN_DAYS + 5)])
+            for k in ("a", "b")}
+    assert B.effective_n(long)["effective_n"] is not None
+
+
+def test_the_asset_core_actually_reaches_the_universe(tmp_path):
+    """상수에만 있고 목록에는 안 들어가면 '자산군 확대'는 선언일 뿐이다.
+
+    ⚠️ 예전 판은 KR_ASSET_CORE·US_ASSET_CORE **상수만** 검사했다. 그래서
+    유니버스를 만드는 자리에서 자산군 코어를 더하는 줄을 지워도 초록이었다
+    (돌연변이 검사 2026-08-19). 실제로 만들어진 목록을 본다.
+    """
+    from quant import universe as U
+    snap = U.rebuild(state_dir=str(tmp_path),
+                     rank_crypto=lambda: ["BTC/USDT", "ETH/USDT"],
+                     rank_kr=lambda asof: ["005930.KS"],
+                     rank_us=lambda: ["AAPL"])
+    got = {sym for _mk, sym in snap["targets"]}
+    for s in U.US_ASSET_CORE:
+        assert s in got, f"{s}(자산군 코어)가 실제 유니버스에 없다"
+    for s in U.KR_ASSET_CORE:
+        assert s in got, f"{s}(자산군 코어)가 실제 유니버스에 없다"
 
 
 def test_the_universe_actually_holds_different_kinds_of_assets():
