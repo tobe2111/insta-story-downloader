@@ -6428,6 +6428,33 @@ MUTATIONS = [
      '\'<div><div class="gk">\'+esc(day)+\' 확정</div>\'+',
      '\'<div><div class="gk">지금 (마지막 기록일 기준)</div>\'+',
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+
+    # ── 경보가 무슨 병인지 말한다 (2026-08-22 감사 301) ────────────
+    ('경보가 JSON을 손으로 짠다(여러 줄·따옴표가 들어오면 조용히 안 나간다)',
+     '.github/workflows/mutation-sweep.yml',
+     "            PAYLOAD=$(python3 -c 'import json,os; print(json.dumps({\"content\": os.environ[\"MSG\"]}))')",
+     '            PAYLOAD="{\\"content\\":\\"$MSG\\"}"',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('경보에서 요약을 뺀다(매일 같은 한 문장만 와서 아무것도 못 고친다)',
+     '.github/workflows/mutation-sweep.yml',
+     '          DETAIL=$(head -c 1200 mutation_summary.txt 2>/dev/null || true)',
+     '          DETAIL=""',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('요약이 없을 때 경보를 통째로 삼킨다(가장 위험한 고장이 가장 조용해진다)',
+     '.github/workflows/mutation-sweep.yml',
+     '            DETAIL="(요약 없음 — 전수가 시작도 못 하고 죽었다. 설치 단계부터 볼 것)"',
+     '            exit 0',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('요약을 실행물로 안 남긴다(로그가 사라지면 되짚을 근거가 없다)',
+     '.github/workflows/mutation-sweep.yml',
+     '            mutation_summary.txt\n          if-no-files-found: ignore',
+     '          if-no-files-found: ignore',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('전수 결과 요약을 아예 안 쓴다(경보가 실을 내용이 사라진다)',
+     'scripts/mutation_check.py',
+     '                      "(코드가 바뀌었는데 항목이 안 따라왔다).")\n    pathlib.Path("mutation_summary.txt")',
+     '                      "(코드가 바뀌었는데 항목이 안 따라왔다).")\n    pathlib.Path("mutation_summary.skip")',
+     'tests/test_the_alarm_says_which_disease.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
@@ -6620,6 +6647,65 @@ def _skip_count(out: str) -> int:
 # 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
 BASELINE_OK = 0
 
+def _baseline_only() -> None:
+    """--baseline — 변이는 하나도 안 걸고, **검사들이 지금 도는지**만 본다.
+
+    왜 필요한가(2026-08-22 감사 301). 야간 전수가 2026-08-16부터 엿새 연속
+    실패했는데, 폰으로 온 경보는 매번 같은 한 줄이었다.
+
+        "안전장치 중 일부가 지금 아무도 안 지키고 있다"
+
+    그런데 그날의 실제 결과는 이랬다.
+
+        잡음 934 · 놓침 4 · 건너뜀 0 · **검사 자체 고장 19**
+
+    23건 중 19건은 '안전장치가 무방비'가 아니라 **검사가 그 환경에서 아예
+    안 돌았다**는 뜻이다. 둘은 완전히 다른 병이고 고치는 곳도 다르다.
+    그런데 경보가 둘을 같은 문장으로 말하니, 읽는 쪽에서는 매일 같은 소리가
+    나는 것으로만 보이고 — 엿새가 지나갔다.
+
+    원인을 손으로 알아내려면 전수(3시간)를 돌려 로그를 읽어야 했다. 그래서
+    **원인만 따로 묻는 문**을 낸다. 변이를 안 걸므로 검사 파일 수만큼만
+    돌고(약 15분), 답은 한 줄로 나온다: 어떤 검사가 원본 코드에서 실패하며,
+    그 검사가 변이 항목 몇 건을 지키고 있었는가.
+
+    건너뛴 항목 수도 함께 적는다 — 브라우저 없는 기계에서 조용히 건너뛴
+    검사는 종료코드가 0이라 '통과'와 구별되지 않는다(감사 278).
+    """
+    guarded: dict = {}
+    for desc, path, old, new, test in MUTATIONS:
+        guarded[test] = guarded.get(test, 0) + 1
+    print(f"기준선 점검 — 검사 파일 {len(guarded)}개 / 변이 항목 "
+          f"{sum(guarded.values())}건 (변이는 걸지 않는다)\n")
+    broken_files, skipping = [], []
+    for test, n in guarded.items():
+        if not pathlib.Path(test).exists():
+            print(f"💥 파일 없음   {n:3d}건 보호 중  {test}")
+            broken_files.append((test, n, "파일 없음"))
+            continue
+        rc, out = _run_verbose(test)
+        if rc != BASELINE_OK:
+            tail = " ".join(out.split())[-300:]
+            print(f"💥 원본에서 실패 {n:3d}건 보호 중  {test}\n   └ {tail}")
+            broken_files.append((test, n, tail))
+        elif _skip_count(out):
+            k = _skip_count(out)
+            print(f"⏭️  {k}개 건너뜀  {n:3d}건 보호 중  {test}")
+            skipping.append((test, n, k))
+    print("─" * 110)
+    print(f"검사 자체 고장 {sum(n for _, n, _ in broken_files)}건"
+          f"({len(broken_files)}개 파일) · "
+          f"건너뛰는 검사가 지키는 항목 {sum(n for _, n, _ in skipping)}건"
+          f"({len(skipping)}개 파일)")
+    if not broken_files and not skipping:
+        print("모든 검사가 원본 코드에서 돌고, 조용히 건너뛰는 검사도 없다.")
+    sys.exit(1 if broken_files else 0)
+
+
+if "--baseline" in sys.argv[1:]:
+    _baseline_only()
+
+
 # 부분 실행 — `python scripts/mutation_check.py 의회` 처럼 설명·검사 이름의
 # 일부를 주면 그 항목만 돈다. 새 항목을 만들 때 전체(100건 이상)를 다시
 # 돌리지 않기 위한 것이므로, **부분 실행 결과를 '전부 통과'로 보고하지 말 것.**
@@ -6630,6 +6716,8 @@ if FILTER:
 print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
 caught = missed = skipped = broken = 0
+_broken_files: set = set()      # 경보에 실을 '고장 난 검사'
+_missed_descs: list = []        # 경보에 실을 '진짜 무방비'
 _baseline: dict = {}
 _skipped_in: dict = {}          # 검사 파일별 '기준선에서 건너뛴 항목 수'
 for desc, path, old, new, test in MUTATIONS:
@@ -6652,6 +6740,7 @@ for desc, path, old, new, test in MUTATIONS:
     if _baseline[test]:
         print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
         broken += 1
+        _broken_files.add(test)
         continue
     _IN_FLIGHT[str(p)] = src        # 죽어도 되돌릴 수 있게 원본을 등록해 둔다
     p.write_text(src.replace(old, new), encoding="utf-8")
@@ -6673,8 +6762,45 @@ for desc, path, old, new, test in MUTATIONS:
                if _skipped_in.get(test) else "  ← 못 잡음")
         print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}{why}")
         missed += 1
+        _missed_descs.append(desc[:70])
 print("─" * 110)
-print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
+_summary = f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}"
+print(_summary)
+
+# ── 경보가 읽히게 만든다 (2026-08-22 감사 301) ──────────────────────
+#
+# 야간 잡은 실패하면 폰으로 한 줄을 보냈다: "안전장치 중 일부가 지금 아무도
+# 안 지키고 있다." 엿새 연속 같은 문장이 왔고, 그 엿새 동안 실제 원인은
+# **검사 19건이 그 환경에서 안 돈 것**이었지 안전장치가 무방비였던 게
+# 아니었다. 두 가지 병을 같은 문장으로 말하면, 읽는 쪽은 아무것도 못 고친다.
+#
+# 그래서 잡이 경보에 그대로 실을 수 있는 요약을 파일로 남긴다. 무엇이
+# 몇 건이고, 어느 검사가 문제인지 — 로그를 열지 않아도 폰에서 읽힌다.
+try:
+    # ⚠️ 부분 실행에서도 **쓴다** — 단, 첫 줄에 부분이라고 못박는다.
+    #    안 쓰면 이 기능이 살아 있는지 확인할 길이 전수(3시간)뿐이고,
+    #    그러면 요약이 조용히 멈춰도 아무도 모른다(이 저장소가 이미 두 번
+    #    겪은 병이다). '부분 결과를 전부라고 보고하지 말 것'이라는 규칙은
+    #    파일을 안 쓰는 것이 아니라 **부분이라고 적는 것**으로 지킨다.
+    _lines = ([] if not FILTER else
+              [f"⚠️ 부분 실행 '{FILTER}' — 전체 결과가 아니다", ""])
+    _lines += [_summary, ""]
+    if broken:
+        _lines.append(f"💥 검사 자체 고장 {broken}건 "
+                      "— 검사가 원본 코드에서 실패했다(환경 문제일 때가 "
+                      "많다). 이건 '무방비'가 아니라 '못 쟀다'이다:")
+        _lines += [f"   · {t}" for t in sorted(_broken_files)][:8]
+    if missed:
+        _lines.append(f"❌ 놓침 {missed}건 — 코드를 망가뜨려도 검사가 "
+                      "통과했다. **이것이 진짜 무방비다**:")
+        _lines += [f"   · {d}" for d in _missed_descs][:8]
+    if skipped:
+        _lines.append(f"⏭️ 건너뜀 {skipped}건 — 원본 문자열이 안 맞는다"
+                      "(코드가 바뀌었는데 항목이 안 따라왔다).")
+    pathlib.Path("mutation_summary.txt").write_text(
+        "\n".join(_lines) + "\n", encoding="utf-8")
+except OSError:
+    pass              # 요약을 못 써도 전수 결과 자체는 이미 찍혔다
 # ⚠️ 2026-08-12 감사 126 — 이 줄이 문서와 어긋나 있었다.
 #    머리말은 "건너뜀은 통과가 아니다"라고 적어 놓고, 종료코드는
 #    `1 if (missed or broken)`이라 **건너뜀을 통과로 취급**했다.
