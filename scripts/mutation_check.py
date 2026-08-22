@@ -6389,6 +6389,13 @@ MUTATIONS = [
      '    if pool is None:\n        return True',
      '    if pool is None:\n        return False',
      'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+
+    # ── 비용을 아는 라벨 · 잠든 후보 (2026-08-20 감사 297·298) ─────
+    ("비용 라벨이 비용을 무시한다(맞혀도 손해인 봉을 '산다'로 배운다)",
+     'quant/strategies/ml.py',
+     '                    lab = (ret > self.label_cost).astype(float)',
+     '                    lab = (ret > 0.0).astype(float)',
+     'tests/test_the_label_knows_what_costs_money.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
