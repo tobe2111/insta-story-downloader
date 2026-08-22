@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>장중 도전자 실험 — QUANT</title>
-<meta name="description" content="같은 규칙을 더 자주 돌리면 정말 더 버는가 — 가상 자금으로 공개 측정하는 장중(1시간봉) 실험. 실제 돈이 아닙니다.">
+<title>코인 단타 실험 — QUANT</title>
+<meta name="description" content="코인을 더 자주 사고팔면 정말 더 버는가 — 가상 자금(USDT)으로 공개 측정하는 코인 단타 실험. 실제 돈이 아닙니다.">
 <!-- ⚠️ 이 페이지는 **실험 트랙**의 공개 장부다(2026-08-18, 사장님 지시:
      "실시간으로 단타 매매를 하는 퍼포먼스도 보여져야 한다").
      본 계좌(100만 챌린지)와 완전히 분리돼 있고, 여기 숫자는 그 판단에
@@ -63,11 +63,15 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <!-- 상단 바는 공용(assets/nav.js) — 모든 페이지가 같은 바를 쓴다. -->
 <script src="assets/nav.js" defer></script>
 
-<h1>장중 도전자 실험 <span class="tag">시뮬레이션 · 가상 자금</span></h1>
-<p class="sub">같은 규칙을 <b>더 자주</b> 돌리면 정말 더 버는가 — 믿음이 아니라
-측정으로 답하기 위한 트랙입니다. 본 계좌(100만 챌린지)의 챔피언 규칙과 같은
-비용 모델을 <b>1시간봉</b>에 적용해, 매매를 늘리면 늘어나는 비용(수수료·미끄러짐)을
-우위가 이기는지 잽니다. <b>실제 돈이 아니며</b>, 본 계좌 판단에는 쓰이지 않습니다.</p>
+<h1>코인 단타 실험 <span class="tag">시뮬레이션 · 가상 자금(USDT)</span></h1>
+<p class="sub"><b>코인을 더 자주 사고팔면 정말 더 버는가</b> — 믿음이 아니라
+측정으로 답하기 위한 트랙입니다. 100만 챌린지에서 쓰는 것과 같은 규칙·같은
+비용 모델을 <b>1시간봉</b>에 적용해, 매매를 늘리면 확실히 늘어나는
+비용(수수료·미끄러짐)을 우위가 이기는지 잽니다. <b>실제 돈이 아니며</b>,
+100만 챌린지 판단에는 쓰이지 않습니다.</p>
+<p class="sub" style="margin-top:8px">이 페이지는 <b>코인만</b> 다룹니다 —
+<a href="us.html">미국주식 단타</a>와 <a href="futures.html">선물(양방향)</a>은
+각각 자기 페이지가 있습니다. 계좌도 장부도 따로입니다.</p>
 
 <div class="card" id="sum">불러오는 중…</div>
 
@@ -91,16 +95,9 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
      효과. 지정가는 슬리피지를 아끼는 대신 못 사는 위험(미체결)을 진다. -->
 <div class="card" id="limitshadow">불러오는 중…</div>
 
-<h2>미국주식 트랙 <span class="tag">정규장에서만 · 달러 가상 계좌</span></h2>
-<!-- 2026-08-19 사장님 지시("미국주식도 단타 하자"). 코인 트랙과 같은 규칙·
-     같은 체결 함수를 빌려 쓰고, 다른 것은 시장의 물리 조건뿐이다: 미국
-     정규장(뉴욕 09:30~16:00) 밖에서는 판단도 체결도 기록도 없다. 화면은
-     intraday_us.json에서만 읽는다 — 자기 계산 금지. -->
-<div class="card" id="us-sum">불러오는 중…</div>
-
 <h2>자산 곡선 <span class="tag">USDT 기준</span></h2>
 <div class="card"><svg id="curve" viewBox="0 0 800 180" preserveAspectRatio="none"
-  role="img" aria-label="장중 실험 자산 곡선"></svg>
+  role="img" aria-label="코인 단타 실험 자산 곡선"></svg>
   <div class="sub" id="curve-note"></div></div>
 
 <h2>최근 체결 <span class="tag">비용까지 그대로</span></h2>
@@ -132,7 +129,9 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 
 <footer>이 페이지의 숫자는 배치가 회차마다 커밋하는
 <a href="intraday.json">intraday.json</a>에서만 읽습니다 — 원본을 직접 볼 수
-있습니다. 빈칸이 보이면 "그런 일이 없었다"가 아니라 "아직 기록이 없다"입니다.</footer>
+있습니다. 빈칸이 보이면 "그런 일이 없었다"가 아니라 "아직 기록이 없다"입니다.
+<br>가상 자금 실험입니다. 실제 돈이 아니며 투자 권유가 아닙니다.
+수익을 보장하지 않습니다.</footer>
 </div>
 
 <script>
@@ -381,53 +380,6 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
     '읽지 마세요. <a href="intraday.json">원본</a>을 직접 확인할 수 있습니다.</span>';
 });
 
-/* ── 미국주식 트랙(2026-08-19) — intraday_us.json에서만 읽는다 ── */
-function usd(v){return Number(v).toLocaleString("ko-KR",
-  {maximumFractionDigits:2})+" USD"}
-fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
-  const el=document.getElementById("us-sum");
-  if(!u){
-    el.innerHTML='<span class="sub">아직 기록이 없습니다 — 미국 정규장'+
-      '(한국 시간 밤 10시 30분~새벽 5시, 서머타임 기준)이 열리고 첫 회차가 '+
-      '돌면 여기 숫자가 생깁니다. 장 밖 시간에는 기록 자체가 없는 것이 '+
-      '정상입니다.</span>';
-    return;
-  }
-  const up=(u.return_pct||0)>=0;
-  const pnl=(Number(u.equity)||0)-(Number(u.start_cash)||0);
-  const w=pnl>=0;
-  el.innerHTML=
-    '<div class="k">'+esc(u.label||"미국주식 장중 실험")+'</div>'+
-    '<div class="grid">'+
-      '<div><div class="k">시드 (가상)</div><div class="v">'+usd(u.start_cash)+'</div></div>'+
-      '<div><div class="k">지금 (마지막 회차 기준)</div>'+
-        '<div class="big '+(up?"up":"down")+'">'+usd(u.equity)+'</div></div>'+
-      '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
-        (up?"+":"")+Number(u.return_pct||0).toFixed(2)+'%</div></div>'+
-      '<div><div class="k">이미 낸 비용</div><div class="v">'+usd(u.cost_paid||0)+'</div></div>'+
-      '<div><div class="k">체결 / 회차</div><div class="v">'+
-        (u.trades_total||0)+'건 / '+(u.rounds_total||0)+'회</div></div>'+
-    '</div>'+
-    '<div style="margin-top:10px;font-size:15px">한 줄 요약: 지금까지 '+
-      '<b class="'+(w?"up":"down")+'">'+(w?"+":"−")+usd(Math.abs(pnl))+
-      (w?" 이익":" 손해")+'</b>이고, 그중 수수료·미끄러짐으로 <b>'+
-      usd(u.cost_paid||0)+'</b>을 냈습니다.</div>'+
-    ((u.ladder||[]).length
-      ?'<div class="sub" style="margin-top:8px">주기 사다리: '+
-        u.ladder.map(t=>esc(t.timeframe)+" "+
-          ((t.return_pct||0)>=0?"+":"")+Number(t.return_pct||0).toFixed(2)+"%")
-          .join(" · ")+' (참고 진단 — 판정은 1시간 트랙만)</div>'
-      :'')+
-    (u.quote_source?'<div class="sub" style="margin-top:8px">시세 출처: '+
-      esc(u.quote_source)+'</div>':'')+
-    '<div class="sub" style="margin-top:8px">'+esc(u.market_hours||"")+
-    ' · 판정일 '+esc((u.judgement||{}).registered_on?"2026-11-17 (사전 등록)":"—")+
-    ' · 시작 '+esc(kst(u.since))+' (한국 시간)</div>';
-}).catch(()=>{
-  document.getElementById("us-sum").innerHTML=
-    '<span class="sub">아직 기록이 없습니다 — 장 밖 시간에는 기록이 없는 것이 '+
-    '정상입니다.</span>';
-});
 </script>
 </body>
 </html>
