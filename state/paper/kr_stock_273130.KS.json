@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-21 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-21",
+      "price": 109395.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.4,
+      "hit_n": 40,
+      "hit_lo": 0.2634811061240136,
+      "hit_hi": 0.5540438017260649,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 변동성 레짐(단/장기) 0.96(보통 수준) / 50일선 이격 -0.5%(선 아래) / 하이일드 스프레드(신용 스트레스) 2.75%p(신용시장 안정)",
+      "fill": null,
+      "fill_cost": 0.0014,
+      "code_sha": "e4ebfdca90ed",
+      "data_sha256": "8e5b3897370b80c82755cb886d4a9e02e48279c8433bc50069cedcb9a177c863",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4103926344569613,
+      "drift_psi": 0.2844,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.0,
+    "decided_bar": "2026-08-21 00:00:00"
+  },
+  "market": "kr_stock",
+  "symbol": "273130.KS",
+  "start_cash": 10000.0
+}

@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-21 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-21",
+      "price": 63.63999938964844,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5555555555555556,
+      "hit_n": 45,
+      "hit_lo": 0.4117588341636533,
+      "hit_hi": 0.6906129145096089,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 50일선 이격 +10.8%(선 위) / 60일 모멘텀 +12.5% / VIX 기간구조(공포의 급성도) 0.74(깊은 콘탱고(안정))",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "e4ebfdca90ed",
+      "data_sha256": "9eaa39f8a3e00f0ffa0381a7f07d8f9a71fcc8887c6fd16f5d089bdac4faa977",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.11727033179318844,
+      "drift_psi": 0.1023,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.0,
+    "decided_bar": "2026-08-21 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "XLE",
+  "start_cash": 10000.0
+}

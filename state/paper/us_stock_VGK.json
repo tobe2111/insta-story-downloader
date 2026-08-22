@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-21 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-21",
+      "price": 92.72000122070312,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.54,
+      "hit_n": 50,
+      "hit_lo": 0.40398634328388083,
+      "hit_hi": 0.6703056539821737,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 판단 재료: 변동성(20일) 일 0.7% / 50일선 이격 +3.5%(선 위) / MACD 히스토그램 −(하락 우위)",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "e4ebfdca90ed",
+      "data_sha256": "efd07c1f43d8e8779190e50a48476fcdd9daf115e98fd5112a3b187d02a3e2b0",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.33405198599552854,
+      "drift_psi": 0.0949,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.0,
+    "decided_bar": "2026-08-21 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "VGK",
+  "start_cash": 10000.0
+}

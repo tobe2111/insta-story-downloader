@@ -1,6 +1,6 @@
 {
-  "asof": "2026-08-19",
-  "rule_version": "2026-08-18",
+  "asof": "2026-08-22",
+  "rule_version": "2026-08-19",
   "targets": [
     [
       "crypto",
@@ -32,6 +32,66 @@
     ],
     [
       "us_stock",
+      "GLD"
+    ],
+    [
+      "us_stock",
+      "SLV"
+    ],
+    [
+      "us_stock",
+      "TLT"
+    ],
+    [
+      "us_stock",
+      "IEF"
+    ],
+    [
+      "us_stock",
+      "LQD"
+    ],
+    [
+      "us_stock",
+      "TIP"
+    ],
+    [
+      "us_stock",
+      "DBC"
+    ],
+    [
+      "us_stock",
+      "XLE"
+    ],
+    [
+      "us_stock",
+      "XLU"
+    ],
+    [
+      "us_stock",
+      "XLP"
+    ],
+    [
+      "us_stock",
+      "VNQ"
+    ],
+    [
+      "us_stock",
+      "UUP"
+    ],
+    [
+      "us_stock",
+      "EWJ"
+    ],
+    [
+      "us_stock",
+      "VGK"
+    ],
+    [
+      "us_stock",
+      "EEM"
+    ],
+    [
+      "us_stock",
       "NVDA"
     ],
     [
@@ -60,6 +120,26 @@
     ],
     [
       "kr_stock",
+      "133690.KS"
+    ],
+    [
+      "kr_stock",
+      "132030.KS"
+    ],
+    [
+      "kr_stock",
+      "148070.KS"
+    ],
+    [
+      "kr_stock",
+      "228790.KS"
+    ],
+    [
+      "kr_stock",
+      "273130.KS"
+    ],
+    [
+      "kr_stock",
       "005930.KS"
     ],
     [
@@ -85,15 +165,30 @@
   ],
   "rationale": {
     "crypto": {
-      "kept_previous": true,
+      "core_applied": true,
+      "ranking_failed": true,
+      "kept_previous_tail": [
+        "SOL/USDT",
+        "BNB/USDT",
+        "XRP/USDT"
+      ],
       "reason": "HTTPError: HTTP Error 403: Forbidden"
     },
     "kr_stock": {
-      "kept_previous": true,
+      "core_applied": true,
+      "ranking_failed": true,
+      "kept_previous_tail": [
+        "005930.KS",
+        "000660.KS",
+        "035420.KS",
+        "005380.KS",
+        "051910.KS",
+        "105560.KS"
+      ],
       "reason": "KeyError: \"None of [Index(['종가', '시가총액', '거래량', '거래대금'], dtype='object')] are in the [columns]\""
     },
     "us_stock": {
-      "rule": "지수 ETF(SPY·QQQ) 고정 + 시총 상위 6 (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
+      "rule": "지수 ETF(SPY·QQQ)+자산군 ETF 15종 고정 + 시총 상위 6 (나스닥 공개 스크리너, 복수클래스·워런트 표기 제외)",
       "top10": [
         "NVDA",
         "AAPL",
@@ -104,7 +199,7 @@
         "TSM",
         "SPCX",
         "AVGO",
-        "META"
+        "TSLA"
       ]
     }
   },
@@ -135,6 +230,33 @@
       ],
       "removed": [],
       "rule_version": "2026-08-18"
+    },
+    {
+      "on": "2026-08-22",
+      "added": [
+        "kr_stock:132030.KS",
+        "kr_stock:133690.KS",
+        "kr_stock:148070.KS",
+        "kr_stock:228790.KS",
+        "kr_stock:273130.KS",
+        "us_stock:DBC",
+        "us_stock:EEM",
+        "us_stock:EWJ",
+        "us_stock:GLD",
+        "us_stock:IEF",
+        "us_stock:LQD",
+        "us_stock:SLV",
+        "us_stock:TIP",
+        "us_stock:TLT",
+        "us_stock:UUP",
+        "us_stock:VGK",
+        "us_stock:VNQ",
+        "us_stock:XLE",
+        "us_stock:XLP",
+        "us_stock:XLU"
+      ],
+      "removed": [],
+      "rule_version": "2026-08-19"
     }
   ]
 }

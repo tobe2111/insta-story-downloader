@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-21 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-21",
+      "price": 85.98999786376953,
+      "weight": 0.0573,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5245901639344263,
+      "hit_n": 61,
+      "hit_lo": 0.4015694171531101,
+      "hit_hi": 0.6446971771320402,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +6% — 로지스틱회귀 모델이 내일 상승확률을 약 57%로 추정(기준 55% 초과) · 판단 재료: VIX 변동성지수(옵션시장 공포) 15(보통 수준) / MACD 히스토그램 +(상승 우위) / RSI(7) 57(중립) · 참고: 전 종목 합산으로 모델이 57%±10%p라 말한 75번의 실제 상승 비율 53% (95% 신뢰구간 42%~64% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 0번으로 축적 중)",
+      "fill": null,
+      "fill_cost": 0.0006,
+      "code_sha": "e4ebfdca90ed",
+      "data_sha256": "b4e500f31d79321a715524357a61db4ecb8a9eea12b8d24adce3aad12cb5db7b",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5713684872575289,
+      "drift_psi": 0.3153,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 0.0573,
+    "decided_bar": "2026-08-21 00:00:00"
+  },
+  "market": "us_stock",
+  "symbol": "XLP",
+  "start_cash": 10000.0
+}

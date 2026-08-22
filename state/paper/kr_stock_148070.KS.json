@@ -1,0 +1,60 @@
+{
+  "cash": 10000.0,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-08-21 00:00:00",
+  "history": [
+    {
+      "date": "2026-08-21",
+      "price": 104125.0,
+      "weight": 1.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5,
+      "hit_n": 64,
+      "hit_lo": 0.38101888493214947,
+      "hit_hi": 0.6189811150678505,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +100% — 로지스틱회귀 모델이 내일 상승확률을 약 70%로 추정(기준 55% 초과) · 판단 재료: 변동성(20일) 일 0.4% / GK 변동성(고저가 기반) 일 0.2% / VIX 변동성지수(옵션시장 공포) 15(보통 수준) · 사이징: 신호 원비중 34% → 변동성 타깃 조절 후 100% · 참고: 전 종목 합산으로 모델이 70%±10%p라 말한 62번의 실제 상승 비율 45% (95% 신뢰구간 33%~57% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 0번으로 축적 중)",
+      "fill": null,
+      "fill_cost": 0.0014,
+      "code_sha": "e4ebfdca90ed",
+      "data_sha256": "2eff0e29eee816c131d419dcc70d30b697a065174d5a99d97236217988e46901",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7022710597869566,
+      "drift_psi": 0.1467,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    }
+  ],
+  "pending": {
+    "weight": 1.0,
+    "decided_bar": "2026-08-21 00:00:00"
+  },
+  "market": "kr_stock",
+  "symbol": "148070.KS",
+  "start_cash": 10000.0
+}
