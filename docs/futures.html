@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>선물 도전자 실험 — QUANT</title>
+<meta name="description" content="버려지던 절반(숏)을 쓰면 정말 나아지는가 — 가상 자금으로 공개 측정하는 양방향(롱/숏) 실험. 레버리지 없음. 실제 돈이 아닙니다.">
+<!-- ⚠️ 이 페이지는 **세 번째 실험 트랙**의 공개 장부다(2026-08-22, 사장님
+     지시: "선물 거래 페이지를 별도로 만들어 진행하자. 매수/매도 포지션
+     모두 가지면 머신러닝에 도움되지 않나?").
+
+     본 계좌(100만 챌린지)·장중 트랙과 완전히 분리돼 있고, 여기 숫자는 그
+     판단에 쓰이지 않는다. 데이터는 배치가 회차마다 커밋하는
+     docs/futures.json 하나에서만 읽는다 — 화면이 자기 계산을 시작하면
+     장부와 갈라진다(감사 197). -->
+<style>
+:root{
+  --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
+  --muted:#9aa3b2; --dim:#5c6470; --line:#1d2230; --line-strong:#262d3f;
+  --accent:#4f7cff; --up:#f04452; --down:#3182f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark light}
+body{background:var(--bg);color:var(--fg);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+  "Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.6}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f6f7f9; --bg2:#ffffff; --bg3:#eef0f4; --fg:#191f28;
+    --muted:#4e5968; --dim:#8b95a1; --line:#e5e8eb; --line-strong:#d1d6db}
+}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+nav{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+nav b{font-size:17px;letter-spacing:-.3px}
+nav a{color:var(--muted);font-size:13.5px}
+h1{font-size:26px;letter-spacing:-.5px;margin:6px 0 4px}
+h2{font-size:16px;margin:34px 0 10px}
+.tag{display:inline-block;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;
+  margin-left:8px;vertical-align:middle}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px;margin-top:12px}
+.sub{color:var(--muted);font-size:13px}
+.big{font-size:34px;font-weight:800;letter-spacing:-1px}
+.up{color:var(--up)} .down{color:var(--down)}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;margin-top:8px}
+.k{font-size:12px;color:var(--muted);font-weight:600}
+.v{font-size:18px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11.5px}
+.tw{overflow-x:auto}
+.warn{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:13px;
+  background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35)}
+ul{margin:6px 0 0 18px;font-size:13px;color:var(--muted)}
+li{margin-top:4px}
+svg{width:100%;height:180px;display:block;margin-top:10px}
+.err{color:var(--up)}
+footer{margin-top:44px;color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<script src="assets/nav.js" defer></script>
+
+<h1>선물 도전자 실험 <span class="tag">시뮬레이션 · 가상 자금 · 레버리지 없음</span></h1>
+<p class="sub">지금까지 이 시스템은 모든 판단을 <b>“산다 / 안 산다”</b> 둘로만
+냈습니다. 그런데 머신러닝이 실제로 내놓는 것은 <b>오를 확률</b>입니다. 확률이
+높으면 삽니다. 그러면 확률이 아주 <b>낮은</b> 날 — 모델이 “내릴 것”이라고 꽤
+확신하는 날 — 은 어떻게 될까요? <b>“안 산다”로 뭉개져 버려집니다.</b>
+“모르겠다”와 “내린다”가 같은 취급을 받는 것입니다.</p>
+<p class="sub" style="margin-top:8px">이 트랙은 그 <b>버려지던 절반</b>을 씁니다.
+내릴 것 같으면 내리는 쪽에 겁니다(숏). <b>같은 규칙 · 같은 종목 · 같은 비용</b>이고,
+다른 것은 방향을 허용하느냐 하나뿐입니다 — 그래야 성적 차이가 무엇 때문인지
+알 수 있습니다.</p>
+
+<div class="warn"><b>아직 가설입니다.</b> “숏이 더 자주 나온다”와 “숏이 돈을
+번다”는 전혀 다른 말입니다. 숏에는 롱에 없는 비용과 위험이 붙습니다(아래에
+그대로 적습니다). 그래서 믿지 않고 <b>나란히 돌려서 잽니다.</b></div>
+
+<div class="card" id="sum">불러오는 중…</div>
+
+<h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
+<div class="card" id="rules">불러오는 중…</div>
+
+<h2>지금 들고 있는 것 <span class="tag">롱과 숏을 같이 봅니다</span></h2>
+<div class="card tw"><table id="pos">
+  <thead><tr><th>종목</th><th>방향</th><th>수량</th></tr></thead>
+  <tbody><tr><td colspan="3" class="sub">불러오는 중…</td></tr></tbody>
+</table>
+<div class="sub" id="pos-note"></div></div>
+
+<h2>자산 곡선 <span class="tag">USDT 기준 · 비용과 자금조달을 뺀 뒤</span></h2>
+<div class="card"><svg id="curve" viewBox="0 0 800 180" preserveAspectRatio="none"
+  role="img" aria-label="선물 실험 자산 곡선"></svg>
+  <div class="sub" id="curve-note"></div></div>
+
+<h2>최근 체결 <span class="tag">비용까지 그대로</span></h2>
+<div class="card tw"><table id="tr">
+  <thead><tr><th>시각(한국 시간)</th><th>종목</th><th>주문</th><th>결과 방향</th>
+    <th>금액(USDT)</th>
+    <th title="포지션을 덮은 시점에 확정된 손익 — 진입가와 비교하고 그 거래의 비용까지 뺀 값입니다. 새로 여는 주문에는 없습니다.">실현 손익</th>
+    <th>비용(USDT)</th><th>신호</th></tr></thead>
+  <tbody><tr><td colspan="8" class="sub">불러오는 중…</td></tr></tbody>
+</table></div>
+
+<h2>정직한 한계 <span class="tag">숨기지 않습니다</span></h2>
+<div class="card"><ul id="limits"><li class="sub">불러오는 중…</li></ul></div>
+
+<footer>가상 자금 실험입니다. 실제 돈이 아니며 투자 권유가 아닙니다.
+수익을 보장하지 않습니다.</footer>
+</div>
+
+<script>
+function _kstParts(iso){
+  let t=String(iso||"").trim();
+  if(!t)return null;
+  /* 오프셋이 없는 값은 UTC로 본다 — 브라우저 지역시로 읽히면
+     보는 사람 위치에 따라 답이 달라진다. */
+  if(!/(Z|[+-]\d{2}:?\d{2})$/.test(t))t+="Z";
+  const ms=Date.parse(t);
+  if(!isFinite(ms))return null;
+  const k=new Date(ms+9*3600*1000), p=n=>String(n).padStart(2,"0");
+  return {day:k.getUTCFullYear()+"-"+p(k.getUTCMonth()+1)+"-"+p(k.getUTCDate()),
+          hm:p(k.getUTCHours())+":"+p(k.getUTCMinutes())};
+}
+function kst(iso){const k=_kstParts(iso);return k?k.day+" "+k.hm:"—"}
+function kstDay(iso){const k=_kstParts(iso);return k?k.day:""}
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,
+  function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];});}
+function usdt(v){var n=Number(v);return isFinite(n)
+  ? n.toLocaleString("ko-KR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "—";}
+function pct(v){var n=Number(v);return isFinite(n)?(n>=0?"+":"")+n.toFixed(2)+"%":"—";}
+
+fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(function(d){
+  if(!d){document.getElementById("sum").innerHTML=
+    '<span class="err">아직 기록이 없습니다 — 첫 회차가 돌면 채워집니다.</span>';return;}
+
+  /* ── 요약 ── */
+  var up=Number(d.return_pct)>=0;
+  document.getElementById("sum").innerHTML=
+    '<div class="big '+(up?"up":"down")+'">'+usdt(d.equity)+' <span class="sub" '+
+      'style="font-size:15px;font-weight:600">USDT</span></div>'+
+    '<div class="sub">시드 '+usdt(d.start_cash)+' USDT · '+
+      (d.updated?esc(kst(d.updated))+' 기준':'기준 시각 없음')+'</div>'+
+    '<div class="grid">'+
+      '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
+        pct(d.return_pct)+'</div></div>'+
+      '<div><div class="k">롱</div><div class="v">'+(d.long_positions||0)+'종목</div></div>'+
+      '<div><div class="k">숏</div><div class="v">'+(d.short_positions||0)+'종목</div></div>'+
+      '<div><div class="k">총 노출</div><div class="v">'+usdt(d.gross_exposure)+'</div></div>'+
+      '<div><div class="k">낸 비용</div><div class="v">'+usdt(d.cost_paid)+'</div></div>'+
+      /* 자금조달은 **받을 수도 있다**(숏). 부호를 그대로 보여준다 —
+         절댓값만 적으면 받은 것도 낸 것처럼 읽힌다. */
+      '<div><div class="k">자금조달 누계</div><div class="v">'+
+        (Number(d.funding_paid)>=0?"−":"+")+usdt(Math.abs(Number(d.funding_paid)||0))+
+        '</div></div>'+
+      '<div><div class="k">회차</div><div class="v">'+(d.rounds||0)+'</div></div>'+
+    '</div>'+
+    (d.stopped&&d.stopped.length
+      ?'<div class="warn">🛑 하드 스톱으로 청산된 숏: <b>'+
+        esc(d.stopped.join(", "))+'</b> — 숏에는 파산이라는 자연 바닥이 없어서 '+
+        '손실 한도를 걸어 둡니다.</div>':'')+
+    (d.skipped&&d.skipped.length
+      ?'<div class="warn">⏭️ 시세를 실데이터로 못 받아 이번 회차에서 뺀 종목: <b>'+
+        esc(d.skipped.join(", "))+'</b> — 가짜 시세로 체결을 만들지 않습니다.</div>':'');
+
+  /* ── 스스로 거는 제한 ── */
+  var lo=d.long_only_symbols||[];
+  document.getElementById("rules").innerHTML=
+    '<ul>'+
+    '<li><b>레버리지를 쓰지 않습니다(1배).</b> 총 노출(롱+숏)이 자산의 '+
+      (Number(d.max_gross_exposure)||1)+'배를 넘지 못합니다. 선물이 위험한 주된 '+
+      '이유는 방향이 아니라 <b>배율</b>이고, 그 배율을 여기서 쓰지 않습니다.</li>'+
+    '<li><b>자금조달 비용을 뭅니다.</b> 무기한 선물은 8시간마다 포지션에 비례해 '+
+      '돈을 주고받습니다. 이걸 빼면 이 트랙만 유리한 자로 재게 됩니다. '+
+      '요율은 <b>가정치</b>입니다(8시간마다 '+
+      ((Number(d.funding_rate_per_8h)||0)*100).toFixed(3)+'%) — 실제 요율을 '+
+      '받아 오지 않습니다.</li>'+
+    '<li><b>숏에는 손실 한도가 있습니다</b>('+
+      ((Number(d.short_stop_pct)||0)*100).toFixed(0)+'%). 롱은 최악이라도 '+
+      '−100%에서 멈추지만(가격이 0), 숏은 가격이 오르는 만큼 계속 잃습니다.</li>'+
+    '<li><b>숏을 못 하는 종목은 못 한다고 적습니다.</b> 규칙으로 매매하는 종목은 '+
+      '애초에 “내린다”는 신호를 내지 않습니다 — 억지로 만들지 않습니다.'+
+      (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(", "))+'</b>':'')+'</li>'+
+    '<li><b>본 계좌와 완전히 분리</b>돼 있습니다. 자기 장부만 쓰고, 여기 숫자는 '+
+      '100만 챌린지 판단에 쓰이지 않습니다.</li>'+
+    '</ul>';
+
+  /* ── 보유 ── */
+  var pos=Object.entries(d.positions||{});
+  document.getElementById("pos").querySelector("tbody").innerHTML=
+    pos.length?pos.map(function(kv){
+      var q=Number(kv[1]);
+      /* 숏은 수량이 음수다. 화면에는 방향을 말로 적고 수량은 절댓값으로
+         적는다 — "−0.02개를 들고 있다"는 읽는 사람에게 아무 뜻이 없다. */
+      /* 색은 **거는 방향**을 따른다. 이 사이트는 오름이 빨강·내림이
+         파랑이므로, 오름에 거는 롱이 빨강이고 내림에 거는 숏이 파랑이다.
+         (처음엔 반대로 칠했는데, 그러면 숏이 '오르고 있다'로 읽힌다.) */
+      return '<tr><td>'+esc(kv[0])+'</td><td class="'+(q<0?"down":"up")+'">'+
+        (q<0?"숏(내림에 걺)":"롱(오름에 걺)")+'</td><td>'+
+        Math.abs(q).toFixed(6)+'</td></tr>';
+    }).join(""):'<tr><td colspan="3" class="sub">지금은 아무것도 안 들고 있습니다</td></tr>';
+  document.getElementById("pos-note").textContent=
+    "숏은 '내리면 버는' 자리입니다. 수량은 절댓값으로 적었고, 방향은 옆 칸에 있습니다.";
+
+  /* ── 곡선 ── */
+  var c=(d.curve||[]).map(function(p){return Number(p&&p.equity);})
+        .filter(function(v){return isFinite(v);});
+  var svg=document.getElementById("curve");
+  if(c.length>=2){
+    var lo2=Math.min.apply(null,c), hi=Math.max.apply(null,c);
+    var span=(hi-lo2)||1;
+    var pts=c.map(function(v,i){
+      return (i/(c.length-1)*800).toFixed(1)+","+
+             (170-(v-lo2)/span*160).toFixed(1);}).join(" ");
+    svg.innerHTML='<polyline fill="none" stroke="'+
+      (c[c.length-1]>=c[0]?"#f04452":"#3182f6")+
+      '" stroke-width="2" points="'+pts+'"/>';
+    document.getElementById("curve-note").textContent=
+      c.length+"개 회차 · "+usdt(lo2)+" ~ "+usdt(hi)+" USDT";
+  }else{
+    document.getElementById("curve-note").textContent=
+      "곡선을 그리려면 회차가 둘 이상 필요합니다.";
+  }
+
+  /* ── 최근 체결 ── */
+  var trs=(d.recent_trades||[]).slice().reverse();
+  document.getElementById("tr").querySelector("tbody").innerHTML=
+    trs.length?trs.map(function(t){
+      /* 실현 손익은 **덮는 주문에만** 있다. 새로 여는 주문에는 아직
+         확정된 것이 없으므로 '—'다 — 0으로 적으면 본전이라는 뜻이 된다. */
+      var r=t.realized_pnl;
+      var pnl=(r==null)?'<span class="sub">—</span>'
+        :'<b class="'+(r>=0?"up":"down")+'">'+(r>=0?"+":"−")+
+          usdt(Math.abs(r))+'</b>';
+      return '<tr><td>'+esc(kst(t.at))+'</td><td>'+esc(t.symbol||"")+
+        '</td><td class="'+(t.side==="sell"?"down":"up")+'">'+
+        (t.side==="sell"?"팔기":"사기")+'</td><td>'+esc(t.direction||"")+
+        '</td><td>'+usdt(Math.abs(t.notional||0))+'</td><td>'+pnl+'</td><td>'+
+        usdt(t.cost||0)+'</td><td>'+Number(t.signal||0).toFixed(2)+'</td></tr>';
+    }).join(""):'<tr><td colspan="8" class="sub">아직 체결이 없습니다</td></tr>';
+
+  /* ── 한계 ── */
+  document.getElementById("limits").innerHTML=
+    (d.limits||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join("")
+    ||'<li class="sub">—</li>';
+}).catch(function(){
+  document.getElementById("sum").innerHTML=
+    '<span class="err">기록을 불러오지 못했습니다.</span>';
+});
+</script>
+</body>
+</html>

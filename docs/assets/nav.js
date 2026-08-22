@@ -20,6 +20,7 @@
     ["today.html", "오늘의 판단"],
     ["trust.html", "기록 검증"],
     ["intraday.html", "장중 실험"],
+    ["futures.html", "선물 실험"],
     ["weekly.html", "주간 아카이브"]
   ];
   var DL = "https://github.com/tobe2111/insta-story-downloader/releases/latest";
