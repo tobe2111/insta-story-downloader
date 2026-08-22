@@ -66,12 +66,18 @@ jobs:
           ALPACA_KEY_ID: ${{ secrets.ALPACA_KEY_ID }}
           ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
         run: python -m quant intraday-round --state-dir state
+      # 선물 도전자(2026-08-22, 사장님 지시) — 같은 규칙을 **양방향**(롱/숏)
+      # 으로 돌리는 세 번째 분리 실험(가상 USDT · 레버리지 없음).
+      # 장중 트랙과 마찬가지로 실패가 안전장치를 볼모로 잡지 않게 한다.
+      - name: 선물 도전자 1회 (실험 — 양방향 · 본 계좌와 분리)
+        continue-on-error: true
+        run: python -m quant futures-round --state-dir state
       - name: 심장박동·조치 커밋
         run: |
           set -euo pipefail
           git config user.name "quant-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add state/guard_heartbeat.json state/ledger_stale_alert.json state/paper state/intraday docs/intraday.json docs/intraday_us.json || true
+          git add state/guard_heartbeat.json state/ledger_stale_alert.json state/paper state/intraday state/futures docs/intraday.json docs/intraday_us.json docs/futures.json || true
           # 바뀐 게 없으면 조용히 끝낸다 — 빈 커밋으로 이력을 더럽히지 않는다.
           if git diff --cached --quiet; then
             echo "변화 없음 — 커밋 생략"

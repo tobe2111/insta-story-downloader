@@ -50,6 +50,10 @@ PAGES = [
     ("today.html", "다 그리지 못했습니다"),
     ("paper.html", None),
     ("intraday.html", None),
+    # 트랙마다 한 장씩(2026-08-22 감사 305) — 새 페이지가 이 목록에 안
+    # 들어오면 "그리다 죽는 페이지"가 조용히 생긴다.
+    ("us.html", None),
+    ("futures.html", None),
     ("weekly.html", None),
     ("trust.html", None),
     ("admin.html", None),

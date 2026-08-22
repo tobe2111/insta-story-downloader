@@ -79,6 +79,23 @@ DEFAULT_CHALLENGERS = [
     # 메타라벨링 — 방향은 추세 규칙(종가 vs MA50), ML은 '그 판단이 맞을
     # 확률'만 추정해 크기를 정한다(방향·크기 분업, López de Prado).
     {"model": "logreg", "threshold": 0.55, "label": "triple", "meta": True},
+    # 비용 기준 라벨 — "오르기만 하면 1"이 아니라 **왕복 비용을 넘어야 1**
+    # (2026-08-20 사장님 지시). 기본 라벨은 편도 0.15%(코인)를 못 넘는
+    # 상승도 '맞힘'으로 세는데, 그런 봉은 맞혀도 손해다. 즉 모델이 지금까지
+    # "맞히면 이기는 게임"이 아니라 "맞혀도 질 수 있는 게임"을 배우고 있었다.
+    #
+    # 문턱은 시장별로 계산하지 않고 **숫자로 박는다** — 그래야 verify가
+    # 옛 링을 글자 그대로 재구성할 수 있다(재현성이 시장 편의보다 앞선다).
+    # 0.0012 = 미국주식 왕복, 0.0030 = 코인·한국주식 왕복. 어느 쪽이 그
+    # 종목에 맞는지는 오디션이 고른다.
+    #
+    # ⚠️ 가설이지 개선이 아니다. 문턱을 올리면 '산다' 라벨이 귀해져 표본이
+    #    불균형해지고(실측: 47.6% → 19.8%) 그 자체가 학습을 어렵게 만들 수
+    #    있다. 그래서 강제 적용 없이 오디션으로만 승격된다.
+    {"model": "gb", "threshold": 0.55, "label": "cost", "label_cost": 0.0012},
+    {"model": "gb", "threshold": 0.55, "label": "cost", "label_cost": 0.0030},
+    {"model": "logreg", "threshold": 0.55, "label": "cost",
+     "label_cost": 0.0030},
     # 표본 시간감쇠 — 최근 표본에 학습 가중을 더 주는 변형(반감기 125봉).
     {"model": "gb", "threshold": 0.55, "sample_weight": "decay"},
     # 피처 가지치기 — 중요도 상위 10개만 남기고 재학습. 피처가 fs7까지 늘어
@@ -818,6 +835,30 @@ def build_challengers(current_spec: dict, seed: str,
     return challengers
 
 
+# 풀링 후보가 깨어나는 문턱 — 링이 보는 구간(결승 120봉)을 스냅샷이
+# 덮을 수 있게 되는 날부터 참전한다.
+POOL_WAKE_DAYS = 120
+
+
+def _split_sleeping(challengers: list, state_dir: str,
+                    min_days: int = POOL_WAKE_DAYS) -> tuple[list, list]:
+    """지금 돌 수 있는 후보와 **아직 잠든** 후보로 가른다 (감사 297).
+
+    잠든 후보는 오늘 링에서 빠지고 시도 수에도 안 들어간다. 다만 후보
+    목록에서 사라지는 것은 아니다 — 조건이 차면 다음 밤부터 저절로 돌아온다.
+    """
+    from quant.strategies.ml import pool_ready
+    live, asleep = [], []
+    for c in challengers:
+        p = (c.get("params") or {}) if isinstance(c, dict) else {}
+        pool = p.get("pool")
+        if pool is not None and not pool_ready(pool, state_dir, min_days):
+            asleep.append(c)
+        else:
+            live.append(c)
+    return live, asleep
+
+
 # ── 다중검정 문턱 — 롤링 윈도 + 상한 ────────────────────────────
 # 누적 시도 수가 단조 증가하면 문턱도 영원히 올라가 진화가 완전히 멈춘다.
 # 그래서 문턱 계산에는 '최근 1년 시도 수'만 쓰고 상한을 둔다(장부의 누적
@@ -1160,6 +1201,25 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     #    그 보정을 선발전에 또 거는 것은 같은 다중성을 두 번 세는 것이었고,
     #    그 결과 결승전이 한 번도 작동하지 않았다(2026-08-14 실측 15/15).
     #    진짜 다중성은 '매일 반복'이고 그건 결승 문턱이 계속 맡는다.
+    # ⚠️ **못 도는 후보는 '찾아본 것'이 아니다** (2026-08-20 감사 297).
+    #    풀링 후보는 스냅샷이 모자라면 풀을 못 만들고 챔피언과 똑같은 신호를
+    #    낸다. 그걸 시도 수에 넣으면 문턱만 올라가, 진짜로 뒤져서 찾은
+    #    결과까지 같이 깎인다.
+    #
+    #    실측 2026-08-19: 후보 802개 중 35개가 무동작이었고 그중 13개가
+    #    pool="peers"였다(스냅샷 14일치 — 학습 블록 대부분이 자기 시점의
+    #    폴더를 못 찾는다).
+    #
+    #    ⚠️ **후보 목록에서 빼는 것이 아니다**(사장님 지적: "죽은 peers도
+    #       나중엔 성과 좋을 수 있는 거 아니야?"). 맞다 — peers는 성과가
+    #       나쁜 게 아니라 아직 못 도는 것이고, universe와 달리 생존 편향이
+    #       없어 장기적으로는 더 정직한 쪽이다. 스냅샷이 쌓이면 이 관문은
+    #       저절로 열리고 그날부터 링에 다시 선다. 지금 빼는 것은 후보가
+    #       아니라 **헛세기**다.
+    challengers, asleep = _split_sleeping(challengers, state_dir)
+    if asleep:
+        log.info("아직 못 도는 후보 %d개는 시도 수에서 뺍니다(스냅샷 부족) "
+                 "— 목록에는 남고, 쌓이면 다시 링에 섭니다", len(asleep))
     n_cand = len(challengers)
     trials_total = int(entry.get("trials_total", 0)) + n_cand
     entry["trials_total"] = trials_total

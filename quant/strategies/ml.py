@@ -395,6 +395,42 @@ def _build_model(kind: str):
     return logreg()
 
 
+def pool_ready(pool, state_dir: str = "state", min_days: int = 1) -> bool:
+    """이 풀 설정이 **지금** 실제로 표본을 만들 수 있는가.
+
+    ⚠️ 왜 미리 묻나 (2026-08-20 감사 297).
+       다중검정 문턱은 "얼마나 뒤졌나"에 비례해 올라간다. 그런데 풀을 못
+       만들어 챔피언과 똑같은 신호를 내는 후보는 **뒤진 것이 아니라** 같은
+       답을 낸 것이다. 그 후보를 시도 수에 넣으면 문턱만 올라가, 진짜로
+       뒤져서 찾은 결과까지 같이 깎인다.
+
+       실측 2026-08-19: 후보 802개 중 35개가 무동작이었고 그중 13개가
+       `pool="peers"`였다. 스냅샷이 14일치뿐이라 학습 블록 대부분이 자기
+       시점의 스냅샷 폴더를 못 찾는다.
+
+    ⚠️ **후보에서 빼자는 뜻이 아니다** (사장님 지적 2026-08-20:
+       "죽은 peers도 나중엔 성과 좋을 수 있는 거 아니야?"). 맞다 — peers는
+       성과가 나쁜 게 아니라 아직 못 도는 것이고, 스냅샷이 쌓이면 스스로
+       깨어난다. 게다가 universe와 달리 **생존 편향이 없어** 장기적으로는
+       더 정직한 쪽이다. 여기서 하는 일은 '지금 돌 수 있는가'를 묻는 것뿐이고,
+       돌 수 있게 되는 날 이 함수는 저절로 True가 된다.
+    """
+    if pool is None:
+        return True
+    if isinstance(pool, list):
+        return bool(pool)
+    from quant.utils.repro import latest_snapshot_day, snapshot_days
+    if pool == "universe":
+        return latest_snapshot_day(state_dir) is not None
+    if pool == "peers":
+        try:
+            days = snapshot_days(state_dir)
+        except Exception:      # noqa: BLE001 — 못 세면 막지 않는다
+            return True
+        return len(days) >= max(1, int(min_days))
+    return True
+
+
 class MLStrategy(Strategy):
     """워크포워드로 재학습하며 상승확률을 목표비중으로 매핑하는 ML 전략."""
 
@@ -406,7 +442,8 @@ class MLStrategy(Strategy):
                  allow_short: bool = False, extra_features=None,
                  calibrate: str | None = None, weight_step: float = 0.0,
                  label: str = "nextbar", label_horizon: int = 10,
-                 label_k: float = 1.5, meta: bool = False,
+                 label_k: float = 1.5, label_cost: float = 0.0,
+                 meta: bool = False,
                  sample_weight: str | None = None,
                  weight_halflife: int = 125,
                  top_features: int = 0,
@@ -414,9 +451,10 @@ class MLStrategy(Strategy):
         if calibrate not in (None, "sigmoid", "isotonic"):
             raise ValueError(
                 f"calibrate는 None·'sigmoid'·'isotonic' 중 하나여야 합니다: {calibrate!r}")
-        if label not in ("nextbar", "triple"):
+        if label not in ("nextbar", "triple", "cost"):
             raise ValueError(
-                f"label은 'nextbar'·'triple' 중 하나여야 합니다: {label!r}")
+                "label은 'nextbar'·'triple'·'cost' 중 하나여야 합니다: "
+                f"{label!r}")
         if sample_weight not in (None, "decay"):
             raise ValueError(
                 f"sample_weight는 None·'decay' 중 하나여야 합니다: {sample_weight!r}")
@@ -450,6 +488,25 @@ class MLStrategy(Strategy):
         self.label = label
         self.label_horizon = max(2, int(label_horizon))
         self.label_k = max(0.1, float(label_k))
+        # 비용 문턱 — label="cost"일 때 "이만큼은 넘어야 산 보람이 있다".
+        #
+        # ⚠️ 왜 필요한가 (2026-08-20 사장님 지시).
+        #    기본 라벨 nextbar는 **다음 봉이 오르기만 하면 1**이다. 그런데
+        #    우리가 실제로 벌어야 하는 것은 왕복 비용을 넘는 움직임이다 —
+        #    편도 0.15%(코인)면 왕복 0.30%이고, 그 아래 움직임은 **맞혀도
+        #    손해**다. 즉 모델은 지금까지 "맞히면 이기는 게임"이 아니라
+        #    "맞혀도 질 수 있는 게임"을 배우고 있었다.
+        #
+        #    2026-08-20 실측이 그 그림자를 보여준다: 장중 실험이 순 +2.03%인데
+        #    비용 전으로는 +2.32%였다 — 번 것의 상당 부분을 비용이 가져갔다.
+        #
+        # ⚠️ 이것은 **가설이지 개선이 아니다.** 문턱을 올리면 '산다'는 라벨이
+        #    귀해져 표본이 불균형해지고, 그 자체가 학습을 어렵게 만들 수 있다.
+        #    그래서 강제 적용하지 않고 오디션 후보로만 세운다 — 2단계 관문을
+        #    통과할 때만 챔피언이 되고, 승격되면 장부의 파라미터에 그대로 남는다.
+        #
+        # 기본 0.0 = nextbar와 **완전히 같다**(대조군이 성립한다).
+        self.label_cost = max(0.0, float(label_cost))
         # 메타라벨링 — 방향은 단순 추세 규칙(종가 vs MA50)이 정하고, ML은
         # '그 판단이 이익이 될 확률'만 추정해 크기를 정한다(방향·크기 분업).
         self.meta = bool(meta)
@@ -590,6 +647,14 @@ class MLStrategy(Strategy):
                 if self.label == "triple":
                     py = _triple_barrier_labels(pdf, self.label_horizon,
                                                 self.label_k)
+                elif self.label == "cost":
+                    # 다음 봉 수익이 **왕복 비용을 넘는가**. 넘지 못하는
+                    # 상승은 0이다 — 맞혀도 손해이므로 사는 이유가 없다.
+                    nxt = pdf["close"].shift(-1)
+                    ret = nxt / pdf["close"] - 1.0
+                    lab = (ret > self.label_cost).astype(float)
+                    lab[nxt.isna()] = np.nan
+                    py = lab.to_numpy()
                 else:
                     lab = (pdf["close"].shift(-1) > pdf["close"]).astype(float)
                     lab[pdf["close"].shift(-1).isna()] = np.nan

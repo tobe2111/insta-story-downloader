@@ -102,3 +102,59 @@ def test_the_judgement_still_belongs_to_the_main_track():
     src = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
     assert "판정은 본 실험(1시간)의" in src, (
         "사다리가 판정 자격을 주장하지 않는다는 문구가 없다")
+
+
+# ── 총(비용 전) 수익률 — 순위가 신호 차이인지 비용 차이인지 (감사 295) ──
+#
+# 2026-08-20, 이 표를 보고 "자주 할수록 나빠진다"고 읽었다가 틀렸다.
+#
+#     순(비용 뺀 뒤)   1시간 +2.03  >  15분 +1.57  >  5분 +0.33
+#     총(비용 전)      1시간 +2.32  ≈  15분 +2.36  >  5분 +1.53
+#
+# 비용을 떼면 15분이 1시간보다 **높다**. 순위를 만든 것은 빈도가 아니라
+# 회전율 × 편도 비용이었다. "신호가 나쁜가"와 "비용을 못 견디는가"는 다른
+# 진단이고 처방도 다르다 — 전자는 전략 교체, 후자는 체결 개선.
+#
+# 사장님 지시: "함부로 단정짓지 않아야 해." 그 원칙을 사람 기억이 아니라
+# 화면이 지키게 한다.
+
+def test_gross_return_is_net_plus_cost():
+    from quant.live.intraday_challenger import gross_return_pct
+
+    # 시드 10,000 · 지금 10,200 · 비용 50 → 비용 전이었다면 10,250
+    assert gross_return_pct(10_200.0, 10_000.0, 50.0) == 2.5
+    # 비용이 0이면 순수익률과 같아야 한다(대조군 — 늘 얼마씩 더하지 않는다).
+    assert gross_return_pct(10_200.0, 10_000.0, 0.0) == 2.0
+    assert gross_return_pct(10_200.0, 10_000.0, None) == 2.0
+    # 잴 수 없으면 지어내지 않는다.
+    assert gross_return_pct(10_200.0, 0.0, 10.0) is None
+    assert gross_return_pct("x", 10_000.0, 10.0) is None
+
+
+def test_the_ladder_carries_both_columns(tmp_path):
+    """사다리와 본 트랙 **둘 다** 총수익률을 실어야 표가 채워진다."""
+    IC.run_ladder("2026-08-18T12:00:00", state_dir=str(tmp_path),
+                  data=_data(), strategy_factory=lambda s: _Up())
+    st = {"rounds": [{"time": "2026-08-18T12:00:00", "equity": 10_050.0,
+                      "trades": []}],
+          "start_cash": 10_000.0, "positions": {}, "cost_paid": 20.0}
+    out = IC.write_public_report(st, docs_dir=str(tmp_path),
+                                 state_dir=str(tmp_path))
+    # 본 실험: 순 +0.50% · 비용 20 → 총 +0.70%
+    assert out["gross_return_pct"] == 0.7, out["gross_return_pct"]
+    assert out["gross_return_pct"] > out["return_pct"], "비용을 물었는데 총이 순보다 낮다"
+    for row in out.get("ladder") or []:
+        assert "gross_return_pct" in row, f"{row['timeframe']} 트랙에 총수익률이 없다"
+        assert row["gross_return_pct"] >= row["return_pct"], row
+
+
+def test_the_page_says_how_to_read_the_two_columns():
+    """두 열을 놓고 무엇을 읽어야 하는지 화면이 말해야 한다.
+
+    숫자만 나란히 놓으면 읽는 사람이 줄을 세우고 결론을 낸다 — 내가 그랬다.
+    """
+    page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
+    assert "총수익률" in page and "비용 물기 전" in page
+    assert "두 수익률의 차이가 곧 <b>비용</b>입니다" in page
+    assert "우열 판정에 쓰지 않습니다" in page, (
+        "짧은 구간의 순서를 결론으로 읽지 말라는 경고가 없다")

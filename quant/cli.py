@@ -660,6 +660,38 @@ def _cmd_web_passwd(args) -> None:
           "웹 조종석을 다시 켜면 로그인 화면이 뜹니다.")
 
 
+def _cmd_futures_round(args) -> None:
+    """선물 도전자 1회 — 버려지던 절반(숏)을 쓰는 분리 실험(가상 USDT)."""
+    from quant.live.futures_challenger import (
+        load_state, run_futures_round, write_public_report,
+    )
+    from quant.live.market_hours import now_kst_iso
+
+    # 수동 킬스위치는 선물 트랙에도 걸린다 — 방향이 둘이라고 예외가 아니다.
+    # 본 계좌만 멈추고 실험이 계속 돌면, 사장님이 "다 멈췄다"고 믿는 동안
+    # 매매가 계속되는 셈이다.
+    if _halted(args):
+        return
+
+    # 회차 시각은 한국 시간 — 다른 두 트랙과 같은 시계를 쓴다.
+    now = now_kst_iso()
+    r = run_futures_round(now, state_dir=args.state_dir)
+    st = load_state(args.state_dir)
+    write_public_report(st, docs_dir=args.docs_dir)
+    longs = sum(1 for q in (r.get("positions") or {}).values() if q > 0)
+    shorts = sum(1 for q in (r.get("positions") or {}).values() if q < 0)
+    print(f"📉 선물 도전자 — 자산 {r['equity']:,.2f} USDT · "
+          f"롱 {longs} · 숏 {shorts} · 총노출 {r['gross_exposure']:,.2f} · "
+          f"이번 회차 체결 {len(r['trades'])}건 · "
+          f"자금조달 누적 {r['funding_paid']:+,.4f}")
+    if r.get("stopped"):
+        print(f"   🛑 숏 하드 스톱: {', '.join(r['stopped'])}")
+    if r.get("long_only"):
+        print(f"   ↗️ 롱 전용(규칙 전략이라 숏 불가): {', '.join(r['long_only'])}")
+    if r.get("skipped"):
+        print(f"   ⏭️ 시세 못 받아 건너뜀: {', '.join(r['skipped'])}")
+
+
 def _cmd_intraday_round(args) -> None:
     """장중 도전자 1회 — 본 계좌와 분리된 실험 트랙(가상 USDT)."""
     from quant.live.intraday_challenger import run_intraday_round
@@ -1660,6 +1692,14 @@ def build_parser() -> argparse.ArgumentParser:
     ir.add_argument("--state-dir", default="state", dest="state_dir")
     ir.add_argument("--docs-dir", default="docs", dest="docs_dir")
     ir.set_defaults(func=_cmd_intraday_round)
+
+    fr = sub.add_parser(
+        "futures-round",
+        help="선물 도전자 1회 — 같은 규칙을 **양방향**(롱/숏)으로 돌리는 "
+             "분리 실험(가상 USDT · 레버리지 없음 · 본 계좌와 무관)")
+    fr.add_argument("--state-dir", default="state", dest="state_dir")
+    fr.add_argument("--docs-dir", default="docs", dest="docs_dir")
+    fr.set_defaults(func=_cmd_futures_round)
 
     st = sub.add_parser("setup", help="API 키 대화형 설정(.env 저장 + 연결 확인)")
     st.set_defaults(func=_cmd_setup)

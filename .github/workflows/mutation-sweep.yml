@@ -95,7 +95,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mutation-${{ github.run_id }}
-          path: mutation.txt
+          path: |
+            mutation.txt
+            mutation_summary.txt
           if-no-files-found: ignore
 
       - name: 실패 경보 (디스코드/텔레그램)
@@ -107,10 +109,31 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          MSG="🚨 [Quant] 변이 전수 실패 ($(date -u +%F)) — 안전장치 중 일부가 지금 아무도 안 지키고 있다. 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # ⚠️ 2026-08-22 감사 301 — 예전엔 이 자리에 **한 문장**만 있었다:
+          #    "안전장치 중 일부가 지금 아무도 안 지키고 있다."
+          #    08-16부터 엿새 연속 그 문장만 폰에 왔고, 그 엿새의 실제 원인은
+          #    검사 19건이 그 환경에서 **아예 안 돈 것**이었지 안전장치가
+          #    무방비였던 게 아니었다. 둘은 다른 병이고 고치는 곳도 다르다.
+          #    같은 문장으로 말하면 읽는 쪽은 아무것도 못 고치고, 며칠이 간다.
+          #    그래서 전수가 남긴 요약을 **그대로 실어 보낸다** — 로그를 열지
+          #    않아도 무엇이 몇 건인지 폰에서 읽힌다.
+          DETAIL=$(head -c 1200 mutation_summary.txt 2>/dev/null || true)
+          if [ -z "$DETAIL" ]; then
+            DETAIL="(요약 없음 — 전수가 시작도 못 하고 죽었다. 설치 단계부터 볼 것)"
+          fi
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG=$(printf '🚨 [Quant] 변이 전수 실패 (%s)\n%s\n로그: %s' \
+                       "$(date -u +%F)" "$DETAIL" "$RUN_URL")
+          export MSG
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            # ⚠️ 본문에 줄바꿈·따옴표가 들어가므로 JSON은 **손으로 짜지
+            #    않는다.** 예전 한 줄짜리 메시지에서는 문제가 없었지만, 여러
+            #    줄을 그대로 큰따옴표에 넣으면 페이로드가 깨져 경보가 조용히
+            #    안 나간다 — 경보가 안 나가는 것이 이 잡의 최악이다.
+            #    python3은 러너 기본 탑재라 의존성 설치 전에도 있다.
+            PAYLOAD=$(python3 -c 'import json,os; print(json.dumps({"content": os.environ["MSG"]}))')
             curl -s -H "Content-Type: application/json" \
-              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+              -d "$PAYLOAD" "$DISCORD_WEBHOOK_URL" || true
           fi
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \

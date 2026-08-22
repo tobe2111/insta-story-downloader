@@ -193,6 +193,21 @@ def load_snapshot(state_dir: str, asof: str, market: str, symbol: str):
         return pd.read_csv(f, index_col=0, parse_dates=True)
 
 
+def snapshot_days(state_dir: str) -> list[str]:
+    """스냅샷 폴더 이름 전부(오름차순). 없으면 빈 목록.
+
+    풀링 후보가 **지금 돌 수 있는지**를 값싸게 묻는 데 쓴다(감사 297) —
+    `peers` 모드는 학습 블록마다 자기 시점 이하의 폴더를 찾는데, 폴더가
+    며칠치뿐이면 대부분의 블록이 못 찾아 풀 없이 학습한다. 그러면 챔피언과
+    같은 신호가 나오고, 그 후보는 '뒤진 것'이 아니라 '같은 답을 낸 것'이다.
+    """
+    base = os.path.join(state_dir, SNAP_DIR)
+    if not os.path.isdir(base):
+        return []
+    return sorted(d for d in os.listdir(base)
+                  if os.path.isdir(os.path.join(base, d)))
+
+
 def latest_snapshot_day(state_dir: str) -> str | None:
     """cutoff와 무관하게 **가장 최근** 스냅샷 폴더명 (없으면 None).
 

@@ -5409,7 +5409,7 @@ MUTATIONS = [
     # ── 감사 274 — 첫 화면이 첫 질문에 답하지 않았다 ──
     ("오래된 숫자를 오늘처럼 말한다(이틀 전 금액이 '지금'으로 읽힌다)",
      "docs/index.html",
-     "        (age!==null&&age>=1",
+     "        (age!==null&&age>=_STALE_DAYS",
      "        (false",
      "tests/test_the_first_screen_answers_the_first_question.py"),
 
@@ -5853,8 +5853,8 @@ MUTATIONS = [
     # ── 규칙 유니버스 (2026-08-18) — 규칙이 굽으면 즉흥 선정으로 돌아간다 ──
     ("조회 실패 시장을 빈 목록으로 만든다(직전 구성 유지 원칙 위반)",
      "quant/universe.py",
-     '        markets["kr_stock"] = prev_by_market.get("kr_stock", [])',
-     '        markets["kr_stock"] = []',
+     '            extra = [s for s in prev if s not in core][:top]',
+     '            extra = []',
      "tests/test_the_universe_is_chosen_by_rule.py"),
 
     ("월 1회 관문을 뗀다(매일 유니버스가 바뀌어 이력이 소음이 된다)",
@@ -6240,9 +6240,12 @@ MUTATIONS = [
      "tests/test_more_symbols_is_not_more_information.py"),
     ("자산군 코어를 비운다(위험자산 한 덩어리로 되돌아간다)",
      "quant/universe.py",
-     '        core_us = US_CORE + US_ASSET_CORE',
-     "        core_us = US_CORE",
-     "tests/test_more_symbols_is_not_more_information.py"),
+     '    _market("us_stock", US_CORE + US_ASSET_CORE, US_TOP, rank_us,',
+     '    _market("us_stock", US_CORE, US_TOP, rank_us,',
+     # 예전 짝(test_more_symbols_is_not_more_information)은 이걸 못 잡았다
+     # — 그 검사는 합성 데이터로 '실효 표본 계측기'를 보지, 실제 코어 목록을
+     #   보지 않는다. 코어가 비면 잡아야 할 검사는 유니버스 쪽이다(감사 296).
+     "tests/test_the_universe_expansion_actually_lands.py"),
 
     # ── 내부 봉 강도(IBS) — 2026-08-22 수집 라운드 ──────────────────────
     ("범위 없는 봉의 IBS를 0.5로 지어낸다('모른다'가 '중립 판단'이 된다)",
@@ -6414,8 +6417,8 @@ MUTATIONS = [
     # ── 장중 실험 시계는 한국 시간 (2026-08-19 사장님 지시) ──────────
     ('장중 실험 시각을 UTC로 되돌린다(사장님이 보는 시각이 9시간 어긋난다)',
      'quant/cli.py',
-     '    now = now_kst_iso()',
-     "    now = __import__('datetime').datetime.now(\n        __import__('datetime').timezone.utc).isoformat(timespec='seconds')",
+     '    # 시각은 여기 한 곳에서만 만든다.\n    now = now_kst_iso()',
+     "    # 시각은 여기 한 곳에서만 만든다.\n    now = __import__('datetime').datetime.now(\n        __import__('datetime').timezone.utc).isoformat(timespec='seconds')",
      'tests/test_the_intraday_clock_is_korean.py'),
     ('한국 시간 도장을 UTC로 찍는다(관문은 그대로인데 표기만 거짓이 된다)',
      'quant/live/market_hours.py',
@@ -6501,6 +6504,365 @@ MUTATIONS = [
      '            (b.cost_rate>0',
      '            (true',
      'tests/test_the_costs_are_counted_and_shown.py'),
+
+    # ── 정상인 날을 고장이라 부르지 않는다 (2026-08-20 감사 293) ───
+    ("지연 문턱을 다시 1일로 내린다(정상인 날마다 '배치 실패'라고 말한다)",
+     'docs/index.html',
+     '      const _STALE_DAYS=2;',
+     '      const _STALE_DAYS=1;',
+     'tests/test_a_normal_day_is_not_called_a_failure.py'),
+    ('하루 전이 정상이라는 말을 뗀다(왜 하루 전인지 아무도 설명 안 한다)',
+     'docs/index.html',
+     "              ? ' 다음 확정 전이라 날짜가 하루 전인 것이 <b>정상</b>입니다.'",
+     "              ? ''",
+     'tests/test_a_normal_day_is_not_called_a_failure.py'),
+
+    # ── '한눈에'는 상황만 말한다 (2026-08-20 감사 294) ──────────────
+    ('실효 표본 설명을 다시 첫 화면에 편다(숫자 사이에 설명이 끼어 숫자가 안 읽힌다)',
+     'docs/index.html',
+     '          return \'<div class="sub adv" style="margin-top:6px">종목 <b>\'+b.n+',
+     '          return \'<div class="sub" style="margin-top:6px">종목 <b>\'+b.n+',
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+    ('보유·현금 줄을 통째로 뺀다(지금 뭘 들고 있는지가 첫 화면에서 사라진다)',
+     'docs/index.html',
+     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+",
+     "            ''+",
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+
+    # ── 순위가 신호인지 비용인지 가른다 (2026-08-20 감사 295) ───────
+    ('총수익률을 순수익률과 같게 만든다(비용 차이인지 신호 차이인지 못 가른다)',
+     'quant/live/intraday_challenger.py',
+     '    return round(((eq + cost) / seed - 1) * 100, 4)',
+     '    return round((eq / seed - 1) * 100, 4)',
+     'tests/test_the_frequency_ladder_measures_not_guesses.py'),
+    ('짧은 구간 순서를 결론으로 읽지 말라는 경고를 뗀다(줄 세워 단정하게 된다)',
+     'docs/intraday.html',
+     "        '있어</b> 우열 판정에 쓰지 않습니다. '+",
+     "        '있습니다. '+",
+     'tests/test_the_frequency_ladder_measures_not_guesses.py'),
+
+    # ── 늘리기로 한 종목이 실제로 들어오는가 (2026-08-20 감사 296) ──
+    ('규칙이 바뀌어도 다음 달까지 기다린다(코드는 45종목인데 계좌는 20종목으로 돈다)',
+     'quant/universe.py',
+     '    if str(snap.get("rule_version", "")) != RULE_VERSION:',
+     '    if False:',
+     'tests/test_the_universe_expansion_actually_lands.py'),
+    ('순위가 깨지면 고정 코어까지 버린다(금·국채가 통째로 안 들어온다)',
+     'quant/universe.py',
+     '            markets[name] = core + extra\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
+     '            markets[name] = prev\n            rationale[name] = {\n                "core_applied": True,          # 코어는 들어갔다',
+     'tests/test_the_universe_expansion_actually_lands.py'),
+
+    # ── 못 도는 후보는 찾아본 것이 아니다 (2026-08-20 감사 297) ─────
+    ('잠든 후보도 시도 수에 넣는다(못 돈 후보가 문턱을 올려 진짜 발견을 깎는다)',
+     'quant/live/retrain.py',
+     '    challengers, asleep = _split_sleeping(challengers, state_dir)',
+     '    asleep = []',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+    ('풀링 후보를 영영 재운다(스냅샷이 쌓여도 peers가 다시 안 선다)',
+     'quant/strategies/ml.py',
+     '        return len(days) >= max(1, int(min_days))',
+     '        return False',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+    ('풀 안 쓰는 후보까지 재운다(링이 통째로 멈춘다)',
+     'quant/strategies/ml.py',
+     '    if pool is None:\n        return True',
+     '    if pool is None:\n        return False',
+     'tests/test_a_sleeping_candidate_is_not_a_search.py'),
+
+    # ── 비용을 아는 라벨 · 잠든 후보 (2026-08-20 감사 297·298) ─────
+    ("비용 라벨이 비용을 무시한다(맞혀도 손해인 봉을 '산다'로 배운다)",
+     'quant/strategies/ml.py',
+     '                    lab = (ret > self.label_cost).astype(float)',
+     '                    lab = (ret > 0.0).astype(float)',
+     'tests/test_the_label_knows_what_costs_money.py'),
+
+    # ── 판 값을 말한다 · '지금'이 둘이 아니다 (2026-08-22 감사 299·300) ──
+    ('매도 실현 손익에서 비용을 안 뺀다(수수료로 다 까먹은 매도가 이익이 된다)',
+     'quant/live/intraday_challenger.py',
+     '            realized = round(sold * (px - prev_avg) - fee, 4)',
+     '            realized = round(sold * (px - prev_avg), 4)',
+     'tests/test_a_sale_says_what_it_earned.py'),
+    ('추가 매수에도 평균 단가를 안 갱신한다(첫 매수가만 남아 손익이 틀린다)',
+     'quant/live/intraday_challenger.py',
+     '                avg[sym] = (cur_qty * prev_avg + qty * px) / new_qty',
+     '                avg[sym] = px',
+     'tests/test_a_sale_says_what_it_earned.py'),
+    ('다 팔아도 평균 단가를 남긴다(다음 매수의 기준이 옛 값으로 오염된다)',
+     'quant/live/intraday_challenger.py',
+     '            avg.pop(sym, None)              # 다 팔았으면 단가도 지운다',
+     '            pass',
+     'tests/test_a_sale_says_what_it_earned.py'),
+    ('매수에도 실현 손익을 적는다(아직 확정 안 된 것을 확정이라 부른다)',
+     'quant/live/intraday_challenger.py',
+     '        if realized is not None:',
+     '        if True:',
+     'tests/test_a_sale_says_what_it_earned.py'),
+    ("옛 기록의 빈 손익을 0으로 그린다('모른다'가 '본전'으로 둔갑한다)",
+     'docs/intraday.html',
+     '      const pnl=(r==null)?\'<span class="sub">—</span>\'',
+     '      const pnl=(false)?\'<span class="sub">—</span>\'',
+     'tests/test_a_sale_says_what_it_earned.py'),
+    ("첫 화면이 확정값을 '지금'이라 부른다(준실시간 값과 같은 이름이 된다)",
+     'docs/index.html',
+     '            esc(day)+\' 확정 <span class="sub"',
+     '            \'지금 (마지막 기록일 기준)\'+\'<span class="sub"',
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+
+    # ── 경보가 무슨 병인지 말한다 (2026-08-22 감사 301) ────────────
+    ('경보가 JSON을 손으로 짠다(여러 줄·따옴표가 들어오면 조용히 안 나간다)',
+     '.github/workflows/mutation-sweep.yml',
+     "            PAYLOAD=$(python3 -c 'import json,os; print(json.dumps({\"content\": os.environ[\"MSG\"]}))')",
+     '            PAYLOAD="{\\"content\\":\\"$MSG\\"}"',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('경보에서 요약을 뺀다(매일 같은 한 문장만 와서 아무것도 못 고친다)',
+     '.github/workflows/mutation-sweep.yml',
+     '          DETAIL=$(head -c 1200 mutation_summary.txt 2>/dev/null || true)',
+     '          DETAIL=""',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('요약이 없을 때 경보를 통째로 삼킨다(가장 위험한 고장이 가장 조용해진다)',
+     '.github/workflows/mutation-sweep.yml',
+     '            DETAIL="(요약 없음 — 전수가 시작도 못 하고 죽었다. 설치 단계부터 볼 것)"',
+     '            exit 0',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('요약을 실행물로 안 남긴다(로그가 사라지면 되짚을 근거가 없다)',
+     '.github/workflows/mutation-sweep.yml',
+     '            mutation_summary.txt\n          if-no-files-found: ignore',
+     '          if-no-files-found: ignore',
+     'tests/test_the_alarm_says_which_disease.py'),
+    ('전수 결과 요약을 아예 안 쓴다(경보가 실을 내용이 사라진다)',
+     'scripts/mutation_check.py',
+     '                      "(코드가 바뀌었는데 항목이 안 따라왔다).")\n    pathlib.Path("mutation_summary.txt")',
+     '                      "(코드가 바뀌었는데 항목이 안 따라왔다).")\n    pathlib.Path("mutation_summary.skip")',
+     'tests/test_the_alarm_says_which_disease.py'),
+
+    # ── 판 값을 되짚어 말한다 (2026-08-22 감사 303) ────────────────
+    ('되짚은 실현 손익에서 비용을 안 뺀다(수수료로 까먹은 매도가 이익이 된다)',
+     'quant/live/realized.py',
+     '                    "realized_pnl": round(sold * (price - prev) - fee, 2),',
+     '                    "realized_pnl": round(sold * (price - prev), 2),',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('기록이 부인한 체결을 재고로 센다(없던 재고가 생겨 이후가 통째로 틀린다)',
+     'quant/live/realized.py',
+     '            if not key or key in denied:',
+     '            if not key:',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ("살 때 값을 모르는 매도에 0을 적는다('모른다'가 '본전'으로 둔갑한다)",
+     'quant/live/realized.py',
+     '                if held <= _EPS or prev <= 0.0:\n                    continue',
+     '                if False:\n                    continue',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('추가 매수에 평균 단가를 안 섞는다(마지막 매수가만 남아 손익이 틀린다)',
+     'quant/live/realized.py',
+     '                    avg[key] = (held * prev + q * price) / new_q',
+     '                    avg[key] = price',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('부분 매도가 남은 재고의 평단을 지운다(다음 매도 손익이 통째로 틀린다)',
+     'quant/live/realized.py',
+     '                    qty[key] = left      # 평균 단가는 그대로(부분 매도)',
+     '                    qty[key] = left; avg[key] = price',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('거래내역 줄을 붙일 때 원본을 고친다(부르는 쪽 자료가 몰래 바뀐다)',
+     'quant/live/realized.py',
+     '        out.append({**t, **got} if got else dict(t))',
+     '        t.update(got or {}); out.append(t)',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('되짚기에 보이는 줄만 넘긴다(그 앞의 매수를 못 봐 평단이 통째로 틀린다)',
+     'quant/live/daily.py',
+     '                status["paper"][key]["trades"] = attach_realized(\n                    trades[:60], hist)',
+     '                status["paper"][key]["trades"] = attach_realized(\n                    trades[:60], trades[:60])',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ('체결 순번을 안 싣는다(같은 날 같은 종목을 두 번 팔면 줄이 섞인다)',
+     'quant/live/daily.py',
+     '                    trades.append({**f, "date": rec.get("date"),\n                                   "fill_index": _i})',
+     '                    trades.append({**f, "date": rec.get("date")})',
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+    ("거래내역이 빈 손익을 0으로 그린다('모른다'가 '본전'이 된다)",
+     'docs/index.html',
+     "        '<td class=\"num\">'+((bad||t.realized_pnl==null)",
+     "        '<td class=\"num\">'+((false)",
+     'tests/test_the_ledger_says_what_each_sale_earned.py'),
+
+    # ── 선물 트랙: 양방향 · 배율 없음 (2026-08-22 감사 304) ────────
+    ('노출 한도를 순노출로 잰다(롱과 숏이 상쇄돼 실제로는 두 배가 걸린다)',
+     'quant/live/futures_challenger.py',
+     '            out += abs(float(q) * float(px))',
+     '            out += float(q) * float(px)',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('노출 한도를 아예 안 건다(숏은 열면 현금이 늘어 무한히 커진다)',
+     'quant/live/futures_challenger.py',
+     '            if abs(target) > allowed:',
+     '            if False:',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('한도가 위험을 줄이는 거래까지 막는다(스톱이 동작 못 한다)',
+     'quant/live/futures_challenger.py',
+     '        if grow > 0:',
+     '        if True:',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('숏 손익의 부호를 롱과 같게 한다(손실이 이익으로 적힌다)',
+     'quant/live/futures_challenger.py',
+     '                side_sign = 1.0 if cur_qty > 0 else -1.0',
+     '                side_sign = 1.0',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('자금조달을 롱·숏 같은 부호로 문다(숏 성적이 조용히 부풀려진다)',
+     'quant/live/futures_challenger.py',
+     '            net += float(q) * float(px)      # 롱은 +, 숏은 −',
+     '            net += abs(float(q) * float(px))',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('자금조달을 현금에서 안 뺀다(부품만 있고 안 붙은 상태가 된다)',
+     'quant/live/futures_challenger.py',
+     '    st["cash"] = float(st["cash"]) - paid',
+     '    st["cash"] = float(st["cash"])',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('자금조달을 회차 수로 센다(크론이 밀린 날 통째로 빠진다)',
+     'quant/live/futures_challenger.py',
+     '    periods = float(hours) / FUNDING_HOURS',
+     '    periods = 1.0',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('숏 하드 스톱을 없앤다(숏에는 파산이라는 자연 바닥이 없다)',
+     'quant/live/futures_challenger.py',
+     '        if (float(px) - entry) / entry >= float(stop_pct):',
+     '        if False:',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('하드 스톱이 롱까지 턴다(정상 보유가 이유 없이 청산된다)',
+     'quant/live/futures_challenger.py',
+     '        if float(q) >= 0:                    # 롱은 여기서 다루지 않는다',
+     '        if False:',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('규칙 전략에도 숏을 허용한다(음수 신호를 안 내므로 규칙을 새로 쓰는 셈)',
+     'quant/live/futures_challenger.py',
+     '    return str((spec or {}).get("strategy") or "") == "ml"',
+     '    return True',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('화면이 숏 수량을 음수 그대로 그린다(읽는 사람에게 뜻이 없다)',
+     'docs/futures.html',
+     '        Math.abs(q).toFixed(6)+',
+     '        q.toFixed(6)+',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('화면이 배율을 안 쓴다는 사실을 말하지 않는다(있다고 가정하게 된다)',
+     'docs/futures.html',
+     "    '<li><b>레버리지를 쓰지 않습니다(1배).</b> 총 노출(롱+숏)이 자산의 '+",
+     "    '<li><b> </b>'+",
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('자금조달 요율이 가정치라는 말을 뺀다(가정을 실측처럼 적는다)',
+     'docs/futures.html',
+     "      '요율은 <b>가정치</b>입니다(8시간마다 '+",
+     "      '요율은 '+",
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('받은 자금조달을 낸 것처럼 그린다(부호가 사라진다)',
+     'docs/futures.html',
+     '        (Number(d.funding_paid)>=0?"−":"+")+usdt(Math.abs(Number(d.funding_paid)||0))+',
+     '        "−"+usdt(Math.abs(Number(d.funding_paid)||0))+',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('화면이 숏 못 하는 종목을 안 밝힌다(못 하는 것을 하는 척하게 된다)',
+     'docs/futures.html',
+     "      (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(\", \"))+'</b>':'')+'</li>'+",
+     "      ''+'</li>'+",
+     'tests/test_the_short_side_is_really_a_short.py'),
+
+    # ── 계좌가 넷이면 페이지도 넷 (2026-08-22 감사 305) ────────────
+    ('코인 페이지가 미국 장부를 다시 읽는다(한 화면에 두 계좌가 섞인다)',
+     'docs/intraday.html',
+     'fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{',
+     'fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(d=>{',
+     'tests/test_one_page_per_account.py'),
+    ('미국 페이지가 자기 장부를 안 읽는다(떼어 놓고 안 붙인 셈)',
+     'docs/us.html',
+     'fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{',
+     'fetch("intraday.json").then(r=>r.ok?r.json():null).then(u=>{',
+     'tests/test_one_page_per_account.py'),
+    ('상단 바에서 미국주식 페이지를 뺀다(페이지는 있는데 가는 길이 없다)',
+     'docs/assets/nav.js',
+     '    ["us.html", "미국주식 단타"],',
+     '',
+     'tests/test_one_page_per_account.py'),
+    ('상단 바에서 실기록 페이지를 뺀다(정리하다 기록이 조용히 사라진다)',
+     'docs/assets/nav.js',
+     '    ["paper.html", "실기록 (100만)"],',
+     '',
+     'tests/test_one_page_per_account.py'),
+    ('트랙 넷의 차례를 흩는다(어디에 무엇이 있는지 매번 다시 찾게 된다)',
+     'docs/assets/nav.js',
+     '    ["index.html", "100만 챌린지"],\n    ["intraday.html", "코인 단타"],',
+     '    ["intraday.html", "코인 단타"],\n    ["index.html", "100만 챌린지"],',
+     'tests/test_one_page_per_account.py'),
+    ('선물 페이지가 형제 페이지를 안 가리킨다(이 넷이 형제라는 게 안 읽힌다)',
+     'docs/futures.html',
+     '다룹니다 — <a href="intraday.html">코인 단타</a>와\n<a href="us.html">미국주식 단타</a>는 각각 자기 페이지가 있습니다.',
+     '다룹니다.',
+     'tests/test_one_page_per_account.py'),
+    ('코인 페이지에서 수익 비보장 문구를 뺀다(다른 실험 페이지에는 있다)',
+     'docs/intraday.html',
+     '<br>가상 자금 실험입니다. 실제 돈이 아니며 투자 권유가 아닙니다.\n수익을 보장하지 않습니다.</footer>',
+     '</footer>',
+     'tests/test_one_page_per_account.py'),
+    ('본 계좌 비교 칸의 이름을 지운다(비교인지 이 실험 숫자인지 구별이 안 된다)',
+     'docs/intraday.html',
+     '<h2>본 계좌와 나란히 <span class="tag">같은 기간 · % 수익률</span></h2>',
+     '<h2>참고 <span class="tag">같은 기간</span></h2>',
+     'tests/test_one_page_per_account.py'),
+
+    # ── 종목마다 지금 얼마 (2026-08-22 감사 306) ───────────────────
+    ('숏의 손익 부호를 롱과 같게 한다(선물 페이지 손익이 통째로 뒤집힌다)',
+     'quant/live/holdings.py',
+     '            row["pnl"] = round(abs(qty) * (px - entry) *\n                               (1.0 if qty > 0 else -1.0), 4)',
+     '            row["pnl"] = round(abs(qty) * (px - entry), 4)',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ("시세 없는 종목의 손익을 0으로 적는다('모른다'가 '본전'이 된다)",
+     'quant/live/holdings.py',
+     '        if px and px > 0 and entry and entry > 0:',
+     '        if True:',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('합계가 못 잰 줄을 0으로 세어 넣는다(합계가 조용히 틀린다)',
+     'quant/live/holdings.py',
+     '        if r.get("pnl") is None:\n            unknown += 1\n            continue',
+     '        if r.get("pnl") is None:\n            unknown += 1',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('추가 매수에 평단을 안 섞는다(마지막 매수가만 남아 손익이 틀린다)',
+     'quant/live/holdings.py',
+     '                avg[sym] = (abs(held) * prev + abs(dq) * px) / abs(new)',
+     '                avg[sym] = px',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('방향이 뒤집혀도 옛 평단을 들고 간다(그 뒤 손익이 전부 틀린다)',
+     'quant/live/holdings.py',
+     '                avg[sym] = px                       # 방향이 뒤집혔다',
+     '                pass',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('전량 청산해도 평단을 남긴다(다시 살 때 옛 값에 오염된다)',
+     'quant/live/holdings.py',
+     '                qty.pop(sym, None)\n                avg.pop(sym, None)\n                continue',
+     '                continue',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('코인 리포트가 종목별 손익을 안 싣는다(화면이 그릴 것이 없다)',
+     'quant/live/intraday_challenger.py',
+     '        "holdings": _holdings(st),\n        "holdings_total": _holdings_total(st),',
+     '        "holdings": [],\n        "holdings_total": {},',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('선물 리포트가 종목별 손익을 안 싣는다(숏이 얼마 버는지 안 보인다)',
+     'quant/live/futures_challenger.py',
+     '        "holdings": _holdings(st),\n        "holdings_total": _holdings_total(st),',
+     '        "holdings": [],\n        "holdings_total": {},',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('미국 리포트가 종목별 손익을 안 싣는다',
+     'quant/live/intraday_us.py',
+     '        "holdings": _holdings(st),\n        "holdings_total": _holdings_total(st),',
+     '        "holdings": [],\n        "holdings_total": {},',
+     'tests/test_each_symbol_says_its_own_pnl.py'),
+    ('선물 트랙이 마지막 시세를 안 남긴다(종목별 손익을 영영 못 그린다)',
+     'quant/live/futures_challenger.py',
+     '    st["last_prices"] = last\n\n    rec = {"at": now_iso,',
+     '    rec = {"at": now_iso,',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('첫 화면이 왜 하루 늦는지 말하지 않는다(정상인 지연이 고장으로 읽힌다)',
+     'docs/index.html',
+     "            esc(day)+' 확정 <span class=\"sub\" style=\"font-weight:400\">(일봉 기준)</span></div>'+",
+     "            esc(day)+' 확정</div>'+",
+     'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
+    ('선물 페이지가 무엇으로 도는지 말하지 않는다(주식인지 코인인지 모른다)',
+     'docs/futures.html',
+     'ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리움·솔라나·',
+     'ETF가 아닙니다(비트코인·이더리움·솔라나·',
+     'tests/test_one_page_per_account.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
@@ -6693,6 +7055,65 @@ def _skip_count(out: str) -> int:
 # 기준선을 먼저 돌려, 원본 코드에서 통과하는 검사만 대상으로 삼는다.
 BASELINE_OK = 0
 
+def _baseline_only() -> None:
+    """--baseline — 변이는 하나도 안 걸고, **검사들이 지금 도는지**만 본다.
+
+    왜 필요한가(2026-08-22 감사 301). 야간 전수가 2026-08-16부터 엿새 연속
+    실패했는데, 폰으로 온 경보는 매번 같은 한 줄이었다.
+
+        "안전장치 중 일부가 지금 아무도 안 지키고 있다"
+
+    그런데 그날의 실제 결과는 이랬다.
+
+        잡음 934 · 놓침 4 · 건너뜀 0 · **검사 자체 고장 19**
+
+    23건 중 19건은 '안전장치가 무방비'가 아니라 **검사가 그 환경에서 아예
+    안 돌았다**는 뜻이다. 둘은 완전히 다른 병이고 고치는 곳도 다르다.
+    그런데 경보가 둘을 같은 문장으로 말하니, 읽는 쪽에서는 매일 같은 소리가
+    나는 것으로만 보이고 — 엿새가 지나갔다.
+
+    원인을 손으로 알아내려면 전수(3시간)를 돌려 로그를 읽어야 했다. 그래서
+    **원인만 따로 묻는 문**을 낸다. 변이를 안 걸므로 검사 파일 수만큼만
+    돌고(약 15분), 답은 한 줄로 나온다: 어떤 검사가 원본 코드에서 실패하며,
+    그 검사가 변이 항목 몇 건을 지키고 있었는가.
+
+    건너뛴 항목 수도 함께 적는다 — 브라우저 없는 기계에서 조용히 건너뛴
+    검사는 종료코드가 0이라 '통과'와 구별되지 않는다(감사 278).
+    """
+    guarded: dict = {}
+    for desc, path, old, new, test in MUTATIONS:
+        guarded[test] = guarded.get(test, 0) + 1
+    print(f"기준선 점검 — 검사 파일 {len(guarded)}개 / 변이 항목 "
+          f"{sum(guarded.values())}건 (변이는 걸지 않는다)\n")
+    broken_files, skipping = [], []
+    for test, n in guarded.items():
+        if not pathlib.Path(test).exists():
+            print(f"💥 파일 없음   {n:3d}건 보호 중  {test}")
+            broken_files.append((test, n, "파일 없음"))
+            continue
+        rc, out = _run_verbose(test)
+        if rc != BASELINE_OK:
+            tail = " ".join(out.split())[-300:]
+            print(f"💥 원본에서 실패 {n:3d}건 보호 중  {test}\n   └ {tail}")
+            broken_files.append((test, n, tail))
+        elif _skip_count(out):
+            k = _skip_count(out)
+            print(f"⏭️  {k}개 건너뜀  {n:3d}건 보호 중  {test}")
+            skipping.append((test, n, k))
+    print("─" * 110)
+    print(f"검사 자체 고장 {sum(n for _, n, _ in broken_files)}건"
+          f"({len(broken_files)}개 파일) · "
+          f"건너뛰는 검사가 지키는 항목 {sum(n for _, n, _ in skipping)}건"
+          f"({len(skipping)}개 파일)")
+    if not broken_files and not skipping:
+        print("모든 검사가 원본 코드에서 돌고, 조용히 건너뛰는 검사도 없다.")
+    sys.exit(1 if broken_files else 0)
+
+
+if "--baseline" in sys.argv[1:]:
+    _baseline_only()
+
+
 # 부분 실행 — `python scripts/mutation_check.py 의회` 처럼 설명·검사 이름의
 # 일부를 주면 그 항목만 돈다. 새 항목을 만들 때 전체(100건 이상)를 다시
 # 돌리지 않기 위한 것이므로, **부분 실행 결과를 '전부 통과'로 보고하지 말 것.**
@@ -6703,6 +7124,8 @@ if FILTER:
 print(f"{'결과':4s} {'설명':60s} 검사")
 print("─" * 110)
 caught = missed = skipped = broken = 0
+_broken_files: set = set()      # 경보에 실을 '고장 난 검사'
+_missed_descs: list = []        # 경보에 실을 '진짜 무방비'
 _baseline: dict = {}
 _skipped_in: dict = {}          # 검사 파일별 '기준선에서 건너뛴 항목 수'
 for desc, path, old, new, test in MUTATIONS:
@@ -6725,6 +7148,7 @@ for desc, path, old, new, test in MUTATIONS:
     if _baseline[test]:
         print(f"💥   {desc[:58]:60s} {test.split('/')[-1]}  ← {_baseline[test]}")
         broken += 1
+        _broken_files.add(test)
         continue
     _IN_FLIGHT[str(p)] = src        # 죽어도 되돌릴 수 있게 원본을 등록해 둔다
     p.write_text(src.replace(old, new), encoding="utf-8")
@@ -6746,8 +7170,45 @@ for desc, path, old, new, test in MUTATIONS:
                if _skipped_in.get(test) else "  ← 못 잡음")
         print(f"❌   {desc[:58]:60s} {test.split('/')[-1]}{why}")
         missed += 1
+        _missed_descs.append(desc[:70])
 print("─" * 110)
-print(f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}")
+_summary = f"잡음 {caught} · 놓침 {missed} · 건너뜀 {skipped} · 검사 자체 고장 {broken}"
+print(_summary)
+
+# ── 경보가 읽히게 만든다 (2026-08-22 감사 301) ──────────────────────
+#
+# 야간 잡은 실패하면 폰으로 한 줄을 보냈다: "안전장치 중 일부가 지금 아무도
+# 안 지키고 있다." 엿새 연속 같은 문장이 왔고, 그 엿새 동안 실제 원인은
+# **검사 19건이 그 환경에서 안 돈 것**이었지 안전장치가 무방비였던 게
+# 아니었다. 두 가지 병을 같은 문장으로 말하면, 읽는 쪽은 아무것도 못 고친다.
+#
+# 그래서 잡이 경보에 그대로 실을 수 있는 요약을 파일로 남긴다. 무엇이
+# 몇 건이고, 어느 검사가 문제인지 — 로그를 열지 않아도 폰에서 읽힌다.
+try:
+    # ⚠️ 부분 실행에서도 **쓴다** — 단, 첫 줄에 부분이라고 못박는다.
+    #    안 쓰면 이 기능이 살아 있는지 확인할 길이 전수(3시간)뿐이고,
+    #    그러면 요약이 조용히 멈춰도 아무도 모른다(이 저장소가 이미 두 번
+    #    겪은 병이다). '부분 결과를 전부라고 보고하지 말 것'이라는 규칙은
+    #    파일을 안 쓰는 것이 아니라 **부분이라고 적는 것**으로 지킨다.
+    _lines = ([] if not FILTER else
+              [f"⚠️ 부분 실행 '{FILTER}' — 전체 결과가 아니다", ""])
+    _lines += [_summary, ""]
+    if broken:
+        _lines.append(f"💥 검사 자체 고장 {broken}건 "
+                      "— 검사가 원본 코드에서 실패했다(환경 문제일 때가 "
+                      "많다). 이건 '무방비'가 아니라 '못 쟀다'이다:")
+        _lines += [f"   · {t}" for t in sorted(_broken_files)][:8]
+    if missed:
+        _lines.append(f"❌ 놓침 {missed}건 — 코드를 망가뜨려도 검사가 "
+                      "통과했다. **이것이 진짜 무방비다**:")
+        _lines += [f"   · {d}" for d in _missed_descs][:8]
+    if skipped:
+        _lines.append(f"⏭️ 건너뜀 {skipped}건 — 원본 문자열이 안 맞는다"
+                      "(코드가 바뀌었는데 항목이 안 따라왔다).")
+    pathlib.Path("mutation_summary.txt").write_text(
+        "\n".join(_lines) + "\n", encoding="utf-8")
+except OSError:
+    pass              # 요약을 못 써도 전수 결과 자체는 이미 찍혔다
 # ⚠️ 2026-08-12 감사 126 — 이 줄이 문서와 어긋나 있었다.
 #    머리말은 "건너뜀은 통과가 아니다"라고 적어 놓고, 종료코드는
 #    `1 if (missed or broken)`이라 **건너뜀을 통과로 취급**했다.

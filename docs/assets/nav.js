@@ -15,11 +15,19 @@
   "use strict";
 
   // index.html의 nav 링크와 1:1 — 순서까지 같아야 한다(계약 테스트 대상).
+  // ⚠️ **트랙 넷이 앞에, 나란히**(2026-08-22 사장님 지시). 계좌가 넷이면
+  //    페이지도 넷이다 — 한 페이지에 두 계좌를 얹으면 읽는 사람이 매번
+  //    어느 숫자가 어느 계좌 것인지 골라내야 한다.
   var LINKS = [
-    ["paper.html", "실시간 현황"],
+    ["index.html", "100만 챌린지"],
+    ["intraday.html", "코인 단타"],
+    ["us.html", "미국주식 단타"],
+    ["futures.html", "선물 양방향"],
+    // paper.html은 100만 챌린지의 '자세히 보기'다 — 트랙 넷을 앞으로
+    // 뽑으면서 뒤로 옮겼을 뿐, 감추지 않는다.
+    ["paper.html", "실기록 (100만)"],
     ["today.html", "오늘의 판단"],
     ["trust.html", "기록 검증"],
-    ["intraday.html", "장중 실험"],
     ["weekly.html", "주간 아카이브"]
   ];
   var DL = "https://github.com/tobe2111/insta-story-downloader/releases/latest";

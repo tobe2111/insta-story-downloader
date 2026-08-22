@@ -173,6 +173,32 @@ def confirmed_bars(df, now_iso: str, timeframe: str = TIMEFRAME):
     return df[list(keep)]
 
 
+def gross_return_pct(equity, start_cash, cost_paid) -> float | None:
+    """비용을 **물기 전**이었다면 몇 %였나.
+
+    ⚠️ 왜 이 값을 함께 내보내나 (2026-08-20 사장님 지적).
+       사다리 표에는 순수익률(비용 뺀 뒤)만 있었다. 그래서 1시간 +2.03%,
+       15분 +1.57%, 5분 +0.33%을 보고 **"자주 할수록 나빠진다"**고 읽었다.
+       틀린 독해였다 — 비용을 떼면 15분(+2.36%)이 1시간(+2.32%)보다 오히려
+       높다. 순위를 만든 것은 빈도가 아니라 **회전율 × 편도 비용**이었다.
+
+       "신호가 나쁜가"와 "비용을 못 견디는가"는 다른 진단이고, 처방도
+       다르다(전자는 전략 교체, 후자는 체결 개선 — 실제로 지정가 그림자가
+       시장가보다 낫다). 두 열을 나란히 놓으면 그 구별이 눈에 보인다.
+
+       이것은 판정이 아니라 **읽는 재료**다. 우열 판정은 사전 등록한 90일
+       기준으로만 하고, 짧은 구간의 순서는 시장 국면과 비용이 만든 것일 수
+       있다 — 그 문장도 화면에 함께 싣는다.
+    """
+    try:
+        eq, seed, cost = float(equity), float(start_cash), float(cost_paid or 0.0)
+    except (TypeError, ValueError):
+        return None
+    if not (seed > 0):
+        return None
+    return round(((eq + cost) / seed - 1) * 100, 4)
+
+
 def hold_baseline_pct(st: dict, per_side: float = 0.0) -> float | None:
     """같은 종목을 첫 회차 가격에 사서 **그냥 들고만 있었다면** 몇 %인가.
 
@@ -277,14 +303,43 @@ def _execute_targets(st: dict, signals: dict, prices: dict,
             if delta < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
                 continue
         qty = delta / px
+        # ── 평균 매입가와 실현 손익 (2026-08-22 사장님 요청) ─────────────
+        #
+        # 예전 체결 기록에는 "얼마어치 샀다/팔았다"만 있었다. 그래서 **판
+        # 시점에 얼마를 벌었는지 잃었는지**를 화면이 말할 수 없었다 — 체결
+        # 표를 봐도 그 매도가 이익 실현인지 손절인지 알 수가 없다.
+        #
+        # 평균 매입가를 들고 다니면 그 자리에서 답이 나온다:
+        #     실현 손익 = 판 수량 × (판 가격 − 평균 매입가) − 그 거래 비용
+        #
+        # ⚠️ 비용을 **뺀 뒤**의 값이다. "팔아서 100 벌었는데 수수료로 120을
+        #    냈다"면 그 매도는 이익이 아니다.
+        # ⚠️ 옛 기록에는 이 값이 없다(그때 안 셌으므로). 과거는 고치지 않고
+        #    화면이 '—'로 비워 둔다 — 없는 숫자를 지어내지 않는다.
+        avg = dict(st.get("avg_cost") or {})
+        prev_avg = float(avg.get(sym) or 0.0)
+        realized = None
+        if delta > 0:                       # 매수 — 평균 단가를 갱신
+            new_qty = cur_qty + qty
+            if new_qty > 1e-12:
+                avg[sym] = (cur_qty * prev_avg + qty * px) / new_qty
+        elif prev_avg > 0:                  # 매도 — 실현 손익을 확정
+            sold = min(abs(qty), max(cur_qty, 0.0))
+            realized = round(sold * (px - prev_avg) - fee, 4)
         st["cash"] = float(st["cash"]) - delta - fee
         st["positions"][sym] = cur_qty + qty
         if abs(st["positions"][sym]) * px < 1e-6:
             st["positions"].pop(sym, None)
+            avg.pop(sym, None)              # 다 팔았으면 단가도 지운다
+        st["avg_cost"] = avg
         st["cost_paid"] = float(st["cost_paid"]) + fee
-        trades.append({"symbol": sym, "side": "buy" if delta > 0 else "sell",
-                       "notional": round(delta, 2), "price": px,
-                       "cost": round(fee, 4), "signal": round(sig, 4)})
+        rec = {"symbol": sym, "side": "buy" if delta > 0 else "sell",
+               "notional": round(delta, 2), "price": px,
+               "cost": round(fee, 4), "signal": round(sig, 4)}
+        if realized is not None:
+            rec["realized_pnl"] = realized
+            rec["avg_cost"] = round(prev_avg, 6)
+        trades.append(rec)
     return trades
 
 
@@ -618,6 +673,9 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
             "hold_return_pct": hold_baseline_pct(
                 st, measured_cost_model("crypto", state_dir).total_one_way()),
+            # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다.
+            "gross_return_pct": gross_return_pct(
+                eq, st["start_cash"], st.get("cost_paid")),
             "trades_total": sum(len(r.get("trades") or []) for r in rounds),
             "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
             "rounds_total": len(rounds),
@@ -649,6 +707,23 @@ def _shadow_public(st: dict, lastr: dict) -> dict | None:
     }
 
 
+def _holdings(st: dict) -> list:
+    """종목별 손익 — 세 트랙이 **같은 계산**을 쓴다(quant.live.holdings)."""
+    from quant.live.holdings import avg_cost_from_rounds, holdings_view
+    # 장부에 평단이 적혀 있으면 그것을 쓰고(2026-08-22 이후 체결),
+    # 없으면 회차 기록을 되짚어 복원한다(그 전 체결).
+    avg = dict(avg_cost_from_rounds(st.get("rounds") or []))
+    avg.update({k: v for k, v in (st.get("avg_cost") or {}).items() if v})
+    return holdings_view(st.get("positions") or {},
+                         st.get("last_prices") or {}, avg,
+                         currency=str(st.get("currency") or "USDT"))
+
+
+def _holdings_total(st: dict) -> dict:
+    from quant.live.holdings import totals
+    return totals(_holdings(st))
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
@@ -665,6 +740,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "start_cash": base,
         "equity": round(eq, 2),
         "return_pct": round((eq / base - 1) * 100, 4),
+        # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다(2026-08-20).
+        "gross_return_pct": gross_return_pct(eq, base, st.get("cost_paid")),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
         "trades_total": trades_total,
         "rounds_total": len(rounds),
@@ -674,6 +751,11 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "observed_gap_minutes": observed_gap_minutes(rounds),
         "positions": {k: round(float(v), 8)
                       for k, v in (st.get("positions") or {}).items()},
+        # 종목마다 지금 얼마 벌고 있나 (2026-08-22 사장님 지시). 수량만
+        # 있으면 "BTC 0.0022개"가 읽는 사람에게 아무것도 말해 주지 않는다.
+        # 평균매입가는 체결 기록을 되짚어 복원한다 — 기록은 안 고친다.
+        "holdings": _holdings(st),
+        "holdings_total": _holdings_total(st),
         "risk_scale": float(st.get("risk_scale", 1.0)),
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]

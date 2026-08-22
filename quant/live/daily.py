@@ -3501,12 +3501,26 @@ def write_docs_status(state_dir: str = STATE_DIR,
             # 한 줄로 펴서 최근 것부터 싣는다.
             trades = []
             for rec in reversed(hist):
-                for f in rec.get("fills") or []:
-                    trades.append({**f, "date": rec.get("date")})
+                for _i, f in enumerate(rec.get("fills") or []):
+                    # ⚠️ 체결이 **그 기록 안 몇 번째인가**를 함께 싣는다. 같은
+                    #    날 같은 종목을 두 번 팔 수도 있으므로 날짜와 종목만
+                    #    으로는 줄을 특정할 수 없다 — 실현 손익을 엉뚱한 줄에
+                    #    붙이면 그 표는 증거가 아니라 이야기가 된다.
+                    trades.append({**f, "date": rec.get("date"),
+                                   "fill_index": _i})
                 if len(trades) >= 60:
                     break
             if trades:
-                status["paper"][key]["trades"] = trades[:60]
+                # 판 시점의 손익 — 사장님 요청(2026-08-22). 장부에 적지 않고
+                # **되짚어 계산한다**: 지난 매도에는 평균 매입가가 기록돼 있지
+                # 않지만, 매수·매도가 전부 남아 있으므로 처음부터 따라가면
+                # 복원된다. 기록은 한 글자도 고치지 않는다.
+                #
+                # ⚠️ 되짚기는 **전체 기록**을 봐야 한다. 최근 60건만 보면
+                #    그 앞의 매수를 못 보고 평균 단가가 통째로 틀린다.
+                from quant.live.realized import attach_realized
+                status["paper"][key]["trades"] = attach_realized(
+                    trades[:60], hist)
             # 종목별 잔고 — 사이트는 비중(%)만 보여주고 있었다. "삼성전자에
             # 얼마"에 답하려면 평단·수량·평가금액이 있어야 한다(2026-08-13).
             # 현금까지 함께 내보내야 합이 자산과 맞아떨어진다.
