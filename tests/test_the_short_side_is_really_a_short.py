@@ -459,6 +459,95 @@ def test_the_model_champion_really_does_short():
 
 # ── ⑥ 장부가 따로 서 있는가 ────────────────────────────────────
 
+def _offline_round(monkeypatch, tmp_path, closes, signal, *, now=None):
+    """시세를 넣어 주고 회차를 **진짜로** 한 번 돌린다.
+
+    ⚠️ 이 컨테이너는 거래소로 못 나간다(그리고 나가서도 안 된다 — 검사가
+       바깥 사정에 흔들리면 그건 검사가 아니다). 그래서 시세를 받아 오는
+       입구와 전략만 갈아 끼우고, **나머지 길은 실제 코드를 그대로**
+       지나가게 한다. 부품만 따로 부르면 "리포트에 안 실린다"는 결함이
+       그대로 살아남는다(감사 306에서 실제로 그랬다).
+    """
+    import pandas as pd
+    import quant.live.futures_challenger as F
+
+    idx = pd.date_range("2026-01-01", periods=len(closes), freq="h")
+    df = pd.DataFrame({"open": closes, "high": closes, "low": closes,
+                       "close": closes, "volume": [1.0] * len(closes)},
+                      index=idx)
+
+    class _Strat:
+        def generate_signals(self, frame):
+            return pd.Series([signal] * len(frame), index=frame.index)
+
+    monkeypatch.setattr(F, "_fetch_real", lambda sym, timeframe=None: df)
+    monkeypatch.setattr(F, "build_two_sided",
+                        lambda sym, state_dir: (_Strat(), True))
+    monkeypatch.setattr(F, "MIN_BARS", 5)
+    return F.run_futures_round(now or "2026-06-01T00:00:00+09:00",
+                               state_dir=str(tmp_path),
+                               universe=["BTC/USDT"], per_side=0.0015)
+
+
+def test_a_round_remembers_the_prices_it_saw(monkeypatch, tmp_path):
+    """회차가 **마지막 시세를 장부에 남긴다.**
+
+    안 남기면 종목별 손익을 영영 못 그린다 — 지금 값을 모르니까. 계산이
+    아무리 맞아도 재료가 없으면 화면은 빈칸이다(감사 306).
+    """
+    closes = [100.0] * 40
+    _offline_round(monkeypatch, tmp_path, closes, -1.0)
+    st = load_state(str(tmp_path))
+    assert st.get("last_prices", {}).get("BTC/USDT") == pytest.approx(100.0), (
+        f"회차가 돌았는데 장부에 시세가 안 남았다: {st.get('last_prices')}")
+
+
+def test_a_round_actually_opens_the_short(monkeypatch, tmp_path):
+    """대조군 — 회차가 정말 포지션을 연다.
+
+    없으면 "아무것도 안 하는 회차"도 위 검사를 통과한다.
+    """
+    _offline_round(monkeypatch, tmp_path, [100.0] * 40, -1.0)
+    st = load_state(str(tmp_path))
+    assert st["positions"].get("BTC/USDT", 0.0) < 0, (
+        f"숏 신호였는데 포지션이 안 생겼다: {st['positions']}")
+
+
+def test_a_stale_price_is_not_erased_when_a_symbol_is_skipped(monkeypatch,
+                                                              tmp_path):
+    """시세를 못 받은 종목의 **이전 값을 지우지 않는다.**
+
+    지우면 화면이 "모른다"로 바뀌는데, 실제로는 조금 낡았을 뿐이다.
+    """
+    import quant.live.futures_challenger as F
+    _offline_round(monkeypatch, tmp_path, [100.0] * 40, -1.0)
+    monkeypatch.setattr(F, "_fetch_real", lambda sym, timeframe=None: None)
+    F.run_futures_round("2026-06-01T01:00:00+09:00", state_dir=str(tmp_path),
+                        universe=["BTC/USDT"], per_side=0.0015)
+    st = load_state(str(tmp_path))
+    assert st.get("last_prices", {}).get("BTC/USDT") == pytest.approx(100.0), (
+        "시세를 못 받자 이전 값까지 지웠다 — 낡은 것과 모르는 것은 다르다")
+
+
+def test_the_futures_report_draws_on_those_prices(tmp_path):
+    """**배선** — 남긴 시세로 종목별 손익이 실제로 나온다.
+
+    부품(계산)과 재료(시세)가 다 있어도 리포트가 안 부르면 없는 것과 같다.
+    """
+    from quant.live.futures_challenger import public_report
+    st = load_state(str(tmp_path))
+    st["positions"] = {"BTC/USDT": -1.0}
+    st["last_prices"] = {"BTC/USDT": 80.0}
+    st["rounds"] = [{"at": "2026-08-22T00:00:00+09:00",
+                     "trades": [{"symbol": "BTC/USDT", "notional": -100.0,
+                                 "price": 100.0}]}]
+    rows = public_report(st).get("holdings") or []
+    assert rows, "시세를 남겼는데 종목별 줄이 안 나온다"
+    assert rows[0]["last_price"] == pytest.approx(80.0), rows
+    assert rows[0]["pnl"] == pytest.approx(20.0), (
+        f"숏이 20% 내렸는데 손익이 이상하다: {rows[0]}")
+
+
 def test_the_futures_ledger_is_its_own(tmp_path):
     """본 계좌·장중 트랙과 한 글자도 안 섞인다."""
     st = load_state(str(tmp_path))

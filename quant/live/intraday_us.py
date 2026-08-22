@@ -478,6 +478,20 @@ def _ladder_reason() -> str:
             "요청이 막혀 오히려 기록이 비기 때문입니다.")
 
 
+def _holdings(st: dict) -> list:
+    """종목별 손익 — 코인·선물 트랙과 같은 계산."""
+    from quant.live.holdings import avg_cost_from_rounds, holdings_view
+    avg = dict(avg_cost_from_rounds(st.get("rounds") or []))
+    avg.update({k: v for k, v in (st.get("avg_cost") or {}).items() if v})
+    return holdings_view(st.get("positions") or {},
+                         st.get("last_prices") or {}, avg, currency="USD")
+
+
+def _holdings_total(st: dict) -> dict:
+    from quant.live.holdings import totals
+    return totals(_holdings(st))
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -511,6 +525,11 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "quote_source": _quote_source(),
         "positions": {k: round(float(v), 8)
                       for k, v in (st.get("positions") or {}).items()},
+        # 종목마다 지금 얼마 벌고 있나 (2026-08-22 사장님 지시). 코인·선물
+        # 트랙과 **같은 계산**을 쓴다(quant.live.holdings) — 트랙마다 따로
+        # 쓰면 같은 날 세 페이지가 서로 다른 셈법으로 손익을 말하게 된다.
+        "holdings": _holdings(st),
+        "holdings_total": _holdings_total(st),
         "risk_scale": float(st.get("risk_scale", 1.0)),
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]

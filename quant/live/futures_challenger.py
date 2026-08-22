@@ -123,6 +123,7 @@ def load_state(state_dir: str = "state") -> dict:
     st.setdefault("funding_paid", 0.0)
     st.setdefault("rounds", [])
     st.setdefault("curve", [])
+    st.setdefault("last_prices", {})
     return st
 
 
@@ -431,6 +432,12 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     funding = apply_funding(st, prices, hours) if prices else 0.0
     trades = execute_targets(st, signals, prices, equity, per_side, universe)
     equity = mark_equity(st, prices) if prices else float(st["cash"])
+    # 마지막으로 본 시세를 남긴다 — 종목별 손익을 그리려면 '지금 값'이
+    # 있어야 한다. 이번 회차에 못 받은 종목은 **이전 값을 지우지 않는다**
+    # (지우면 화면이 "모른다"로 바뀌는데, 실제로는 조금 낡았을 뿐이다).
+    last = dict(st.get("last_prices") or {})
+    last.update(prices)
+    st["last_prices"] = last
 
     rec = {"at": now_iso, "equity": round(equity, 4),
            "cash": round(float(st["cash"]), 4),
@@ -475,6 +482,20 @@ def _hours_since(rounds: list, now_iso: str) -> float:
     return gap if 0.0 <= gap <= 72.0 else 0.0
 
 
+def _holdings(st: dict) -> list:
+    """종목별 손익 — 코인·미국 트랙과 **같은 계산**을 쓴다."""
+    from quant.live.holdings import avg_cost_from_rounds, holdings_view
+    avg = dict(avg_cost_from_rounds(st.get("rounds") or []))
+    avg.update({k: v for k, v in (st.get("avg_cost") or {}).items() if v})
+    return holdings_view(st.get("positions") or {},
+                         st.get("last_prices") or {}, avg, currency="USDT")
+
+
+def _holdings_total(st: dict) -> dict:
+    from quant.live.holdings import totals
+    return totals(_holdings(st))
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -512,6 +533,11 @@ def public_report(st: dict) -> dict:
         "curve": curve[-CURVE_KEEP:],
         "positions": {k: round(float(v), 10)
                       for k, v in (st.get("positions") or {}).items()},
+        # 종목마다 지금 얼마 벌고 있나 (2026-08-22 사장님 지시).
+        # ⚠️ 여기는 숏이 섞인다 — 손익 부호가 반대인 줄이 있다. 계산은
+        #    세 트랙이 같은 곳(quant.live.holdings)을 쓴다.
+        "holdings": _holdings(st),
+        "holdings_total": _holdings_total(st),
         "recent_trades": trades,
         "limits": list(HONEST_LIMITS),
     }

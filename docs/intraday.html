@@ -62,6 +62,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <div class="wrap">
 <!-- 상단 바는 공용(assets/nav.js) — 모든 페이지가 같은 바를 쓴다. -->
 <script src="assets/nav.js" defer></script>
+<script src="assets/holdings.js"></script>
 
 <h1>코인 단타 실험 <span class="tag">시뮬레이션 · 가상 자금(USDT)</span></h1>
 <p class="sub"><b>코인을 더 자주 사고팔면 정말 더 버는가</b> — 믿음이 아니라
@@ -107,6 +108,21 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
     <th>비용(USDT)</th><th>신호</th></tr></thead>
   <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
 </table></div>
+
+<h2>종목별 손익 <span class="tag">지금 얼마 벌고 있나 · 아직 안 판 평가액</span></h2>
+<!-- 사장님 지시(2026-08-22): "각 페이지들의 결과값들이 종목마다 각 얼마
+     현재 손해 혹은 이익인지 알려줘야 해." 예전에는 수량만 있었다 —
+     "BTC 0.0022개"는 읽는 사람에게 아무것도 말해 주지 않는다.
+     숫자는 장부가 계산해 실어 보낸 것을 그리기만 한다(감사 197). -->
+<div class="card tw"><table id="hold">
+  <thead><tr><th>종목</th><th>방향</th><th>수량</th>
+    <th title="산 가격의 평균 — 그 거래의 비용이 반영된 값입니다">평균매입가</th>
+    <th title="장부가 마지막으로 확인한 가격입니다 — 실시간이 아닙니다">현재가</th>
+    <th>평가금액</th>
+    <th title="아직 안 판 평가 손익입니다. 팔 때 비용이 한 번 더 듭니다.">손익</th></tr></thead>
+  <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
+</table>
+<div class="sub" id="hold-note" style="margin-top:8px"></div></div>
 
 <h2>지금 들고 있는 것</h2>
 <div class="card tw"><table id="pos">
@@ -361,6 +377,14 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
       usdt(t.cost||0)+'</td><td>'+Number(t.signal||0).toFixed(2)+'</td></tr>';
     }).join("")
     :'<tr><td colspan="7" class="sub">아직 체결이 없습니다</td></tr>';
+  /* 종목별 손익 — 공용 렌더러(assets/holdings.js)가 그린다. 세 실험
+     페이지가 같은 그림을 쓰게 하려는 것이다(FROZEN_IDEAS ①). */
+  if(window.QuantHoldings){
+    QuantHoldings.render(document.getElementById("hold")
+      .querySelector("tbody"), d.holdings, d.currency||"USDT");
+    QuantHoldings.note(document.getElementById("hold-note"),
+      d.holdings_total, d.currency||"USDT");
+  }
   const pos=Object.entries(d.positions||{});
   document.getElementById("pos").querySelector("tbody").innerHTML=
     pos.length?pos.map(([k,q])=>'<tr><td>'+esc(k)+'</td><td>'+
