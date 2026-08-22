@@ -26,6 +26,7 @@ from quant.strategies.psar import ParabolicSAR
 from quant.strategies.ichimoku import IchimokuStrategy
 from quant.strategies.dualthrust import DualThrustStrategy
 from quant.strategies.connors import ConnorsRSI2
+from quant.strategies.ibs import IBSStrategy
 from quant.strategies.supertrend import SuperTrendStrategy
 from quant.strategies.supplysom import SupplyDemandSOM
 from quant.strategies.valueanchor import ValueAnchor
@@ -45,6 +46,7 @@ _REGISTRY = {
     "supply_som": SupplyDemandSOM,
     "supertrend": SuperTrendStrategy,
     "connors_rsi2": ConnorsRSI2,
+    "ibs": IBSStrategy,
     "value_anchor": ValueAnchor,
     "macd": MACD,
     "keltner": KeltnerBreakout,

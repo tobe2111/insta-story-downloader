@@ -6244,6 +6244,28 @@ MUTATIONS = [
      "        core_us = US_CORE",
      "tests/test_more_symbols_is_not_more_information.py"),
 
+    # ── 내부 봉 강도(IBS) — 2026-08-22 수집 라운드 ──────────────────────
+    ("범위 없는 봉의 IBS를 0.5로 지어낸다('모른다'가 '중립 판단'이 된다)",
+     "quant/strategies/ibs.py",
+     "    ibs = (df[\"close\"].astype(float) - low) / rng.where(rng > 0)",
+     '    ibs = (df["close"].astype(float) - low) / rng.replace(0.0, 1.0) + 0.5',
+     "tests/test_the_close_inside_the_bar_is_new_information.py"),
+    ("IBS 진입·청산을 뒤집는다(꼭대기에 사고 바닥에 판다 — 자료의 반대)",
+     "quant/strategies/ibs.py",
+     "            if pos == 0.0 and v < self.entry:",
+     "            if pos == 0.0 and v > self.exit:",
+     "tests/test_the_close_inside_the_bar_is_new_information.py"),
+    ("IBS 문턱 검사를 뺀다(entry > exit 같은 말이 안 되는 설정이 통과한다)",
+     "quant/strategies/ibs.py",
+     "        if not (0.0 < float(entry) < float(exit) < 1.0):",
+     "        if False:",
+     "tests/test_the_close_inside_the_bar_is_new_information.py"),
+    ("IBS를 링에서 뺀다(구현만 하고 안 세우면 없는 것과 같다)",
+     "quant/live/retrain.py",
+     '        {"strategy": "ibs", "params": {"entry": 0.2, "exit": 0.8}},',
+     "",
+     "tests/test_the_close_inside_the_bar_is_new_information.py"),
+
     # ── 사이징 축을 처음으로 잰다 (2026-08-22, 사장님 "왜 조금씩만 사?") ──
     ("데드존을 규칙마다 다르게 한다(크기 축이 진입 축과 섞여 판정 불가)",
      "quant/live/sizing_ladder.py",
