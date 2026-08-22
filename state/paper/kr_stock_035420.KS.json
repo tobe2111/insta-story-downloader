@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-19 00:00:00",
+  "cash": 9475.0,
+  "quantity": 0.002490574952785815,
+  "avg_price": 210500.0,
+  "last_bar": "2026-08-21 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -368,11 +368,111 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-20",
+      "price": 219500.0,
+      "weight": 0.0054,
+      "held_weight": 0.0545,
+      "fractional_lot": true,
+      "equity": 10021.68,
+      "return_pct": 0.22,
+      "hit_rate": 0.5048543689320388,
+      "hit_n": 103,
+      "hit_lo": 0.4098737535926197,
+      "hit_hi": 0.5994858965810955,
+      "hit_conclusive": false,
+      "live_hit": 0.0,
+      "live_hit_n": 1,
+      "live_hit_flat": 0,
+      "hit_flat": 3,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +0.5% — 로지스틱회귀 모델이 내일 상승확률을 약 47%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 참고: 전 종목 합산으로 모델이 47%±10%p라 말한 49번의 실제 상승 비율 61% (95% 신뢰구간 47%~74% · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 4번으로 축적 중) · 🏛 의회 운용: ml 67% + ml 33% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 210500.0,
+        "bar": "2026-08-20 00:00:00",
+        "weight": 0.0525,
+        "decided_bar": "2026-08-19 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "84249b222884",
+      "data_sha256": "fdfa55c1774e7950969ba436ae0f03af97a4e4308d6c2f173d483e39578ab34c",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4681261339899006,
+      "drift_psi": 0.5159,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-21",
+      "price": 222000.0,
+      "weight": 0.0,
+      "held_weight": 0.0551,
+      "fractional_lot": true,
+      "equity": 10027.91,
+      "return_pct": 0.28,
+      "hit_rate": 0.5098039215686274,
+      "hit_n": 102,
+      "hit_lo": 0.4142085151226479,
+      "hit_hi": 0.6046876466889649,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 2,
+      "live_hit_flat": 0,
+      "hit_flat": 3,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 52% + ml 30% + ml 19% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 219000.0,
+        "bar": "2026-08-21 00:00:00",
+        "weight": 0.0054,
+        "decided_bar": "2026-08-20 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "6fb643b1cc02",
+      "data_sha256": "89f7941e74536dfc8390bf75cd26b2d08010a7d7f6dddf0199d52f71d2024d8d",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.46847506782137194,
+      "drift_psi": 0.4716,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0525,
-    "decided_bar": "2026-08-19 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-21 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "035420.KS",

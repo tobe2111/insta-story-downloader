@@ -2,7 +2,7 @@
   "cash": 10000.836816877236,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-19 00:00:00",
+  "last_bar": "2026-08-21 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -398,13 +398,115 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-20",
+      "price": 271000.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.84,
+      "return_pct": 0.01,
+      "hit_rate": 0.5648854961832062,
+      "hit_n": 131,
+      "hit_lo": 0.47933565452086124,
+      "hit_hi": 0.6467381980587582,
+      "hit_conclusive": false,
+      "live_hit": 0.75,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 50% + ml 50% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 257000.0,
+        "bar": "2026-08-20 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-19 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "84249b222884",
+      "data_sha256": "595c3bb93728feb9c0e00cc7e6a41878d12116f900ad4484cf2c49133f2e53bc",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.37518540219598523,
+      "drift_psi": 0.7824,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-21",
+      "price": 281500.0,
+      "weight": 0.0281,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.84,
+      "return_pct": 0.01,
+      "hit_rate": 0.6118421052631579,
+      "hit_n": 152,
+      "hit_lo": 0.5325219333033981,
+      "hit_hi": 0.6856483113552809,
+      "hit_conclusive": true,
+      "live_hit": 0.75,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 4,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "소액 매수 +2.8% — 그라디언트부스팅 모델이 내일 상승확률을 약 53%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 사이징: 신호 원비중 17% → 변동성 타깃 조절 후 3% · 참고: 전 종목 합산으로 모델이 53%±10%p라 말한 66번의 실제 상승 비율 58% (95% 신뢰구간 46%~69% · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 46% + ml 38% + bollinger 17% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 267000.0,
+        "bar": "2026-08-21 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-20 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "6fb643b1cc02",
+      "data_sha256": "fb3b7f90715bd64c92f2a74e213d75836d8a02368339b83ea7dd30e1d4645ee1",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5336528194311914,
+      "drift_psi": 0.7824,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-19 00:00:00"
+    "weight": 0.0281,
+    "decided_bar": "2026-08-21 00:00:00"
   }
 }

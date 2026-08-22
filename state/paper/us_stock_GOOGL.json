@@ -1,8 +1,8 @@
 {
-  "cash": 8487.0,
-  "quantity": 4.415449631755626,
-  "avg_price": 342.4549865722656,
-  "last_bar": "2026-08-19 00:00:00",
+  "cash": 7694.26979091309,
+  "quantity": 6.717658258625839,
+  "avg_price": 342.6494676810434,
+  "last_bar": "2026-08-21 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -98,11 +98,112 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-20",
+      "price": 340.6700134277344,
+      "weight": 0.2301,
+      "held_weight": 0.3522,
+      "fractional_lot": false,
+      "equity": 9977.46,
+      "return_pct": -0.23,
+      "hit_rate": 0.4166666666666667,
+      "hit_n": 72,
+      "hit_lo": 0.30985038222496447,
+      "hit_hi": 0.5319251077436017,
+      "hit_conclusive": false,
+      "live_hit": 1.0,
+      "live_hit_n": 1,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +23% — 로지스틱회귀 모델이 내일 상승확률을 약 75%로 추정(기준 55% 초과) · 판단 재료: 20일선 이격 -1.9%(선 아래) / 5일 수익률 -1.6% / 변동성(20일) 일 2.5% · 사이징: 신호 원비중 45% → 변동성 타깃 조절 후 23% · 참고: 전 종목 합산으로 모델이 75%±10%p라 말한 39번의 실제 상승 비율 54% (95% 신뢰구간 39%~68% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 1번으로 축적 중)",
+      "fill": {
+        "price": 342.795013,
+        "bar": "2026-08-20 00:00:00",
+        "weight": 0.3538,
+        "decided_bar": "2026-08-19 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "84249b222884",
+      "data_sha256": "fba20d5287d5a3def074f622e1bb8505e056bab4779a62da5e3c287b10e7f012",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7508221193304108,
+      "drift_psi": 0.1793,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-21",
+      "price": 344.82000732421875,
+      "weight": 0.1515,
+      "held_weight": 0.2314,
+      "fractional_lot": false,
+      "equity": 10010.65,
+      "return_pct": 0.11,
+      "hit_rate": 0.4246575342465753,
+      "hit_n": 73,
+      "hit_lo": 0.31784011426782005,
+      "hit_hi": 0.5390082595297062,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 2,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +15% — 로지스틱회귀 모델이 내일 상승확률을 약 68%로 추정(기준 55% 초과) · 판단 재료: 20일선 이격 -1.0%(선 아래) / 5일 수익률 -0.3% / RSI(7) 55(중립) · 사이징: 신호 원비중 29% → 변동성 타깃 조절 후 15% · 참고: 전 종목 합산으로 모델이 68%±10%p라 말한 64번의 실제 상승 비율 44% (95% 신뢰구간 32%~56% · 보합 2일 포함 · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 1번으로 축적 중)",
+      "fill": {
+        "price": 342.352509,
+        "bar": "2026-08-21 00:00:00",
+        "weight": 0.2301,
+        "decided_bar": "2026-08-20 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "6fb643b1cc02",
+      "data_sha256": "1c9a4d504b01ceb1517cea6c3684d5ba1ec750b06287c6230a70b94170f91c62",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6821768498944809,
+      "drift_psi": 0.1849,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4722
     }
   ],
   "pending": {
-    "weight": 0.3538,
-    "decided_bar": "2026-08-19 00:00:00"
+    "weight": 0.1515,
+    "decided_bar": "2026-08-21 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOGL",
