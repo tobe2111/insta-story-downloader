@@ -1,21 +1,21 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 5539.129066111193,
+  "cash": 4663.99337883486,
   "positions": {
     "ETH/USDT": 0.8295485182189594,
     "BNB/USDT": 2.6095878670843287,
     "XRP/USDT": 748.4135619931795,
-    "BTC/USDT": -0.005529212648717001
+    "SOL/USDT": 4.728194587912714
   },
   "avg_cost": {
     "ETH/USDT": 2410.95,
     "BNB/USDT": 691.6771965024076,
     "XRP/USDT": 1.5017785075203098,
-    "BTC/USDT": 77327.5347547264
+    "SOL/USDT": 94.4
   },
-  "cost_paid": 17.118091500216465,
-  "funding_paid": 0.22761583357457837,
+  "cost_paid": 18.428798169291476,
+  "funding_paid": 0.2481503908271847,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -538,6 +538,55 @@
         "ETH/USDT"
       ],
       "stopped": []
+    },
+    {
+      "at": "2026-08-23T06:55:21+09:00",
+      "equity": 10073.0375,
+      "cash": 4663.9934,
+      "gross_exposure": 5409.0441,
+      "funding": 0.020535,
+      "cost_paid": 18.4288,
+      "funding_paid": 0.24815,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 0.2215,
+        "BNB/USDT": 0.9037,
+        "XRP/USDT": 0.5577
+      },
+      "positions": {
+        "ETH/USDT": 0.8295485182,
+        "BNB/USDT": 2.6095878671,
+        "XRP/USDT": 748.4135619932,
+        "SOL/USDT": 4.7281945879
+      },
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "buy",
+          "direction": "청산",
+          "notional": 427.46,
+          "price": 77309.9,
+          "cost": 0.6412,
+          "signal": 0.0,
+          "realized_pnl": -0.5437,
+          "avg_cost": 77327.534755
+        },
+        {
+          "symbol": "SOL/USDT",
+          "side": "buy",
+          "direction": "롱",
+          "notional": 446.34,
+          "price": 94.4,
+          "cost": 0.6695,
+          "signal": 0.2215
+        }
+      ],
+      "skipped": [],
+      "long_only": [
+        "ETH/USDT"
+      ],
+      "stopped": []
     }
   ],
   "curve": [
@@ -588,6 +637,10 @@
     {
       "at": "2026-08-23T06:33:37+09:00",
       "equity": 10074.3687
+    },
+    {
+      "at": "2026-08-23T06:55:21+09:00",
+      "equity": 10073.0375
     }
   ],
   "last_prices": {
