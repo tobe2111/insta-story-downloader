@@ -400,6 +400,11 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "us_stock":
+        # 실적 발표일 표식(earn_day) — PEAD 도전자 전용, 캐시만 읽는다
+        # (오프라인). 캐시에 없으면 컬럼 자체가 안 붙고 PEAD는 관망한다.
+        from quant.data.earnings import attach_earnings_days
+        df = attach_earnings_days(df, symbol, state_dir)
     if market == "kr_stock":
         from quant.data.krx import attach_krx_flows, attach_krx_value
         df = attach_krx_flows(df, symbol)
