@@ -6269,6 +6269,18 @@ MUTATIONS = [
      "        pass",
      "tests/test_the_site_remembers_how_it_fixed_itself.py"),
 
+    # ── 모바일 삼단 바 (2026-08-23 사장님: "모바일로 다른 페이지를 못 봐") ──
+    ("모바일에서 공용 바의 삼단 바가 다시 사라진다(막다른 길 재발)",
+     "docs/assets/nav.js",
+     '    "  #qnav .qn-burger{display:inline-flex}}",',
+     '    "  #qnav .qn-burger{display:none}}",',
+     "tests/test_the_site_wears_one_navbar.py"),
+    ("모바일에서 홈 바의 삼단 바가 다시 사라진다(막다른 길 재발)",
+     "docs/index.html",
+     "  .burger{display:inline-flex}",
+     "  .burger{display:none}",
+     "tests/test_the_site_wears_one_navbar.py"),
+
     # ── DART 한국 발표일 — 키 조건부 수집 (2026-08-23) ────────────────
     ("코드표 갱신 실패를 오늘 도장으로 찍는다(30일간 재시도가 죽는다)",
      "quant/data/earnings.py",

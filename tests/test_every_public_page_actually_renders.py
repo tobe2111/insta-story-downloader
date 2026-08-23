@@ -206,3 +206,43 @@ def test_the_render_does_not_swallow_its_error(name):
     assert "catch(()=>{document.getElementById" not in src, (
         f"{name}: 렌더 실패를 통째로 삼킨다")
     assert "console.error" in src, f"{name}: 콘솔에도 안 남기면 개발자도 못 본다"
+
+
+# ── 모바일 삼단 바 — 진짜 화면에서 열리는가 ──────────────────────
+
+@pytest.mark.parametrize("path,burger_sel,menu_link_sel", [
+    ("index.html", ".burger", ".mnav .mlnk"),          # 홈(원본 바)
+    ("trust.html", "#qnav .qn-burger", "#qnav .qn-menu a"),  # 공용 바
+])
+def test_the_mobile_menu_actually_opens(browser, site, path,
+                                        burger_sel, menu_link_sel):
+    """모바일 폭에서 삼단 바를 누르면 다른 페이지로 가는 메뉴가 열린다.
+
+    2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼 수가 없어."
+    소스 계약(test_the_site_wears_one_navbar)은 글자를 보고, 여기는
+    **진짜 브라우저**가 390px 화면에서 버튼이 보이고 눌리는지를 본다 —
+    CSS 한 줄(display:none)이면 글자는 남고 기능만 죽는다.
+    """
+    page = browser.new_page(viewport={"width": 390, "height": 800})
+    block_external(page)
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    try:
+        page.goto(f"{site}/{path}")
+        page.wait_for_timeout(1500)
+        burger = page.locator(burger_sel)
+        assert burger.is_visible(), f"{path}: 모바일인데 삼단 바가 안 보인다"
+        links = page.locator(menu_link_sel)
+        assert not links.first.is_visible(), (
+            f"{path}: 누르기도 전에 메뉴가 열려 있다")
+        burger.click()
+        page.wait_for_timeout(300)
+        assert links.count() >= 5, f"{path}: 메뉴 링크가 이상하게 적다"
+        assert links.first.is_visible(), f"{path}: 삼단 바를 눌러도 안 열린다"
+        # 바깥을 누르면 닫힌다(모바일 관례) — 본문을 가리는 채로 남지 않게
+        page.mouse.click(200, 600)
+        page.wait_for_timeout(300)
+        assert not links.first.is_visible(), f"{path}: 메뉴가 안 닫힌다"
+    finally:
+        page.close()
+    assert not errors, f"{path}: 메뉴 조작 중 스크립트가 던졌다 — {errors}"
