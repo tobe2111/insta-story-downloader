@@ -928,10 +928,44 @@ def _cmd_validate(args) -> None:
     #    목록을 코드(AUTO_TARGETS)가 갖게 해 같은 표류를 막는다 — 운용 대상을
     #    늘리면 검증도 자동으로 따라온다.
     if getattr(args, "all_targets", False):
-        from quant.markets import AUTO_TARGETS
+        # ⚠️ 여기 기본값도 AUTO_TARGETS(손으로 적은 20종목)였다. 위 주석이
+        #    "운용 대상을 늘리면 검증도 자동으로 따라온다"고 적어 두었는데,
+        #    정작 운용 대상은 그 상수가 아니라 universe(40종목)로 옮겨 가
+        #    **검증만 20종목에 남았다**(2026-08-23 실측: 22종목 미검증).
+        #    매매하는 것은 전부 검증한다.
+        import os as _os
+        import time as _time
+
+        from quant.universe import active_targets
+        targets = active_targets(getattr(args, "state_dir", "state") or "state")
+        # 종목이 늘면 잡 한도(120분)에 닿을 수 있다. 재학습과 같은 처방 —
+        # 시간 예산 + 이어달리기. 오늘 못 잰 종목을 내일 먼저 잰다.
+        budget = float(_os.environ.get("QUANT_VALIDATE_BUDGET_SEC") or 0) or None
+        cursor_path = _os.path.join(
+            getattr(args, "state_dir", "state") or "state",
+            "validate_cursor.json")
+        if budget:
+            try:
+                with open(cursor_path, encoding="utf-8") as f:
+                    last = _json.load(f).get("next_key")
+                keys = [f"{m}:{sy}" for m, sy in targets]
+                if last in keys:
+                    i0 = keys.index(last)
+                    targets = targets[i0:] + targets[:i0]
+            except (OSError, ValueError, KeyError):
+                pass
+        deadline = (_time.monotonic() + budget) if budget else None
+        not_reached: list[str] = []
         failed = []
-        for i, (mk, sym) in enumerate(AUTO_TARGETS, 1):
-            print(f"\n{'=' * 62}\n[{i}/{len(AUTO_TARGETS)}] {mk}:{sym}\n{'=' * 62}")
+        for i, (mk, sym) in enumerate(targets, 1):
+            if deadline is not None and _time.monotonic() > deadline:
+                # ⚠️ 잘린 사실은 반드시 남긴다 — 조용히 줄면 "전 종목 검증
+                #    완료"로 읽히고, 그게 이 저장소가 막아 온 거짓말이다.
+                not_reached = [f"{m}:{sy}" for m, sy in targets[i - 1:]]
+                print(f"\n⏳ 시간 예산({budget:.0f}초) 소진 — 남은 "
+                      f"{len(not_reached)}종목은 다음 밤에 먼저 잽니다")
+                break
+            print(f"\n{'=' * 62}\n[{i}/{len(targets)}] {mk}:{sym}\n{'=' * 62}")
             one = _copy.copy(args)
             one.market, one.symbol, one.all_targets = mk, sym, False
             # ⚠️ 리포트 경로에 종목 이름을 넣는다. 안 그러면 20종목이 **같은
@@ -951,9 +985,18 @@ def _cmd_validate(args) -> None:
                 # 아무도 이유를 모른다.
                 print(f"❌ {mk}:{sym} 검증 실패: {type(exc).__name__}: {exc}")
                 failed.append(f"{mk}:{sym} ({type(exc).__name__})")
+        if budget:
+            try:
+                with open(cursor_path, "w", encoding="utf-8") as f:
+                    _json.dump({"next_key": not_reached[0] if not_reached else None,
+                                "not_reached": not_reached,
+                                "budget_sec": budget}, f, ensure_ascii=False)
+            except OSError as exc:
+                print(f"⚠️ 검증 커서를 남기지 못했습니다: {exc}")
+        done = len(targets) - len(not_reached)
         print(f"\n{'=' * 62}")
-        print(f"전 종목 검증 완료: 성공 {len(AUTO_TARGETS) - len(failed)}"
-              f"/{len(AUTO_TARGETS)}")
+        print(f"검증 {done}/{len(targets)}종목: 성공 {done - len(failed)}"
+              + (f" · 다음 밤으로 미룸 {len(not_reached)}" if not_reached else ""))
         if failed:
             print("실패: " + ", ".join(failed))
             raise SystemExit(

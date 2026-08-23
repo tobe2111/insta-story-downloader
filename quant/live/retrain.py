@@ -1434,15 +1434,27 @@ def stale_targets(skipped: list, state_dir: str = STATE_DIR,
 
 
 def run_retrain_all(targets=None, **kwargs) -> dict:
-    """AUTO_TARGETS 전체를 순회 재학습한다 — 한 종목의 실패가 나머지를 막지 않는다.
+    """**지금 매매하는 전 종목**을 순회 재학습한다 — 한 종목의 실패가 나머지를 막지 않는다.
 
     반환: {"ok": [키...], "failed": {키: 오류}, "promoted": [키...]}.
     전 종목이 실패했을 때만 예외를 올린다(잡을 크게 실패시켜 조기 경보).
     """
     import time as _time
 
-    from quant.markets import AUTO_TARGETS
-    targets = list(targets or AUTO_TARGETS)
+    # ⚠️ **매매하는 목록과 심사하는 목록이 갈라져 있었다** (2026-08-23 실측).
+    #    페이퍼 배치는 `universe.active_targets`(규칙으로 매일 뽑은 40종목)로
+    #    매매하는데, 여기 기본값은 손으로 적은 상수 AUTO_TARGETS(20종목)였다.
+    #    결과: **22종목이 오디션 한 번 없이 기본 챔피언으로 돈을 받고 있었다.**
+    #    그 종목에서 그 전략이 통하는지 아무도 확인한 적이 없는데도.
+    #
+    #    이 저장소가 반복해서 잡아 온 병(선언과 행동의 불일치)이고, 하필
+    #    유니버스를 20 → 40으로 늘린 그 커밋이 만든 것이다. 진실의 출처를
+    #    하나로 모은다 — **매매하는 것은 전부 심사한다.**
+    #
+    #    시간은 아래 이어달리기가 이미 맡는다(그 장치의 주석이 45종목을
+    #    예상해 쓰여 있다 — 만들어 두고 목록만 안 바꾼 셈이었다).
+    from quant.universe import active_targets
+    targets = list(targets or active_targets(kwargs.get("state_dir", STATE_DIR)))
 
     # ── 시간 예산 + 이어달리기 (2026-08-19, 유니버스 20 → 45종목) ────────
     #

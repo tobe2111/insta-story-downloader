@@ -163,6 +163,21 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 </ul>
 </div>
 
+<div class="card" id="untried" style="display:none">
+<h2>아직 심사받지 않은 종목</h2>
+<p id="untried-body">계산 중…</p>
+<p style="font-size:12.5px;color:var(--muted)">
+운용 종목을 늘리면 그날부터 매매는 시작되지만, <b>오디션(매일 밤 후보 수십
+개와 겨루는 심사)</b>은 순서를 기다립니다. 아직 차례가 안 온 종목은 자기
+전략이 없어 <b>기본 전략</b>으로 돕니다 — 그 전략이 그 종목에서 통하는지
+확인된 적이 없다는 뜻입니다.
+<br><br>
+그래서 이런 종목은 <b>비중을 4분의 1로</b> 줄입니다. 검증이 하루 늦은 것
+(절반)보다 더 세게 줄이는 이유는 <b>더 모르기 때문</b>입니다.
+2026-08-23 이전에는 이 둘을 구별하지 않고 똑같이 절반만 줄이고 있었습니다 —
+그때 계좌의 절반 넘는 돈이 한 번도 심사받지 않은 종목 위에 있었습니다.</p>
+</div>
+
 <div class="card" id="provable" style="display:none">
 <h2>지금 이 관문을 넘으려면 무엇이 필요한가</h2>
 <p id="provable-body">계산 중…</p>
@@ -1098,6 +1113,25 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 // ⚠️ 문장에 상태를 박아 두면 안 된다. 구조가 잠들어 있는 동안에도 계속
 //    "분산 운용 중"이라고 읽히고, 그게 정확히 이번에 고친 결함이다.
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  /* 심사 전 종목 — 매매는 시작됐지만 오디션 차례가 안 온 종목들. */
+  /* ⚠️ 게이트는 최상위가 아니라 **본 계좌의 마지막 기록 안**에 있다.
+     최상위에서 찾으면 영원히 빈 카드가 된다(사이트가 없는 필드를 읽어
+     카드가 조용히 비는 결함 — 계약 검사가 이 자리를 지킨다). */
+  const _pfALL=((st.paper||{})["portfolio:ALL"]||{});
+  const _lastRec=((_pfALL.history||[]).slice(-1)[0])||{};
+  const ut=_lastRec.validation_gate||{}, utc=document.getElementById("untried");
+  if(utc && Object.keys(ut).length){
+    const rows=Object.entries(ut);
+    const untried=rows.filter(([,v])=>v && v.grade==="심사 전");
+    if(untried.length){
+      utc.style.display="";
+      document.getElementById("untried-body").innerHTML =
+        `운용 <b>${rows.length}종목</b> 중 <b>${untried.length}종목</b>이 아직 `+
+        `오디션을 받지 않았습니다. 이 종목들은 비중이 <b>4분의 1</b>로 `+
+        `줄어 있고, 밤 배치가 순서대로 심사하면서 하나씩 풀립니다.`;
+    }
+  }
+
   /* 증명 가능성 — 통과가 0종목인 날일수록 이유까지 같이 말한다. */
   const pv=st.provable, pvc=document.getElementById("provable");
   if(pv && pvc && pv.required_ann_sharpe!=null){

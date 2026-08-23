@@ -109,15 +109,28 @@ def test_every_symbol_is_counted_not_just_the_coins():
     assert {"crypto", "kr_stock", "us_stock"} <= markets, markets
 
 
-def test_the_stock_and_coin_verdicts_actually_differ():
-    """두 시장이 같은 답을 주면 이 지표는 아무것도 안 알려준다."""
+def test_the_stock_and_coin_verdicts_are_computed_separately():
+    """두 시장이 **각각** 계산되는가 — 합쳐 버리면 이 지표는 무의미하다.
+
+    ⚠️ 예전에는 `abs(주식 − 코인) > 0.2`를 요구했다(2026-08-23 빨간불).
+       그 0.2는 그날 시장이 우연히 벌어져 있던 간격이었고, 코드가 아니라
+       **시장이 움직이면 깨지는 검사**였다 — 실제로 간격이 0.184로 좁혀지자
+       아무도 코드를 안 건드린 날에 빨간불이 됐다. 검사가 지켜야 할 것은
+       "오늘 두 시장이 얼마나 다른가"(시장의 사정)가 아니라 "두 시장을
+       따로 재고 있는가"(코드의 계약)다.
+    """
     ev = _real()
     coin = (ev["markets"].get("crypto") or {}).get("sharpe_mean")
     stock = (ev.get("stocks") or {}).get("sharpe_mean")
     if coin is None or stock is None:
         pytest.skip("한쪽 시장이 비어 있다")
-    assert abs(stock - coin) > 0.2, (
-        f"주식({stock})과 코인({coin})이 갈리지 않는다 — 전제 확인 필요")
+    # 두 값이 **완전히 같으면** 쪼개기가 깨진 것이다(같은 표본을 두 번 셌거나
+    # 한쪽이 다른 쪽을 덮어썼거나).
+    assert stock != coin, (
+        f"주식과 코인의 값이 똑같다({stock}) — 시장별로 쪼개지지 않았다")
+    # 그리고 표본이 실제로 양쪽에 있어야 한다.
+    assert (ev["markets"]["crypto"].get("n") or 0) > 0
+    assert (ev["stocks"].get("n") or 0) > 0
 
 
 def test_a_half_written_snapshot_day_is_not_used(tmp_path):
