@@ -32,6 +32,7 @@ _MAX_RESPONSE_BYTES = 32 * 1024 * 1024   # 32MB (API JSON엔 넉넉)
 _SECRET_QS = re.compile(
     r"(?i)(^|[?&\s\"'{,\[])((?:api[_-]?key|apikey|access[_-]?token|token|"
     r"app[_-]?secret|app[_-]?key|secret[_-]?key|secret|password|passwd|pwd|"
+    r"crtfc[_-]?key|"    # DART 인증키 — 이름이 일반 패턴 밖이라 명시(2026-08-23)
     r"sig|signature)=)[^&#\s\"'}\]]*")
 
 # 다른 호스트로 리다이렉트될 때 떼어낼 민감 헤더(인증정보 유출 방지).
@@ -153,6 +154,21 @@ def _request(
     #
     #    호출자가 직접 지정했으면 그것을 존중한다(API가 특정 UA를 요구할 수
     #    있다). 지정하지 않았을 때만 우리 이름을 붙인다.
+    return _request_raw(method, url, headers, data, timeout).decode()
+
+
+def _request_raw(
+    method: str,
+    url: str,
+    headers: dict[str, str] | None,
+    data: bytes | None,
+    timeout: int,
+) -> bytes:
+    """요청을 보내고 응답 본문을 **바이트**로 반환한다(zip 등 비텍스트용).
+
+    상한·리다이렉트 방어·비밀 가림은 텍스트 경로와 완전히 같다 — 바이너리
+    경로만 방어를 지나치면 감사 178이 반대쪽 문으로 재발한다.
+    """
     req = urllib.request.Request(url, data=data, method=method,
                                  headers=_with_agent(headers))
     try:
@@ -161,7 +177,7 @@ def _request(
             if len(raw) > _MAX_RESPONSE_BYTES:
                 raise RuntimeError(f"응답이 너무 큽니다(>{_MAX_RESPONSE_BYTES}B): "
                                    f"{_redact_url(url)}")
-            return raw.decode()
+            return raw
     except urllib.error.HTTPError as exc:  # 서버가 반환한 오류 본문도 파싱해 전달
         # ⚠️ **본문도 가려야 한다**(감사 170). URL은 가리면서 서버가 돌려준
         #    본문은 그대로 실었다. 그런데 API 오류 응답은 요청 URL을 되울리는
@@ -188,6 +204,12 @@ def get_text(url: str, headers: dict[str, str] | None = None,
              timeout: int = 30) -> str:
     """GET 응답 본문을 원문(str)으로 반환한다 — RSS/XML 등 비-JSON용."""
     return _request("GET", url, headers, timeout=timeout)
+
+
+def get_bytes(url: str, headers: dict[str, str] | None = None,
+              timeout: int = 30) -> bytes:
+    """GET 응답 본문을 바이트로 반환한다 — zip 등 비텍스트용(같은 방어)."""
+    return _request_raw("GET", url, headers, None, timeout)
 
 
 def post_json(

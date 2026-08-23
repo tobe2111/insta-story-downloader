@@ -400,9 +400,10 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
-    if market == "us_stock":
+    if market in ("us_stock", "kr_stock"):
         # 실적 발표일 표식(earn_day) — PEAD 도전자 전용, 캐시만 읽는다
         # (오프라인). 캐시에 없으면 컬럼 자체가 안 붙고 PEAD는 관망한다.
+        # 한국 캐시는 DART 키가 있을 때만 채워진다(2026-08-23).
         from quant.data.earnings import attach_earnings_days
         df = attach_earnings_days(df, symbol, state_dir)
     if market == "kr_stock":
@@ -1762,6 +1763,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     earnings_asked: list = []       # 가드를 물어본 종목 — 아래 건강 기록용
     probs: dict = {}                # key → 그날 모델이 말한 상승확률
     thresholds: dict = {}           # key → 그 종목 챔피언의 진입 문턱
+    div_pairs: dict = {}            # key → (실제 비중 혼합, 다양성 비중 혼합)
     skipped_why: dict = {}          # key → 스킵 사유(데이터 장애/휴장 구분)
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
@@ -1887,6 +1889,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 thresholds[key] = float(
                     (champion_spec(market, symbol, state_dir)["params"] or {})
                     .get("threshold") or 0.55)
+            # 다양성 가중 그림자 재료(2026-08-23) — 의회가 2석 이상이면
+            # 같은 의원 신호를 실제 비중/상관까지 본 비중으로 각각 섞은
+            # 포지션 쌍을 여기서 주워 둔다(나중에 재계산하면 선견이 낄 자리가
+            # 생긴다). 잴 수 없는 계좌는 None이 돌아오고, 기록하지 않는다.
+            if use_champions:
+                from quant.live.diversity_shadow import mix_pair
+                _pair = mix_pair(market, symbol, df_sig, state_dir)
+                if _pair is not None:
+                    div_pairs[key] = _pair
             # 실적 가드(미국 주식) — 발표 ±1일 창에서 비중 절반, 흔적 기록.
             # ⚠️ 비중에 바로 곱하지 않고 '감쇠 계수'로 따로 둔다(2026-08-11).
             #    비중에 곱해 버리면 뒤의 변동성 스케일러가 "위험이 줄었다"고
@@ -1906,6 +1917,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                 if edate and ef < 1.0:
                     guard_damp[key] = ef
                     earnings_guards[key] = edate
+            # 한국 실적 가드 + 발표일 캐시(2026-08-23) — DART 키가 있을 때만.
+            # 이 호출이 주간 캐시(state/earnings.json)를 채워 PEAD의 한국
+            # earn_day 재료가 된다. 키가 없으면 묻지도 않는다 — 매일 경고를
+            # 찍으면 '키 없음'이 소음이 되어 진짜 고장을 가린다.
+            if market == "kr_stock" and abs(weights[key]) > 0:
+                from datetime import date as _edate
+
+                from quant.data.earnings import (dart_fetcher, dart_key,
+                                                 earnings_guard_factor)
+                if dart_key() is not None:
+                    earnings_asked.append(symbol)
+                    ef, edate = earnings_guard_factor(
+                        symbol,
+                        _edate.fromisoformat(str(df_sig.index[-1])[:10]),
+                        state_dir=state_dir, fetch=dart_fetcher(state_dir))
+                    if edate and ef < 1.0:
+                        guard_damp[key] = ef
+                        earnings_guards[key] = edate
             # 부분 켈리 상한 — 이 종목 개별 페이퍼 장부(OOS)의 통계 사용.
             # 상한은 '자본 대비 최종 비중'에 걸어야 의미가 있다. 스케일 전
             # 비중에 걸면 스케일러가 상한 위로 다시 올려 놓는다(같은 결함).
@@ -2276,6 +2305,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                  grades=valid_grades, tilt=None, state_dir=state_dir)
     except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
         log.warning("2세대 그림자 실패(본 계좌 무관): %s", exc)
+    # 다양성 가중 그림자(2026-08-23, 사장님 조기 착수 지시) — 같은 의원
+    # 신호를 '섞는 비중'만 바꾼 두 계좌. 의회 softmax 비중이 상관을 안 보는
+    # 격차(weight_gap 0.196)가 실제 돈 곡선에서 얼마인지 잰다.
+    try:
+        from quant.live.diversity_shadow import run_diversity_shadow
+        run_diversity_shadow(bar=bar, pairs=div_pairs, marks=marks,
+                             state_dir=state_dir)
+    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+        log.warning("다양성 가중 그림자 실패(본 계좌 무관): %s", exc)
     try:
         from quant.live.unshackled import run_unshackled
         run_unshackled(bar=bar, weights=weights, slices=slices,
@@ -3409,6 +3447,11 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["gen2"] = gen2_public(state_dir)
     except Exception:  # noqa: BLE001
         status["gen2"] = None
+    try:
+        from quant.live.diversity_shadow import diversity_public
+        status["diversity_shadow"] = diversity_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["diversity_shadow"] = None
     try:
         from quant.live.breadth import breadth
         status["breadth"] = breadth(state_dir)
