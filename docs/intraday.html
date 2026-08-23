@@ -388,9 +388,12 @@ fetch("intraday.json").then(r=>r.ok?r.json():null).then(d=>{
     ?("마지막 회차에서 건너뛴 종목: "+sk.map(([k,w])=>k+" ("+w+")").join(" · ")
       +" — 가짜 시세로 체결을 만들지 않습니다.")
     :"";
+  /* 규칙이 바뀐 날을 **맨 위에** 적는다 — 한계 목록 아래에 묻히면
+     곡선을 읽는 사람이 못 본다. 그리기는 공용 렌더러가 한다. */
   document.getElementById("limits").innerHTML=
-    (d.honest_limits||[]).map(t=>'<li>'+esc(t)+'</li>').join("")
-    ||'<li class="sub">—</li>';
+    (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+
+    ((d.honest_limits||[]).map(t=>'<li>'+esc(t)+'</li>').join("")
+     ||'<li class="sub">—</li>');
 }).catch(()=>{
   document.getElementById("sum").innerHTML=
     '<span class="err">기록을 불러오지 못했습니다 — 빈칸을 "그런 일이 없었다"로 '+

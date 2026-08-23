@@ -25,6 +25,8 @@
 """
 from __future__ import annotations
 
+from quant.live.conviction import RULE_CHANGE as CONVICTION_RULE_CHANGE
+
 import json
 import os
 
@@ -308,11 +310,15 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
     import time
 
     from quant.live.intraday_challenger import confirmed_bars
+    from quant.live.conviction import recalibrate, scale_of, spec_of
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
     bar_times: dict[str, str] = {}
     skipped: dict[str, str] = {}
     dfs: dict[str, object] = {}
+    # 종목별로 실제 적용된 확신도 배수 — 1.0이면 재보정이 안 걸린 것이다
+    # (규칙 전략이거나, 장치가 꺼졌거나). 둘을 구별하려면 기록이 있어야 한다.
+    scales: dict[str, float] = {}
     deadline = time.monotonic() + FETCH_BUDGET_SEC
     for sym in syms:
         # 시간 예산 — 안전장치와 한 작업에 살고 있으므로, 느린 날에는
@@ -341,13 +347,18 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
                             "판단하지 않는다")
             continue
         try:
-            sig = float(factory(sym).generate_signals(df).iloc[-1])
+            strat = factory(sym)
+            sig = float(strat.generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다
             signals[sym] = None
             skipped[sym] = f"신호 계산 실패: {exc}"
             continue
-        signals[sym] = max(0.0, min(1.0, sig))   # 숏·레버리지 없음
-    return prices, signals, bar_times, skipped, dfs
+        # 확신도 눈금 재보정 (2026-08-23 감사 310) — 셋이 같은 곳을 쓴다.
+        # 배수를 **기록에 남긴다**: 속성 이름이 바뀌어 재보정이 조용히
+        # 꺼지면 장부의 이 숫자가 1.0으로 돌아가 그 사실이 드러난다.
+        scales[sym] = scale_of(strat)
+        signals[sym] = recalibrate(sig, spec_of(strat))   # 숏·레버리지 없음
+    return prices, signals, bar_times, skipped, dfs, scales
 
 
 def _advance_account(st: dict, syms: list[str], prices: dict, signals: dict,
@@ -399,7 +410,7 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     # 새 봉이 닫혔을 수 없으면 시세를 아예 부르지 않는다(요청 절약).
     if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):
         return {"skipped": "새 봉 없음 — 시세 요청 생략", "time": str(now_iso)}
-    prices, signals, bar_times, skipped, dfs = _judge_symbols(
+    prices, signals, bar_times, skipped, dfs, scales = _judge_symbols(
         syms, now_iso, TIMEFRAME, data, factory)
     if not prices:
         return {"skipped": "판단 재료 없음(실데이터 전무)", "time": str(now_iso)}
@@ -432,6 +443,11 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
         rec["limit_shadow"] = shadow_info
     if skipped:
         rec["skipped"] = skipped
+    # 실제로 적용된 확신도 배수 — 재보정이 조용히 꺼지면 여기가 1.0이 된다.
+    # 전부 1.0이면 굳이 싣지 않는다(옛 회차와 같은 모양을 유지).
+    if any(v != 1.0 for v in (scales or {}).values()):
+        rec["conviction_scale"] = {k: round(float(v), 4)
+                                   for k, v in scales.items()}
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
 
     os.makedirs(_dir(state_dir), exist_ok=True)
@@ -478,7 +494,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
             continue
         # 주입 데이터 모드에서는 절대 실데이터로 넘어가지 않는다 — 검사가
         # 몰래 네트워크를 만지는 순간 검사 자체가 재현 불가능해진다.
-        prices, signals, bar_times, _sk, _dfs = _judge_symbols(
+        prices, signals, bar_times, _sk, _dfs, _sc = _judge_symbols(
             syms, now_iso, tf,
             (((data or {}).get(tf) or {}) if data is not None else None),
             factory)
@@ -605,6 +621,9 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 종목마다 지금 얼마 벌고 있나 (2026-08-22 사장님 지시). 코인·선물
         # 트랙과 **같은 계산**을 쓴다(quant.live.holdings) — 트랙마다 따로
         # 쓰면 같은 날 세 페이지가 서로 다른 셈법으로 손익을 말하게 된다.
+        # 규칙이 바뀐 날 — 안 적으면 곡선의 한 지점부터 성격이 달라지는데
+        # 보는 사람은 이유를 모른다. 그건 조용한 골대 이동이다.
+        "rule_changes": [CONVICTION_RULE_CHANGE],
         "holdings": _holdings(st),
         "holdings_total": _holdings_total(st),
         # 자산의 몇 %를 굴리고 있나 (2026-08-23 사장님 지적).

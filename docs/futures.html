@@ -248,9 +248,7 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(", "))+'</b>':'')+'</li>'+
     /* 규칙이 바뀐 날을 화면이 말한다. 안 적으면 곡선의 한 지점부터
        성격이 달라지는데 보는 사람은 이유를 모른다 — 조용한 골대 이동이다. */
-    ((d.rule_changes||[]).map(function(c){
-      return '<li><b class="up">'+esc(c.on)+' — 규칙이 바뀌었습니다.</b> '+
-        esc(c.what)+' '+esc(c.why)+'</li>';}).join(""))+
+    (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+
     '<li><b>본 계좌와 완전히 분리</b>돼 있습니다. 자기 장부만 쓰고, 여기 숫자는 '+
       '100만 챌린지 판단에 쓰이지 않습니다.</li>'+
     '</ul>';

@@ -191,7 +191,7 @@ def test_the_experiment_yields_before_the_safety_net(tmp_path, monkeypatch):
     monkeypatch.setattr(IU, "_fetch_real",
                         lambda *a, **k: (_ for _ in ()).throw(
                             AssertionError("예산 초과인데 시세를 불렀다")))
-    _p, _s, _b, skipped, _d = IU._judge_symbols(
+    _p, _s, _b, skipped, _d, _sc = IU._judge_symbols(
         ["AAPL"], OPEN_NOW, "1h", None, lambda s: _AlwaysLong())
     assert "시간 초과" in skipped["AAPL"], skipped
 
