@@ -240,7 +240,13 @@ def test_keltner_enters_above_the_upper_band():
 #    아니라 **벤치마크**다 — 평평한 시장에서도 들고 있는 것이 정의 그 자체이고,
 #    그래서 '아무것도 안 하기'가 링에서 의미를 갖는다. 예외를 조용히 두지 않고
 #    여기 이유와 함께 적는다(다른 계약 — 인과성·롱온리·상한 — 은 그대로 받는다).
-_MAKES_ITS_OWN_SIGNAL = [n for n in NAMES if n != "buy_hold"]
+#    'turn_of_month'도 같은 이유로 뺀다(2026-08-23). 이 검사의 표적은
+#    "가격 자극이 없는데 가격에서 신호를 **지어내는**" 전략이다. 월말 효과는
+#    가격을 아예 안 본다 — 신호의 재료가 달력이고, 그게 가설의 핵심이다
+#    (수급은 가격에 둔감하다). 가격이 판단에 스며들지 않는다는 것은 자기
+#    검사(test_price_cannot_change_the_answer)가 따로 못 박는다.
+_MAKES_ITS_OWN_SIGNAL = [n for n in NAMES
+                         if n not in ("buy_hold", "turn_of_month")]
 
 
 @pytest.mark.parametrize("name", _MAKES_ITS_OWN_SIGNAL)

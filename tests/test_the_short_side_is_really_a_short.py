@@ -765,6 +765,44 @@ def test_a_liquidation_is_announced_loudly(tmp_path):
         f"청산 횟수를 제한 항목이 말하지 않는다:\n{v['제한']}")
 
 
+def test_the_page_says_when_the_rule_changed(tmp_path):
+    """규칙이 바뀐 날을 화면이 말한다 (감사 308).
+
+    이 트랙은 **1배로 24회차를 돌고 나서** 배율이 켜졌다. 그 사실을 안
+    적으면 자산 곡선의 한 지점부터 성격이 달라지는데 보는 사람은 이유를
+    모른다 — 그건 조용한 골대 이동이고, 이 저장소가 판정 시계에서 가장
+    엄격하게 막는 것이다.
+
+    ⚠️ 과거 회차는 고치지 않는다. 그때는 정말 1배였다.
+    """
+    from quant.live.futures_challenger import LEVERAGE_ENABLED_ON, RULE_CHANGES
+    data = dict(_SAMPLE, rule_changes=list(RULE_CHANGES))
+    v = _render(tmp_path, data)
+    item = _rule_saying(v, LEVERAGE_ENABLED_ON, "규칙이 바뀌었습니다")
+    assert item, (
+        f"배율을 켠 날을 화면이 말하지 않는다 — 곡선이 왜 달라졌는지 "
+        f"읽는 사람이 알 수 없다:\n{v['제한']}")
+    assert "1배" in item, (
+        f"그 전에는 1배였다는 사실을 말하지 않는다: {item}")
+
+
+def test_the_report_carries_the_rule_change(tmp_path):
+    """**배선** — 화면이 그릴 재료가 리포트에 실린다."""
+    from quant.live.futures_challenger import public_report
+    out = public_report(load_state(str(tmp_path)))
+    changes = out.get("rule_changes") or []
+    assert changes, f"규칙 변경 이력이 리포트에 없다: {sorted(out)}"
+    assert changes[0].get("on") and changes[0].get("what")
+
+
+def test_a_track_without_rule_changes_says_nothing(tmp_path):
+    """대조군 — 바뀐 게 없으면 그런 줄이 없어야 한다."""
+    data = dict(_SAMPLE, rule_changes=[])
+    v = _render(tmp_path, data)
+    assert not _rule_saying(v, "규칙이 바뀌었습니다"), (
+        f"바뀐 게 없는데 바뀌었다고 말한다:\n{v['제한']}")
+
+
 def test_a_healthy_account_is_not_told_it_was_liquidated(tmp_path):
     """대조군 — 청산이 없었으면 그런 말이 없어야 한다."""
     v = _render(tmp_path, _SAMPLE)

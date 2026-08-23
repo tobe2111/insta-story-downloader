@@ -125,6 +125,20 @@ MAX_GROSS_EXPOSURE = 3.0
 # 0은 "청산이 없다"는 주장이고, 그 주장은 선물에서 거짓이다.
 MAINTENANCE_MARGIN_RATE = 0.05
 
+# ⚠️ **규칙이 바뀐 날을 기록에 남긴다.** 이 트랙은 1배로 24회차를 돌고
+#    나서 배율이 켜졌다. 그 사실을 안 적으면 자산 곡선의 한 지점부터
+#    성격이 달라지는데 보는 사람은 이유를 모른다 — 그건 조용한 골대
+#    이동이고, 이 저장소가 판정 시계에서 가장 엄격하게 막는 것이다
+#    (감사 308. 과거 회차는 고치지 않는다 — 그때는 정말 1배였다).
+LEVERAGE_ENABLED_ON = "2026-08-23"
+RULE_CHANGES = [
+    {"on": LEVERAGE_ENABLED_ON,
+     "what": "배율을 켰습니다(최대 3배, 신호의 확신에 비례). 청산도 함께 "
+             "모델에 넣었습니다.",
+     "why": "사장님 지시 — \"그만큼 수익 실현에 확신이 있으면 하는거잖아\". "
+            "이 날 이전 회차는 전부 1배이며, 그 기록은 고치지 않았습니다."},
+]
+
 # 무기한 선물 자금조달 — 8시간마다 정산된다. 실제 요율은 시장마다 매
 # 시각 다르고 이 배치는 그 값을 받아 오지 않는다. 그래서 **받아 온 척하지
 # 않고**, 공개된 장기 중앙값 수준의 가정치를 쓰고 화면에 '가정'이라고
@@ -657,6 +671,8 @@ def public_report(st: dict) -> dict:
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,
         "max_gross_exposure": MAX_GROSS_EXPOSURE,
+        # 규칙이 바뀐 지점 — 곡선을 읽는 사람이 이유를 알 수 있게.
+        "rule_changes": list(RULE_CHANGES),
         "maintenance_margin_rate": MAINTENANCE_MARGIN_RATE,
         "margin_ratio": last.get("margin_ratio"),
         "liquidations": int(st.get("liquidations") or 0),
