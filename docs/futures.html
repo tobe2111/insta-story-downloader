@@ -65,6 +65,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <script src="assets/nav.js" defer></script>
 <script src="assets/holdings.js"></script>
 <script src="assets/track-live.js"></script>
+<script src="assets/trades.js"></script>
 
 <h1>코인 선물 <span class="tag">무기한 선물 · 가상 자금(USDT) · 최대 3배</span></h1>
 <p class="sub" style="margin-bottom:10px"><b>무엇으로 하나:</b> 미국주식이나
@@ -109,7 +110,8 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
     <th title="아직 안 판 평가 손익입니다. 팔 때 비용이 한 번 더 듭니다.">손익</th></tr></thead>
   <tbody><tr><td colspan="7" class="sub">불러오는 중…</td></tr></tbody>
 </table>
-<div class="sub" id="hold-note" style="margin-top:8px"></div></div>
+<div class="sub" id="hold-note" style="margin-top:8px"></div>
+<div class="sub" id="deployed" style="margin-top:8px"></div></div>
 
 <h2>지금 들고 있는 것 <span class="tag">롱과 숏을 같이 봅니다</span></h2>
 <div class="card tw"><table id="pos">
@@ -248,9 +250,7 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(", "))+'</b>':'')+'</li>'+
     /* 규칙이 바뀐 날을 화면이 말한다. 안 적으면 곡선의 한 지점부터
        성격이 달라지는데 보는 사람은 이유를 모른다 — 조용한 골대 이동이다. */
-    ((d.rule_changes||[]).map(function(c){
-      return '<li><b class="up">'+esc(c.on)+' — 규칙이 바뀌었습니다.</b> '+
-        esc(c.what)+' '+esc(c.why)+'</li>';}).join(""))+
+    (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+
     '<li><b>본 계좌와 완전히 분리</b>돼 있습니다. 자기 장부만 쓰고, 여기 숫자는 '+
       '100만 챌린지 판단에 쓰이지 않습니다.</li>'+
     '</ul>';
@@ -308,22 +308,16 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       "곡선을 그리려면 회차가 둘 이상 필요합니다.";
   }
 
-  /* ── 최근 체결 ── */
-  var trs=(d.recent_trades||[]).slice().reverse();
-  document.getElementById("tr").querySelector("tbody").innerHTML=
-    trs.length?trs.map(function(t){
-      /* 실현 손익은 **덮는 주문에만** 있다. 새로 여는 주문에는 아직
-         확정된 것이 없으므로 '—'다 — 0으로 적으면 본전이라는 뜻이 된다. */
-      var r=t.realized_pnl;
-      var pnl=(r==null)?'<span class="sub">—</span>'
-        :'<b class="'+(r>=0?"up":"down")+'">'+(r>=0?"+":"−")+
-          usdt(Math.abs(r))+'</b>';
-      return '<tr><td>'+esc(kst(t.at))+'</td><td>'+esc(t.symbol||"")+
-        '</td><td class="'+(t.side==="sell"?"down":"up")+'">'+
-        (t.side==="sell"?"팔기":"사기")+'</td><td>'+esc(t.direction||"")+
-        '</td><td>'+usdt(Math.abs(t.notional||0))+'</td><td>'+pnl+'</td><td>'+
-        usdt(t.cost||0)+'</td><td>'+Number(t.signal||0).toFixed(2)+'</td></tr>';
-    }).join(""):'<tr><td colspan="8" class="sub">아직 체결이 없습니다</td></tr>';
+  /* ── 최근 체결 ── 코인 단타·미국주식과 **같은 렌더러**를 쓴다.
+     여기만 '사기/팔기'로 부르는 것은 방향 칸이 따로 있기 때문이다 —
+     양방향 장부에서 '매도'는 롱을 파는 것인지 숏을 여는 것인지 헷갈린다. */
+  if(window.QuantTrades){
+    QuantTrades.render(document.getElementById("tr").querySelector("tbody"),
+      d.recent_trades, {currency:"USDT", kst:kst, direction:true,
+                        verbs:["사기","팔기"]});
+    QuantTrades.deployed(document.getElementById("deployed"),
+      d.deployed, "USDT");
+  }
 
   /* ── 한계 ── */
   document.getElementById("limits").innerHTML=

@@ -145,3 +145,58 @@ def totals(rows: list) -> dict:
         pnl += float(r["pnl"])
         counted += 1
     return {"pnl": round(pnl, 4), "counted": counted, "unknown": unknown}
+
+
+def deployed(rows: list, equity: float) -> dict | None:
+    """지금 자산의 몇 %를 **실제로 굴리고 있나** — 나머지는 그냥 현금이다.
+
+    사장님 지적(2026-08-23): *"미국 주식은 투자를 하는 모습을 못봤네?"*
+
+    맞는 지적이었다. 미국주식 트랙은 나흘 동안 48번 체결했는데도 화면에서
+    "투자하는 중"으로 보이지 않았다. 이유는 두 가지였고, 둘 다 화면이
+    말하지 않아서 생긴 일이다:
+
+    ① 금요일 장 마감 때 신호가 전부 0이 되어 **전량 현금**으로 끝났다.
+       그러면 보유 표가 비고, 화면은 아무 말도 안 한다.
+    ② 굴리는 금액 자체가 작다. 자산 10,000 중 200~600 정도만 들고 있었다
+       (평균 2.6%, 최대 6.4%). 나머지 94% 이상은 계속 현금이었다.
+
+    ②는 **고장이 아니라 규칙의 결과**다. 목표 금액은
+    `균등 슬라이스 × 신호 세기`이고, 미국 챔피언들이 내는 신호가 작다
+    (대개 0.06~0.23). 신호가 약하면 조금만 산다 — 그게 설계다.
+
+    하지만 **화면이 그 사실을 말한 적이 없다.** 수익률만 보여 주면 읽는
+    사람은 "10,000을 다 굴려서 -0.17%"라고 읽는다. 실제로는 "300쯤 굴려서
+    -0.17%"였다. 두 문장은 전혀 다른 이야기다.
+
+    ⚠️ 잴 수 없는 줄(시세를 못 받은 종목)이 있으면 그 사실을 함께 돌려
+       준다. 못 잰 줄을 빼고 "지금 3% 굴리는 중"이라고 말하면, 실제로는
+       30%였을 수도 있다.
+    """
+    try:
+        eq = float(equity)
+    except (TypeError, ValueError):
+        return None
+    if not (eq > 0):
+        return None
+    gross = 0.0
+    unknown = 0
+    for r in (rows or []):
+        if not isinstance(r, dict):
+            continue
+        v = r.get("value")
+        if v is None:
+            unknown += 1
+            continue
+        try:
+            gross += abs(float(v))
+        except (TypeError, ValueError):
+            unknown += 1
+    return {
+        "gross": round(gross, 4),
+        "pct": round(gross / eq * 100, 4),
+        # 현금은 "자산 − 굴리는 값"이다. 숏이 있으면 이 값이 자산을 넘을 수
+        # 있다(빌려서 팔았으므로) — 음수 현금을 0으로 자르지 않는다.
+        "cash": round(eq - gross, 4),
+        "unknown": unknown,
+    }

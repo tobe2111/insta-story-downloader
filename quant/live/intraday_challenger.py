@@ -35,6 +35,8 @@
 """
 from __future__ import annotations
 
+from quant.live.conviction import RULE_CHANGE as CONVICTION_RULE_CHANGE
+
 import json
 import os
 
@@ -352,6 +354,7 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     data/strategy_factory 주입은 검사용이다 — 실전 기본값은 실데이터와
     챔피언 규칙이다.
     """
+    from quant.live.conviction import recalibrate, scale_of, spec_of
     from quant.live.daily import measured_cost_model
 
     st = load_state(state_dir)
@@ -364,6 +367,8 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     skipped: dict[str, str] = {}
     bar_times: dict[str, str] = {}
     dfs: dict[str, object] = {}          # 지정가 그림자의 체결 판정 재료
+    # 종목별로 실제 적용된 확신도 배수. ⚠️ 위의 `scale`(킬스위치)과 다른 것이다.
+    scales: dict[str, float] = {}
     for sym in UNIVERSE:
         df = (data or {}).get(sym) if data is not None else _fetch_real(sym)
         if df is not None:
@@ -378,12 +383,15 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
         bar_times[sym] = str(df.index[-1])       # 재현 지문 — 어느 봉으로 판단했나
         dfs[sym] = df
         try:
-            sig = float(factory(sym).generate_signals(df).iloc[-1])
+            strat = factory(sym)
+            sig = float(strat.generate_signals(df).iloc[-1])
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 회차를 못 죽인다
             signals[sym] = None
             skipped[sym] = f"신호 계산 실패: {exc}"
             continue
-        signals[sym] = max(0.0, min(1.0, sig))   # 숏·레버리지 없음
+        # 확신도 눈금 재보정 (2026-08-23 감사 310) — 미국·선물과 같은 곳.
+        scales[sym] = scale_of(strat)
+        signals[sym] = recalibrate(sig, spec_of(strat))   # 숏·레버리지 없음
 
     equity = mark_equity(st, prices)
     # 그냥 보유 기준선 — 첫 회차 가격을 고정해 둔다(실험 데이터 안에서만).
@@ -434,6 +442,10 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
         rec["limit_shadow"] = shadow_info
     if skipped:
         rec["skipped"] = skipped
+    # 실제로 적용된 확신도 배수 — 조용히 꺼지면 여기가 1.0으로 돌아온다.
+    if any(v != 1.0 for v in (scales or {}).values()):
+        rec["conviction_scale"] = {k: round(float(v), 4)
+                                   for k, v in scales.items()}
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
 
     os.makedirs(_dir(state_dir), exist_ok=True)
@@ -598,6 +610,7 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
     크론이 5분보다 늦게 돌면 5분 트랙은 봉을 건너뛴다 — 그 실측 간격은
     회차 기록(시각)이 그대로 말한다(숨기지 않는다).
     """
+    from quant.live.conviction import recalibrate, spec_of
     from quant.live.daily import _kill_switch_scale, measured_cost_model
     from quant.live.ledger_basics import drawdown_from_index
     from quant.utils.jsonio import atomic_write_json
@@ -622,11 +635,14 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
             prices[sym] = float(df["close"].iloc[-1])
             bar_times[sym] = str(df.index[-1])
             try:
-                sig = float(factory(sym).generate_signals(df).iloc[-1])
+                strat = factory(sym)
+                sig = float(strat.generate_signals(df).iloc[-1])
             except Exception:  # noqa: BLE001
                 signals[sym] = None
                 continue
-            signals[sym] = max(0.0, min(1.0, sig))
+            # 사다리도 **같은 눈금**을 쓴다 — 여기만 옛 눈금으로 두면
+            # 주기 비교가 크기 규칙 비교로 오염된다.
+            signals[sym] = recalibrate(sig, spec_of(strat))
         if not prices:
             # 한 종목도 판단 재료가 없다 — 빈 회차를 장부에 쓰지 않는다.
             out.append({"timeframe": tf, "skipped": "닫힌 봉/데이터 없음"})
@@ -724,6 +740,16 @@ def _holdings_total(st: dict) -> dict:
     return totals(_holdings(st))
 
 
+def _deployed(st: dict, equity: float):
+    """자산 중 **실제로 굴리고 있는 비중** — 세 트랙이 같은 곳을 쓴다.
+
+    수익률만 보여 주면 읽는 사람은 시드 전부를 굴린 결과로 읽는다. 실제로
+    자산의 3%만 들고 있었다면 그 수익률은 전혀 다른 이야기다(감사 309).
+    """
+    from quant.live.holdings import deployed
+    return deployed(_holdings(st), equity)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
@@ -754,8 +780,13 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 종목마다 지금 얼마 벌고 있나 (2026-08-22 사장님 지시). 수량만
         # 있으면 "BTC 0.0022개"가 읽는 사람에게 아무것도 말해 주지 않는다.
         # 평균매입가는 체결 기록을 되짚어 복원한다 — 기록은 안 고친다.
+        # 규칙이 바뀐 날 — 안 적으면 곡선의 한 지점부터 성격이 달라지는데
+        # 보는 사람은 이유를 모른다. 그건 조용한 골대 이동이다.
+        "rule_changes": [CONVICTION_RULE_CHANGE],
         "holdings": _holdings(st),
         "holdings_total": _holdings_total(st),
+        # 자산의 몇 %를 굴리고 있나 (2026-08-23 사장님 지적).
+        "deployed": _deployed(st, eq),
         "risk_scale": float(st.get("risk_scale", 1.0)),
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]
