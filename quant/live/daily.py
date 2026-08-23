@@ -400,6 +400,11 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "us_stock":
+        # 실적 발표일 표식(earn_day) — PEAD 도전자 전용, 캐시만 읽는다
+        # (오프라인). 캐시에 없으면 컬럼 자체가 안 붙고 PEAD는 관망한다.
+        from quant.data.earnings import attach_earnings_days
+        df = attach_earnings_days(df, symbol, state_dir)
     if market == "kr_stock":
         from quant.data.krx import attach_krx_flows, attach_krx_value
         df = attach_krx_flows(df, symbol)
@@ -3679,6 +3684,14 @@ def write_docs_status(state_dir: str = STATE_DIR,
         prov = provability(state_dir)
         if prov:
             status["provable"] = prov
+    except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
+        pass
+    # 개선 이력 자동 발행(2026-08-23, 사장님 지시) — "스스로 고치는 시스템"의
+    # 증거를 홈페이지에 남긴다. 원본은 깃 커밋 이력이고 이 파일은 사본이다.
+    # 얕은 체크아웃이면 발행하지 않는다(부분 이력이 전부로 읽힌다).
+    try:
+        from quant.reporting.changelog import write_changelog
+        write_changelog(os.path.dirname(docs_path) or "docs")
     except Exception:  # noqa: BLE001 — 표시 항목 실패가 사이트 갱신을 막으면 안 된다
         pass
 

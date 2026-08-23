@@ -195,3 +195,36 @@ def earnings_guard_factor(symbol: str, asof: _dt.date,
     if d is not None and abs((d - asof).days) <= pad_days:
         return GUARD_FACTOR, d.isoformat()
     return 1.0, None
+
+
+def attach_earnings_days(df, symbol: str, state_dir: str = "state"):
+    """실적 발표일 표식 컬럼(earn_day)을 붙인다 — **캐시만 읽는다.**
+
+    PEAD 도전자(quant/strategies/pead.py)의 재료다. 네트워크를 부르지
+    않는 이유: 오디션 백테스트는 오프라인 스냅샷으로 돌고, 발표일은
+    바뀌지 않는 과거 사실이라 매주 갱신되는 이 캐시로 충분하다.
+
+    캐시에 이 종목이 없으면 **컬럼을 붙이지 않는다** — 0으로 채우면
+    "발표가 없었다"와 "몰랐다"가 같아진다. 컬럼이 없으면 PEAD는 관망한다
+    (수급 없는 시장의 supply_som과 같은 규약).
+
+    이름이 `x_` 접두가 **아닌** 이유: ml._features()는 x_ 컬럼을 전부
+    ML 입력으로 자동 포함한다. 이 컬럼은 PEAD 전용 신호 재료이지 ML
+    거시 피처가 아니다 — x_를 붙이면 기존 ML 챔피언 전원의 피처 집합이
+    가설 없이 조용히 바뀐다(그 자체가 등록 안 된 시행이 된다).
+    """
+    try:
+        path = os.path.join(state_dir, CACHE_FILE)
+        with open(path, encoding="utf-8") as f:
+            cache = json.load(f)
+        dates = set((cache.get(symbol) or {}).get("dates") or [])
+        if not dates:
+            return df
+        df = df.copy()
+        idx_days = [str(d)[:10] for d in df.index.date] if hasattr(
+            df.index, "date") else [str(i)[:10] for i in df.index]
+        df["earn_day"] = [1.0 if d in dates else 0.0 for d in idx_days]
+        return df
+    except (OSError, ValueError, AttributeError) as exc:
+        log.warning("발표일 컬럼 부착 실패(%s) — 생략: %s", symbol, exc)
+        return df

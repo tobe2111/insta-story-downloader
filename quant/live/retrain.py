@@ -804,6 +804,10 @@ def build_challengers(current_spec: dict, seed: str,
         # 규칙이라 선견 여지가 0이다. 가설이 틀렸으면 오디션에서 지고,
         # 그 기각도 기록이다.
         {"strategy": "turn_of_month", "params": {"entry_day": 25, "exit_day": 3}},
+        # 실적 발표 후 표류(2026-08-23, 가설 우선 2호) — 정보의 점진적
+        # 확산 + 기관의 분할 집행이라는 가설. 발표일 컬럼(earn_day)이
+        # 없는 시장(한국·코인)은 관망 — 무해하다.
+        {"strategy": "pead", "params": {"min_jump": 0.02, "hold_days": 20}},
     ]
     if not evolve:
         return challengers
@@ -1144,6 +1148,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
+    if market == "us_stock":
+        # 실적 발표일 표식(earn_day) — PEAD 도전자 전용, 캐시만 읽는다
+        # (오프라인). 캐시에 없으면 컬럼 자체가 안 붙고 PEAD는 관망한다.
+        from quant.data.earnings import attach_earnings_days
+        df = attach_earnings_days(df, symbol, state_dir)
     if market == "kr_stock":
         # 외국인·기관 수급(z-점수) — 한국 주식 고유의 수급 피처(실패 시 생략)
         from quant.data.krx import attach_krx_flows, attach_krx_value

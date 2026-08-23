@@ -580,6 +580,17 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         <div id="c-wrong" class="sub" style="margin-top:8px">불러오는 중…</div></section>
     </div>
 
+    <!-- 개선 이력 — 깃 커밋에서 자동 발행(2026-08-23 사장님 지시). 사람이
+         따로 적는 일지가 아니라 저장소에 합쳐진 개선의 사본이다. -->
+    <section class="card c4" id="changelog" style="display:none">
+      <h2>스스로 고친 기록 <span class="tag">자동 발행</span></h2>
+      <p class="sub" style="margin-top:6px">이 시스템은 매일 자신의 결함을 찾아
+      고칩니다. 아래는 그 기록이며, <b>사람이 따로 적는 일지가 아니라</b> 개선이
+      저장소에 합쳐지는 순간 자동으로 남는 이력입니다. 성적이 나쁜 날의 수정도
+      그대로 실립니다.</p>
+      <div id="c-changelog" class="sub" style="margin-top:8px">불러오는 중…</div>
+    </section>
+
     <!-- 탈락자 아카이브 — 기본 접힘(감사 274) -->
     <section class="card c4 adv"><h2>탈락자 아카이브 <span class="tag">다중검정 정직성</span></h2>
       <div id="c-ring" class="sub" style="margin-top:8px">불러오는 중…</div></section>
@@ -2365,6 +2376,22 @@ fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/lat
     document.getElementById("dlg-chart").innerHTML="";
   });
 })();
+</script>
+<script>
+/* 개선 이력 — changelog.json이 없으면(발행 전) 카드째 숨긴다. */
+fetch("changelog.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(cl=>{
+  const es=(cl&&cl.entries)||[]; if(!es.length)return;
+  const sec=document.getElementById("changelog"); if(!sec)return;
+  sec.style.display="";
+  const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const SHOW=6;
+  const row=e=>`<div style="margin:3px 0"><b style="font-variant-numeric:tabular-nums">${esc(e.date)}</b> · ${esc(e.title)}</div>`;
+  const head=es.slice(0,SHOW).map(row).join("");
+  const rest=es.slice(SHOW).map(row).join("");
+  document.getElementById("c-changelog").innerHTML =
+    head + (rest?`<details style="margin-top:6px"><summary>지난 기록 ${es.length-SHOW}건 더 보기</summary>${rest}</details>`:"") +
+    `<div style="margin-top:8px;font-size:11.5px;color:var(--muted)">총 ${cl.count}건 · 최근 ${esc(cl.asof)} · ${esc(cl.note||"")}</div>`;
+}).catch(()=>{});
 </script>
 </body>
 </html>
