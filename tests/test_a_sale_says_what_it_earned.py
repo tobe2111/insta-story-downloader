@@ -99,10 +99,20 @@ def test_selling_everything_forgets_the_average():
     assert "X" not in (st.get("avg_cost") or {}), st.get("avg_cost")
 
 
-def test_the_screen_shows_it_and_stays_quiet_when_it_cannot():
+def test_the_screen_has_a_place_to_show_it():
+    """화면에 실현 손익 칸이 있고, **공용 렌더러**가 그것을 그린다.
+
+    ⚠️ 예전의 이 검사는 페이지 소스에서 글자를 찾았다("t.realized_pnl이
+       있나", "(r==null)이 있나"). 그리기가 공용 렌더러로 옮겨 간 순간
+       (2026-08-23) 그 검사는 통째로 헛짚었다 — 화면은 멀쩡한데 검사만
+       빨간불이었다. 소스를 읽는 검사는 코드가 움직이면 따라오지 못한다.
+
+    그래서 여기서는 **칸이 있는지와 렌더러를 부르는지**만 본다. 값이
+    없을 때 '—'로 비우는지는 실제로 브라우저에서 그려 보는 검사가
+    확인한다(tests/test_every_track_shows_what_it_bought.py).
+    """
     page = (ROOT / "docs" / "intraday.html").read_text("utf-8")
     assert "실현 손익" in page, "체결 표에 실현 손익 열이 없다"
-    assert "t.realized_pnl" in page
-    assert "(r==null)" in page, (
-        "옛 기록처럼 값이 없을 때 '—'로 비우는 처리가 없다 — "
-        "모르는 것을 0으로 적으면 거짓말이다")
+    assert "assets/trades.js" in page, "공용 체결 렌더러를 안 부른다"
+    assert (ROOT / "docs" / "assets" / "trades.js").exists(), (
+        "공용 체결 렌더러 파일이 없다 — 페이지가 부르는 것이 빈 파일이다")

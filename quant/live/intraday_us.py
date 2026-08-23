@@ -559,6 +559,16 @@ def _holdings_total(st: dict) -> dict:
     return totals(_holdings(st))
 
 
+def _deployed(st: dict, equity: float):
+    """자산 중 **실제로 굴리고 있는 비중** — 세 트랙이 같은 곳을 쓴다.
+
+    수익률만 보여 주면 읽는 사람은 시드 전부를 굴린 결과로 읽는다. 실제로
+    자산의 3%만 들고 있었다면 그 수익률은 전혀 다른 이야기다(감사 309).
+    """
+    from quant.live.holdings import deployed
+    return deployed(_holdings(st), equity)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -597,6 +607,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 쓰면 같은 날 세 페이지가 서로 다른 셈법으로 손익을 말하게 된다.
         "holdings": _holdings(st),
         "holdings_total": _holdings_total(st),
+        # 자산의 몇 %를 굴리고 있나 (2026-08-23 사장님 지적).
+        "deployed": _deployed(st, eq),
         "risk_scale": float(st.get("risk_scale", 1.0)),
         "last_skipped": lastr.get("skipped") or {},
         "equity_curve": [[r.get("time"), r.get("equity")]
