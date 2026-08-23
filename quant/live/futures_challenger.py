@@ -138,6 +138,12 @@ RULE_CHANGES = [
      "why": "사장님 지시 — \"그만큼 수익 실현에 확신이 있으면 하는거잖아\". "
             "이 날 이전 회차는 전부 1배이며, 그 기록은 고치지 않았습니다."},
 ]
+# 확신도 눈금 재보정(감사 310)도 같은 날 켜졌다. 두 장치는 **곱해진다** —
+# 신호가 커지고, 그 커진 신호에 배율이 다시 붙는다. 화면이 둘을 따로
+# 적어야 보는 사람이 그 사실을 안다.
+from quant.live.conviction import RULE_CHANGE as _CONVICTION_RULE_CHANGE  # noqa: E402
+
+RULE_CHANGES.append(_CONVICTION_RULE_CHANGE)
 
 # 무기한 선물 자금조달 — 8시간마다 정산된다. 실제 요율은 시장마다 매
 # 시각 다르고 이 배치는 그 값을 받아 오지 않는다. 그래서 **받아 온 척하지
@@ -521,6 +527,7 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     않는다(장중 트랙과 같은 규칙).
     """
     from quant.backtest.costs import CostModel
+    from quant.live.conviction import recalibrate, scale_of, spec_of
     universe = list(universe if universe is not None else UNIVERSE)
     if per_side is None:
         per_side = float(CostModel.for_market("crypto").total_one_way())
@@ -530,6 +537,8 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     prices: dict = {}
     long_only: list[str] = []
     skipped: list[str] = []
+    # 종목별로 실제 적용된 확신도 배수 — 1.0이면 재보정이 안 걸린 것이다.
+    scales: dict = {}
     for sym in universe:
         try:
             df = _fetch_real(sym)
@@ -556,8 +565,13 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         if not two_sided:
             long_only.append(sym)
             sig = max(0.0, sig)
-        # ⚠️ [-1, 1]로 자른다 — 레버리지는 여기서도 안 만든다.
-        signals[sym] = max(-1.0, min(1.0, sig))
+        # 확신도 눈금 재보정 (2026-08-23 감사 310) — 코인·미국과 같은 곳.
+        # ⚠️ 여기서는 **숏도 함께 커진다.** 음수 신호에 같은 배수가 걸리므로
+        #    내림에 거는 쪽 금액도 그만큼 늘어난다. 이 트랙은 배율(최대 3배)
+        #    까지 얹으므로, 두 장치가 곱해진다는 사실을 잊으면 안 된다.
+        scales[sym] = scale_of(strat)
+        # ⚠️ [-1, 1]로 자른다 — 배율은 체결 단계에서만 만든다.
+        signals[sym] = recalibrate(sig, spec_of(strat), allow_short=True)
         prices[sym] = float(df["close"].iloc[-1])
 
     # ⚠️ **청산이 가장 먼저다.** 증거금이 바닥났으면 그 자리에서 끝이고,
@@ -601,6 +615,10 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
            "long_only": long_only, "stopped": stops}
     if liq:
         rec["liquidated"] = liq
+    # 실제로 적용된 확신도 배수 — 조용히 꺼지면 여기가 1.0으로 돌아온다.
+    if any(v != 1.0 for v in (scales or {}).values()):
+        rec["conviction_scale"] = {k: round(float(v), 4)
+                                   for k, v in scales.items()}
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
     st["curve"] = (st.get("curve") or [])[-(CURVE_KEEP - 1):] + [
         {"at": now_iso, "equity": round(equity, 4)}]

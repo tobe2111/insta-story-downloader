@@ -102,5 +102,25 @@
         '클 수 있습니다.)</span>' : '');
   }
 
-  root.QuantTrades = { render: render, deployed: deployed };
+  /* "규칙이 바뀐 날" 목록.
+   *
+   * 실험 도중에 규칙을 바꾸면 곡선의 한 지점부터 성격이 달라진다. 그걸
+   * 안 적으면 보는 사람은 이유를 모른 채 앞뒤를 같은 것으로 읽는다 —
+   * 조용한 골대 이동이고, 이 저장소가 판정 시계에서 가장 엄격하게 막는
+   * 것이다. 셋이 같은 모양으로 적게 여기 둔다(세 페이지가 이 파일을
+   * 이미 부른다).
+   *
+   * 돌려주는 것은 <li> 문자열이다 — 페이지마다 '정직한 한계' 목록이
+   * 놓이는 자리가 달라서, 그리는 자리는 페이지가 정한다.
+   */
+  function ruleChangeItems(changes) {
+    return (changes || []).map(function (c) {
+      return '<li><b class="up">' + esc(c.on) +
+        ' — 규칙이 바뀌었습니다.</b> ' + esc(c.what) + ' ' + esc(c.why) +
+        '</li>';
+    }).join("");
+  }
+
+  root.QuantTrades = { render: render, deployed: deployed,
+                       ruleChangeItems: ruleChangeItems };
 })(typeof globalThis !== "undefined" ? globalThis : this);

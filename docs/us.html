@@ -117,7 +117,10 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <div class="sub" id="tr-note" style="margin-top:8px"></div></div>
 
 <h2>정직한 한계 <span class="tag">숨기지 않습니다</span></h2>
-<div class="card"><ul>
+<div class="card"><ul id="limits">
+  <!-- 규칙이 바뀐 날은 장부가 말하고 여기 맨 위에 끼워 넣는다(감사 310).
+       안 적으면 곡선의 한 지점부터 성격이 달라지는데 보는 사람은 이유를
+       모른다 — 조용한 골대 이동이다. -->
   <li>가상 자금(USD)입니다 — 실제 돈이 아니고, 실제 호가·유동성을 겪지 않습니다.</li>
   <li>비용은 실전과 같은 모델(수수료+미끄러짐)로 매 거래에 뺐지만, 실측
       체결과 다를 수 있습니다.</li>
@@ -209,6 +212,12 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
       .querySelector("tbody"), u.holdings, "USD");
     QuantHoldings.note(document.getElementById("hold-note"),
       u.holdings_total, "USD");
+  }
+  /* 규칙이 바뀐 날 — 한계 목록 맨 앞에 끼워 넣는다. */
+  if(window.QuantTrades){
+    const items=QuantTrades.ruleChangeItems(u.rule_changes);
+    if(items){const ul=document.getElementById("limits");
+              ul.innerHTML=items+ul.innerHTML;}
   }
   /* 최근 체결 + 굴리는 비중 — 코인·선물과 같은 렌더러를 쓴다. */
   if(window.QuantTrades){
