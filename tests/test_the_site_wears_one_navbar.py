@@ -67,6 +67,36 @@ def test_every_public_page_wears_the_shared_bar():
         assert 'src="assets/nav.js"' in src, f"{name}이 공용 바를 싣지 않는다"
 
 
+def test_mobile_gets_a_menu_not_a_dead_end():
+    """모바일(≤820px)은 링크를 숨기는 대신 삼단 바 메뉴를 연다.
+
+    2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼 수가 없어."
+    그 전까지는 820px 아래에서 링크를 display:none으로 숨기기만 했다 —
+    숨긴 자리에 대체 수단이 없으면 그건 정리가 아니라 차단이다.
+    """
+    nav_js = (DOCS / "assets" / "nav.js").read_text("utf-8")
+    assert "qn-burger" in nav_js and "qn-menu" in nav_js, "공용 바에 삼단 바가 없다"
+    assert "#qnav .qn-burger{display:none" in nav_js, (
+        "삼단 바가 데스크톱에도 보인다")
+    assert "#qnav .qn-burger{display:inline-flex}" in nav_js, (
+        "모바일에서 삼단 바가 안 보인다 — 다시 막다른 길이다")
+    # 메뉴 링크는 LINKS 배열 **그대로**를 다시 돈다(목록이 두 곳에 살면
+    # 언젠가 갈라진다) — 두 번째 순회 루프가 있는지 확인.
+    assert "LINKS[k][0]" in nav_js, "메뉴가 LINKS 배열을 재사용하지 않는다"
+
+    idx = (DOCS / "index.html").read_text("utf-8")
+    assert 'class="burger"' in idx and 'class="mnav"' in idx, (
+        "홈 바에 삼단 바가 없다")
+    assert ".burger{display:inline-flex}" in idx, (
+        "홈의 모바일 화면에서 삼단 바가 안 보인다")
+    # 홈의 모바일 메뉴는 홈 바 링크와 글자까지 같아야 한다(같은 사실 한 곳).
+    home = _index_nav_links()
+    menu = re.findall(r'<a class="mlnk" href="([^"]+)">([^<]+)</a>', idx)
+    assert [(h, l.strip()) for h, l in menu] == \
+        [(h, l.strip()) for h, l in home], (
+        f"홈의 모바일 메뉴가 상단 바와 다르다: {menu} != {home}")
+
+
 def test_no_page_wears_two_bars():
     """옛 미니 nav가 남아 있으면 바가 두 줄이 된다 — 한 페이지 한 바."""
     for name in WEARERS:

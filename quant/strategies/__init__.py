@@ -29,6 +29,8 @@ from quant.strategies.connors import ConnorsRSI2
 from quant.strategies.ibs import IBSStrategy
 from quant.strategies.turn_of_month import TurnOfMonth
 from quant.strategies.pead import PEADStrategy
+from quant.strategies.expiry_week import ExpiryWeek
+from quant.strategies.fomc_drift import FOMCDrift
 from quant.strategies.supertrend import SuperTrendStrategy
 from quant.strategies.supplysom import SupplyDemandSOM
 from quant.strategies.valueanchor import ValueAnchor
@@ -51,6 +53,8 @@ _REGISTRY = {
     "ibs": IBSStrategy,
     "turn_of_month": TurnOfMonth,
     "pead": PEADStrategy,
+    "expiry_week": ExpiryWeek,
+    "fomc_drift": FOMCDrift,
     "value_anchor": ValueAnchor,
     "macd": MACD,
     "keltner": KeltnerBreakout,

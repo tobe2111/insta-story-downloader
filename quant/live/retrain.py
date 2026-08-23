@@ -808,6 +808,14 @@ def build_challengers(current_spec: dict, seed: str,
         # 확산 + 기관의 분할 집행이라는 가설. 발표일 컬럼(earn_day)이
         # 없는 시장(한국·코인)은 관망 — 무해하다.
         {"strategy": "pead", "params": {"min_jump": 0.02, "hold_days": 20}},
+        # 옵션 만기 주간(2026-08-23, 가설 우선 3호) — 만기가 시키는 결제·
+        # 롤오버·헤지 되감기는 가격에 둔감하다는 **수급 가설**. 달력만 보는
+        # 규칙(셋째 금요일 주)이라 선견 여지가 0이다.
+        {"strategy": "expiry_week", "params": {}},
+        # FOMC 사전 표류(2026-08-23, 가설 우선 4호) — 1년 전 공표되는
+        # 발표 달력 앞에서 위험 보상·포지션 정리가 몰린다는 가설(루카·묀히).
+        # 달력(2020~2026 정례 일정) 밖의 해는 관망 + 경고.
+        {"strategy": "fomc_drift", "params": {}},
     ]
     if not evolve:
         return challengers
@@ -1148,9 +1156,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         df = attach_funding(df, symbol)
         from quant.data.openinterest import attach_open_interest
         df = attach_open_interest(df, symbol)
-    if market == "us_stock":
+    if market in ("us_stock", "kr_stock"):
         # 실적 발표일 표식(earn_day) — PEAD 도전자 전용, 캐시만 읽는다
         # (오프라인). 캐시에 없으면 컬럼 자체가 안 붙고 PEAD는 관망한다.
+        # 한국 캐시는 DART 키가 있을 때만 일일 배치가 채운다(2026-08-23).
         from quant.data.earnings import attach_earnings_days
         df = attach_earnings_days(df, symbol, state_dir)
     if market == "kr_stock":

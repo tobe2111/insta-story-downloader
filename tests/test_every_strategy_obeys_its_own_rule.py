@@ -245,8 +245,12 @@ def test_keltner_enters_above_the_upper_band():
 #    가격을 아예 안 본다 — 신호의 재료가 달력이고, 그게 가설의 핵심이다
 #    (수급은 가격에 둔감하다). 가격이 판단에 스며들지 않는다는 것은 자기
 #    검사(test_price_cannot_change_the_answer)가 따로 못 박는다.
+#    'expiry_week'·'fomc_drift'도 같은 이유로 뺀다(2026-08-23) — 신호의
+#    재료가 달력(만기 주간·FOMC 일정)이고 가격을 아예 안 본다. 가격 불변성은
+#    각자의 검사(test_price_cannot_change_the_answer 계열)가 따로 못 박는다.
 _MAKES_ITS_OWN_SIGNAL = [n for n in NAMES
-                         if n not in ("buy_hold", "turn_of_month")]
+                         if n not in ("buy_hold", "turn_of_month",
+                                      "expiry_week", "fomc_drift")]
 
 
 @pytest.mark.parametrize("name", _MAKES_ITS_OWN_SIGNAL)

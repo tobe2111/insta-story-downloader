@@ -87,6 +87,20 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
   padding:8px 16px;border-radius:9px;white-space:nowrap}
 .navcta:hover{text-decoration:none;filter:brightness(1.08)}
 .navver{font-size:11px;color:var(--dim);margin-left:9px;white-space:nowrap}
+/* 삼단 바(모바일 메뉴, 2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼
+   수가 없어"). 820px 아래에서 링크를 숨기기만 하고 대체 수단이 없었다. */
+.burger{display:none;background:none;border:0;cursor:pointer;padding:9px;
+  margin-left:6px;color:var(--fg);border-radius:8px}
+.burger:hover{background:var(--bg2)}
+.burger svg{width:22px;height:22px;display:block}
+.mnav{display:none;position:absolute;top:var(--navh);left:0;right:0;
+  flex-direction:column;gap:2px;padding:8px 14px 14px;background:var(--bg);
+  border-bottom:1px solid var(--line)}
+nav.open .mnav{display:flex}
+.mnav .mlnk{color:var(--muted);font-size:15px;font-weight:500;
+  padding:11px 12px;border-radius:8px;text-decoration:none}
+.mnav .mlnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
+@media(min-width:821px){.mnav{display:none !important}}
 
 /* ============ 시장 현황 띠 ============ */
 .strip{border-bottom:1px solid var(--line);background:var(--bg2);
@@ -331,6 +345,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   .proof .pv{font-size:17px}
   .main{padding:14px}
   nav .lnk{display:none}
+  .burger{display:inline-flex}
 }
 </style>
 </head>
@@ -364,7 +379,37 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
     무료 다운로드</a>
   <span class="navver" id="navver">v0.14.1</span>
+  <!-- 삼단 바 — 링크 목록은 위 .lnk와 1:1이어야 한다(계약 검사 대상).
+       데스크톱에서는 CSS가 버튼·메뉴를 숨긴다. -->
+  <button class="burger" type="button" aria-label="메뉴 열기"
+    aria-expanded="false"><svg viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+    <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
+  <div class="mnav">
+    <a class="mlnk" href="index.html">100만 챌린지</a>
+    <a class="mlnk" href="intraday.html">코인 단타</a>
+    <a class="mlnk" href="us.html">미국주식 단타</a>
+    <a class="mlnk" href="futures.html">코인 선물</a>
+    <a class="mlnk" href="paper.html">실기록 (100만)</a>
+    <a class="mlnk" href="today.html">오늘의 판단</a>
+    <a class="mlnk" href="trust.html">기록 검증</a>
+    <a class="mlnk" href="weekly.html">주간 아카이브</a>
+  </div>
 </div></nav>
+<script>
+(function(){
+  var nav=document.querySelector("nav"),b=document.querySelector(".burger");
+  function setOpen(o){nav.classList.toggle("open",o);
+    b.setAttribute("aria-expanded",o?"true":"false");
+    b.setAttribute("aria-label",o?"메뉴 닫기":"메뉴 열기");}
+  b.addEventListener("click",function(e){e.stopPropagation();
+    setOpen(!nav.classList.contains("open"));});
+  document.addEventListener("click",function(e){
+    if(!nav.contains(e.target))setOpen(false);});
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape")setOpen(false);});
+})();
+</script>
 
 <div class="strip"><div class="stripin" id="strip">
   <div class="si"><span class="k">불러오는 중…</span></div>
