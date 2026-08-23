@@ -74,6 +74,13 @@ CPCV_WORST_PASS = 0.0   # 최악 경로 수익률이 이보다 커야 통과
 SCALE_PASS = 1.0
 SCALE_WARN = 0.5
 SCALE_FAIL = 0.0
+# ⚠️ **'심사받은 적 없음'은 '측정이 늦었다'와 다르다** (2026-08-23 실측).
+#    ×0.5(미측정)는 "어제 잰 종목인데 오늘 검증 잡이 늦었다"를 염두에 두고
+#    정한 값이다. 그런데 유니버스를 20 → 40으로 늘리면서, **오디션을 한 번도
+#    받은 적 없어 자기 챔피언조차 없는 종목** 22개가 같은 ×0.5를 받고 있었다.
+#    그 종목들은 기본 전략으로 도는데, 그 전략이 그 종목에서 통하는지 아무도
+#    확인한 적이 없다. 같은 '모른다'가 아니다 — 훨씬 모른다.
+SCALE_UNTRIED = 0.25    # 챔피언조차 없는 종목 — 미측정의 절반
 
 # 검증 기록의 유통기한. 야간 검증은 매일 도는데, 며칠씩 멈춘 기록을 '오늘의
 # 판정'으로 쓰면 고장난 검증이 통과 도장을 계속 찍어 준다. 주말·연휴로
@@ -108,11 +115,22 @@ def _age_days(rec: dict, asof: str | None) -> int | None:
         return None
 
 
-def grade(rec: dict | None, asof: str | None = None) -> dict:
+def grade(rec: dict | None, asof: str | None = None,
+          *, tried: bool = True) -> dict:
     """검증 기록 하나를 (등급, 비중 배수, 사람이 읽을 이유)로 번역한다.
 
     반환: {"grade", "scale", "why", "pbo", "dsr", "age_days"}
+
+    tried=False는 **오디션을 한 번도 받은 적 없는 종목**이다(자기 챔피언이
+    없어 기본 전략으로 돈다). 검증이 늦은 것과 구별해 더 세게 깎는다.
     """
+    if not rec and not tried:
+        return {"grade": "심사 전", "scale": SCALE_UNTRIED, "pbo": None,
+                "dsr": None, "cpcv": None, "age_days": None,
+                "why": "이 종목은 아직 오디션을 한 번도 받지 않아 자기 전략이 "
+                       "없습니다 — 기본 전략으로 돌고 있고, 그 전략이 이 "
+                       "종목에서 통하는지 확인된 적이 없습니다. 검증이 늦은 "
+                       "것보다 더 모르는 상태라 비중을 4분의 1로 줄입니다."}
     if not rec:
         return {"grade": "미측정", "scale": SCALE_WARN, "pbo": None,
                 "dsr": None, "cpcv": None, "age_days": None,
@@ -192,7 +210,22 @@ def validation_grades(keys, state_dir: str = "state",
     아무 감쇠도 안 받고, '측정 안 됨'이 조용히 '통과'가 된다.
     """
     data = _load(state_dir)
-    return {k: grade(data.get(k), asof) for k in keys}
+    # 자기 챔피언이 있는 종목 = 오디션을 한 번이라도 받은 종목.
+    # 읽지 못하면 **모두 '심사받았다'로 본다** — 못 읽었다는 이유로 전 종목을
+    # 4분의 1로 깎으면, 파일 하나 깨진 날 계좌가 통째로 멈춘다.
+    try:
+        import json as _j
+        import os as _o
+        with open(_o.path.join(state_dir, "champions.json"),
+                  encoding="utf-8") as f:
+            champs = _j.load(f)
+        tried = {k for k, e in (champs or {}).items()
+                 if isinstance(e, dict) and e.get("strategy")}
+    except (OSError, ValueError) as exc:
+        log.warning("챔피언 장부를 못 읽었다(전 종목 '심사받음'으로 본다): %s",
+                    exc)
+        tried = set(keys)
+    return {k: grade(data.get(k), asof, tried=(k in tried)) for k in keys}
 
 
 def validation_damp(keys, state_dir: str = "state",
@@ -206,7 +239,7 @@ def gate_summary(grades: dict[str, dict]) -> str:
     """사람이 읽을 한 줄 요약 — 장부·브리핑용."""
     if not grades:
         return "검증 게이트: 대상 없음"
-    order = ["실패", "경고", "만료", "미측정", "통과"]
+    order = ["실패", "심사 전", "경고", "만료", "미측정", "통과"]
     counts = {g: 0 for g in order}
     for v in grades.values():
         counts[v["grade"]] = counts.get(v["grade"], 0) + 1

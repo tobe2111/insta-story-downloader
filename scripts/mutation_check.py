@@ -6247,6 +6247,33 @@ MUTATIONS = [
      #   보지 않는다. 코어가 비면 잡아야 할 검사는 유니버스 쪽이다(감사 296).
      "tests/test_the_universe_expansion_actually_lands.py"),
 
+    # ── 매매 목록 ≠ 심사 목록 (2026-08-23 실측: 22종목 심사 없이 매매) ──
+    ("재학습이 매매 목록 대신 손으로 적은 상수를 돈다(늘린 종목이 심사에서 빠진다)",
+     "quant/live/retrain.py",
+     "    targets = list(targets or active_targets(kwargs.get(\"state_dir\", STATE_DIR)))",
+     "    from quant.markets import AUTO_TARGETS\n    targets = list(targets or AUTO_TARGETS)",
+     "tests/test_what_we_trade_is_what_we_judge.py"),
+    ("'심사 전'을 '미측정'과 같게 깎는다(한 번도 안 재본 종목에 절반이 실린다)",
+     "quant/live/validation_gate.py",
+     "SCALE_UNTRIED = 0.25    # 챔피언조차 없는 종목 — 미측정의 절반",
+     "SCALE_UNTRIED = 0.5",
+     "tests/test_what_we_trade_is_what_we_judge.py"),
+    ("심사 여부를 안 보고 전부 '심사받음'으로 친다(구별 장치가 죽는다)",
+     "quant/live/validation_gate.py",
+     "    return {k: grade(data.get(k), asof, tried=(k in tried)) for k in keys}",
+     "    return {k: grade(data.get(k), asof) for k in keys}",
+     "tests/test_what_we_trade_is_what_we_judge.py"),
+    ("장부를 못 읽으면 전 종목을 '심사 전'으로 떨어뜨린다(파일 하나에 계좌가 멈춘다)",
+     "quant/live/validation_gate.py",
+     "        tried = set(keys)",
+     "        tried = set()",
+     "tests/test_what_we_trade_is_what_we_judge.py"),
+    ("화면이 게이트를 최상위에서 찾는다(카드가 영원히 빈 채로 초록이 된다)",
+     "docs/trust.html",
+     "  const ut=_lastRec.validation_gate||{}, utc=document.getElementById(\"untried\");",
+     '  const ut={}, utc=document.getElementById("untried");',
+     "tests/test_what_we_trade_is_what_we_judge.py"),
+
     # ── 내부 봉 강도(IBS) — 2026-08-22 수집 라운드 ──────────────────────
     ("범위 없는 봉의 IBS를 0.5로 지어낸다('모른다'가 '중립 판단'이 된다)",
      "quant/strategies/ibs.py",

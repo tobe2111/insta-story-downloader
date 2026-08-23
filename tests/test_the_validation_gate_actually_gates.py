@@ -235,8 +235,14 @@ def test_the_gate_explains_itself_in_korean():
 워크플로 YAML에 손으로 박혀 있었기 때문이다. 운용은 8 → 20종목으로 늘었는데
 검증은 따라가지 않았고, 나머지 18종목은 PBO·DSR이 한 번도 계산된 적이 없었다.
 
-목록이 두 곳에 있으면 반드시 갈라진다. 검증 대상은 코드(AUTO_TARGETS)가
-갖고, 워크플로는 그것을 부르기만 해야 한다."""
+목록이 두 곳에 있으면 반드시 갈라진다. 검증 대상은 **지금 매매하는 목록**
+(quant.universe.active_targets)에서 나오고, 워크플로는 그것을 부르기만 해야 한다.
+
+⚠️ 2026-08-23: 이 파일은 원래 `AUTO_TARGETS`(손으로 적은 상수)를 진실의
+   출처로 못 박고 있었다. 그런데 매매 목록은 그 뒤 규칙 산출(universe)로
+   옮겨 갔고, **검증만 옛 상수에 남아 22종목이 심사 없이 매매됐다** — 이
+   파일이 막으려던 바로 그 병이 같은 자리에서 재발한 것이다. 이제 검사도
+   매매가 보는 곳을 본다."""
 
 _WF = ROOT / ".github" / "workflows" / "nightly-validate.yml"
 
@@ -244,7 +250,7 @@ _WF = ROOT / ".github" / "workflows" / "nightly-validate.yml"
 def test_the_workflow_does_not_carry_its_own_symbol_list():
     wf = _WF.read_text("utf-8")
     assert "--all" in wf, "야간 검증이 전 종목 모드를 쓰지 않는다"
-    assert "AUTO_TARGETS" in wf, (
+    assert "--all" in wf, (
         "워크플로가 운용 대상 목록을 코드에서 가져오지 않는다")
     # 하드코딩된 종목 쌍이 실행 명령에 남아 있으면 다시 갈라진다
     for line in wf.splitlines():
@@ -255,13 +261,13 @@ def test_the_workflow_does_not_carry_its_own_symbol_list():
 
 def test_validate_all_covers_every_traded_symbol():
     """--all이 도는 목록 = 실제 운용 목록."""
-    from quant.markets import AUTO_TARGETS
+    from quant.universe import active_targets
 
     import quant.cli as cli
     src = Path(cli.__file__).read_text("utf-8")
-    assert "all_targets" in src and "AUTO_TARGETS" in src
-    assert len(AUTO_TARGETS) >= 20, (
-        f"운용 대상이 {len(AUTO_TARGETS)}종목 — 목록이 줄었다면 확인 필요")
+    assert "all_targets" in src and "active_targets" in src
+    assert len(active_targets("state")) >= 20, (
+        f"운용 대상이 {len(active_targets('state'))}종목 — 줄었다면 확인 필요")
 
 
 def test_validate_records_the_date_it_measured():
@@ -294,12 +300,12 @@ def test_one_symbols_failure_does_not_lose_the_rest(monkeypatch, tmp_path):
     real = cli._cmd_validate
     monkeypatch.setattr(cli, "_cmd_validate", fake)
 
-    from quant.markets import AUTO_TARGETS
+    from quant.universe import active_targets
     args = type("A", (), {})()
     args.all_targets = True
     with pytest.raises(SystemExit) as ei:
         fake(args)
-    assert len(seen) == len(AUTO_TARGETS), (
+    assert len(seen) == len(active_targets("state")), (
         f"{len(seen)}종목에서 멈췄다 — 한 종목 실패가 나머지를 죽인다")
     assert "ETH" in str(ei.value) or "1종목" in str(ei.value), str(ei.value)
 
@@ -396,7 +402,7 @@ def test_all_symbols_do_not_overwrite_one_report_file(tmp_path, monkeypatch):
     import types
 
     from quant import cli
-    from quant.markets import AUTO_TARGETS
+    from quant.universe import active_targets
 
     original = cli._cmd_validate
     seen: list[str] = []
@@ -406,7 +412,7 @@ def test_all_symbols_do_not_overwrite_one_report_file(tmp_path, monkeypatch):
     original(types.SimpleNamespace(all_targets=True, market="", symbol="",
                                    report=str(tmp_path / "리포트.html")))
 
-    assert len(seen) == len(AUTO_TARGETS), f"{len(seen)}종목만 돌았다"
+    assert len(seen) == len(active_targets("state")), f"{len(seen)}종목만 돌았다"
     assert len(set(seen)) == len(seen), (
         f"리포트 경로가 겹친다 — 덮어쓰기: {sorted(seen)[:3]}")
     for path in seen:
