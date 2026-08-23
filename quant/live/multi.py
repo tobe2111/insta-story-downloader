@@ -319,7 +319,15 @@ class MultiTrader:
                 })
         # 최근 30건만 dict화(전체 order_log를 매번 vars()하지 않는다).
         orders = [vars(o) for o in getattr(self.broker, "order_log", [])[-30:]]
+        # 현금(2026-08-23, 사장님 "프로그램에서도 실시간") — 조종석이
+        # 실시간 자산(현금 + Σ수량×지금가)을 내려면 현금을 알아야 한다.
+        # 못 재면 None — 0으로 적으면 '모름'이 '빈 지갑'으로 둔갑한다.
+        try:
+            cash = float(self.broker.get_cash())
+        except Exception:  # noqa: BLE001 — 브로커 구현에 따라 없을 수 있다
+            cash = None
         return {
+            "cash": cash,
             "symbol": ", ".join(self.symbols),
             "strategy": getattr(self.strategy, "name", "multi"),
             "mode": self.mode,
