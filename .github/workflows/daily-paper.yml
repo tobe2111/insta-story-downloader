@@ -51,6 +51,9 @@ jobs:
         with:
           # 재학습 잡이 방금 커밋한 챔피언을 놓치지 않도록 최신 main을 받는다
           ref: main
+          # 개선 이력 자동 발행(changelog)이 전체 커밋 이력을 읽는다.
+          # 얕으면 발행기가 스스로 멈춘다(부분 이력이 전부로 읽히므로).
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -133,7 +136,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/ docs/status.json
+          git add state/ docs/status.json docs/changelog.json
           git add docs/card.png 2>/dev/null || true
           # 장부 관문(감사 255) — 방금 쓴 기록이 말이 되는지 커밋 **전에** 본다.
           # 배치 커밋은 [skip actions]라 CI가 안 붙는다. 그 구멍으로

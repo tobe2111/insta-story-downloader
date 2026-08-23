@@ -6247,6 +6247,28 @@ MUTATIONS = [
      #   보지 않는다. 코어가 비면 잡아야 할 검사는 유니버스 쪽이다(감사 296).
      "tests/test_the_universe_expansion_actually_lands.py"),
 
+    # ── 개선 이력 자동 발행 (2026-08-23, 사장님 지시) ─────────────────
+    ("운행 기록 커밋을 개선으로 센다(장부 커밋 수백 건이 이력을 덮는다)",
+     "quant/reporting/changelog.py",
+     "        if not title or _BOT_MARK in title:",
+     "        if not title:",
+     "tests/test_the_site_remembers_how_it_fixed_itself.py"),
+    ("얕은 복제에서도 발행한다(부분 이력이 전부로 읽힌다)",
+     "quant/reporting/changelog.py",
+     '    if shallow.strip() == "true":',
+     "    if False:",
+     "tests/test_the_site_remembers_how_it_fixed_itself.py"),
+    ("사람 커밋이 안 보여도 빈 목록으로 덮는다('개선이 없었다'가 된다)",
+     "quant/reporting/changelog.py",
+     "    if not entries:",
+     "    if False:",
+     "tests/test_the_site_remembers_how_it_fixed_itself.py"),
+    ("밤 배치가 개선 이력을 발행하지 않는다(만들어 두고 안 부르면 없는 것과 같다)",
+     "quant/live/daily.py",
+     '        write_changelog(os.path.dirname(docs_path) or "docs")',
+     "        pass",
+     "tests/test_the_site_remembers_how_it_fixed_itself.py"),
+
     # ── 월말·월초 효과 — 가설 우선 방침 1호 (2026-08-23) ──────────────
     ("월말 창을 뒤집는다(월 중순에 사고 월말에 관망 — 가설의 반대)",
      "quant/strategies/turn_of_month.py",
