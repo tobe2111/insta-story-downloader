@@ -39,7 +39,7 @@ TRACKS = {
     "100만 챌린지": ("index.html", "status.json", "100만"),
     "코인 단타": ("intraday.html", "intraday.json", "코인"),
     "미국주식 단타": ("us.html", "intraday_us.json", "미국"),
-    "선물 양방향": ("futures.html", "futures.json", "선물"),
+    "코인 선물": ("futures.html", "futures.json", "선물"),
 }
 
 # 실험 트랙의 장부들. 실험 페이지가 **다른 실험**의 장부를 읽으면 한

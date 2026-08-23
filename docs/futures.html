@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>선물 양방향 실험 — QUANT</title>
-<meta name="description" content="버려지던 절반(숏)을 쓰면 정말 나아지는가 — 가상 자금으로 공개 측정하는 양방향(롱/숏) 실험. 레버리지 없음. 실제 돈이 아닙니다.">
+<title>코인 선물 — QUANT</title>
+<meta name="description" content="코인 무기한 선물 — 롱과 숏을 모두 쓰고, 배율은 신호의 확신에 비례합니다. 가상 자금으로 공개 측정하며 청산도 그대로 잽니다. 실제 돈이 아닙니다.">
 <!-- ⚠️ 이 페이지는 **세 번째 실험 트랙**의 공개 장부다(2026-08-22, 사장님
      지시: "선물 거래 페이지를 별도로 만들어 진행하자. 매수/매도 포지션
      모두 가지면 머신러닝에 도움되지 않나?").
@@ -65,7 +65,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <script src="assets/nav.js" defer></script>
 <script src="assets/holdings.js"></script>
 
-<h1>선물 양방향 실험 <span class="tag">코인 무기한 선물 · 가상 자금(USDT) · 레버리지 없음</span></h1>
+<h1>코인 선물 <span class="tag">무기한 선물 · 가상 자금(USDT) · 최대 3배</span></h1>
 <p class="sub" style="margin-bottom:10px"><b>무엇으로 하나:</b> 미국주식이나
 ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리움·솔라나·
 바이낸스코인·리플). 코인 단타 트랙과 <b>같은 다섯 종목</b>을 씁니다 — 그래야
@@ -177,6 +177,17 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       '<div><div class="k">롱</div><div class="v">'+(d.long_positions||0)+'종목</div></div>'+
       '<div><div class="k">숏</div><div class="v">'+(d.short_positions||0)+'종목</div></div>'+
       '<div><div class="k">총 노출</div><div class="v">'+usdt(d.gross_exposure)+'</div></div>'+
+      /* 증거금률 = 자산 ÷ 총 노출. 유지선에 가까울수록 위험하다.
+         못 재는 날(포지션 없음)에는 '—'다 — 0으로 그리면 '청산 직전'으로
+         읽히는데, 실제로는 걸린 것이 없다는 뜻이다. */
+      '<div><div class="k" title="자산 ÷ 총 노출입니다. 이 값이 유지선 밑으로 내려가면 전량 강제 청산됩니다.">증거금률</div><div class="v '+
+        ((d.margin_ratio!=null&&Number(d.margin_ratio)<
+          (Number(d.maintenance_margin_rate)||0)*2)?"down":"")+'">'+
+        (d.margin_ratio==null?'<span class="sub">—</span>'
+          :(Number(d.margin_ratio)*100).toFixed(1)+'%')+
+        '<span class="sub" style="font-size:12px;font-weight:400"> / 유지선 '+
+        ((Number(d.maintenance_margin_rate)||0)*100).toFixed(1)+'%</span>'+
+        '</div></div>'+
       '<div><div class="k">낸 비용</div><div class="v">'+usdt(d.cost_paid)+'</div></div>'+
       /* 자금조달은 **받을 수도 있다**(숏). 부호를 그대로 보여준다 —
          절댓값만 적으면 받은 것도 낸 것처럼 읽힌다. */
@@ -185,6 +196,13 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
         '</div></div>'+
       '<div><div class="k">회차</div><div class="v">'+(d.rounds||0)+'</div></div>'+
     '</div>'+
+    (d.liquidated
+      ?'<div class="warn"><b class="down">💀 강제 청산됐습니다.</b> 증거금률이 '+
+        (Number((d.liquidated||{}).at_ratio||0)*100).toFixed(2)+'%까지 떨어져 '+
+        '남은 포지션을 전부 덮었습니다('+
+        esc(((d.liquidated||{}).closed||[]).join(", ")||"—")+'). '+
+        '배율을 쓰는 계좌에서 이것은 사고가 아니라 규칙입니다 — 그 뒤 값이 '+
+        '되돌아와도 회복할 것이 없습니다.</div>':'')+
     (d.stopped&&d.stopped.length
       ?'<div class="warn">🛑 하드 스톱으로 청산된 숏: <b>'+
         esc(d.stopped.join(", "))+'</b> — 숏에는 파산이라는 자연 바닥이 없어서 '+
@@ -197,10 +215,25 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
   var lo=d.long_only_symbols||[];
   document.getElementById("rules").innerHTML=
     '<ul>'+
-    '<li><b>레버리지를 쓰지 않습니다(1배).</b> 총 노출(롱+숏)이 자산의 '+
-      (Number(d.max_gross_exposure)||1)+'배를 넘지 못합니다. 선물이 위험한 주된 '+
-      '이유는 방향이 아니라 <b>배율</b>이고, 그 배율을 여기서 쓰지 않습니다.</li>'+
-    '<li><b>자금조달 비용을 뭅니다.</b> 무기한 선물은 8시간마다 포지션에 비례해 '+
+    /*lev*/'<li><b>배율은 신호의 확신이 정합니다</b>(최대 '+
+      (Number(d.max_gross_exposure)||1)+'배). 예측이 자신 없는 날은 <b>1배</b> '+
+      '그대로이고, 크게 확신하는 날에만 올라갑니다 — 매일 똑같이 최대치를 '+
+      '태우는 것은 확신이 아니라 습관입니다. '+
+      '<b>다만 그 확신이 실제로 맞는지는 이 트랙이 아직 증명하지 '+
+      '않았습니다.</b> 배율은 우위를 만드는 장치가 아니라 이 실험의 결과를 '+
+      '크게 만드는 장치입니다 — 좋은 쪽으로도, 나쁜 쪽으로도.</li>'+
+    /* 청산 — 1배에는 없던 위험이다. 이걸 화면이 말하지 않으면 읽는
+       사람은 "많이 잃어도 계좌는 남는다"고 가정한다. 선물에서 그 가정은
+       틀렸고, 틀린 가정 위에서 위험을 잘못 읽는다. */
+    /*liq*/'<li><b>배율을 쓰면 청산이 생깁니다.</b> 자산이 총 노출의 <b>'+
+      ((Number(d.maintenance_margin_rate)||0)*100).toFixed(1)+'%</b> 밑으로 '+
+      '내려가면 전량 강제 청산합니다. 3배로 태운 자리는 <b>30%쯤 역행하면 '+
+      '거기서 끝</b>이고, 그 뒤 값이 되돌아와도 회복할 것이 없습니다. '+
+      '유지증거금률은 <b>가정치</b>이며 실제 거래소와 다릅니다.'+
+      ((Number(d.liquidations)||0)
+        ? ' <b class="down">지금까지 '+Number(d.liquidations)+'번 청산됐습니다.</b>'
+        : '')+'</li>'+
+    /*fund*/'<li><b>자금조달 비용을 뭅니다.</b> 무기한 선물은 8시간마다 포지션에 비례해 '+
       '돈을 주고받습니다. 이걸 빼면 이 트랙만 유리한 자로 재게 됩니다. '+
       '요율은 <b>가정치</b>입니다(8시간마다 '+
       ((Number(d.funding_rate_per_8h)||0)*100).toFixed(3)+'%) — 실제 요율을 '+
@@ -211,6 +244,11 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
     '<li><b>숏을 못 하는 종목은 못 한다고 적습니다.</b> 규칙으로 매매하는 종목은 '+
       '애초에 “내린다”는 신호를 내지 않습니다 — 억지로 만들지 않습니다.'+
       (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(", "))+'</b>':'')+'</li>'+
+    /* 규칙이 바뀐 날을 화면이 말한다. 안 적으면 곡선의 한 지점부터
+       성격이 달라지는데 보는 사람은 이유를 모른다 — 조용한 골대 이동이다. */
+    ((d.rule_changes||[]).map(function(c){
+      return '<li><b class="up">'+esc(c.on)+' — 규칙이 바뀌었습니다.</b> '+
+        esc(c.what)+' '+esc(c.why)+'</li>';}).join(""))+
     '<li><b>본 계좌와 완전히 분리</b>돼 있습니다. 자기 장부만 쓰고, 여기 숫자는 '+
       '100만 챌린지 판단에 쓰이지 않습니다.</li>'+
     '</ul>';

@@ -27,13 +27,54 @@
    붙는다(아래). 그래서 믿지 않고 **나란히 돌려서 잰다** — 같은 규칙,
    같은 비용, 같은 종목, 방향 허용 여부만 다르게.
 
-■ 이 트랙이 지키는 것
+■ 레버리지 — 확신에 비례해서 쓴다 (2026-08-22 사장님 지시)
 
-    ① **레버리지 없음(1배).** 사장님이 요청하신 것은 '양방향'이지
-       '레버리지'가 아니다. 총 노출(|롱|+|숏|)이 자산을 넘지 못한다.
-       선물이 위험한 주된 이유는 방향이 아니라 배율이고, 그 배율을 여기서
-       쓰지 않는다.
-    ② **자금조달 비용(funding)을 문다.** 무기한 선물은 8시간마다 포지션에
+    처음 만들 때는 1배로 잠가 두었다. 사장님 지시로 풀었다.
+
+        "선물은 레버리지를 써도 되게끔 해. 그만큼 수익 실현에 확신이
+         있으면 하는거잖아."
+
+    맞는 말이다. 그리고 이 시스템에는 **확신을 나타내는 숫자가 이미
+    있다** — 신호의 크기(|신호|)다. 머신러닝 챔피언의 신호는 상승 확률이
+    문턱에서 얼마나 멀리 떨어졌는지를 [-1, 1]로 담고 있다. 확률이 0.56이면
+    작은 수, 0.95면 큰 수다.
+
+    그래서 배율을 **사람이 고르지 않는다.** 신호가 고른다:
+
+        배율 = 1 + (최대배율 − 1) × |신호|
+
+    확신이 없는 날은 1배 그대로고, 모델이 크게 확신하는 날에만 배율이
+    올라간다. 이것이 "확신이 있으면 하는 것"의 실제 구현이다 — 매일 똑같이
+    3배를 태우는 것은 확신이 아니라 습관이다.
+
+    ⚠️ **그 확신이 실제로 맞는지는 아직 증명되지 않았다.** 모델의 확률이
+       잘 보정돼(calibrated) 있는지 이 트랙은 아직 재지 않았다. 확신이
+       클수록 크게 태우는데 그 확신이 틀리면 손실도 그만큼 커진다.
+       배율은 이 실험의 **가설을 키우는 장치**이지 우위를 만드는 장치가
+       아니다. 화면이 이 사실을 그대로 적는다.
+
+■ 배율을 쓰면 **1배에는 없던 위험**이 생긴다 — 청산
+
+    1배에서는 가격이 반토막 나도 계좌가 반토막 날 뿐이다. 3배에서는
+    **30%쯤 역행하면 증거금이 바닥나고 거래소가 강제로 청산한다.** 그
+    순간 손실이 확정되고, 그 뒤 가격이 되돌아와도 회복할 것이 없다.
+
+    실측(자산 10,000 · 확신 최대로 3배를 태운 롱):
+
+        10% 하락 → 자산 6,955 (증거금률 0.258)
+        20% 하락 → 자산 3,955 (0.165)
+        30% 하락 → 자산   955 (0.046) → **청산**
+
+    코인이 하루에 10% 넘게 움직이는 날은 드물지 않다. 배율은 그 하루를
+    계좌의 마지막 날로 만들 수 있다.
+
+    이걸 모델에 안 넣으면 이 트랙은 **현실에 존재할 수 없는 성적**을
+    낸다 — 실제로는 이미 털렸을 자리에서 계속 버티는 계좌가 된다.
+    그래서 유지증거금을 재고, 밑돌면 전량 청산한다(`liquidation_check`).
+
+■ 이 트랙이 지키는 나머지
+
+    ① **자금조달 비용(funding)을 문다.** 무기한 선물은 8시간마다 포지션에
        비례해 돈을 주고받는다. 이걸 빼면 이 트랙만 유리한 자로 재게 된다 —
        이 저장소가 감사 296에서 고친 바로 그 병이다.
     ③ **숏에는 하드 스톱이 있다.** 롱은 최대 −100%지만 숏은 이론상 손실이
@@ -65,10 +106,38 @@ KIND = "futures-experiment"
 ROUNDS_KEEP = 2000
 CURVE_KEEP = 500
 
-# ⚠️ 레버리지 금지선. 총 노출(|롱|+|숏|)이 자산의 이 배수를 못 넘는다.
-#    1.0 = 레버리지 없음. **이 값을 올리는 것은 전략 변경이 아니라
-#    위험 성격의 변경이다** — 사장님 승인 없이 올리지 않는다.
-MAX_GROSS_EXPOSURE = 1.0
+# ⚠️ 배율 상한. 총 노출(|롱|+|숏|)이 자산의 이 배수를 못 넘는다.
+#    **이 값을 올리는 것은 전략 변경이 아니라 위험 성격의 변경이다** —
+#    사장님 승인 없이 올리지 않는다.
+#
+#    2026-08-22 사장님 지시로 1.0 → 3.0. 3을 고른 이유: 유지증거금
+#    (MAINTENANCE_MARGIN_RATE) 기준으로 3배는 **약 29.7% 역행에서 청산**
+#    된다(손으로 검산: 자산 10,000·노출 30,000에서 30% 하락 → 자산 955,
+#    증거금률 0.0455 < 0.05 → 청산).
+#    코인 하루 변동이 10%를 넘는 날이 드물지 않으므로 그보다 크게 잡으면
+#    '실험'이 아니라 '동전 던지기'가 된다. 더 올리려면 청산 문턱이 어디로
+#    내려가는지 함께 보고 정해야 한다.
+MAX_GROSS_EXPOSURE = 3.0
+
+# 유지증거금률 — 자산이 총 노출의 이 비율 밑으로 내려가면 **강제 청산**.
+# 실제 거래소는 종목·구간마다 다르게 매기지만(0.4%~수%), 여기서는 하나로
+# 잡고 화면에 가정이라고 적는다. 0으로 두는 것보다 이쪽이 정직하다 —
+# 0은 "청산이 없다"는 주장이고, 그 주장은 선물에서 거짓이다.
+MAINTENANCE_MARGIN_RATE = 0.05
+
+# ⚠️ **규칙이 바뀐 날을 기록에 남긴다.** 이 트랙은 1배로 24회차를 돌고
+#    나서 배율이 켜졌다. 그 사실을 안 적으면 자산 곡선의 한 지점부터
+#    성격이 달라지는데 보는 사람은 이유를 모른다 — 그건 조용한 골대
+#    이동이고, 이 저장소가 판정 시계에서 가장 엄격하게 막는 것이다
+#    (감사 308. 과거 회차는 고치지 않는다 — 그때는 정말 1배였다).
+LEVERAGE_ENABLED_ON = "2026-08-23"
+RULE_CHANGES = [
+    {"on": LEVERAGE_ENABLED_ON,
+     "what": "배율을 켰습니다(최대 3배, 신호의 확신에 비례). 청산도 함께 "
+             "모델에 넣었습니다.",
+     "why": "사장님 지시 — \"그만큼 수익 실현에 확신이 있으면 하는거잖아\". "
+            "이 날 이전 회차는 전부 1배이며, 그 기록은 고치지 않았습니다."},
+]
 
 # 무기한 선물 자금조달 — 8시간마다 정산된다. 실제 요율은 시장마다 매
 # 시각 다르고 이 배치는 그 값을 받아 오지 않는다. 그래서 **받아 온 척하지
@@ -85,8 +154,12 @@ SHORT_STOP_PCT = 0.25
 HONEST_LIMITS = [
     "가상 자금(USDT)입니다 — 실제 돈이 아니고, 실제 호가·유동성·증거금을 "
     "겪지 않습니다",
-    "레버리지를 쓰지 않습니다(1배) — 총 노출이 자산을 넘지 않습니다. "
-    "실제 선물 계좌의 위험과 다릅니다",
+    "레버리지를 씁니다(최대 3배). 배율은 **신호의 확신에 비례**합니다 — "
+    "확신이 없는 날은 1배입니다. 다만 그 확신이 실제로 맞는지는 이 트랙이 "
+    "아직 증명하지 않았습니다",
+    "배율을 쓰면 **청산**이 생깁니다. 자산이 총 노출의 5% 밑으로 내려가면 "
+    "전량 강제 청산합니다 — 그 뒤 가격이 되돌아와도 회복할 것이 없습니다. "
+    "유지증거금률 5%는 **가정치**이며 실제 거래소와 다릅니다",
     "자금조달 비용은 **가정치**입니다(8시간마다 0.01%) — 실제 요율을 받아 "
     "오지 않습니다. 실제와 다를 수 있습니다",
     "숏은 머신러닝 챔피언이 붙은 종목에서만 가능합니다 — 규칙 전략은 "
@@ -124,6 +197,7 @@ def load_state(state_dir: str = "state") -> dict:
     st.setdefault("rounds", [])
     st.setdefault("curve", [])
     st.setdefault("last_prices", {})
+    st.setdefault("liquidations", 0)
     return st
 
 
@@ -191,6 +265,67 @@ def funding_cost(st: dict, prices: dict, hours: float,
         if px:
             net += float(q) * float(px)      # 롱은 +, 숏은 −
     return net * float(rate_per_8h) * periods
+
+
+def leverage_for(signal, max_leverage: float = MAX_GROSS_EXPOSURE) -> float:
+    """그 신호의 확신에 비례한 배율 (2026-08-22 사장님 지시).
+
+        배율 = 1 + (최대배율 − 1) × |신호|
+
+    ⚠️ **배율을 사람이 고르지 않는다.** 매일 똑같이 3배를 태우는 것은
+       확신이 아니라 습관이다. 신호의 크기가 곧 모델의 확신이므로, 확신이
+       없는 날은 1배 그대로고 크게 확신하는 날에만 올라간다.
+
+    신호가 없거나 이상하면 **1배**로 떨어진다 — 모르는 날에 크게 태우는
+    것이 이 트랙이 할 수 있는 가장 나쁜 일이다.
+    """
+    try:
+        conviction = abs(float(signal))
+    except (TypeError, ValueError):
+        return 1.0
+    if not (conviction == conviction) or conviction < 0:      # NaN 방어
+        return 1.0
+    conviction = min(1.0, conviction)
+    top = max(1.0, float(max_leverage))
+    return 1.0 + (top - 1.0) * conviction
+
+
+def margin_ratio(st: dict, prices: dict) -> float | None:
+    """자산 ÷ 총 노출. 못 재면 None(포지션이 없으면 잴 것이 없다)."""
+    gross = gross_exposure(st, prices)
+    if gross <= 0:
+        return None
+    return mark_equity(st, prices) / gross
+
+
+def liquidation_check(st: dict, prices: dict,
+                      rate: float = MAINTENANCE_MARGIN_RATE) -> dict | None:
+    """증거금이 바닥났나 — 바닥났으면 **전량 강제 청산**한다.
+
+    ⚠️ 배율을 쓰는 순간 생기는, 1배에는 없던 위험이다. 1배에서는 가격이
+       반토막 나도 계좌가 반토막 날 뿐이지만 3배에서는 28%쯤 역행하면
+       증거금이 바닥나고 거래소가 강제로 청산한다. 그 순간 손실이
+       확정되고, **그 뒤 가격이 되돌아와도 회복할 것이 없다.**
+
+       이걸 모델에 안 넣으면 이 트랙은 현실에 존재할 수 없는 성적을 낸다 —
+       실제로는 이미 털렸을 자리에서 계속 버티는 계좌가 된다. 화면이 그런
+       숫자를 자랑하면 그 페이지는 증거가 아니라 광고다.
+
+    돌려주는 값: 청산이 일어났으면 그 내역, 아니면 None.
+    """
+    ratio = margin_ratio(st, prices)
+    if ratio is None or ratio > float(rate):
+        return None
+    closed = sorted((st.get("positions") or {}).keys())
+    equity_before = mark_equity(st, prices)
+    # 남은 것을 전부 시장가로 덮는다 — 청산은 값을 고르지 않는다.
+    st["cash"] = equity_before
+    st["positions"] = {}
+    st["avg_cost"] = {}
+    st["liquidations"] = int(st.get("liquidations") or 0) + 1
+    return {"at_ratio": round(ratio, 6), "closed": closed,
+            "equity": round(equity_before, 4),
+            "maintenance_rate": float(rate)}
 
 
 def stopped_out(st: dict, prices: dict,
@@ -263,7 +398,10 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
             continue
         cur_qty = float(positions.get(sym, 0.0))
         cur_notional = cur_qty * px
-        target = slice_budget * float(sig)
+        # 배율은 **그 신호의 확신**이 정한다(2026-08-22 사장님 지시).
+        # 확신이 없는 날은 1배 그대로다 — 모르는 날에 크게 태우는 것이
+        # 이 트랙이 할 수 있는 가장 나쁜 일이다.
+        target = slice_budget * float(sig) * leverage_for(sig, max_gross)
         delta = target - cur_notional
         if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
             continue
@@ -422,7 +560,15 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         signals[sym] = max(-1.0, min(1.0, sig))
         prices[sym] = float(df["close"].iloc[-1])
 
-    # 하드 스톱이 먼저다 — 새 판단보다 위험 축소가 앞선다.
+    # ⚠️ **청산이 가장 먼저다.** 증거금이 바닥났으면 그 자리에서 끝이고,
+    #    그날의 판단은 의미가 없다. 순서를 바꾸면 이미 털렸어야 할 계좌가
+    #    한 회차를 더 버티며 새 포지션을 여는, 현실에 없는 장부가 된다.
+    liq = liquidation_check(st, prices)
+    if liq:
+        log.error("💀 선물 강제 청산 — 증거금률 %.4f · 종목 %s",
+                  liq["at_ratio"], ", ".join(liq["closed"]) or "-")
+
+    # 하드 스톱이 그다음 — 새 판단보다 위험 축소가 앞선다.
     stops = stopped_out(st, prices)
     for sym in stops:
         signals[sym] = 0.0
@@ -449,8 +595,12 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
                        for k, v in signals.items()},
            "positions": {k: round(v, 10)
                          for k, v in (st.get("positions") or {}).items()},
+           "margin_ratio": (round(margin_ratio(st, prices), 6)
+                            if margin_ratio(st, prices) is not None else None),
            "trades": trades, "skipped": skipped,
            "long_only": long_only, "stopped": stops}
+    if liq:
+        rec["liquidated"] = liq
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
     st["curve"] = (st.get("curve") or [])[-(CURVE_KEEP - 1):] + [
         {"at": now_iso, "equity": round(equity, 4)}]
@@ -521,6 +671,12 @@ def public_report(st: dict) -> dict:
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,
         "max_gross_exposure": MAX_GROSS_EXPOSURE,
+        # 규칙이 바뀐 지점 — 곡선을 읽는 사람이 이유를 알 수 있게.
+        "rule_changes": list(RULE_CHANGES),
+        "maintenance_margin_rate": MAINTENANCE_MARGIN_RATE,
+        "margin_ratio": last.get("margin_ratio"),
+        "liquidations": int(st.get("liquidations") or 0),
+        "liquidated": last.get("liquidated"),
         "short_stop_pct": SHORT_STOP_PCT,
         "gross_exposure": last.get("gross_exposure"),
         "long_positions": longs,

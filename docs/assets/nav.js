@@ -22,7 +22,7 @@
     ["index.html", "100만 챌린지"],
     ["intraday.html", "코인 단타"],
     ["us.html", "미국주식 단타"],
-    ["futures.html", "선물 양방향"],
+    ["futures.html", "코인 선물"],
     // paper.html은 100만 챌린지의 '자세히 보기'다 — 트랙 넷을 앞으로
     // 뽑으면서 뒤로 옮겼을 뿐, 감추지 않는다.
     ["paper.html", "실기록 (100만)"],

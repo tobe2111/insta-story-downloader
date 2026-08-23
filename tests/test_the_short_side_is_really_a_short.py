@@ -38,9 +38,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from quant.live.futures_challenger import (          # noqa: E402
-    FUNDING_RATE_PER_8H, MAX_GROSS_EXPOSURE, SHORT_STOP_PCT,
-    apply_funding, can_short, execute_targets, funding_cost,
-    gross_exposure, load_state, mark_equity, stopped_out,
+    FUNDING_RATE_PER_8H, MAINTENANCE_MARGIN_RATE, MAX_GROSS_EXPOSURE,
+    SHORT_STOP_PCT, apply_funding, can_short, execute_targets, funding_cost,
+    gross_exposure, leverage_for, liquidation_check, load_state,
+    margin_ratio, mark_equity, stopped_out,
 )
 
 FEE = 0.0015                    # 편도 비용률(코인) — 실전 모델과 같은 값
@@ -122,8 +123,15 @@ def test_closing_a_short_at_a_higher_price_is_a_loss():
 #    한도가 무는 진짜 상황은 **손실이 난 뒤**다. 숏을 열어 둔 채 가격이
 #    오르면 자산은 줄고 노출은 늘어난다 — 그때가 배율이 저절로 생기는
 #    순간이고, 여기서 브레이크가 밟혀야 한다.
-def _short_then_adverse_move(uni, entry=100.0, later=150.0):
-    """숏을 열어 두고 가격이 크게 올라간 상태의 장부를 만든다."""
+def _short_then_adverse_move(uni, entry=100.0, later=115.0):
+    """숏을 열어 두고 가격이 올라간 상태의 장부를 만든다.
+
+    ⚠️ 예전에는 50% 상승을 썼다. 배율이 1배일 때는 그래도 계좌가 살아
+       있었지만, 3배에서는 **청산선을 지나쳐** 계좌가 통째로 날아간다
+       (감사 308). 한도 검사를 하려는데 계좌가 없어지면 잴 것이 없다.
+       그래서 청산 전이면서 노출이 자산을 크게 넘는 자리(15%)를 쓴다:
+       실측으로 자산 5,455 · 노출 34,500 · 증거금률 0.158(유지선 0.05).
+    """
     st = _fresh()
     px = {s: entry for s in uni}
     execute_targets(st, {s: -1.0 for s in uni}, px, 10_000.0, FEE, uni)
@@ -143,13 +151,13 @@ def test_a_short_cannot_grow_the_book_without_limit():
     """
     uni = ["BTC/USDT", "ETH/USDT"]
     st, px, eq = _short_then_adverse_move(uni)
-    assert gross_exposure(st, px) > eq * 2, (
-        "전제가 안 만들어졌다 — 손실 뒤에 노출이 자산을 넘어야 한다")
+    assert gross_exposure(st, px) > eq * MAX_GROSS_EXPOSURE, (
+        "전제가 안 만들어졌다 — 손실 뒤에 노출이 상한을 넘어야 한다")
     execute_targets(st, {s: -1.0 for s in uni}, px, eq, FEE, uni)
     gross = gross_exposure(st, px)
     assert gross <= eq * MAX_GROSS_EXPOSURE + 1.0, (
         f"총 노출 {gross:,.2f}가 자산 {eq:,.2f}의 {MAX_GROSS_EXPOSURE}배를 "
-        "넘은 채로 남았다 — 배율이 저절로 걸렸다")
+        "넘은 채로 남았다 — 상한 위로 배율이 더 걸렸다")
 
 
 def test_long_and_short_together_do_not_cancel_the_limit():
@@ -205,13 +213,15 @@ def test_a_new_position_cannot_be_opened_while_already_over_the_limit():
     """
     uni = ["BTC/USDT", "ETH/USDT"]
     st = _fresh()
-    # BTC만 크게 숏 → 그 뒤 가격이 두 배가 되면 노출이 자산을 크게 넘는다.
+    # BTC만 숏 → 그 뒤 값이 오르면 노출이 상한을 넘는다.
     execute_targets(st, {"BTC/USDT": -1.0, "ETH/USDT": 0.0},
                     {"BTC/USDT": 100.0, "ETH/USDT": 50.0},
                     10_000.0, FEE, uni)
-    px = {"BTC/USDT": 200.0, "ETH/USDT": 50.0}
+    px = {"BTC/USDT": 140.0, "ETH/USDT": 50.0}
     eq = mark_equity(st, px)
-    assert gross_exposure(st, px) > eq, "전제가 안 만들어졌다"
+    assert gross_exposure(st, px) > eq * MAX_GROSS_EXPOSURE, (
+        f"전제가 안 만들어졌다 — 노출 {gross_exposure(st, px):,.0f} vs "
+        f"상한 {eq * MAX_GROSS_EXPOSURE:,.0f}")
     assert "ETH/USDT" not in st["positions"]
     execute_targets(st, {"BTC/USDT": -1.0, "ETH/USDT": -1.0}, px, eq,
                     FEE, uni)
@@ -242,12 +252,12 @@ def test_an_oversized_signal_cannot_buy_leverage():
     px = {s: 100.0 for s in uni}
     # 신호 3.0 — 크기 계산이 바뀌면 이런 값이 들어올 수 있다. 한도가
     # 없으면 자산의 세 배가 걸린다.
-    execute_targets(st, {s: -3.0 for s in uni}, px, 10_000.0, FEE, uni)
+    execute_targets(st, {s: -9.0 for s in uni}, px, 10_000.0, FEE, uni)
     gross = gross_exposure(st, px)
     eq = mark_equity(st, px)
     assert gross <= 10_000.0 * MAX_GROSS_EXPOSURE + 1.0, (
-        f"신호가 1을 넘자 총 노출 {gross:,.2f}가 한도(자산 {eq:,.2f}의 "
-        f"{MAX_GROSS_EXPOSURE}배)를 넘었다 — 배율이 걸렸다")
+        f"신호가 1을 넘자 총 노출 {gross:,.2f}가 상한(자산 {eq:,.2f}의 "
+        f"{MAX_GROSS_EXPOSURE}배)을 넘었다 — 상한 위로 배율이 더 걸렸다")
     for sym in uni:
         assert st["positions"].get(sym, 0.0) <= 0, (
             f"{sym}: 한도가 숏을 롱으로 뒤집었다")
@@ -264,8 +274,8 @@ def test_a_normal_signal_is_not_clipped_by_the_limit():
     px = {s: 100.0 for s in uni}
     execute_targets(st, {s: -1.0 for s in uni}, px, 10_000.0, FEE, uni)
     gross = gross_exposure(st, px)
-    assert gross > 9_000.0, (
-        f"신호가 정상 범위인데 한도가 주문을 깎았다 — 총 노출 {gross:,.2f}")
+    assert gross > 10_000.0 * MAX_GROSS_EXPOSURE * 0.9, (
+        f"신호가 정상 범위인데 상한이 주문을 깎았다 — 총 노출 {gross:,.2f}")
 
 
 def test_room_freed_earlier_in_the_round_is_usable():
@@ -276,11 +286,11 @@ def test_room_freed_earlier_in_the_round_is_usable():
     """
     uni = ["BTC/USDT", "ETH/USDT"]
     st = _fresh()
-    # BTC만 크게 숏 → 가격이 두 배가 되어 노출이 자산을 넘는다.
+    # BTC만 숏 → 값이 올라 노출이 상한을 넘는다.
     execute_targets(st, {"BTC/USDT": -1.0, "ETH/USDT": 0.0},
                     {"BTC/USDT": 100.0, "ETH/USDT": 50.0},
                     10_000.0, FEE, uni)
-    px = {"BTC/USDT": 200.0, "ETH/USDT": 50.0}
+    px = {"BTC/USDT": 120.0, "ETH/USDT": 50.0}
     eq = mark_equity(st, px)
     # 이번 회차에 BTC는 크게 줄고(목표 = 자산/2), 그만큼 자리가 생긴다.
     execute_targets(st, {"BTC/USDT": -1.0, "ETH/USDT": -1.0}, px, eq,
@@ -630,6 +640,26 @@ def _render(tmp_path, data):
     return out
 
 
+def _rule_items(v) -> list:
+    """'제한' 블록의 **항목별** 글자.
+
+    ⚠️ 블록 전체에서 낱말을 찾으면 **이웃 항목의 같은 낱말**에 걸린다.
+       실제로 그랬다(감사 308) — 배율 항목을 통째로 지우는 변이가 청산
+       항목의 '배율'·'확신' 덕에 살아남았고, 자금조달 항목을 지우는 변이가
+       청산 항목의 '가정치' 덕에 살아남았다. 이웃이 대신 말해 주는 검사는
+       그 항목을 하나도 안 지킨다. 그래서 항목마다 따로 본다.
+    """
+    return [line.strip() for line in v["제한"].split("\n") if line.strip()]
+
+
+def _rule_saying(v, *words):
+    """그 낱말들을 **한 항목 안에서 전부** 말하는 줄. 없으면 None."""
+    for item in _rule_items(v):
+        if all(w in item for w in words):
+            return item
+    return None
+
+
 def test_the_page_shows_both_directions(tmp_path):
     v = _render(tmp_path, _SAMPLE)
     assert "숏" in v["보유"] and "롱" in v["보유"], (
@@ -641,21 +671,143 @@ def test_the_page_shows_both_directions(tmp_path):
         f"아무 뜻이 없다:\n{v['보유']}")
 
 
-def test_the_page_says_there_is_no_leverage(tmp_path):
-    """**가장 중요한 문장.** 선물이라는 말은 배율을 떠올리게 한다.
+def test_the_page_says_how_the_leverage_is_decided(tmp_path):
+    """배율을 **누가 정하는지** 화면이 말한다 (감사 308).
 
-    이 트랙이 배율을 안 쓴다는 사실이 화면에 없으면, 읽는 사람은 있다고
-    가정한다 — 그리고 그 가정 위에서 위험을 잘못 읽는다.
+    사장님 지시(2026-08-22): *"선물은 레버리지를 써도 되게끔 해. 그만큼
+    수익 실현에 확신이 있으면 하는거잖아."*
+
+    핵심은 '배율을 쓴다'가 아니라 **'확신이 있으면'**이다. 그래서 배율을
+    사람이 고르지 않고 신호의 크기가 정한다 — 확신이 없는 날은 1배다.
+    화면이 그 규칙을 말하지 않으면, 읽는 사람은 매일 최대치를 태우는
+    계좌로 읽는다.
+
+    ⚠️ **'제한' 블록 안에서** 찾는다. 처음엔 페이지 전체에서 찾았는데
+       머리말·한계 목록에도 같은 말이 있어서 정작 제한 항목을 통째로
+       지워도 통과했다 — 변이 시험이 알려 줬다(감사 304).
     """
     v = _render(tmp_path, _SAMPLE)
-    # ⚠️ **'제한' 블록 안에서** 찾는다. 처음엔 페이지 전체에서 '레버리지'를
-    #    찾았는데, 그 단어는 머리말과 한계 목록에도 있어서 정작 제한 항목을
-    #    통째로 지워도 통과했다 — 변이 시험이 알려 줬다(감사 304).
-    assert "레버리지" in v["제한"], (
-        f"제한 항목에 배율 이야기가 없다:\n{v['제한']}")
-    assert "레버리지를 쓰지 않습니다" in v["제한"], (
-        f"배율을 안 쓴다는 말이 제한 항목에 없다 — '선물'이라는 말은 배율을 "
-        f"떠올리게 하므로, 없으면 있다고 가정된다:\n{v['제한']}")
+    item = _rule_saying(v, "배율", "확신", "1배")
+    assert item, (
+        "배율·확신·1배를 **한 항목 안에서** 말하는 줄이 없다 — 배율을 "
+        f"무엇이 정하는지 말하지 않으면 매일 최대치를 태우는 계좌로 "
+        f"읽힌다:\n{v['제한']}")
+
+
+def test_the_page_admits_the_conviction_is_unproven(tmp_path):
+    """대조군 — 배율을 자랑으로 적으면 안 된다.
+
+    "확신에 비례한다"만 적으면 그 확신이 검증된 것처럼 읽힌다. 이 트랙은
+    모델의 확률이 잘 보정돼 있는지 **아직 재지 않았다.** 확신이 클수록
+    크게 태우는데 그 확신이 틀리면 손실도 그만큼 커진다.
+    """
+    v = _render(tmp_path, _SAMPLE)
+    assert _rule_saying(v, "확신", "증명"), (
+        f"확신이 아직 증명되지 않았다는 말이 배율 항목에 없다 — 배율을 "
+        f"우위처럼 적으면 그 페이지는 증거가 아니라 광고다:\n{v['제한']}")
+
+
+def test_the_page_warns_that_leverage_brings_liquidation(tmp_path):
+    """**배율을 켠 순간 생긴, 1배에는 없던 위험.**
+
+    화면이 청산을 말하지 않으면 읽는 사람은 "많이 잃어도 계좌는 남는다"고
+    가정한다. 선물에서 그 가정은 틀렸고, 틀린 가정 위에서 위험을 잘못
+    읽는다.
+    """
+    v = _render(tmp_path, _SAMPLE)
+    item = _rule_saying(v, "청산", "회복할 것이 없")
+    assert item, (
+        "청산과 '회복할 것이 없다'를 **한 항목 안에서** 말하는 줄이 없다 — "
+        f"그냥 손실과 같은 것으로 읽힌다:\n{v['제한']}")
+    assert "%" in item, (
+        f"어느 지점에서 청산되는지 숫자가 없다: {item}")
+
+
+def test_the_page_shows_how_much_margin_is_left(tmp_path):
+    """지금 얼마나 여유가 있는지 — 안 보이면 청산이 갑자기 온 것처럼 읽힌다."""
+    data = dict(_SAMPLE, margin_ratio=0.184,
+                maintenance_margin_rate=0.05)
+    v = _render(tmp_path, data)
+    assert "증거금률" in v["요약"], f"증거금률 칸이 없다:\n{v['요약']}"
+    assert "18.4" in v["요약"], f"증거금률 값이 안 나온다:\n{v['요약']}"
+    assert "유지선" in v["요약"], (
+        f"유지선이 어디인지 안 보인다 — 숫자만으로는 위험한지 알 수 없다:"
+        f"\n{v['요약']}")
+
+
+def test_the_page_says_nothing_when_there_is_no_margin_to_measure(tmp_path):
+    """대조군 — 포지션이 없으면 증거금률은 '—'다.
+
+    0%로 그리면 '청산 직전'으로 읽히는데, 실제로는 걸린 것이 없다는 뜻이다.
+    """
+    data = dict(_SAMPLE, margin_ratio=None, maintenance_margin_rate=0.05)
+    v = _render(tmp_path, data)
+    # ⚠️ 요약 전체에서 '—'를 찾으면 다른 칸의 '—'에 걸린다. **증거금률 줄**을
+    #    골라 본다(감사 308 — 변이 시험이 그 헐거움을 알려 줬다).
+    line = next((ln for ln in v["요약"].split("\n") if "유지선" in ln), "")
+    assert line, f"증거금률 줄이 아예 없다:\n{v['요약']}"
+    assert "—" in line, f"잴 것이 없는데 숫자를 그렸다: {line!r}"
+    assert "0.0%" not in line.split("/")[0], (
+        f"잴 것이 없는 증거금률을 0%로 그렸다 — '청산 직전'으로 읽힌다: "
+        f"{line!r}")
+
+
+def test_a_liquidation_is_announced_loudly(tmp_path):
+    """청산은 조용히 지나가면 안 된다."""
+    data = dict(_SAMPLE, liquidations=1, liquidated={
+        "at_ratio": 0.0455, "closed": ["BTC/USDT", "ETH/USDT"],
+        "equity": 955.0, "maintenance_rate": 0.05})
+    v = _render(tmp_path, data)
+    assert "강제 청산" in v["요약"], (
+        f"청산이 일어났는데 요약이 조용하다:\n{v['요약']}")
+    assert "4.55" in v["요약"], f"어느 지점에서 털렸는지 안 말한다:\n{v['요약']}"
+    assert "1번 청산" in v["제한"], (
+        f"청산 횟수를 제한 항목이 말하지 않는다:\n{v['제한']}")
+
+
+def test_the_page_says_when_the_rule_changed(tmp_path):
+    """규칙이 바뀐 날을 화면이 말한다 (감사 308).
+
+    이 트랙은 **1배로 24회차를 돌고 나서** 배율이 켜졌다. 그 사실을 안
+    적으면 자산 곡선의 한 지점부터 성격이 달라지는데 보는 사람은 이유를
+    모른다 — 그건 조용한 골대 이동이고, 이 저장소가 판정 시계에서 가장
+    엄격하게 막는 것이다.
+
+    ⚠️ 과거 회차는 고치지 않는다. 그때는 정말 1배였다.
+    """
+    from quant.live.futures_challenger import LEVERAGE_ENABLED_ON, RULE_CHANGES
+    data = dict(_SAMPLE, rule_changes=list(RULE_CHANGES))
+    v = _render(tmp_path, data)
+    item = _rule_saying(v, LEVERAGE_ENABLED_ON, "규칙이 바뀌었습니다")
+    assert item, (
+        f"배율을 켠 날을 화면이 말하지 않는다 — 곡선이 왜 달라졌는지 "
+        f"읽는 사람이 알 수 없다:\n{v['제한']}")
+    assert "1배" in item, (
+        f"그 전에는 1배였다는 사실을 말하지 않는다: {item}")
+
+
+def test_the_report_carries_the_rule_change(tmp_path):
+    """**배선** — 화면이 그릴 재료가 리포트에 실린다."""
+    from quant.live.futures_challenger import public_report
+    out = public_report(load_state(str(tmp_path)))
+    changes = out.get("rule_changes") or []
+    assert changes, f"규칙 변경 이력이 리포트에 없다: {sorted(out)}"
+    assert changes[0].get("on") and changes[0].get("what")
+
+
+def test_a_track_without_rule_changes_says_nothing(tmp_path):
+    """대조군 — 바뀐 게 없으면 그런 줄이 없어야 한다."""
+    data = dict(_SAMPLE, rule_changes=[])
+    v = _render(tmp_path, data)
+    assert not _rule_saying(v, "규칙이 바뀌었습니다"), (
+        f"바뀐 게 없는데 바뀌었다고 말한다:\n{v['제한']}")
+
+
+def test_a_healthy_account_is_not_told_it_was_liquidated(tmp_path):
+    """대조군 — 청산이 없었으면 그런 말이 없어야 한다."""
+    v = _render(tmp_path, _SAMPLE)
+    assert "강제 청산" not in v["요약"], (
+        f"청산이 없었는데 청산됐다고 말한다:\n{v['요약']}")
 
 
 def test_the_page_admits_the_funding_rate_is_an_assumption(tmp_path):
@@ -663,6 +815,22 @@ def test_the_page_admits_the_funding_rate_is_an_assumption(tmp_path):
     v = _render(tmp_path, _SAMPLE)
     assert "가정" in v["제한"], (
         f"자금조달 요율이 가정치라는 말이 없다:\n{v['제한']}")
+
+
+def test_the_page_says_it_pays_funding(tmp_path):
+    """자금조달을 **문다**는 사실이 제 항목에서 살아 있어야 한다.
+
+    ⚠️ 예전에는 '가정'이라는 낱말을 제한 블록 전체에서 찾았다. 그런데
+       청산 항목에도 "유지증거금률은 가정치"가 있어서, 자금조달 항목을
+       통째로 지워도 통과했다(감사 308). 이웃이 대신 말해 주는 검사는
+       그 항목을 하나도 안 지킨다.
+    """
+    v = _render(tmp_path, _SAMPLE)
+    item = _rule_saying(v, "자금조달", "가정")
+    assert item, (
+        f"자금조달을 문다는 항목이 없다 — 안 무는 트랙으로 읽힌다:"
+        f"\n{v['제한']}")
+    assert "8시간" in item, f"정산 주기를 말하지 않는다: {item}"
 
 
 def test_the_page_says_which_symbols_cannot_short(tmp_path):
@@ -744,3 +912,171 @@ def test_the_page_says_nothing_rather_than_guessing(tmp_path):
         srv.shutdown()
     assert "없" in txt or "못" in txt, (
         f"기록이 없는데 숫자를 지어냈다: {txt}")
+
+
+# ── ⑧ 배율은 확신이 정한다 (2026-08-22 사장님 지시) ───────────
+
+def test_no_conviction_means_no_leverage():
+    """**이 규칙의 핵심.** 확신이 없는 날은 1배다.
+
+    사장님 지시: *"그만큼 수익 실현에 확신이 있으면 하는거잖아."*
+    매일 똑같이 최대치를 태우는 것은 확신이 아니라 습관이다.
+    """
+    assert leverage_for(0.0) == pytest.approx(1.0)
+    assert leverage_for(1.0) == pytest.approx(MAX_GROSS_EXPOSURE)
+    assert leverage_for(0.5) == pytest.approx(
+        1.0 + (MAX_GROSS_EXPOSURE - 1.0) * 0.5)
+
+
+def test_leverage_grows_with_conviction():
+    prev = 0.0
+    for c in (0.0, 0.2, 0.5, 0.8, 1.0):
+        lev = leverage_for(c)
+        assert lev >= prev, f"확신이 커졌는데 배율이 안 커진다: {c} → {lev}"
+        prev = lev
+    assert leverage_for(1.0) > leverage_for(0.0), "배율이 아예 안 움직인다"
+
+
+def test_a_short_uses_the_same_leverage_as_a_long():
+    """방향이 배율을 바꾸면 안 된다 — 확신의 크기만 본다."""
+    assert leverage_for(-0.8) == pytest.approx(leverage_for(0.8))
+
+
+def test_an_unknown_signal_falls_back_to_one():
+    """모르는 날에 크게 태우는 것이 이 트랙이 할 수 있는 가장 나쁜 일이다."""
+    for bad in (None, float("nan"), "", "abc"):
+        assert leverage_for(bad) == pytest.approx(1.0), bad
+
+
+def test_leverage_never_exceeds_the_cap():
+    """신호가 1을 넘어와도 배율은 상한에서 멈춘다."""
+    assert leverage_for(5.0) == pytest.approx(MAX_GROSS_EXPOSURE)
+
+
+def test_conviction_actually_changes_the_position_size():
+    """**배선** — 규칙이 맞아도 체결에 안 붙으면 없는 것과 같다."""
+    px = {"BTC/USDT": 100.0}
+    weak, strong = _fresh(), _fresh()
+    execute_targets(weak, {"BTC/USDT": 0.3}, px, 10_000.0, FEE, ONE)
+    execute_targets(strong, {"BTC/USDT": 1.0}, px, 10_000.0, FEE, ONE)
+    w, t = gross_exposure(weak, px), gross_exposure(strong, px)
+    assert t > w * 2, (
+        f"확신이 세 배 이상 차이 나는데 크기가 비슷하다 — 배율이 안 붙었다: "
+        f"약한 신호 {w:,.0f} vs 센 신호 {t:,.0f}")
+
+
+# ── ⑨ 배율을 쓰면 청산이 생긴다 ───────────────────────────────
+
+def test_a_leveraged_position_can_be_liquidated():
+    """**1배에는 없던 위험.**
+
+    실측: 자산 10,000을 확신 최대(3배)로 태운 롱이 30% 하락하면 자산
+    955 · 증거금률 0.046 → 유지선(0.05) 밑 → 전량 강제 청산.
+    """
+    st = _fresh()
+    execute_targets(st, {"BTC/USDT": 1.0}, {"BTC/USDT": 100.0},
+                    10_000.0, FEE, ONE)
+    crashed = {"BTC/USDT": 70.0}
+    ratio = margin_ratio(st, crashed)
+    assert ratio is not None and ratio <= MAINTENANCE_MARGIN_RATE, (
+        f"전제가 안 만들어졌다 — 증거금률 {ratio}")
+    liq = liquidation_check(st, crashed)
+    assert liq, "증거금이 바닥났는데 청산이 안 일어났다"
+    assert st["positions"] == {}, f"청산했는데 포지션이 남았다: {st['positions']}"
+    assert st["liquidations"] == 1
+    assert liq["closed"] == ["BTC/USDT"]
+
+
+def test_a_healthy_account_is_not_liquidated():
+    """대조군 — 조금 잃었다고 터는 것은 청산이 아니라 고장이다."""
+    st = _fresh()
+    execute_targets(st, {"BTC/USDT": 1.0}, {"BTC/USDT": 100.0},
+                    10_000.0, FEE, ONE)
+    assert liquidation_check(st, {"BTC/USDT": 95.0}) is None, (
+        "5% 하락에 청산됐다")
+    assert st["positions"], "청산이 안 일어났는데 포지션이 사라졌다"
+
+
+def test_the_margin_is_measured_on_gross_not_net():
+    """롱과 숏이 서로를 상쇄하면 **위험이 안 보인다.**
+
+    ⚠️ 이 자리를 찾는 데 변이 시험이 필요했다(감사 308). 앞선 검사들은
+       전부 한 종목만 들고 있어서 |합| 과 합|·| 이 같았다 — 순노출로
+       재도 결과가 같으니 그 결함이 통과했다.
+
+    롱 1억·숏 1억이면 순노출은 0이다. 그건 위험이 없다는 뜻이 아니라
+    **두 배로 걸려 있다**는 뜻이고, 어느 한쪽이 크게 밀리면 계좌가 죽는다.
+    순노출로 재면 증거금률이 무한대로 보여 **청산이 영영 안 걸린다.**
+    """
+    st = _fresh()
+    px = {"BTC/USDT": 100.0, "ETH/USDT": 100.0}
+    # 손으로 만든 장부 — 롱 5,000 · 숏 5,000. 순노출 0, 총 노출 10,000.
+    st["positions"] = {"BTC/USDT": 50.0, "ETH/USDT": -50.0}
+    net = sum(q * px[k] for k, q in st["positions"].items())
+    assert abs(net) < 1e-9, f"전제가 안 만들어졌다 — 순노출 {net}"
+    assert gross_exposure(st, px) == pytest.approx(10_000.0)
+    st["cash"] = 400.0        # 자산 400 → 총 노출 기준 증거금률 0.04
+    ratio = margin_ratio(st, px)
+    assert ratio == pytest.approx(0.04), (
+        f"증거금률을 순노출로 쟀다 — 롱과 숏이 상쇄돼 위험이 사라졌다: {ratio}")
+    assert liquidation_check(st, px), (
+        "증거금이 바닥났는데(0.04 < 0.05) 청산이 안 걸렸다 — 순노출로 재면 "
+        "이 계좌는 영영 안 털린다")
+
+
+def test_an_empty_account_has_no_margin_to_measure():
+    """포지션이 없으면 증거금률은 **0이 아니라 없음**이다.
+
+    0으로 두면 '청산 직전'으로 읽히는데, 실제로는 걸린 것이 없다는 뜻이다.
+    """
+    st = _fresh()
+    assert margin_ratio(st, {"BTC/USDT": 100.0}) is None
+    assert liquidation_check(st, {"BTC/USDT": 100.0}) is None
+
+
+def test_liquidation_leaves_what_was_actually_left():
+    """청산은 값을 고르지 않는다 — 그 시점 자산이 그대로 현금이 된다."""
+    st = _fresh()
+    execute_targets(st, {"BTC/USDT": 1.0}, {"BTC/USDT": 100.0},
+                    10_000.0, FEE, ONE)
+    crashed = {"BTC/USDT": 70.0}
+    before = mark_equity(st, crashed)
+    liquidation_check(st, crashed)
+    assert st["cash"] == pytest.approx(before), (
+        f"청산 뒤 현금이 그 시점 자산과 다르다: {st['cash']} vs {before}")
+
+
+def test_a_round_liquidates_before_it_decides(monkeypatch, tmp_path):
+    """**순서가 중요하다** — 청산이 새 판단보다 먼저다.
+
+    순서를 바꾸면 이미 털렸어야 할 계좌가 한 회차를 더 버티며 새 포지션을
+    여는, 현실에 없는 장부가 된다.
+    """
+    import quant.live.futures_challenger as F
+    _offline_round(monkeypatch, tmp_path, [100.0] * 40, 1.0)
+    st = load_state(str(tmp_path))
+    assert st["positions"], "전제가 안 만들어졌다 — 첫 회차가 포지션을 안 열었다"
+    # 값이 30% 무너진 봉으로 다음 회차를 돌린다.
+    r = _offline_round(monkeypatch, tmp_path, [70.0] * 40, 1.0,
+                       now="2026-06-01T01:00:00+09:00")
+    assert r.get("liquidated"), (
+        f"증거금이 바닥났는데 회차 기록에 청산이 없다: {sorted(r)}")
+    assert load_state(str(tmp_path))["liquidations"] >= 1
+
+
+def test_the_report_carries_the_margin_and_liquidations(tmp_path):
+    """**배선** — 화면이 그릴 재료가 리포트에 실린다."""
+    from quant.live.futures_challenger import public_report
+    st = load_state(str(tmp_path))
+    st["positions"] = {"BTC/USDT": 100.0}
+    st["last_prices"] = {"BTC/USDT": 100.0}
+    st["liquidations"] = 2
+    st["rounds"] = [{"at": "2026-08-22T00:00:00+09:00", "trades": [],
+                     "margin_ratio": 0.184,
+                     "liquidated": {"at_ratio": 0.04, "closed": ["ETH/USDT"]}}]
+    out = public_report(st)
+    assert out["margin_ratio"] == pytest.approx(0.184), out.get("margin_ratio")
+    assert out["maintenance_margin_rate"] == pytest.approx(
+        MAINTENANCE_MARGIN_RATE)
+    assert out["liquidations"] == 2
+    assert (out.get("liquidated") or {}).get("closed") == ["ETH/USDT"]
