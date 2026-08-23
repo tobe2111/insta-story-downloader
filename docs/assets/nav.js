@@ -59,7 +59,24 @@
     "#qnav .qn-cta svg{width:15px;height:15px;display:inline-block;margin:0}",
     "#qnav .qn-ver{font-size:11px;color:var(--muted,#8f96a3);margin-left:9px;",
     "  white-space:nowrap}",
-    "@media(max-width:820px){#qnav .qn-lnk{display:none}}"
+    /* 삼단 바(모바일 메뉴 버튼, 2026-08-23 사장님: "모바일로 보면 다른
+       페이지를 볼 수가 없어"). 그 전까지 820px 아래에서는 링크를 숨기기만
+       했다 — 숨긴 자리에 대체 수단이 없으면 그건 정리가 아니라 차단이다. */
+    "#qnav .qn-burger{display:none;background:none;border:0;cursor:pointer;",
+    "  padding:9px;margin-left:6px;color:var(--fg,#f4f5f7);border-radius:8px}",
+    "#qnav .qn-burger:hover{background:var(--bg2,#0e1013)}",
+    "#qnav .qn-burger svg{width:22px;height:22px;display:block}",
+    "#qnav .qn-menu{display:none;position:absolute;top:56px;left:0;right:0;",
+    "  flex-direction:column;gap:2px;padding:8px 14px 14px;",
+    "  background:var(--bg,#0a0b0e);border-bottom:1px solid var(--line,#1e2128)}",
+    "#qnav.qn-open .qn-menu{display:flex}",
+    "#qnav .qn-menu a{color:var(--muted,#8f96a3);font-size:15px;font-weight:500;",
+    "  padding:11px 12px;border-radius:8px;text-decoration:none}",
+    "#qnav .qn-menu a.qn-here{color:var(--fg,#f4f5f7);",
+    "  background:var(--bg2,#0e1013)}",
+    "@media(max-width:820px){#qnav .qn-lnk{display:none}",
+    "  #qnav .qn-burger{display:inline-flex}}",
+    "@media(min-width:821px){#qnav .qn-menu{display:none !important}}"
   ].join("\n");
 
   function esc(s) {
@@ -85,6 +102,20 @@
       'stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/>' +
       '<path d="M5 21h14"/></svg>무료 다운로드</a>');
     html.push('<span class="qn-ver" id="qnav-ver"></span>');
+    // 삼단 바 버튼 + 세로 메뉴 — 링크 목록은 위 LINKS **그대로**다(같은
+    // 사실은 한 곳에서만 산다). 데스크톱에서는 CSS가 버튼·메뉴를 숨긴다.
+    html.push('<button class="qn-burger" type="button" aria-label="메뉴 열기" ' +
+      'aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.2" stroke-linecap="round">' +
+      '<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>' +
+      "</button>");
+    html.push('<div class="qn-menu">');
+    for (var k = 0; k < LINKS.length; k++) {
+      var act = LINKS[k][0] === here ? " qn-here" : "";
+      html.push('<a class="' + act.replace(" ", "") + '" href="' +
+        esc(LINKS[k][0]) + '">' + esc(LINKS[k][1]) + "</a>");
+    }
+    html.push("</div>");
     html.push("</div>");
 
     var style = document.createElement("style");
@@ -95,6 +126,24 @@
     bar.id = "qnav";
     bar.innerHTML = html.join("");
     document.body.insertBefore(bar, document.body.firstChild);
+
+    // 삼단 바 열고 닫기 — 바깥 탭·ESC로 닫힌다(모바일 관례).
+    var burger = bar.querySelector(".qn-burger");
+    function setOpen(open) {
+      bar.classList.toggle("qn-open", open);
+      burger.setAttribute("aria-expanded", open ? "true" : "false");
+      burger.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
+    }
+    burger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setOpen(!bar.classList.contains("qn-open"));
+    });
+    document.addEventListener("click", function (e) {
+      if (!bar.contains(e.target)) setOpen(false);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") setOpen(false);
+    });
 
     // 페이지 고유 요소(예: paper.html의 '라이브 보는 중' 버튼)를 바 안으로.
     var extras = document.querySelectorAll("[data-qnav-extra]");

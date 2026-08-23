@@ -228,3 +228,129 @@ def attach_earnings_days(df, symbol: str, state_dir: str = "state"):
     except (OSError, ValueError, AttributeError) as exc:
         log.warning("발표일 컬럼 부착 실패(%s) — 생략: %s", symbol, exc)
         return df
+
+
+# ── 한국 발표일 — DART 전자공시 (2026-08-23, 키 조건부) ─────────────
+#
+# 왜: PEAD(실적 발표 후 표류)는 발표일을 아는 시장에서만 움직인다. 야후
+# 캘린더는 한국 주식에서 비어 있어 한국은 전부 관망이었다. DART(금융감독원
+# 전자공시)는 공식·무료 소스지만 **인증키 등록**이 필요하다.
+#
+# 키 규약(보안):
+#   · 키는 환경변수(DART_API_KEY)에만 산다 — 저장소·캐시·로그 어디에도
+#     키 값이 적히지 않는다. HTTP 오류 메시지의 URL은 공용 헬퍼가
+#     crtfc_key를 가린다(quant/utils/http.py).
+#   · 키가 없으면 **조용히 아무것도 하지 않는다** — 매일 경고를 찍으면
+#     '키 없음'이 소음이 되어 진짜 고장을 가린다. 키가 들어오는 순간
+#     다음 배치부터 자동으로 수집이 시작된다(코드 변경 불필요).
+#
+# 발표일의 정의(대용치, 숨기지 않는다): DART **정기공시(사업·반기·분기
+# 보고서) 접수일**을 발표일로 쓴다. 원문 정의는 잠정실적 공시일이지만
+# 공시 유형이 회사마다 달라 기계 판별이 불안정하고, 잠정공시가 없는
+# 회사에서는 정기보고서가 곧 첫 공개다. ETF는 실적 공시가 없어 목록이
+# 비는 것이 정상이다(그 종목은 PEAD가 관망 — 사실과 일치).
+DART_KEY_ENV = "DART_API_KEY"
+DART_HOST = "https://opendart.fss.or.kr"
+CORP_CODE_FILE = "dart_corp_codes.json"
+CORP_CODE_REFRESH_DAYS = 30       # 상장사 코드표는 거의 안 변한다
+DART_FROM = "20200101"            # PEAD 백테스트 창 시작과 맞춘다
+DART_MAX_PAGES = 5                # 정기공시 4건/년 × 7년 ≪ 100건/쪽
+
+
+def dart_key() -> str | None:
+    """DART 인증키 — 환경변수에만 산다. 값은 어디에도 기록하지 않는다."""
+    k = os.environ.get(DART_KEY_ENV, "").strip()
+    return k or None
+
+
+def _corp_codes(state_dir: str, today: _dt.date) -> dict:
+    """{6자리 종목코드: DART corp_code} — 30일 캐시, 실패 시 옛 캐시.
+
+    실패를 '오늘 받아온 것'으로 도장 찍지 않는다(_known_dates와 같은 규칙).
+    """
+    path = os.path.join(state_dir, CORP_CODE_FILE)
+    cache: dict = {}
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                cache = json.load(f)
+    except (OSError, ValueError):
+        cache = {}
+    fresh = False
+    if cache.get("fetched"):
+        try:
+            age = (today - _dt.date.fromisoformat(cache["fetched"])).days
+            fresh = 0 <= age <= CORP_CODE_REFRESH_DAYS
+        except ValueError:
+            fresh = False
+    if not fresh:
+        try:
+            import io
+            import xml.etree.ElementTree as ET
+            import zipfile
+
+            from quant.utils.http import get_bytes
+            raw = get_bytes(f"{DART_HOST}/api/corpCode.xml"
+                            f"?crtfc_key={dart_key()}", timeout=60)
+            with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                xml_bytes = zf.read(zf.namelist()[0])
+            codes = {}
+            for el in ET.fromstring(xml_bytes).iter("list"):
+                sc = (el.findtext("stock_code") or "").strip()
+                cc = (el.findtext("corp_code") or "").strip()
+                if sc and cc:
+                    codes[sc] = cc
+            if not codes:
+                raise RuntimeError("코드표가 비어 있다(형식 변경?)")
+            cache = {"fetched": today.isoformat(), "codes": codes}
+            from quant.utils.jsonio import atomic_write_json
+            atomic_write_json(path, cache)
+        except Exception as exc:  # noqa: BLE001 — 옛 캐시로 계속, 내일 재시도
+            log.warning("DART 코드표 갱신 실패(옛 캐시 사용): %s", exc)
+    return cache.get("codes") or {}
+
+
+def _fetch_dates_dart(symbol: str, state_dir: str) -> list[str]:
+    """DART 정기공시 접수일 목록(ISO) — 키가 없으면 예외(호출측이 키로 가드)."""
+    key = dart_key()
+    if key is None:
+        raise RuntimeError("DART_API_KEY 미설정")
+    from quant.utils.http import get_json
+
+    today = _dt.date.today()
+    code = str(symbol).split(".")[0]
+    cc = _corp_codes(state_dir, today).get(code)
+    if cc is None:
+        # 코드표에 없다 = DART에 정기공시 주체가 아니다(주로 ETF) —
+        # '발표가 없다'가 사실이므로 빈 목록이 맞다.
+        return []
+    out: set[str] = set()
+    page = 1
+    while page <= DART_MAX_PAGES:
+        js = get_json(
+            f"{DART_HOST}/api/list.json?crtfc_key={key}&corp_code={cc}"
+            f"&bgn_de={DART_FROM}&end_de={today:%Y%m%d}&pblntf_ty=A"
+            f"&page_no={page}&page_count=100", timeout=30)
+        status = str(js.get("status"))
+        if status == "013":            # 조회 결과 없음 — 공시가 없는 회사
+            break
+        if status != "000":
+            # ⚠️ 서버 메시지가 키를 되울릴 수 있다("등록되지 않은 키 ○○") —
+            #    URL을 가려도 메시지로 새면 같은 유출이다(감사 170의 재림).
+            msg = str(js.get("message", ""))[:120].replace(key, "***")
+            raise RuntimeError(f"DART 응답 오류 status={status} {msg}")
+        for row in js.get("list") or []:
+            rd = str(row.get("rcept_dt") or "")
+            if len(rd) == 8 and rd.isdigit():
+                out.add(f"{rd[:4]}-{rd[4:6]}-{rd[6:]}")
+        if page >= int(js.get("total_page") or 1):
+            break
+        page += 1
+    return sorted(out)
+
+
+def dart_fetcher(state_dir: str = "state"):
+    """_known_dates의 fetch 자리에 꽂는 한국용 조회 함수를 만든다."""
+    def _fetch(symbol: str) -> list[str]:
+        return _fetch_dates_dart(symbol, state_dir)
+    return _fetch
