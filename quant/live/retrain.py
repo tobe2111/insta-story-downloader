@@ -799,6 +799,11 @@ def build_challengers(current_spec: dict, seed: str,
         # 앉았는가. 링의 다른 후보들이 못 보는 정보다(대부분 종가만 보고,
         # 고저가를 보는 것들도 여러 봉에 걸친 극단을 본다).
         {"strategy": "ibs", "params": {"entry": 0.2, "exit": 0.8}},
+        # 월말·월초 효과(2026-08-23, 가설 우선 방침의 1호) — 연금·적립식
+        # 펀드의 월말 매수는 가격에 둔감하다는 **수급 가설**. 달력만 보는
+        # 규칙이라 선견 여지가 0이다. 가설이 틀렸으면 오디션에서 지고,
+        # 그 기각도 기록이다.
+        {"strategy": "turn_of_month", "params": {"entry_day": 25, "exit_day": 3}},
     ]
     if not evolve:
         return challengers
