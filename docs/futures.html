@@ -64,6 +64,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <div class="wrap">
 <script src="assets/nav.js" defer></script>
 <script src="assets/holdings.js"></script>
+<script src="assets/track-live.js"></script>
 <script src="assets/trades.js"></script>
 
 <h1>코인 선물 <span class="tag">무기한 선물 · 가상 자금(USDT) · 최대 3배</span></h1>
@@ -173,6 +174,7 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       'style="font-size:15px;font-weight:600">USDT</span></div>'+
     '<div class="sub">시드 '+usdt(d.start_cash)+' USDT · '+
       (d.updated?esc(kst(d.updated))+' 기준':'기준 시각 없음')+'</div>'+
+    '<div id="tl-line" style="margin-top:4px;font-size:16px"></div>'+
     '<div class="grid">'+
       '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
         pct(d.return_pct)+'</div></div>'+
@@ -261,6 +263,12 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       .querySelector("tbody"), d.holdings, "USDT");
     QuantHoldings.note(document.getElementById("hold-note"),
       d.holdings_total, "USDT");
+  }
+  /* 실시간 참고 흐름 — 확정 기록은 그대로 두고 tl-line·표 주석만 산다. */
+  if(window.TrackLive){
+    TrackLive.start({equity:Number(d.equity)||0, holdings:d.holdings||[],
+      currency:"USDT", lineEl:document.getElementById("tl-line"),
+      tbody:document.getElementById("hold").querySelector("tbody")});
   }
 
   /* ── 보유 ── */
