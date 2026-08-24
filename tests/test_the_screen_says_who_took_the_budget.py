@@ -179,7 +179,13 @@ def test_a_long_only_day_does_not_talk_about_two_numbers(_flags):
 
 _MANY = {"skipped_dust": ["us_stock:SPY", "us_stock:AAPL", "us_stock:QQQ"],
          "skipped_cooldown": ["crypto:SOL/USDT"],
-         "alloc": {f"x{i}": 0.1 for i in range(9)}}
+         "alloc": {f"x{i}": 0.1 for i in range(9)},
+         # ⚠️ '실제로 담긴 수'도 함께 고정한다(2026-08-24). 처음에는 목표
+         #    (alloc)만 9곳으로 심었는데, '담긴 수'는 진짜 장부의 applied를
+         #    그대로 썼다. 유니버스가 40종목으로 커진 밤 실제 보유가 9곳을
+         #    넘어서자 "곳만 담김" 분기가 닫혀 이 검사가 시장 날씨에 따라
+         #    깨졌다 — 검사는 자기 입력을 전부 자기가 만들어야 한다.
+         "applied": {f"x{i}": 0.1 for i in range(4)}}
 _NONE = {"skipped_dust": None, "skipped_cooldown": None}
 
 
