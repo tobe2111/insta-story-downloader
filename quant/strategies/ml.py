@@ -431,6 +431,41 @@ def pool_ready(pool, state_dir: str = "state", min_days: int = 1) -> bool:
     return True
 
 
+def _labels_of(df, label: str, horizon: int, k: float, cost: float):
+    """라벨 한 벌 + 그 라벨이 보는 미래 봉 수(span). **여기가 유일한 자리다.**
+
+    ⚠️ 왜 함수로 묶었나 (2026-08-25 감사 313 — 야간 변이 전수가 잡았다).
+       예전에는 이 계산이 **두 곳**에 따로 적혀 있었다:
+
+           _build_pool()      — 동료 종목 데이터를 붙일 때
+           generate_signals() — 실제 신호를 만들 때
+
+       그런데 감사 298이 추가한 `cost` 라벨은 **_build_pool에만** 들어갔다.
+       generate_signals의 분기는 `if triple ... else nextbar`라, `cost`를
+       고르면 조용히 **옛 라벨로 학습**됐다. 즉 "맞혀도 손해인 상승은 사지
+       않는다"는 장치가 실제 신호 경로에서는 **한 번도 켜진 적이 없다**
+       (감사 289와 같은 모양 — 장치는 있는데 발동하지 않는다).
+
+       검사도 못 잡았다. 검사가 전략을 부르지 않고 **식을 다시 적어** 두었기
+       때문이다("전략이 쓰는 것과 같은 식"이라고 주석까지 달아 두고서).
+       소스를 베낀 검사는 그 소스가 안 불려도 초록이다.
+
+    ⚠️ 라벨을 또 어딘가에 적고 싶어지면, 그 자리에서 이 함수를 부르는 것이
+       맞다. 세 번째 사본이 생기는 순간 같은 사고가 다시 난다.
+    """
+    if label == "triple":
+        return _triple_barrier_labels(df, horizon, k), horizon
+    nxt = df["close"].shift(-1)
+    if label == "cost":
+        # 다음 봉 수익이 **왕복 비용을 넘는가**. 넘지 못하는 상승은 0이다 —
+        # 맞혀도 손해이므로 사는 이유가 없다(감사 298).
+        lab = ((nxt / df["close"] - 1.0) > cost).astype(float)
+    else:
+        lab = (nxt > df["close"]).astype(float)
+    lab[nxt.isna()] = np.nan        # 마지막 행은 미래가 없다
+    return lab.to_numpy(), 1
+
+
 class MLStrategy(Strategy):
     """워크포워드로 재학습하며 상승확률을 목표비중으로 매핑하는 ML 전략."""
 
@@ -644,21 +679,10 @@ class MLStrategy(Strategy):
                 if pdf is None or len(pdf) < 80 or "close" not in pdf:
                     continue
                 pf = _features(pdf)
-                if self.label == "triple":
-                    py = _triple_barrier_labels(pdf, self.label_horizon,
-                                                self.label_k)
-                elif self.label == "cost":
-                    # 다음 봉 수익이 **왕복 비용을 넘는가**. 넘지 못하는
-                    # 상승은 0이다 — 맞혀도 손해이므로 사는 이유가 없다.
-                    nxt = pdf["close"].shift(-1)
-                    ret = nxt / pdf["close"] - 1.0
-                    lab = (ret > self.label_cost).astype(float)
-                    lab[nxt.isna()] = np.nan
-                    py = lab.to_numpy()
-                else:
-                    lab = (pdf["close"].shift(-1) > pdf["close"]).astype(float)
-                    lab[pdf["close"].shift(-1).isna()] = np.nan
-                    py = lab.to_numpy()
+                # 라벨은 **한 곳**에서 만든다(_labels_of) — 신호 경로와 같은
+                # 규칙이어야 한다. 두 곳에 적었더니 한쪽에만 `cost`가 있었다.
+                py, _span = _labels_of(pdf, self.label, self.label_horizon,
+                                       self.label_k, self.label_cost)
                 base_cols = [c for c in pf.columns if c in FEATURE_NAMES]
                 # ⚠️ 제자리 연산(&=) 금지 — pandas 3.0의 to_numpy()는 **읽기
                 #    전용** 배열을 돌려준다. 예전 코드는 여기서
@@ -752,16 +776,11 @@ class MLStrategy(Strategy):
             extra = extra(df)
         feats = _features(df, extra)
         self.feature_names_ = list(feats.columns)
-        if self.label == "triple":
-            # 트리플 배리어: 어느 배리어(이익/손절/만료)를 먼저 치는가
-            y = _triple_barrier_labels(df, self.label_horizon, self.label_k)
-            span = self.label_horizon          # 라벨 하나가 보는 미래 봉 수
-        else:
-            # 기존 라벨: 다음 봉 상승 여부 (마지막 행은 미래가 없어 NaN)
-            label = (df["close"].shift(-1) > df["close"]).astype(float)
-            label[df["close"].shift(-1).isna()] = np.nan
-            y = label.to_numpy()
-            span = 1
+        # 라벨은 **한 곳**에서 만든다(_labels_of) — 동료 데이터 경로와 같은
+        # 규칙이어야 한다. 두 곳에 적었더니 `cost` 라벨이 여기에만 빠져,
+        # 그 장치가 실제 신호 경로에서 한 번도 켜지지 않았다(감사 313).
+        y, span = _labels_of(df, self.label, self.label_horizon,
+                             self.label_k, self.label_cost)
 
         # 메타라벨링의 1차 신호 — 단순 추세 규칙(종가 vs MA50). 학습이 필요
         # 없는 결정적 규칙이라 룩어헤드가 없고, ML(2차)은 '이 방향 판단이

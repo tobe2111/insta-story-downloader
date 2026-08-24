@@ -6811,8 +6811,13 @@ MUTATIONS = [
     # ── 비용을 아는 라벨 · 잠든 후보 (2026-08-20 감사 297·298) ─────
     ("비용 라벨이 비용을 무시한다(맞혀도 손해인 봉을 '산다'로 배운다)",
      'quant/strategies/ml.py',
-     '                    lab = (ret > self.label_cost).astype(float)',
-     '                    lab = (ret > 0.0).astype(float)',
+     '        lab = ((nxt / df["close"] - 1.0) > cost).astype(float)',
+     '        lab = (nxt > df["close"]).astype(float)',
+     'tests/test_the_label_knows_what_costs_money.py'),
+    ('신호 경로가 라벨 설정을 무시한다(장치가 켜진 적 없게 된다 — 감사 313)',
+     'quant/strategies/ml.py',
+     '        y, span = _labels_of(df, self.label, self.label_horizon,\n                             self.label_k, self.label_cost)',
+     '        y, span = _labels_of(df, "nextbar", self.label_horizon,\n                             self.label_k, self.label_cost)',
      'tests/test_the_label_knows_what_costs_money.py'),
 
     # ── 판 값을 말한다 · '지금'이 둘이 아니다 (2026-08-22 감사 299·300) ──
