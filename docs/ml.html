@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>머신러닝 — QUANT</title>
+<meta name="description" content="이 시스템의 머신러닝이 어떻게 판단하고, 지금까지 얼마나 맞혔는지를 그대로 공개합니다. 좋은 숫자만 고르지 않습니다.">
+<!-- ⚠️ 이 페이지는 **모델의 성적표**다(2026-08-24, 사장님 지시:
+     "지금까지 계속 투자하면서 머신러닝 잘 돌아가고 있는지 확인해줘",
+     "홈페이지에 머신러닝 전용 페이지도 만들어야겠는데? 히스토리나 검증
+      결과 등에 대해서도 보이면 좋지 않을까? 어떠한 구조로 머신러닝이
+      되는지 등 말이야.").
+
+     숫자는 전부 docs/ml.json 하나에서만 읽는다 — 화면이 자기 계산을
+     시작하면 장부와 갈라진다(감사 197).
+
+     ⚠️ 이 페이지의 목적은 자랑이 아니다. 지금 이 모델은 실전 표본에서
+        우연과 구별되지 않고, 확신할 때 오히려 덜 맞힌다. 그 사실을
+        **첫 화면에** 적는다. 좋은 숫자만 남기는 편집은 이 제품의
+        정체성(선택 편향 없는 공개 실험)을 무너뜨린다. -->
+<style>
+:root{
+  --bg:#0a0b0e; --bg2:#0e1013; --bg3:#131620; --fg:#f4f5f7;
+  --muted:#9aa3b2; --dim:#5c6470; --line:#1d2230; --line-strong:#262d3f;
+  --accent:#4f7cff; --up:#f04452; --down:#3182f6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark light}
+body{background:var(--bg);color:var(--fg);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,
+  "Segoe UI",Roboto,"Noto Sans KR",sans-serif;line-height:1.6}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f6f7f9; --bg2:#ffffff; --bg3:#eef0f4; --fg:#191f28;
+    --muted:#4e5968; --dim:#8b95a1; --line:#e5e8eb; --line-strong:#d1d6db}
+}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:980px;margin:0 auto;padding:28px 20px 60px}
+nav{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+nav b{font-size:17px;letter-spacing:-.3px}
+nav a{color:var(--muted);font-size:13.5px}
+h1{font-size:26px;letter-spacing:-.5px;margin:6px 0 4px}
+h2{font-size:16px;margin:34px 0 10px}
+.tag{display:inline-block;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--line-strong);border-radius:999px;padding:3px 10px;
+  margin-left:8px;vertical-align:middle}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;
+  padding:18px 20px;margin-top:12px}
+.sub{color:var(--muted);font-size:13px}
+.big{font-size:34px;font-weight:800;letter-spacing:-1px}
+.up{color:var(--up)} .down{color:var(--down)}
+.grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end;margin-top:8px}
+.k{font-size:12px;color:var(--muted);font-weight:600}
+.v{font-size:18px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:11.5px}
+.tw{overflow-x:auto}
+.warn{margin-top:12px;padding:11px 13px;border-radius:10px;font-size:13px;
+  background:rgba(255,176,32,.10);border:1px solid rgba(255,176,32,.35)}
+ul{margin:6px 0 0 18px;font-size:13px;color:var(--muted)}
+li{margin-top:4px}
+svg{width:100%;height:180px;display:block;margin-top:10px}
+.err{color:var(--up)}
+footer{margin-top:44px;color:var(--dim);font-size:12px}
+.big2{font-size:26px;font-weight:800;letter-spacing:-.6px}
+.step{display:flex;gap:12px;align-items:flex-start;margin-top:14px}
+.num{flex:0 0 26px;height:26px;border-radius:8px;background:var(--bg3);
+  border:1px solid var(--line-strong);display:flex;align-items:center;
+  justify-content:center;font-size:12px;font-weight:700;color:var(--muted)}
+.step b{display:block;font-size:14.5px;margin-bottom:2px}
+.step .d{font-size:13px;color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--bg3);overflow:hidden;
+  min-width:70px}
+.bar i{display:block;height:100%}
+.pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;
+  border:1px solid var(--line-strong);color:var(--muted)}
+.pill.bad{color:var(--up);border-color:rgba(240,68,82,.45)}
+.pill.ok{color:var(--down);border-color:rgba(49,130,246,.45)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<script src="assets/nav.js" defer></script>
+
+<h1>머신러닝 성적표 <span class="tag">시뮬레이션 · 좋은 숫자만 고르지 않습니다</span></h1>
+<p class="sub">이 시스템의 판단 대부분은 <b>머신러닝 모델</b>이 냅니다. 이
+페이지는 그 모델이 <b>어떻게 판단하는지</b>와 <b>지금까지 얼마나 맞혔는지</b>를
+그대로 보여 줍니다. 성적이 나쁜 구간도 지우지 않습니다 — 지우는 순간 이 기록은
+아무 의미가 없어집니다.</p>
+
+<div class="card" id="verdict">불러오는 중…</div>
+
+<h2>어떻게 판단하나 <span class="tag">사람이 규칙을 정하지 않습니다</span></h2>
+<div class="card">
+  <div class="step"><div class="num">1</div><div>
+    <b>가격에서 재료를 만든다</b>
+    <div class="d">최근 며칠 오르내린 폭, 거래량의 변화, 변동성 같은 것들을
+    숫자로 뽑습니다. 뉴스나 소문은 쓰지 않습니다 — 숫자로 셀 수 없는 것은
+    나중에 검증할 수도 없기 때문입니다.</div></div></div>
+  <div class="step"><div class="num">2</div><div>
+    <b>과거로 시험을 본다</b>
+    <div class="d">"이런 재료였던 날, 다음 날 올랐나 내렸나"를 과거 데이터로
+    반복해서 맞혀 봅니다. ⚠️ 이때 <b>미래를 절대 보여 주지 않습니다.</b>
+    2026년 3월 판단을 만들 때는 3월까지의 데이터만 씁니다. 이 규칙이 깨지면
+    성적표가 통째로 거짓말이 됩니다.</div></div></div>
+  <div class="step"><div class="num">3</div><div>
+    <b>오늘의 확률을 말한다</b>
+    <div class="d">모델이 내놓는 것은 "산다/안 산다"가 아니라
+    <b>"오를 확률 62%"</b> 같은 숫자입니다. 확신이 없으면 없다고 말할 수
+    있어야 하기 때문입니다.</div></div></div>
+  <div class="step"><div class="num">4</div><div>
+    <b>확률을 금액으로 바꾼다</b>
+    <div class="d">확률이 높을수록 크게 삽니다. 문턱(보통 55%) 아래면 아예
+    사지 않습니다. 그래서 <b>확률이 맞는지가 적중률보다 중요합니다</b> —
+    크게 거는 날일수록 더 자주 틀린다면 잔고는 줄어듭니다.</div></div></div>
+  <div class="step"><div class="num">5</div><div>
+    <b>안전장치가 마지막에 깎는다</b>
+    <div class="d">과최적화 검증에서 의심스러운 종목은 비중을 절반으로
+    줄이거나 아예 관망합니다. 실적 발표 임박, 급락 중일 때도 줄입니다.
+    아래 '안전장치가 붙잡은 것'에 지금 상태가 나옵니다.</div></div></div>
+  <div class="step"><div class="num">6</div><div>
+    <b>매일 다시 배운다</b>
+    <div class="d">새 하루가 지나면 그 하루를 포함해 다시 학습합니다. 오래된
+    시장 국면은 버립니다. 도전자 전략이 챔피언을 이기면 자리를 바꿉니다.</div></div></div>
+</div>
+
+<h2>지금 무엇이 굴리고 있나</h2>
+<div class="card" id="champs">불러오는 중…</div>
+
+<h2>얼마나 맞혔나 <span class="tag">실전과 연습을 나눠서 셉니다</span></h2>
+<div class="card" id="acc">불러오는 중…</div>
+
+<h2>확률이 맞는가 <span class="tag">이 표가 이 페이지에서 가장 중요합니다</span></h2>
+<!-- 적중률만 보면 "반은 맞힌다"에서 멈춘다. 이 시스템은 확률을 **금액**으로
+     바꾸므로, "0.70이라 말한 날 정말 70% 올랐나"가 훨씬 중요하다. -->
+<div class="card">
+  <p class="sub">모델이 <b>"오를 확률 70%"</b>라고 말한 날들을 모아, 실제로
+  몇 %나 올랐는지 센 표입니다. 두 숫자가 가까울수록 모델이 자기 확신을 정직하게
+  말하고 있다는 뜻입니다.</p>
+  <div class="tw"><table id="cal">
+    <thead><tr><th>모델이 말한 확률</th><th>표본</th><th>모델이 말한 평균</th>
+      <th>실제로 오른 비율</th><th>95% 구간</th><th>차이</th></tr></thead>
+    <tbody><tr><td colspan="6" class="sub">불러오는 중…</td></tr></tbody>
+  </table></div>
+  <div class="sub" id="cal-note" style="margin-top:10px"></div>
+</div>
+
+<h2>학습 때와 지금이 얼마나 다른가 <span class="tag">드리프트</span></h2>
+<div class="card">
+  <p class="sub">모델은 <b>과거 시장</b>에서 배웠습니다. 지금 시장이 그때와
+  많이 다르면, 모델은 <b>본 적 없는 상황</b>에서 판단하고 있는 것입니다.
+  틀렸다는 증거는 아니지만 맞을 이유도 그만큼 약해집니다.</p>
+  <div id="drift">불러오는 중…</div>
+</div>
+
+<h2>안전장치가 붙잡은 것 <span class="tag">경보가 아니라 실제로 손을 묶습니다</span></h2>
+<div class="card" id="gate">불러오는 중…</div>
+
+<h2>정직한 한계 <span class="tag">숨기지 않습니다</span></h2>
+<div class="card"><ul id="limits"><li class="sub">불러오는 중…</li></ul></div>
+
+<footer>이 페이지의 숫자는 배치가 매일 계산해 커밋하는
+<a href="ml.json">ml.json</a>에서만 읽습니다 — 원본을 직접 볼 수 있습니다.
+<br>가상 자금 시뮬레이션입니다. 실제 돈이 아니며 투자 권유가 아닙니다.
+수익을 보장하지 않습니다.</footer>
+</div>
+
+<script>
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,
+  function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function pct(v,d){var n=Number(v);
+  return isFinite(n)?(n*100).toFixed(d==null?1:d)+"%":"—";}
+
+fetch("ml.json").then(function(r){return r.ok?r.json():null;}).then(function(d){
+  if(!d){document.getElementById("verdict").innerHTML=
+    '<span class="sub">아직 기록이 없습니다 — 배치가 한 번 돌면 여기 숫자가 '+
+    '생깁니다.</span>';return;}
+
+  /* ── 한 줄 판정 ──
+     ⚠️ '아직 모른다'와 '못한다'를 구별해서 쓴다. 표본이 얇아 신뢰구간이
+        50%를 품고 있으면 그건 실패의 증거가 아니라 증거가 없는 것이다. */
+  var L=d.live||{}, C=d.calibration||{};
+  var verdict, cls;
+  if(L.n===0||L.hit_rate==null){verdict="아직 실전 표본이 없습니다.";cls="sub";}
+  else if(L.beats_chance){verdict="실전 적중률이 우연(50%)을 통계적으로 앞섭니다.";cls="up";}
+  else if(L.worse_than_chance){verdict="실전 적중률이 우연보다 통계적으로 낮습니다.";cls="down";}
+  else{verdict="실전 적중률이 <b>우연과 구별되지 않습니다</b> — 아직 잘한다는 "+
+    "증거도, 못한다는 증거도 없습니다.";cls="";}
+  var up=(C.confident_up||{}), dn=(C.confident_down||{});
+  var flipped=(up.actual!=null&&dn.actual!=null&&up.actual<dn.actual);
+  document.getElementById("verdict").innerHTML=
+    '<div class="k">지금 한 줄로 말하면</div>'+
+    '<div class="big2" style="margin-top:6px">'+verdict+'</div>'+
+    '<div class="grid" style="margin-top:14px">'+
+      '<div><div class="k">실전 적중률</div><div class="v">'+pct(L.hit_rate)+
+        ' <span class="sub">('+(L.hits||0)+'/'+(L.n||0)+'건)</span></div></div>'+
+      '<div><div class="k">95% 신뢰구간</div><div class="v">'+
+        pct(L.ci_lo)+' ~ '+pct(L.ci_hi)+'</div></div>'+
+      '<div><div class="k">연습(인샘플) 적중률</div><div class="v">'+
+        pct((d.insample||{}).hit_rate)+' <span class="sub">('+
+        ((d.insample||{}).n||0)+'건)</span></div></div>'+
+    '</div>'+
+    (flipped?'<div class="warn" style="margin-top:14px">⚠️ <b>확신할수록 덜 '+
+      '맞히고 있습니다.</b> 모델이 오른다고 본 날('+up.n+'건)은 실제로 '+
+      pct(up.actual)+' 올랐고, 내린다고 본 날('+dn.n+'건)은 '+pct(dn.actual)+
+      ' 올랐습니다 — 순서가 뒤집혀 있습니다. 표본이 얇아 확정은 아니지만, '+
+      '이 시스템이 확률을 금액으로 바꾸는 이상 가장 눈여겨볼 신호입니다.</div>':'')+
+    '<div class="sub" style="margin-top:10px">적중률은 <b>방향을 맞혔나</b>이지 '+
+    '<b>돈을 벌었나</b>가 아닙니다 — 작게 여러 번 맞고 크게 한 번 틀리면 '+
+    '적중률은 높고 잔고는 줄어듭니다.</div>';
+
+  /* ── 챔피언 ── */
+  var ch=d.champions||{}, by=ch.by_strategy||{};
+  var kinds=Object.keys(by).sort(function(a,b){return by[b]-by[a];});
+  document.getElementById("champs").innerHTML=
+    '<div class="grid">'+
+      '<div><div class="k">굴리는 종목</div><div class="v">'+(ch.total||0)+'종목</div></div>'+
+      kinds.map(function(k){return '<div><div class="k">'+
+        (k==="ml"?"머신러닝이 판단":"규칙이 판단 ("+esc(k)+")")+
+        '</div><div class="v">'+by[k]+'종목</div></div>';}).join("")+
+      '<div><div class="k">도전자가 챔피언을 이긴 횟수</div><div class="v">'+
+        (ch.promotions||0)+'회</div></div>'+
+    '</div>'+
+    '<div class="sub" style="margin-top:10px">도전자가 거의 못 이긴다는 것은 '+
+    '<b>안정</b>으로도, <b>정체</b>로도 읽힙니다. 숫자만 적고 해석은 열어 둡니다. '+
+    (by.ml!==ch.total?'머신러닝이 아닌 종목이 있다는 것은, 그 종목에서는 '+
+      '<b>단순한 규칙이 머신러닝을 이겼다</b>는 뜻입니다.':'')+'</div>';
+
+  /* ── 보정표 ── */
+  var rows=(C.table||[]).filter(function(r){return r.n>0;});
+  document.getElementById("cal").querySelector("tbody").innerHTML=
+    rows.length?rows.map(function(r){
+      var gap=(r.actual!=null&&r.said!=null)?(r.actual-r.said):null;
+      var good=(gap!=null&&Math.abs(gap)<0.10);
+      return '<tr><td>'+pct(r.lo,0)+' ~ '+pct(r.hi,0)+'</td>'+
+        '<td>'+r.n+'</td><td>'+pct(r.said)+'</td>'+
+        '<td><b>'+pct(r.actual)+'</b></td>'+
+        '<td class="sub">'+pct(r.ci_lo)+' ~ '+pct(r.ci_hi)+'</td>'+
+        '<td>'+(gap==null?'—':'<span class="'+(good?"":"down")+'">'+
+          (gap>=0?"+":"−")+pct(Math.abs(gap))+'</span>')+
+        (r.confirmed?' <span class="pill bad">확정</span>':
+                     ' <span class="pill">표본부족</span>')+'</td></tr>';
+    }).join(""):'<tr><td colspan="6" class="sub">아직 표를 만들 기록이 없습니다</td></tr>';
+  document.getElementById("cal-note").innerHTML=
+    '모은 (예측, 결과) 짝 <b>'+(C.pairs||0)+'</b>건 · 예측확률과 실제결과의 '+
+    '상관계수 <b>'+(C.correlation==null?"—":Number(C.correlation).toFixed(3))+'</b>'+
+    ' <span class="sub">(0에 가까우면 예측과 결과가 서로 무관하다는 뜻, '+
+    '음수면 거꾸로 간다는 뜻입니다.)</span><br>'+
+    "'확정'은 그 확률대의 어긋남이 <b>통계로 굳어졌다</b>는 뜻입니다"+
+    "('표본부족'은 아직 판단을 유보한다는 뜻이지 괜찮다는 뜻이 아닙니다).";
+
+  /* ── 드리프트 ── */
+  var D=d.drift||{}, g=D.grades||{};
+  var order=["안정","주의 (표본 잡음 범위)","드리프트","심한 드리프트"];
+  var keys=order.filter(function(k){return g[k];})
+    .concat(Object.keys(g).filter(function(k){return order.indexOf(k)<0;}));
+  document.getElementById("drift").innerHTML=
+    '<div class="grid">'+keys.map(function(k){
+      return '<div><div class="k">'+esc(k)+'</div><div class="v">'+g[k]+'종목</div></div>';
+    }).join("")+'</div>'+
+    '<div class="sub" style="margin-top:10px">기준선을 넘은 종목 <b>'+
+    (D.over_line||0)+'</b> / '+(D.measured||0)+'종목'+
+    ((D.worst||[]).length?' · 가장 심한 곳: '+D.worst.slice(0,4).map(function(r){
+      return esc(r.symbol)+' ('+Number(r.psi).toFixed(2)+')';}).join(" · "):'')+
+    '</div>';
+
+  /* ── 검증 게이트 ── */
+  var G=d.gate||{};
+  var held=(G.halted||0)+(G.halved||0), all=held+(G.full||0);
+  document.getElementById("gate").innerHTML=
+    '<div class="grid">'+
+      '<div><div class="k">오늘 관망 (비중 0)</div><div class="v down">'+
+        (G.halted||0)+'종목</div></div>'+
+      '<div><div class="k">비중 절반으로</div><div class="v">'+(G.halved||0)+'종목</div></div>'+
+      '<div><div class="k">깎이지 않음</div><div class="v">'+(G.full||0)+'종목</div></div>'+
+    '</div>'+
+    (all&&held===all?'<div class="warn" style="margin-top:12px">⚠️ 지금 '+
+      '<b>모든 종목이 붙잡혀 있습니다.</b> 시스템이 스스로 "이 모델들을 '+
+      '지금 그대로 믿기 어렵다"고 판단한 상태입니다. 이건 고장이 아니라 '+
+      '안전장치가 설계대로 작동하는 모습입니다 — 다만 그만큼 지금 굴리는 '+
+      '금액이 작다는 뜻이기도 합니다.</div>':'')+
+    ((G.rows||[]).length?'<div class="tw" style="margin-top:12px"><table>'+
+      '<thead><tr><th>종목</th><th>비중 배수</th><th>이유</th></tr></thead><tbody>'+
+      G.rows.map(function(r){return '<tr><td>'+esc(r.key)+'</td><td>'+
+        '<b class="'+(r.scale<=0?"down":"")+'">×'+Number(r.scale).toFixed(2)+
+        '</b></td><td class="sub" style="text-align:left">'+esc(r.why)+
+        '</td></tr>';}).join("")+'</tbody></table></div>':'')+
+    '<div class="sub" style="margin-top:10px">과최적화란 <b>과거에만 잘 맞도록 '+
+    '맞춰진 것</b>을 말합니다. 시험 문제를 통째로 외운 학생이 새 문제를 못 푸는 '+
+    '것과 같습니다. 이 검사는 그 위험을 확률로 재고, 높으면 실제로 비중을 깎습니다.</div>';
+
+  document.getElementById("limits").innerHTML=
+    (d.limits||[]).map(function(t){return '<li>'+esc(t)+'</li>';}).join("")
+    ||'<li class="sub">—</li>';
+}).catch(function(){
+  document.getElementById("verdict").innerHTML=
+    '<span class="err">기록을 불러오지 못했습니다 — 빈칸을 "그런 일이 없었다"로 '+
+    '읽지 마세요.</span>';
+});
+</script>
+</body>
+</html>

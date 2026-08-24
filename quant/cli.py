@@ -1425,6 +1425,30 @@ def _default_journal_state() -> str:
     return pf if _os.path.exists(pf) else _os.path.join("results", "state.json")
 
 
+def _cmd_ml_report(args) -> None:
+    """머신러닝 성적표를 다시 센다.
+
+    ⚠️ 숫자를 여기서 만들지 않는다 — 장부에서 세기만 한다. 화면·리포트·
+       조종석이 각자 세면 같은 날 서로 다른 적중률을 말하게 된다.
+    """
+    import datetime as _dt
+
+    from quant.reporting.ml_health import write_report
+    asof = args.asof or _dt.date.today().isoformat()
+    path = write_report(args.docs, args.state, asof)
+    import json
+    d = json.load(open(path, encoding="utf-8"))
+    live = d.get("live") or {}
+    gate = d.get("gate") or {}
+    hr = live.get("hit_rate")
+    print(f"머신러닝 성적표 → {path}")
+    print(f"  실전 적중 {('%.1f%%' % (hr * 100)) if hr is not None else 'N/A'}"
+          f" ({live.get('hits', 0)}/{live.get('n', 0)}건)"
+          f" · 우연 배제 {'예' if live.get('beats_chance') else '아니오'}")
+    print(f"  검증 게이트 — 관망 {gate.get('halted', 0)}종목 ·"
+          f" 절반 {gate.get('halved', 0)}종목 · 정상 {gate.get('full', 0)}종목")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="quant", description="퀀트 트레이딩 CLI")
     sub = p.add_subparsers(dest="command")
@@ -1800,6 +1824,15 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--strategy-a", default="ma_cross", dest="strategy_a")
     cm.add_argument("--strategy-b", default="momentum", dest="strategy_b")
     cm.set_defaults(func=_cmd_compare)
+
+    mlr = sub.add_parser(
+        "ml-report",
+        help="머신러닝 성적표(docs/ml.json) — 적중률·보정·드리프트·검증 게이트")
+    mlr.add_argument("--docs", default="docs")
+    mlr.add_argument("--state", default="state")
+    mlr.add_argument("--asof", default=None,
+                     help="기준일(YYYY-MM-DD). 생략하면 오늘")
+    mlr.set_defaults(func=_cmd_ml_report)
 
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)

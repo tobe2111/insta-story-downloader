@@ -89,6 +89,13 @@ jobs:
         run: |
           python -m quant paper-daily --all --docs | tee paper-all.txt
 
+      - name: 머신러닝 성적표 갱신 (docs/ml.json)
+        # 종목별 장부가 갱신된 **뒤에** 센다 — 앞에 두면 어제 숫자를 오늘
+        # 것이라 적는다. 실패해도 운용은 계속한다(표시 전용).
+        run: |
+          python -m quant ml-report --docs docs --state state \
+            || echo "머신러닝 성적표 실패 — 건너뜀"
+
       - name: 주간 요약 (월요일 아침 KST, 텔레그램)
         # ⚠️ 요일 판정은 **KST로** 한다(감사 221). 예전에는 UTC 요일 7(일)로
         #    쟀는데, 배치가 22:30 UTC로 옮겨지면서 UTC 날짜와 KST 날짜가
@@ -135,12 +142,12 @@ jobs:
 
       - name: 상태·사이트 커밋 (state/ + docs/status.json)
         run: |
-          if [ -z "$(git status --porcelain state/ docs/status.json docs/card.png)" ]; then
+          if [ -z "$(git status --porcelain state/ docs/status.json docs/card.png docs/ml.json)" ]; then
             echo "변경 없음 — 커밋 생략"; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/ docs/status.json docs/changelog.json
+          git add state/ docs/status.json docs/changelog.json docs/ml.json
           git add docs/card.png 2>/dev/null || true
           # 장부 관문(감사 255) — 방금 쓴 기록이 말이 되는지 커밋 **전에** 본다.
           # 배치 커밋은 [skip actions]라 CI가 안 붙는다. 그 구멍으로
