@@ -3,18 +3,27 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9983.35,
-  "return_pct": -0.1665,
+  "equity": 9981.87,
+  "return_pct": -0.1813,
   "gross_return_pct": -0.1249,
-  "cost_paid": 4.16,
-  "trades_total": 48,
-  "rounds_total": 21,
+  "cost_paid": 5.64,
+  "trades_total": 56,
+  "rounds_total": 22,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-08-22T04:46:38+09:00",
-  "observed_gap_minutes": 1099.2,
+  "last_time": "2026-08-25T00:03:07+09:00",
+  "observed_gap_minutes": 4036.483333333333,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
-  "positions": {},
+  "positions": {
+    "GLD": 0.42916616,
+    "SLV": 6.95361681,
+    "LQD": 1.77213122,
+    "TIP": 1.44233361,
+    "XLE": 6.82334104,
+    "XLU": 10.13800511,
+    "VGK": 2.97598319,
+    "MSFT": 0.76708313
+  },
   "rule_changes": [
     {
       "on": "2026-08-23",
@@ -22,16 +31,113 @@
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
     }
   ],
-  "holdings": [],
+  "holdings": [
+    {
+      "symbol": "GLD",
+      "direction": "long",
+      "quantity": 0.4291661601,
+      "avg_cost": 428.5,
+      "last_price": 428.5,
+      "currency": "USD",
+      "value": 183.8977,
+      "cost": 183.8977,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "LQD",
+      "direction": "long",
+      "quantity": 1.7721312161,
+      "avg_cost": 106.13500214,
+      "last_price": 106.13500214,
+      "currency": "USD",
+      "value": 188.0852,
+      "cost": 188.0852,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "MSFT",
+      "direction": "long",
+      "quantity": 0.7670831318,
+      "avg_cost": 485.58999634,
+      "last_price": 485.58999634,
+      "currency": "USD",
+      "value": 372.4879,
+      "cost": 372.4879,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "SLV",
+      "direction": "long",
+      "quantity": 6.9536168147,
+      "avg_cost": 62.42200089,
+      "last_price": 62.42200089,
+      "currency": "USD",
+      "value": 434.0587,
+      "cost": 434.0587,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "TIP",
+      "direction": "long",
+      "quantity": 1.4423336122,
+      "avg_cost": 107.26049805,
+      "last_price": 107.26049805,
+      "currency": "USD",
+      "value": 154.7054,
+      "cost": 154.7054,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "VGK",
+      "direction": "long",
+      "quantity": 2.9759831941,
+      "avg_cost": 92.57499695,
+      "last_price": 92.57499695,
+      "currency": "USD",
+      "value": 275.5016,
+      "cost": 275.5016,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "XLE",
+      "direction": "long",
+      "quantity": 6.823341041,
+      "avg_cost": 63.16999817,
+      "last_price": 63.16999817,
+      "currency": "USD",
+      "value": 431.0304,
+      "cost": 431.0304,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "XLU",
+      "direction": "long",
+      "quantity": 10.1380051123,
+      "avg_cost": 42.81499863,
+      "last_price": 42.81499863,
+      "currency": "USD",
+      "value": 434.0587,
+      "cost": 434.0587,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    }
+  ],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 0,
+    "counted": 8,
     "unknown": 0
   },
   "deployed": {
-    "gross": 0.0,
-    "pct": 0.0,
-    "cash": 9983.35,
+    "gross": 2473.8256,
+    "pct": 24.7832,
+    "cash": 7508.0444,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -120,9 +226,13 @@
     [
       "2026-08-22T04:46:38+09:00",
       9983.35
+    ],
+    [
+      "2026-08-25T00:03:07+09:00",
+      9981.87
     ]
   ],
-  "hold_return_pct": -0.3349,
+  "hold_return_pct": -0.3428,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -147,89 +257,17 @@
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9974.71,
-      "return_pct": -0.2529,
-      "hold_return_pct": -0.1927,
-      "trades_total": 74,
-      "cost_paid": 11.6,
-      "rounds_total": 21,
+      "equity": 9977.29,
+      "return_pct": -0.2271,
+      "hold_return_pct": -0.0876,
+      "trades_total": 80,
+      "cost_paid": 12.5,
+      "rounds_total": 22,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-08-20T00:41:48+09:00",
-      "symbol": "GOOGL",
-      "side": "buy",
-      "notional": 104.34,
-      "price": 345.0799865722656,
-      "cost": 0.0626,
-      "signal": 0.0835
-    },
-    {
-      "time": "2026-08-20T00:41:48+09:00",
-      "symbol": "GOOG",
-      "side": "buy",
-      "notional": 97.79,
-      "price": 342.07000732421875,
-      "cost": 0.0587,
-      "signal": 0.0782
-    },
-    {
-      "time": "2026-08-20T01:44:24+09:00",
-      "symbol": "GOOGL",
-      "side": "sell",
-      "notional": -104.55,
-      "price": 345.760009765625,
-      "cost": 0.0627,
-      "signal": 0.0
-    },
-    {
-      "time": "2026-08-20T01:44:24+09:00",
-      "symbol": "GOOG",
-      "side": "buy",
-      "notional": 188.28,
-      "price": 342.5799865722656,
-      "cost": 0.113,
-      "signal": 0.229
-    },
-    {
-      "time": "2026-08-20T02:43:00+09:00",
-      "symbol": "GOOG",
-      "side": "sell",
-      "notional": -284.9,
-      "price": 341.010009765625,
-      "cost": 0.1709,
-      "signal": 0.0
-    },
-    {
-      "time": "2026-08-20T03:50:17+09:00",
-      "symbol": "GOOGL",
-      "side": "buy",
-      "notional": 161.42,
-      "price": 343.7900085449219,
-      "cost": 0.0969,
-      "signal": 0.1292
-    },
-    {
-      "time": "2026-08-20T04:45:16+09:00",
-      "symbol": "AAPL",
-      "side": "buy",
-      "notional": 110.62,
-      "price": 316.67840576171875,
-      "cost": 0.0664,
-      "signal": 0.0885
-    },
-    {
-      "time": "2026-08-20T23:04:28+09:00",
-      "symbol": "AAPL",
-      "side": "buy",
-      "notional": 100.72,
-      "price": 316.8800048828125,
-      "cost": 0.0604,
-      "signal": 0.1691
-    },
     {
       "time": "2026-08-20T23:04:28+09:00",
       "symbol": "GOOGL",
@@ -517,6 +555,78 @@
       "price": 344.5299987792969,
       "cost": 0.045,
       "signal": 0.0
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "GLD",
+      "side": "buy",
+      "notional": 183.9,
+      "price": 428.5,
+      "cost": 0.1103,
+      "signal": 0.4237
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "SLV",
+      "side": "buy",
+      "notional": 434.06,
+      "price": 62.422000885009766,
+      "cost": 0.2604,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "LQD",
+      "side": "buy",
+      "notional": 188.09,
+      "price": 106.13500213623047,
+      "cost": 0.1129,
+      "signal": 0.4333
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "TIP",
+      "side": "buy",
+      "notional": 154.71,
+      "price": 107.260498046875,
+      "cost": 0.0928,
+      "signal": 0.3564
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "XLE",
+      "side": "buy",
+      "notional": 431.03,
+      "price": 63.16999816894531,
+      "cost": 0.2586,
+      "signal": 0.993
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "XLU",
+      "side": "buy",
+      "notional": 434.06,
+      "price": 42.814998626708984,
+      "cost": 0.2604,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "VGK",
+      "side": "buy",
+      "notional": 275.5,
+      "price": 92.57499694824219,
+      "cost": 0.1653,
+      "signal": 0.6347
+    },
+    {
+      "time": "2026-08-25T00:03:07+09:00",
+      "symbol": "MSFT",
+      "side": "buy",
+      "notional": 372.49,
+      "price": 485.5899963378906,
+      "cost": 0.2235,
+      "signal": 0.8582
     }
   ],
   "honest_limits": [
