@@ -1,11 +1,11 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-24T14:34:17+09:00",
+  "updated": "2026-08-24T15:08:18+09:00",
   "start_cash": 10000.0,
-  "equity": 9726.9332,
-  "return_pct": -2.7307,
-  "cost_paid": 205.0523,
-  "funding_paid": 2.155806,
+  "equity": 9749.8981,
+  "return_pct": -2.501,
+  "cost_paid": 207.3001,
+  "funding_paid": 2.207814,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "rule_changes": [
@@ -21,19 +21,19 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 1.140826,
+  "margin_ratio": 1.103275,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 8526.2215,
+  "gross_exposure": 8837.2295,
   "long_positions": 2,
-  "short_positions": 1,
+  "short_positions": 0,
   "long_only_symbols": [
     "ETH/USDT"
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 69,
+  "rounds": 70,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -311,85 +311,54 @@
     {
       "at": "2026-08-24T14:34:17+09:00",
       "equity": 9726.9332
+    },
+    {
+      "at": "2026-08-24T15:08:18+09:00",
+      "equity": 9749.8981
     }
   ],
   "positions": {
-    "SOL/USDT": 21.7498098343,
-    "ETH/USDT": 2.4077665103,
-    "BTC/USDT": -0.0078846902
+    "SOL/USDT": 31.1924575168,
+    "ETH/USDT": 2.4077665103
   },
   "holdings": [
-    {
-      "symbol": "BTC/USDT",
-      "direction": "short",
-      "quantity": -0.0078846902,
-      "avg_cost": 76911.65131311,
-      "last_price": 76906.8,
-      "currency": "USDT",
-      "value": -606.3863,
-      "cost": 606.4245,
-      "pnl": 0.0383,
-      "pnl_pct": 0.0063
-    },
     {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 2.4077665103,
       "avg_cost": 2443.68,
-      "last_price": 2438.18,
+      "last_price": 2449.04,
       "currency": "USDT",
-      "value": 5870.5682,
+      "value": 5896.7165,
       "cost": 5883.8109,
-      "pnl": -13.2427,
-      "pnl_pct": -0.2251
+      "pnl": 12.9056,
+      "pnl_pct": 0.2193
     },
     {
       "symbol": "SOL/USDT",
       "direction": "long",
-      "quantity": 21.7498098343,
-      "avg_cost": 93.69111486,
-      "last_price": 94.22,
+      "quantity": 31.1924575168,
+      "avg_cost": 93.86635622,
+      "last_price": 94.27,
       "currency": "USDT",
-      "value": 2049.2671,
-      "cost": 2037.7639,
-      "pnl": 11.5032,
-      "pnl_pct": 0.5645
+      "value": 2940.513,
+      "cost": 2927.9223,
+      "pnl": 12.5906,
+      "pnl_pct": 0.43
     }
   ],
   "holdings_total": {
-    "pnl": -1.7012,
-    "counted": 3,
+    "pnl": 25.4962,
+    "counted": 2,
     "unknown": 0
   },
   "deployed": {
-    "gross": 8526.2216,
-    "pct": 87.6558,
-    "cash": 1200.7116,
+    "gross": 8837.2295,
+    "pct": 90.6392,
+    "cash": 912.6686,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "XRP/USDT",
-      "side": "buy",
-      "direction": "숏",
-      "notional": 498.77,
-      "price": 1.5154,
-      "cost": 0.7482,
-      "signal": -0.1495,
-      "realized_pnl": -2.61,
-      "avg_cost": 1.509743,
-      "at": "2026-08-24T00:25:52+09:00"
-    },
-    {
-      "symbol": "BNB/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 277.32,
-      "price": 695.0,
-      "cost": 0.416,
-      "signal": 0.3901,
-      "at": "2026-08-24T01:04:54+09:00"
-    },
     {
       "symbol": "XRP/USDT",
       "side": "sell",
@@ -805,6 +774,28 @@
       "realized_pnl": -6.9623,
       "avg_cost": 1.4654,
       "at": "2026-08-24T14:34:17+09:00"
+    },
+    {
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "direction": "청산",
+      "notional": 608.36,
+      "price": 77156.8,
+      "cost": 0.9125,
+      "signal": 0.0,
+      "realized_pnl": -2.8455,
+      "avg_cost": 76911.651313,
+      "at": "2026-08-24T15:08:18+09:00"
+    },
+    {
+      "symbol": "SOL/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 890.16,
+      "price": 94.27,
+      "cost": 1.3352,
+      "signal": 0.6535,
+      "at": "2026-08-24T15:08:18+09:00"
     }
   ],
   "limits": [
