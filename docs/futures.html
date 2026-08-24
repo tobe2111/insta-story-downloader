@@ -93,6 +93,8 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
 그대로 적습니다). 그래서 믿지 않고 <b>나란히 돌려서 잽니다.</b></div>
 
 <div class="card" id="sum">불러오는 중…</div>
+<!-- 원화 환산(참고) — 계좌 단위는 USDT다. -->
+<div class="card sub" id="krw">불러오는 중…</div>
 
 <h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
 <div class="card" id="rules">불러오는 중…</div>
@@ -311,6 +313,9 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
   /* ── 최근 체결 ── 코인 단타·미국주식과 **같은 렌더러**를 쓴다.
      여기만 '사기/팔기'로 부르는 것은 방향 칸이 따로 있기 때문이다 —
      양방향 장부에서 '매도'는 롱을 파는 것인지 숏을 여는 것인지 헷갈린다. */
+  if(window.QuantTrades){
+    QuantTrades.krw(document.getElementById("krw"), d.krw, "USDT");
+  }
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),
       d.recent_trades, {currency:"USDT", kst:kst, direction:true,
