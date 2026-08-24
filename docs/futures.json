@@ -1,11 +1,11 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-24T20:49:05+09:00",
+  "updated": "2026-08-24T21:19:29+09:00",
   "start_cash": 10000.0,
-  "equity": 9705.375,
-  "return_pct": -2.9462,
-  "cost_paid": 269.4723,
-  "funding_paid": 2.885808,
+  "equity": 9836.3944,
+  "return_pct": -1.6361,
+  "cost_paid": 280.0325,
+  "funding_paid": 2.972487,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "rule_changes": [
@@ -21,11 +21,11 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 0.716557,
+  "margin_ratio": 0.916841,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 13544.4534,
+  "gross_exposure": 10728.5713,
   "long_positions": 3,
   "short_positions": 0,
   "long_only_symbols": [
@@ -33,7 +33,7 @@
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 77,
+  "rounds": 78,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -343,85 +343,67 @@
     {
       "at": "2026-08-24T20:49:05+09:00",
       "equity": 9705.375
+    },
+    {
+      "at": "2026-08-24T21:19:29+09:00",
+      "equity": 9836.3944
     }
   ],
   "positions": {
     "ETH/USDT": 2.3661236518,
-    "BNB/USDT": 2.6896187105,
-    "BTC/USDT": 0.0751114125
+    "BNB/USDT": 5.5895923906,
+    "BTC/USDT": 0.011381915
   },
   "holdings": [
     {
       "symbol": "BNB/USDT",
       "direction": "long",
-      "quantity": 2.6896187105,
-      "avg_cost": 699.7,
-      "last_price": 699.4,
+      "quantity": 5.5895923906,
+      "avg_cost": 701.87902999,
+      "last_price": 703.9,
       "currency": "USDT",
-      "value": 1881.1193,
-      "cost": 1881.9262,
-      "pnl": -0.8069,
-      "pnl_pct": -0.0429
+      "value": 3934.5141,
+      "cost": 3923.2177,
+      "pnl": 11.2964,
+      "pnl_pct": 0.2879
     },
     {
       "symbol": "BTC/USDT",
       "direction": "long",
-      "quantity": 0.0751114125,
+      "quantity": 0.011381915,
       "avg_cost": 77620.7,
-      "last_price": 77620.7,
+      "last_price": 78438.4,
       "currency": "USDT",
-      "value": 5830.2004,
-      "cost": 5830.2004,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "value": 892.7792,
+      "cost": 883.4722,
+      "pnl": 9.307,
+      "pnl_pct": 1.0535
     },
     {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 2.3661236518,
       "avg_cost": 2443.68,
-      "last_price": 2465.27,
+      "last_price": 2494.07,
       "currency": "USDT",
-      "value": 5833.1337,
+      "value": 5901.278,
       "cost": 5782.049,
-      "pnl": 51.0846,
-      "pnl_pct": 0.8835
+      "pnl": 119.229,
+      "pnl_pct": 2.0621
     }
   ],
   "holdings_total": {
-    "pnl": 50.2777,
+    "pnl": 139.8324,
     "counted": 3,
     "unknown": 0
   },
   "deployed": {
-    "gross": 13544.4534,
-    "pct": 139.5562,
-    "cash": -3839.0784,
+    "gross": 10728.5713,
+    "pct": 109.0702,
+    "cash": -892.1769,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "XRP/USDT",
-      "side": "buy",
-      "direction": "청산",
-      "notional": 6035.77,
-      "price": 1.5258,
-      "cost": 9.0537,
-      "signal": 0.0,
-      "realized_pnl": -90.7802,
-      "avg_cost": 1.50514,
-      "at": "2026-08-24T07:33:47+09:00"
-    },
-    {
-      "symbol": "SOL/USDT",
-      "side": "sell",
-      "direction": "숏",
-      "notional": -3107.27,
-      "price": 95.58,
-      "cost": 4.6609,
-      "signal": -0.7651,
-      "at": "2026-08-24T08:21:01+09:00"
-    },
     {
       "symbol": "BTC/USDT",
       "side": "buy",
@@ -847,6 +829,28 @@
       "realized_pnl": -2.5755,
       "avg_cost": 699.7,
       "at": "2026-08-24T20:16:40+09:00"
+    },
+    {
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "direction": "롱",
+      "notional": -4998.84,
+      "price": 78438.4,
+      "cost": 7.4983,
+      "signal": 0.2877,
+      "realized_pnl": 44.6134,
+      "avg_cost": 77620.7,
+      "at": "2026-08-24T21:19:29+09:00"
+    },
+    {
+      "symbol": "BNB/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 2041.29,
+      "price": 703.9,
+      "cost": 3.0619,
+      "signal": 0.7802,
+      "at": "2026-08-24T21:19:29+09:00"
     }
   ],
   "limits": [
