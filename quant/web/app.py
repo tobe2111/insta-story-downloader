@@ -498,11 +498,13 @@ def _robustness_html(returns, ppy: int) -> str:
 _MONITOR_JS = """<script>
 function _esc(s){const d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 function _num(v,f){return (Number(v)||0).toLocaleString(undefined,{minimumFractionDigits:f,maximumFractionDigits:f});}
+let _lastState=null;   // 실시간 평가(_live)가 읽는 최신 상태
 async function _tick(){
   try{
     const r = await fetch('/api/state', {cache:'no-store'});
     if(!r.ok) return;
     const s = await r.json();
+    _lastState = s;
     const h = (s && s.history) || [];
     const eq = h.map(x => (x.equity||0));
     if(eq.length >= 2){
@@ -561,6 +563,50 @@ async function _tick(){
 }
 function setTxtSafe(id,txt){const el=document.getElementById(id); if(el) el.textContent=txt;}
 setInterval(_tick, 5000); _tick();
+
+/* 실시간 자산(2026-08-23 사장님 "프로그램에서도 가능해야 해") —
+   현금 + Σ수량×지금가. 계산은 TrackLive.equityFromCash(사이트와 같은
+   파일·같은 검사) 한 곳에 있고, 여기는 시세를 물어다 줄 뿐이다.
+   코인은 거래소 직결, 주식은 /api/quotes(배포 워커로 중계).
+   확정 KPI는 건드리지 않는다 — 수익률·낙폭·판정은 확정 기록만 쓴다. */
+async function _live(){
+  try{
+    if(typeof TrackLive==='undefined'||!_lastState)return;
+    const line=document.getElementById('tl-line'); if(!line)return;
+    const pos=(_lastState.positions||[]).filter(p=>p&&p.quantity);
+    if(!pos.length){line.textContent='';return;}
+    const cs=pos.map(p=>p.symbol).filter(s=>String(s).indexOf('/')>0);
+    const ss=pos.map(p=>p.symbol).filter(s=>String(s).indexOf('/')<0);
+    const parts=await Promise.all([
+      cs.length?TrackLive.fetchCrypto(cs):null,
+      ss.length?TrackLive.fetchStocks(ss):null]);
+    const prices={}; parts.forEach(p=>{if(p)Object.assign(prices,p);});
+    const m=TrackLive.equityFromCash(_lastState.cash,pos,prices);
+    if(m.equityLive==null){
+      line.innerHTML='<span style="color:var(--muted)">실시간 합계는 표시하지 '
+        +'않습니다 — '+(m.reason?_esc(m.reason)+' (봇을 새 버전으로 재시작하면 '
+        +'채워집니다)':'시세를 못 받은 종목: '+_esc(m.missing.join(', ')))
+        +'</span>';
+      return;
+    }
+    line.innerHTML='지금 <b>'+_num(m.equityLive,2)+'</b> '
+      +'<span style="color:var(--muted);font-size:12px">실시간 참고 · '
+      +new Date().toLocaleTimeString()
+      +' · 수익률·판정은 확정 기록만 씁니다</span>';
+    const pb=document.getElementById('pos-body');
+    if(pb){Array.from(pb.querySelectorAll('tr')).forEach((tr,i)=>{
+      const p=pos[i], r=p&&m.rows[p.symbol];
+      if(!r||tr.cells.length<3)return;
+      let el=tr.cells[2].querySelector('.tl-live');
+      if(!el){el=document.createElement('div');el.className='tl-live';
+        el.style.cssText='font-size:11px;color:var(--muted)';
+        tr.cells[2].appendChild(el);}
+      el.textContent='지금 '+_num(r.px,2)+(r.pnl!=null
+        ?((r.pnl>=0?' (+':' (−')+_num(Math.abs(r.pnl),2)+')'):'');
+    });}
+  }catch(e){}
+}
+setInterval(_live, 8000); setTimeout(_live, 1500);
 </script>"""
 
 
@@ -682,7 +728,11 @@ def render_monitor(state_paths=None) -> str:
     doc = doc.replace(
         "</header>",
         '</header><p class="sub" style="font-size:12px;color:var(--muted)">'
-        '<span style="color:var(--ok)">●</span> 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>', 1)
+        '<span style="color:var(--ok)">●</span> 실시간 (5초 갱신) · 마지막: <span id="rt-time">—</span></p>'
+        # 실시간 자산 줄(2026-08-23 사장님 "프로그램에서도 가능해야 해") —
+        # 확정 KPI를 덮지 않고 이 한 줄로만 산다. 계산은 사이트와 **같은
+        # 파일**(assets/track-live.js)이다 — 규칙을 두 곳에 두면 갈라진다.
+        '<p id="tl-line" style="font-size:15px;margin:2px 0 0"></p>', 1)
 
     # 확장 상태 배지 — 새 리스크/운영 필드가 상태에 있으면 표시한다(없으면 생략).
     badges = []
@@ -704,7 +754,11 @@ def render_monitor(state_paths=None) -> str:
             '<span id="rt-time">—</span></p>',
             '<span id="rt-time">—</span> · ' + " · ".join(badges) + "</p>", 1)
     doc = doc.replace("</body>", champions_html() + "</body>", 1)
-    return doc.replace("</body>", _MONITOR_JS + "</body>", 1)
+    # 실시간 평가 계산 모듈 — 사이트 트랙 페이지와 같은 파일을 읽어 심는다
+    # (_inline_asset — 파일은 한 개, 고치면 양쪽이 같이 바뀐다).
+    return doc.replace(
+        "</body>",
+        _inline_asset("track-live.js") + _MONITOR_JS + "</body>", 1)
 
 
 ALLOCATION_LABELS = {
