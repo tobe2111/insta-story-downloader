@@ -210,6 +210,19 @@ def test_the_daily_batch_asks_korea_only_with_a_key():
             f"{f}: 한국에 earn_day를 안 붙인다 — 캐시가 차도 PEAD가 관망한다")
 
 
+def test_the_workflow_hands_the_key_to_the_batch():
+    """새벽 배치 워크플로가 시크릿을 실제로 넘긴다 (2026-08-24).
+
+    코드가 키 조건부로 완벽해도 워크플로가 env로 안 넘기면 키는 영원히
+    '미설정'이다 — 실제로 그렇게 배선이 빠진 채 배송됐고, 사장님이 키를
+    등록한 날 확인 과정에서 잡았다. 이 자리가 다시 비면 여기서 죽는다.
+    """
+    src = (ROOT / ".github" / "workflows" / "daily-paper.yml").read_text("utf-8")
+    assert "DART_API_KEY: ${{ secrets.DART_API_KEY }}" in src, (
+        "daily-paper.yml이 DART_API_KEY를 배치에 넘기지 않는다 — "
+        "키를 등록해도 한국 발표일 수집이 영원히 시작되지 않는다")
+
+
 def test_the_proxy_definition_is_confessed():
     src = (ROOT / "quant" / "data" / "earnings.py").read_text("utf-8")
     assert "대용치" in src and "정기공시" in src, (

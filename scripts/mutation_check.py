@@ -6269,6 +6269,13 @@ MUTATIONS = [
      "        pass",
      "tests/test_the_site_remembers_how_it_fixed_itself.py"),
 
+    # ── DART 키 워크플로 배선 (2026-08-24 — 등록 확인 중 발견한 결손) ──
+    ("워크플로가 DART 키를 배치에 안 넘긴다(키를 등록해도 영원히 미설정)",
+     ".github/workflows/daily-paper.yml",
+     "          DART_API_KEY: ${{ secrets.DART_API_KEY }}",
+     '          DART_API_KEY: ""',
+     "tests/test_the_korean_calendar_arrives_by_key.py"),
+
     # ── 프로그램(조종석) 실시간 자산 (2026-08-23 "프로그램에서도") ──────
     ("현금을 모르면 0원으로 친다('모름'이 '빈 지갑'이 된다)",
      "docs/assets/track-live.js",

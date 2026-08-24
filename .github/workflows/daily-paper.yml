@@ -81,6 +81,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # 한국 실적 발표일(DART, 2026-08-24) — 키가 있으면 일일 배치가
+          # 주간 캐시를 채워 한국 PEAD·실적 가드 재료가 된다. 미설정이면
+          # 빈 값이고 코드가 조용히 건너뛴다(키 조건부).
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
           QUANT_LIVE_URL: ${{ vars.QUANT_LIVE_URL }}
         run: |
           python -m quant paper-daily --all --docs | tee paper-all.txt
