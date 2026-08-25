@@ -304,17 +304,40 @@ def test_clicking_a_row_opens_that_symbols_chart(page, table, label):
     해당 트레이딩뷰 차트가 보이게끔 해주고."
 
     한 표에서만 눌리면 읽는 사람은 나머지를 **고장**으로 읽는다.
+
+    ⚠️ 예전 판은 "첫 줄을 누르면 iframe이 하나 있다"였다. **그날 계좌가 무엇을
+       들고 있느냐에 따라 빨강·초록이 갈렸다** — 잔고 1위가 차트 매핑이 없는
+       ETF인 날에는 실패했고, 나는 그것을 몇 번이나 "컨테이너 탓"으로 넘겼다.
+       검사가 데이터에 흔들리면 진짜 신호를 읽을 수 없게 된다.
+
+       이제 두 갈래를 **각각** 본다. 지킬 계약은 "iframe이 있다"가 아니라
+       **"누른 그 종목이 뜬다"**이다.
     """
     if not page.locator(f"#{table}").is_visible():
         page.click("#morebtn")          # 접힌 표는 펴고 눌러야 한다(감사 282)
         page.wait_for_timeout(300)
     rows = page.locator(f"#{table} tbody tr[data-k]:visible")
     assert rows.count() > 0, f"{label} 표에 누를 수 있는 줄이 없다"
+    key = rows.first.get_attribute("data-k")
     rows.first.click()
     page.wait_for_timeout(1000)
     assert page.locator("dialog[open]").count() == 1, f"{label}: 창이 안 열렸다"
-    assert page.locator("#dlg-chart iframe").count() == 1, (
-        f"{label}: 창은 열렸는데 차트가 없다")
+
+    tv = page.evaluate("k => window.QuantTV && QuantTV.tvSymbol(k)", key)
+    box = page.locator("#dlg-chart")
+    if tv:
+        frames = page.locator("#dlg-chart iframe")
+        assert frames.count() == 1, f"{label}({key}): 창은 열렸는데 차트가 없다"
+        src = frames.first.get_attribute("src") or ""
+        # 심볼이 URL 안에 있어야 한다 — 아무 차트나 띄우면 계약이 아니다.
+        assert tv.replace(":", "%3A") in src or tv in src, (
+            f"{label}({key}): 다른 종목의 차트가 떴다 — {src[:120]}")
+    else:
+        # 매핑이 없으면 **지어내지 않고** 그렇다고 말해야 한다(대조군).
+        assert page.locator("#dlg-chart iframe").count() == 0, (
+            f"{label}({key}): 매핑이 없는데 차트를 지어냈다")
+        assert "비워 둡니다" in box.inner_text(), (
+            f"{label}({key}): 차트도 없고 왜 없는지도 안 적혀 있다")
 
 
 def test_the_dialog_reads_that_tables_own_headers(page):
