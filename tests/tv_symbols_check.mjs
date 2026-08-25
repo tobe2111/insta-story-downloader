@@ -38,6 +38,25 @@ const EXPECT = {
   "us_stock:AMZN": "NASDAQ:AMZN",
   "us_stock:META": "NASDAQ:META",
   "us_stock:TSLA": "NASDAQ:TSLA",
+  "us_stock:GOOG": "NASDAQ:GOOG",
+  "us_stock:GOOGL": "NASDAQ:GOOGL",
+  // 자산군 코어 ETF (2026-08-19 확장분 — 2026-08-25에야 표에 넣었다.
+  // 잔고 1위 UUP를 눌렀는데 차트가 침묵해서 CI가 잡았다.)
+  "us_stock:GLD": "AMEX:GLD",
+  "us_stock:SLV": "AMEX:SLV",
+  "us_stock:TLT": "NASDAQ:TLT",
+  "us_stock:IEF": "NASDAQ:IEF",
+  "us_stock:LQD": "AMEX:LQD",
+  "us_stock:TIP": "AMEX:TIP",
+  "us_stock:DBC": "AMEX:DBC",
+  "us_stock:XLE": "AMEX:XLE",
+  "us_stock:XLU": "AMEX:XLU",
+  "us_stock:XLP": "AMEX:XLP",
+  "us_stock:VNQ": "AMEX:VNQ",
+  "us_stock:UUP": "AMEX:UUP",
+  "us_stock:EWJ": "AMEX:EWJ",
+  "us_stock:VGK": "AMEX:VGK",
+  "us_stock:EEM": "AMEX:EEM",
   "kr_stock:069500.KS": "KRX:069500",
   "kr_stock:005930.KS": "KRX:005930",
   "kr_stock:000660.KS": "KRX:000660",
@@ -50,15 +69,31 @@ for (const [key, want] of Object.entries(EXPECT)) {
   const got = Q.tvSymbol(key);
   check("매핑 " + key, got === want, "받은 값 " + got);
 }
-check("운영 종목 20개를 전부 덮는다", Object.keys(EXPECT).length === 20,
-      String(Object.keys(EXPECT).length));
+check("고정 코어 + 대표 종목 37개를 전부 덮는다",
+      Object.keys(EXPECT).length === 37, String(Object.keys(EXPECT).length));
 
 // ② 코스닥도 KRX로 간다
 check("코스닥(.KQ)", Q.tvSymbol("kr_stock:247540.KQ") === "KRX:247540");
 
+// ③-0 표에 없는 **미국** 티커는 티커 그대로 간다 (2026-08-25 계약 변경).
+//    시총 상위 6은 매달 회전하므로 정적 표가 영원히 못 따라간다. 미국
+//    티커는 그 자체가 종목 이름이고 미국 거래소끼리 겹치지 않는다 —
+//    추측한 심볼이 아니라 티커 자체를 주는 것이라 '지어내지 않는다'
+//    계약과 충돌하지 않는다. 티커 꼴이 아니면 여전히 null(③).
+check("표에 없는 미국 티커는 티커 그대로",
+      Q.tvSymbol("us_stock:ZZZZ") === "ZZZZ",
+      "받은 값 " + Q.tvSymbol("us_stock:ZZZZ"));
+check("숫자 섞인 티커도 그대로(앞은 글자)",
+      Q.tvSymbol("us_stock:BF2") === "BF2");
+check("티커 꼴이 아니면(소문자) null",
+      Q.tvSymbol("us_stock:zzzz") === null);
+check("티커 꼴이 아니면(너무 길다) null",
+      Q.tvSymbol("us_stock:TOOLONG") === null);
+check("티커 꼴이 아니면(특수문자) null",
+      Q.tvSymbol("us_stock:BRK.A") === null);
+
 // ③ **모르면 만들어내지 않는다** — 이게 이 파일의 핵심 계약이다
 const UNKNOWN = [
-  "us_stock:ZZZZ",          // 표에 없는 미국 티커
   "kr_stock:005930",        // 접미사 없는 국내 코드
   "kr_stock:12345.KS",      // 여섯 자리가 아니다
   "crypto:BTCUSDT",         // 슬래시 없는 우리 표기 아님

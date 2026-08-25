@@ -816,6 +816,10 @@ def build_challengers(current_spec: dict, seed: str,
         # 발표 달력 앞에서 위험 보상·포지션 정리가 몰린다는 가설(루카·묀히).
         # 달력(2020~2026 정례 일정) 밖의 해는 관망 + 경고.
         {"strategy": "fomc_drift", "params": {}},
+        # 펀딩 과열 회피(2026-08-25, 가설 우선 5호) — 과열 펀딩 = 레버리지
+        # 롱 쏠림 = 강제 청산(가격에 둔감한 매도) 연쇄에 취약하다는 가설.
+        # funding 컬럼이 없는 시장(주식)은 관망 — 무해하다.
+        {"strategy": "funding_guard", "params": {"window": 180, "quantile": 0.9}},
     ]
     if not evolve:
         return challengers
