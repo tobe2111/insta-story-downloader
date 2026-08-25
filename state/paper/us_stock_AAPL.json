@@ -2,7 +2,7 @@
   "cash": 9909.16681178183,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-21 00:00:00",
+  "last_bar": "2026-08-24 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -473,11 +473,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-24",
+      "price": 310.3399963378906,
+      "weight": 0.0061,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9909.17,
+      "return_pct": -0.91,
+      "hit_rate": 0.56,
+      "hit_n": 100,
+      "hit_lo": 0.4622792771125631,
+      "hit_hi": 0.6532813459903167,
+      "hit_conclusive": false,
+      "live_hit": 0.4,
+      "live_hit_n": 5,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +0.6% — 로지스틱회귀 모델이 내일 상승확률을 약 23%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 참고: 전 종목 합산으로 모델이 23%±10%p라 말한 43번의 실제 상승 비율 56% (95% 신뢰구간 41%~70% · 봉이 빠진 17번은 제외 · 이 종목 단독 표본은 1번으로 축적 중) · 🏛 의회 운용: ml 50% + ml 26% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 311.470001,
+        "bar": "2026-08-24 00:00:00",
+        "weight": 0.0003,
+        "decided_bar": "2026-08-21 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "bf706d29c6a9",
+      "data_sha256": "7bbdbdeb293115cc84bfb06cdbdb2524c23eaddaaeb2defa9a91c77311669758",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.22692341354441148,
+      "drift_psi": 0.3464,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0003,
-    "decided_bar": "2026-08-21 00:00:00"
+    "weight": 0.0061,
+    "decided_bar": "2026-08-24 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",
