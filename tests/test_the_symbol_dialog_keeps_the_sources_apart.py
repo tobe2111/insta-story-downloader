@@ -21,9 +21,10 @@
    제3자 코드를 들이지 않는다. iframe은 경계가 있고, 트레이딩뷰가 죽어도 그
    칸만 빈다.
 
-심볼 변환 자체는 `tests/tv_symbols_check.mjs`가 **실행해서** 20종목을 값으로
-확인한다(소스 문자열만 읽는 검사는 "검사는 초록인데 기능은 죽어 있다"를
-못 잡는다 — 감사 229).
+심볼 변환 자체는 `tests/tv_symbols_check.mjs`가 **실행해서** 고정 코어
+전부를 값으로 확인한다(소스 문자열만 읽는 검사는 "검사는 초록인데 기능은
+죽어 있다"를 못 잡는다 — 감사 229). 그 하네스는 아래 pytest가 CI에서
+직접 돌린다.
 """
 
 from __future__ import annotations
@@ -143,21 +144,32 @@ def test_the_mapper_returns_null_for_unknown_markets():
 
 # ── 매핑이 운영 종목을 전부 덮는가 ────────────────────────────
 
+def _table_us_symbols() -> set:
+    return set(re.findall(r"^\s+(\w+): \"(?:NASDAQ|AMEX|NYSE)\",", TV, re.M))
+
+
 def test_every_traded_symbol_has_a_tradingview_mapping():
     """**아는 것만 세지 않는다** — 실제 운영 목록에서 훑는다.
 
     새 종목을 추가하고 매핑을 빠뜨리면 그 종목만 차트가 안 뜬다. 조용히
     빠지는 것이 이 저장소가 가장 싫어하는 상태다.
-    """
-    from quant.markets import AUTO_TARGETS
 
-    us = set(re.findall(r"^\s+(\w+): \"(?:NASDAQ|AMEX|NYSE)\",", TV, re.M))
+    ⚠️ 2026-08-25 CI가 잡은 것: 이 검사는 옛 고정 20종목(AUTO_TARGETS)만
+       훑고 있었다. 유니버스가 규칙 스냅샷(state/universe.json)으로 40여
+       종목이 된 지 엿새 — 잔고 1위 UUP는 이 검사 밖에 있었고, 눌러도
+       차트가 침묵했다. 이제 **지금 운용 중인 목록 그대로**를 훑는다.
+       (표에 없는 미국 티커는 티커 단독 후퇴로가 받는다 — 시총 상위
+       회전분까지 표로 따라가는 것은 불가능해서다. .mjs ③-0 참조.)
+    """
+    from quant.universe import active_targets
+
+    us = _table_us_symbols()
     missing = []
-    for market, symbol in AUTO_TARGETS:
+    for market, symbol in active_targets(state_dir=str(ROOT / "state")):
         if market == "crypto":
             ok = "/" in symbol
         elif market == "us_stock":
-            ok = symbol in us
+            ok = symbol in us or bool(re.match(r"^[A-Z][A-Z0-9]{0,4}$", symbol))
         elif market == "kr_stock":
             ok = bool(re.match(r"^\d{6}\.(KS|KQ)$", symbol))
         else:
@@ -165,6 +177,39 @@ def test_every_traded_symbol_has_a_tradingview_mapping():
         if not ok:
             missing.append(f"{market}:{symbol}")
     assert not missing, f"트레이딩뷰 매핑이 없는 운영 종목: {missing}"
+
+
+def test_the_fixed_us_cores_are_in_the_exchange_table_not_the_fallback():
+    """규칙으로 박아 둔 고정 코어는 **거래소까지 정확히** 표에 있어야 한다.
+
+    후퇴로(티커 단독)는 매달 회전하는 시총 상위분을 위한 것이다. 고정
+    코어는 목록이 소스(quant/universe.py)에 적혀 있고 바뀌지 않으므로,
+    거래소를 명시한 표가 못 따라갈 이유가 없다 — 여기 없다는 것은
+    2026-08-19 확장 때처럼 표 갱신을 잊었다는 뜻이다.
+    """
+    from quant.universe import US_ASSET_CORE, US_CORE
+
+    us = _table_us_symbols()
+    missing = [s for s in US_CORE + US_ASSET_CORE if s not in us]
+    assert not missing, (
+        f"고정 코어인데 거래소 표에 없다(후퇴로에 얹혀 있다): {missing}")
+
+
+def test_the_mapper_actually_computes_the_promised_values():
+    """소스 문자열이 아니라 **실행한 값**으로 — mjs 하네스를 여기서 돌린다.
+
+    이 하네스는 지금까지 야간 변이 시험과 손 실행으로만 돌았다 — 감사
+    229("실행해서 확인한다")를 반만 지킨 셈이다. PR CI가 직접 돌려야
+    표가 낡거나 변환이 깨지는 순간 **그 PR이** 빨개진다.
+    """
+    import shutil
+    import subprocess
+    node = shutil.which("node") or "/opt/node22/bin/node"
+    if not Path(node).exists():
+        pytest.skip("node 없음 — 값 실행 검사 생략")
+    r = subprocess.run([node, str(ROOT / "tests" / "tv_symbols_check.mjs")],
+                       capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, (r.stdout or "") + (r.stderr or "")
 
 
 def test_the_node_harness_covers_the_same_count():

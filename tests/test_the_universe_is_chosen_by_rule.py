@@ -87,6 +87,21 @@ def test_no_snapshot_means_the_fixed_list(tmp_path):
     assert U.active_targets(str(tmp_path)) == list(AUTO_TARGETS)
 
 
+def test_a_snapshot_actually_drives_the_active_list(tmp_path):
+    """대조군 — 스냅샷이 있으면 **그 목록**이 운용 목록이 된다.
+
+    위 검사만 있으면 active_targets가 스냅샷을 통째로 무시하고 언제나
+    고정 20종목을 돌려줘도 초록이다(2026-08-25, 트레이딩뷰 매핑 구멍을
+    추적하다 확인). 자산군 코어(UUP 등)가 실제로 들어오는지 값으로 본다.
+    """
+    from quant.markets import AUTO_TARGETS
+    U.rebuild(str(tmp_path), today=dt.date(2026, 8, 18),
+              rank_crypto=_fake_crypto, rank_kr=_fake_kr, rank_us=_fake_us)
+    got = U.active_targets(str(tmp_path))
+    assert ("us_stock", "UUP") in got, "자산군 코어가 운용 목록에 없다"
+    assert got != list(AUTO_TARGETS), "스냅샷이 있는데 고정 목록을 돌려준다"
+
+
 def test_monthly_gate(tmp_path):
     assert U.due(str(tmp_path), dt.date(2026, 8, 18)), "첫 계산도 안 하려 한다"
     U.rebuild(str(tmp_path), today=dt.date(2026, 8, 18),
