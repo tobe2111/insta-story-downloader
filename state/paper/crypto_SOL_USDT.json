@@ -2,7 +2,7 @@
   "cash": 10435.68532914212,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-24 00:00:00",
+  "last_bar": "2026-08-25 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -634,6 +634,56 @@
       "kelly_cap": null,
       "bar_partial": {
         "elapsed": 0.9493,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx"
+    },
+    {
+      "date": "2026-08-25",
+      "price": 97.33,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10435.69,
+      "return_pct": 4.36,
+      "hit_rate": 0.5294117647058824,
+      "hit_n": 68,
+      "hit_lo": 0.4124071581374707,
+      "hit_hi": 0.643270889122056,
+      "hit_conclusive": false,
+      "live_hit": 0.6153846153846154,
+      "live_hit_n": 13,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "pool": "universe"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅·풀링(전 종목 합산 학습) 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 45% + ml 33% + ml 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "17d1f745834f",
+      "data_sha256": "456746dd4a76ac53d2dd9945a4bbe1e22488905acd82426119a09319532daa36",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.3061591525923212,
+      "drift_psi": 0.8485,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.9495,
         "timeframe": "1d",
         "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
       },

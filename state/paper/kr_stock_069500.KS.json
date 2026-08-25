@@ -2,7 +2,7 @@
   "cash": 10061.00407287742,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-24 00:00:00",
+  "last_bar": "2026-08-25 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -487,13 +487,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-25",
+      "price": 106795.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10061.0,
+      "return_pct": 0.61,
+      "hit_rate": 0.6370370370370371,
+      "hit_n": 135,
+      "hit_lo": 0.5531703228048255,
+      "hit_hi": 0.7133204119605476,
+      "hit_conclusive": true,
+      "live_hit": 0.42857142857142855,
+      "live_hit_n": 7,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 58% + ml 22% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 103035.0,
+        "bar": "2026-08-25 00:00:00",
+        "weight": 0.0005,
+        "decided_bar": "2026-08-24 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "17d1f745834f",
+      "data_sha256": "5d8d1c43a165080ac79306ca8c9534a2a09e64d1bfac7733eb28ab3693930ec4",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.19994130547357286,
+      "drift_psi": 1.4612,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "069500.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0005,
-    "decided_bar": "2026-08-24 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-25 00:00:00"
   }
 }
