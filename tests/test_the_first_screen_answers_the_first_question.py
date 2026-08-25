@@ -311,10 +311,19 @@ def test_clicking_a_row_opens_that_symbols_chart(page, table, label):
     rows = page.locator(f"#{table} tbody tr[data-k]:visible")
     assert rows.count() > 0, f"{label} 표에 누를 수 있는 줄이 없다"
     rows.first.click()
-    page.wait_for_timeout(1000)
-    assert page.locator("dialog[open]").count() == 1, f"{label}: 창이 안 열렸다"
-    assert page.locator("#dlg-chart iframe").count() == 1, (
-        f"{label}: 창은 열렸는데 차트가 없다")
+    # ⚠️ 고정 대기(1초) 뒤 즉시 단정은 러너가 느린 날 거짓 빨강을 만든다
+    #    (2026-08-25 CI: 동시 두 실행이 같은 자리서 죽었는데 로컬 3회는
+    #    전부 초록). 조건 대기로 바꾼다 — 진짜 고장이면 8초를 기다려도
+    #    같은 메시지로 죽으므로 검사가 무뎌지는 것이 아니다.
+    try:
+        page.locator("dialog[open]").first.wait_for(timeout=8000)
+    except Exception:
+        raise AssertionError(f"{label}: 창이 안 열렸다") from None
+    try:
+        page.locator("#dlg-chart iframe").first.wait_for(
+            state="attached", timeout=8000)
+    except Exception:
+        raise AssertionError(f"{label}: 창은 열렸는데 차트가 없다") from None
 
 
 def test_the_dialog_reads_that_tables_own_headers(page):
