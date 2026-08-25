@@ -1,11 +1,11 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": -2318.591605323534,
+  "cash": 5526.325791166019,
   "positions": {
-    "ETH/USDT": 2.3701270025715675,
+    "ETH/USDT": 0.7944776567596978,
     "SOL/USDT": 0.2774090965594169,
-    "BNB/USDT": 8.44955851779799,
+    "BNB/USDT": 2.8168504256389033,
     "BTC/USDT": 0.004432556569829937
   },
   "avg_cost": {
@@ -14,8 +14,8 @@
     "BNB/USDT": 703.9618685225375,
     "BTC/USDT": 78957.64141454807
   },
-  "cost_paid": 451.98715327663064,
-  "funding_paid": 7.498751696480924,
+  "cost_paid": 463.77239567207437,
+  "funding_paid": 7.624376440616249,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -5595,6 +5595,73 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-08-26T01:48:54+09:00",
+      "equity": 9851.2909,
+      "cash": 5526.3258,
+      "gross_exposure": 4324.9651,
+      "funding": 0.125625,
+      "cost_paid": 463.7724,
+      "funding_paid": 7.624376,
+      "signals": {
+        "BTC/USDT": 0.1793,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 0.0
+      },
+      "positions": {
+        "ETH/USDT": 0.7944776568,
+        "SOL/USDT": 0.2774090966,
+        "BNB/USDT": 2.8168504256,
+        "BTC/USDT": 0.0044325566
+      },
+      "margin_ratio": 2.277773,
+      "trades": [
+        {
+          "symbol": "ETH/USDT",
+          "side": "sell",
+          "direction": "롱",
+          "notional": -3912.24,
+          "price": 2482.94,
+          "cost": 5.8684,
+          "signal": 1.0,
+          "realized_pnl": 55.0564,
+          "avg_cost": 2444.273564
+        },
+        {
+          "symbol": "BNB/USDT",
+          "side": "sell",
+          "direction": "롱",
+          "notional": -3944.59,
+          "price": 700.3,
+          "cost": 5.9169,
+          "signal": 1.0,
+          "realized_pnl": -26.5431,
+          "avg_cost": 703.961869
+        }
+      ],
+      "skipped": [],
+      "long_only": [
+        "ETH/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.0435,
+        "n": 116,
+        "why": "표본 116회차 < 120 — 1배로 둡니다"
+      },
+      "conviction_scale": {
+        "BTC/USDT": 3.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 3.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
@@ -6065,14 +6132,18 @@
     {
       "at": "2026-08-26T00:59:24+09:00",
       "equity": 9831.0663
+    },
+    {
+      "at": "2026-08-26T01:48:54+09:00",
+      "equity": 9851.2909
     }
   ],
   "last_prices": {
-    "BTC/USDT": 79251.1,
-    "ETH/USDT": 2477.0,
-    "SOL/USDT": 98.2,
-    "BNB/USDT": 698.3,
-    "XRP/USDT": 1.4731
+    "BTC/USDT": 79502.3,
+    "ETH/USDT": 2482.94,
+    "SOL/USDT": 98.36,
+    "BNB/USDT": 700.3,
+    "XRP/USDT": 1.4785
   },
   "liquidations": 0
 }
