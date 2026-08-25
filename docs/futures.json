@@ -1,11 +1,11 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-25T21:19:30+09:00",
+  "updated": "2026-08-25T22:19:47+09:00",
   "start_cash": 10000.0,
-  "equity": 9813.3208,
-  "return_pct": -1.8668,
-  "cost_paid": 433.1681,
-  "funding_paid": 6.823207,
+  "equity": 9802.6445,
+  "return_pct": -1.9736,
+  "cost_paid": 441.4862,
+  "funding_paid": 6.969971,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "rule_changes": [
@@ -21,20 +21,20 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 0.817142,
+  "margin_ratio": 0.568883,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 12009.3202,
-  "long_positions": 3,
-  "short_positions": 1,
+  "gross_exposure": 17231.3815,
+  "long_positions": 4,
+  "short_positions": 0,
   "long_only_symbols": [
     "ETH/USDT",
     "BNB/USDT"
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 113,
+  "rounds": 114,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -488,13 +488,17 @@
     {
       "at": "2026-08-25T21:19:30+09:00",
       "equity": 9813.3208
+    },
+    {
+      "at": "2026-08-25T22:19:47+09:00",
+      "equity": 9802.6445
     }
   ],
   "positions": {
     "ETH/USDT": 2.3946019128,
     "SOL/USDT": 0.2774090966,
     "BNB/USDT": 8.4495585178,
-    "XRP/USDT": -108.4611185778
+    "BTC/USDT": 0.0681848487
   },
   "holdings": [
     {
@@ -502,24 +506,36 @@
       "direction": "long",
       "quantity": 8.4495585178,
       "avg_cost": 703.96186852,
-      "last_price": 696.8,
+      "last_price": 697.7,
       "currency": "USDT",
-      "value": 5887.6524,
+      "value": 5895.257,
       "cost": 5948.167,
-      "pnl": -60.5146,
-      "pnl_pct": -1.0174
+      "pnl": -52.91,
+      "pnl_pct": -0.8895
+    },
+    {
+      "symbol": "BTC/USDT",
+      "direction": "long",
+      "quantity": 0.0681848487,
+      "avg_cost": 78984.3,
+      "last_price": 78984.3,
+      "currency": "USDT",
+      "value": 5385.5325,
+      "cost": 5385.5325,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 2.3946019128,
       "avg_cost": 2444.27356422,
-      "last_price": 2477.96,
+      "last_price": 2473.58,
       "currency": "USDT",
-      "value": 5933.7278,
+      "value": 5923.2394,
       "cost": 5853.0622,
-      "pnl": 80.6656,
-      "pnl_pct": 1.3782
+      "pnl": 70.1772,
+      "pnl_pct": 1.199
     },
     {
       "symbol": "SOL/USDT",
@@ -532,54 +548,20 @@
       "cost": 27.0391,
       "pnl": 0.3135,
       "pnl_pct": 1.1593
-    },
-    {
-      "symbol": "XRP/USDT",
-      "direction": "short",
-      "quantity": -108.4611185778,
-      "avg_cost": 1.4847,
-      "last_price": 1.4806,
-      "currency": "USDT",
-      "value": -160.5875,
-      "cost": 161.0322,
-      "pnl": 0.4447,
-      "pnl_pct": 0.2762
     }
   ],
   "holdings_total": {
-    "pnl": 20.9092,
+    "pnl": 17.5807,
     "counted": 4,
     "unknown": 0
   },
   "deployed": {
-    "gross": 12009.3202,
-    "pct": 122.3777,
-    "cash": -2195.9994,
+    "gross": 17231.3814,
+    "pct": 175.783,
+    "cash": -7428.7369,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "BNB/USDT",
-      "side": "sell",
-      "direction": "청산",
-      "notional": -947.48,
-      "price": 700.2,
-      "cost": 1.4212,
-      "signal": 0.0,
-      "realized_pnl": -3.6932,
-      "avg_cost": 701.87903,
-      "at": "2026-08-24T23:13:01+09:00"
-    },
-    {
-      "symbol": "XRP/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 5874.83,
-      "price": 1.4906,
-      "cost": 8.8123,
-      "signal": 1.0,
-      "at": "2026-08-24T23:13:01+09:00"
-    },
     {
       "symbol": "BNB/USDT",
       "side": "sell",
@@ -1001,6 +983,28 @@
       "realized_pnl": 2.0518,
       "avg_cost": 1.4847,
       "at": "2026-08-25T21:19:30+09:00"
+    },
+    {
+      "symbol": "BTC/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 5385.53,
+      "price": 78984.3,
+      "cost": 8.0783,
+      "signal": 0.9478,
+      "at": "2026-08-25T22:19:47+09:00"
+    },
+    {
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "direction": "청산",
+      "notional": 159.92,
+      "price": 1.4744,
+      "cost": 0.2399,
+      "signal": 0.0,
+      "realized_pnl": 0.8773,
+      "avg_cost": 1.4847,
+      "at": "2026-08-25T22:19:47+09:00"
     }
   ],
   "limits": [
