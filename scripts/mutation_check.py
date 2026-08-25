@@ -6269,6 +6269,28 @@ MUTATIONS = [
      "        pass",
      "tests/test_the_site_remembers_how_it_fixed_itself.py"),
 
+    # ── 펀딩 과열 회피 — 가설 우선 5호 (2026-08-25) ───────────────────
+    ("과열에도 산다(청산 연쇄 회피라는 가설이 통째로 죽는다)",
+     "quant/strategies/funding_guard.py",
+     "        pos = ((fnd <= thr) & thr.notna() & fnd.notna()).astype(float)",
+     "        pos = (thr.notna() & fnd.notna()).astype(float)",
+     "tests/test_the_crowded_long_is_a_hypothesis.py"),
+    ("펀딩을 모르는 시장에서 지어낸다('몰랐다'가 판단이 된다)",
+     "quant/strategies/funding_guard.py",
+     '        if "funding" not in df.columns or n < 2:',
+     "        if False:",
+     "tests/test_the_crowded_long_is_a_hypothesis.py"),
+    ("문턱이 자기 봉을 포함한다(극단값이 자기를 감춘다)",
+     "quant/strategies/funding_guard.py",
+     "        thr = fnd.shift(1).rolling(self.window,",
+     "        thr = fnd.rolling(self.window,",
+     "tests/test_the_crowded_long_is_a_hypothesis.py"),
+    ("펀딩 가드가 링에 서지 않는다(전략은 있는데 심사를 안 받는다)",
+     "quant/live/retrain.py",
+     '        {"strategy": "funding_guard", "params": {"window": 180, "quantile": 0.9}},',
+     '        # {"strategy": "funding_guard", "params": {"window": 180, "quantile": 0.9}},',
+     "tests/test_the_crowded_long_is_a_hypothesis.py"),
+
     # ── DART 키 워크플로 배선 (2026-08-24 — 등록 확인 중 발견한 결손) ──
     ("워크플로가 DART 키를 배치에 안 넘긴다(키를 등록해도 영원히 미설정)",
      ".github/workflows/daily-paper.yml",

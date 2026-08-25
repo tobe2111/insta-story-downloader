@@ -31,6 +31,7 @@ from quant.strategies.turn_of_month import TurnOfMonth
 from quant.strategies.pead import PEADStrategy
 from quant.strategies.expiry_week import ExpiryWeek
 from quant.strategies.fomc_drift import FOMCDrift
+from quant.strategies.funding_guard import FundingGuard
 from quant.strategies.supertrend import SuperTrendStrategy
 from quant.strategies.supplysom import SupplyDemandSOM
 from quant.strategies.valueanchor import ValueAnchor
@@ -55,6 +56,7 @@ _REGISTRY = {
     "pead": PEADStrategy,
     "expiry_week": ExpiryWeek,
     "fomc_drift": FOMCDrift,
+    "funding_guard": FundingGuard,
     "value_anchor": ValueAnchor,
     "macd": MACD,
     "keltner": KeltnerBreakout,
