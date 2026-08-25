@@ -21,8 +21,13 @@
   // 코인은 전부 바이낸스 현물 — 우리 시세도 같은 곳에서 받는다.
   var CRYPTO_EXCHANGE = "BINANCE";
 
-  // 미국주식은 상장 거래소를 명시한다. 생략하면 트레이딩뷰가 알아서
-  // 고르는데, 같은 티커가 여러 거래소에 있으면 엉뚱한 것이 걸린다.
+  // 미국주식은 아는 종목이면 상장 거래소를 명시한다(가장 정확한 지정).
+  //
+  // ⚠️ 2026-08-25 CI가 잡은 구멍: 유니버스를 45종목으로 넓힐 때(2026-08-19)
+  //    자산군 ETF 16종이 이 표에 안 들어갔다. 잔고 1위가 UUP가 된 날,
+  //    "클릭하면 차트"가 최대 보유 종목에서 침묵했다 — 규칙으로 박아 둔
+  //    고정 코어(quant/universe.py)는 전부 여기 있어야 하고, 그 계약은 이제
+  //    검사가 지킨다(tests/test_the_symbol_dialog_keeps_the_sources_apart.py).
   var US_EXCHANGE = {
     SPY: "AMEX",       // NYSE Arca — 트레이딩뷰 표기가 AMEX다
     QQQ: "NASDAQ",
@@ -32,6 +37,24 @@
     AMZN: "NASDAQ",
     META: "NASDAQ",
     TSLA: "NASDAQ",
+    GOOG: "NASDAQ",
+    GOOGL: "NASDAQ",
+    // ── 자산군 코어 ETF (quant/universe.py US_ASSET_CORE와 1:1) ──
+    GLD: "AMEX",       // 금 — NYSE Arca
+    SLV: "AMEX",       // 은 — NYSE Arca
+    TLT: "NASDAQ",     // 장기국채 — iShares 채권 ETF는 나스닥 상장
+    IEF: "NASDAQ",     // 중기국채 — 위와 같음
+    LQD: "AMEX",       // 회사채 — NYSE Arca
+    TIP: "AMEX",       // 물가연동 — NYSE Arca
+    DBC: "AMEX",       // 원자재 — NYSE Arca
+    XLE: "AMEX",       // 에너지 — NYSE Arca
+    XLU: "AMEX",       // 유틸리티 — NYSE Arca
+    XLP: "AMEX",       // 필수소비재 — NYSE Arca
+    VNQ: "AMEX",       // 리츠 — NYSE Arca
+    UUP: "AMEX",       // 달러 — NYSE Arca
+    EWJ: "AMEX",       // 일본 — NYSE Arca
+    VGK: "AMEX",       // 유럽 — NYSE Arca
+    EEM: "AMEX",       // 신흥국 — NYSE Arca
   };
 
   /**
@@ -55,7 +78,16 @@
     }
     if (market === "us_stock") {
       var ex = US_EXCHANGE[symbol];
-      return ex ? ex + ":" + symbol : null;
+      if (ex) return ex + ":" + symbol;
+      /* 표에 없는 미국 티커 — 시총 상위 6은 **매달 회전**하므로(quant/
+         universe.py) 정적 표가 영원히 따라갈 수 없다. 미국 티커는 그 자체가
+         종목의 이름이고 미국 거래소끼리는 티커가 겹치지 않으므로, 거래소
+         없이 티커만 준다 — 트레이딩뷰가 미국 시장에서 찾는다(회전으로
+         들어오는 종목은 시총 상위라 첫 후보가 그 종목이다).
+         '모르는 종목을 만들어내지 않는다'는 계약은 그대로다: 여기서 주는
+         것은 추측한 심볼이 아니라 **티커 그 자체**다. 다만 티커 꼴이
+         아니면(소문자·특수문자) 지어내지 않고 null. */
+      return /^[A-Z][A-Z0-9]{0,4}$/.test(symbol) ? symbol : null;
     }
     if (market === "kr_stock") {
       // 005930.KS → KRX:005930. 코스닥(.KQ)도 트레이딩뷰에서는 KRX다.
