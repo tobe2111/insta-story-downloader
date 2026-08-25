@@ -11,7 +11,7 @@
  * 같은 동작이다. 변수가 없는 페이지를 위해 홈의 어두운 팔레트를 기본값으로
  * 깔아 둔다.
  */
-(function () {
+(function (root) {
   "use strict";
 
   // index.html의 nav 링크와 1:1 — 순서까지 같아야 한다(계약 테스트 대상).
@@ -76,6 +76,16 @@
     "#qnav .qn-menu a.qn-mdash{color:var(--fg,#f4f5f7);font-weight:650;",
     "  border:1px solid var(--line,#1e2128);margin-top:6px;text-align:center}",
     "@media(max-width:820px){#qnav .qn-dash{display:none}}",
+    /* 언어 버튼 — 좁은 화면에서도 **남긴다.** 대시보드와 달리 이건
+       글자 두 개라 자리를 거의 안 먹고, 영어권 방문자가 첫 화면에서
+       바로 찾지 못하면 그 사람에게는 이 사이트가 한국어 전용이다. */
+    "#qnav .qn-lang{display:inline-flex;align-items:center;font-size:12px;",
+    "  font-weight:700;letter-spacing:.04em;color:var(--muted,#8f96a3);",
+    "  border:1px solid var(--line,#1e2128);border-radius:9px;",
+    "  padding:6px 10px;margin-left:8px;white-space:nowrap;",
+    "  text-decoration:none}",
+    "#qnav .qn-lang:hover{color:var(--fg,#f4f5f7);",
+    "  background:var(--bg2,#0e1013);text-decoration:none}",
     /* 삼단 바(모바일 메뉴 버튼, 2026-08-23 사장님: "모바일로 보면 다른
        페이지를 볼 수가 없어"). 그 전까지 820px 아래에서는 링크를 숨기기만
        했다 — 숨긴 자리에 대체 수단이 없으면 그건 정리가 아니라 차단이다. */
@@ -130,6 +140,11 @@
       '<rect x="14" y="3" width="7" height="5" rx="1.5"/>' +
       '<rect x="14" y="12" width="7" height="9" rx="1.5"/>' +
       '<rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>대시보드</a>');
+    // 언어 — 지금이 한국어면 'EN', 영어면 '한국어'를 권한다(할 수 있는
+    // 일을 적는다). 누르면 새로고침되며 선택이 이 브라우저에 남는다.
+    var other = (root.QuantI18N && QuantI18N.current() === "en") ? "ko" : "en";
+    html.push('<a class="qn-lang" href="#" data-qn-lang="' + other + '">' +
+      (other === "en" ? "EN" : "한국어") + "</a>");
     html.push('<span class="qn-ver" id="qnav-ver"></span>');
     // 삼단 바 버튼 + 세로 메뉴 — 링크 목록은 위 LINKS **그대로**다(같은
     // 사실은 한 곳에서만 산다). 데스크톱에서는 CSS가 버튼·메뉴를 숨긴다.
@@ -167,6 +182,13 @@
       burger.setAttribute("aria-expanded", open ? "true" : "false");
       burger.setAttribute("aria-label", open ? "메뉴 닫기" : "메뉴 열기");
     }
+    var langBtn = bar.querySelector("[data-qn-lang]");
+    if (langBtn) {
+      langBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (root.QuantI18N) QuantI18N.set(langBtn.getAttribute("data-qn-lang"));
+      });
+    }
     burger.addEventListener("click", function (e) {
       e.stopPropagation();
       setOpen(!bar.classList.contains("qn-open"));
@@ -200,4 +222,4 @@
   } else {
     build();
   }
-})();
+})(window);
