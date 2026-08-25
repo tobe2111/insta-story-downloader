@@ -145,6 +145,18 @@ from quant.live.conviction import RULE_CHANGE as _CONVICTION_RULE_CHANGE  # noqa
 
 RULE_CHANGES.append(_CONVICTION_RULE_CHANGE)
 
+# 배율 상한을 사람이 아니라 기록이 정하게 바꾼 날(2026-08-25 사장님 지시).
+RULE_CHANGES.append({
+    "on": "2026-08-25",
+    "what": "배율 상한을 사람이 정하지 않고 **이 트랙의 기록이** 정하게 "
+            "했습니다. 증명 전에는 1배이고, 낙폭이 깊어지면 즉시 1배로 "
+            "내려옵니다.",
+    "why": "사장님 지시 — \"실시간으로 조정은 이 프로그램 자체에서 "
+           "머신러닝에서 할 일\". 다만 '가장 많이 번 배율'을 고르면 "
+           "과최적화이므로, **위험 대비로도 우연을 배제했을 때만** "
+           "상한이 올라갑니다. 지금은 표본이 얇아 1배입니다.",
+})
+
 # 무기한 선물 자금조달 — 8시간마다 정산된다. 실제 요율은 시장마다 매
 # 시각 다르고 이 배치는 그 값을 받아 오지 않는다. 그래서 **받아 온 척하지
 # 않고**, 공개된 장기 중앙값 수준의 가정치를 쓰고 화면에 '가정'이라고
@@ -590,7 +602,19 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     equity = mark_equity(st, prices) if prices else float(st["cash"])
     hours = _hours_since(st.get("rounds") or [], now_iso)
     funding = apply_funding(st, prices, hours) if prices else 0.0
-    trades = execute_targets(st, signals, prices, equity, per_side, universe)
+    # ── 배율 상한은 **기록이 정한다**(2026-08-25 사장님 지시) ──────────
+    #
+    # 사람이 3배로 할지 2배로 할지 매번 손대는 것은 근거 없는 손질이고,
+    # 그 손질이 쌓이면 "그때그때 좋아 보이는 값"을 고른 장부가 된다.
+    #
+    # ⚠️ 그렇다고 "가장 많이 번 배율"을 고르면 안 된다 — 그건 학습이 아니라
+    #    과최적화다. 이 트랙이 **위험 대비로도** 우연을 배제했을 때만 상한이
+    #    올라간다. 자세한 규율은 quant/live/leverage.py에 적혀 있다.
+    from quant.live.leverage import adaptive_max_leverage
+    lev_cap = adaptive_max_leverage(st.get("curve") or [],
+                                    hard_cap=MAX_GROSS_EXPOSURE)
+    trades = execute_targets(st, signals, prices, equity, per_side, universe,
+                             max_gross=float(lev_cap["max_leverage"]))
     equity = mark_equity(st, prices) if prices else float(st["cash"])
     # 마지막으로 본 시세를 남긴다 — 종목별 손익을 그리려면 '지금 값'이
     # 있어야 한다. 이번 회차에 못 받은 종목은 **이전 값을 지우지 않는다**
@@ -615,6 +639,8 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
            "long_only": long_only, "stopped": stops}
     if liq:
         rec["liquidated"] = liq
+    # 이 회차에 허락된 배율 상한과 그 이유 — 화면이 그대로 읽는다.
+    rec["leverage_cap"] = lev_cap
     # 실제로 적용된 확신도 배수 — 조용히 꺼지면 여기가 1.0으로 돌아온다.
     if any(v != 1.0 for v in (scales or {}).values()):
         rec["conviction_scale"] = {k: round(float(v), 4)
@@ -674,6 +700,21 @@ def _deployed(st: dict, equity: float):
     return deployed(_holdings(st), equity)
 
 
+def _leverage_cap(st: dict) -> dict:
+    """지금 이 트랙에 허락된 배율 상한 — 기록이 정한다(2026-08-25).
+
+    실패해도 리포트를 막지 않는다. 못 재면 1배다 — 모를 때 크게 거는 것이
+    이 트랙이 할 수 있는 가장 나쁜 일이다.
+    """
+    try:
+        from quant.live.leverage import adaptive_max_leverage
+        return adaptive_max_leverage(st.get("curve") or [],
+                                     hard_cap=MAX_GROSS_EXPOSURE)
+    except Exception:  # noqa: BLE001
+        return {"max_leverage": 1.0, "proven": False,
+                "why": "배율 상한을 재지 못했습니다 — 1배로 둡니다"}
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -698,7 +739,14 @@ def public_report(st: dict) -> dict:
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,
+        # 하드 천장(사람이 정한 절대 상한)과 **지금 허락된 값**은 다르다.
+        # 둘을 같은 이름으로 부르면 화면이 3배라고 말하는 동안 실제로는
+        # 1배로 돌 수 있다.
         "max_gross_exposure": MAX_GROSS_EXPOSURE,
+        # ⚠️ 지난 회차 기록에서 읽지 않고 **지금 다시 잰다.** 이 값은
+        #    '그때 무슨 일이 있었나'가 아니라 '지금 무엇이 허락되나'다.
+        #    옛 회차에는 이 칸이 아예 없다(과거는 고치지 않는다).
+        "leverage_cap": _leverage_cap(st),
         # 규칙이 바뀐 지점 — 곡선을 읽는 사람이 이유를 알 수 있게.
         "rule_changes": list(RULE_CHANGES),
         "maintenance_margin_rate": MAINTENANCE_MARGIN_RATE,
