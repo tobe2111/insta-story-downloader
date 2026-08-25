@@ -54,6 +54,9 @@ PAGES = [
     # 들어오면 "그리다 죽는 페이지"가 조용히 생긴다.
     ("us.html", None),
     ("futures.html", None),
+    # ⚠️ 머신러닝 페이지(감사 311)가 이 목록에 안 들어와 있었다 — 새 페이지를
+    #    만들면서 "그리다 죽는가"를 아무도 안 보고 있었다(감사 317).
+    ("ml.html", None),
     ("weekly.html", None),
     ("trust.html", None),
     ("admin.html", None),
@@ -246,3 +249,56 @@ def test_the_mobile_menu_actually_opens(browser, site, path,
     finally:
         page.close()
     assert not errors, f"{path}: 메뉴 조작 중 스크립트가 던졌다 — {errors}"
+
+
+# ── 대시보드로 가는 문이 **정말 눌리는가** (2026-08-25 사장님 지시) ──
+
+def _dash_href(page):
+    """화면에 보이는 대시보드 링크의 주소. 안 보이면 None."""
+    for sel in (".navdash", "#qnav .qn-dash", ".mnav .mdash",
+                "#qnav .qn-menu .qn-mdash"):
+        loc = page.locator(sel)
+        if loc.count() and loc.first.is_visible():
+            return loc.first.get_attribute("href")
+    return None
+
+
+@pytest.mark.parametrize("path", ["index.html", "paper.html"],
+                         ids=["home", "shared-bar"])
+def test_the_dashboard_door_opens_on_a_desktop(browser, site, path):
+    """넓은 화면 — 상단 바에 대시보드 버튼이 보이고 admin.html로 간다."""
+    page = browser.new_page(viewport={"width": 1280, "height": 800})
+    block_external(page)
+    try:
+        page.goto(f"{site}/{path}")
+        page.wait_for_timeout(1200)
+        assert _dash_href(page) == "admin.html", (
+            f"{path}: 넓은 화면에서 대시보드 문이 안 보인다")
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("path", ["index.html", "paper.html"],
+                         ids=["home", "shared-bar"])
+def test_the_dashboard_door_opens_on_a_phone(browser, site, path):
+    """좁은 화면 — 삼단 바를 열면 대시보드로 가는 문이 나온다.
+
+    사장님 지시가 **"모바일 기준으로도"**였다. 좁은 화면에서 버튼을 숨기기만
+    하면 그건 정리가 아니라 차단이다(2026-08-23에 같은 지적을 받았다).
+    """
+    page = browser.new_page(viewport={"width": 390, "height": 780})
+    block_external(page)
+    try:
+        page.goto(f"{site}/{path}")
+        page.wait_for_timeout(1200)
+        # 대조군 — 열기 전에는 메뉴가 닫혀 있어야 한다(항상 펼쳐져 있으면
+        # "모바일에서도 보인다"가 아무것도 증명하지 않는다).
+        assert _dash_href(page) is None, f"{path}: 메뉴가 처음부터 열려 있다"
+        burger = page.locator(".burger, #qnav .qn-burger").first
+        assert burger.is_visible(), f"{path}: 좁은 화면에 삼단 바가 없다"
+        burger.click()
+        page.wait_for_timeout(400)
+        assert _dash_href(page) == "admin.html", (
+            f"{path}: 삼단 바를 열어도 대시보드로 갈 길이 없다 — 막다른 길이다")
+    finally:
+        page.close()

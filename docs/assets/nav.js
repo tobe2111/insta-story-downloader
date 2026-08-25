@@ -32,6 +32,7 @@
     ["weekly.html", "주간 아카이브"]
   ];
   var DL = "https://github.com/tobe2111/insta-story-downloader/releases/latest";
+  var ADMIN = "admin.html";
 
   var css = [
     "#qnav{position:sticky;top:0;z-index:60;height:56px;",
@@ -60,6 +61,21 @@
     "#qnav .qn-cta svg{width:15px;height:15px;display:inline-block;margin:0}",
     "#qnav .qn-ver{font-size:11px;color:var(--muted,#8f96a3);margin-left:9px;",
     "  white-space:nowrap}",
+    /* 대시보드(운영 설정) 버튼 — 다운로드 버튼과 같은 크기·모양이되
+       채우지 않는다. 방문자에게 중요한 것은 여전히 기록이다.
+       모바일(≤820px)에서는 바에서 빠지고 삼단 바 메뉴로 내려간다 —
+       좁은 화면에 버튼 둘을 나란히 두면 제목이 밀린다. */
+    "#qnav .qn-dash{display:inline-flex;align-items:center;gap:6px;",
+    "  font-size:13px;font-weight:650;color:var(--muted,#8f96a3);",
+    "  border:1px solid var(--line,#1e2128);padding:7px 13px;",
+    "  border-radius:9px;white-space:nowrap;text-decoration:none;",
+    "  margin-left:8px}",
+    "#qnav .qn-dash:hover{color:var(--fg,#f4f5f7);",
+    "  background:var(--bg2,#0e1013);text-decoration:none}",
+    "#qnav .qn-dash svg{width:15px;height:15px;display:inline-block;margin:0}",
+    "#qnav .qn-menu a.qn-mdash{color:var(--fg,#f4f5f7);font-weight:650;",
+    "  border:1px solid var(--line,#1e2128);margin-top:6px;text-align:center}",
+    "@media(max-width:820px){#qnav .qn-dash{display:none}}",
     /* 삼단 바(모바일 메뉴 버튼, 2026-08-23 사장님: "모바일로 보면 다른
        페이지를 볼 수가 없어"). 그 전까지 820px 아래에서는 링크를 숨기기만
        했다 — 숨긴 자리에 대체 수단이 없으면 그건 정리가 아니라 차단이다. */
@@ -102,6 +118,18 @@
       'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" ' +
       'stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/>' +
       '<path d="M5 21h14"/></svg>무료 다운로드</a>');
+    // 대시보드(운영 설정)로 가는 문 — 2026-08-25 사장님 지시.
+    // ⚠️ 이 문 뒤는 Cloudflare의 ADMIN_ID/ADMIN_PW 시크릿이 설정돼 있을
+    //    때만 로그인창이 뜬다(서버측 검증 — worker.js). 시크릿이 없으면
+    //    페이지는 열리지만 토큰 없이는 아무것도 바꿀 수 없다.
+    html.push('<a class="qn-dash" href="' + ADMIN +
+      '" title="운영 설정(로그인 필요)">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="3" width="7" height="9" rx="1.5"/>' +
+      '<rect x="14" y="3" width="7" height="5" rx="1.5"/>' +
+      '<rect x="14" y="12" width="7" height="9" rx="1.5"/>' +
+      '<rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>대시보드</a>');
     html.push('<span class="qn-ver" id="qnav-ver"></span>');
     // 삼단 바 버튼 + 세로 메뉴 — 링크 목록은 위 LINKS **그대로**다(같은
     // 사실은 한 곳에서만 산다). 데스크톱에서는 CSS가 버튼·메뉴를 숨긴다.
@@ -116,6 +144,10 @@
       html.push('<a class="' + act.replace(" ", "") + '" href="' +
         esc(LINKS[k][0]) + '">' + esc(LINKS[k][1]) + "</a>");
     }
+    // 모바일에서도 닿아야 한다 — 사장님 지시가 "모바일 기준으로도"였다.
+    // LINKS 순회와 **분리해서** 넣는다: 그 목록은 홈 바와 글자까지 같아야
+    // 하는 계약이라, 여기 섞으면 계약이 깨진다.
+    html.push('<a class="qn-mdash" href="' + ADMIN + '">대시보드 (운영 설정)</a>');
     html.push("</div>");
     html.push("</div>");
 
