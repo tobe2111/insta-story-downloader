@@ -17,8 +17,10 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import functools
 import http.server
+import json
 import shutil
 import socketserver
 import sys
@@ -63,6 +65,22 @@ def _views(tmp_path_factory):
     base = tmp_path_factory.mktemp("glance")
     root = base / "site"
     shutil.copytree(DOCS, root, dirs_exist_ok=True)
+    # ── 검사는 자기 '오늘'을 자기가 만든다 (2026-08-25 CI 빨강의 교훈) ──
+    # 이 화면은 장부가 이틀 이상 묵으면 '기준일 …' 줄을 ⏳ 경고 띠로
+    # 바꾼다 — 그건 페이지의 **정상 동작**이다. 그런데 검사가 실제 벽시계로
+    # 나이를 재게 두면, 저장소에 든 장부 날짜와 검사가 도는 날의 거리에
+    # 따라 같은 코드가 초록도 빨강도 된다(브랜치가 이틀만 묵어도 CI 빨강).
+    # 그래서 브라우저의 Date만 '기준일 + 1일 정오'로 고정한다 — 새벽 배치
+    # 직후, 기준일이 하루 전인 **정상 아침**을 언제 돌려도 재현한다.
+    frozen = None
+    try:
+        st = json.loads((root / "status.json").read_text("utf-8"))
+        last = st["paper"]["portfolio:ALL"]["history"][-1]["date"]
+        frozen = (dt.datetime.fromisoformat(str(last)[:10])
+                  .replace(hour=12, tzinfo=dt.timezone.utc)
+                  + dt.timedelta(days=1))
+    except Exception:
+        pass                      # 장부가 없으면 화면이 그렇게 말할 것이다
     url, srv = _serve(root)
     out = {}
     try:
@@ -70,6 +88,10 @@ def _views(tmp_path_factory):
             b = p.chromium.launch(executable_path=chromium_or_skip())
             try:
                 pg = b.new_page(viewport={"width": 1440, "height": 900})
+                if frozen is not None:
+                    # 타이머는 실제로 흐르고 Date만 고정된다 — 렌더 루프는
+                    # 그대로 돌고, '오늘이 며칠인가'만 우리가 정한다.
+                    pg.clock.set_fixed_time(frozen)
                 block_external(pg)
                 errs = []
                 pg.on("pageerror", lambda e: errs.append(str(e)))
