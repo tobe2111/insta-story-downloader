@@ -100,6 +100,14 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
   border-radius:8px;text-decoration:none;border:1px solid var(--line);
   margin-top:6px;text-align:center}
 @media(max-width:820px){.navdash{display:none}}
+/* 언어 버튼 — 좁은 화면에서도 **남긴다.** 글자 두 개라 자리를 거의 안
+   먹고, 영어권 방문자가 첫 화면에서 못 찾으면 그 사람에게 이 사이트는
+   한국어 전용이다. */
+.navlang{display:inline-flex;align-items:center;font-size:12px;font-weight:700;
+  letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);
+  border-radius:9px;padding:6px 10px;margin-left:8px;white-space:nowrap;
+  text-decoration:none}
+.navlang:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
 /* 삼단 바(모바일 메뉴, 2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼
    수가 없어"). 820px 아래에서 링크를 숨기기만 하고 대체 수단이 없었다. */
 .burger{display:none;background:none;border:0;cursor:pointer;padding:9px;
@@ -361,6 +369,8 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   .burger{display:inline-flex}
 }
 </style>
+<script src="assets/i18n-en.js" defer></script>
+<script src="assets/i18n.js" defer></script>
 </head>
 <body>
 
@@ -409,6 +419,10 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <rect x="14" y="12" width="7" height="9" rx="1.5"/>
       <rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
     대시보드</a>
+  <!-- 언어 — 누르면 새로고침되며 선택이 이 브라우저에 남는다.
+       영어는 사전(assets/i18n-en.js)에 있는 문장만 바뀌고, 없는 문장은
+       한국어로 남는다. 기계 번역으로 메우지 않는다. -->
+  <a class="navlang" id="navlang" href="?lang=en">EN</a>
   <span class="navver" id="navver">v0.14.1</span>
   <!-- 삼단 바 — 링크 목록은 위 .lnk와 1:1이어야 한다(계약 검사 대상).
        데스크톱에서는 CSS가 버튼·메뉴를 숨긴다. -->
@@ -430,9 +444,30 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
          메뉴 링크(.mlnk)와 **다른 클래스**를 쓴다: .mlnk 목록은 상단 바의
          .lnk와 글자까지 같아야 하는 계약이라, 여기 섞으면 계약이 깨진다. -->
     <a class="mdash" href="admin.html">대시보드 (운영 설정)</a>
+    <a class="mdash" id="mlang" href="?lang=en">English</a>
   </div>
 </div></nav>
 <script>
+(function(){
+  /* 언어 버튼은 **지금 언어의 반대**를 권한다 — 지금 영어인데 'EN'이
+     떠 있으면 되돌아갈 길이 없어 보인다. */
+  var en=/[?&]lang=en/.test(location.search)||(function(){
+    try{return localStorage.getItem("quant.lang")==="en"}catch(e){return false}
+  })();
+  if(en){
+    var a=document.getElementById("navlang");
+    if(a){a.textContent="한국어";a.href="?lang=ko"}
+    var m=document.getElementById("mlang");
+    if(m){m.textContent="한국어";m.href="?lang=ko"}
+  }
+  document.querySelectorAll("#navlang,#mlang").forEach(function(el){
+    el.addEventListener("click",function(e){
+      e.preventDefault();
+      if(window.QuantI18N)QuantI18N.set(/lang=en/.test(el.href)?"en":"ko");
+      else location.href=el.href;
+    });
+  });
+})();
 (function(){
   var nav=document.querySelector("nav"),b=document.querySelector(".burger");
   function setOpen(o){nav.classList.toggle("open",o);
