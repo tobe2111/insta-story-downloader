@@ -3,19 +3,20 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 10658.78,
-  "return_pct": 6.5878,
+  "equity": 10657.32,
+  "return_pct": 6.5732,
   "gross_return_pct": 9.1769,
-  "cost_paid": 258.91,
-  "trades_total": 319,
-  "rounds_total": 306,
+  "cost_paid": 260.37,
+  "trades_total": 320,
+  "rounds_total": 307,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-26T07:10:46+09:00",
+  "last_time": "2026-08-26T07:46:34+09:00",
   "booked_interval_minutes": 5,
   "observed_gap_minutes": 112.71666666666667,
   "positions": {
     "ETH/USDT": 0.87519382,
-    "BNB/USDT": 3.04923085
+    "BNB/USDT": 3.04923085,
+    "SOL/USDT": 10.03099873
   },
   "rule_changes": [
     {
@@ -48,17 +49,29 @@
       "cost": 2138.6936,
       "pnl": -1.4791,
       "pnl_pct": -0.0692
+    },
+    {
+      "symbol": "SOL/USDT",
+      "direction": "long",
+      "quantity": 10.0309987307,
+      "avg_cost": 97.19,
+      "last_price": 97.19,
+      "currency": "USDT",
+      "value": 974.9128,
+      "cost": 974.9128,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     }
   ],
   "holdings_total": {
     "pnl": -35.3256,
-    "counted": 2,
+    "counted": 3,
     "unknown": 0
   },
   "deployed": {
-    "gross": 4250.0267,
-    "pct": 39.8735,
-    "cash": 6408.7533,
+    "gross": 5224.9395,
+    "pct": 49.0268,
+    "cash": 5432.3805,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1287,6 +1300,10 @@
     [
       "2026-08-26T07:10:46+09:00",
       10658.78
+    ],
+    [
+      "2026-08-26T07:46:34+09:00",
+      10657.32
     ]
   ],
   "hold_return_pct": 27.5487,
@@ -1313,45 +1330,36 @@
     "return_pct_since": 7.5097,
     "cost_paid": 162.96,
     "filled_total": 291,
-    "unfilled_total": 202,
+    "unfilled_total": 203,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10129.47,
-      "return_pct": 1.2947,
+      "equity": 10135.6,
+      "return_pct": 1.356,
       "hold_return_pct": null,
-      "gross_return_pct": 6.4294,
-      "trades_total": 551,
-      "cost_paid": 513.47,
-      "rounds_total": 287,
+      "gross_return_pct": 6.5133,
+      "trades_total": 552,
+      "cost_paid": 515.73,
+      "rounds_total": 288,
       "since": "2026-08-18T16:03:06+00:00"
     },
     {
       "timeframe": "5m",
-      "equity": 9861.29,
-      "return_pct": -1.3871,
+      "equity": 9856.46,
+      "return_pct": -1.4354,
       "hold_return_pct": null,
-      "gross_return_pct": 4.6927,
+      "gross_return_pct": 4.6444,
       "trades_total": 587,
       "cost_paid": 607.98,
-      "rounds_total": 287,
+      "rounds_total": 288,
       "since": "2026-08-18T16:03:06+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
-  "elapsed_days": 7.72,
+  "elapsed_days": 7.74,
   "recent_trades": [
-    {
-      "time": "2026-08-24T20:15:43+09:00",
-      "symbol": "BTC/USDT",
-      "side": "buy",
-      "notional": 2136.07,
-      "price": 77620.7,
-      "cost": 3.2041,
-      "signal": 1.0
-    },
     {
       "time": "2026-08-24T20:15:43+09:00",
       "symbol": "SOL/USDT",
@@ -1744,6 +1752,15 @@
       "signal": 0.0,
       "realized_pnl": -9.8545,
       "avg_cost": 1.4762
+    },
+    {
+      "time": "2026-08-26T07:46:34+09:00",
+      "symbol": "SOL/USDT",
+      "side": "buy",
+      "notional": 974.91,
+      "price": 97.19,
+      "cost": 1.4624,
+      "signal": 0.4573
     }
   ],
   "honest_limits": [
@@ -1755,10 +1772,10 @@
   ],
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
-    "rate": 1381.75,
-    "equity": 14727769.0,
-    "start_cash": 13817500.0,
-    "pnl": 910269.0,
+    "rate": 1381.87,
+    "equity": 14727031.0,
+    "start_cash": 13818700.0,
+    "pnl": 908331.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }

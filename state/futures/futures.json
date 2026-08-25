@@ -1,17 +1,19 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 5893.436339521879,
+  "cash": 4997.042185953983,
   "positions": {
     "ETH/USDT": 0.7944776567596978,
-    "BNB/USDT": 2.8168504256389033
+    "BNB/USDT": 2.8168504256389033,
+    "SOL/USDT": 9.208998097632774
   },
   "avg_cost": {
     "ETH/USDT": 2444.2735642164953,
-    "BNB/USDT": 703.9618685225375
+    "BNB/USDT": 703.9618685225375,
+    "SOL/USDT": 97.19
   },
-  "cost_paid": 466.89471749162743,
-  "funding_paid": 7.909706837210723,
+  "cost_paid": 468.23725127929083,
+  "funding_paid": 7.938801508513896,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -6176,6 +6178,59 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-08-26T07:47:25+09:00",
+      "equity": 9783.9669,
+      "cash": 4997.0422,
+      "gross_exposure": 4786.9247,
+      "funding": 0.029095,
+      "cost_paid": 468.2373,
+      "funding_paid": 7.938802,
+      "signals": {
+        "BTC/USDT": -0.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 0.4573,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 0.0
+      },
+      "positions": {
+        "ETH/USDT": 0.7944776568,
+        "BNB/USDT": 2.8168504256,
+        "SOL/USDT": 9.2089980976
+      },
+      "margin_ratio": 2.043894,
+      "trades": [
+        {
+          "symbol": "SOL/USDT",
+          "side": "buy",
+          "direction": "롱",
+          "notional": 895.02,
+          "price": 97.19,
+          "cost": 1.3425,
+          "signal": 0.4573
+        }
+      ],
+      "skipped": [],
+      "long_only": [
+        "ETH/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.0435,
+        "n": 127,
+        "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
+      },
+      "conviction_scale": {
+        "BTC/USDT": 3.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 3.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
@@ -6690,6 +6745,10 @@
     {
       "at": "2026-08-26T07:11:32+09:00",
       "equity": 9785.3385
+    },
+    {
+      "at": "2026-08-26T07:47:25+09:00",
+      "equity": 9783.9669
     }
   ],
   "last_prices": {
