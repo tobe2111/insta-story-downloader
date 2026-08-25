@@ -77,6 +77,8 @@ jobs:
           set -euo pipefail
           git config user.name "quant-bot"
           git config user.email "bot@users.noreply.github.com"
+          python -m quant krw-attach --docs docs \
+            || echo "원화 환산 실패 — 건너뜀(참고 값이라 회차는 그대로)"
           git add state/guard_heartbeat.json state/ledger_stale_alert.json state/paper state/intraday state/futures docs/intraday.json docs/intraday_us.json docs/futures.json || true
           # 바뀐 게 없으면 조용히 끝낸다 — 빈 커밋으로 이력을 더럽히지 않는다.
           if git diff --cached --quiet; then

@@ -1425,6 +1425,17 @@ def _default_journal_state() -> str:
     return pf if _os.path.exists(pf) else _os.path.join("results", "state.json")
 
 
+def _cmd_krw_attach(args) -> None:
+    """공개 장부에 원화 환산을 덧붙인다.
+
+    ⚠️ 트레이딩 모듈은 환율을 모른다(감사 254의 하드 경계). 그래서 장부가
+       다 쓰이고 **난 뒤에** 공개용 JSON에만 붙인다.
+    """
+    from quant.reporting.krw_attach import attach
+    for name, what in sorted(attach(args.docs).items()):
+        print(f"  {name}: {what}")
+
+
 def _cmd_ml_report(args) -> None:
     """머신러닝 성적표를 다시 센다.
 
@@ -1824,6 +1835,12 @@ def build_parser() -> argparse.ArgumentParser:
     cm.add_argument("--strategy-a", default="ma_cross", dest="strategy_a")
     cm.add_argument("--strategy-b", default="momentum", dest="strategy_b")
     cm.set_defaults(func=_cmd_compare)
+
+    kw = sub.add_parser(
+        "krw-attach",
+        help="공개 장부에 원화 환산을 덧붙인다(참고 값 — 계좌 단위는 그대로)")
+    kw.add_argument("--docs", default="docs")
+    kw.set_defaults(func=_cmd_krw_attach)
 
     mlr = sub.add_parser(
         "ml-report",

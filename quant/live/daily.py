@@ -1349,6 +1349,42 @@ def _hrp_slices(rets_map: dict, n_total: int) -> dict | None:
         return None
 
 
+def choose_slices(rets_map: dict, n: int, weights: dict,
+                  state_dir: str = "state") -> tuple:
+    """자본을 어떻게 나눌지 고른다 — (조각, 쓴 방식 이름).
+
+    ⚠️ 예전에는 `hrp or erc or equal`이라는 **고정 순서가 코드에 박혀**
+       있었다. 그래서 "ERC가 이겼다"는 판정이 나도 손댈 곳이 없었고, 사람이
+       코드를 고쳐야 했다. 사장님 지시(2026-08-25, "판정을 하면 너가 조정
+       하는 게 아니라 머신러닝측에서 하게끔")를 지키려면 여기가 **손잡이**
+       여야 한다.
+
+    ⚠️ 채택된 적이 없으면 선호가 'hrp'라, 아무 판정도 없을 때의 동작은
+       예전과 **한 칸도 다르지 않다.**
+    ⚠️ 채택된 방식이 그날 못 만들어지면(표본 부족 등) 폴백이 그대로 돈다 —
+       채택은 '선호'이지 '강제'가 아니다. 강제하면 그날 통째로 관망이 된다.
+    """
+    from quant.live.adopt import current as _adopted
+    # inv_vol은 **사다리가 쓰는 바로 그 함수**를 빌려 온다. 여기 다시
+    # 구현하면 사다리에서 이긴 방식과 본 계좌가 쓰는 방식이 이름만 같고
+    # 다른 것이 되어, 판정 자체가 무의미해진다(FROZEN_IDEAS ①).
+    from quant.live.alloc_ladder import _inv_vol_slices as _ladder_inv_vol
+    from quant.live.hrp import is_allocation
+
+    prefer = str(_adopted(state_dir).get("alloc_method") or "hrp")
+    builders = {"hrp": _hrp_slices, "erc": _erc_slices,
+                "inv_vol": _ladder_inv_vol}
+    order = [prefer] + [m for m in ("hrp", "erc") if m != prefer]
+    for m in order:
+        fn = builders.get(m)
+        if fn is None:
+            continue
+        cand = fn(rets_map, n)
+        if is_allocation(cand):
+            return cand, m
+    return {k: 1.0 / n for k in weights}, "equal"
+
+
 def _erc_slices(rets_map: dict, n_total: int) -> dict | None:
     """공분산 기반 위험기여도 균등(ERC) 슬라이스 — 자본 균등(1/n)의 상위 호환.
 
@@ -2250,12 +2286,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    셈이다. 받아들이는 쪽으로 옮긴다.
     from quant.live.hrp import is_allocation
 
-    hrp = _hrp_slices(rets_map, n)
-    hrp = hrp if is_allocation(hrp) else None
-    erc = None if hrp else _erc_slices(rets_map, n)
-    erc = erc if is_allocation(erc) else None
-    slices = hrp or erc or {k: 1.0 / n for k in weights}
-    alloc_method = "hrp" if hrp else ("erc" if erc else "equal")
+    # ── 어느 방식으로 나눌지는 **채택 원장**이 정한다(감사 315) ──────
+    #
+    # 예전에는 `hrp or erc or equal`이라는 고정 순서가 여기 박혀 있었다.
+    # 그래서 "ERC가 이겼다"는 판정이 나도 손댈 곳이 없었고, 사람이 코드를
+    # 고쳐야 했다 — 사장님 지시("판정을 하면 너가 조정하는 게 아니라
+    # 머신러닝측에서 하게끔")를 지키려면 여기가 **손잡이**여야 한다.
+    #
+    # ⚠️ 채택된 적이 없으면 기본값이 'hrp'라, 아무 판정도 없을 때의 동작은
+    #    예전과 **한 칸도 다르지 않다.**
+    # ⚠️ 채택된 방식이 그날 못 만들어지면(표본 부족 등) 폴백은 그대로 돈다 —
+    #    채택은 '선호'이지 '강제'가 아니다. 강제하면 그날 통째로 관망이 된다.
+    slices, alloc_method = choose_slices(rets_map, n, weights, state_dir)
     # 횡단면 확신도 틸트 — ERC(위험만 봄) 위에 '챔피언 확신도 순위'를 곱해
     # 자본을 고확신 종목으로 기울인다. 총예산 보존 재정규화 후 과집중 상한
     # (3/n)을 다시 적용한다(상한 초과분은 재분배하지 않고 버림 — 보수적).
@@ -3593,6 +3635,37 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 status["paper"][key]["regime_breakdown"] = rb
         if hist:
             status["updated"] = max(status["updated"] or "", hist[-1]["date"])
+
+    # ── 판정이 났으면 **그 자리에서 적용한다**(감사 315) ────────────────
+    #
+    # 예전에는 판정을 화면에 그리는 데서 끝났고, 실제 조정은 사람이 코드를
+    # 고쳐서 했다. 사장님 지시(2026-08-25, "판정을 하면 너가 조정하는 게
+    # 아니라 머신러닝측에서 하게끔")로 그 자리를 없앴다. 조치는 결과를 보기
+    # **전에** 등록해 둔 것만 걸리고, 되돌리기 어려운 일은 자동으로 하지
+    # 않는다(quant/live/adopt.py).
+    #
+    # ⚠️ 여기 두는 이유: `status["updated"]`(= 마지막 장부 날짜)가 정해진
+    #    뒤여야 한다. 앞에 두면 채택 시각을 적을 수 없다 — 처음에 그렇게
+    #    썼다가 `bar`라는 없는 이름을 참조해 **매일 조용히 실패할** 뻔했다.
+    # ⚠️ 실패해도 하루 기록을 막지 않는다. 다만 조용히 넘기지도 않는다 —
+    #    무슨 일이 있었는지 status에 그대로 실린다.
+    try:
+        from quant.live.adopt import apply_verdicts
+        from quant.live.adopt import public as _adopt_pub
+        _res = apply_verdicts(state_dir,
+                              now=str(status.get("updated") or ""),
+                              status=status.get("sequential"))
+        for _r in _res["applied"]:
+            if _r.get("applied"):
+                log.warning("🤖 판정 적용 — %s → %s = %s (%s)",
+                            _r["key"], _r["knob"], _r.get("value"), _r["why"])
+        for _r in _res["held"]:
+            log.warning("🖐 판정이 났지만 자동 적용 대상이 아닙니다 — %s (%s)",
+                        _r["key"], _r.get("reason"))
+        status["adopted"] = _adopt_pub(state_dir)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("판정 자동 적용 실패: %s", exc)
+        status["adopted"] = {"error": str(exc)[:200]}
 
     # 오늘의 시장 브리핑(표시 전용) — 있으면 사이트에도 싣는다
     from quant.live.briefing import load_briefing

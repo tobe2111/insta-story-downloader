@@ -494,6 +494,17 @@ def _offline_round(monkeypatch, tmp_path, closes, signal, *, now=None):
     monkeypatch.setattr(F, "build_two_sided",
                         lambda sym, state_dir: (_Strat(), True))
     monkeypatch.setattr(F, "MIN_BARS", 5)
+    # ⚠️ 배율 상한은 2026-08-25부터 **이 트랙의 기록이** 정한다(감사 314).
+    #    빈 장부로 시작하는 검사는 당연히 1배를 받고, 1배에서는 값이 30%
+    #    빠져도 청산되지 않는다 — 그건 옳은 동작이지만, 그러면 청산·배율
+    #    경로를 **아무도 안 지나간다.** 여기서는 "배율을 이미 번 트랙"을
+    #    전제로 두어 그 경로가 실제로 돌게 한다. 배율을 어떻게 버는지는
+    #    tests/test_the_leverage_is_earned_not_chosen.py가 따로 지킨다.
+    monkeypatch.setattr(
+        "quant.live.leverage.adaptive_max_leverage",
+        lambda curve, hard_cap, **k: {"max_leverage": float(hard_cap),
+                                      "proven": True,
+                                      "why": "검사용 — 배율을 번 트랙 전제"})
     return F.run_futures_round(now or "2026-06-01T00:00:00+09:00",
                                state_dir=str(tmp_path),
                                universe=["BTC/USDT"], per_side=0.0015)

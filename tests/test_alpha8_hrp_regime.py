@@ -58,12 +58,28 @@ def test_hrp_degenerate_returns_none():
     assert hrp_weights(bad) is None                    # NaN 공분산
 
 
-def test_portfolio_uses_hrp_first_and_records_method():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
-    assert "_hrp_slices" in dl and "alloc_method" in dl
-    # 폴백 사다리: HRP → ERC → 균등
-    assert dl.index("_hrp_slices(rets_map, n)") < dl.index("_erc_slices(rets_map, n)")
-    assert '"alloc_method": alloc_method' in dl
+def test_portfolio_uses_hrp_first_and_records_method(tmp_path):
+    """기본은 HRP이고, 못 만들면 균등으로 내려간다 — **실행으로** 확인한다.
+
+    ⚠️ 예전 판은 daily.py 소스에서 호출 순서를 글자로 찾았다. 배분 방식이
+       채택 원장에서 읽는 손잡이가 되면서(감사 315) 그 글자가 사라졌고,
+       화면·동작은 멀쩡한데 검사만 빨간불이 됐다. 소스를 읽는 검사는 코드가
+       움직이면 따라오지 못한다 — 이제 고르는 함수를 직접 부른다.
+    """
+    from quant.live.daily import choose_slices
+    r = _rets()
+    rets_map = {c: r[c] for c in r.columns}
+    n = len(rets_map)
+    _slices, method = choose_slices(rets_map, n, dict.fromkeys(rets_map, 1.0),
+                                    str(tmp_path))
+    assert method == "hrp", f"채택이 없는데 기본이 HRP가 아니다: {method}"
+
+    # 표본이 얇으면 HRP도 ERC도 못 만든다 → 균등으로 내려간다(대조군).
+    thin = {c: r[c].iloc[:5] for c in r.columns}
+    slices, method = choose_slices(thin, n, dict.fromkeys(thin, 1.0),
+                                   str(tmp_path))
+    assert method == "equal", method
+    assert all(abs(v - 1.0 / n) < 1e-9 for v in slices.values())
 
 
 def test_regime_breakdown_hand_math():

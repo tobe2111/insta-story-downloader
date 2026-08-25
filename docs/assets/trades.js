@@ -121,6 +121,46 @@
     }).join("");
   }
 
+  /* 원화 환산 한 줄 (2026-08-24 사장님 지시: "각 페이지 당 최종 수익
+   * 결과 한국돈으로도 알려줘").
+   *
+   * ⚠️ 이건 **계좌를 원화로 바꾸는 게 아니다.** 장부의 단위는 여전히
+   *    USD·USDT다. 감사 212·254(한 계좌에 두 통화가 섞여 100만원 계좌가
+   *    7,249만원으로 찍힌 사고)를 다시 만들지 않으려면, 화면이 이 값을
+   *    **참고 환산**이라고 말해야 한다.
+   *
+   * ⚠️ 환율을 못 받으면 아무것도 그리지 않고 그 사실을 적는다. 1,000원쯤
+   *    으로 대신 적으면 1만 달러가 1천만 원이 되고, 그건 지어낸 숫자다.
+   */
+  function won(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return "—";
+    return Math.round(n).toLocaleString("ko-KR") + "원";
+  }
+
+  function krw(el, k, cur) {
+    if (!el) return;
+    cur = cur || "USDT";
+    if (!k || k.rate == null) {
+      el.innerHTML = '<span class="sub">원/달러를 못 받아 원화 환산을 ' +
+        '건너뜁니다 — 아무 값이나 넣어 적지 않습니다.</span>';
+      return;
+    }
+    var p = Number(k.pnl), win = p >= 0;
+    el.innerHTML = '한국 돈으로 보면 지금 <b>' + won(k.equity) +
+      '</b>이고, 시드 ' + won(k.start_cash) + ' 대비 <b class="' +
+      (win ? "up" : "down") + '">' + (win ? "+" : "−") + won(Math.abs(p)) +
+      (win ? " 이익" : " 손해") + '</b>입니다.' +
+      ' <span class="sub">(원/달러 ' +
+      Number(k.rate).toLocaleString("ko-KR") + '원 기준 · ' +
+      '읽기 편하라고 덧붙인 환산이며 이 계좌의 단위는 ' + esc(cur) + '입니다. ' +
+      '시드와 지금 자산을 <b>같은 환율</b>로 바꿨으므로 퍼센트 수익률은 ' +
+      esc(cur) + ' 기준과 같고, <b>환율 변동은 이 실험의 성적에 들어가지 ' +
+      '않습니다</b>.' +
+      (k.assumed_peg ? ' USDT는 1달러로 가정했습니다 — 연동이 깨진 적이 ' +
+        '있습니다.' : '') + ')</span>';
+  }
+
   root.QuantTrades = { render: render, deployed: deployed,
-                       ruleChangeItems: ruleChangeItems };
+                       ruleChangeItems: ruleChangeItems, krw: krw };
 })(typeof globalThis !== "undefined" ? globalThis : this);

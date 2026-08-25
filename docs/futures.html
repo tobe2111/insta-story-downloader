@@ -93,6 +93,12 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
 그대로 적습니다). 그래서 믿지 않고 <b>나란히 돌려서 잽니다.</b></div>
 
 <div class="card" id="sum">불러오는 중…</div>
+<!-- 원화 환산(참고) — 계좌 단위는 USDT다. -->
+<div class="card sub" id="krw">불러오는 중…</div>
+<!-- 지금 허락된 배율 상한과 그 이유. 하드 천장(3배)과 **다른 값**이다 —
+     둘을 같은 이름으로 부르면 화면이 3배라 말하는 동안 실제로는 1배로
+     돌 수 있다. -->
+<div class="card sub" id="levcap">불러오는 중…</div>
 
 <h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
 <div class="card" id="rules">불러오는 중…</div>
@@ -311,6 +317,28 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
   /* ── 최근 체결 ── 코인 단타·미국주식과 **같은 렌더러**를 쓴다.
      여기만 '사기/팔기'로 부르는 것은 방향 칸이 따로 있기 때문이다 —
      양방향 장부에서 '매도'는 롱을 파는 것인지 숏을 여는 것인지 헷갈린다. */
+  if(window.QuantTrades){
+    QuantTrades.krw(document.getElementById("krw"), d.krw, "USDT");
+  }
+  /* 배율 상한 — 기록이 정한 값(2026-08-25). */
+  (function(){
+    var c=d.leverage_cap, el=document.getElementById("levcap");
+    if(!el) return;
+    if(!c||c.max_leverage==null){
+      el.innerHTML='<span class="sub">지금 허락된 배율을 읽지 못했습니다 — '+
+        '표시가 없으면 1배로 보십시오.</span>';return;
+    }
+    var lev=Number(c.max_leverage), top=Number(d.max_gross_exposure)||lev;
+    el.innerHTML='지금 허락된 배율 상한 <b class="'+(lev>1?"up":"")+'">'+
+      lev.toFixed(2)+'배</b> <span class="sub">(사람이 정한 절대 천장은 '+
+      top.toFixed(0)+'배입니다 — 그 안에서 <b>이 트랙의 기록이</b> 오늘의 '+
+      '상한을 정합니다.)</span>'+
+      '<div style="margin-top:6px">'+esc(c.why||"")+'</div>'+
+      (c.proven?'':'<div class="sub" style="margin-top:6px">아직 증명되지 '+
+       '않았으므로 <b>1배</b>입니다. 1배는 실패가 아니라 "지금은 크게 걸 '+
+       '이유가 없다"는 답입니다 — 증거 없이 키우면 그건 학습이 아니라 '+
+       '요행입니다.</div>');
+  })();
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),
       d.recent_trades, {currency:"USDT", kst:kst, direction:true,

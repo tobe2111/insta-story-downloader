@@ -87,6 +87,19 @@ nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
   padding:8px 16px;border-radius:9px;white-space:nowrap}
 .navcta:hover{text-decoration:none;filter:brightness(1.08)}
 .navver{font-size:11px;color:var(--dim);margin-left:9px;white-space:nowrap}
+/* 대시보드 버튼 — 다운로드 버튼과 같은 크기·모양이되 채우지 않는다.
+   모바일(≤820px)에서는 상단 바에서 빠지고 삼단 바 메뉴 안(.mdash)으로
+   들어간다 — 좁은 화면에 버튼 둘을 나란히 두면 제목이 밀린다. */
+.navdash{display:inline-flex;align-items:center;gap:6px;font-size:13px;
+  font-weight:650;color:var(--muted);border:1px solid var(--line);
+  padding:7px 13px;border-radius:9px;white-space:nowrap;text-decoration:none;
+  margin-left:8px}
+.navdash:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
+.navdash svg{width:15px;height:15px;display:inline-block;margin:0}
+.mnav .mdash{color:var(--fg);font-size:15px;font-weight:650;padding:11px 12px;
+  border-radius:8px;text-decoration:none;border:1px solid var(--line);
+  margin-top:6px;text-align:center}
+@media(max-width:820px){.navdash{display:none}}
 /* 삼단 바(모바일 메뉴, 2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼
    수가 없어"). 820px 아래에서 링크를 숨기기만 하고 대체 수단이 없었다. */
 .burger{display:none;background:none;border:0;cursor:pointer;padding:9px;
@@ -367,6 +380,10 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   <!-- ⚠️ paper.html은 100만 챌린지의 **자세히 보기**다(같은 트랙의 깊은
        화면). 트랙 넷을 앞으로 뽑으면서 여기로 옮겼을 뿐, 감추지 않는다 —
        화면을 정리한다면서 기록 하나가 사라지면 그건 정리가 아니다. -->
+  <!-- ⚠️ 머신러닝 페이지는 공용 바(assets/nav.js)에는 있는데 **홈 바에만
+       없었다.** 계약 검사가 "홈의 링크가 공용 바에 있는가" 한 방향만 봐서
+       공용 바에만 있는 링크는 걸리지 않았다(감사 317에서 양방향으로 고침). -->
+  <a class="lnk" href="ml.html">머신러닝</a>
   <a class="lnk" href="paper.html">실기록 (100만)</a>
   <a class="lnk" href="today.html">오늘의 판단</a>
   <a class="lnk" href="trust.html">기록 검증</a>
@@ -378,6 +395,20 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
     무료 다운로드</a>
+  <!-- 대시보드(운영 설정)로 가는 문 — 2026-08-25 사장님 지시.
+       ⚠️ 눈에 띄는 파란 버튼(무료 다운로드)과 **경쟁하지 않게** 테두리만
+          있는 버튼으로 둔다. 방문자에게 중요한 것은 여전히 기록이다.
+       ⚠️ 이 문 뒤는 Cloudflare의 ADMIN_ID/ADMIN_PW 시크릿이 설정돼 있을
+          때만 로그인창이 뜬다(서버측 검증 — worker.js). 시크릿이 없으면
+          페이지는 열리지만 토큰 없이는 아무것도 바꿀 수 없다. -->
+  <a class="navdash" href="admin.html" title="운영 설정(로그인 필요)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="9" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="5" rx="1.5"/>
+      <rect x="14" y="12" width="7" height="9" rx="1.5"/>
+      <rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+    대시보드</a>
   <span class="navver" id="navver">v0.14.1</span>
   <!-- 삼단 바 — 링크 목록은 위 .lnk와 1:1이어야 한다(계약 검사 대상).
        데스크톱에서는 CSS가 버튼·메뉴를 숨긴다. -->
@@ -390,10 +421,15 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
     <a class="mlnk" href="intraday.html">코인 단타</a>
     <a class="mlnk" href="us.html">미국주식 단타</a>
     <a class="mlnk" href="futures.html">코인 선물</a>
+    <a class="mlnk" href="ml.html">머신러닝</a>
     <a class="mlnk" href="paper.html">실기록 (100만)</a>
     <a class="mlnk" href="today.html">오늘의 판단</a>
     <a class="mlnk" href="trust.html">기록 검증</a>
     <a class="mlnk" href="weekly.html">주간 아카이브</a>
+    <!-- 모바일에서도 닿아야 한다 — 사장님 지시가 "모바일 기준으로도"였다.
+         메뉴 링크(.mlnk)와 **다른 클래스**를 쓴다: .mlnk 목록은 상단 바의
+         .lnk와 글자까지 같아야 하는 계약이라, 여기 섞으면 계약이 깨진다. -->
+    <a class="mdash" href="admin.html">대시보드 (운영 설정)</a>
   </div>
 </div></nav>
 <script>
