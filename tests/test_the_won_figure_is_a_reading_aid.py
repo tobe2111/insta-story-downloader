@@ -86,10 +86,49 @@ def test_a_loss_stays_a_loss_and_a_gain_stays_a_gain():
 
 # ══ ② 모르면 비운다 ═══════════════════════════════════════════════
 
-@pytest.mark.parametrize("rate", [None, 0, -5, "많이", float("nan")])
+@pytest.fixture
+def dead_rate_source(monkeypatch):
+    """환율 출처를 **정말로 죽인다** — 없는 조건은 기대하지 말고 만든다.
+
+    ⚠️ 이 파일의 예전 판은 그냥 환율을 안 넘기고 "그러면 None이 나오겠지"
+       라고 기대했다. 개발 컨테이너는 시세 호스트가 막혀 있어서 늘 초록
+       이었지만, **네트워크가 열린 CI에서는 진짜 환율을 받아 와 빨간불이
+       났다.** 검사가 지키려던 규칙("모르면 비운다")은 정작 한 번도 실행된
+       적이 없었다 — 감사 289와 같은 모양이다.
+
+    ⚠️ 출처만 죽여서도 안 된다. fx 모듈은 한 시간짜리 캐시를 들고 있어서,
+       앞선 검사가 받아 둔 환율이 남아 있으면 출처를 바꿔도 그 값이 나온다.
+       **두 메모를 함께** 비워야 한다(감사 252에서 배운 자리).
+    """
+    import quant.data.crossasset as CA
+    import quant.data.fx as F
+
+    def _boom(*a, **k):
+        raise RuntimeError("환율 출처가 죽었다")
+
+    F._MEMO.clear()
+    CA._MEMO.clear()
+    monkeypatch.setattr(F, "_MEMO_AT", 0.0)
+    yield _boom
+    F._MEMO.clear()
+    CA._MEMO.clear()
+
+
+@pytest.mark.parametrize("rate", [0, -5, "많이", float("nan")])
 def test_an_unusable_rate_produces_nothing(rate):
     """1.0으로 대신하면 1만 달러가 1만 원이 된다."""
     assert krw_view(10_000.0, 10_000.0, "USD", rate=rate) is None
+
+
+def test_a_dead_rate_source_produces_nothing(dead_rate_source):
+    """환율을 **못 받은** 경우 — '안 준' 것과 다르다.
+
+    환율을 안 넘기는 것은 "없다"가 아니라 "받아 와라"라는 뜻이다. 그 둘을
+    같은 것으로 보면, 환율이 살아 있는 곳에서는 이 검사가 아무것도 안
+    지킨다.
+    """
+    assert krw_view(10_000.0, 10_000.0, "USD",
+                    fetch=dead_rate_source) is None
 
 
 @pytest.mark.parametrize("equity", [None, "x", float("nan")])
@@ -200,12 +239,16 @@ def test_the_attach_step_leaves_the_account_currency_alone(name, tmp_path):
     assert body["currency"] == _LEDGERS[name], "통화 표기가 바뀌었다"
 
 
-def test_a_missing_rate_leaves_the_ledger_untouched(tmp_path):
-    """대조군 — 환율이 없으면 아무것도 안 붙이고 원본을 그대로 둔다."""
+def test_a_missing_rate_leaves_the_ledger_untouched(tmp_path, dead_rate_source):
+    """대조군 — 환율이 없으면 아무것도 안 붙이고 원본을 그대로 둔다.
+
+    ⚠️ 여기서도 예전 판은 "환율을 못 받겠지"에 기댔다. 캐시에 살아 있는
+       환율이 있으면 그 기대가 깨진다 — 출처를 죽이고 캐시를 비운다.
+    """
     from quant.reporting.krw_attach import attach
     d = _docs(tmp_path)
     before = {n: _read(d, n) for n in _LEDGERS}
-    out = attach(str(d), rate=None, fetch=lambda *a, **k: None)
+    out = attach(str(d), rate=None, fetch=dead_rate_source)
     for n in _LEDGERS:
         assert "krw" not in _read(d, n), f"{n}: 환율도 없이 원화를 지어냈다"
         assert _read(d, n) == before[n], f"{n}: 원본이 변형됐다"
