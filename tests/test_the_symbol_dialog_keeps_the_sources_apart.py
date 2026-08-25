@@ -137,6 +137,17 @@ def test_an_unmapped_symbol_shows_nothing_rather_than_something_wrong():
     assert "엉뚱한 종목이 뜨느니 비워 둡니다" in v
 
 
+def test_an_empty_chart_box_says_what_is_missing():
+    """빈 칸에 **무엇이** 없는지도 적어야 한다.
+
+    ⚠️ 위 검사는 "왜 비웠나"(엉뚱한 게 뜨느니)만 본다. 안내문의 앞 절반
+       ("이 종목은 트레이딩뷰 차트를 연결해 두지 않았습니다")을 지워도
+       초록이었다 — 변이 시험이 그 자리를 찔러 잡았다. 이유만 있고 대상이
+       없으면 읽는 사람은 그 칸을 **고장**으로 읽는다.
+    """
+    assert "이 종목은 트레이딩뷰 차트를 연결해" in _visible(IDX)
+
+
 def test_the_mapper_returns_null_for_unknown_markets():
     """변환기 자체의 계약 — 실제 값 확인은 .mjs 하네스가 한다."""
     assert "return null;      // upbit·synthetic 등 — 모르면 안 만든다" in TV
