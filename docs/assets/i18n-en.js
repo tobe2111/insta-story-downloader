@@ -147,6 +147,10 @@
       "본 계좌와 완전히 분리": "fully separate from the main account",
       "롱과 숏을 같이 봅니다": "Longs and shorts side by side",
       "롱(오름에 걺)": "Long (betting on a rise)",
+      // ⚠️ 짝의 **양쪽을 다 적는다.** 사전을 쓸 때 계좌가 롱이라 이 줄만
+      //    넣었고, 계좌가 숏으로 돌아선 순간 영어 화면에 한국어가 남았다
+      //    (2026-08-26 CI). 화면에 지금 안 보이는 쪽도 언젠가 보인다.
+      "숏(내림에 걺)": "Short (betting on a fall)",
       "선물 실험 자산 곡선": "Futures experiment equity curve",
       "코인 단타 실험 자산 곡선": "Crypto intraday experiment equity curve",
       "USDT 기준 · 비용과 자금조달을 뺀 뒤":
@@ -773,6 +777,7 @@
         "When a day ends it retrains including that day, and discards old market regimes. If a challenger strategy beats the champion, they swap places.",
       "지금 무엇이 굴리고 있나": "What is running right now",
       "굴리는 종목": "Symbols in play",
+      "규칙이 판단 (": "Rule-based call (",
       "머신러닝이 판단": "decided by machine learning",
       "규칙이 판단 (ma_cross)": "decided by a rule (ma_cross)",
       "도전자가 챔피언을 이긴 횟수": "Times a challenger beat the champion",
@@ -871,6 +876,21 @@
 
       // ══ 실기록 (paper.html) ══════════════════════════════════
       "● 라이브 보는 중": "● Watching live",
+      // ── 계좌가 **아무것도 안 들고 있을 때**만 뜨는 문구들 ─────────
+      // ⚠️ 사전을 쓴 날 계좌가 종목을 들고 있어서 이 가지가 화면에 없었다.
+      //    2026-08-26에 코인 단타가 전량 현금이 되자 한꺼번에 드러났다.
+      //    "지금 화면에 있는 것"만 사전에 담으면 계좌 상태가 바뀔 때마다
+      //    영어가 조금씩 무너진다 — 안 보이는 가지도 언젠가 보인다.
+      "지금은 아무것도 안 들고 있습니다":
+        "Nothing is held right now",
+      "아직 잴 수 있는 보유가 없습니다.":
+        "There are no holdings to measure yet.",
+      "전량 현금(관망)입니다": "All cash (standing aside)",
+      "— 신호가 약하면 조금만 사거나 아예 안 삽니다. 전량 현금은 고장이 아니라 \"지금은 살 이유가 없다\"는 판단입니다.":
+        "— when the signal is weak it buys little or nothing at all. All cash is not a failure; it is the call that there is no reason to buy right now.",
+      "실시간": "live",
+      // 셋으로 갈린다: 실시간 / 지연 시세 / 전일 확정(index.html).
+      "지연 시세": "delayed quote",
       "전일 확정": "settled yesterday",
       "100만 챌린지 — 매일 자동 페이퍼":
         "1M Won Challenge — automated paper trading, every day",

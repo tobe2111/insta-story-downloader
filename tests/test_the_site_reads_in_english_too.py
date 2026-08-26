@@ -147,6 +147,40 @@ def test_no_live_date_slot_is_pinned_in_a_dictionary_key():
         f"다음 밤에 스스로 만료된다. rules(정규식)로 옮길 것: {bad}")
 
 
+def test_both_halves_of_a_two_way_label_are_translated():
+    """짝으로 쓰이는 라벨은 **양쪽 다** 사전에 있어야 한다.
+
+    실제로 당했다(2026-08-26 CI). 선물 화면은 포지션에 따라
+    `q<0 ? "숏(내림에 걺)" : "롱(오름에 걺)"` 중 하나를 찍는다. 사전을 쓴 날
+    계좌가 롱이어서 **롱 쪽만** 들어갔고, 계좌가 숏으로 돌아선 순간 영어
+    화면에 한국어가 남았다.
+
+    이건 날짜 문제(위 검사)와 다른 축의 같은 병이다 — **사전이 "그때 화면에
+    있던 것"만 덮는다.** 화면에 지금 안 보이는 가지도 언젠가 보인다. 그래서
+    소스에서 삼항 연산자로 갈리는 한국어 라벨 짝을 훑어, 한쪽만 번역돼 있으면
+    빨간불을 켠다 — 데이터가 바뀌기를 기다렸다가 CI에서 아는 것보다 낫다.
+
+    ⚠️ 양쪽 다 없는 짝은 잡지 않는다. 그건 "아직 이 페이지는 영어가 덜
+       채워졌다"는 정직한 상태이고(partial 목록이 화면에 그렇게 적는다),
+       이 검사가 다루는 사고는 **반쪽만 채운 것**이다.
+    """
+    import re as _re
+    keys = set(_re.findall(r'^\s+"((?:[^"\\]|\\.)*)":', DICT, _re.M))
+    ko = _re.compile(r"[가-힣]")
+    pair = _re.compile(r'\?\s*"([^"]{2,60})"\s*:\s*"([^"]{2,60})"')
+    half = []
+    for page in sorted(DOCS.glob("*.html")):
+        for a, b in pair.findall(page.read_text("utf-8")):
+            if not (ko.search(a) and ko.search(b)):
+                continue
+            if (a in keys) != (b in keys):
+                missing, have = (b, a) if a in keys else (a, b)
+                half.append(f"{page.name}: {have!r}는 있고 {missing!r}가 없다")
+    assert not half, (
+        "짝의 한쪽만 번역돼 있다 — 데이터가 그쪽으로 가는 날 영어 화면에 "
+        f"한국어가 남는다: {half}")
+
+
 def test_the_rules_catch_those_dates_instead():
     """대조군 — 사전에서 뺐는데 규칙에도 없으면 그냥 번역을 지운 것이다."""
     for needle, what in (("^마지막 갱신: ", "주간 갱신일"),
