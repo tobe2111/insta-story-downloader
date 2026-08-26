@@ -1,10 +1,14 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 9824.021699064431,
-  "positions": {},
-  "avg_cost": {},
-  "cost_paid": 487.77525547592035,
+  "cash": 10700.609209064281,
+  "positions": {
+    "BTC/USDT": -0.011209154798304864
+  },
+  "avg_cost": {
+    "BTC/USDT": 78320.3
+  },
+  "cost_paid": 489.0921120257449,
   "funding_paid": 8.181986551462495,
   "rounds": [
     {
@@ -7133,6 +7137,57 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-08-26T22:40:00+09:00",
+      "equity": 9822.7048,
+      "cash": 10700.6092,
+      "gross_exposure": 877.9044,
+      "funding": 0.0,
+      "cost_paid": 489.0921,
+      "funding_paid": 8.181987,
+      "signals": {
+        "BTC/USDT": -0.4468,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "positions": {
+        "BTC/USDT": -0.0112091548
+      },
+      "margin_ratio": 11.18881,
+      "trades": [
+        {
+          "symbol": "BTC/USDT",
+          "side": "sell",
+          "direction": "숏",
+          "notional": -877.9,
+          "price": 78320.3,
+          "cost": 1.3169,
+          "signal": -0.4468
+        }
+      ],
+      "skipped": [],
+      "long_only": [
+        "ETH/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.0435,
+        "n": 146,
+        "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
+      },
+      "conviction_scale": {
+        "BTC/USDT": 3.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 3.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
@@ -7723,14 +7778,18 @@
     {
       "at": "2026-08-26T21:36:15+09:00",
       "equity": 9824.0217
+    },
+    {
+      "at": "2026-08-26T22:40:00+09:00",
+      "equity": 9822.7048
     }
   ],
   "last_prices": {
-    "BTC/USDT": 78488.8,
-    "ETH/USDT": 2463.12,
-    "SOL/USDT": 97.04,
-    "BNB/USDT": 702.2,
-    "XRP/USDT": 1.4119
+    "BTC/USDT": 78320.3,
+    "ETH/USDT": 2455.22,
+    "SOL/USDT": 97.02,
+    "BNB/USDT": 701.6,
+    "XRP/USDT": 1.41
   },
   "liquidations": 0
 }
