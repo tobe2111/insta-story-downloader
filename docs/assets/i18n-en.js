@@ -29,8 +29,7 @@
 
   root.QUANT_EN = {
     /** 아직 영어가 덜 채워진 페이지 — 화면이 그렇다고 밝힌다. */
-    partial: ["index.html", "paper.html", "today.html", "trust.html",
-              "admin.html"],
+    partial: ["index.html", "paper.html"],
 
     strings: {
       // ── 상단 바 ────────────────────────────────────────────
@@ -629,8 +628,8 @@
       "이 시스템은 매일 자신의 결함을 찾아 고칩니다. 아래는 그 기록이며,":
         "This system looks for its own defects every day and fixes them. Below is that record —",
       "사람이 따로 적는 일지가 아니라": "not a diary someone writes by hand, but",
-      "개선이 저장소에 합쳐지는 순간 자동으로 남는 이력입니다. 성적이 나쁜 날의 수정도 그대로 실립니다.":
-        "a history left automatically the moment a fix is merged into the repository. Fixes made on bad days are published just the same.",
+      "개선이 저장소에 합쳐지는 순간 자동으로 남는 이력입니다. 성적이 나쁜 날의 수정도 그대로 실립니다. 아래 항목은 저장소의 커밋 제목을 그대로 옮긴 것입니다.":
+        "a history left automatically the moment a fix is merged into the repository. Fixes made on bad days are published just the same. The entries below quote the repository's commit titles verbatim, so they stay in Korean.",
 
       // ── 나머지 첫 화면 문구 ─────────────────────────────────
       "보유 없음": "not held",
@@ -969,6 +968,2138 @@
       "판단 재료": "inputs behind the call",
       "합산": "pooled",
 
+      // ══ 기록 검증 (trust.html) ═══════════════════════════════
+      "이 기록은 조작할 수 없습니다": "This record cannot be tampered with",
+      "\"수익률을 그럴듯하게 꾸민 것 아니냐\"는 의심은 정당합니다 — 인터넷의 수익 인증 대부분이 실제로 그렇기 때문입니다. 그래서 이 챌린지는":
+        "\"Aren't the returns just dressed up?\" is a fair suspicion — most profit screenshots on the internet are exactly that. So this challenge made",
+      "기록 구조 자체를 공개 장부로": "the record structure itself a public ledger",
+      "만들었습니다. 누구든 아래 방법으로 직접 검증할 수 있습니다.":
+        ". Anyone can verify it directly, in the ways below.",
+      "어떻게 조작이 불가능한가": "Why tampering is impossible",
+      "모든 기록은 공개 저장소에 git 커밋으로 쌓입니다.":
+        "Every record accumulates as a git commit in a public repository.",
+      "매일 새벽 자동화가 매매 결과를": "Each morning the automation commits the trading result to the",
+      "state/ 폴더에 커밋": "state/ folder",
+      "하며, 각 커밋에는 시각·내용·서명이 영구히 남습니다. 과거 기록을 몰래 고치면 커밋 역사에 흔적이 남아 즉시 드러납니다.":
+        ", and every commit keeps its time, contents and signature permanently. Quietly editing a past record leaves a mark in the commit history and shows up immediately.",
+      "계산 코드도 전부 공개입니다.": "The calculation code is public too.",
+      "수익률 계산·매매 로직·검증 절차가": "Return calculations, trading logic and validation procedures are",
+      "오픈소스": "open source",
+      "라 \"어떻게 계산했는지\"를 직접 확인할 수 있습니다.":
+        ", so you can check \"how was this calculated\" for yourself.",
+      "가짜 데이터 차단이 코드에 박혀 있습니다.":
+        "The block on fake data is built into the code.",
+      "실제 시세를 받지 못한 날은 기록을 남기지 않고 건너뜁니다 — 합성 데이터로 기록을 채우는 경로 자체가 없으며, 이 동작은 자동 테스트로 고정돼 있습니다.":
+        "A day whose real quotes could not be fetched is skipped with no record — there is no code path at all that fills a record with synthetic data, and that behaviour is pinned down by automated tests.",
+      "불리한 숫자도 함께 보여줍니다.": "The unflattering numbers are shown too.",
+      "전략 수익률만이 아니라 \"그냥 보유했다면\"과 최대낙폭을 나란히 표시합니다 — 전략이 지고 있으면 지고 있다고 화면에 그대로 나옵니다.":
+        "Not just the strategy's return: \"what if you had simply held\" and the max drawdown sit right beside it — when the strategy is losing, the screen says so.",
+      "재현성 — 같은 입력이면 같은 결과가 나옵니다":
+        "Reproducibility — the same input produces the same result",
+      "매일 새벽의 판단 기록에는 세 가지 지문이 함께 저장됩니다.":
+        "Every morning's decision record is stored with three fingerprints.",
+      "코드 커밋 해시": "Code commit hash",
+      "— 그날 어떤 버전의 코드가 판단했는지.":
+        "— which version of the code made that day's call.",
+      "입력 데이터 SHA-256": "Input data SHA-256",
+      "— 그날 판단에 쓴 시세 데이터의 해시. 데이터 원본도":
+        "— the hash of the price data used that day. The raw data is kept in",
+      "에 그대로 보관됩니다.": "as it was.",
+      "난수 시드": "Random seed",
+      "— 도전자 전략을 만들 때 쓴 시드(날짜 기반 고정값).":
+        "— the seed used to generate challenger strategies (fixed, derived from the date).",
+      "그래서 누구든 저장소를 받아": "So anyone can clone the repository, run",
+      "를 실행하면 그날의 재학습을": ", and reproduce that day's retraining",
+      "그대로 재현": "exactly",
+      "해 기록과 일치하는지 기계적으로 확인할 수 있습니다. \"조작 불가\"가 주장이 아니라 검증 가능한 사실이 되는 구조입니다.":
+        "to check mechanically that it matches the record. That structure is what turns \"cannot be tampered with\" from a claim into a verifiable fact.",
+      "스스로를 의심하는 장치들": "Devices that doubt ourselves",
+      "체결가 현실성": "Realistic fill prices",
+      "— 새벽에 내린 판단은 그 시점 종가가 아니라":
+        "— a call made in the morning is not filled at that moment's close but at the",
+      "다음 거래 세션의 시가": "next trading session's opening price",
+      "로 체결됩니다(코인만 24시간 시장이라 즉시). 개장 갭이 불리하게 벌어지면 그 손해를 그대로 떠안고, 수수료·거래세· 슬리피지를 뺀 \"깎인 숫자\"만 기록합니다.":
+        "(crypto alone fills immediately, being a 24-hour market). If the opening gap goes against us we take that loss as it comes, and only the \"trimmed number\" — after fees, transaction tax and slippage — is recorded.",
+      "다중검정 보정": "Multiple-testing correction",
+      "— 도전자를 많이 시험할수록 우연히 좋아 보이는 전략이 나올 확률도 커집니다. 그래서 검증 횟수를 저장하고, 횟수가 늘수록 챔피언 교체 문턱을 자동으로":
+        "— the more challengers we test, the greater the chance that one looks good by luck. So the number of tests is stored, and as it grows the bar for replacing a champion automatically",
+      "더 높입니다": "rises",
+      "그날의 도전자 수": "that day's challenger count",
+      "최근 1년 도전자 수": "the last year's challenger count",
+      "투명성 표시용": "for transparency only",
+      "긴 검증": "The long validation",
+      "— 오늘의 전략 설정을": "— today's strategy settings are applied to a",
+      "훨씬 긴 과거": "much longer past",
+      "(약 10년)에 적용해 시기별로 몇 번 통했는지 셉니다. 반년짜리 성적으로는 \"이 설정이 진짜인가\"에 답할 수 없기 때문입니다.":
+        "(about ten years) to count how often they worked, period by period. Half a year of results cannot answer \"are these settings real?\"",
+      "배우는 구간은 늘리지 않습니다": "The learning window is not extended",
+      "— 10년치로 배우게 하면 이미 죽은 패턴(2015년의 시장)을 익히므로, 늘리는 것은":
+        "— learning on ten years would teach it patterns that are already dead (the market of 2015), so what gets extended is only the",
+      "시험 구간": "testing window",
+      "뿐입니다.": ".",
+      "⚠️ 이 숫자에는": "⚠️ These numbers carry",
+      "생존 편향": "survivorship bias",
+      "이 있습니다. 10년을 돌리는 이 종목들은": ". The symbols run over ten years are the ones that",
+      "오늘 살아남아 저희가 고른": "survived to today and that we then chose",
+      "종목입니다. 10년 전의 저희는 이것들을 고를 수 없었고, 그때 골랐을 종목 중 사라진 것들의 손실은 여기에 없습니다 —":
+        ". We could not have picked them ten years ago, and the losses from the ones we would have picked that later vanished are not in here —",
+      "그래서 실제로 얻을 수 있었던 것보다 좋게 나옵니다.":
+        "so the result comes out better than what was actually achievable.",
+      "얼마나 좋은지는 모릅니다(모르는 것을 안다고 적지 않습니다). 설정 자체도 최근 데이터에서 뽑혔으니 과거 구간에 대해서는 \'답을 보고 고른\' 설정입니다. 그래서 이 값은":
+        "By how much, we do not know (we do not write down what we do not know as if we did). The settings themselves were drawn from recent data, so with respect to past periods they are settings \"chosen after seeing the answer\". For that reason these values are",
+      "관찰로만 남기고 전략 교체 판정에 쓰지 않습니다":
+        "kept as observation only and never used to decide a strategy swap",
+      ". 매주 월요일 자동으로 계산되며, 위 두 문장이 보고서에 항상 함께 실립니다.":
+        ". It is computed automatically every Monday, and the two sentences above always ride along with the report.",
+      "\'그냥 보유했다면\'을 반드시 나란히": "\"what if you had simply held\" right alongside, always",
+      "보유를 이긴 구간은 31%": "only 31% of periods beat holding",
+      "지금 이 설정은 장기 보유를 이기지 못합니다.":
+        "As it stands, these settings do not beat long-term holding.",
+      "상승장에서는 플러스 비율이 저절로 높아지므로, 그 숫자만 내는 것은 자기를 속이는 일입니다. 왜 그런지도 숫자로 나옵니다 — 전략이 시장에 들어가 있는 시간이":
+        "In a rising market the share of positive periods goes up by itself, so publishing that number alone is self-deception. Why it happens shows up in the numbers too — the time the strategy spends in the market is",
+
+      "뿐이고 들어갈 때도 조금씩만 삽니다. 그래서": ", and even when it does go in it buys only a little at a time. So",
+      "비중을 정하는 방식": "the way weights are decided",
+      "을 매일 밤 오디션의 후보로 세웠습니다(지금까지 그 항목만 한 번도 시험되지 않았습니다). 손으로 바꾸지 않고":
+        "was entered as a candidate in the nightly audition (that one item had never been tested until now). It is not changed by hand — it has to",
+      "다른 후보와 똑같은 심사를 이겨야": "win the same audition as every other candidate",
+      "반영됩니다.": "before it takes effect.",
+      "숏(공매도)과 레버리지는 잠겨 있습니다 — 왜인지 숫자로 밝힙니다":
+        "Shorting and leverage are locked — and we say why, in numbers",
+      "켤 수 있는 상태인지 먼저 돌려봤고, 셋 다 아니었습니다.":
+        "we first ran the checks on whether it could be switched on. Three answers came back, and none of them was yes.",
+      "5,000만원어치가 그대로 체결": "KRW 50,000,000 worth filled exactly as ordered",
+      "비용(대차료)이 전 시장 0원": "cost of borrowing was zero in every market",
+      "파산 확률을 아직 못 잰다": "we cannot yet measure the probability of ruin",
+      "현실에서는 낼 수 없는 성적": "results that could not be produced in reality",
+      "켤 수 있게": "able to be switched on",
+      "숏이 공짜가 아니게": "shorting no longer free",
+      "기록이 쌓여야": "only once the record accumulates",
+      "열립니다. 코드가 아니라 시간의 문제입니다.":
+        ". It is a question of time, not of code.",
+      "섀도 대조군": "Shadow control arm",
+      "— 챔피언을 한 번도 바꾸지 않는 고정 전략 포트폴리오를 병행 운용해 나란히 공개합니다. 진화 시스템이 실제로 가치를 더하는지, 아니면 그냥 시장 덕인지 비교로 드러납니다.":
+        "— a portfolio whose champions never change is run alongside and published next to ours. Whether the evolution actually adds value, or whether it is just the market, shows up in the comparison.",
+      "의회 운용": "Parliament",
+      "— 오디션을 통과한 전략에게만": "— only strategies that pass the audition get a",
+      "의석(비중)": "seat (a share of the weight)",
+      "을 주고, 최대 3석까지 나눠 갖게 하는 구조입니다. 비중은 홀드아웃 성과에 따라 서서히만 이동하고, 서로 너무 비슷한(수익 상관 과다) 전략은 한 자리만 남깁니다.":
+        ", up to three seats shared between them. Weights move only slowly, following hold-out performance, and strategies too similar to each other (returns too correlated) are collapsed into one seat.",
+      "지금 42개 계좌 중": "Right now, of 42 accounts,",
+      "42개가 2석 이상": "42 hold two seats or more",
+      "돈의 분산은 다른 이야기": "spreading the money is another story",
+      "무작위 벤치마크": "Random benchmark",
+      "— 매일 무작위 매매 전략 1,000개를 같은 조건으로 돌려 우리 성과가 그 분포에서 상위 몇 %인지 표시합니다. 동전 던지기보다 정말 나은지 매일 검증받는 셈입니다.":
+        "— every day a thousand random trading strategies are run under the same conditions, and we show where our result sits in that distribution. It amounts to being tested daily on whether we really beat a coin flip.",
+      "아직 심사받지 않은 종목": "Symbols not yet auditioned",
+      "계산 중…": "Calculating…",
+      "운용 종목을 늘리면 그날부터 매매는 시작되지만,":
+        "Adding a symbol starts the trading that same day, but the",
+      "오디션(매일 밤 후보 수십 개와 겨루는 심사)":
+        "audition (a nightly contest against dozens of candidates)",
+      "은 순서를 기다립니다. 아직 차례가 안 온 종목은 자기 전략이 없어":
+        "has to wait its turn. A symbol whose turn has not come has no strategy of its own and runs on the",
+      "기본 전략": "default strategy",
+      "으로 돕니다 — 그 전략이 그 종목에서 통하는지 확인된 적이 없다는 뜻입니다.":
+        "— meaning nobody has confirmed that the strategy works on that symbol.",
+      "그래서 이런 종목은": "So such symbols have their",
+      "비중을 4분의 1로": "weight cut to a quarter",
+      "줄입니다. 검증이 하루 늦은 것 (절반)보다 더 세게 줄이는 이유는":
+        ". The reason it is cut harder than a symbol whose validation is merely a day late (which is halved) is that we",
+      "더 모르기 때문": "know even less about it",
+      "입니다. 2026-08-23 이전에는 이 둘을 구별하지 않고 똑같이 절반만 줄이고 있었습니다 — 그때 계좌의 절반 넘는 돈이 한 번도 심사받지 않은 종목 위에 있었습니다.":
+        ". Before 2026-08-23 the two were not distinguished and both were merely halved — at that time more than half the account's money sat on symbols that had never been auditioned.",
+      "지금 이 관문을 넘으려면 무엇이 필요한가":
+        "What it would take to clear this gate right now",
+      "중 통과": "passing",
+      ". DSR(운이 아니라 실력일 확률) 최고값은":
+        ". The best DSR (the probability that it is skill rather than luck) is",
+      "이고 통과선은": "and the passing line is",
+      "지금 표본은 종목당": "The sample is currently",
+      "이고 누적 시행은": "per symbol, with a cumulative",
+      "표본을 늘리는 길": "Ways to grow the sample",
+      "판단 횟수": "Number of calls",
+      "필요 샤프": "Sharpe required",
+
+      ". 정확히 말하면 선발전 문턱은": ". Precisely: the qualifying bar rises with",
+      "로, 결승전 문턱은": ", and the final bar with",
+      "로 올립니다(각각 t≥√(2·ln n), t≥1+0.5·log₁₀(1+n/1000), 상한 1.35). 누적 총계를 쓰면 문턱이 영원히 올라가 진화가 완전히 멈추기 때문이며, 누적 총계는 문턱이 아니라":
+        "(t≥√(2·ln n) and t≥1+0.5·log₁₀(1+n/1000) respectively, capped at 1.35). Using the running total would push the bar up forever and stop evolution altogether; the running total is published not as a bar but",
+      "(2026-08-11 수정: 이 문단은 \"누적 횟수로 문턱을 높인다\"고 적혀 있었지만 코드는 롤링 1년 + 상한이었습니다. 코드가 아니라 설명이 틀렸던 것이라 설명을 고쳤습니다.)":
+        "(Corrected 2026-08-11: this paragraph said \"the bar rises with the cumulative count\", but the code used a rolling year plus a cap. The description was wrong, not the code, so the description was fixed.)",
+      "(2026-08-18 보강: 상한이 있는 공식은 시도가 아주 많아지면 더 오르지 않습니다 — 그 빈틈을 막으려고 결승 통과자에게 관문을 하나 더 달았습니다. 그날 링에 선":
+        "(Strengthened 2026-08-18: a capped formula stops rising once attempts get very numerous — to close that gap, finalists face one more gate. Taking the out-of-sample results of",
+      "모든 후보": "every candidate",
+      "의 최근 미공개 구간 성적을 놓고 \"이 중 최고가 순전히 우연으로 나올 확률\"을 무작위 재추출(부트스트랩, 고정 시드라 재현 가능)로 직접 재서, 그 확률이 10%보다 크면 결승 점수를 넘었어도 승격을 보류합니다. 후보를 많이 세울수록 이 관문은 자동으로 엄격해집니다 — 상한이 필요 없는 보정입니다.)":
+        "that stood in the ring that day, we measure directly by resampling (bootstrap, fixed seed so it is reproducible) the probability that the best of them arose purely by chance. If that probability exceeds 10%, promotion is withheld even for a candidate that cleared the final score. The more candidates enter, the stricter this gate becomes automatically — a correction that needs no cap.)",
+      "냅니다. 처음 만들었을 때는 \"구간의 62%가 플러스\"라고만 적었는데, 대조군을 붙이니":
+        ". When it was first built it said only \"62% of periods were positive\"; once a control arm was attached,",
+      "였습니다. 예를 들어 SK하이닉스는 전략이": ". For example, on SK hynix the strategy returned",
+      ", 그냥 들고 있었으면": ", while simply holding returned",
+      "였습니다.": ".",
+      "① 100만원 계좌에 −500%를 지시하니":
+        "① Ordering −500% on a KRW 1,000,000 account produced",
+      "됐습니다 — 빌릴 주식이 있는지도, 담보가 있는지도 안 보는 계좌였습니다. ② 빌린 주식을 들고 있는":
+        ". The account checked neither whether the shares could be borrowed nor whether there was collateral. ② The",
+      "이었습니다 — 공짜로 무한정 들고 있을 수 있다는 뜻입니다. ③ 레버리지는 이미 잠겨 있었고, 이유는 \"":
+        "— meaning a position could be held free of charge, indefinitely. ③ Leverage was already locked, and the reason given was \"",
+      "\"였습니다 (기록이 3일치뿐입니다). ①②를 그대로 두고 숏 전략을 매일 밤 심사에 올리면,":
+        "\" (there were only three days of record). Putting short strategies into the nightly audition with ① and ② left as they were would select strategies on",
+      "으로 전략이 뽑힙니다. 그래서 켜는 대신": ". So instead of switching it on, we made it",
+      "만들었습니다 — 가진 것보다 많이 파는 것을 막고(팔고 나오는 길은 그대로 열어 둡니다), 담보를 넣은 만큼만 열리게 하고, 대차료를 시장별로 채워":
+        ": selling more than is held is blocked (the exit from a position stays open), the size opens only as far as posted collateral allows, and borrowing costs were filled in per market to make",
+      "했습니다. 레버리지는 손대지 않았습니다 — 그 자물쇠는":
+        ". Leverage was left untouched — that lock opens",
+      "으로 분산 운용 중입니다(최대 3석 / 상한 3석). 다만 자리 수와":
+        "(maximum 3 seats / cap 3). But the number of seats and",
+      "입니다 — 전략은 24종인데 그중 가장 큰 하나가 자금의":
+        "are different questions — there are 24 strategies, and the largest single one holds",
+      "를 쥐고 있습니다. 상관까지 고려한 비중과의 거리는 27%입니다(40계좌 실측 · 재기만 하고 매매에는 쓰지 않습니다 — 배분을 바꾸면 판정 시계가 리셋되기 때문입니다).":
+        "of the money. The distance from a correlation-aware weighting is 27% (measured over 40 accounts · measured only, never traded on — changing the allocation would reset the verdict clock).",
+      "(2026-08-13 정정: 이 문단은 \"통과자 최대 3개가 의석을 나눠 갖고… 단일 전략 붕괴가 계좌 붕괴가 되는 구조를":
+        "(Corrected 2026-08-13: this paragraph said, in the present tense, that \"up to three qualifiers share the seats… so a single strategy collapsing no longer collapses the account\" —",
+      "없앤 것": "eliminated",
+      "현재형으로": "in the present tense",
+      "적혀 있었습니다. 그런데 실제 장부는 전 계좌가": ". But the actual ledger showed every account on",
+      "1석": "one seat",
+      "이었습니다 — 한 번도 2석이 된 적이 없습니다. 의석은 2단계 오디션을 통과한 승격자만 얻는데 승격이 139회 중 1회였고, 그 1회조차 챔피언의 파라미터 변형이라 상관 게이트가 곧바로 한 석으로 합쳤기 때문입니다. 구조는 있지만 아직 잠들어 있었고, 하필 이 장치는":
+        "— never two. Seats go only to those promoted through the two-stage audition, and there was one promotion in 139; even that one was a parameter variant of the champion, so the correlation gate collapsed it straight back into one seat. The structure exists but was asleep, and this particular device",
+      "작동할 때만 자기를 알리고 잠들어 있을 때는 침묵":
+        "announces itself only while working and stays silent while asleep",
+      "했습니다. 코드가 아니라 문장이 틀렸으므로 문장을 고치고, 잠든 상태 자체를 매일 숫자로 내보내 위 문장이 그 숫자를 읽게 했습니다. 즉 지금 이 계좌는":
+        ". The sentence was wrong, not the code, so the sentence was fixed — and the sleeping state itself is now published as a daily number that the sentence above reads. In other words this account currently",
+      "사실상 단일 전략으로 굴러갑니다": "runs on effectively a single strategy",
+      "입니다. 이 조건에서 통과선에 닿으려면": ". To reach the passing line under these conditions,",
+      "가 필요합니다 — 세계 최상위 펀드가 좋은 해에 내는 수준입니다.":
+        "would be required — the level a world-leading fund produces in a good year.",
+      "지금 — 하루 1회 판단 · 3년": "Now — one call a day · 3 years",
+      "종목을 묶어 한 모델로(실효 표본 1.78배)":
+        "pooling symbols into one model (1.78× effective sample)",
+      "하루 1회 판단 · 6년": "one call a day · 6 years",
+      "1시간마다 판단 · 3년": "a call every hour · 3 years",
+      "15분마다 판단 · 3년": "a call every 15 minutes · 3 years",
+      "이 칸은 나쁜 소식을 적는 자리입니다.": "This box is where bad news is written.",
+      "2026-08-19, 전 종목 과최적화 검증이 처음으로 끝까지 돌았고":
+        "On 2026-08-19 the overfitting validation ran to completion across every symbol for the first time, and",
+      "통과한 종목은 하나도 없었습니다": "not one symbol passed",
+      ". 여기서 \"전략이 나쁘다\"와 \"지금 표본으로는 넘을 수 없는 관문이다\"는 대응이 정반대라, 추측하지 않고 역산했습니다 — 위 숫자가 그 답입니다.":
+        ". \"The strategy is bad\" and \"the gate cannot be cleared with this sample\" call for opposite responses, so rather than guess we worked it backwards — the numbers above are the answer.",
+      "관문은 낮추지 않습니다.": "The gate will not be lowered.",
+      "결과를 보고 기준을 고치는 것이 이 제품이 하지 않겠다고 약속한 바로 그 일(골대 이동)입니다. 정공법은":
+        "Changing the criteria after seeing the result is precisely what this product promised not to do (moving the goalposts). The honest route is to",
+      "표본을 늘리는 것": "grow the sample",
+      "이고, 장중 트랙(하루 여러 번 판단하는 별도 실험 계좌)이 그 실험입니다. 그동안 이 계좌는":
+        ", and the intraday tracks (separate experimental accounts that decide several times a day) are that experiment. Meanwhile this account runs at",
+      "절반 이하 노출": "half exposure or less",
+      "로 굴러갑니다 — 고장이 아니라 설계입니다.":
+        "— by design, not by fault.",
+      "가동률 — 자동화가 실제로 매일 돌았는가":
+        "Uptime — did the automation actually run every day?",
+      "지난": "Over the last",
+
+      "\"이라고": "\" —",
+      "기록 — 가동률": "records — uptime",
+      "· 결측": "· missing",
+      "(기록을 지어내지 않고 비워 둔 날)":
+        "(days left blank rather than invented)",
+      "새벽 자동화가 API 장애 등으로 기록을 남기지 못한 날은":
+        "On a day when the morning automation could not record — an API outage, say — we",
+      "기록을 지어내지 않고 결측으로 남깁니다":
+        "leave it missing rather than invent a record",
+      ". 결측 일수 자체를 공개하는 것이 회복력의 증거입니다(달력일 기준 보수적 계산). 잡 실패 시에는 디스코드로 즉시 경보가 옵니다.":
+        ". Publishing the number of missing days is itself the evidence of resilience (counted conservatively, by calendar day). A failed job raises an immediate Discord alert.",
+      "재출발·기준 변경 기록 (숨기지 않습니다)":
+        "Restarts and changes of criteria (nothing hidden)",
+      "어떤 환율을 썼는지도 함께 공개합니다.":
+        "The exchange rate used is published too.",
+      "환산을 한다고 말하면서 환율을 밝히지 않으면 그냥 믿어 달라는 말이 됩니다. 그날 배치가 적용한 원/달러는 장부의 각 기록에":
+        "Saying that a conversion was made without naming the rate amounts to asking to be believed. The USD/KRW rate the batch applied that day is kept in each ledger record as",
+      "로 남고, 잔고 표 아래에 \"원/달러 ○○○원을 적용해 환산했습니다\"로 표시됩니다 — 누구든 그 값으로 직접 곱해 검산할 수 있습니다. 환율은 매일 새벽 배치가 공개 시세(KRW=X)의 마지막 종가로 한 번 잡습니다.":
+        ", and shown under the holdings table as \"converted at KRW ○○○ per USD\" — anyone can multiply it out and check. The rate is fixed once each morning by the batch, from the last close of a public quote (KRW=X).",
+      "실시간 환율이 아닙니다": "It is not a live rate",
+      "— 하루 한 번 확정되는 값이고, 확인하지 못한 날에는 해외 종목을 아예 기록하지 않습니다(1.0으로 때우지 않습니다).":
+        "— it is settled once a day, and on a day we cannot confirm it, overseas holdings are not recorded at all (we do not paper over it with 1.0).",
+      "화면에 단위가 다른 두 가격이 나옵니다 — 둘 다 맞습니다.":
+        "Two prices in different units appear on screen — both are correct.",
+      "\'잔고\' 표는 통합 계좌라": "The holdings table is the combined account, so it is",
+      "전부 원화로 환산": "entirely converted to won",
+      "한 값이고, \'종목별 현황\' 표와 하단 티커는": ", while the per-symbol table and the ticker at the bottom are",
+      "그 종목이 거래되는 통화 그대로": "in the currency that symbol trades in",
+      "입니다 (미국주식 달러 · 코인 USDT · 한국주식 원). 종목별 참고 계좌는 그 종목만 따로 굴리는 단일 통화 장부라 현지 통화로 재는 것이 맞기 때문입니다. 그래서 같은 종목의 \'현재가\'가 두 표에서 1,400배 가까이 차이 날 수 있습니다 — 어느 쪽도 틀리지 않았지만 혼동하기 쉬워, 각 표에 단위를 적어 두었습니다.":
+        "(dollars for US stocks, USDT for crypto, won for Korean stocks). Each per-symbol reference account is a single-currency ledger trading that symbol alone, so measuring it in local currency is the right thing. That is why the same symbol's \"last price\" can differ by nearly 1,400× between the two tables — neither is wrong, but it is easy to confuse, so each table states its unit.",
+      "주가는 실시간이 아닙니다.": "Prices are not live.",
+      "매매·평가에 쓰는 가격은": "The price used for trading and valuation is the close of the",
+      "마지막으로 완성된 봉": "last completed bar",
+      "의 종가입니다(코인은 진행 중인 봉의 현재가로 체결하되 판단은 완성 봉으로 합니다 — 위 항목 참조). 첫 화면 하단의 티커만 거래소 공개 API로 준실시간 시세를 보여주며, 그 값은":
+        "(crypto fills at the current price of the bar in progress but decides on completed bars — see above). Only the ticker at the bottom of the first screen shows near-live quotes from a public exchange API, and those values",
+      "장부에 들어가지 않습니다": "never enter the ledger",
+      ". 잔고·수익률·낙폭은 전부 확정된 기록에서 나옵니다.":
+        ". Holdings, returns and drawdowns all come from settled records.",
+      "2026-08-18, 판정 시계의 규칙을 바꿨습니다 — 앞으로는 개선해도 시계를 리셋하지 않습니다.":
+        "2026-08-18 — the verdict clock's rule changed: from now on, an improvement no longer resets it.",
+      "지금까지는 구조(피처·사이징 등)가 바뀔 때마다 \"엣지 입증\" 판정 시계를 0일부터 다시 세웠습니다. 운영자 결정으로 측정 대상을 재선언합니다: 우리가 재는 것은 얼어붙은 전략 하나가 아니라":
+        "Until now, every change of structure (features, sizing and so on) restarted the \"edge proven\" clock from day zero. By the operator's decision we restate what is being measured: not one frozen strategy, but",
+      "개선을 계속하는 과정 전체": "the whole process of continuing to improve",
+      "입니다. 그래서 시계는 현 계좌 탄생일(2026-08-13)부터 연속으로 흐릅니다. 대신 세 가지를 약속합니다 — ① 시계가 도는 동안의":
+        ". So the clock runs continuously from the current account's birth (2026-08-13). In exchange, three promises — ① every structural change while the clock runs is",
+      "모든 구조 변경을 날짜와 함께 공개": "published with its date",
+      "2026-08-18, 외부 검토를 받았고 — 가장 아픈 지적 둘을 그대로 적습니다.":
+        "2026-08-18 — we had an outside review, and the two most painful findings are written here as they were given.",
+      "이 시스템의 투자 방식 설명서를 외부에 보여 개선점을 요청했습니다. 받은 지적 중 두 가지는 우리가 스스로 못 본 것이라, 좋게 포장하지 않고 그대로 공개합니다.":
+        "We showed an outside party the description of how this system invests and asked what to improve. Two of the findings were things we had not seen ourselves, so we publish them as they are, without dressing them up.",
+      "① 운용 종목 20개는 2026년에 사람이 골랐습니다 — 생존 편향이 있습니다.":
+        "① The 20 traded symbols were chosen by a person, in 2026 — there is survivorship bias.",
+      "사실을 공개": "publish the fact",
+      "최우선": "top priority",
+      "규칙 유니버스를 즉시 부착": "a rule-based universe was attached immediately",
+      "② 장중 실험의 판정 기간 30일은 너무 짧았습니다 — 90일로 고칩니다.":
+        "② The intraday experiment's 30-day verdict window was too short — it is changed to 90 days.",
+      "기간": "elapsed time",
+      "지금 고치면 정직한 수정이고, 30일 뒤에 고치면 골대 이동입니다.":
+        "Changing it now is an honest amendment; changing it after 30 days would be moving the goalposts.",
+      "2026-08-19, 돌고 있는 실험 4개의 판정 기준을 사전 등록합니다.":
+        "2026-08-19 — the verdict criteria for the four running experiments are pre-registered.",
+      "결과를 보고 나서 기준을 정하면 그 선택 자체가 결과에 오염됩니다(골대 이동). 그래서 데이터가 쌓이기 전인 지금, 각 실험의 판정일과 판정 방법을 박아서 공개합니다 — 몇 달 뒤의 판정이 의심받지 않게 하기 위해서입니다.":
+        "Setting criteria after seeing the result contaminates the choice with the result (moving the goalposts). So now, before the data accumulates, each experiment's verdict date and method are fixed and published — so that the verdict months from now is not open to doubt.",
+      "장중 1시간봉 vs 본 계좌": "Intraday hourly bars vs the main account",
+      "— 판정": "— verdict",
+      "주기 사다리(1시간·15분·5분)": "Interval ladder (1 hour · 15 min · 5 min)",
+      "(90일), 트랙 쌍 3개의 검정에 다중비교 보정(본페로니)을 적용합니다.":
+        "(90 days), with a multiple-comparison correction (Bonferroni) applied across the three track pairs.",
+      "지정가 그림자": "Limit-order shadow",
+
+      "으로 계속 공개합니다.":
+        "and it stays published.",
+      "(90일). 지정가가 이겨도":
+        "(90 days). Even if limit orders win,",
+      "미체결율 20% 초과면 채택 보류":
+        "adoption is withheld if the unfilled rate exceeds 20%",
+      "— 체결 안 되는 이득은 이득이 아닙니다.":
+        "— a gain you never get filled on is not a gain.",
+      "배분 사다리(HRP·위험기여 균등·자본 균등·역변동성)":
+        "Allocation ladder (HRP · equal risk contribution · equal capital · inverse volatility)",
+      "미국주식 장중 1시간봉":
+        "US stocks, intraday hourly bars",
+      "미국 지정가 그림자":
+        "US limit-order shadow",
+      "(2026-08-19 추가 등록) — 판정":
+        "(registered 2026-08-19) — verdict",
+      "2026-08-19 정정 — 판정 방식에 '조기 판정'을 더합니다.":
+        "2026-08-19 amendment — an early verdict is added to the method.",
+      "사장님 지시로 기간 단축 방법을 검토한 결과입니다. 원래 방식은 판정일에":
+        "This came from reviewing, at the owner's request, how the window could be shortened. The original method looked at the data",
+      "딱 한 번":
+        "exactly once",
+      "대신":
+        "instead",
+      "훔쳐볼 권리를 미리 사 두는":
+        "buying the right to peek, in advance",
+      "판정일 자체는 바꾸지 않았습니다.":
+        "The verdict date itself was not changed.",
+      "정직하게 덧붙이면,":
+        "To be honest about it,",
+      "속도는 효과 크기로 삽니다.":
+        "speed is bought with effect size.",
+      "실험 1~4일차인 지금":
+        "now, on days 1-4 of the experiment",
+      "2세대 집중 배분":
+        "Generation-2 concentrated allocation",
+      "(120일). 지금 본 계좌는 신호가 켜진 종목에":
+        "(120 days). Today the main account splits across every symbol whose signal is on,",
+      "똑같이":
+        "equally",
+      "나눠 담습니다. 이 실험은 같은 신호를":
+        "This experiment takes the same signals and",
+      "줄 세워 상위 몇 개에만, 점수에 비례해":
+        "ranks them, buying only the top few, in proportion to score",
+      "담습니다 — 확신이 두 배면 금액도 두 배입니다. 집중이 이겨도":
+        "— twice the conviction, twice the amount. Even if concentration wins,",
+      "최대낙폭이 본 계좌의 1.5배를 넘으면 채택 보류":
+        "adoption is withheld if the max drawdown exceeds 1.5× the main account's",
+      "입니다(수익이 위험을 사서 온 것이면 승리가 아닙니다).":
+        "(a return bought with risk is not a win).",
+      "일곱 실험 모두, 기준 미달의 결과는 같습니다:":
+        "For all seven experiments, falling short of the criteria has the same consequence:",
+      "현행 유지 + 결과 그대로 공개.":
+        "keep what we have, and publish the result as it is.",
+      "그 페이지를 열면":
+        "Opening that page showed",
+      "\"기록을 불러오지 못했습니다\"":
+        "\"could not load the record\"",
+      "한 줄만 보였습니다. 원인은 사소합니다 — 페이지가 불러오는":
+        "and nothing else. The cause was trivial — one of the",
+      "파일 이름 하나가 틀려 있었습니다":
+        "file names the page loaded was wrong",
+      "읽는 쪽에서만 보이지 않았고":
+        "it was invisible only to the reader",
+      ", 화면은 그것을 \"오늘은 기록이 없나 보다\"로 읽히게 두었습니다.":
+        ", and the screen let it read as \"there must be no record today\".",
+      "모르는 것과 아닌 것은 다릅니다":
+        "\"we do not know\" and \"it did not happen\" are different",
+      "아무도 몰랐다는 사실":
+        "the fact that nobody noticed",
+      "첫 화면 하나에만":
+        "only on the first screen",
+      "\"다 그리지 못했습니다\"라고 말하고":
+        "says \"it could not be fully drawn\" and",
+      "원본 기록이 있는 곳을 알려 줍니다, ③":
+        "points to where the original record lives, ③",
+      "공개되는 모든 페이지":
+        "every page that is published",
+      "종목을 눌렀을 때 열리는 차트":
+        "the chart that opens when a symbol is clicked",
+      "도 절반이 죽어 있어 함께 정리했습니다.":
+        "was half dead too, and was cleaned up along with it.",
+      "그동안 잘못 보였던 화면은 되돌리지 않습니다":
+        "The screens that were wrong in the meantime are not rolled back",
+      "— 무엇이 얼마나 안 보였는지 여기 적는 것으로 대신합니다.":
+        "— writing down what was invisible, and for how long, takes their place.",
+      "손으로 숫자를 적는 대신":
+        "instead of writing the numbers in by hand",
+      "결과는":
+        "The result",
+      "안 맞았습니다.":
+        "did not match.",
+      "으로 나왔는데, 그날 시스템이 실제로 말한 값은":
+        "came out, but what the system actually said that day was",
+      "입니다 —":
+        "—",
+      "5.24% 높습니다.":
+        "5.24% higher.",
+      "방향이 중요합니다.":
+        "The direction matters.",
+      "하필 좋아 보이는 쪽으로 틀렸습니다.":
+        "It was wrong in exactly the flattering direction.",
+      "이 문단은 그 장치가 실제로 작동했다는 기록입니다.":
+        "This paragraph is the record that the safeguard actually worked.",
+      "대신 첫 화면이":
+        "Instead the first screen shows",
+      "그날 시스템이 뭐라고 했는지":
+        "what the system said that day",
+      "계좌 장부가 아닙니다.":
+        "It is not the account ledger.",
+      "2026-08-16은 다릅니다. 그날은":
+        "2026-08-16 is different. On that day",
+      "결과 자체가 없습니다.":
+        "there is no result at all.",
+      "일어나지 않은 날":
+        "a day that did not happen",
+      "이라, 채울 것이 없습니다.":
+        ", so there is nothing to fill in.",
+      "사장님 폰에 이렇게 남았습니다.":
+        "This is what was left on the owner's phone.",
+      "앞의 둘은 저장되지 않았습니다.":
+        "The first two were never saved.",
+      "배치의 순서가":
+        "The batch's order was",
+      "①계산 → ②알림 → ③검사 → ④저장":
+        "① compute → ② notify → ③ check → ④ save",
+      "사람은 위부터 읽습니다.":
+        "People read from the top.",
+      "지금은 알림을":
+        "Now a notification goes out",
+      "저장이 끝난 뒤에만":
+        "only after the save is finished",
+      "실패 경보만":
+        "only a failure alert",
+      "나갑니다.":
+        "goes out.",
+      "같은 날 하나 더 고쳤습니다. 코인 5종이":
+        "One more fix the same day. Five crypto symbols were reading",
+      "165일 묵은 시세":
+        "a quote 165 days stale",
+      "\"오늘 이미 했다\"로 읽고 조용히 건너뛰었습니다.":
+        "as \"already done today\" and quietly skipping.",
+      "'오늘'이 아니라 5개월 반 전이었습니다. 이제 시세가 묵으면 그 종목은":
+        "It was not \"today\" but five and a half months earlier. Now, when a quote goes stale, that symbol",
+      "소리 내어 실패합니다":
+        "fails out loud",
+      "장중 감시 경보도 손봤습니다. 지금까지":
+        "The intraday watchdog alert was fixed too. Until now it reported only the",
+      "최악 간격(9.3시간)":
+        "worst gap (9.3 hours)",
+      "만 말했는데, 실측 117회의":
+        "— but across 117 measurements the",
+      "중앙값은 29분":
+        "median is 29 minutes",
+      "위험 한도 계산은 계속 최악값으로 합니다":
+        "Risk limits are still computed from the worst case",
+      "(안전한 쪽).":
+        "(the safe side).",
+      "사장님 지적으로 찾았습니다:":
+        "Found because the owner pointed it out:",
+      "\"투자한 잔고는 지금 코인밖에 없고, 거래내역에는 주식이 있고...\"":
+        "\"the holdings are all crypto right now, but the trade history has stocks…\"",
+      "맞습니다. 거래내역에는":
+        "He was right. The trade history had",
+      "\"2026-08-15 · 아마존 · 매수\"":
+        "\"2026-08-15 · Amazon · buy\"",
+      "가 있는데 잔고에 아마존은 없었습니다.":
+        "while Amazon was nowhere in the holdings.",
+      "그날 기록에는 같은 종목이":
+        "That day's record has the same symbol on",
+      "두 줄로":
+        "two lines",
+      "동시에":
+        "at once",
+      "적혀 있습니다. 진실은 후자입니다.":
+        ". The latter is the truth.",
+      "한 주도 사지 않았습니다.":
+        "Not a single share was bought.",
+      "더 아픈 것은":
+        "What stings more is",
+      "이 사고를 이미 한 번 다뤘다는 사실":
+        "that this incident had already been handled once",
+      "입니다. 2026-08-17에 같은 자리를 고치면서":
+        ". On 2026-08-17, fixing the same spot, only the",
+      "금액만":
+        "amount",
+      "숫자를 가려도 주장은 그대로 남습니다.":
+        "Hiding the number leaves the claim standing.",
+      "지금은 그 줄이":
+        "Now that line reads",
+      "\"주문 실패 — 현금 부족으로 한 주도 체결되지 않았습니다\"":
+        "\"order failed — not enough cash, not a single share filled\"",
+      "로 나갑니다. 첫 화면의 거래내역과 '오늘의 판단' 페이지가":
+        ". The first screen's trade history and the Today's Call page now use the",
+      "같은 판정":
+        "same verdict",
+      "기록은 지우지 않습니다":
+        "The record is not deleted",
+      "같은 날 첫 화면도 손봤습니다. 종목별 현황이":
+        "The first screen was fixed the same day. The per-symbol status was",
+      "스무 줄":
+        "twenty rows",
+      "오늘 돈이 들어가 있는 종목부터":
+        "the symbols with money in them today come first",
+      "보이게 했으며, 몇 종목을 접었는지는 표 제목이 말합니다.":
+        ", and the table's title says how many were folded away.",
+      "장부는":
+        "The ledger",
+      "2026-08-15에서 08-18로 건너뜁니다.":
+        "jumps from 2026-08-15 to 08-18.",
+      "그 이틀은 시장이 쉰 날도, 성적이 나쁜 날도 아닙니다.":
+        "Those two days were neither market holidays nor bad days.",
+      "기록을 만드는 자동 배치가 실패했습니다.":
+        "The automated batch that writes the record failed.",
+      "검사가 죽으면 기록을 쓰지 않습니다":
+        "If the checks die, no record is written",
+      "(잘못된 기록은 다음 날의 출발점이 되기 때문입니다).":
+        "(a wrong record becomes the next day's starting point).",
+
+      "(2026-08-19 추가 등록 — 첫 회차가 돌기 전에 등록했습니다) — 판정":
+        "(registered 2026-08-19, before the first round ran) — verdict",
+      "2026-08-17 자산이":
+        "On 2026-08-17 the equity came out as",
+      "2026-08-17 밤, 알림이 \"일어나지 않은 일\"을 사실처럼 방송했습니다.":
+        "On the night of 2026-08-17 a notification broadcast something that never happened as if it were fact.",
+      "08:23 🚨 'Nightly Retrain' 실패 (2026-08-17)":
+        "08:23 🚨 'Nightly Retrain' failed (2026-08-17)",
+      "를 받고 있었는데, 그 묵은 날짜가 \"마지막으로 학습한 날짜\"와 같아서 프로그램이":
+        ", and because that stale date matched \"the date last trained on\", the program read it",
+      "2026-08-18까지 사흘 동안, 화면이 \"사지 않은 것을 샀다\"고 말했습니다.":
+        "For three days, up to 2026-08-18, the screen said it had bought something it never bought.",
+      "절반만 고친 것이고, 그 절반이 사장님 눈에 \"일관성이 없다\"로 보였습니다.":
+        "Only half of it was fixed, and that half looked to the owner like \"this is inconsistent\".",
+      "을 씁니다.":
+        "is used.",
+      "은 매매 계산 중에 오류가 나서 그날 배치가 죽었습니다(본실행과 재시도 모두).":
+        "hit an error mid-calculation and the batch died that day (both the main run and the retry).",
+      "\"없음\"을 빈칸으로 표현한 것이 어떤 컴퓨터에서는 \"있음\"으로 읽혔습니다.":
+        "Representing \"none\" as an empty value read as \"present\" on some machines.",
+      "없는 기록을 나중에 채워 넣지 않습니다.":
+        "A missing record is not filled in afterwards.",
+      "지금 계산해서 만들면 그날 실제로 무엇을 했는지가 아니라":
+        "Computing it now would give not what was actually done that day but",
+      "오늘 다시 계산한 값":
+        "a value recalculated today",
+      "이틀 연속으로 놓친 것이 가장 아픈 부분입니다.":
+        "Missing it two days running is the part that stings most.",
+      "\"조용히 틀리느니 시끄럽게 멈춘다\"":
+        "\"stop loudly rather than be wrong quietly\"",
+      "같은 실수가 다시 나오지 않도록":
+        "so the same mistake cannot recur",
+      "관문 자신이 고장 원인":
+        "the gate itself becomes the cause of the failure",
+      "이 되기 때문입니다.":
+        ".",
+      "사장님이 물으셨습니다:":
+        "The owner asked:",
+      "\"지금 투자 자동으로 하고있는 방식이 가장 이상적인 형태인지 궁금해.\"":
+        "\"I wonder whether the way this invests automatically right now is the ideal form.\"",
+      "정직하게 답하면":
+        "The honest answer is",
+      "아닙니다.":
+        "no.",
+      "세 가지를 그대로 적습니다.":
+        "Three things, written as they are.",
+      "① 목표와 설정이 같은 세상의 숫자가 아닙니다.":
+        "① The goal and the settings are not numbers from the same world.",
+      "이 계좌는":
+        "This account runs at",
+      "연 변동성 12%":
+        "12% annualised volatility",
+      "100배":
+        "100×",
+      "가 필요합니다.":
+        "is required.",
+      "한 해 평균 수익률":
+        "Average annual return",
+      "1억까지":
+        "to 100 million won",
+      "79년":
+        "79 years",
+      "41년":
+        "41 years",
+      "28년":
+        "28 years",
+      "이건 고쳐야 할 결함이 아니라":
+        "This is not a defect to fix but",
+      "규율의 결과":
+        "the result of discipline",
+      "일부러 잠가 둡니다.":
+        "is deliberately kept locked.",
+      "② 그래서 지금 점수는 \"1억\"이 아니라 \"그냥 보유보다 나은가\"입니다.":
+        "② So the score right now is not \"100 million won\" but \"is it better than simply holding?\"",
+      "같은 기간 전 종목을 그냥 사서 들고만 있었다면 얼마였는지":
+        "what it would have been had every symbol simply been bought and held over the same period",
+      "를 나란히 적습니다. 실측 2026-08-15 기준, 그냥 보유는":
+        "is written right beside it. Measured as of 2026-08-15, buy & hold was",
+      "이고 이 시스템은":
+        "and this system was",
+      "좋아 보이지 않는 숫자지만 그게 지금의 사실입니다.":
+        "It is not a flattering number, but it is the current fact.",
+      "③ 20종목이 사실상 하나의 베팅이었습니다.":
+        "③ Twenty symbols were effectively one bet.",
+      "20개 계좌의 판단 방식이":
+        "Of the twenty accounts' decision methods,",
+      "19개가 완전히 동일":
+        "nineteen were completely identical",
+      "했습니다(나머지 1개도 문턱 하나만 다름). 종목은 스무 개인데":
+        "(the remaining one differed by a single threshold). Twenty symbols, but",
+      "판단하는 머리는 하나":
+        "one head doing the deciding",
+      "들어오는 문이 하나뿐":
+        "there was only one door in",
+      "이어서였습니다. 그 문은":
+        ". That door asked only",
+      "\"새 방식이 지금 방식보다 더 나은가?\"":
+        "\"is the new method better than the current one?\"",
+      "만 물었고, 그 문은":
+        ", and it opened",
+      "189번 중 1번":
+        "once in 189 tries",
+      "열렸습니다. 그래서 두 번째 문을 달았습니다 —":
+        ". So a second door was added —",
+      "\"지금 방식만큼 하면서, 서로 다른 때에 맞고 틀리는가?\"":
+        "\"does it do as well as the current method, while being right and wrong at different times?\"",
+      "성적이 같아도":
+        "Even with equal results,",
+      "서로 다른 시점에 틀리는 두 방식":
+        "two methods that are wrong at different moments",
+      "을 섞으면 계좌가 덜 출렁입니다. 그 문도 공짜가 아닙니다: 최근 성적이":
+        "mixed together make the account swing less. That door is not free either: recent results must be",
+      "유의하게 나쁘지 않을 것":
+        "not significantly worse",
+      ", 미공개 구간에서":
+        ", it must be",
+      "다시 확인할 것":
+        "confirmed again out of sample",
+      ", 기존 방식과":
+        ", and its movement must be",
+      "움직임이 충분히 다를 것":
+        "sufficiently different from the existing method",
+      "— 셋을 다 통과해야 하고, 자리도 승격자보다 작게 줍니다.":
+        "— all three must pass, and it gets a smaller seat than a promoted challenger.",
+      "기존 승격 문턱은 하나도 낮추지 않았습니다.":
+        "Not one of the existing promotion bars was lowered.",
+      "2026-08-17, 사이트가 계좌보다 큰 금액을 사실처럼 보여주고 있었습니다.":
+        "2026-08-17 — the site was presenting amounts larger than the account as if they were fact.",
+      "사장님이":
+        "The owner said,",
+      "\"홈페이지 숫자들이 다 맞진 않은 것 같은데? 금액이 말이야\"":
+        "\"I don't think all the numbers on the site are right — the amounts, I mean\"",
+      "라고 하셔서 전부 대조했고, 맞았습니다.":
+        "so everything was cross-checked, and he was right.",
+      "· 오늘의 체결 —":
+        "· today's fill —",
+      "(자산의 6.4배)":
+        "(6.4× the equity)",
+      "· 지금 켜진 경고 — 비앤비":
+        "· warnings currently lit — BNB",
+      "· 리플":
+        "· XRP",
+      "· 비트코인":
+        "· Bitcoin",
+      "(합계 자산의 9.8배)":
+        "(9.8× the equity in total)",
+      "세 갈래가 겹쳤습니다.":
+        "Three threads overlapped.",
+      "① 사지 않은 주문이 '매수'로 적혔습니다.":
+        "① An order that was never filled was recorded as a \"buy\".",
+      "같은 날 장부에는 그 아마존이":
+        "The same day's ledger also says that Amazon was",
+      "현금 부족으로 거부됐다":
+        "rejected for lack of cash",
+      "고도 적혀 있습니다 — 즉":
+        "— that is,",
+      "한 주도 사지 않았는데":
+        "not a single share was bought",
+      "주식 쪽만 그대로였습니다.":
+        "only the stock side was left as it was.",
+      "② 금액을 아무도 검사하지 않았습니다.":
+        "② Nobody was checking the amounts.",
+      "비중은 검사하고 있었고 그날 비중은":
+        "Weights were being checked, and that day's weights were",
+      "전부 정상 범위":
+        "all within the normal range",
+      "③ 화면에 통화 표시가 없었습니다.":
+        "③ The screen carried no currency label.",
+      "남은 절반":
+        "the remaining half",
+      "입니다. 그날 자산·현금· 잔고는 바로잡았는데":
+        ". Equity, cash and holdings were corrected that day, but",
+      "체결 기록과 예산 기록은 잘못된 값 그대로 남았고":
+        "the fill records and the budget records were left with the wrong values",
+      "한 건·한 종목이 그날 계좌보다 클 수 없다":
+        "no single fill and no single symbol may exceed that day's account",
+      "\"표시하지 않음\"":
+        "\"not shown\"",
+
+      "2026-08-16부터 하루 넘게, '오늘의 판단' 페이지가 통째로 죽어 있었습니다.":
+        "From 2026-08-16, for more than a day, the Today's Call page was entirely dead.",
+      "배치를 돌리는 컴퓨터에는 브라우저가 없는데 있다고 착각해 검사가 죽었고, 이 시스템은":
+        "The machine running the batch has no browser, but the check assumed it did and died — and this system",
+      "2026-08-17, \"1억\"의 산수를 그대로 적습니다 — 지금 설정으로는 수십 년입니다.":
+        "2026-08-17 — the arithmetic of \"100 million won\", written plainly: with today's settings it takes decades.",
+      "입니다. 위험을 키우면 기간은 줄지만,":
+        ". Raising the risk shortens the time, but raising it",
+      "에서 위험을 키우는 것은 도박입니다. 그래서 장부에는 매일 이렇게 적힙니다 —":
+        "is gambling. So the ledger records this every day —",
+      ", \"판정 시계 진행 중\". 90일을 채워 실력이 증명되기 전까지 이 상한은":
+        ", \"verdict clock running\". Until 90 days are complete and skill is proven, this cap",
+      "으로 두고 여기로 안내합니다, ④ 체결가에 통화를 적습니다.":
+        "and points here instead; ④ the fill price carries its currency.",
+      "이미 저장된 2026-08-15 기록은 고치지 않습니다":
+        "The 2026-08-15 record already stored is not corrected",
+      "그날의 체결·예산 표시":
+        "that day's fill and budget display",
+      "2026-08-17, 장부가 '판다'와 '산다'를 같은 숫자로 적고 있었습니다.":
+        "2026-08-17 — the ledger was writing \"sell\" and \"buy\" as the same number.",
+      "종목별로 얼마를 실었는지 적는 칸이":
+        "The column recording how much was placed on each symbol",
+      "방향을 지우고 크기만":
+        "erased the direction and kept only the size",
+      "\"아마존 30% 보유\"":
+        "\"holding 30% Amazon\"",
+      "라고 말하면서 계좌는 아마존을":
+        "while the account had Amazon",
+      "팔아 둔":
+        "sold short",
+      "판 종목이 화면에서 통째로 사라지는":
+        "a sold symbol vanishing from the screen entirely",
+      "여전히 잠겨 있습니다":
+        "it remains locked",
+      "새벽 자동화가 통째로 멈추는 결함":
+        "a defect that stops the whole morning automation",
+      "도 나왔습니다: 파는 주문이 담보 부족으로 거부되면 그 사실을 기록하는 코드가":
+        "also turned up: when a sell order is rejected for lack of collateral, the code that records it",
+      "다른 종류의 거부와 형식을 혼동해":
+        "confused the format with a different kind of rejection",
+      "프로그램을 그대로 죽였습니다. 실행해 보고서야 알았습니다.":
+        "and killed the program outright. We only found out by running it.",
+      "브레이크는 다릅니다":
+        "The brakes are different",
+      "지금의 브레이크 그대로":
+        "with today's brakes as they are",
+      ", 브레이크를 걸면":
+        "; with the brakes on,",
+      ". 킬스위치는 3년간 3번 발동했고, 첫 발동일은":
+        ". The kill switch fired three times in three years, the first on",
+      "스트레스 시나리오":
+        "Stress scenarios",
+      "정직한 사실 셋:":
+        "Three honest facts:",
+      "① 이 숫자는 전부":
+        "① All of these numbers come from",
+      "실전 코드와 같은 함수":
+        "the same functions as the live code",
+      "저희 모델은 가격 말고도":
+        "Besides price, our model also uses",
+      "몇 주 동안 한 번도 붙지 않았습니다.":
+        "had not connected once in weeks.",
+      "원인은":
+        "The cause was",
+      "같은 규칙을 두 곳에 적어 둔 것":
+        "the same rule written in two places",
+      "이었습니다. 시세를 받아오는 쪽은 한 거래소가 막히면 다른 거래소로 순서대로 넘어가는":
+        ". The price-fetching side had a",
+      "대체 목록":
+        "fallback list",
+      "첫 번째 거래소 이름만 코드에 박혀":
+        "only the first exchange's name was baked into the code",
+      "시세와 똑같은 대체 목록":
+        "the very same fallback list as the prices",
+      "을 따라갑니다 — 목록은 한 곳에만 적혀 있고, 양쪽이 그 하나를 읽습니다. 그리고":
+        ". The list lives in one place and both sides read that one. And",
+      "그날 어느 거래소에서 받았는지":
+        "which exchange it came from that day",
+      "거래소별로 왜 실패했는지":
+        "why each exchange failed",
+      "정직한 한계:":
+        "An honest limit:",
+      "이 저장소 안에서는 거래소 접속이 막혀 있어 실제로 붙는지 확인할 수 없었습니다. 확인은":
+        "Inside this repository the exchange connection is blocked, so we could not confirm that it actually connects. Confirmation comes from",
+      "다음 자동 배치":
+        "the next automated batch",
+      "저희는 \"성과가 실력인지 운인지\"를":
+        "We say whether the result is skill or luck only",
+      "90일을 채운 뒤에":
+        "after 90 days are complete",
+      "사람이 손으로 적어 둔 이름표":
+        "a label written in by hand",
+      "였습니다. 위의 참고 지표 3개가 죽어 있는 동안에도 이름표는 그대로였고, 그것을 되살리면":
+        ". While the three reference indicators above were dead the label stayed the same, and reviving them would have produced a state where",
+      "모델이 보는 것은 달라지는데 시계는 안 멈추는":
+        "what the model sees changes while the clock keeps running",
+      "상태가 됩니다. 그러면 90일 뒤에 발표할 표본이":
+        ". Then the sample published after 90 days would be",
+      "앞부분(지표 없음)과 뒷부분(지표 있음)이 섞인 것":
+        "a mix of an early part (no indicators) and a later part (with indicators)",
+      "이 되고, 그 사실은 90일이 지나서야 알게 됩니다. 그래서 이제 시계는 이름표가 아니라":
+        ", and we would only learn that after the 90 days had passed. So the clock now runs not on the label but on",
+      "그날 밤 실제로 붙은 지표 목록":
+        "the list of indicators that actually connected that night",
+      "을 보고 돕니다. 구성이 달라지면 그날부터 다시 셉니다. 다만":
+        ". If the configuration changes, the count restarts from that day. That said,",
+      "하루이틀짜리 자료 장애로는 리셋되지 않습니다":
+        "a one- or two-day data outage does not reset it",
+      "4일차에서 0일차로":
+        "from day 4 back to day 0",
+      "돌아갑니다. 4일을 잃는 대신, 90일 표본이 처음부터 한 가지 구조로 모입니다.":
+        ". Four days are lost, and in exchange the 90-day sample is gathered under one structure from the start.",
+      "기록은 시장별로 따로 쌓이는데(코인은 매일, 주식은 거래일에만), 어느 시장이":
+        "Records accumulate per market (crypto daily, stocks on trading days only), and which market",
+      "기록에 처음 등장하는 날":
+        "first appears in the record",
+      "관찰 기간을 실제보다 짧게":
+        "understates the observation period",
+      "말하는 쪽이라, 반대 방향(더 오래 봤다고 말하는 것)보다 낫다고 판단했습니다.":
+        ", which we judged better than the opposite error (claiming to have watched longer).",
+      "\"라이브러리 없음·종목코드 불일치·조회 실패 가능\"":
+        "\"library missing · ticker mismatch · lookup may have failed\"",
+      "이라는":
+        "— a",
+      "가능성 나열":
+        "list of possibilities",
+      "자기 이유를 그대로":
+        "its own reason, as it is",
+      "남깁니다 — 조회가 거절당했는지, 표가 비어서 왔는지, 자료 제공처가":
+        "— whether the lookup was refused, whether the table came back empty, or whether the provider",
+      "열 이름을 바꿨는지":
+        "renamed a column",
+      "(이 경우 값은 멀쩡한데 지표만 사라져서 가장 찾기 어렵습니다)까지 구별됩니다.":
+        "(the hardest to find, because the values look fine while the indicator quietly disappears).",
+      "아직 원인은 모릅니다.":
+        "We do not yet know the cause.",
+      "다음 배치가 이유를 적어 주면 그때 고칩니다 — 모르는 것을 안다고 적지 않습니다.":
+        "When the next batch writes down the reason, we will fix it then — we do not write down what we do not know as if we did.",
+      "2026-08-16, 실제로 돈이 나가는 쪽에 자동 브레이크가 안 걸려 있었습니다.":
+        "2026-08-16 — the side where money actually leaves had no automatic brakes wired to it.",
+      "저희 모의 계좌에는 자동 브레이크가 둘 있습니다.":
+        "Our paper account has two automatic brakes.",
+      "손실이 커지면 스스로 투자 규모를 줄이는 장치":
+        "a device that shrinks the position size on its own as losses grow",
+      "\"이 성과가 착각인지\" 검사 결과를 그 종목 투자 비중에 곱하는 장치":
+        "a device that multiplies each symbol's weight by the result of the \"is this result an illusion?\" check",
+      "실제 증권사로 주문을 내는 경로에는 둘 다 배선돼 있지 않았습니다.":
+        "Neither was wired into the path that places orders with a real broker.",
+      "거기 있던 것은 사람이 손으로 돌리는 조절기와 일시정지뿐이었습니다.":
+        "All that lived there was a hand-turned dial and a pause button.",
+      "더 나쁜 것은":
+        "Worse,",
+      "잴 재료조차 없었다":
+        "there was not even the material to measure with",
+      "는 점입니다. 실거래 장부는 주문 한 줄마다 '현금 + 그 종목' 값만 남기고":
+        ". The live ledger recorded only \"cash + that symbol\" per order and",
+      "계좌 전체 자산은 어디에도 기록하지 않았습니다.":
+        "never recorded the account's total equity anywhere.",
+      "손실이 얼마나 났는지 재려면 계좌 자산이 있어야 하는데, 그 숫자가 없었습니다.":
+        "Measuring the loss requires the account equity, and that number did not exist.",
+      "고쳤습니다. 이제 실거래 경로도":
+        "Fixed. The live path now also",
+      "주문을 내기 전에 계좌 자산을 재고, 모의 계좌와 똑같은 브레이크를 똑같은 함수로 적용":
+        "measures the account equity before placing an order and applies the same brakes as the paper account, through the same functions",
+      "정직한 사실 셋.":
+        "Three honest facts.",
+      "① 실거래는 아직":
+        "① Live trading has",
+      "한 번도 켜진 적이 없습니다":
+        "never once been switched on",
+      "(증권사 키 미발급 + 이중 잠금). 그래서 이 결함으로 잃은 돈은":
+        "(no broker key issued, plus a double lock). So the money lost to this defect is",
+      "없습니다":
+        "none",
+      ". ② 하지만 실거래 전환에 남은 절차가 사실상 '키 발급'뿐이었으므로,":
+        ". ② But since the only step left before going live was effectively \"issue the key\",",
+      "키가 생기는 날 브레이크 없이 돌 뻔했습니다.":
+        "it would have run without brakes on the day that key appeared.",
+      "③ 이 브레이크들은 여전히":
+        "③ These brakes still",
+      "실제 증권사 API로는 검증되지 않았습니다":
+        "have not been verified against a real broker API",
+      "— 가상 시험으로만 확인했습니다.":
+        "— only against simulated tests.",
+      "어제 장중 감시를 붙이면서 저희는 이렇게 적었습니다.":
+        "When the intraday watchdog was attached yesterday, we wrote this.",
+      "우리가 실제로 얼마나 자주 봤는가의 기록":
+        "the record of how often we actually looked",
+      "오늘 그 기록을 처음 읽어 봤습니다.":
+        "Today we read that record for the first time.",
+      "08-15 17:20 → 08-16 02:37, 무려 558분(9.3시간)":
+        "08-15 17:20 → 08-16 02:37 — a full 558 minutes (9.3 hours)",
+      "\"15분마다 봅니다\"는 설정을 옮겨 적은 문장이었지 사실이 아니었습니다.":
+        "\"We look every 15 minutes\" was a sentence copied from a setting, not a fact.",
+      "다행히":
+        "Fortunately",
+      "설계는 제대로 작동했습니다":
+        "the design itself worked correctly",
+      "— 레버리지 한도는 예약값이 아니라":
+        "— the leverage limit is computed not from the schedule but from",
+      "실제로 관측된 최악의 간격":
+        "the worst gap actually observed",
+      "진짜 문제는 아무도 그 기록을 읽지 않았다는 것":
+        "The real problem was that nobody read that record",
+      "기록하는 것과 읽는 것은 다른 일입니다.":
+        "Recording and reading are different acts.",
+      "이제 실제 간격이 예약보다 크게 벌어지면":
+        "Now, when the real gap opens well beyond the schedule,",
+      "알림으로 나갑니다.":
+        "an alert goes out.",
+      "대외 문구에서 \"15분마다 감시합니다\"라고 쓰면 안 됩니다.":
+        "Public copy must not say \"we monitor every 15 minutes\".",
+      "정확한 문장은":
+        "The accurate sentence is",
+      "\"15분마다 돌도록 예약했고, 실제 간격을 기록해 공개한다\"":
+        "\"it is scheduled to run every 15 minutes, and the real gap is recorded and published\"",
+      "입니다. 지난 기록은 고치지 않고 그대로 두었습니다.":
+        ". Past records were left exactly as they were.",
+
+      "합니다(첫 화면 판정 시계에 이력 표시), ② 과거 기록은 절대 소급 수정하지 않습니다, ③ 경계 날짜를 남겨 구간별 성적을 따로 볼 수 있게 합니다 — 옛 성적으로 새 구성을 포장하는 착시는 리셋이 아니라 공개된 경계가 막습니다. 이 수정 자체도 직전 리셋 이틀 뒤, 결과가 쌓이기 전에 한 것입니다 — 결과를 보고 고치면 골대 이동이지만 지금 고치면 정직한 수정이라는, 장중 실험 30일→90일 수정과 같은 원칙입니다.":
+        "(shown as history on the first screen's verdict clock); ② past records are never retroactively edited; ③ boundary dates are kept so each period's results can be read separately — the illusion of dressing up a new configuration with old results is prevented not by a reset but by a published boundary. This amendment itself was made two days after the previous reset, before results accumulated — the same principle as the intraday 30→90 day change: fixing it after seeing the result would be moving the goalposts, fixing it now is an honest amendment.",
+      "지금 잘나가는 종목(엔비디아·비트코인 등)이 유니버스에 있다는 것 자체가 사후 선택입니다. 과거 데이터로 잰 백테스트·적중률·검증 수치에는 \"이미 살아남아 유명해진 종목만 골랐다\"는 유리함이 깔려 있고, 그만큼 실제보다 좋게 보일 수 있습니다. 당장 종목을 바꾸면 진행 중인 90일 공개 측정이 오염되므로 지금은":
+        "That today's winners (NVIDIA, Bitcoin and so on) are in the universe at all is a choice made after the fact. Every backtest, hit rate and validation number measured on past data carries the advantage of \"only symbols that already survived and became famous were picked\", and may look that much better than reality. Changing the symbols right now would contaminate the 90-day public measurement under way, so for now we",
+      "하고, 측정이 끝나는 경계(2세대)에서 \"시가총액 상위 N개처럼 사람 손을 타지 않는 규칙\"으로 유니버스를 다시 정의하는 것을":
+        "and, at the boundary where the measurement ends (generation 2), redefining the universe by \"a rule untouched by human hands, such as the top N by market capitalisation\" has been made the",
+      "과제로 올렸습니다. 그때까지 이 사이트의 과거 구간 수치는 이 편향을 안고 있는 숫자로 읽어 주세요.":
+        "task. Until then, please read this site's past-period numbers as numbers carrying that bias.",
+      "(2026-08-18 당일 수정: 운영자 지시(\"개선을 미루지 않는다\")로 2세대까지 기다리지 않고":
+        "(Amended the same day, 2026-08-18: on the operator's instruction — \"do not postpone improvements\" — rather than waiting for generation 2,",
+      "했습니다 — 매월 1회, 코인은 거래대금 순위·한국은 시가총액 순위·미국은 같은 날 저녁부터 시가총액 순위(나스닥 공개 스크리너)로 재선정하며, 산출에 쓴 순위표가 스냅샷에 남고 변경은 판정 시계의 버전 이력에 공개됩니다(리셋 없음). 과거 구간 수치에 위 편향이 깔려 있다는 사실은 그대로 유효합니다.)":
+        ". Once a month, crypto is reselected by turnover rank, Korea by market capitalisation, and the US by market capitalisation from that same evening (a public Nasdaq screener); the ranking table used is kept in the snapshot and changes are published in the verdict clock's version history (no reset). The fact that past-period numbers carry the bias above remains true.)",
+      "두 계좌(하루 1회 vs 1시간마다)의 성과 차이는 수익률 차이라서, 통계적 판정의 힘은 봉 개수가 아니라":
+        "The performance difference between the two accounts (once a day vs every hour) is a difference in returns, so the power of a statistical verdict is governed not by the number of bars but by",
+      "이 정합니다. 30일로는 진짜 우위를 놓칠 확률과 우연을 우위로 읽을 확률이 둘 다 높습니다. 실험 첫날, 기록이 반나절치뿐인 지금 고칩니다 —":
+        ". At 30 days both the chance of missing a real edge and the chance of reading luck as an edge are high. We change it now, on the experiment's first day, with only half a day of record —",
+      "수정 사실과 이유는 실험 페이지의 판정 기준 옆에 함께 실렸습니다. 30일 시점에는 중간 참고 판독만 하고, 확정 판정은 90일입니다.":
+        "The amendment and its reason ride alongside the criteria on the experiment page. Day 30 gives an interim read only; the binding verdict is at 90 days.",
+      "(120일 — 배분 차이는 신호보다 느리게 갈라져 90일로는 검정력이 얇습니다). 대안 3개의 검정에 본페로니 보정.":
+        "(120 days — allocation differences separate more slowly than signal differences, so 90 days gives thin power). A Bonferroni correction across the three alternatives.",
+      "(90일), 본 계좌 대비 일수익 차이의 통계 검정(유의수준 5%). 통화가 달라(달러 가상 계좌) 비교는 퍼센트 수익률로만 합니다. 9월 18일에 중간 참고 판독(확정 아님).":
+        "(90 days), a statistical test of the daily-return difference against the main account (5% significance). The currency differs (a dollar play-money account), so the comparison is by percent return only. An interim read on 18 September (not binding).",
+      "(90일). 주식은 호가 간격이 코인과 달라 \"값을 걸고 기다리는 체결\"의 값어치가 다를 수 있어 따로 잽니다. 코인 쪽과 같이":
+        "(90 days). Stocks have different tick sizes from crypto, so the value of \"posting a price and waiting\" may differ; it is measured separately. As on the crypto side,",
+      "만 볼 수 있었습니다 — 중간에 들여다보며 \"지금 이겼네\"를 찾으면, 진짜 차이가 없어도 언젠가 우연히 문턱을 넘기 때문입니다(그래서 지금까지 안 봤습니다).":
+        "was all we could look at — peeking along the way for \"we're winning now\" would eventually cross the threshold by chance even with no real difference (which is why we have not looked until now).",
+      "방법을 넣었습니다. 경계선을 데이터가 쌓이기 전인 지금 박아 두면, 매일 들여다봐도 거짓 승리 확률이 약속한 5%를 넘지 않습니다. 우위가 뚜렷하면 판정일보다 먼저 결론이 나고, 뚜렷하지 않으면 원래 판정일이 그대로 적용됩니다.":
+        "method was added. Fixing the boundary now, before the data accumulates, keeps the false-victory rate under the promised 5% even when looked at daily. If the edge is clear the conclusion arrives before the verdict date; if it is not, the original verdict date applies unchanged.",
+      "저장소에서 돌린 실측으로, 하루 평균 0.6%p 우위면 중앙값 32일, 0.35%p면 66일에 판정이 납니다 — 우위가 작으면 이 방법으로도 빨라지지 않습니다. 이 수정을":
+        "Measured by running it in the repository: an average edge of 0.6 percentage points a day gives a verdict in a median of 32 days, and 0.35 points in 66 — a small edge is not sped up by this method either. The reason for making this amendment",
+      "하는 이유도 같습니다: 지금 고치면 정직한 수정이고, 10월에 고치면 골대 이동입니다. 매일 봐도 거짓 승리가 늘지 않는다는 것은 주장이 아니라, 차이가 없는 데이터 400벌을 만들어 매일 들여다보는 검사로 확인합니다.":
+        "is the same: fixing it now is honest, fixing it in October would be moving the goalposts. That daily looking does not increase false victories is not a claim — it is checked by generating 400 sets of no-difference data and peeking at them every day.",
+      "등록 후 기준을 바꿔야 할 정당한 이유가 생기면 몰래 고치지 않고 이 자리에 정정을 병기합니다. 등록 원문은 저장소 코드(quant/live/prereg.py)와 status.json에 그대로 실려 있습니다.":
+        "If a legitimate reason to change the criteria arises after registration, it is not changed quietly — a correction is published alongside, right here. The registered text itself sits in the repository code and in status.json.",
+      "(있지도 않은 파일을 부르고 있었습니다). 하지만 결과는 사소하지 않습니다. 그날의 판단·보유·체결이 전부 정상적으로 기록되고 있었는데":
+        "(it was calling a file that does not exist). The consequence was not trivial, though. That day's calls, holdings and fills were all being recorded normally, but",
+      "— 이 사이트에서 가장 하면 안 되는 일이 그 둘을 같아 보이게 만드는 것입니다. 더 나쁜 것은":
+        "— and making those two look the same is the one thing this site must never do. Worse still was",
+      "입니다. 페이지 안에서 오류가 나면 그것을 통째로 삼키는 코드가 있어서, 화면에도 개발자 도구에도 아무 말이 남지 않았습니다. 자동 검사도 매일 초록이었습니다 — 진짜 브라우저로 페이지를 띄워 보는 검사가":
+        ". Code inside the page swallowed the error whole, so nothing was left on screen or in the developer tools. The automated checks were green every day too — because the check that opens the page in a real browser",
+      "있었기 때문입니다. 2026-08-17에 셋 다 고쳤습니다. ① 파일 이름을 바로잡았고, ② 이제 이 페이지도 실패하면":
+        "existed for the first screen alone. All three were fixed on 2026-08-17: ① the file name was corrected; ② this page now, when it fails,",
+      "를 실제 브라우저로 띄워 보는 검사를 세웠습니다(스크립트가 던지거나, 없는 파일을 부르거나, 실패 문구가 뜨면 검사가 깨집니다). 같은 자리에서 첫 화면의":
+        "is opened in a real browser by a new check (it breaks if a script throws, a missing file is requested, or a failure message appears). At the same spot, the first screen's",
+      "2026-08-19, 빠진 사흘을 채워 보려다 그만뒀습니다 — 다시 계산하니 5.24% 더 좋게 나왔기 때문입니다.":
+        "2026-08-19 — we tried to fill in the three missing days and stopped, because recomputing came out 5.24% better.",
+      "2026-08-16·17·18 사흘은 장부가 비어 있습니다. 운영자가 \"어차피 나왔을 결과이니 채워 넣자\"고 하셨고, 저희도 그렇게 생각했습니다. 그래서":
+        "The ledger is empty for 2026-08-16, 17 and 18. The operator said \"the result would have come out anyway, so fill it in\", and we thought so too. So",
+      "그날 봉까지만 잘라 같은 계산을 다시 돌리고, 그날 실행 기록에 찍힌 자산과 맞는지 검산하는 장치를 만들어 실제로 돌렸습니다.":
+        "we built a device that truncates the bars to that day, reruns the same calculation, and cross-checks it against the equity stamped in that day's run log — and we actually ran it.",
+      "그날의 재료가 더는 남아 있지 않기 때문입니다. 코인 시세를 주던 곳이 바뀌어 같은 날 가격이 9~20% 다르게 오고, 한국 지수 ETF는 오늘 18일치만 와서 계산에서 아예 빠졌습니다.":
+        "Because the ingredients from that day no longer exist. The source of crypto prices changed, so the same day's prices now arrive 9-20% different, and the Korean index ETF returns only 18 days today and dropped out of the calculation entirely.",
+      "그 숫자를 장부에 넣으면 실제로 없었던 5만원이 성적표에 생기고, 그 성적표가 다음 날의 출발점이 됩니다. 그래서 검산 장치가 스스로 멈추고 장부를 원래대로 되돌렸습니다.":
+        "Putting that number into the ledger would create KRW 50,000 that never existed on the report card, and that report card becomes the next day's starting point. So the cross-check stopped itself and rolled the ledger back.",
+      "자산 숫자만 끼워 넣으면 그날의 보유 종목과 현금이 비어, 다음 날 계산이 어긋나기 때문입니다. \"모른다\"와 \"알지만 장부엔 못 넣었다\"는 다른 말이고, 화면은 후자라고 적습니다.":
+        "Slotting in only the equity figure would leave that day's holdings and cash empty, throwing off the next day's calculation. \"We do not know\" and \"we know but could not put it in the ledger\" are different statements, and the screen says the latter.",
+      "코인 시세가 165일 멈춰 있어 '판단 기준일'이 08-14로 뒷걸음쳤고, 이미 적힌 날을 한 번 더 적으려다 검사에 막혔습니다. 성적이 나쁜 날이 아니라":
+        "Crypto prices had been frozen for 165 days, so the \"as-of\" date walked backwards to 08-14; writing an already-written day a second time was blocked by a check. Not a bad day, but",
+      "그날 장부는 2026-08-15에 멈춰 있고, 전략 설정 파일의 마지막 수정도 08-16입니다. 계산은 됐지만 그 뒤 기록을 검사하는 관문이 죽어 저장이 막혔기 때문입니다.":
+        "That day's ledger stops at 2026-08-15, and the strategy config file was last modified on 08-16 too. The calculation ran, but the gate that checks the record afterwards died and the save was blocked.",
+      "이었습니다. ③에서 죽으면 ②는 이미 나간 뒤입니다. 같은 메시지 아래에 실패 경보가 함께 있었지만":
+        ". If it dies at ③, ② has already gone out. A failure alert sat under the same message, but",
+      "내보냅니다. 배치는 알림을 보내지 않고 쌓아 두었다가, 저장이 성공한 다음에야 한꺼번에 보냅니다. 검사에서 멈춘 밤은 쌓아 둔 알림이 그대로 버려지고":
+        "The batch now holds notifications rather than sending them, and only sends them together once the save succeeds. On a night that stops at the checks, the held notifications are discarded and",
+      "— 묵은 시세로 전략을 다시 뽑는 것보다 안 뽑는 쪽이 낫습니다. (다른 종목은 그대로 계속 돕니다.)":
+        "— not reselecting a strategy is better than reselecting it on a stale quote. (Other symbols carry on as usual.)",
+      "이고 60분을 넘은 것은 3%입니다. 꼬리 하나로 전체를 설명하면 그것도 사실과 다릅니다 — 이제 둘 다 적습니다.":
+        "and only 3% exceeded 60 minutes. Explaining the whole by one tail is also untrue — now both are written down.",
+      "들어 있습니다 — \"샀다\"(체결)와 \"현금이 6,365,505원 필요한데 677,061원뿐이라 못 샀다\"(현금 부족)가":
+        "— \"bought\" (a fill) and \"could not buy: KRW 6,365,505 needed but only 677,061 available\" (insufficient cash), both",
+      "가렸습니다(\"확인 필요\"). 그래서 화면에는 여전히 \"아마존 · 매수\"라고 적혀 있었습니다 —":
+        "was masked (\"needs checking\"). So the screen still read \"Amazon · buy\" —",
+      "— 그날 장부에 무엇이 적혔는지는 그대로 두고, 화면이 같은 기록의 다른 칸을 읽어 무엇이 사실이었는지 고릅니다.":
+        "— what was written in the ledger that day stays as it is, and the screen reads another column of the same record to pick out what was actually true.",
+      "이었고 그중 열다섯 줄이 \"보유 없음 · 0.00%\"였습니다. 처음 온 사람에게 그것은 정보가 아니라 벽입니다. 지우지 않고":
+        "and fifteen of them read \"not held · 0.00%\". To a first-time visitor that is not information but a wall. Without deleting anything,",
+      "2026-08-16과 08-17, 이틀 치 기록이 아예 없습니다 — 빈칸의 이유를 적습니다.":
+        "2026-08-16 and 08-17 — two days have no record at all. Here is why the blank is there.",
+      "은 원인이 다릅니다 — 그날 낮에 저희가 넣은 수정이 배치를 죽였습니다. 자동 검사 하나가 \"웹 브라우저가 없으면 건너뛴다\"고 판단하는 부분에서,":
+        "had a different cause — a change we made that afternoon killed the batch. In the part where one automated check decides \"skip if there is no web browser\",",
+      "이 됩니다 — 그것은 기록이 아니라 재구성입니다. 그래서 빈칸은 빈칸으로 둡니다. 대신 이 문단이 그 자리를 설명합니다.":
+        "— that is a reconstruction, not a record. So a blank stays a blank, and this paragraph explains the spot instead.",
+      "는 원칙대로 멈춘 것은 맞지만, 시끄럽게 멈춘 것을 빨리 고치지 못하면 결국 기록이 사라집니다. 08-17분은":
+        "did stop as the principle requires, but stopping loudly still loses the record if it is not fixed quickly. The 08-17 case",
+      "네 가지 검사를 새로 걸었습니다 — 그중 하나는 \"기록을 쓰기 직전의 검사가 브라우저 같은 무거운 것에 의존하지 않는가\"를 봅니다. 관문이 넓어질수록":
+        "Four new checks were added — one of them asks \"does the check just before writing the record depend on anything heavy, like a browser?\" The wider a gate gets,",
+      "를 목표로 굴립니다 — 즉 \"1년에 자산이 평균 12%쯤 출렁이는 정도만 위험을 진다\"는 뜻입니다. 100만원을 1억으로 만들려면":
+        "as its target — meaning \"take only about as much risk as makes the equity swing 12% in a year\". Turning KRW 1,000,000 into 100,000,000 requires",
+      "첫 화면이 절대 손익만 말하고 있었습니다 — 그러면 시장이 오른 날은 실력처럼 보이고 내린 날은 억울해 보입니다. 이제":
+        "The first screen was reporting only absolute profit and loss — which makes a rising market look like skill and a falling one look unfair. Now",
+      "였다는 뜻이고, 그 머리가 틀리는 국면에서는 스무 종목이 동시에 틀립니다. 원인은 구조가 없어서가 아니라":
+        "— and in a regime where that head is wrong, all twenty symbols are wrong at once. The cause was not a missing structure but that",
+      "의 2026-08-15 기록에 이런 숫자들이 남아 있었고 화면이 그대로 읽어 주고 있었습니다.":
+        "had these numbers in its 2026-08-15 record, and the screen was reading them out as they were.",
+      "화면은 \"아마존 매수\"라고 말했고, 같은 화면의 잔고 표에 아마존은 없었습니다. 코인 쪽은 이미 \"주문과 체결은 다르다\"를 구별하고 있었는데":
+        "The screen said \"Amazon buy\" while the holdings table on the same screen had no Amazon. The crypto side already distinguished \"an order is not a fill\", but",
+      "였습니다 — 비중과 금액이 서로 다른 화폐 단위로 계산되면 비중만 보는 검사는 그냥 통과합니다.":
+        "— when weights and amounts are computed in different currency units, a check that looks only at weights simply passes.",
+      "같은 열에 비트코인 89,883,874.8(원)과 아마존 264.88(달러)이 나란히 찍혀, 아마존을 264원에 산 것처럼 읽혔습니다. 원인은 2026-08-15 통화 사고(위 항목)의":
+        "Bitcoin at 89,883,874.8 (won) and Amazon at 264.88 (dollars) sat side by side in the same column, reading as though Amazon had been bought for 264 won. The cause was the",
+      ", 사이트가 그것을 읽고 있었습니다. 2026-08-17에 고쳤습니다. ① 거부되거나 체결되지 않은 주문은 이제 체결로 적지 않습니다(실제 체결 수량만 적습니다), ②":
+        ", and the site was reading it. Fixed on 2026-08-17: ① a rejected or unfilled order is no longer recorded as a fill (only the quantity actually filled is recorded); ②",
+      "는 산술 검사를 새로 세웠습니다 — 걸리면 기록에 표시가 남고 알림이 갑니다, ③ 화면은 그 숫자를":
+        "is a new arithmetic check — when it catches something, a mark stays in the record and an alert goes out; ③ the screen leaves that number",
+      "— 지우면 사고가 없었던 것처럼 보입니다. 그 계좌의 자산·현금·수익률은 처음부터 정상이었고, 잘못된 것은":
+        "— deleting it would make the incident look as if it never happened. That account's equity, cash and returns were correct from the start; what was wrong was",
+      "남기고 있었습니다. 지금은 파는 쪽(공매도)이 잠겨 있어 실제로 틀린 숫자가 나간 적은 없습니다. 하지만 그 문을 여는 날, 화면은":
+        "was being recorded. Shorting is locked right now, so no wrong number has actually gone out. But on the day that door opens, the screen would be in a state where",
+      "상태가 됩니다 — 그리고 그날 이 줄을 기억하는 사람은 없습니다. 화면·SNS 카드·캡션 네 곳이 각자 \"값이 0보다 크면 들고 있는 것\"이라고 판단하고 있어서, 방향을 살리면 이번에는":
+        "— and on that day nobody will remember this line. Four places (the screen, the SNS card and the captions) each decided for themselves that \"a value above zero means it is held\", so reviving the direction brings",
+      "문제가 따라옵니다. 그래서 \"들고 있는가\"라는 판단을 한 곳에 모으고 네 화면이 모두 그것만 쓰게 했습니다. 파는 쪽은":
+        "as the next problem. So the judgement \"is it held?\" was gathered into one place and all four screens now use only that. The selling side",
+      "— 이건 문을 여는 일이 아니라, 열었을 때 화면이 거짓말하지 않게 하는 일입니다. 같은 자리에서":
+        "— this is not opening the door but making sure the screen does not lie when it is opened. At the same spot,",
+      "2026-08-17, 지난 3년의 위기로 브레이크를 시험했습니다 — 그리고 앞으로 매일 밤 \"내일 아침 시나리오\"를 계산해 공개합니다.":
+        "2026-08-17 — the brakes were tested against three years of crises, and from now on a \"tomorrow morning scenario\" is computed and published every night.",
+      "수익은 과거로 증명할 수 없습니다(지금의 전략은 과거를 보고 골랐으니, 같은 과거에서의 성적은 실력이 아니라 기억입니다). 하지만":
+        "Returns cannot be proven with the past (today's strategy was chosen by looking at the past, so its result on that same past is memory, not skill). But",
+      "— \"폭락에서 물러나는가\"는 전략 선택과 무관한 기계적 성질이라, 과거 위기로 시험하는 것이 정당합니다. 그래서 매일 배치가 보존해 온 데이터 스냅샷으로 2023~2026년을":
+        "— \"does it back away in a crash?\" is a mechanical property independent of strategy choice, so testing it against past crises is legitimate. Using the data snapshots the daily batch has preserved, 2023-2026 was",
+      "다시 지나가 봤습니다(전략 신호 없이, 전 종목을 균등하게 든 바스켓으로 — 위험 장치만을 검증하기 위해서입니다). 결과: 브레이크 없이 들고 있었다면 최대낙폭":
+        "walked through again (with no strategy signal, as an equal-weight basket of every symbol — to validate the risk layer alone). Result: holding without brakes gives a max drawdown of",
+      "— 실제로 세계 증시가 급락한 바로 그 주입니다. 시나리오가 아니라 달력이 맞다는 뜻입니다. 여기에 더해 매일 밤":
+        "— exactly the week world markets fell sharply. That means the calendar agrees, not just the scenario. On top of that, every night",
+      "(하룻밤 -10/-20/-30%, 닷새 연쇄 폭락, 단일 종목 -50%, 환율 ±15%, 멈춘 시세 속 하락)를 지금 계좌의 실제 노출로 다시 계산해 첫 화면에 공개합니다.":
+        "(overnight -10/-20/-30%, a five-day cascade, a single symbol -50%, ±15% on the exchange rate, a fall behind frozen quotes) are recomputed against the account's actual exposure and published on the first screen.",
+      "이며 실측 장부와 다른 파일에 삽니다 — 섞어 읽으면 안 되고, 섞이지 않게 만들었습니다. ② 실현 변동성(16%)이 목표(12%)보다 높았습니다 — 변동성 추정은 폭락을 하루이틀 늦게 따라갑니다. 이 지연은 구조적이며, \"12% 목표\"를 \"12% 보장\"으로 읽으면 안 되는 이유입니다. ③ 재생에 쓴 브레이크는":
+        "and lives in a different file from the measured ledger — the two must not be read together, and were built so they cannot be. ② Realised volatility (16%) ran above target (12%) — a volatility estimate follows a crash a day or two late. That lag is structural, and it is why \"a 12% target\" must not be read as \"a 12% guarantee\". ③ The brakes used in the replay are",
+      "입니다 — 복사본을 시험하면 복사본만 안전해지기 때문에, 같은 규칙을 두 곳에 적지 않는다는 이 저장소의 원칙이 여기에도 적용됩니다.":
+        "— testing a copy makes only the copy safe, so this repository's principle of never writing the same rule twice applies here too.",
+      "2026-08-17, 코인 참고 지표 3개가 몇 주 동안 하나도 붙지 않고 있었습니다 — 막힌 문을 매일 두드리고 있었습니다.":
+        "2026-08-17 — three crypto reference indicators had not connected once in weeks; we had been knocking on a blocked door every day.",
+      "를 함께 봅니다. 코인 쪽에는 그중 세 가지가 있습니다 — 선물 시장에서 한쪽으로 쏠린 사람들이 반대쪽에 내는 수수료(펀딩비), 그 수수료의 변화, 그리고 아직 정리되지 않은 계약이 얼마나 쌓였는지(미결제약정)의 변화입니다. 이 셋이":
+        "as well. Three of them are on the crypto side — the fee that a crowded side of the futures market pays to the other (funding), the change in that fee, and the change in how many contracts remain unsettled (open interest). Those three",
+      "을 갖고 있고, 실제로 그 두 번째 거래소에서 시세를 받아 왔습니다. 그런데 참고 지표를 받아오는 쪽에는":
+        "that steps through exchanges in order when one is blocked, and prices were in fact being fetched from that second exchange. But on the side that fetches the reference indicators,",
+      "있었습니다. 시세는 우회하는데 참고 지표만 막힌 문 앞에서 매일 되돌아온 것입니다. 이제 참고 지표도":
+        "So prices took the detour while the indicators alone turned back at a blocked door, every day. Now the indicators follow",
+      "를 기록에 남깁니다(거래소마다 계산 방식이 조금씩 달라서, 값이 갑자기 튀면 출처가 바뀐 날부터 의심할 수 있어야 합니다). 다 실패한 날에는":
+        "is recorded (each exchange computes slightly differently, so when a value jumps you need to be able to suspect the day the source changed). On a day when all of them fail,",
+      "가 기록에 남습니다 — 예전에는 \"없음\" 한 마디만 남아서, 다음 사람이 매번 처음부터 조사해야 했습니다.":
+        "is left in the record — before, only the word \"none\" was left, so the next person had to investigate from scratch every time.",
+      "에서 됩니다. 안 붙으면 이제 그 이유가 기록에 남으므로, 이번에는 원인을 좁힐 수 있습니다.":
+        ". If it still does not connect, the reason is now recorded, so this time the cause can be narrowed down.",
+      "2026-08-17, 그래서 90일 시계를 0일차로 되돌렸습니다 — 4일을 손해 보는 쪽을 택했습니다.":
+        "2026-08-17 — so the 90-day clock was reset to day zero; we chose to lose four days.",
+      "판정합니다. 그리고 판단 구조가 바뀌면 그 시계를 0일부터 다시 셉니다 — 구조가 다른 두 구간의 성적을 하나로 합치면 그건 다른 시스템 둘의 평균이지 어느 쪽의 실력도 아니기 때문입니다. 그런데 지금까지 \"구조가 바뀌었다\"의 판정 재료가":
+        "And when the decision structure changes, that clock restarts from day zero — merging results from two periods with different structures gives the average of two different systems, and the skill of neither. Until now, though, the material for judging \"the structure changed\" was",
+      "— 매일 0일차로 돌아가는 시계는 없는 시계와 같아서, 사흘 연속 달라져야 새 구조로 봅니다. 이 변경으로 시계는":
+        "— a clock that returns to day zero every day is the same as no clock, so it counts as a new structure only after three days running. With this change the clock goes",
+      "도 지금은 시계를 다시 시작하게 만듭니다. 그래서 앞으로 며칠 안에 한 번 더 0일차로 돌아갈 수 있습니다. 실제로 달라진 것이 없는데도 그렇습니다 — 다만 이 방향의 오차는":
+        "will also restart the clock for now. So it may return to day zero once more within a few days, even with nothing actually different — but an error in this direction",
+      "2026-08-17, 한국 수급 지표가 왜 안 붙는지 물으면 \"세 가지 중 하나\"라는 답만 돌아왔습니다.":
+        "2026-08-17 — asking why the Korean flow indicators would not connect returned only \"one of three things\".",
+      "한국 주식에는 외국인·기관이 얼마나 사고팔았는지를 보는 지표가 둘 있는데, 이것도 안 붙고 있습니다. 그런데 기록에 남는 이유가":
+        "Korean stocks have two indicators showing how much foreign and institutional investors bought and sold; these were not connecting either. But the reason left in the record was",
+      "이었습니다. 셋은 전혀 다른 대응이 필요한 사건이고, 그중 첫 번째는 자동 배치에서는 애초에 답이 아니었는데도 계속 그쪽을 의심하게 만들었습니다. 이제 각 실패가":
+        ". The three call for entirely different responses, and the first was never the answer in an automated batch at all, yet it kept drawing suspicion. Now each failure leaves",
+      "합니다. 문턱값(-3% 같은 숫자)은 실거래 쪽에 다시 적지 않았습니다 — 같은 규칙을 두 곳에 적으면 언젠가 한 곳만 고쳐지고, 저희는 이번 주에 그 일을 이미 두 번 겪었습니다.":
+        ". The threshold values (numbers like -3%) were not rewritten on the live side — writing the same rule in two places means one of them eventually gets fixed alone, and we have already been through that twice this week.",
+      "2026-08-16, \"장중 감시를 15분마다 돌립니다\"는 사실이 아니었습니다 — 실제로는 9시간 넘게 벌어진 적이 있습니다.":
+        "2026-08-16 — \"the intraday watch runs every 15 minutes\" was not true; the gap once opened to more than nine hours.",
+      "이다. 15분마다 돌게 설정해 놓고 그렇게 적기는 쉽지만, 작업이 밀리거나 죽으면 실제 간격은 몇 시간이다.\"":
+        ". Setting it to run every 15 minutes and then writing that down is easy, but when a job is delayed or dies the real gap is hours.\"",
+      "이 비어 있었습니다. 클라우드의 공용 실행 환경은 촘촘한 예약을 크게 밀거나 아예 건너뜁니다. 즉":
+        "was empty. A shared cloud runner pushes a tight schedule far back, or skips it entirely. In other words,",
+      "으로 계산하게 만들어 뒀고, 그래서 한도는 안전한 쪽으로 잡힙니다(레버리지는 어차피 잠겨 있습니다).":
+        "so the limit lands on the safe side (leverage is locked anyway).",
+      "이었습니다. 기록은 매 회차 남고 있었고, 공개 페이지는 계속 15분이라고 말하고 있었습니다.":
+        ". The record was being written every round, and the public page kept saying 15 minutes.",
+      "예약이 한두 번 밀린 정도로는 울리지 않고, 기록이 충분히 쌓이기 전에는 판정하지 않습니다(세 번 뛴 기록으로 \"9시간!\"이라고 단정하면 이제 막 켠 장치를 고장으로 신고하게 됩니다).":
+        "It does not fire for one or two delayed runs, and it makes no judgement before enough record has accumulated (declaring \"nine hours!\" from three heartbeats would report a freshly switched-on device as broken).",
+      "2026-08-16, 장부가 \"몇 개를 보고 판단했는지\"를 말하지 않고 있었습니다.":
+        "2026-08-16 — the ledger was not saying how many bars the call was based on.",
+      "저희 장부는 마지막 시세가":
+        "Our ledger records how",
+      "얼마나 오래됐는지":
+        "old the last quote is",
+      "얼마나 만들어진 봉인지":
+        "how many bars had formed",
+
+      "가 확정 봉과 달랐고, 종가 차이는 평균 66.8bp (최대 150.8bp), 고저 레인지는 평균 36% 짧게(최대 89%) 잡혔습니다. 같은 기간 주식 28봉은 0건입니다. 결과는 세 가지입니다 — ① 레인지가 짧게 잡히면 변동성 추정이 낮아져 목표보다 큰 비중이 실립니다 ② 백테스트는 완성된 봉으로 평가하는데 실전은 미완성 봉으로 굴리므로 그만큼 조건이 다릅니다 ③":
+        "differed from the settled bar; the closing price differed by 66.8 basis points on average (150.8 at most), and the high-low range came out 36% too short on average (89% at most). Over the same period, 28 stock bars showed zero such cases. Three consequences — ① a short range lowers the volatility estimate, so a larger-than-target weight goes on; ② the backtest evaluates on completed bars while live trading runs on incomplete ones, so the conditions differ by that much; ③",
+      "— 08-10 스냅샷으로 다시 계산해 보니 코인 5종목의 그날 비중이 평균 0.049, 최대 0.107(BNB 0.111→0.217, 거의 두 배) 달라졌습니다. 방향은 날마다 다르고 예측할 수 없습니다. 변동성 추정만 보면 2.3% 커지지만(비중은 그만큼 작아지는 쪽), 실제로는 모델이 보는 피처가 바뀌는 효과가 더 큽니다. 그래서 이 변경의 근거는":
+        "— recomputing from the 08-10 snapshot, that day's weights for the five crypto symbols shifted by 0.049 on average and 0.107 at most (BNB 0.111→0.217, nearly double). The direction varies by day and cannot be predicted. Looking at the volatility estimate alone it grows 2.3% (which shrinks the weight), but in practice the larger effect is that the features the model sees change. So the basis for this change is",
+      "썼습니다. 그래서 META를 596.98(달러)에 산 것으로 기록하고 832,868(원)로 평가했습니다. 계좌는 자기가 7,154만원어치를 들고 있다고 믿었습니다. 현실에서는 낼 수 없는 주문입니다 — 같은 날 아마존 주문(24,017주)은 실제로 \"돈이 모자란다\"며 거부됐고, META만 달러 기준 금액이 작아서 통과했을 뿐입니다.":
+        "was used. So META was recorded as bought at 596.98 (dollars) and valued at 832,868 (won). The account believed it held KRW 71,540,000 worth. That is an order that could not exist in reality — the same day's Amazon order (24,017 shares) was in fact rejected for \"insufficient funds\", and META passed only because its dollar-denominated amount was small.",
+      "— 그날 실제로 그렇게 내보냈고, 아카이브는 '무엇을 내보냈는가'의 기록이지 '무엇을 내보냈어야 했는가'의 기록이 아니기 때문입니다. 덧붙여, 그 아카이브를 나중에 조용히 덮어쓸 수 있던 구멍(재생성 명령이 경고 없이 과거 폴더를 덮어썼습니다)도 같은 날 막았습니다 — 이제 내용이 달라지면 명령이 거부하고 이 문단으로 안내합니다.":
+        "— that is what actually went out that day, and an archive is a record of what was sent, not of what should have been sent. In addition, the hole that would have allowed that archive to be quietly overwritten later (a regeneration command overwrote past folders without warning) was closed the same day — the command now refuses when the contents differ and points here.",
+      "— 이 저장소가 이번 주 내내 찾아서 고친 바로 그 종류의 결함입니다. 그래서 순서를 뒤집지 않았습니다: ① 강제청산까지 얼마나 여유가 있는지 계산하고 ② 장중에도 감시가 돌게 하고 ③ \"평균은 좋은데 도중에 죽는\" 경우를 재는 검사를 붙인 다음에야 ④ 셋을 다 통과할 때만 열리는 관문을 뒀습니다. 기본값은 잠김이고,":
+        "— exactly the kind of defect this repository spent the week finding and fixing. So the order was not reversed: ① compute how much room there is before forced liquidation, ② make the watchdog run intraday too, ③ attach a check that measures the \"good average but dies along the way\" case — and only then ④ put in a gate that opens only when all three pass. The default is locked, and",
+      "일관됐기 때문에 오래 드러나지 않았습니다. 숫자가 서로 맞는다는 것과 사실이라는 것은 다릅니다. 이제 체결·평가 가격을 원/달러로 환산하므로 환율 변동이 매일의 재평가를 통해 자산에 반영됩니다(신호는 현지 통화 그대로라 전략 동작은 그대로입니다). 환율을 확인하지 못한 날에는 해외 종목을":
+        "was internally consistent, so it stayed hidden for a long time. Numbers agreeing with each other is not the same as their being true. Fill and valuation prices are now converted at the USD/KRW rate, so currency moves reach the equity through the daily revaluation (signals stay in local currency, so strategy behaviour is unchanged). On a day when the rate cannot be confirmed, overseas symbols are",
+      "평소에는 맞기 때문에 아무도 의심하지 않는, 가장 잡기 어려운 종류입니다. 이제 설명 문구를 장부에서 읽어 그날의 실제 방식을 적고, 폴백이 일어난 날은 첫 화면의 '지금 켜진 경고'에도 표시합니다. (지금까지 기록된 날은 모두 HRP였습니다 — 폴백으로 잘못 나간 날은 없었습니다.)":
+        "the hardest kind to catch, because it is right most of the time and nobody suspects it. The description is now read from the ledger and states the method actually used that day, and a day that fell back is also shown under \"warnings currently lit\" on the first screen. (Every day recorded so far used HRP — no day went out wrongly on a fallback.)",
+      "고장난 계측기와 보이지 않는 계측기가 서로를 가려 주고 있었고, 표시하기로 결정하자마자 고장이 드러났습니다. 검사 픽스처까지 같은 유령 이름을 적어 두어 검사도 초록이었습니다. 같은 날 이름을 바로잡고, 목록의 이름이 실제로 만들어지는지 매번 확인하는 검사를 넣었습니다.":
+        "A broken instrument and an invisible instrument were covering for each other, and the breakage surfaced the moment we decided to display it. Even the test fixture carried the same ghost name, so the tests were green too. The name was corrected the same day, and a check was added that verifies every time that the names in the list are actually produced.",
+      "는 -0.05%였습니다. 지금은 차이가 0.01%p라 눈에 띄지 않지만, 누적이 +40%가 되면 매일 \"오늘 +40%\"를 방송하게 되는 구조였습니다 — 정직성이 유일한 자산인 채널에서 가장 치명적인 종류의 오류라 그대로 적습니다. 같은 날 고쳐, 이제 캡션은":
+        "was -0.05%. The gap is 0.01 percentage points today and goes unnoticed, but the structure was one that, once the cumulative figure reached +40%, would broadcast \"+40% today\" every single day — the most fatal kind of error on a channel whose only asset is honesty, so it is written here as it is. Fixed the same day; the caption now",
+      "— 그건 일어나지 않은 거래를 지어내는 일입니다. 되돌리기 전 숫자와 지운 체결 내용은 기록 안에 그대로 남겨 뒀고, 첫 화면에도 \"이 날의 기록은 나중에 되돌렸습니다\"라고 띄웁니다. 다시 일어나지 않게 두 가지를 했습니다. 바꾸는 일을":
+        "— that would be inventing trades that never happened. The numbers before the rollback and the deleted fill contents were left inside the record, and the first screen shows \"this day's record was rolled back later\". Two things were done so it cannot recur. The act of changing",
+      "만들면서 저희 계산이 틀린 것을 두 번 잡았습니다 — 특히 \"자주 보면 안전하다\"는 답이 나왔을 때가 그랬습니다. 가격은 눈을 깜빡이는 사이에 통째로 뛰기 때문에 (급락·개장 갭·거래소 장애) 자주 보는 것으로는 그걸 못 피합니다.":
+        "caught our own arithmetic being wrong twice while it was being built — especially when the answer came out as \"looking more often is safer\". Prices jump wholesale in the blink of an eye (a crash, an opening gap, an exchange outage), and looking more often does not avoid that.",
+      "주식은 장 마감 전의 '오늘' 봉을 버리는 장치가 있지만, 코인은 24시간 시장이라 UTC 일봉의 '오늘' 봉이 항상 진행 중이고 그 장치가 없었습니다. 저장된 스냅샷으로 직접 쟀습니다(2026-08-07~09, 코인 5종목):":
+        "Stocks have a device that discards \"today's\" bar before the close, but crypto is a 24-hour market where the UTC daily bar for \"today\" is always in progress — and that device was missing. We measured it directly from stored snapshots (2026-08-07 to 09, five crypto symbols):",
+      "(어느 종목에 얼마를 배정할지)이라 모델이 관망한 종목에도 붙어 있는데, 카드가 그 값을 그대로 '매수 비중'이라 불렀습니다. 같은 카드의 다른 종목들도 예산(애플 15.0%)을 매수 비중처럼 보이게 적었고, 같은 게시물 캡션은":
+        "(how much to allocate to which symbol), so it is attached even to symbols the model stood aside on — and the card called that value a \"buy weight\" outright. Other symbols on the same card presented the budget (Apple 15.0%) as if it were a buy weight too, and the caption on the same post",
+      "였던 \"현금이 모자라 주문이 거부됨\"은 새벽 5시 30분에 이미 장부에 남아 있었지만, 화면에만 표시되고 알림으로는 나가지 않았습니다. 화면은 열어야 보입니다. 이제 이런 \"나오면 안 되는 값\"은 알림으로 곧장 나갑니다.":
+        "— \"the order was rejected for lack of cash\" — was already in the ledger at 05:30, but it appeared only on screen and never went out as a notification. A screen has to be opened to be seen. Now a \"value that should not appear\" like this goes straight out as an alert.",
+      "과거를 손대지 않는 것이 이 실험의 전제이고, 불편한 날을 지우기 시작하면 좋은 날의 숫자도 믿을 수 없게 됩니다. 대신 같은 일이 다시 일어나지 않게 두 겹으로 막았습니다 — 예비 배치를 자정에서 90분 떼어 놓았고,":
+        "Not touching the past is this experiment's premise, and once you start deleting inconvenient days the good days' numbers cannot be trusted either. Instead it was blocked twice over so the same thing cannot recur — the backup batch was moved 90 minutes away from midnight, and",
+      "두고 있었습니다(직전 주 기록이 없으면 빈칸) — 20종목 중 13종목이 그랬습니다. 같은 셈이 두 벌이었던 것이 원인입니다. 텔레그램 주간 리포트 쪽은 2026-08-14에 고쳤는데(그때도 부호가 반대였습니다),":
+        "was left blank when there was no prior-week record — 13 of 20 symbols. The cause was that the same calculation existed in two copies. The Telegram weekly report side was fixed on 2026-08-14 (the sign was reversed there too), but",
+      "매일 새벽 배치가 남기는 커밋에는 \"검사를 건너뛰라\"는 표식이 붙어 있기 때문입니다(장중 감시가 15분마다 돌아 하루 96번 전체 검사를 돌릴 수는 없어서 붙인 것이라, 표식 자체는 이유가 있습니다). 결과적으로":
+        "because the commits the morning batch leaves carry a \"skip the checks\" marker (added because the intraday watch runs every 15 minutes and the full suite cannot run 96 times a day, so the marker itself has a reason). As a result,",
+      "8종목은 통계적으로 분산이 부족해 운의 비중이 컸기 때문입니다. '8마일'은 시작 금액(8만원) 컨셉으로 유지하며, 통합 계좌의 자산·기록은 그대로 이어집니다(리셋 아님). 같은 날부터 자본 균등(1/n) 대신":
+        "because eight symbols is statistically too little diversification and luck carried too much weight. The \"8 Mile\" name is kept as the starting-amount concept (KRW 80,000), and the combined account's equity and record carry on unchanged (not a reset). From the same day, instead of equal capital (1/n),",
+      "\"우리는 검증한 것만 씁니다\"가 거짓말이 되기 때문입니다. 그리고 후보가 늘어난 만큼 승격 문턱도 같이 올렸습니다 — 많이 던져서 하나 맞히는 것을 실력으로 세면 안 되니까요. 이 기능에서 가장 중요한 동작은":
+        "because otherwise \"we only use what we validated\" becomes a lie. And the promotion bar was raised in step with the growing candidate pool — throwing a lot and hitting one must not count as skill. The most important behaviour in this feature is",
+      "사장님이 \"수수료도 계산한 거 맞지?\"라고 물으셨을 때 답할 자리가 화면에 없었던 것입니다. 이제 '한눈에'가 누적 비용과 그날 낸 비용을 함께 적습니다. 이 칸이 생기기 전의 금액은 체결 기록을 되짚어 채운":
+        "was that when the owner asked \"the fees are counted too, right?\", the screen had nowhere to answer. \"At a glance\" now carries both the cumulative cost and the cost paid that day. Amounts from before this box existed were filled in by walking back through the fill records,",
+      "이며(그 되짚기는 같은 날 기록이 스스로 \"못 샀다\"고 적어 둔 체결은 세지 않습니다 — 2026-08-15에 현금 부족으로 거부된 주문이 체결처럼 남아 있습니다), 이후로는 돈을 뺄 때마다 실제로 셉니다.":
+        "(that walk-back does not count fills the same day's record itself marked \"could not buy\" — the order rejected for lack of cash on 2026-08-15 is still sitting there looking like a fill), and from then on it is counted for real each time money leaves.",
+      "— 장부는 이미 100만원인데 그 상수만 뒤처져 있어서, 계좌를 새로 만드는 경로가 돌면 8만원짜리 계좌가 생길 자리였습니다(선언과 실제가 어긋난 자리였고, 이 저장소가 가장 경계하는 종류입니다).":
+        "— the ledger already said KRW 1,000,000 while that constant lagged behind, so any path that created a new account would have created an 80,000-won one (a place where the declaration and the reality diverged, the kind this repository guards against most).",
+      "이 됐습니다(2026-08-13). '8마일'이 가리키던 여덟도 만원도 남지 않은 셈이라, 이름만 남으면 처음 오신 분이 계좌를 8만원짜리로 읽게 됩니다. 이름은 설명이어야지 장식이면 안 됩니다.":
+        "(2026-08-13). Neither the eight nor the ten-thousand that \"8 Mile\" referred to remains, so keeping only the name would have a first-time visitor read the account as an 80,000-won one. A name must be a description, not an ornament.",
+      "냅니다(그냥 보유는 사고 나면 팔지 않고, 우리도 아직 들고 있는 몫은 파는 값을 안 냈으므로 진입 비용만 맞추면 눈금이 같아집니다). 비율은 그날 바구니에 담긴 종목들이 속한 시장의 평균이며,":
+        "(buy & hold never sells after buying, and we have not paid the selling cost on what we still hold either, so matching only the entry cost puts both on the same scale). The rate is the average across the markets of the symbols in that day's basket, and",
+      "(운영 일수만큼). 차이가 작지 않습니다 — SK하이닉스 60.5% → 실전 33%(3번 중 1번), S&P500 ETF 50.0% → 실전 25%(4번 중 1번). 표본이 이렇게 작을 때는":
+        "(as many as the days of operation). The difference is not small — SK hynix 60.5% → 33% live (1 of 3), S&P 500 ETF 50.0% → 25% live (1 of 4). With a sample this small,",
+      "— \"과거를 고치지 않는다\"가 먼저이기 때문입니다. 대신 읽는 쪽에서 날짜순으로 정렬해 계산하도록 바꿨고, 새 기록은 시간순 자리에 삽입됩니다. 어긋난 배열은 장부에 증거로 그대로 남습니다.":
+        "— because \"do not edit the past\" comes first. Instead the reading side now sorts by date before computing, and new records are inserted in chronological position. The out-of-order arrangement stays in the ledger as evidence.",
+      ". 그리고 되돌려진 날의 글은 관리 화면에서 \"올리지 마세요\"가 숫자보다 먼저 뜹니다 — 정정문을 폴더에만 두면 폴더를 여는 사람만 보고, 정작 글을 복사하는 사람은 못 보기 때문입니다.":
+        ". And for a rolled-back day, the admin screen shows \"do not post this\" ahead of the numbers — leaving the correction only in a folder means only whoever opens the folder sees it, and not the person copying the text.",
+      "됩니다 — 브레이크가 가장 필요한 국면에서 한 단계 덜 걸리는 구조였습니다. 지금은 원금을 고점 후보에 넣어 잽니다. 이익이 난 계좌의 낙폭 계산은 그대로입니다(그쪽은 원래 맞았습니다).":
+        "— a structure that applied one step less braking exactly when braking was needed most. The principal is now included as a high-water candidate. Drawdown for an account in profit is unchanged (that side was correct all along).",
+      "더하고 있었습니다(S&P500 ETF 772). 그래서 장부에 \"S&P500 ETF 12.25주 = 9,466원\"이라는 줄이 남았습니다 — 실제로 그 12주는 1,300만원어치입니다.":
+        "was being added in (S&P 500 ETF at 772). So the ledger holds the line \"S&P 500 ETF 12.25 shares = KRW 9,466\" — those 12 shares are actually worth about 13 million won.",
+      "가 있습니다. 뒤쪽은 \"이 종목만 굴렸다면?\"을 재는 참고 장부인데, 페이퍼 페이지의 표가 그 숫자를 아무 설명 없이 '종목별 현황'으로 보여줬습니다. 그래서 8만원짜리 실험 페이지에":
+        "The latter is a reference ledger measuring \"what if only this symbol were traded?\", but the table on the paper page presented those numbers as \"status by symbol\" with no explanation. So on an 80,000-won experiment page,",
+      "씩, 합쳐 8만원으로 시작한다는 뜻이었고 영화 '8 Mile'에서 따왔습니다. 그런데 그 뒤로 후보가 20종목이 됐고(2026-08-05), 원금은 매칭 입금과 원화 재개설을 거쳐":
+        "each, KRW 80,000 in total to start — the name came from the film \"8 Mile\". Since then the candidate pool grew to 20 symbols (2026-08-05), and the principal, after matching deposits and the won-denominated reopening, became",
+      "가격만 달러였던 것이 아니라 그 가격으로 판 돈이 현금에 섞여 있어, 환율을 소급해 곱하는 것은 환산이 아니라 과거를 지어내는 일이기 때문입니다. 옛 장부는 한 글자도 고치지 않고":
+        "because it was not only the prices that were in dollars — the proceeds of sales at those prices were mixed into the cash, so multiplying by a rate retroactively would not be conversion but inventing a past. The old ledger was not edited by a single character and",
+      "에 그대로 남아 있습니다. 정식 방송 시작 전의 컨셉 변경이며, 이런 변경 자체도 공개 커밋으로만 가능합니다 — 조용히 새로 시작해 좋은 구간만 보여주는 것이 불가능한 구조입니다.":
+        "remains exactly as it was. It was a change of concept before the official broadcast began, and even a change like this is possible only through a public commit — the structure makes it impossible to restart quietly and show only the good stretches.",
+      "→ 08-10 순으로 배열돼 있었습니다. 데이터 소스가 한때 아직 닫히지도 않은 08-07 봉을 먼저 내보낸 탓이며, 그 원인(미완결 봉 제거)은 이미 고쳐진 상태입니다. 각 날의":
+        "→ 08-10. The cause was that the data source once emitted the 08-07 bar first, before it had even closed; that cause (removing incomplete bars) is already fixed. Each day's",
+      "이름도 '매수'가 아니라 '배분'으로 적습니다. 캡션의 \"오늘 배분 상위\"는 확인 결과 8월 10일·9일 모두 실제로 보유한 종목만 불렀습니다 — 잘못 나간 것은 카드 쪽입니다.":
+        "and the label reads \"allocation\", not \"buy\". On checking, the caption's \"top allocations today\" named only genuinely held symbols on both 10 and 9 August — what went out wrong was the card.",
+      "그래서 손실이 커지면 물러나는 장치(킬스위치)가 하루에 한 번만 돌아도 됐습니다 — 최악이어도 다음 날 아침에 처리하면 되니까요. 레버리지는 그 전제를 깹니다. 거래소는":
+        "So the device that backs away as losses grow (the kill switch) only had to run once a day — the worst case could be handled the next morning. Leverage breaks that premise. An exchange",
+      "(사이트에 표시되는, 아무렇게나 매매했을 때와 비교한 순위)입니다. 초반 구간이 다른 시장 국면이었다면 그 기간의 사실만 빠진 채 판정이 났습니다. 이제 잘라내지 않고":
+        "(the ranking shown on the site, against trading at random). Had the early period been a different market regime, a verdict would have been reached with only that period's facts missing. Now, rather than cutting it away,",
+      "거래정지·상하한가·저유동 국내주식은 보합이 잦고 코인은 거의 없어서, 같은 실력이어도 종목에 따라 적중률이 다르게 나왔습니다. 이제 방향이 없던 날은 분모에서 빼되,":
+        "Suspended, limit-up/limit-down and thinly traded Korean stocks go flat often while crypto almost never does, so the same skill produced different hit rates by symbol. Days with no direction are now removed from the denominator, but",
+      "그 화면에 편향된 숫자를 아무 표시 없이 매일 띄우는 것은 그 주장 자체를 무너뜨립니다. 이제 두 숫자를 나란히 보여줍니다 — 위는 과거 400봉(인샘플), 아래는":
+        "putting a biased number on that screen every day with no label destroys the claim itself. Two numbers are now shown side by side — above, the past 400 bars (in-sample); below,",
+      "입니다 — 15분마다 돌게 설정해 놓고 그렇게 적기는 쉽지만, 작업이 밀리거나 죽으면 실제 간격은 몇 시간입니다. 그래서 매 회차를 기록으로 남기고, 위험 한도는":
+        "— setting it to run every 15 minutes and writing that down is easy, but when a job is delayed or dies the real gap is hours. So every round is recorded, and the risk limit is",
+      "(하룻밤에 5배가 뛰는 가격은 시장이 아니라 코드가 만든 숫자입니다). 막힌 사실도 화면에 뜹니다. 이 결함은 2026-08-13에 고쳤다고 적었던 그 결함의":
+        "(a price that jumps fivefold overnight is a number made by code, not by a market). The fact that it was blocked also appears on screen. This defect is the",
+      "대가는 정직하게 적습니다: 마지막 몇 시간의 가격 움직임을 신호가 보지 못합니다. 그래도 '선발되는 조건'과 '실제로 굴리는 조건'을 맞추는 쪽을 택했습니다.":
+        "The cost is stated honestly: the signal does not see the last few hours of price movement. Even so, we chose to match \"the conditions under which it is selected\" to \"the conditions under which it actually runs\".",
+      "이전 기록은 새벽 판단을 그 시점 종가로 즉시 체결한 것처럼 계산했는데, 주식 시장이 닫힌 시간이라 실제로는 불가능한 가격입니다. v0.5.0부터는 주식을":
+        "Earlier records treated a morning call as filled immediately at that moment's close — a price that is impossible in reality, because the stock market is shut at that hour. From v0.5.0, stocks are",
+      "손댄 날의 성적은 전략만의 결과가 아닌데, 읽는 사람은 알 방법이 없었습니다. 이제 개입이 있으면 사이트의 '지금 켜진 경고', 카드, 캡션 세 곳 모두에":
+        "A day that was touched by hand is not the strategy's result alone, and the reader had no way of knowing. Now, when there is an intervention, all three places — the site's \"warnings currently lit\", the card and the caption —",
+      "— 계좌보다 큰 금액을 막는 장치는 이미 있었지만 전부 홈페이지 쪽이었고, 홈페이지 밖으로 나가 낯선 사람에게 닿는 유일한 통로에는 없었습니다. 이제":
+        "— devices blocking amounts larger than the account already existed, but all of them were on the website side, and none on the only channel that leaves the site and reaches a stranger. Now",
+      "고친 것이 언젠가 다시 풀리거나, 다른 데이터 제공처에서 같은 일이 생겨도 이제는 그날 바로 보입니다. 정상인 날에는 아무 말도 하지 않습니다.":
+        "If the fix ever comes undone, or the same thing happens at another data provider, it is now visible the same day. On a normal day it says nothing.",
+      "2026-08-15, 레버리지(빌린 돈으로 더 큰 금액을 굴리는 것)를 열기 전에 관문 세 개를 먼저 세웠습니다 — 문은 아직 잠겨 있습니다.":
+        "2026-08-15 — before opening leverage (running a larger amount with borrowed money), three gates were built first. The door is still locked.",
+      "예비 배치가 실행 지연으로 밤 11시 58분에 시작해 도중에 세계표준시 자정을 넘겼습니다. 코인의 하루 봉은 그 자정에 날짜가 바뀌기 때문에,":
+        "The backup batch started at 23:58 because of an execution delay and crossed UTC midnight partway through. Because a crypto daily bar changes date at that midnight,",
+      "전체 검사가 아니라 장부를 보는 것만 돌리므로 1초도 걸리지 않습니다 — 비용 때문에 못 한다는 말은 이제 성립하지 않습니다. 검사에 걸리면":
+        "it runs only the ledger check rather than the full suite, so it takes less than a second — \"we cannot afford it\" no longer holds. When the check catches something,",
+      "보다 큰, 성립할 수 없는 숫자입니다(사이트에 표시되는 값은 아니지만 공개 장부에 그대로 남아 있었습니다). 같은 날 바로잡았고, 이제":
+        "— a number larger than that, which cannot hold (not a value shown on the site, but it was sitting in the public ledger). Corrected the same day, and now",
+      "입니다. 나빠 보이는 쪽만 문제가 아닙니다 — \"70% 이상 → 실제 상승 64%\"(구간 39~84%)도 증거처럼 읽힙니다. 사이트보다":
+        ". The unflattering side is not the only problem — \"70% or more → 64% actually rose\" (interval 39-84%) also reads like evidence. Ahead of the site,",
+
+      "(시작 + 120일) · 본페로니 3 · 이겨도 최대낙폭이 현행의 1.5배를 넘으면 채택 보류. 이 축은 오디션이 184회 동안 한 번도 흔들지 않았습니다 — 다만 실측 확률에서 현행은 켈리 절반과 거의 같아(0.087 vs 0.089)":
+        "(start + 120 days) · Bonferroni 3 · even on a win, adoption is withheld if the max drawdown exceeds 1.5× the current one. This axis went unmoved through 184 auditions — though at the measured probabilities the current setting is almost identical to half-Kelly (0.087 vs 0.089),",
+      "— 그중 70%는 후보들을 겨루게 한 선발전 구간입니다. 챔피언은 그 데이터에서 이겼기 때문에 뽑혔으니, 같은 데이터로 성적을 매기면":
+        "— 70% of which is the qualifying stretch where the candidates competed. The champion was selected because it won on that data, so scoring it on the same data",
+      "라 찍고, 첫 장의 문구까지 그 값으로 골랐습니다(누적이 커지면 크게 잃은 날에도 \"좋은 날\" 문구가 붙는 구조입니다). 이제 카드는":
+        "and even the wording on the first slide was chosen from that value (a structure in which, once the cumulative figure grows, a \"good day\" phrase attaches even to a day of large losses). The card now",
+      "2026-08-15 기록에 100만원 계좌의 자산이 7,249만원(+7,150%)으로 찍혔습니다 — 불가능한 체결이라 되돌렸습니다.":
+        "In the 2026-08-15 record, a KRW 1,000,000 account showed equity of 72,490,000 (+7,150%) — an impossible fill, so it was rolled back.",
+      "2026-08-14, 내 자료(PDF·유튜브·트레이딩뷰)로 전략을 넣을 수 있게 했습니다 — 다만 '적용'이 아니라 '심사'입니다.":
+        "2026-08-14 — you can now feed in a strategy from your own material (a PDF, a YouTube video, a TradingView script). But it is submitted for audition, not applied.",
+      "으로 계산하는데, 그 '가격'이 시장마다 다른 통화였습니다: 한국 주식은 진짜 원화 (삼성전자 239,500), 미국 주식과 코인은":
+        "but that \"price\" was in a different currency per market: Korean stocks in real won (Samsung Electronics 239,500), while US stocks and crypto",
+      "입니다 — 신호·피처·공분산은 확정된 봉까지만 보고, 체결가와 평가액은 현재가를 씁니다. 실제 트레이더가 하는 것과 같고, 무엇보다":
+        "— signals, features and covariances look only as far as settled bars, while fill prices and valuations use the current price. It is what a real trader does, and above all",
+      "을 열어 아무 날짜나 골라 보세요. 그날의 자산·수익률이 사이트 표시와 일치하는지, 커밋 시각이 매일 새벽인지 확인할 수 있습니다.":
+        "and pick any date. You can check that the equity and return for that day match what the site shows, and that the commit time is each morning.",
+      "셈입니다. 같은 날 고쳐, 카드도 구간을 함께 찍고 표본 30일 미만이면 \"아직 수집 중\"이라고 먼저 밝힙니다. 이미 나간 카드는":
+        "Fixed the same day: the card now stamps the interval as well, and with a sample under 30 days it says \"still collecting\" first. Cards already published",
+      "를 받고, 과최적화 검증까지 통과해야 실제 비중을 받습니다. 대부분은 떨어집니다. 그렇게 한 이유는, 검증이 이 제품의 전부인데":
+        "and must also pass the overfitting validation before receiving any real weight. Most are rejected. The reason is that validation is the whole of this product, and",
+      "이고, 거기 미래 날짜가 박혀 있으면 \"언제 것인지\"를 확인하려는 분이 처음부터 어긋난 자료를 보게 됩니다. 이제 표시용 카드는":
+        "and a future date stamped on it means anyone checking \"when is this from?\" sees mismatched material from the start. The display card now",
+      "이지만 배열 순서가 뒤집혀 있어, '직전 날'을 참조하는 계산(하루치 수익률·낙폭)이 엉뚱한 날을 전날로 잡을 수 있었습니다.":
+        "but the ordering was reversed, so calculations referring to \"the previous day\" (daily return, drawdown) could take the wrong day as yesterday.",
+      "— 기준선이 낮아져 우리가 더 앞서 보입니다. 그래서 숨기지 않고 여기 적습니다. 실측(2026-08-19 기준): 그냥 보유":
+        "— the baseline drops, which makes us look further ahead. So it is not hidden but written here. Measured as of 2026-08-19: buy & hold",
+      "이었으나, 운영자 지시로 조기 착수했습니다 — 문턱을 낮춘 것이 아니라 문턱과 무관하게 \"재 보라\"는 결정이 있었던 것입니다.":
+        "but work began early on the operator's instruction — the bar was not lowered; there was simply a decision to \"go measure it\" regardless of the bar.",
+      "(총노출 상한 100%). 그런데 \"나중에 열 수도 있다\"는 이야기가 나오는 순간, 먼저 확인해야 할 것이 있었습니다.":
+        "(gross exposure capped at 100%). But the moment \"we might open it later\" was said, something had to be checked first.",
+      "지금까지는 손실 감시가 새벽 배치에서 하루 한 번만 돌았습니다. 이제 장중에도 자산을 다시 재고, 정해둔 선을 넘으면":
+        "Until now the loss watch ran only once a day, in the morning batch. Equity is now remeasured intraday too, and when it crosses the set line",
+      "— 다음 배치부터 새 계산으로 적힙니다. 그전 기록에 적힌 낙폭은 실제보다 얕을 수 있고, 그 사실을 여기 남깁니다.":
+        "— from the next batch onward it is written with the new calculation. Drawdowns in earlier records may be shallower than reality, and that fact is left here.",
+      "— 원화가 절상되면 실제로는 손실인데 장부에는 그 손실이 존재하지 않았습니다. 수익률은 모든 계산이 같은 왜곡을 겪어":
+        "— when the won appreciates it is a real loss, yet that loss did not exist in the ledger. The return figures, every calculation suffering the same distortion,",
+      "장부에는 매일 \"정상\"이라고 적혔습니다. 그 사이에 그 코인들의 성적도, \"이 성과가 착각인가\"를 재는 수치도 전부":
+        "the ledger recorded \"normal\" every day. Meanwhile both those coins' results and the figures measuring \"is this result an illusion?\" were all",
+      "— \"과거를 고치지 않는다\"는 약속이 회계 기준 개선보다 우선하기 때문입니다. 대신 모든 새 기록에는 기준 태그 (":
+        "— because the promise \"do not edit the past\" comes before improving an accounting convention. Instead every new record carries a basis tag (",
+      "숫자는 전부 맞았지만, 무엇의 숫자인지 알 수 없으면 틀린 숫자와 같은 효과를 냅니다. 이제 표 제목과 열 이름이":
+        "Every number was correct, but a number whose subject is unknown has the same effect as a wrong one. The table titles and column names now",
+      "이 됐습니다. 예를 들어 100만원으로 시작해 90만 → 72만원이 된 계좌는 실제로 28%를 잃었는데 장부에는":
+        "For example, an account that started at KRW 1,000,000 and went 900,000 → 720,000 actually lost 28%, but the ledger recorded",
+      "의 지난 캡션들은 그때 쓴 그대로입니다. 과거를 고치지 않는 것이 이름을 맞추는 것보다 먼저입니다. 같은 날":
+        "past captions stay exactly as they were written then. Not editing the past comes before making a name consistent. The same day,",
+      "모델의 보조 지표가 외부 데이터 실패로 조용히 사라지는 것을 잡으려고 만든 장치인데, 목록에 적힌 11개 중":
+        "It was built to catch the model's auxiliary indicators quietly disappearing when an external feed fails — and of the 11 on the list,",
+      "(인샘플). 화면에는 \"적중률(전체)\"이라고만 적혀 있어 읽는 사람은 이 실험의 실전 성적으로 읽었습니다.":
+        "(in-sample). The screen said only \"hit rate (overall)\", so readers took it as this experiment's live result.",
+      "2026-08-05, v0.5.0부터 회계 기준을 보수적으로 변경했습니다 — 이전 숫자는 낙관적이었습니다.":
+        "2026-08-05 — from v0.5.0 the accounting convention became more conservative; the earlier numbers were optimistic.",
+      "라고 말합니다 — 한 종목이 전체 노출보다 크다는, 성립할 수 없는 조합이었습니다. 같은 날 고쳐, 장부가":
+        "— a combination that cannot hold, with one symbol larger than the total exposure. Fixed the same day, so the ledger",
+      "만 바꾼 가상 계좌 넷(현행·켈리·켈리 절반·전량). 진입 조건은 넷이 같아 크기 축만 격리됩니다. 판정일":
+        "Four play-money accounts differing only in that (current, Kelly, half-Kelly, full). Entry conditions are identical across the four, isolating the sizing axis alone. Verdict date",
+      "이었습니다. 같은 규칙을 두 곳에 나눠 적으면 언젠가 한 곳이 빠진다는 것을, 저희가 또 확인했습니다.":
+        "Once again we confirmed that splitting the same rule across two places eventually leaves one of them behind.",
+      "2026-08-13, 통합 계좌를 원화 계좌로 다시 열었습니다 — 그전 계좌는 통화가 섞여 있었습니다.":
+        "2026-08-13 — the combined account was reopened as a won account; the previous one mixed currencies.",
+      "· 트랙 2개(짝지어 비교). 정직 사항: 원래 착수 문턱은 두 비중의 거리 0.2였고 실측 첫 값은":
+        "· two tracks (compared pairwise). For honesty: the original trigger was a distance of 0.2 between the two weightings, and the first measured value was",
+      "2026-08-14, 첫 화면의 '적중률'이 어떤 숫자인지 밝히고 실전 적중률을 나란히 올렸습니다.":
+        "2026-08-14 — the first screen now says what its \"hit rate\" actually is, with the live hit rate published beside it.",
+      "이 시스템은 낙폭이 커지면 스스로 투자 비중을 줄입니다(킬스위치). 위 예에서 진짜 낙폭 28%라면":
+        "This system reduces its own position size as the drawdown grows (the kill switch). In the example above, a true drawdown of 28% would",
+      "이라, 남기면 오염이 이어집니다. 기록이 멈추면 별도의 감시 장치가 다음 날 아침에 잡아냅니다 —":
+        "so leaving it in would carry the contamination forward. When the record stops, a separate watchdog catches it the next morning —",
+      "로 남아 있습니다(정상인 날은 전부 0입니다). 코인 매매는 그 시점 현재가로 정상 체결됐습니다.":
+        "(every normal day is zero). Crypto trades filled normally at that moment's price.",
+      "입니다. 상관 추정에 쓸 데이터가 모자란 날에는 조용히 아래 칸으로 내려갑니다. 장부는 그 흔적을":
+        "On a day with too little data to estimate correlations, it quietly steps down a level. The ledger keeps that trace",
+      "— \"하루에 자산이 50% 넘게 변하면 사고를 의심한다\"는 검사가 오래전부터 있었습니다. 그런데":
+        "— a check saying \"suspect an incident if equity moves more than 50% in a day\" had existed for a long time. But",
+      "입니다. 투자 자료 대부분이 그렇고, 거기서 억지로 규칙을 짜내면 그건 그 자료의 전략이 아니라":
+        "Most investment material is like that, and forcing a rule out of it produces not that material's strategy but",
+      "— 두 화면이 다른 값을 말할 수 없는 구조로 바꿨습니다. 기준선은 직전 주의 마지막 자산이며,":
+        "— restructured so the two screens cannot say different things. The baseline is the previous week's last equity, and",
+      ", 합이 총노출과 같습니다)을 남기고 카드·캡션은 그 숫자만 씁니다. 그 값이 없는 과거 기록은":
+        ", summing to the gross exposure), and the card and caption use only that number. Past records without that value",
+      "이 그대로 보였습니다. 운영자 본인이 \"8만원인데 왜 20만원이지?\"라고 물어서 발견했습니다 —":
+        "was showing as it was. It was found because the operator himself asked \"it is 80,000 won, so why does it say 200,000?\" —",
+      "그날 그 값으로 계산해 내보냈고, 그것이 그날의 사실입니다. 다만 이 날 이전과 이후의 적중률은":
+        "It was computed and published with that value that day, and that is the fact of that day. The hit rates before and after this day, however,",
+      ". 룩어헤드(미래를 미리 본 것처럼 계산하는 오염)를 막는 장치이고, 거기서는 옳습니다. 그런데":
+        ". It is a device against look-ahead (contamination that computes as if the future had been seen), and there it is right. But",
+      "2026-08-14, 낙폭을 원금 대비로 다시 재기 시작했습니다 — 그전에는 얕게 나왔습니다.":
+        "2026-08-14 — drawdown is measured against the principal again; before, it came out shallow.",
+      "코드로도 막았습니다. 시각만으로 막으면 실행 지연이 길어지는 날 언젠가 또 넘기기 때문입니다.":
+        "It was blocked in code as well. Blocking by clock time alone would eventually cross again on a day with a long delay.",
+      "하나뿐입니다. 판단에서 뺐다고 사실을 숨기지는 않으므로, 그 봉이 몇 % 만들어진 상태였는지(":
+        "is the only one. Excluding it from the decision does not mean hiding the fact, so how far that bar had formed (",
+      "적고 하루치는 입금 효과를 제거해 계산합니다(입금한 날 \"+100%\"가 나가는 일이 없도록).":
+        "and the daily figure is computed with the deposit effect removed (so that \"+100%\" never goes out on a deposit day).",
+      "2026-08-11, 위에 적은 '누적을 오늘이라 불렀다'가 카드에는 그대로 남아 있었습니다.":
+        "2026-08-11 — the \"cumulative called today\" issue written above was still present on the card.",
+      "이라 성적을 부풀리지는 않았지만, 그래도 틀린 숫자입니다. 더 중요한 문제는 따로 있습니다 —":
+        "so it did not inflate the result, but it is still a wrong number. The more important problem lies elsewhere —",
+      "저희는 거시 지표(금리차·하이일드 스프레드·달러인덱스·기대인플레)를 FRED에서 받아 쓰는데,":
+        "We take macro indicators (the yield spread, the high-yield spread, the dollar index, inflation expectations) from FRED, and",
+      "거기에는 \"72,488,498원 · 오늘 +7,149.96%\"라고 적혀 있습니다. 그 폴더는":
+        "It reads \"KRW 72,488,498 · today +7,149.96%\". That folder is",
+      "이라, 숫자가 틀렸다고 덮어쓰면 그날 하지 않은 말을 한 것으로 남습니다. 대신 같은 폴더에":
+        "so overwriting it because the number is wrong would leave us having said something we did not say that day. Instead, in the same folder,",
+      "을 함께 넣었습니다. 틀린 것을 지우는 대신 틀렸다고 적어 두는 것이 이 제품의 방식입니다.":
+        "was placed alongside. Writing down that something was wrong, rather than deleting it, is this product's way.",
+      "이었습니다. 열 제목은 \"주간 수익률\"이었습니다. 실측(2026-08-10 주): 페이지에는":
+        "The column heading read \"weekly return\". Measured (week of 2026-08-10): the page showed",
+      "— 공개 차트와 대조하시면 코인은 매일 어긋나 보입니다. 조작이 아니라 이 구조 때문입니다.":
+        "— compared against a public chart, crypto will look off every day. That is this structure, not tampering.",
+      "이었습니다. 주문은 곱해서 나가는데 장부에만 빠져 있어, 8월 10일 KODEX200 체결이":
+        "The order went out multiplied while only the ledger left it out, so the KODEX 200 fill on 10 August",
+      "2026-08-12, '오늘의 거시' 카드가 데이터에 없는 날짜를 기록에 남기고 있었습니다.":
+        "2026-08-12 — the \"macro today\" card was recording a date that does not exist in the data.",
+      "첫째, 자산 \"79,251원\"은 진짜 원화 금액이 아니라 단위가 섞인 합계였습니다. 둘째,":
+        "First, equity of \"KRW 79,251\" was not a real won figure but a total with mixed units. Second,",
+      "2026-08-11, 코인은 '아직 만들어지는 중인 봉'으로 판단하고 있음을 확인했습니다.":
+        "2026-08-11 — confirmed that crypto was deciding on a bar still in the making.",
+      "2026-08-19 교정 — '그냥 보유했다면' 기준선이 사는 값을 물지 않고 있었습니다.":
+        "2026-08-19 correction — the \"what if you had simply held\" baseline was not paying the cost of buying.",
+      ". 이 페이지는 기록이 진짜임을 보증할 뿐, 전략이 앞으로 돈을 번다는 보증이 아닙니다.":
+        ". This page guarantees only that the record is genuine — not that the strategy will make money.",
+      "입니다. 미국 종목은 달러로 거래되니, 계좌에 담을 때 원화로 바꿔서 담습니다. 그런데":
+        "US symbols trade in dollars, so they are converted to won when placed in the account. But",
+      "로만 체결하고 (개장 갭 감수) 거래세·슬리피지까지 뺀 숫자를 기록합니다. 과거 기록은":
+        "only, taking the opening gap as it comes, and the number recorded is net of transaction tax and slippage. Past records",
+      "\"노출이 줄어서\"가 아니라 \"모델이 학습·검증에서 본 것과 같은 종류의 입력을 받아서\"":
+        "not \"because exposure fell\" but \"because the model receives the same kind of input it saw in training and validation\"",
+      "이 함께 나갑니다. 같은 점검에서, 스레드 캡션이 500자를 넘겨 짧은 판으로 바뀔 때":
+        "goes out alongside. In the same review, when a Threads caption exceeds 500 characters and switches to the short version,",
+      "\"보조 지표 0/11, 전부 누락\"을 기록했습니다. 아무도 몰랐던 이유가 중요합니다 —":
+        "recorded \"auxiliary indicators 0/11, all missing\". Why nobody noticed matters —",
+
+      "(90일), 두 계좌\n일수익 차이의 통계 검정(유의수준 5%). 9월 17일에 중간 참고 판독(확정 아님).":
+        "(90 days), a statistical test of the difference in daily returns between the two accounts (5% significance). An interim, non-binding reading is due on September 17.",
+      "를 그대로 보여줍니다 —\n08-17 999,268원, 08-18 1,000,117원. 저희가 고칠 수 없는 실행 기록(깃허브)\n링크도 함께 답니다. 다만 그 숫자는":
+        "exactly as they stand — 999,268 KRW on 08-17, 1,000,117 KRW on 08-18. We also attach a link to the execution log on GitHub, which we cannot edit. That said, those numbers are",
+      "07:52 　📦 통합 분산 계좌: 자산":
+        "07:52 　📦 Combined diversified account: equity",
+      "08:23 　🔁 챔피언 교체: SPY, QQQ": "08:23 　🔁 Champion swap: SPY, QQQ",
+      "\"이 성과가 실력인지 운인지\"를 아직 증명하지 못한 상태":
+        "we have not yet shown whether this result is skill or luck",
+      "8,702원(0.87%p) 뒤집니다.": "by 8,702 KRW (0.87 percentage points).",
+      "자산 997,198원짜리 계좌": "an account holding 997,198 KRW",
+      "아마존 매수 6,361,688원": "buy Amazon, 6,361,688 KRW",
+      "(킬스위치)와,": "(the kill switch), and",
+      "입니다. 그런데": "But",
+      "\"이 장치의 진짜\n산출물은 감시가 아니라":
+        "the real output of this device is not the watching but",
+      "는\n매일 적습니다. 그런데 정작":
+        "every day. But the one thing it did not write down was",
+      "몇 개의 시세를 보고 판단했는지":
+        "how many price bars the decision actually looked at",
+      "는 적지\n않았습니다. 그래서 이런 일이 몇 주 동안 보이지 않았습니다 —":
+        ". Because of that, this went unseen for weeks —",
+      "코인 5종목이 800개를 요청하고 300개만 받고 있었습니다.":
+        "five crypto symbols were asking for 800 bars and receiving only 300.",
+      "(주 거래소가 막혀 넘어간 보조 거래소가 한 번에 300개까지만 주는 곳이었습니다.)":
+        "(The primary exchange was blocked, and the backup we fell back to hands out at most 300 bars at a time.)",
+      "모자란 표본 위에서": "on a short sample",
+      "나왔습니다.\n받는 양을 안 적으면": "If you never write down how much you received,",
+      "덜 받은 것을 알 방법이 없습니다.": "there is no way to notice that you got less.",
+      "시세를 더 받아 오는 문제는 어제 고쳤습니다. 오늘 고친 것은 그":
+        "Fetching more price bars was fixed yesterday. What we fixed today is the",
+      "다음": "next part",
+      "입니다 — 요청한 것보다 적게 받으면": "— when we receive less than we asked for,",
+      "그 사실이 장부에 남고, 화면과\n알림으로 나갑니다.":
+        "that fact is written into the ledger and goes out on the site and in alerts.",
+      "⚠️ 대외 소통에서 유의할 점: 표본이 모자랐다는 것은":
+        "⚠️ A note for how we talk about this: a short sample does not mean",
+      "\"성적이 나빴다\"가\n아니라 \"그 성적을 말할 근거가 얇았다\"":
+        "\"the result was bad\" — it means \"the ground for stating that result was thin\"",
+      "는 뜻입니다. 둘은 다릅니다.": ". Those are two different things.",
+      "2026-08-16, 자동 배치가 만든 기록을 아무도 검사하지 않고 있었습니다.":
+        "2026-08-16 — nobody was checking the records the automated batch produced.",
+      "어제 자산이 7,249만원으로 찍힌 사고에는 뒷이야기가 있습니다.":
+        "There is a back story to yesterday's accident, when equity printed as 72.49 million KRW.",
+      "그 값이\n틀렸다는 것을 우리 검사는 이미 알고 있었습니다":
+        "our checks already knew that figure was wrong",
+      "그 검사는\n그 기록을 한 번도 보지 못했습니다.":
+        "those checks never once saw that record.",
+      "배치가 만든 기록에만 검사가 안 걸리는 구멍":
+        "a hole through which records made by the batch escaped every check",
+      "이\n있었고, 어제 숫자는 그 구멍으로 반나절을 살아남았습니다. 발견도 우연이었습니다.":
+        ", and yesterday's number survived half a day through it. Even finding it was an accident.",
+      "이제": "Now",
+      "계좌를 건드리는 배치는 기록을 남기기 직전에 장부 검사를 먼저\n돌립니다.":
+        "any batch that touches an account runs the ledger checks first, right before it writes.",
+      "그 기록을 아예 남기지 않습니다.": "the record is not written at all.",
+      "틀린 기록은 그날의 성적표일 뿐 아니라":
+        "A wrong record is not only that day's report card but",
+      "다음 날의 출발점": "the next day's starting point",
+      "조용히 틀리느니 시끄럽게 멈추는\n쪽": "stopping loudly over being wrong quietly",
+      "을 택했습니다.": "is what we chose.",
+      "함께: 어제 사고의": "Also: yesterday's accident had",
+      "가장 이른 신호": "an earlier signal",
+      "저희 계좌는": "Our account is",
+      "원화 계좌": "a won-denominated account",
+      "바꾸는 자리가 두 군데였고 한 군데만 고쳐져\n있었습니다":
+        "the conversion happened in two places and only one of them had been fixed",
+      "— 평가할 때는 원화로 바꿨는데,": "— valuation converted to won, but",
+      "살 때는 달러 가격을 그대로": "buying used the dollar price as-is",
+      "그 체결을 없던 일로 되돌리고 쓴 돈을 현금으로 돌려놨습니다.":
+        "We unwound that fill and returned the money spent to cash.",
+      "자산은\n997,197원(전날 대비 -0.26%)입니다.":
+        "Equity is 997,197 KRW (-0.26% versus the previous day).",
+      "\"제대로 바꿨다면 얼마였을까\"를 계산해 넣지는 않았습니다":
+        "we did not compute and insert \"what it would have been had the conversion been right\"",
+      "한 곳에서만": "in one place only",
+      "하도록\n합치고, 그래도 빠졌을 때를 대비해":
+        ", and in case it is still missed somewhere,",
+      "체결가와 평가가격의 자릿수가 안 맞으면\n주문 자체를 막습니다":
+        "an order is blocked outright when the fill price and the valuation price differ by an order of magnitude",
+      "나머지 절반": "the other half",
+      "그날 만들어진 SNS 카드와 캡션은 고치지 않고 그대로 둡니다.":
+        "The social cards and captions made that day are left untouched.",
+      "그날 시스템이 말한 것의 기록": "a record of what the system said that day",
+      "무엇이 틀렸고 실제 값이\n얼마인지 적은 정정문":
+        "a correction stating what was wrong and what the real figure is",
+      "2026-08-18 추가:": "Added 2026-08-18:",
+      "그때 정정문은 사람이 손으로 넣었습니다. 정작":
+        "that correction was inserted by hand. Meanwhile,",
+      "글이 만들어지는 자리에는 아무 관문도 없었습니다":
+        "there was no gate at all where the post itself is written",
+
+      "하루 등락이 계좌\n전체보다 클 수 없다":
+        "a day's move cannot be larger than the whole account",
+      "는 선을 글 만드는 자리에 걸어 두었습니다. 넘으면\n글을 고쳐서 내보내지 않고":
+        "is now a line drawn where the post is written. If it is crossed, the post is not quietly patched and sent —",
+      "만들기를 멈추고 경보를 울립니다": "writing stops and an alarm goes off",
+      "지금 이 시스템은": "As it stands the system",
+      "내 돈을 넘겨서 사지 않습니다": "never buys beyond its own money",
+      "지금 안전장치는 전부 \"돈이 0 아래로는 안 간다\"는 전제 위에 서 있습니다.":
+        "Every safeguard today rests on the assumption that money cannot go below zero.",
+      "실시간으로": "in real time",
+      "강제청산하는데 우리는 하루에 한 번 보고 있었으니,\n그 사이에 끝나면 킬스위치는":
+        "liquidates you, while we were looking once a day — so if it ends in between, the kill switch is",
+      "선언만 남습니다": "left as a declaration only",
+      "하나라도 답을 모르면 잠깁니다.":
+        "If even one of them has no answer, it stays locked.",
+      "이 변경으로 지금의 매매는 한 글자도 바뀌지 않습니다.":
+        "This change alters not one character of how we trade today.",
+      "2026-08-15, 장중 감시를 15분마다 돌립니다.":
+        "2026-08-15 — intraday monitoring now runs every 15 minutes.",
+      "그 자리에서": "on the spot",
+      "노출을 줄입니다.\n다만 이 장치의 진짜 산출물은 감시 자체가 아니라":
+        "exposure is cut. But the real output of this device is not the watching itself —",
+      "\"우리가 실제로 얼마나 자주\n봤는가\"의 기록":
+        "it is the record of how often we actually looked",
+      "설정값이 아니라 실제로 벌어졌던 최악의 간격":
+        "not the configured value but the worst gap that actually happened",
+      "으로\n계산합니다.": "is what we compute from.",
+      "넣은 전략은 매일 밤 다른 후보들과":
+        "A strategy you submit goes through the same nightly audition",
+      "같은 심사": "as every other candidate",
+      "새 전략만 그것을 건너뛰면": "if only the new strategy skipped that,",
+      "\"이 자료에는 검증 가능한 규칙이 없습니다\"라고\n말하는 것":
+        "saying \"this material contains no verifiable rule\"",
+      "저희가 지어낸 전략": "a strategy we made up",
+      "2026-08-14, 이름을 '8마일 챌린지'에서 '100만 챌린지'로 바꿨습니다.":
+        "2026-08-14 — the name changed from \"8 Mile Challenge\" to \"1M Won Challenge\".",
+      "원래 이름은": "The original name meant",
+      "여덟": "eight",
+      "종목에": "symbols at",
+      "만원": "10,000 won",
+      "100만원": "1,000,000 won",
+      "그 이름으로 이미 나간 기록과 SNS 캡션은 한 글자도 고치지 않습니다":
+        "Records and social captions already published under that name are not edited by a single character",
+      "—\n아래": "— see",
+      "코드의 시작금\n상수도 8만원에서 100만원으로 맞췄습니다":
+        "the starting-capital constant in the code was also moved from 80,000 won to 1,000,000 won",
+      "2026-08-15, 주간 아카이브의 '주간 수익률'이 그 주 마지막":
+        "2026-08-15 — the weekly archive's \"weekly return\" was really that week's last",
+      "하루치": "single day",
+      "였습니다\n— 부호가 반대로 나갔습니다.": "— and the sign went out backwards.",
+      "주간 아카이브 페이지는 주간 성적을 자기 힘으로\n계산하고 있었는데, 계산에 쓴 값이":
+        "The weekly archive page was computing the weekly result on its own, and the value it used was",
+      "그 주 마지막 날 하루 수익률": "the return of the final day of that week",
+      "가 떠 있었고, 사실은 원금 100만원 대비":
+        "was displayed, when against the 1,000,000 won principal it was really",
+      "였습니다.\n그리고 종목 표는 계좌를 연":
+        "And the per-symbol table left the first week after the account opened",
+      "첫 주를 통째로 비워": "entirely blank",
+      "공개 페이지 쪽 복사본은\n그대로 남아":
+        "the copy living on the public page stayed as it was",
+      "있었습니다. 이제 셈은 배치가 한 곳에서 하고":
+        "Now the batch does the arithmetic in one place and",
+      "페이지는 읽기만\n합니다": "the page only reads it",
+      "입니다.\n입금은 수익이 아니므로 그 주 유입액을 빼고 잽니다.":
+        "A deposit is not a profit, so that week's inflow is subtracted before measuring.",
+      "과거 기록은 고치지 않습니다": "Past records are not edited",
+      "— 바뀐 것은 그 기록을 읽어 보여주는\n방식이고, 원본은 그대로입니다.":
+        "— what changed is how those records are read and shown; the originals stand.",
+      "종목표의 적중률은": "The hit rate in the symbol table was",
+      "과거 400봉에 오늘의 챔피언\n전략을 적용해":
+        "measured by applying today's champion strategy to the past 400 bars",
+      "잰 값이었습니다. 그런데 그 400봉은": "But those 400 bars",
+      "그 챔피언을 뽑은\n오디션(800봉)과 100% 겹칩니다":
+        "overlap 100% with the audition (800 bars) that picked that champion",
+      "실제보다 좋게 나옵니다": "it comes out better than reality",
+      "이 제품은 '선택 편향 없는 공개 실험'을 내걸고 있습니다.":
+        "This product claims to be a public experiment free of selection bias.",
+      "이 계좌의 실제 기록만으로": "from this account's actual record alone",
+      "잰 값입니다. 아래쪽은 아무도 고르지 않은\n구간이라 정직하지만":
+        "The lower figure is honest because nobody chose that window, but",
+      "표본이 아주 작습니다": "the sample is very small",
+      "어느 쪽도 실력의\n증거가 아닙니다.": "Neither one is evidence of skill.",
+      "— 실전 적중률은 다음 배치부터 장부에\n적힙니다.":
+        "— the live hit rate is written into the ledger from the next batch onward.",
+      "낙폭(고점 대비 얼마나 빠졌나)을 재는 기준선에":
+        "The baseline for measuring drawdown (how far below the peak) was missing",
+      "원금 자체가 빠져 있었습니다.": "the principal itself.",
+      "그래서 계좌가 원금을 한 번도 넘지\n못한 구간에서는":
+        "So during stretches where the account never rose above its principal,",
+      "첫 기록의 손실이 그대로 기준선":
+        "the loss in the first record became the baseline itself",
+      "로 적혔습니다.": "was what got recorded.",
+      "왜 중요한가 — 이 숫자가 브레이크를 겁니다.":
+        "Why it matters — this number is what pulls the brake.",
+      "전량 정지": "a full stop",
+      "인데, 20%로 읽히면": "but read as 20% it becomes",
+      "절반만 축소": "only a halving",
+      "이미 기록된 값은 고치지 않습니다": "Figures already recorded are not edited",
+      "2026-08-14 기록은 하루 묵은 주식 데이터로 판단됐습니다 — 그대로\n둡니다.":
+        "The 2026-08-14 record was decided on day-old stock data — it stands.",
+      "0.03%만 만들어진 봉": "a bar only 0.03% formed",
+      "이 \"8월 14일\"이라는 새 하루를 열어\n버렸습니다. 그 기록의 주식 판단은":
+        "opened a whole new day called \"August 14\". The stock decision in that record was made on",
+      "전날 봉": "the previous day's bar",
+      "으로 내려진 것입니다 —\n장부의": "— so the ledger's",
+      "에": "in",
+      "이 기록을 지우거나 고치지 않습니다.": "This record is neither deleted nor edited.",
+      "어느 정도 형태를 갖춘 봉만\n새 하루를 열 수 있게":
+        "so that only a bar with some substance can open a new day",
+      "계좌 자산은": "Account equity was",
+      "달러 표시 가격을 원화처럼":
+        "dollar-denominated prices treated as if they were won",
+      "두 가지가 사실이 아니었습니다.": "two things were not true.",
+      "환위험이 통째로 빠져 있었습니다": "currency risk was missing entirely",
+      "내부적으로는": "internally",
+      "기록하지 않습니다": "we do not record it",
+      "— 1.0으로\n때우지 않습니다.": "— we do not paper over it with 1.0.",
+      "과거는 소급 환산하지 않았습니다.": "The past was not retroactively converted.",
+      "으로 그대로 보관되며, 7일치\n기록은 이전 세대로 계속 공개됩니다.":
+        "is kept as it is, and the seven days of records remain public as the previous generation.",
+      "판정 시계는 0일부터 다시 돕니다": "The judgement clock restarts from day zero",
+      "—\n통화 기준이 다른 두 구간의 수익률은 같은 통계가 아니기 때문입니다.":
+        "— returns from two windows on different currency bases are not the same statistic.",
+
+      "2026-08-05, 통합 계좌를 '8마일 챌린지'로 재출발했습니다":
+        "2026-08-05 — the combined account was restarted as the \"8 Mile Challenge\"",
+      "— 시작금\n8만원(8종목 × 만원). 그 이전 이틀간의 만원 기록은 삭제되지 않고":
+        "— starting capital 80,000 won (8 symbols × 10,000 won). The two prior days of 10,000-won records were not deleted but kept in",
+      "git\n이력": "the git history",
+      "다음 세션 시가": "the next session's open",
+      "재계산하지 않고 그대로 둡니다": "are left as they are, not recomputed",
+      ")가 붙어 어느 기준의 숫자인지 영구히 구분됩니다.":
+        ") is attached, so which basis a number belongs to stays distinguishable forever.",
+      "2026-08-11, 기록 배열 순서 오류를 발견했습니다.":
+        "2026-08-11 — we found an ordering error in the record array.",
+      "한국 주식 6종목의 기록이 08-05 →":
+        "The records for six Korean stocks ran 08-05 →",
+      "숫자 자체는 그날의 진짜 기록": "the numbers themselves are that day's real record",
+      "저장된 기록은 고치지 않았습니다": "the stored records were not edited",
+      "결정에 쓴 봉 15개 중 15개": "15 of the 15 bars used in the decision",
+      "코인 기록의 price는\n그날의 일봉 종가가 아닙니다":
+        "the price in a crypto record is not that day's daily close",
+      "같은 날 고쳤습니다.": "Fixed the same day.",
+      "이제 규칙은": "The rule is now",
+      "\"완성된 정보로 판단하고, 지금 가격에 체결한다\"":
+        "\"decide on completed information, fill at the current price\"",
+      "오디션(백테스트)이 완성 봉으로 평가하는 것과 조건이\n같아집니다.":
+        "This puts it on the same footing as the audition (backtest), which evaluates on completed bars.",
+      "영향은 작지 않습니다": "The impact is not small",
+      ")는 계속 장부에 남깁니다. 이 변경 이전의\n기록은":
+        ") is still written into the ledger. Records from before this change are",
+      "고치지 않습니다": "not edited",
+      "— 그때는 그 값으로 판단했고, 그것이 그날의 진짜\n기록이기 때문입니다.":
+        "— the decision was made on that value at the time, and that is that day's true record.",
+      "2026-08-11, SNS 게시물이 '누적 수익률'을 '오늘'이라\n불렀습니다.":
+        "2026-08-11 — a social post called the cumulative return \"today\".",
+      "8월 10일에 나간 글은": "The post published on August 10 said",
+      "라고 적었지만,\n-0.06%는 원금 대비": "but -0.06% was, against the principal,",
+      "수치였습니다. 그날의": "That day's",
+      "누적과 하루치를 나란히": "cumulative and daily side by side",
+      "8월 10일 게시물은 고치지 않습니다": "The August 10 post is not edited",
+      "2026-08-11, SNS 카드가 사지 않은 종목을 \"매수\"라고\n적었습니다.":
+        "2026-08-11 — a social card wrote \"buy\" for a symbol we did not buy.",
+      "8월 10일 카드 4장째(\"돈이 간 곳\")는":
+        "The fourth card of August 10 (\"where the money went\") said",
+      "나스닥100 ETF 매수 8.0%": "buy Nasdaq-100 ETF 8.0%",
+      "라고 적었지만, 그날 그 종목의 장부는":
+        "but that day the ledger for that symbol showed",
+      "원인은 장부의 두 숫자를 같은 것으로 다룬 데 있습니다.":
+        "The cause was treating two different ledger numbers as the same thing.",
+      "배분 예산": "the allocation budget",
+      "총노출 7%": "total exposure 7%",
+      "종목별 실제 적용 노출": "the exposure actually applied per symbol",
+      "그날 비중이 0이었던 종목을 빼고":
+        "symbols whose weight was zero that day are dropped",
+      "8월 10일 게시물과 이미지는 고치지 않습니다.":
+        "The August 10 post and images are not edited.",
+      "같은 계열을 하나 더 찾았습니다:": "We found one more of the same family:",
+      "체결 기록의 비중도 배분 슬라이스를 곱하기\n전 값":
+        "the weight in fill records was also the value before multiplying by the allocation slice",
+      "로 적혀 있습니다 — 같은 날 계좌 총노출":
+        "— on the same day the account's total exposure was",
+      "체결 하나가 그날 총노출보다 클 수 없다":
+        "no single fill can exceed that day's total exposure",
+      "는 산술 검사가 새 기록을\n매번 확인합니다. 이전 기록은":
+        "is an arithmetic check that now inspects every new record. Earlier records are",
+      "고치지 않습니다.": "not edited.",
+      "2026-08-11, SNS 카드가 신뢰구간 없이 적중 비율을\n방송하고 있었습니다.":
+        "2026-08-11 — social cards were broadcasting hit rates with no confidence interval.",
+      "이 사이트의 보정 표는 윌슨 95% 신뢰구간을 함께\n적고":
+        "The calibration table on this site prints the Wilson 95% confidence interval alongside and advises",
+      "\"구간이 좁아질 때까지는 비율보다 구간을 믿으세요\"":
+        "\"until the interval narrows, trust the interval rather than the ratio\"",
+      "라고 안내합니다.\n그런데": "But",
+      "같은 집계를 쓰는 SNS 카드에는 그 구간이 없었습니다.":
+        "the social cards, which use the same tally, had no interval.",
+      "예를 들어\n\"55~60%라 말한 날 8일 ·":
+        "For instance \"8 days where we said 55–60% ·",
+      "실제 상승 12%": "actual rise 12%",
+      "\"가 그대로 나갔는데, 표본 8일의\n실제 95% 구간은":
+        "went out as-is, while the real 95% interval on a sample of 8 days is",
+      "더 멀리 퍼지는 화면이 더 느슨했던":
+        "the screen that travels furthest was the loosest",
+      "8월 10일에 캡션을 고치고 이 문단에\n공개했는데,":
+        "On August 10 we fixed the caption and disclosed it in this paragraph, but",
+      "같은 결함의 형제인 SNS 카드를 찾지 않았습니다.":
+        "we did not go looking for the sibling of the same defect in the social cards.",
+      "카드는\n계속 누적 수치를 큰 글씨로":
+        "The cards kept printing the cumulative figure in large type",
+      "누적과 오늘을 나란히": "cumulative and today side by side",
+      "적고 문구도 하루치로\n고릅니다.": "and the wording is chosen for the daily figure.",
+      "고친 결함의 형제를 찾지 않은 것":
+        "Failing to look for the sibling of a defect we had just fixed",
+      "이 저희가 오늘 하루에만\n여러 번 반복한 실패라, 그 사실까지 그대로 적습니다.":
+        "is a failure we repeated several times in this one day, so we write that down too.",
+      "2026-08-11, 사람이 손댄 날을 방송이 말하지\n않았습니다.":
+        "2026-08-11 — our broadcasts did not say when a human had intervened.",
+      "이 시스템에서 사람이 결과를 바꿀 수 있는 통로는 딱 둘입니다 —":
+        "There are exactly two channels through which a human can change outcomes in this system —",
+      "신규 주문 일시정지": "pausing new orders",
+      "노출 배수 조정": "adjusting the exposure multiplier",
+      ". 장부는 그 둘을 \"숨기지 않고\n기록한다\"는 주석과 함께 매일 남기고 있었지만,":
+        ". The ledger recorded both every day, with a comment saying they are logged rather than hidden, but",
+      "사이트·카드·캡션 어디에도\n표시되지 않았습니다.":
+        "they appeared nowhere on the site, the cards, or the captions.",
+      "\"✋ 사람의 개입\"": "\"✋ human intervention\"",
+      "킬스위치 고지가 하이라이트와 함께 잘려 나가던 것":
+        "the kill-switch notice being truncated along with the highlights",
+      "도 고쳤습니다 —\n쓸 말이 많은 날일수록 경고가 사라지는 구조였습니다.":
+        "was fixed too — the structure made the warning vanish precisely on the days with the most to say.",
+      "2026-08-11, 배분 방식이 화면에 산문으로 박혀\n있었습니다.":
+        "2026-08-11 — the allocation method was hard-coded into the page as prose.",
+      "페이퍼 페이지는 통합 계좌를 언제나":
+        "The paper page always described the combined account as",
+      "이라고 설명했는데,\n실제 코드는": "while the actual code used",
+      "HRP → ERC → 자본 균등의 폴백 사다리":
+        "a fallback ladder of HRP → ERC → equal capital",
+      "로 매일 남기고 있었지만(주석에도 \"폴백 흔적\"이라\n적혀 있습니다)":
+        "was written every day (the comment even calls it a \"fallback trace\"), but",
+      "어느 화면도 그 값을 읽지 않았습니다.": "no screen ever read that value.",
+      "2026-08-12, 계좌가 두 종류인데 그 사실을 적지\n않았습니다.":
+        "2026-08-12 — there are two kinds of account, and we never said so.",
+      "이 실험에는": "This experiment has",
+      "통합 계좌 하나(8만원)": "one combined account (80,000 won)",
+      "종목별 참고 계좌 20개(각 1만원)":
+        "20 per-symbol reference accounts (10,000 won each)",
+      "합계 20만원": "200,000 won in total",
+      "만든 사람이 헷갈리면 읽는 사람은\n반드시 헷갈립니다.":
+        "If the people who built it are confused, the people reading it certainly will be.",
+      "임을 밝히고, 합계를 장부에서 계산해 표 위에 먼저\n적습니다.":
+        "is stated, and the total is computed from the ledger and printed above the table first.",
+
+      "2026-08-12, 피처 건강 계측기가 존재하지 않는\n이름을 세고 있었습니다.":
+        "2026-08-12 — the feature health meter was counting names that do not exist.",
+      "8개가 실제로는\n만들어지지 않는 이름":
+        "eight of them were names that are never actually produced",
+      "이었습니다(": "(",
+      "← 실제": "← actual",
+      "은 아예 없음). 그래서 장치가": "does not exist at all). So the device",
+      "태어날 때부터 매일": "every day since the day it was born",
+      "그 값을 어느 화면에도 보여주지\n않았습니다.": "the value was never shown on any screen.",
+      "교정 이전 기록은 고치지 않으며":
+        "Records from before the correction are not edited",
+      ", 사이트는 그 기록을 \"계측 교정 전\"\n이라고 밝혀 오늘의 사실처럼 말하지 않습니다.":
+        ", and the site labels them \"before meter correction\" so they are not presented as today's facts.",
+      "2026-08-12, 적중률이 '맞출 방향이 없던 날'을\n틀렸다고 세고 있었습니다.":
+        "2026-08-12 — the hit rate was counting days with no direction to get right as wrong.",
+      "적중률은 \"다음 봉 방향을 맞혔는가\"를 재는\n숫자인데, 다음 날이":
+        "The hit rate measures whether the next bar's direction was called correctly, but when the next day is",
+      "정확히 보합": "exactly flat",
+      "이면 오르지도 내리지도 않았으므로\n채점할 방향이 없습니다. 그런데 계산이 그 날을":
+        "it neither rose nor fell, so there is no direction to grade. Yet the calculation counted that day as",
+      "무조건 오답": "automatically wrong",
+      "으로\n넣었습니다. 실측하면 상승 6·하락 2·보합 2인 구간에서":
+        "Measured, over a window of 6 up, 2 down and 2 flat days it comes out as",
+      "로 나옵니다 —\n방향이 있던 8일만 보면":
+        "— looking only at the 8 days that had a direction, it is",
+      "입니다. 15%p 차이입니다.\n이 오류는":
+        "A 15 percentage-point difference. This error ran",
+      "저희에게 불리한 방향": "against us",
+      "보합이 생기는\n빈도는 종목마다 다릅니다.":
+        "How often flat days occur differs by symbol.",
+      "몇 날을 뺐는지\n(": "how many days were excluded (",
+      ") 장부에 함께 남깁니다": ") is written into the ledger alongside",
+      "— 빼고 숨기면 \"보합이\n없었다\"와 구별되지 않기 때문입니다.":
+        "— excluding them silently would be indistinguishable from \"there were no flat days\".",
+      "교정 이전 기록은 고치지 않습니다.":
+        "Records from before the correction are not edited.",
+      "계산 기준이 다르므로 곧바로 비교하지 마세요.":
+        "The basis of calculation differs, so do not compare them directly.",
+      "2026-08-12, 통계 재추출이 표본의 앞부분을\n덜 쓰고 있었습니다.":
+        "2026-08-12 — statistical resampling was under-using the front of the sample.",
+      "저희는 \"이 성적이 운이 아닌가\"를 확인할 때":
+        "To check whether a result is just luck we use",
+      "블록 부트스트랩": "the block bootstrap",
+      "을 씁니다 — 수익률을 낱개로 섞으면 연속된 흐름이\n사라지므로,":
+        "— shuffling returns one by one destroys the continuity of the flow, so instead we",
+      "연속 구간(블록) 단위로": "resample in contiguous blocks",
+      "수천 번 다시 뽑아 분포를 만드는\n방법입니다. 그런데 구간을 뽑을 때":
+        "thousands of times to build a distribution. But when picking a block it",
+      "끝에서 잘라내는 방식": "truncated at the end",
+      "이라, 앞쪽\n날짜일수록 뽑힐 기회가 적었습니다. 실측하면":
+        ", so the earlier the date, the less chance it had of being drawn. Measured, the",
+      "맨 앞 날은 균등한 경우의\n약 10분의 1":
+        "very first day got about one tenth of what an even draw would give",
+      ", 앞 10일 평균은 약": ", and the first 10 days averaged about",
+      "였습니다(중간·뒷부분은 정상).\n쉽게 말해":
+        "(the middle and the tail were fine). Put simply,",
+      "기록 초반이 조용히 절반쯤 무시되고":
+        "the early part of the record was quietly being half ignored",
+      "있었습니다.\n이 계산은 두 곳에 쓰입니다 —": "This calculation is used in two places —",
+      "전략 A/B 유의성 검정": "the A/B significance test between strategies",
+      "(어제의 전략을\n바꿀지 정하는 자리)과":
+        "(where we decide whether to change yesterday's strategy) and",
+      "'무작위 대비 백분위'": "the percentile versus random",
+      "처음으로 감아\n돌려": "wrapping the blocks around to the beginning",
+      "모든 날짜가 똑같은 확률로 뽑히게 고쳤습니다(원형 블록 부트스트랩).":
+        "so every date is drawn with equal probability (the circular block bootstrap).",
+      "다만 이 날 이전과 이후의\n'무작위 대비 백분위'는":
+        "That said, the percentile versus random before and after this date is",
+      "판단에 쓸 때는": "when it is used for a decision",
+      "\"그날 실제로 알 수 있었던 값만 쓴다\"는 원칙에 따라":
+        "following the principle of using only what could actually have been known on the day,",
+      "발표 시차만큼 날짜를\n뒤로 밉니다": "the date is pushed back by the publication lag",
+      "화면에 보여줄 카드": "the card shown on screen",
+      "가 그렇게 밀린 날짜를\n그대로 \"이 값의 날짜\"로":
+        "took that shifted date and printed it as \"the date of this value\"",
+      "에 실었습니다. 이 네 지표는\n모두 시차가 1일이라":
+        "All four of these indicators have a one-day lag, so",
+      "관측일보다 하루 뒤": "one day after the observation date",
+      "가 찍혔고, FRED가 당일치를\n내놓는 날에는":
+        "was printed, and on days when FRED publishes same-day figures,",
+      "내일 날짜": "tomorrow's date",
+      "가 공개 기록에 남았습니다.\n값 자체(":
+        "ended up in the public record. The value itself (",
+      "·5일 변화율)는 시차와 무관하게 같았으므로":
+        "and the 5-day change) was the same regardless of the lag, so",
+      "숫자가 틀린 적은 없고": "no number was ever wrong",
+      ", 이 카드는 매매를 바꾸지 않습니다. 그래도":
+        "and this card does not change any trade. Even so,",
+      "은 이 실험을": "is, for this experiment,",
+      "남이 검증하라고 공개해 둔 장부": "a ledger published so that others can verify it",
+      "FRED의 실제 관측일": "FRED's actual observation date",
+      "을\n적습니다(판단 경로의 시차 보정은 그대로입니다).":
+        "is what we print (the lag adjustment on the decision path is unchanged).",
+      "이 사이트가 증명하려는 것은 '1억'이 아니라":
+        "What this site tries to prove is not \"100 million\" but",
+      "\"그냥 보유보다 낫다\"": "\"better than simply holding\"",
+      "하나이고, 첫 화면은 그 비교를 크게 적습니다. 그런데":
+        "— that one thing, and the front page prints that comparison large. But",
+      "우리 성적은 수수료·세금·미끄러짐을 전부 낸 뒤의 값":
+        "our result is net of every commission, tax and slippage",
+      "인 반면, 나란히 놓인\n기준선은": "whereas the baseline placed next to it",
+      "사는 값조차 한 푼도 내지 않은 값": "had not paid a single won even to buy",
+      "이었습니다. 같은 자에 눈금이\n둘이었던 셈입니다. 이제 기준선도":
+        "It amounted to two scales on one ruler. Now the baseline also",
+      "사는 값을 한 번": "pays the cost of buying once",
+      "화면이 고르지 않고 장부가 계산해 남긴 값":
+        "the value the ledger computed and stored, not one the screen picked",
+      "만 씁니다.": "is all we use.",
+      "⚠️ 이 교정은 우리에게 유리한 방향입니다": "⚠️ This correction runs in our favour",
+      "996,500원 → 995,337원": "996,500 KRW → 995,337 KRW",
+      ", 우리 우위": ", our edge",
+      ".\n같은 날 장중 실험 페이지의 기준선도 같은 이유로":
+        "The same day, the baseline on the intraday experiment page moved for the same reason to",
+      "로\n바뀌었습니다.": ".",
+      "2026-08-19 추가 — 이미 낸 비용을 첫 화면에\n적습니다.":
+        "Added 2026-08-19 — the costs already paid are printed on the front page.",
+      "비용은 예전부터 자산에서 제대로 빠지고 있었지만,":
+        "Costs had always been deducted from equity correctly, but",
+      "얼마나\n빠졌는지는 어디에도 없었습니다.":
+        "how much had been deducted appeared nowhere.",
+      "추정": "estimated",
+
+      "2026-08-05, 유니버스를 8종목에서 20종목으로\n확장했습니다.":
+        "2026-08-05 — the universe was expanded from 8 symbols to 20.",
+      "위험기여 균등(ERC)": "equal risk contribution (ERC)",
+      "배분과 낙폭 단계별": "allocation and a drawdown-tiered",
+      "자동 킬스위치": "automatic kill switch",
+      "가\n적용됩니다 — 이 변경도 이 문단과 공개 커밋으로만 이뤄집니다.":
+        "apply — this change too is made only through this paragraph and a public commit.",
+      "이것은": "This is",
+      "모의투자(가짜 돈)": "a simulation (play money)",
+      "입니다. 실제 주문·체결·세금의 마찰은 근사치\n(수수료·슬리피지 모델)로만 반영됩니다.":
+        "The friction of real orders, fills and taxes is reflected only as an approximation (a commission and slippage model).",
+      "⑧ 사이징 사다리": "⑧ The sizing ladder",
+      "— 같은 확률에": "— at the same probability,",
+      "얼마를 걸까": "how much do you stake",
+      "틀린 값이 아니라 안 재본 값": "not a wrong value but a value never measured",
+      "⑨ 다양성 가중 그림자": "⑨ The diversity-weighted shadow",
+      "(2026-08-23 등록) — 여러 전략이 한 계좌에 앉을 때":
+        "(registered 2026-08-23) — when several strategies sit in one account,",
+      "섞는 비중만": "only the blending weights",
+      "바꾼 가상 계좌 둘: 지금 규칙(성적 기반) vs 전략끼리의 상관까지 본 비중. 판정일":
+        "differ between two virtual accounts: the current rule (performance-based) versus weights that also account for the correlation between strategies. Judgement date",
+      "0.196으로 문턱 미달": "0.196, below the threshold",
+      "과거·현재 성과는": "Past and present performance",
+      "미래 수익을 보장하지 않습니다": "does not guarantee future returns",
+      "본 사이트와 방송은": "This site and its broadcasts are",
+      "투자 자문·권유가 아닙니다": "not investment advice or solicitation",
+      "⚠️ 직접 검증하는 법: 저장소의":
+        "⚠️ How to verify it yourself: in the repository, the",
+      "state/ 커밋\n목록": "commit list for state/",
+      "→ 100만 챌린지 실기록 보기": "→ See the 1M Won Challenge live record",
+
+      "오늘의 체결": "Today's fills",
+      "진입 시점·가격 — 장부 그대로": "Entry time and price — straight from the ledger",
+      "체결가(원)": "Fill price (KRW)",
+      "체결 금액": "Fill amount",
+      "체결 시점": "Fill time",
+      "즉시(코인)": "immediate (crypto)",
+      "새벽 결정 직후": "right after the dawn decision",
+      "예약 주문": "queued order",
+      "오늘 새벽 결정 → 다음 장 시가 체결":
+        "Decided at dawn today → filled at the next session's open",
+      "통합 계좌 목표 비중": "Target weight in the combined account",
+      "체결 예정": "to be filled",
+      "오늘 손대지 않은 이유": "Why we left it alone today",
+      "비용이 이득보다 크면 안 하는 것도 판단입니다":
+        "When the cost outweighs the gain, doing nothing is also a decision",
+      "사유": "Reason",
+      "대상": "Applies to",
+      "설명": "Explanation",
+      "잔돈 주문 차단": "Odd-lot order blocked",
+      "재조정 쿨다운": "Rebalance cooldown",
+      "코인 재조정 밴드": "Crypto rebalance band",
+      "왕복비용 30bp(가정) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
+        "Based on a 30bp round-trip cost (assumed) — anything inside that is left alone",
+      "한국주식 재조정 밴드": "Korean stock rebalance band",
+      "왕복비용 46.8bp(실측 · 표본 52건) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
+        "Based on a 46.8bp round-trip cost (measured · 52 samples) — anything inside that is left alone",
+      "미국주식 재조정 밴드": "US stock rebalance band",
+      "왕복비용 12bp(실측 · 표본 67건) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
+        "Based on a 12bp round-trip cost (measured · 67 samples) — anything inside that is left alone",
+      "※ 주식은 \"결정한 날 종가에 산 척\"하지 않고\n      실제로 가능한 체결(다음 세션 개장 시가, 갭 감수)만 인정합니다 — 백테스트 눈속임 방지 규칙.":
+        "※ For stocks we do not pretend to have bought at the close of the deciding day; only a fill that was actually possible counts (the next session's opening price, gap included) — a rule against backtest sleight of hand.",
+      "실시간 차트": "Live chart",
+      "TradingView · 표시 전용(판단은 새벽 데이터)":
+        "TradingView · display only (decisions run on dawn data)",
+      "quant.jiwon-1a2.workers.dev · 가상 자금 모의투자 —":
+        "quant.jiwon-1a2.workers.dev · play-money simulation —",
+      "실제 돈이 아니며 수익을 보장하지 않습니다":
+        "not real money, and no returns are guaranteed",
+      "· 판단은 매일 새벽 1회(일봉 기준)":
+        "· one decision per day at dawn (on daily bars)",
+      "※ '일간'은 그 종목\n    계좌 자산의 어제 대비 변화입니다. '오늘의 자세'는 새벽의 결정이라, 관망이어도\n    어제 보유분의 손익·체결 시차(주식은 다음 시가 체결)·수수료가 일간에 남을 수\n    있습니다. 어제도 완전 현금이었던 종목만 정확히 0.00%입니다.":
+        "※ \"Daily\" is the change in that symbol's account equity versus yesterday. \"Today's stance\" is the dawn decision, so even when it stands aside, yesterday's holdings, the fill lag (stocks fill at the next open) and commissions can still show up in the daily figure. Only a symbol that was fully in cash yesterday too reads exactly 0.00%.",
+
+      "전일 수익률": "previous-day return",
+      "5일 수익률": "5-day return",
+      "10일 수익률": "10-day return",
+      "변동성(20일)": "volatility (20-day)",
+      "변동성 레짐(단/장기)": "volatility regime (short/long)",
+      "RSI(14)": "RSI (14)",
+      "RSI(7)": "RSI (7)",
+      "20일선 이격": "distance from the 20-day average",
+      "50일선 이격": "distance from the 50-day average",
+      "20일 모멘텀": "20-day momentum",
+      "60일 모멘텀": "60-day momentum",
+      "MACD 히스토그램": "MACD histogram",
+      "볼린저 위치": "position in the Bollinger band",
+      "평균 진폭(ATR)": "average range (ATR)",
+      "거래량 이상치": "volume outlier",
+      "GK 변동성(고저가 기반)": "GK volatility (from highs and lows)",
+      "실현변동성 비율(5/60일)": "realised volatility ratio (5/60 days)",
+      "펀딩비(포지셔닝 과열도)": "funding rate (how crowded positioning is)",
+      "펀딩비 변화(수급 모멘텀)": "change in funding rate (flow momentum)",
+      "비트코인 5일 흐름": "Bitcoin's 5-day move",
+      "미국 S&P500 5일 흐름": "the S&P 500's 5-day move",
+      "미 10년물 금리 5일 변화": "5-day change in the US 10-year yield",
+      "원/달러 5일 변화": "5-day change in KRW/USD",
+      "공포탐욕지수(시장 심리)": "fear and greed index (market mood)",
+      "미결제약정 5일 변화(수급)": "5-day change in open interest (flow)",
+      "장단기 금리차(경기 신호)": "yield curve spread (a signal on the economy)",
+      "VIX 변동성지수(옵션시장 공포)":
+        "VIX volatility index (fear in the options market)",
+      "김치 프리미엄(국내 수급)": "kimchi premium (domestic flow)",
+      "VIX 기간구조(공포의 급성도)": "VIX term structure (how acute the fear is)",
+      "외국인 5일 순매수(z)": "5-day net foreign buying (z)",
+      "기관 5일 순매수(z)": "5-day net institutional buying (z)",
+      "하이일드 스프레드(신용 스트레스)": "high-yield spread (credit stress)",
+      "달러인덱스 5일 변화": "5-day change in the dollar index",
+      "기대인플레 5일 변화": "5-day change in expected inflation",
+      "과매도권": "oversold",
+      "과열권": "overbought",
+      "중립": "neutral",
+      "선 위": "above the line",
+      "선 아래": "below the line",
+      "변동성 확장 국면": "volatility expanding",
+      "변동성 수축 국면": "volatility contracting",
+      "보통 수준": "ordinary levels",
+      "+(상승 우위)": "+ (upside has the edge)",
+      "−(하락 우위)": "− (downside has the edge)",
+      "상단 접근": "near the upper band",
+      "하단 접근": "near the lower band",
+      "밴드 중간": "mid-band",
+      "거래량 급증": "volume spike",
+      "거래량 급감": "volume collapse",
+      "평소 수준": "usual levels",
+      "신용 경색 경보": "credit-crunch warning",
+      "신용시장 안정": "credit markets calm",
+      "달러 강세(위험자산 역풍)": "dollar strength (a headwind for risk assets)",
+      "달러 약세(위험자산 순풍)": "dollar weakness (a tailwind for risk assets)",
+      "인플레 기대 상승": "inflation expectations rising",
+      "인플레 기대 하락": "inflation expectations falling",
+      "강한 순매수": "strong net buying",
+      "강한 순매도": "strong net selling",
+      "중립 수급": "neutral flow",
+      "백워데이션(스트레스 급성기)": "backwardation (acute stress)",
+      "깊은 콘탱고(안정)": "deep contango (calm)",
+      "보통(콘탱고)": "ordinary (contango)",
+      "공포 구간": "in fear territory",
+      "안도 구간": "in relief territory",
+      "국내 매수 과열": "domestic buying overheated",
+      "역프리미엄(국내 이탈)": "reverse premium (money leaving Korea)",
+      "극단적 공포": "extreme fear",
+      "공포": "fear",
+      "극단적 탐욕": "extreme greed",
+      "탐욕": "greed",
+      "롱 과열": "longs overcrowded",
+      "숏 과열": "shorts overcrowded",
+      "외국인": "foreign investors",
+      "기관": "institutions",
+
+      "이 목록은 깃 커밋 이력에서 자동으로 뽑습니다 — 사람이 따로 적는 일지가 아니라, 개선이 저장소에 합쳐지는 순간 남는 기록의 사본입니다. 자동 배치의 운행 기록(장부 커밋)은 제외합니다.":
+        "This list is drawn automatically from the git commit history — not a diary written by hand, but a copy of the record left the moment a fix is merged. The automated batch's operating commits (ledger commits) are excluded.",
+
+      "같은 신호에 배분 방법만 바꾼 가상 계좌들입니다(종가 평가·수수료만, 본 계좌의 변동성 타깃·킬스위치 등은 없음 — 배분 간 상대 비교 전용). 트랙이 4개라 우연히 좋아 보이는 승자가 나올 확률도 4배입니다 — 판정은 곡선이 충분히 갈라진 뒤에만 의미가 있습니다.":
+        "Virtual accounts fed the same signals, differing only in how they allocate (valued at the close, commissions only — none of the live account's volatility target or kill switch; for comparing allocation methods against each other). With four tracks, the chance that one merely looks good by luck is four times higher — a verdict only means something once the curves have separated enough.",
+      "모델이 말한 상승확률\n        구간별로, 실제로 오른 날의 비율입니다. \"60%라고 한 날들\"이 실제로 약\n        60% 오르면 확률이":
+        "For each band of the model's stated probability of a rise, the share of days that actually rose. If the days it called 60% really rose about 60% of the time, the probability is",
+      "실제 상승 비율": "Share that actually rose",
+      "45% 미만(하락 쪽)": "below 45% (leaning down)",
+      "⚠️ 보정 어긋남": "⚠️ Calibration off",
+      "45~55% (중립권)": "45–55% (neutral)",
+      "70% 이상": "70% or more",
+      "가장 크게 틀린 날들 — always public":
+        "The days we were most wrong — always public",
+      "모델이 가장 크게\n        틀린 날을 먼저 보여드립니다. 그날 새벽의 판단 근거도 그대로 —\n        사후에 지우거나 꾸밀 수 없는 구조(git 장부)입니다.":
+        "We show the days the model was most wrong first, together with that dawn's reasoning exactly as it stood — a structure that cannot be erased or dressed up after the fact (a git ledger).",
+      "통합 계좌 자산": "Combined account equity",
+      "그날 가장 아팠던 종목과 새벽 판단":
+        "The symbol that hurt most that day, and the dawn call",
+      "지금까지 누적": "Cumulative so far",
+      "의 도전자를 검증해 대부분을\n        떨어뜨렸습니다. 시도가 쌓일수록 승격 문턱이 자동으로 올라갑니다\n        (다중검정 보정) — 탈락시킨 수를 공개하는 것이 \"운 좋은 승자\"가\n        아니라는 증거입니다.":
+        "challengers have been vetted and most were turned down. The more attempts pile up, the higher the promotion bar rises automatically (a multiple-testing correction) — publishing how many were rejected is the evidence that the winner is not merely a lucky one.",
+      "후보": "Candidate",
+      "결과": "Outcome",
+      "유지": "kept",
+      "왜 이 종목들인가": "Why these symbols",
+      "시장 3곳(코인·한국·미국)을\n      각각":
+        "Three markets (crypto, Korea, the US), each split between",
+      "대표 종목": "a representative symbol",
+      "으로 나눠 담고(2026-08 8→20종목\n확장 — 분산이 곧 통계적 신뢰), 전부 유동성\n      최상위 자산만 골랐습니다 — 시세 데이터가 깨끗하고 실전 이전이 쉬운\n      종목들입니다. 소형주·테마주는 검증이 어려워 제외했습니다.":
+        ", widened from 8 to 20 symbols in August 2026 — diversification is what makes the statistics trustworthy. Every one is a top-liquidity asset: the price data is clean and moving to live trading is easy. Small caps and theme stocks were left out because they are hard to validate.",
+      "— 최대 거래소 생태계 코인 — 거래소 경기 민감 표본":
+        "— the token of the largest exchange ecosystem — a sample sensitive to exchange activity",
+      "— 암호화폐 시가총액 1위 — 코인 시장 전체를 대표":
+        "— the largest crypto asset by market value — stands for the crypto market as a whole",
+      "— 시총 2위 · 스마트컨트랙트 플랫폼 대표":
+        "— second by market value · the leading smart-contract platform",
+      "— 고변동 알트코인 표본 — 변동성 큰 자산에서의 전략 검증용":
+        "— a high-volatility altcoin sample — for testing strategies on violently moving assets",
+      "— 결제 특화 대형 알트 — BTC와 상관이 낮은 구간이 있는 표본":
+        "— a large payments-focused altcoin — a sample that sometimes decouples from BTC",
+      "— 메모리 반도체 — 엔비디아와 공급망으로 얽힌 사이클주":
+        "— memory semiconductors — a cyclical tied to NVIDIA through the supply chain",
+      "— 수출 제조 대형주 — 환율 민감 표본":
+        "— a large export manufacturer — a sample sensitive to the exchange rate",
+      "— 한국 시가총액 1위 대표주": "— Korea's largest company by market value",
+      "— 한국 인터넷 플랫폼 대표 — 성장주 표본":
+        "— Korea's leading internet platform — a growth-stock sample",
+      "— 배터리·화학 사이클주 — 원자재 민감 표본":
+        "— a battery and chemicals cyclical — a sample sensitive to raw materials",
+      "— 코스피200 ETF — 한국 시장 전체":
+        "— a KOSPI 200 ETF — the Korean market as a whole",
+      "— 은행 대표주 — 금리 민감 저변동 표본":
+        "— a leading bank — a low-volatility sample sensitive to interest rates",
+      "— 세계 시총 최상위 — 소비자 기술주 대표":
+        "— among the world's largest by market value — the leading consumer technology stock",
+      "— 이커머스·클라우드 — 경기민감 성장주 표본":
+        "— e-commerce and cloud — a cyclical growth sample",
+      "— 광고 경기 민감 기술주 — 변동성 중상 표본":
+        "— a technology stock sensitive to the advertising cycle — a moderately volatile sample",
+      "— 미국 초대형 기술주 — 낮은 변동성 대형주 표본":
+        "— a US mega-cap technology stock — a low-volatility large-cap sample",
+      "— AI 반도체 대표 개별주 — 지수와 다른 개별주 움직임 표본":
+        "— the leading AI semiconductor name — a sample of single-stock behaviour that differs from the index",
+      "— 미국 기술주 전체 — 성장주 시장 대표 지수":
+        "— US technology as a whole — the benchmark index for growth",
+      "— 미국 시장 전체 — 세계에서 가장 유동성 높은 ETF":
+        "— the US market as a whole — the most liquid ETF in the world",
+      "— 고변동 대형주 — 개별주 리스크 관리 검증용":
+        "— a high-volatility large cap — for testing single-stock risk control",
+      "구조가 바뀌면 0일부터 다시 셉니다":
+        "If the structure changes, the count restarts from day zero",
+      "현재 구조(": "Current structure (",
+      ") 관찰": ") observed",
+      "백테스트는 결정 종가\n      체결 + 고정 슬리피지 가정이지만, 페이퍼는 다음 세션":
+        "The backtest assumes a fill at the deciding day's close plus fixed slippage, while the paper account fills only at the next session's",
+      "에만\n      체결합니다. 결정→체결 사이 실제로 겪은 개장 갭(불리한 방향이 +)이\n      가정을 넘으면 백테스트가 낙관적이라는 뜻 — 그 판정도 여기 그대로\n      표시됩니다.":
+        ". If the opening gap actually experienced between decision and fill (adverse direction counted as +) exceeds the assumption, the backtest is optimistic — and that verdict is shown here as it stands.",
+      "평균 |갭|": "Average |gap|",
+      "불리 방향 평균": "Average in the adverse direction",
+      "가정(수수료+슬리피지)": "Assumption (commission + slippage)",
+      "오늘의 거시": "Today's macro",
+      "FRED · 발표 시차 보정": "FRED · corrected for the publication lag",
+      "10년 기대인플레": "10-year expected inflation",
+      "금리 곡선 정상": "yield curve normal",
+      "오늘의 시장 브리핑": "Today's market briefing",
+      "증시": "Equities",
+      "금리·환율": "Rates and FX",
+      "⚠️ 판단에 사용되지 않는 참고 정보입니다 — 매매는 검증된 챔피언 전략만 수행합니다.":
+        "⚠️ Reference only; this feeds no decision — trading is done solely by the validated champion strategy. Headlines are shown in the original Korean.",
+      "이후 기록은 주식을 다음 세션 시가로만\n체결(개장 갭 감수)하고 수수료·거래세·슬리피지를 뺀 값입니다. 과거 기록은\n재계산하지 않고 그대로 둡니다(":
+        "From then on, stocks are filled only at the next session's open (taking the gap as it comes) and the figures are net of commission, transaction tax and slippage. Past records are left as they are, not recomputed (",
+      "과거 불변 약속": "the promise that the past stays untouched",
+      "챔피언은 매일 밤 챔피언/챌린저 2단계 검증 + 돌연변이 진화 탐색으로\n재평가되며, 확실히 나은 후보가 있을 때만 교체됩니다(안 바뀌는 날이 정상).\n날짜는 해당 시장의 거래일 기준이고, 갱신은 매일 새벽 5:30(KST) 무렵입니다.\n\"그냥 보유\"는":
+        "The champion is re-evaluated every night through two-stage champion/challenger validation plus a mutation search, and is replaced only when a candidate is clearly better (no change is the normal outcome). Dates follow the trading calendar of the market in question, and the update lands around 05:30 KST. \"Simply holding\" means",
+      "첫 기록일에 같은 돈으로 전 종목을 균등 매수해\n그대로 들고만 있었을 때":
+        "buying every symbol equally with the same money on the first recorded day and then just holding",
+      "의 자산입니다. 아무것도 안 하고 현금으로 뒀다는\n뜻이 아니라":
+        ". It does not mean sitting in cash doing nothing, but",
+      "시장에 그냥 맡겨 뒀다면": "leaving the money to the market",
+      "이라는 뜻이라, 시장이 빠진 날은\n이 값도 원금 아래로 내려갑니다 — 전략이 이 값을\n꾸준히 못 이기면 전략의 의미가 없으므로 함께 보여드립니다.\n💝":
+        ", so on days the market falls this figure drops below the principal too. If the strategy cannot beat it consistently there is no point to the strategy, which is why it is shown alongside. 💝",
+      ": 방송 후원금 자체를 운용하는 것이 아니라, 후원과 동일한\n금액만큼 운영자가 '가상 원금'을 늘리는 이벤트입니다(대가·지분 없음). 원금과\n운용 손익은 분리 표시되며, 실력 지표(TWR)는 입금 효과를 제거한 값입니다.\n기록 원본: 저장소":
+        ": the donations themselves are not traded; the operator increases the virtual principal by the same amount (no consideration, no equity). Principal and trading profit are shown separately, and the skill measure (TWR) strips out the effect of deposits. Source of record: the repository's",
+      "폴더 —": "folder —",
+
+      "1억원": "KRW 100 million",
+      "이 기록이 조작 불가능한 이유 →": "Why this record cannot be faked →",
+
+      "어드민": "Admin",
+      "운영 설정": "Operating settings",
+      "여기서 바꾼 값은": "Values changed here are saved as a",
+      "커밋으로\n저장되고, 다음 새벽 자동화부터 적용됩니다. 모든 변경은 git 역사에 남습니다 —\n장부의 투명성 원칙은 어드민 개입에도 똑같이 적용됩니다.":
+        "commit and take effect from the next dawn run. Every change stays in the git history — the ledger's transparency rule applies to admin intervention just the same.",
+      "GitHub 토큰": "GitHub token",
+      "repo 권한(Contents write)이 있는 Personal Access Token.\n    이 브라우저에만 저장되며 우리 서버로 전송되지 않습니다(깃허브 API 직접 호출).":
+        "A personal access token with repo (Contents: write) permission. It is stored in this browser only and never sent to our server — the GitHub API is called directly.",
+      "연결": "Connect",
+      "삭제": "Delete",
+      "매매 일시정지": "Pause trading",
+      "신규 매매 중단 — 보유 포지션은 유지, 대기 주문은 폐기.\n    재학습·기록·사이트 갱신은 계속 돕니다.":
+        "Stops new trades — existing positions are kept and pending orders are discarded. Retraining, recording and site updates carry on.",
+      "총노출 배수": "Total exposure multiplier",
+      "0.0~1.0 — 모든 목표 비중에 곱해집니다. 킬스위치와 중첩 적용\n    (더 보수적인 쪽). 예: 0.5 = 노출 절반.":
+        "0.0–1.0 — multiplies every target weight. It stacks with the kill switch, and the more conservative of the two wins. For example, 0.5 means half the exposure.",
+      "SNS 자동 게시": "Automatic social posting",
+      "끄면 스레드·인스타 게시를 건너뜁니다(콘텐츠 생성도 중단).":
+        "Turning this off skips Threads and Instagram posting (content generation stops too).",
+      "목표 변동성 (연율)": "Target volatility (annualised)",
+      "통합 계좌가 감수할 위험의 크기. 비워두면 코드 기본값\n    (엣지 미입증 12% / 입증 후 20%)을 따릅니다.":
+        "How much risk the combined account will take. Leave it blank to follow the code default (12% while the edge is unproven, 20% once proven).",
+      "· 목표": "· target",
+      "· 사전추정": "· prior estimate",
+      "· 적용 배수": "· multiplier applied",
+      "→ 그날 총노출": "→ total exposure that day",
+      ". 목표를 올리면 배수가 커지고, 무레버리지 상한에 닿을 때까지 총노출이 늘어납니다.":
+        ". Raising the target raises the multiplier, and total exposure grows until it reaches the no-leverage ceiling.",
+      "미입증 상향 승인": "Approve raising it before the edge is proven",
+      "엣지가 통계로 입증되기 전에는 위 목표가 12%로 잘립니다.\n    이걸 켜야 그 잠금이 풀립니다 — 실수로 켜지지 않게 분리된 스위치입니다.":
+        "Until the edge is proven statistically, the target above is capped at 12%. Turning this on releases that lock — it is a separate switch so it cannot be flipped by accident.",
+      "메모": "Note",
+      "이 설정을 왜 바꿨는지 — 커밋 메시지에도 들어갑니다.":
+        "Why this setting was changed — it goes into the commit message too.",
+      "저장 (커밋)": "Save (commit)",
+      "다시 읽기": "Reload",
+      "고객 등록 전략": "Strategies registered by users",
+      "동의한 설치의 전략 명세와": "The strategy specification and",
+      "성과(수익률·낙폭·자산)": "performance (return, drawdown, equity)",
+      "가\n    모입니다(약관 고지·동의 기반 · 개인정보/자격증명 없음). 수집함(KV)이\n    연결돼 있어야 쌓입니다.":
+        "from installations that opted in are collected here (disclosed in the terms, consent-based, no personal data or credentials). Nothing accumulates unless the collection store (KV) is connected.",
+      "불러오기": "Load",
+      "오늘의 SNS 콘텐츠 (수동 게시용)": "Today's social content (for manual posting)",
+      "매일 아침 자동 생성됩니다. 캡션을 눌러 복사하고, 이미지를\n    저장해 스레드·인스타에 올리면 끝. 토큰을 등록하면 이 과정도 자동화됩니다.":
+        "Generated automatically each morning. Click a caption to copy it, save the image, post to Threads and Instagram — done. Register a token and this becomes automatic too.",
+      "콘텐츠": "Content",
+      "인스타그램 캡션": "Instagram caption",
+      "(클릭=복사)": "(click to copy)",
+      "스레드 캡션": "Threads caption",
+      "후원 기록 추가": "Add a donation record",
+      "홈페이지 후원 랭킹에 표시됩니다(누적 합산). ⚠️ 표시용\n    장부입니다 — 실제 돈을 계좌 원금에 넣을 때는 기존 매칭입금 절차를\n    쓰세요(회계 분리). 이름은 닉네임으로.":
+        "Shown in the donation ranking on the site (cumulative). ⚠️ This is a display ledger — to put real money into the account's principal, use the existing matching-deposit procedure (the accounts stay separate). Use a nickname for the name.",
+      "기록": "Record",
+      "거래소 리베이트 링크": "Exchange rebate links",
+      "각 거래소의 '친구초대(레퍼럴)' 링크를 등록하면 홈페이지에\n    가입 카드가 뜹니다 — 방문자가 가입하면 거래 수수료 일부가 평생\n    지급됩니다. 같은 거래소 이름으로 다시 저장하면 덮어씁니다.":
+        "Register an exchange's referral link and a sign-up card appears on the site — when a visitor signs up, a share of their trading fees is paid for life. Saving again under the same exchange name overwrites it.",
+      "저장": "Save",
+      "라이선스 키 발급 (1인 1키)": "Issue a licence key (one per person)",
+      "구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀이\n    Cloudflare 시크릿(":
+        "Creates a permanent key bound to the buyer's email address. If the issuing secret is in the Cloudflare secrets (",
+      ")에 있으면 이메일만 넣으면 됩니다\n    (입력 불필요 — 서버가 발급). GitHub Secrets의":
+        "), the email address is all you need — the server issues it. It must match the",
+      "과\n    같은 값이어야 배포 프로그램이 이 키를 인정합니다.":
+        "in GitHub Secrets, or the distributed program will not accept the key.",
+      "키 발급": "Issue key",
+      "⚠️ 이 페이지는 공개돼 있지만": "⚠️ This page is public, but",
+      "토큰·비밀 없이는 아무것도 할\n수 없습니다":
+        "nothing here works without a token or secret",
+      ". 설정 저장 권한은 GitHub 저장소 권한을, 키 발급은 발급 비밀을\n따릅니다. 접속 자체를 잠그려면 Cloudflare 대시보드 → Workers → quant →\nSettings → Variables에":
+        ". Saving settings follows GitHub repository permissions; issuing keys follows the issuing secret. To lock the page itself, add the",
+      "시크릿을 추가하세요 —\n그 순간부터 이 페이지는 아이디/비밀번호 로그인창을 요구합니다(서버측 검증).":
+        "secrets in the Cloudflare dashboard under Workers → quant → Settings → Variables — from that moment the page asks for an ID and password, checked on the server.",
+
       // ── 주간 아카이브 ──────────────────────────────────────
       "주(월요일 시작)": "Week (starting Monday)",
       "주말 자산": "Equity at week end",
@@ -1006,6 +3137,24 @@
       //    일반 규칙(^(.+) 손해$)이 먼저 잡으면 "원"이 그대로 남는다.
       ["^(\\d{4}-\\d{2}-\\d{2}) 시작$", "started $1"],
       ["^(\\d{4}-\\d{2}-\\d{2}) 확정$", "settled $1"],
+      // 판단 근거(매일 새로 만들어진다) — 피처 이름과 상태 이름은
+      //   사전에서 찾고($*n), 값은 그대로 흘려보낸다. 일반 규칙보다
+      //   먼저 와야 한다 — 아래 ^(\\d+)일 (.+)$ 가 "20일 모멘텀"을
+      //   가로채면 이름의 절반이 한국어로 남는다.
+      ["^판단 재료: (.+) / (.+) / (.+)$",
+       "inputs behind the call: $*1 / $*2 / $*3"],
+      ["^판단 재료: (.+) / (.+)$", "inputs behind the call: $*1 / $*2"],
+      ["^판단 재료: (.+)$", "inputs behind the call: $*1"],
+      ["^(외국인|기관) 수급 z=([−+\\-][\\d\\.]+)\\((.+)\\)$", "$*1 flow z=$2 ($*3)"],
+      ["^펀딩비 ([−+\\-][\\d\\.]+)%\\((.+)\\)$", "funding rate $1% ($*2)"],
+      ["^(VIX\\ 변동성지수\\(옵션시장\\ 공포\\)|하이일드\\ 스프레드\\(신용\\ 스트레스\\)|VIX\\ 기간구조\\(공포의\\ 급성도\\)|미\\ 10년물\\ 금리\\ 5일\\ 변화|미결제약정\\ 5일\\ 변화\\(수급\\)|미국\\ S\\&P500\\ 5일\\ 흐름|실현변동성\\ 비율\\(5/60일\\)|GK\\ 변동성\\(고저가\\ 기반\\)|김치\\ 프리미엄\\(국내\\ 수급\\)|장단기\\ 금리차\\(경기\\ 신호\\)|펀딩비\\ 변화\\(수급\\ 모멘텀\\)|공포탐욕지수\\(시장\\ 심리\\)|외국인\\ 5일\\ 순매수\\(z\\)|펀딩비\\(포지셔닝\\ 과열도\\)|기관\\ 5일\\ 순매수\\(z\\)|변동성\\ 레짐\\(단/장기\\)|기대인플레\\ 5일\\ 변화|달러인덱스\\ 5일\\ 변화|MACD\\ 히스토그램|비트코인\\ 5일\\ 흐름|원/달러\\ 5일\\ 변화|평균\\ 진폭\\(ATR\\)|변동성\\(20일\\)|10일\\ 수익률|20일\\ 모멘텀|20일선\\ 이격|50일선\\ 이격|60일\\ 모멘텀|RSI\\(14\\)|거래량\\ 이상치|5일\\ 수익률|RSI\\(7\\)|볼린저\\ 위치|전일\\ 수익률) 일 ([\\d\\.]+)%$",
+       "$*1 $2%/day"],
+      ["^(VIX\\ 변동성지수\\(옵션시장\\ 공포\\)|하이일드\\ 스프레드\\(신용\\ 스트레스\\)|VIX\\ 기간구조\\(공포의\\ 급성도\\)|미\\ 10년물\\ 금리\\ 5일\\ 변화|미결제약정\\ 5일\\ 변화\\(수급\\)|미국\\ S\\&P500\\ 5일\\ 흐름|실현변동성\\ 비율\\(5/60일\\)|GK\\ 변동성\\(고저가\\ 기반\\)|김치\\ 프리미엄\\(국내\\ 수급\\)|장단기\\ 금리차\\(경기\\ 신호\\)|펀딩비\\ 변화\\(수급\\ 모멘텀\\)|공포탐욕지수\\(시장\\ 심리\\)|외국인\\ 5일\\ 순매수\\(z\\)|펀딩비\\(포지셔닝\\ 과열도\\)|기관\\ 5일\\ 순매수\\(z\\)|변동성\\ 레짐\\(단/장기\\)|기대인플레\\ 5일\\ 변화|달러인덱스\\ 5일\\ 변화|MACD\\ 히스토그램|비트코인\\ 5일\\ 흐름|원/달러\\ 5일\\ 변화|평균\\ 진폭\\(ATR\\)|변동성\\(20일\\)|10일\\ 수익률|20일\\ 모멘텀|20일선\\ 이격|50일선\\ 이격|60일\\ 모멘텀|RSI\\(14\\)|거래량\\ 이상치|5일\\ 수익률|RSI\\(7\\)|볼린저\\ 위치|전일\\ 수익률) ([−+\\-]?[\\d\\.,]+)(%p|%)?\\((.+)\\)$",
+       "$*1 $2$3 ($*4)"],
+      ["^(VIX\\ 변동성지수\\(옵션시장\\ 공포\\)|하이일드\\ 스프레드\\(신용\\ 스트레스\\)|VIX\\ 기간구조\\(공포의\\ 급성도\\)|미\\ 10년물\\ 금리\\ 5일\\ 변화|미결제약정\\ 5일\\ 변화\\(수급\\)|미국\\ S\\&P500\\ 5일\\ 흐름|실현변동성\\ 비율\\(5/60일\\)|GK\\ 변동성\\(고저가\\ 기반\\)|김치\\ 프리미엄\\(국내\\ 수급\\)|장단기\\ 금리차\\(경기\\ 신호\\)|펀딩비\\ 변화\\(수급\\ 모멘텀\\)|공포탐욕지수\\(시장\\ 심리\\)|외국인\\ 5일\\ 순매수\\(z\\)|펀딩비\\(포지셔닝\\ 과열도\\)|기관\\ 5일\\ 순매수\\(z\\)|변동성\\ 레짐\\(단/장기\\)|기대인플레\\ 5일\\ 변화|달러인덱스\\ 5일\\ 변화|MACD\\ 히스토그램|비트코인\\ 5일\\ 흐름|원/달러\\ 5일\\ 변화|평균\\ 진폭\\(ATR\\)|변동성\\(20일\\)|10일\\ 수익률|20일\\ 모멘텀|20일선\\ 이격|50일선\\ 이격|60일\\ 모멘텀|RSI\\(14\\)|거래량\\ 이상치|5일\\ 수익률|RSI\\(7\\)|볼린저\\ 위치|전일\\ 수익률) (\\+\\(상승 우위\\)|−\\(하락 우위\\))$",
+       "$*1 $*2"],
+      ["^(VIX\\ 변동성지수\\(옵션시장\\ 공포\\)|하이일드\\ 스프레드\\(신용\\ 스트레스\\)|VIX\\ 기간구조\\(공포의\\ 급성도\\)|미\\ 10년물\\ 금리\\ 5일\\ 변화|미결제약정\\ 5일\\ 변화\\(수급\\)|미국\\ S\\&P500\\ 5일\\ 흐름|실현변동성\\ 비율\\(5/60일\\)|GK\\ 변동성\\(고저가\\ 기반\\)|김치\\ 프리미엄\\(국내\\ 수급\\)|장단기\\ 금리차\\(경기\\ 신호\\)|펀딩비\\ 변화\\(수급\\ 모멘텀\\)|공포탐욕지수\\(시장\\ 심리\\)|외국인\\ 5일\\ 순매수\\(z\\)|펀딩비\\(포지셔닝\\ 과열도\\)|기관\\ 5일\\ 순매수\\(z\\)|변동성\\ 레짐\\(단/장기\\)|기대인플레\\ 5일\\ 변화|달러인덱스\\ 5일\\ 변화|MACD\\ 히스토그램|비트코인\\ 5일\\ 흐름|원/달러\\ 5일\\ 변화|평균\\ 진폭\\(ATR\\)|변동성\\(20일\\)|10일\\ 수익률|20일\\ 모멘텀|20일선\\ 이격|50일선\\ 이격|60일\\ 모멘텀|RSI\\(14\\)|거래량\\ 이상치|5일\\ 수익률|RSI\\(7\\)|볼린저\\ 위치|전일\\ 수익률) ([−+\\-]?[\\d\\.,]+)(%p|%)?$",
+       "$*1 $2$3"],
       ["^(\\d+)일 (.+)$", "$1 days: $2"],
       ["^수수료·세금·미끄러짐 · 위 이익은 이걸 뺀 값 · 이 기록일에 ([\\d,]+)원$",
        "Fees, taxes and slippage · the figure above is net of this · KRW $1 on this record day"],
@@ -1174,6 +3323,19 @@
        "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · excluding $7 rounds with a missing bar · this symbol alone is still accumulating, $8 so far)"],
       ["^참고: 이 확률대\\((\\d+)%±(\\d+)%p\\)의 과거 성적은 표본 축적 중 \\(종목 (\\d+)건부터 표시\\)$",
        "note: the past record in this probability band ($1%±$2%pt) is still accumulating (shown from $3 cases per symbol)"],
+      ["^(\\d{4}-\\d{2}-\\d{2}) 기준$", "as of $1"],
+      ["^(\\d+)종목$", "$1 symbols"],
+      ["^(\\d+)봉$", "$1 bars"],
+      ["^(\\d+)회$", "$1 runs"],
+      ["^연환산 샤프 ([\\d\\.]+)$", "an annualised Sharpe of $1"],
+      ["^\\((\\d{4}-\\d{2}-\\d{2}) 추가\\) 이 보고서는$",
+       "(added $1) This report always publishes"],
+      ["^\\((\\d{4}-\\d{2}-\\d{2})\\) 사장님이 \"숏도 레버리지도 열어 달라\"고 하셔서$",
+       "($1) When the owner asked to open up both shorting and leverage,"],
+      ["^(\\d+)일$", "$1 days"],
+      ["^중$", "of which"],
+      ["^\\((\\d+)일\\), 두 계좌 일수익 차이의 통계 검정\\(유의수준 5%\\)\\. (.+)에 중간 참고 판독\\(확정 아님\\)\\.$",
+       "($1 days), a statistical test of the daily-return difference between the two accounts (5% significance). An interim read on $2 (not binding)."],
       ["^([-−+])([\\d,]+)원$", "$1KRW $2"],
       ["^([\\d,\\.]+)개$", "$1"],
       ["^\\(([+−][\\d\\.]+)%\\) · 최대낙폭$", "($1) · max drawdown"],
@@ -1230,6 +3392,69 @@
       ["^시작 (.+) · 마지막 회차 (.+)$", "Started $1 · last round $2"],
       ["^\\(한국 시간\\) · 실측 판단 간격 (.+)$",
        "(KST) · observed gap between calls: $1"],
+      ["^(\\d{4}-\\d{2}-\\d{2}) 새벽 확정$", "settled at dawn, $1"],
+      ["^통합 계좌 \\(오늘 (\\d+)종목 보유 / 후보 (\\d+)종목 · 시작 ([\\d,]+)원\\)$",
+       "Combined account (holding $1 symbols today / $2 candidates · started at KRW $3)"],
+      ["^원금\\(매칭 포함\\) ([\\d,]+)원 ·\\s+실력 지표\\(TWR\\)$",
+       "Principal (including the matching deposit) KRW $1 · skill measure (TWR)"],
+      ["^·\\s+최대낙폭 ([−+\\-][\\d\\.]+)%$", "· max drawdown $1%"],
+      ["^참고: 이 확률대\\((\\d+)%±(\\d+)%p\\)의 과거 성적은 표본 축적 중 \\(종목 n=(\\d+) · 합산 n=(\\d+), (\\d+)건부터 표시\\)$",
+       "note: the past record in this probability band ($1%±$2%pt) is still accumulating (symbol n=$3 · pooled n=$4, shown from $5 cases)"],
+      ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)건의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함 · 이 종목 단독 표본은 (\\d+)건으로 축적 중\\)$",
+       "note: pooled across every symbol, of the $3 cases where the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat day(s) · this symbol alone is still accumulating, $8 so far)"],
+      ["^🛡 실적 가드: 발표\\((\\d{4}-\\d{2}-\\d{2})\\) 임박 → 비중 절반$",
+       "🛡 Earnings guard: the release ($1) is close → weight halved"],
+      ["^(\\d{4}-\\d{2}-\\d{2}) 개장 시가$", "the opening price on $1"],
+
+      ["^오늘 목표 ([−+\\-]?[\\d\\.]+)%$", "Today's target $1%"],
+      ["^지난 기록 (\\d+)건 더 보기$", "Show $1 earlier entries"],
+      ["^총 (\\d+)건$", "$1 entries in total"],
+      ["^최근 (\\d{4}-\\d{2}-\\d{2})$", "latest $1"],
+      ["^의 도전자를 검증해 대부분을 떨어뜨렸습니다\\. 최근 오디션 (\\d+)회$",
+       "challengers have been vetted and most were turned down. $1 auditions recently"],
+      ["^후보 ([\\d,]+)명 중 승격 (\\d+)회\\.$", "$1 candidates, $2 promoted."],
+      ["^1주 값에 못 미쳐 못 산 종목 (\\d+)개$",
+       "$1 symbols went unbought because the budget fell short of a single share"],
+      ["^목표를 잡은 (\\d+)곳 중 (\\d+)곳만 담김 \\(주문액이 최소 금액에 못 미쳐 (\\d+)곳 · 최근에 사고팔아 쉬는 중이라 (\\d+)곳\\)$",
+       "only $2 of the $1 targeted positions were filled (order value below the minimum in $3 · resting after a recent trade in $4)"],
+      ["^— (.+)\\. 과최적화 확률이 '버릴 것' 기준을 넘어 오늘 이 종목은 사지 않습니다$",
+       "— $1. Their overfitting probability crossed the \"discard\" line, so they are not bought today"],
+      ["^— (.+)\\. 검증 기준 미달이거나 아직 측정되지 않아 비중을 절반으로 줄였습니다 \\(측정 안 됨은 '통과'가 아닙니다\\)$",
+       "— $1. They fell short of the validation bar or have not been measured yet, so their weight was halved (not measured is not a pass)"],
+      ["^— 배정 예산이 1주 값에 못 미쳐 담기지 못했습니다\\((.+)\\)\\. 분산 종목 수가 표시보다 적습니다$",
+       "— the allocated budget fell short of one share, so these were left out ($1). The count of diversified holdings is smaller than shown"],
+      ["^— ([^·]+)\\(([\\d,]+)원/배정 ([\\d,]+)원\\)\\. 대신 ([^·]+)$",
+       "— $*1 (KRW $2 / allocated KRW $3). In their place, $*4"],
+      ["^([^·]+)\\(([\\d,]+)원/배정 ([\\d,]+)원\\)\\. 대신 ([^·]+)$",
+       "$*1 (KRW $2 / allocated KRW $3). In their place, $*4"],
+      ["^— ([^·]+)\\(([\\d,]+)원/배정 ([\\d,]+)원\\)$",
+       "— $*1 (KRW $2 / allocated KRW $3)"],
+      ["^([^·]+)\\(([\\d,]+)원/배정 ([\\d,]+)원\\)$",
+       "$*1 (KRW $2 / allocated KRW $3)"],
+      ["^([^·]+)이\\(가\\) 자리를 내줬습니다\\. 확신도가 높은 쪽부터 채우기 때문이며, 그만큼 종목 수는 줄어듭니다$",
+       "$*1 gave up their slots. Positions are filled from the highest conviction down, and the number of holdings shrinks accordingly"],
+      ["^— (.+)\\. 그 종목은 그날 판단·기록이 없고 이전 판단을 그대로 씁니다 \\((\\d{4}-\\d{2}-\\d{2})\\)$",
+       "— $1. There was no decision or record for it that day, so the previous decision stands ($2)"],
+      ["^([^·]+) → ([^·]+)$", "$*1 → $*2"],
+      ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
+      ["^판정 (\\d{4}-\\d{2}-\\d{2})$", "verdict due $1"],
+      ["^해 그 종목만 매매한 결과라,\\s+(\\d+)개를 합치면 ([\\d,]+)원가 됩니다\\.$",
+       "and traded that symbol alone, so all $1 together come to KRW $2."],
+      ["^최근 오디션 (\\d+)회 · 후보 ([\\d,]+)명 중 승격 (\\d+)회$",
+       "$1 auditions recently · $3 promotions out of $2 candidates"],
+      ["^실측 개장 갭 vs 백테스트 가정 · 최근 (\\d+)일 · (\\d+)건$",
+       "Measured opening gap vs the backtest assumption · last $1 days · $2 samples"],
+      ["^(\\d+)건$", "$1 samples"],
+      ["^\\((\\d+)일 ([−+\\-][\\d\\.]+)%\\)$", "($1-day $2%)"],
+      ["^/ 판정 기준 (\\d+)일 \\((\\d{4}-\\d{2}-\\d{2})~\\)\\s+— 엣지 유무는 이 시계가 다 돌기 전엔 판정하지 않습니다\\. 그 전의 수익률은 통계가 아니라 소음일 수 있습니다\\.$",
+       "/ verdict window $1 days (from $2) — whether there is an edge is not judged until this clock has run out. Returns before then may be noise rather than statistics."],
+      ["^(\\d{4}-\\d{2}-\\d{2})\\(v([\\d\\.]+)\\)부로 회계 기준을 보수적으로 변경했습니다\\s*— 이전 숫자는 낙관적이었습니다\\.$",
+       "From $1 (v$2) the accounting basis was made conservative — the earlier numbers were optimistic."],
+      ["^시장 전체\\(지수\\)$", "the market as a whole (an index)"],
+      ["^([\\d\\.]+)% · 목표 (.+)$", "$1% · target $*2"],
+      ["^([^·—]+) ([−+\\-][\\d\\.]+)%$", "$*1 $2%"],
+      ["^참고\\(장부 (\\d{4}-\\d{2}-\\d{2}) 그대로\\): 후보$",
+       "For reference (straight from the ledger, $1): candidate"],
     ],
   };
 })(window);
