@@ -3100,6 +3100,9 @@
       "시크릿을 추가하세요 —\n그 순간부터 이 페이지는 아이디/비밀번호 로그인창을 요구합니다(서버측 검증).":
         "secrets in the Cloudflare dashboard under Workers → quant → Settings → Variables — from that moment the page asks for an ID and password, checked on the server.",
 
+      "인스타그램 캡션 (영어)": "Instagram caption (English)",
+      "스레드 캡션 (영어)": "Threads caption (English)",
+
       // ── 주간 아카이브 ──────────────────────────────────────
       "주(월요일 시작)": "Week (starting Monday)",
       "주말 자산": "Equity at week end",

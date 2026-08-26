@@ -257,6 +257,11 @@ def _today_numbers(status: dict) -> dict:
         "retrain_total": len(recent),
         "retrain_swaps": swaps,
         "top_names": top_names,
+        # ⚠️ **고른 결과를 언어마다 다시 고르지 않는다.** 영어 캡션도 같은
+        #    상위 종목을 말해야 한다 — 각자 고르면 같은 날 두 글이 다른
+        #    종목을 방송한다(FROZEN_IDEAS ①). 이름만 나중에 붙인다.
+        "top_raw": [{"key": k, "short": v < 0, "pending": k in _pending}
+                    for k, v in top if _expo.held(v)],
         "day_no": len(hist),
     }
 
@@ -457,6 +462,195 @@ def build_captions(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     return {"instagram": ig, "threads": th, "date": date}
 
 
+# ── 영어판 캡션 ───────────────────────────────────────────────
+#
+# 사장님 지시(2026-08-26): *"서비스 영어로도 만들어줘 홈페이지나 프로그램이나."*
+# 사이트가 영어로 열리는데 방송만 한국어면, 영어로 들어온 사람이 그 계정을
+# 팔로우할 이유가 없다.
+#
+# ⚠️ **한국어 캡션을 번역하지 않는다.** 이미 만들어진 글자를 옮기면 숫자가
+#    한 번 더 손을 타고, 그 손이 어디서 미끄러졌는지 아무도 못 본다. 두 글
+#    모두 **같은 숫자(_today_numbers)**에서 각자 조립되고, 같은 관문
+#    (impossible_reason)을 지난다. 금액이 한 자라도 달라지면 검사가 잡는다.
+#
+# 종목 이름은 **코드 그대로**(ETH/USDT · AAPL · 005930.KS) 적는다. 한국어
+# 이름을 영어로 지어내면 그건 번역이 아니라 창작이다.
+
+HASHTAGS_EN = ("#quant #algotrading #papertrading #AItrading "
+               "#publicexperiment")
+
+
+def _fmt_krw(v: float) -> str:
+    return f"{v:,.0f} KRW"
+
+
+def _hook_en(x: dict) -> str:
+    """첫 줄 — 한국어판과 **같은 사건**에서 나온다(같은 분기, 같은 숫자)."""
+    r = x.get("day_pct")
+    if x["risk_scale"] < 1.0:
+        return ("The kill switch is engaged. When a loss crosses the limit the "
+                "system steps back on its own — today is one of those days.")
+    if r is None:
+        return "Today's ledger, in the open."
+    if r <= -1.0:
+        return (f"Today {r:+.2f}%. The painful days go up unchanged too — "
+                "that is the rule of this account.")
+    if r < 0:
+        return f"Today {r:+.2f}%. This minus is part of the record."
+    if r == 0:
+        return "Barely moved today. A dull day is still a record."
+    if r < 1.0:
+        return (f"Today {r:+.2f}%. Small, but compounding is what days add "
+                "up to.")
+    return (f"Today {r:+.2f}%. A good day, though one day proves nothing — "
+            "the distribution does.")
+
+
+def _top_names_en(x: dict) -> list:
+    """상위 종목을 **영어로**. 고르는 일은 이미 끝났다 — 이름만 붙인다."""
+    out = []
+    for t in x.get("top_raw") or []:
+        name = str(t["key"]).split(":")[-1]
+        if t["short"]:
+            name += " (short)"
+        if t["pending"]:
+            name += " (queued)"
+        out.append(name)
+    return out
+
+
+def build_captions_en(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
+    """영어 캡션. 반환: {"instagram", "threads", "date"} — 구조는 한국어와 같다."""
+    x = _today_numbers(status)
+    why = impossible_reason(x)
+    if why:
+        raise ImpossibleNumbers(
+            f"{x.get('date') or 'today'}: no caption is written — {why}\n"
+            "We do not edit the numbers to make them publishable. Fix the "
+            "ledger first, and disclose anything already published on "
+            "docs/trust.html.")
+    date = x["date"] or "today"
+    day = f"D+{x['day_no']}" if x["day_no"] else ""
+    eq = _fmt_krw(x["equity"]) if x["equity"] is not None else "—"
+    ret = (f"{x['return_pct']:+.2f}%" if x["return_pct"] is not None else "—")
+    dp = (f"{x['day_pct']:+.2f}%" if x.get("day_pct") is not None else None)
+    day_line = f" · today {dp}" if dp else ""
+    twr = (f"{x['twr_pct']:+.2f}%" if x.get("twr_pct") is not None else None)
+    gross = (f"{x['gross'] * 100:.0f}%" if x["gross"] is not None else "—")
+    inv = x.get("invested")
+    if inv is None:
+        money = f"target exposure {gross}"
+    else:
+        money = (f"invested {inv * 100:.0f}% · "
+                 f"cash {(1 - inv) * 100:.0f}%")
+        if x["gross"] is not None and abs(x["gross"] - inv) > 0.02:
+            pw = x.get("pending_w")
+            reason = (f"including {pw * 100:.0f}%pt waiting for the next open"
+                      if pw else "not yet filled up to target")
+            money += f" (today's target {gross} — {reason})"
+    names = _top_names_en(x)
+    tops = " · ".join(names) if names else "standing aside on everything"
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH
+    from quant.markets import AUTO_TARGETS
+    n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
+    n_held = x.get("n_held")
+    spread = (f"holding {n_held} of {n_sym} candidates today"
+              if isinstance(n_held, int) else f"{n_sym} candidates")
+    _p = x.get("principal")
+    if not isinstance(_p, (int, float)) or _p <= 0:
+        _p = PORTFOLIO_START_CASH
+    start = f"{_p:,.0f} KRW"
+    rs = x.get("restarted") or {}
+    restart_line = ""
+    if rs.get("date") and not x.get("equity"):
+        restart_line = (
+            f"\n🔁 On {rs['date']} the account was reopened on a won basis — "
+            f"the first record comes with the next dawn batch. Earlier records "
+            f"are not deleted; they stay public.")
+    kill = ("" if x["risk_scale"] >= 1.0 else
+            f"\n🛑 Kill switch — drawdown limit crossed, exposure capped at "
+            f"{x['risk_scale']:.0%}")
+    hands = []
+    if x.get("paused"):
+        hands.append("new orders paused (holdings kept)")
+    xs = x.get("exposure_scale")
+    if isinstance(xs, (int, float)) and abs(float(xs) - 1.0) > 1e-9:
+        hands.append(f"exposure multiplier {float(xs):.0%}")
+    owner = ("\n✋ A human intervened — " + " · ".join(hands)
+             + ". Today's result is not the strategy alone") if hands else ""
+
+    if not x["retrain_total"]:
+        work = "No retraining record this morning (market closed, or delayed)."
+    elif x["retrain_swaps"]:
+        work = (f"This morning {x['retrain_total']} symbols were retrained and "
+                f"the strategy changed on {x['retrain_swaps']} of them. "
+                "A swap happens only after passing two-stage validation "
+                "(a qualifier and a final).")
+    else:
+        work = (f"This morning {x['retrain_total']} symbols were retrained, "
+                "but no candidate beat the champion, so all were kept — a day "
+                "with no swap is the normal outcome. The rule is to change "
+                "only for something clearly better.")
+
+    twr_line = f" · skill measure (TWR) {twr}" if twr else ""
+    _vh = x.get("vs_hold")
+    if _vh:
+        _d = abs(_vh["diff"])
+        bench_line = (f"\n📊 Simply buying every symbol and holding would be "
+                      f"{_vh['hold']:,.0f} KRW — this system is "
+                      f"{_d:,.0f} KRW "
+                      f"{'ahead' if _vh['ahead'] else 'behind'}"
+                      f" ({_vh['diff_pct']:+.2f}%pt)")
+        bench_short = f" · vs holding {_vh['diff_pct']:+.2f}%pt"
+    else:
+        bench_line = bench_short = ""
+    ig = (
+        f"{_hook_en(x)}\n"
+        f"\n"
+        f"📊 1M Won Challenge {day} — {date}\n"
+        f"A public experiment: play money starting at {start}, with an AI that "
+        f"retrains and trades itself every morning. The goal is not 100 "
+        f"million — it is showing the whole process with nothing hidden.\n"
+        f"\n"
+        f"💰 Equity {eq} (cumulative {ret}{day_line}){twr_line}{bench_line}\n"
+        f"📈 {money} · {spread} (crypto · Korea · US)\n"
+        f"🎯 Largest allocations today: {tops}{kill}{owner}{restart_line}\n"
+        f"\n"
+        f"🤖 {work}\n"
+        f"\n"
+        f"⚠️ This is paper trading. No return is guaranteed, and the realistic "
+        f"ceiling on directional accuracy is 52–55%. We do not post only the "
+        f"good days — every day, that day's numbers go out as they are. The "
+        f"decisions, the ledger and the code are all public, so anyone can "
+        f"check them.\n"
+        f"\n"
+        f"🔗 {site_url}?lang=en\n"
+        f"{HASHTAGS_EN}"
+    )
+
+    short_money = (f"invested {inv * 100:.0f}% (target {gross})"
+                   if inv is not None else f"target exposure {gross}")
+    th = (
+        f"{_hook_en(x)}\n"
+        f"\n"
+        f"📊 1M Won Challenge {day} · {date}\n"
+        f"💰 {eq} (cumulative {ret}{day_line}{bench_short}) · {short_money}\n"
+        f"🎯 Top allocations: {tops}{kill}{owner}\n"
+        f"⚠️ Paper trading — no return guaranteed. Every day, as it is.\n"
+        f"🔗 {site_url}?lang=en"
+    )
+    if len(th) > THREADS_TEXT_LIMIT:
+        # 킬스위치와 사람의 개입은 하이라이트가 아니라 **고지**다 — 길이가
+        # 넘쳐도 지킨다(한국어판과 같은 규칙, 감사 97).
+        th = (
+            f"📊 1M Won Challenge {day} · {date}\n"
+            f"💰 {eq} (cumulative {ret}{day_line}{bench_short}){kill}{owner}\n"
+            f"⚠️ Paper trading — no return guaranteed. Every day, as it is.\n"
+            f"🔗 {site_url}?lang=en"
+        )
+    return {"instagram": ig, "threads": th, "date": date}
+
+
 class PublishedContentChanged(RuntimeError):
     """이미 공개된 날의 글을 다시 쓰려 했다 — 과거는 고치지 않는다."""
 
@@ -487,13 +681,18 @@ def write_content(docs_dir: str = "docs",
     with open(os.path.join(docs_dir, "status.json"), encoding="utf-8") as f:
         status = json.load(f)
     caps = build_captions(status, site_url)
+    # 영어판도 **같은 관문을 지나 같은 숫자로** 만들어진다(번역이 아니다).
+    caps_en = build_captions_en(status, site_url)
     date = caps["date"]
     out_dir = os.path.join(docs_dir, "social", date)
+    files = (("caption_instagram.txt", caps["instagram"]),
+             ("caption_threads.txt", caps["threads"]),
+             ("caption_instagram_en.txt", caps_en["instagram"]),
+             ("caption_threads_en.txt", caps_en["threads"]))
 
     if not force:
         changed = []
-        for name, text in (("caption_instagram.txt", caps["instagram"]),
-                           ("caption_threads.txt", caps["threads"])):
+        for name, text in files:
             fp = os.path.join(out_dir, name)
             if not os.path.exists(fp):
                 continue
@@ -519,8 +718,7 @@ def write_content(docs_dir: str = "docs",
         "images": [f for f, _ in CAPTURE_PLAN],
         "pages": {f: p for f, p in CAPTURE_PLAN},
     }
-    for name, text in (("caption_instagram.txt", caps["instagram"]),
-                       ("caption_threads.txt", caps["threads"])):
+    for name, text in files:
         with open(os.path.join(out_dir, name), "w", encoding="utf-8") as f:
             f.write(text)
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as f:
@@ -559,9 +757,22 @@ def refresh_latest(docs_dir: str = "docs", date: str | None = None) -> dict:
         with open(os.path.join(out_dir, name), encoding="utf-8") as f:
             return f.read()
 
+    def _read_if(name: str) -> str | None:
+        """옛 폴더에는 영어판이 없다 — 없는 것을 지어내지 않고 비운다."""
+        try:
+            return _read(name)
+        except OSError:
+            return None
+
+    caps = {"instagram": _read("caption_instagram.txt"),
+            "threads": _read("caption_threads.txt")}
+    for key, name in (("instagram_en", "caption_instagram_en.txt"),
+                      ("threads_en", "caption_threads_en.txt")):
+        text = _read_if(name)
+        if text is not None:
+            caps[key] = text
     latest = {**json.loads(_read("meta.json")), "path": f"social/{date}",
-              "captions": {"instagram": _read("caption_instagram.txt"),
-                           "threads": _read("caption_threads.txt")}}
+              "captions": caps}
     if os.path.exists(os.path.join(out_dir, CORRECTION_FILE)):
         # 정정문이 있는 날의 글은 **올리면 안 되는 글**이다. 포인터가 그
         # 사실을 말하지 않으면 어드민은 그것을 오늘의 원고로 내민다.
