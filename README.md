@@ -1,5 +1,8 @@
 # Quant — 주식·코인 퀀트 자동투자 시스템
 
+> 🇬🇧 **English: [README.en.md](README.en.md)** — 한국어가 원본입니다.
+> 두 문서가 다르면 한국어가 맞고 영어가 낡은 것입니다.
+
 ![CI](https://github.com/tobe2111/insta-story-downloader/actions/workflows/ci.yml/badge.svg)
 
 Python 기반의 **퀀트 트레이딩 프레임워크**입니다. 코인(암호화폐), 국내주식,

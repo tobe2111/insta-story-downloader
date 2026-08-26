@@ -451,15 +451,22 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 (function(){
   /* 언어 버튼은 **지금 언어의 반대**를 권한다 — 지금 영어인데 'EN'이
      떠 있으면 되돌아갈 길이 없어 보인다. */
-  var en=/[?&]lang=en/.test(location.search)||(function(){
-    try{return localStorage.getItem("quant.lang")==="en"}catch(e){return false}
-  })();
-  if(en){
-    var a=document.getElementById("navlang");
-    if(a){a.textContent="한국어";a.href="?lang=ko"}
-    var m=document.getElementById("mlang");
-    if(m){m.textContent="한국어";m.href="?lang=ko"}
+  /* ⚠️ "지금 영어인가"는 QuantI18N 한 곳에서만 판단한다(FROZEN_IDEAS ①).
+     여기 사본이 따로 있었는데, 브라우저 언어로 자동 전환이 생기자마자
+     어긋났다 — 영어로 보고 있는 사람에게 버튼이 'EN'이라 되돌아갈 길이
+     없어 보였다. i18n.js는 defer라 파싱이 끝난 뒤에 실행되므로 판단은
+     DOMContentLoaded까지 미룬다. */
+  function paintLang(){
+    var en=window.QuantI18N&&QuantI18N.current()==="en";
+    [["navlang","EN"],["mlang","English"]].forEach(function(pair){
+      var el=document.getElementById(pair[0]); if(!el)return;
+      el.textContent=en?"한국어":pair[1];
+      el.href=en?"?lang=ko":"?lang=en";
+    });
   }
+  if(document.readyState==="loading")
+    document.addEventListener("DOMContentLoaded",paintLang);
+  else paintLang();
   document.querySelectorAll("#navlang,#mlang").forEach(function(el){
     el.addEventListener("click",function(e){
       e.preventDefault();
