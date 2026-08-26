@@ -160,6 +160,13 @@ python -m py_compile $(find quant examples tests -name "*.py")  # syntax check
 
 ## The unified CLI (recommended)
 
+> 🌐 **In English**: add `--lang en`, or set `QUANT_LANG=en` once and every
+> command follows. The web cockpit switches with the same button as the site,
+> and opens in English by itself when your browser does not ask for Korean
+> first. Anything not yet in the dictionary **stays in Korean** rather than
+> being machine-translated — a rough translation next to a number is a claim
+> that is not true.
+
 One command runs each of the main jobs:
 
 ```bash

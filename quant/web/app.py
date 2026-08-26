@@ -136,6 +136,10 @@ _STYLE = """
    color:var(--muted);transition:background .15s,color .15s}
  nav a:hover{background:var(--bg2);color:var(--fg);text-decoration:none}
  nav a.on{color:var(--fg);background:var(--accent-soft);font-weight:650}
+ /* 언어 버튼 — 좁은 화면에서도 남긴다(글자 두 개라 자리를 안 먹고,
+    영어권 사용자가 못 찾으면 조종석은 한국어 전용 프로그램이다). */
+ nav a.qlang{margin-left:auto;border:1px solid var(--line);font-size:12px;
+   font-weight:700;letter-spacing:.04em}
  .steps{display:flex;gap:0;margin:16px 0 4px;border:1px solid var(--line);
    border-radius:var(--radius);overflow:hidden;background:var(--bg3)}
  .steps a{flex:1;padding:10px 8px;text-align:center;font-size:12px;color:var(--muted);
@@ -213,16 +217,53 @@ _NAV_ITEMS = [("/", "백테스트"), ("/portfolio", "포트폴리오"),
               ("/halt", "긴급 정지"), ("/consent", "수집 동의")]
 
 
+# 언어 버튼 — 조종석도 영어로 읽힌다(2026-08-26 사장님 지시). 사이트와
+# **같은 엔진·같은 사전**을 쓰므로 버튼도 사이트와 같은 방식으로 동작한다:
+# 지금 언어의 반대를 권하고, 누르면 새로고침되며 선택이 브라우저에 남는다.
+_LANG_BTN = """<a class="qlang" id="qlang" href="?lang=en">EN</a>
+<script>
+(function(){
+  function paint(){
+    var el=document.getElementById("qlang"); if(!el)return;
+    var en=window.QuantI18N&&QuantI18N.current()==="en";
+    el.textContent=en?"한국어":"EN";
+    var u=new URL(location.href);
+    u.searchParams.set("lang",en?"ko":"en");
+    el.href=u.pathname+u.search;
+  }
+  if(document.readyState==="loading")
+    document.addEventListener("DOMContentLoaded",paint);
+  else paint();
+})();
+</script>"""
+
+
 def _nav(active: str = "") -> str:
     on = ' class="on"'
     links = "".join(
         f'<a href="{p}"{on if p == active else ""}>{t}</a>'
         for p, t in _NAV_ITEMS)
     return ('<div class="topbar"><nav><span class="logo">QUANT<em>.</em></span>'
-            + links + "</nav></div>")
+            + links + _LANG_BTN + "</nav></div>")
 
 
 _NAV = _nav()   # 외부 생성 문서(리포트/대시보드)에 주입할 때 쓰는 기본 내비게이션
+
+# ── 조종석도 영어로 읽힌다 ─────────────────────────────────────
+#
+# 사장님 지시(2026-08-26): *"서비스 영어로도 만들어줘 홈페이지나 프로그램이나."*
+#
+# ⚠️ **사전을 여기 다시 적지 않는다.** 사이트가 쓰는 엔진(i18n.js)과 사전
+#    (i18n-en.js)을 그대로 실어 나른다 — 조종석은 정적 경로가 없는 단일 파일
+#    서버라 <script src>를 못 쓸 뿐, 파일은 여전히 한 개다. 사전을 고치면
+#    사이트와 조종석이 같이 바뀐다(FROZEN_IDEAS ①, hitrate.js와 같은 방식).
+#
+# 페이지 이름을 따로 알려 준다: 조종석의 주소는 "/" 라 사이트의 index.html과
+# 구별되지 않는다. 그대로 두면 "이 페이지는 일부만 번역됐습니다" 안내가
+# 사이트 첫 화면 기준으로 뜬다 — 여기서는 사실이 아닐 수 있다.
+def _i18n() -> str:
+    return ('<script>window.QUANT_I18N_PAGE="cockpit.html";</script>'
+            + _inline_asset("i18n-en.js") + _inline_asset("i18n.js"))
 
 # 실행 버튼 → 결과까지 수 초~수십 초 걸린다(ML은 20~30초). 표시가 없으면
 # 사용자는 멈춘 줄 알고 닫는다 — 폼 제출 시 오버레이를 띄우고 중복 제출을 막는다.
@@ -308,7 +349,7 @@ def _page(title: str, body: str, active: str = "") -> str:
             f'<style>{_STYLE}</style></head><body><div class="wrap">\n'
             f'{_nav(active)}\n'
             f'<div class="tickbar"><div class="tin" id="tickbar">&nbsp;</div></div>\n'
-            f'{body}\n</div>{_BUSY}{_UX_JS}{_TICKER_JS}</body></html>')
+            f'{body}\n</div>{_BUSY}{_UX_JS}{_TICKER_JS}{_i18n()}</body></html>')
 
 
 def _msg_html(message: str) -> str:
@@ -2376,7 +2417,7 @@ setInterval(()=>candleTick(false),15000);
 setInterval(()=>candleTick(true),45000);
 setTimeout(()=>candleTick(false),800);
 setInterval(()=>{{document.getElementById("clock").textContent=new Date().toLocaleString("ko-KR")}},1000);
-</script></body></html>"""
+</script>{_i18n()}</body></html>"""
 
 
 # ── 수동 킬스위치(긴급 정지) — 구축 사례(2026-08-18)에서 채택 ─────────

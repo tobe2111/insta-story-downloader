@@ -297,7 +297,10 @@
    * 남아 있는데 아무 말도 없으면 읽는 사람은 그것을 **고장**으로 읽는다.
    */
   function notice() {
-    var here = (location.pathname.split("/").pop() || "index.html");
+    // 페이지가 자기 이름을 직접 알려 줄 수 있다 — 조종석은 주소가 "/"라
+    // 사이트 첫 화면과 구별되지 않는다(quant/web/app.py가 심는다).
+    var here = root.QUANT_I18N_PAGE
+      || (location.pathname.split("/").pop() || "index.html");
     var partial = (root.QUANT_EN && root.QUANT_EN.partial) || [];
     if (partial.indexOf(here) < 0) return;
     var bar = document.createElement("div");

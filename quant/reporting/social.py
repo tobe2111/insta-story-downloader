@@ -522,10 +522,10 @@ def _top_names_en(x: dict) -> list:
 def build_captions_en(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
     """영어 캡션. 반환: {"instagram", "threads", "date"} — 구조는 한국어와 같다."""
     x = _today_numbers(status)
-    why = impossible_reason(x)
-    if why:
+    blocked = impossible_reason(x)
+    if blocked:
         raise ImpossibleNumbers(
-            f"{x.get('date') or 'today'}: no caption is written — {why}\n"
+            f"{x.get('date') or 'today'}: no caption is written — {blocked}\n"
             "We do not edit the numbers to make them publishable. Fix the "
             "ledger first, and disclose anything already published on "
             "docs/trust.html.")
@@ -550,21 +550,21 @@ def build_captions_en(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
             money += f" (today's target {gross} — {reason})"
     names = _top_names_en(x)
     tops = " · ".join(names) if names else "standing aside on everything"
-    from quant.live.ledger_basics import PORTFOLIO_START_CASH
+    from quant.live.ledger_basics import PORTFOLIO_START_CASH as _START
     from quant.markets import AUTO_TARGETS
     n_sym = x.get("n_symbols") or len(AUTO_TARGETS)
     n_held = x.get("n_held")
     spread = (f"holding {n_held} of {n_sym} candidates today"
               if isinstance(n_held, int) else f"{n_sym} candidates")
-    _p = x.get("principal")
-    if not isinstance(_p, (int, float)) or _p <= 0:
-        _p = PORTFOLIO_START_CASH
-    start = f"{_p:,.0f} KRW"
-    rs = x.get("restarted") or {}
+    _principal = x.get("principal")
+    if not isinstance(_principal, (int, float)) or _principal <= 0:
+        _principal = _START
+    start = f"{_principal:,.0f} KRW"
+    restart = x.get("restarted") or {}
     restart_line = ""
-    if rs.get("date") and not x.get("equity"):
+    if restart.get("date") and not x.get("equity"):
         restart_line = (
-            f"\n🔁 On {rs['date']} the account was reopened on a won basis — "
+            f"\n🔁 On {restart['date']} the account was reopened on a won basis — "
             f"the first record comes with the next dawn batch. Earlier records "
             f"are not deleted; they stay public.")
     kill = ("" if x["risk_scale"] >= 1.0 else
@@ -593,15 +593,15 @@ def build_captions_en(status: dict, site_url: str = DEFAULT_SITE_URL) -> dict:
                 "only for something clearly better.")
 
     twr_line = f" · skill measure (TWR) {twr}" if twr else ""
-    _vh = x.get("vs_hold")
-    if _vh:
-        _d = abs(_vh["diff"])
+    _bench = x.get("vs_hold")
+    if _bench:
+        _d = abs(_bench["diff"])
         bench_line = (f"\n📊 Simply buying every symbol and holding would be "
-                      f"{_vh['hold']:,.0f} KRW — this system is "
+                      f"{_bench['hold']:,.0f} KRW — this system is "
                       f"{_d:,.0f} KRW "
-                      f"{'ahead' if _vh['ahead'] else 'behind'}"
-                      f" ({_vh['diff_pct']:+.2f}%pt)")
-        bench_short = f" · vs holding {_vh['diff_pct']:+.2f}%pt"
+                      f"{'ahead' if _bench['ahead'] else 'behind'}"
+                      f" ({_bench['diff_pct']:+.2f}%pt)")
+        bench_short = f" · vs holding {_bench['diff_pct']:+.2f}%pt"
     else:
         bench_line = bench_short = ""
     ig = (
