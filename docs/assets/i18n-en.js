@@ -242,7 +242,6 @@
       "실측 최악 113분": "worst observed gap 113 min",
       "— 이 기준은 첫 기록이 쌓이기 전에 등록했고 바꾸지 않는다. 바꿔야 한다면 그 사실과 이유를 이 자리에 함께 공개한다.":
         "— these criteria were registered before the first record and are not changed. If they ever must change, the change and the reason are published right here.",
-      "수정 공지 (2026-08-18)": "Amendment notice (2026-08-18)",
       "관찰 90일 이상 — 충족 전에는 어떤 승패 판정도 내리지 않는다(30일 시점은 중간 참고 판독만)":
         "At least 90 days of observation — no win-or-lose verdict before that (day 30 is an interim read only)",
       "비용을 뺀 누적 수익률이 같은 기간 본 계좌(하루 1회 판단)보다 높다":
@@ -665,8 +664,6 @@
       "/ 90일": "/ 90 days",
       "엣지 판정은 시계가 다 돌기 전엔 하지 않습니다.":
         "No edge verdict is made before the clock runs out.",
-      "📝 수정 공지 2026-08-18: 개선해도 시계는 리셋하지 않습니다 — 대신 변경 이력을 전부 공개합니다. 이력 3건: 2026-08-18 실측 피처 구성 · 2026-08-19 유니버스 · 2026-08-22 유니버스":
-        "📝 Amendment 2026-08-18: improvements no longer reset the clock — instead every change is published. Three entries: 2026-08-18 measured feature set · 2026-08-19 universe · 2026-08-22 universe",
       "💰 돈이 지금 어디 있나": "💰 Where the money is right now",
       "🚩 지금 켜진 경고": "🚩 Warnings currently lit",
       "리스크 잠금": "Risk locked",
@@ -3451,6 +3448,20 @@
       ["^페이퍼 매매 부분 실패 (\\d+)종목$", "Paper trading partly failed on $1 symbol(s)"],
       ["^(\\d{4}-\\d{2}-\\d{2}) · (.+) → (.+)$", "$1 · $2 → $3"],
       ["^마지막 갱신: (.+)$", "Last updated: $1"],
+      // ⚠️ 수정 공지의 날짜도 장부(amended.on)에서 온다 — 사전 열쇠에 박으면
+      //    공지가 갱신되는 날 영어가 사라진다. 2026-08-26에 새로 붙인
+      //    검사(test_no_dictionary_key_pins_a_date)가 남아 있던 이 하나를
+      //    찾아냈다. 화면이 괄호를 붙이는 쪽과 안 붙이는 쪽이 둘 다 있다
+      //    (intraday·index).
+      ["^수정 공지 \\((\\d{4}-\\d{2}-\\d{2})\\)$", "Amendment notice ($1)"],
+      // 판정 시계의 수정 공지는 **문장 전체가 실행 중에 조립된다** — 날짜도
+      // 이력 개수도 이력 목록도 장부에서 온다. 사전에 통째로 넣으면 구조
+      // 변경이 하나 늘어나는 날 영어가 사라진다(2026-08-26 검사가 잡음).
+      // 꼬리(이력 목록)는 한국어로 남는다 — 지어내지 않는 것이 규칙이다.
+      ["^📝 수정 공지 (\\d{4}-\\d{2}-\\d{2}): 개선해도 시계는 리셋하지 않습니다 — 대신 변경 이력을 전부 공개합니다\\. 이력 (\\d+)건: (.+)$",
+       "📝 Amendment notice $1: improving the system does not reset the clock — every change is published instead. $2 changes: $3"],
+      ["^📝 수정 공지 (\\d{4}-\\d{2}-\\d{2}): 개선해도 시계는 리셋하지 않습니다 — 대신 변경 이력을 전부 공개합니다\\. \\(아직 변경 없음\\)$",
+       "📝 Amendment notice $1: improving the system does not reset the clock — every change is published instead. (no changes yet)"],
       ["^의 숫자입니다 — 그냥 보유도 살 때 한 번은 수수료를 냅니다\\((\\d{4}-\\d{2}-\\d{2}) 교정\\)\\. 본 계좌는 하루 한 번 새벽에 확정되므로 마지막 확정일\\((\\d{4}-\\d{2}-\\d{2})\\) 기준입니다\\. 실험 시작\\((\\d{4}-\\d{2}-\\d{2})\\) 이후의 변화율끼리 비교합니다 — 표본이 판정 기준\\(위\\)을 채우기 전의 우열은 운과 구별되지 않습니다\\.$",
        " figures — buy & hold also pays a fee once, at purchase (corrected $1). The main account settles once a day at dawn, so it is shown as of its last settlement ($2). The comparison is between rates of change since the experiment began ($3) — any lead before the sample meets the criteria above is indistinguishable from luck."],
       ["^평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다$",

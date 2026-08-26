@@ -6357,11 +6357,6 @@ MUTATIONS = [
      '    "  #qnav .qn-burger{display:inline-flex}}",',
      '    "  #qnav .qn-burger{display:none}}",',
      "tests/test_the_site_wears_one_navbar.py"),
-    ("모바일에서 홈 바의 삼단 바가 다시 사라진다(막다른 길 재발)",
-     "docs/index.html",
-     "  .burger{display:inline-flex}",
-     "  .burger{display:none}",
-     "tests/test_the_site_wears_one_navbar.py"),
 
     # ── DART 한국 발표일 — 키 조건부 수집 (2026-08-23) ────────────────
     ("코드표 갱신 실패를 오늘 도장으로 찍는다(30일간 재시도가 죽는다)",
@@ -7135,11 +7130,11 @@ MUTATIONS = [
      '    ["us.html", "미국주식 단타"],',
      '',
      'tests/test_one_page_per_account.py'),
-    ('상단 바에서 실기록 페이지를 뺀다(정리하다 기록이 조용히 사라진다)',
-     'docs/assets/nav.js',
-     '    ["paper.html", "실기록 (100만)"],',
-     '',
-     'tests/test_one_page_per_account.py'),
+    # ⚠️ 이 자리에는 "상단 바에서 실기록 페이지를 뺀다"가 있었다. 2026-08-26에
+    #    그 셋을 **일부러** 메뉴에서 뺐으므로(홈으로 합침) 앵커를 옮긴다:
+    #    지켜야 할 것은 "메뉴에 있다"가 아니라 **"닿을 수 있다"**였다.
+    #    지금 그 자리는 홈 본문의 '더 깊이 보기' 줄이고, 위의
+    #    '메뉴에서 뺀 화면으로 가는 길을 본문에서도 없앤다'가 그것을 지킨다.
     ('트랙 넷의 차례를 흩는다(어디에 무엇이 있는지 매번 다시 찾게 된다)',
      'docs/assets/nav.js',
      '    ["index.html", "100만 챌린지"],\n    ["intraday.html", "코인 단타"],',
@@ -7662,20 +7657,55 @@ MUTATIONS = [
      'tests/test_the_verdict_moves_the_knob_by_itself.py'),
 
     # ── 대시보드로 가는 문 (2026-08-25 감사 317) ────────────────────
-    ('홈 바에서 대시보드 문을 뗀다(주소를 외우는 사람만 갈 수 있다)',
-     'docs/index.html',
-     '  <a class="navdash" href="admin.html" title="운영 설정(로그인 필요)">',
-     '  <a class="navdash-off" href="#" title="운영 설정(로그인 필요)">',
-     'tests/test_the_site_wears_one_navbar.py'),
-    ('홈의 모바일 메뉴에서 대시보드 문을 뗀다(폰에서는 막다른 길이 된다)',
-     'docs/index.html',
-     '    <a class="mdash" href="admin.html">대시보드 (운영 설정)</a>',
-     '    <span class="mdash-off">대시보드 (운영 설정)</span>',
-     'tests/test_every_public_page_actually_renders.py'),
     ('좁은 화면에서도 바 버튼을 그대로 둔다(제목을 밀어낸다)',
+     'docs/assets/nav.js',
+     '    "@media(max-width:820px){#qnav .qn-dash{display:none}}",',
+     '    "@media(max-width:820px){#qnav .qn-dash{opacity:.99}}",',
+     'tests/test_the_site_wears_one_navbar.py'),
+    # ── 영어 사전이 매일 밤 만료되던 것 (2026-08-26) ──────────────────
+    ('날짜를 규칙이 아니라 사전 열쇠에 박는다(다음 밤 배치에 스스로 만료된다)',
+     'docs/assets/i18n-en.js',
+     r'["^수정 공지 \\((\\d{4}-\\d{2}-\\d{2})\\)$", "Amendment notice ($1)"],',
+     '      "수정 공지 (2026-08-18)": "Amendment notice (2026-08-18)",',
+     'tests/test_the_site_reads_in_english_too.py'),
+    ('확정일이 든 긴 문장의 날짜를 안 붙잡는다(단타 페이지에 한국어가 남는다)',
+     'docs/assets/i18n-en.js',
+     r'마지막 확정일\\((\\d{4}-\\d{2}-\\d{2})\\) 기준입니다',
+     r'마지막 확정일\\(2026-08-24\\) 기준입니다',
+     'tests/test_the_site_reads_in_english_too.py'),
+
+    # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
+    ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',
-     '@media(max-width:820px){.navdash{display:none}}',
-     '@media(max-width:820px){.navdash{opacity:.99}}',
+     '    card.style.display="";',
+     '    card.style.display="none";',
+     'tests/test_every_public_page_actually_renders.py'),
+    ('주간 수익률을 홈이 다시 센다(감사 246 — 같은 판정을 두 곳에서 하면 갈라진다)',
+     'docs/index.html',
+     "          '\">'+cell(r.return_pct)+'</td><td>'+",
+     "          '\">'+cell(r.day_pct)+'</td><td>'+",
+     'tests/test_the_hundred_man_account_lives_on_one_page.py'),
+    ('메뉴에서 뺀 화면으로 가는 길을 본문에서도 없앤다(정리가 아니라 기록 차단)',
+     'docs/index.html',
+     '        <a href="paper.html">종목별 참고 계좌·일별 기록</a> ·',
+     '        <span>종목별 참고 계좌·일별 기록</span> ·',
+     'tests/test_the_hundred_man_account_lives_on_one_page.py'),
+    ('통합 계좌 카드 제목을 다시 내부 키로 찍는다(사람이 읽을 이름이 아니다)',
+     'docs/paper.html',
+     '    const title = isPf ? "통합 계좌 (100만 챌린지)"',
+     '    const title = isPf ? k',
+     'tests/test_the_screen_speaks_korean_not_code.py'),
+    ('자산군 코어 한 종목의 이름을 뗀다(그 종목만 화면에서 생 티커가 된다)',
+     'quant/markets.py',
+     '        "name": "달러",',
+     '        "name": "UUP",',
+     'tests/test_the_universe_says_what_it_is.py'),
+
+    # ── 상단 바를 한 벌로 통일 (2026-08-26 사장님: "일치시켜줘") ──────
+    ('홈이 공용 바를 안 싣는다(첫 화면에서만 메뉴가 통째로 사라진다)',
+     'docs/index.html',
+     '<script src="assets/nav.js" defer></script>',
+     '<script src="assets/nav-off.js" defer></script>',
      'tests/test_every_public_page_actually_renders.py'),
     ('공용 바의 대시보드 문이 딴 데로 간다(누르면 첫 화면으로 돌아온다)',
      'docs/assets/nav.js',
@@ -7813,10 +7843,13 @@ MUTATIONS = [
      '    guessed_note();',
      '    ;',
      'tests/test_the_site_reads_in_english_too.py'),
-    ('첫 화면이 언어를 스스로 한 번 더 판단한다(되돌아갈 버튼이 EN으로 남는다)',
-     'docs/index.html',
-     '    var en=window.QuantI18N&&QuantI18N.current()==="en";',
-     '    var en=/[?&]lang=en/.test(location.search);',
+    # ⚠️ 이 앵커는 홈의 손수 만든 바(docs/index.html의 인라인 스크립트)를
+    #    겨누고 있었다. 2026-08-26에 홈이 공용 바를 쓰게 되면서 그 스크립트가
+    #    사라졌고, 같은 판단이 nav.js 한 곳으로 옮겨 갔다 — 앵커도 옮긴다.
+    ('바가 언어를 스스로 한 번 더 판단한다(되돌아갈 버튼이 EN으로 남는다)',
+     'docs/assets/nav.js',
+     '    var other = (root.QuantI18N && QuantI18N.current() === "en") ? "ko" : "en";',
+     '    var other = /[?&]lang=en/.test(root.location.search) ? "ko" : "en";',
      'tests/test_the_site_reads_in_english_too.py'),
 
     # ── 방송도 영어로 나간다 (감사 325) ──────────────────────────
@@ -7917,11 +7950,6 @@ MUTATIONS = [
      '    mo.observe(document.body, {\n      childList: true, subtree: true, characterData: true});',
      '    if (false) mo.observe(document.body, {\n      childList: true, subtree: true, characterData: true});',
      'tests/test_the_site_reads_in_english_too.py'),
-    ('홈 바에서 언어 버튼을 뗀다(영어권 방문자에게 한국어 전용 사이트가 된다)',
-     'docs/index.html',
-     '  <a class="navlang" id="navlang" href="?lang=en">EN</a>',
-     '  <span class="navlang-off" id="navlang">EN</span>',
-     'tests/test_the_site_reads_in_english_too.py'),
     ('공용 바에서 언어 버튼을 뗀다(홈 밖에서는 되돌아갈 길이 없다)',
      'docs/assets/nav.js',
      '    html.push(\'<a class="qn-lang" href="#" data-qn-lang="\' + other + \'">\' +',
@@ -7944,11 +7972,6 @@ MUTATIONS = [
      '    var url=window.QuantTV&&QuantTV.tvEmbedUrl("crypto:BTC/USDT",{',
      'tests/test_the_first_screen_answers_the_first_question.py'),
 
-    ('홈 바에서만 머신러닝 페이지를 뺀다(다른 페이지엔 있는 메뉴가 첫 화면에만 없다)',
-     'docs/index.html',
-     '  <a class="lnk" href="ml.html">머신러닝</a>',
-     '  <span class="lnk-off">머신러닝</span>',
-     'tests/test_the_site_wears_one_navbar.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

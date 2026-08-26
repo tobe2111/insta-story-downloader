@@ -20,26 +20,77 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from quant.markets import AUTO_TARGETS, SYMBOL_INFO  # noqa: E402
+from quant.universe import (  # noqa: E402
+    CRYPTO_CORE, KR_ASSET_CORE, KR_CORE, US_ASSET_CORE, US_CORE,
+    active_targets,
+)
 
 
 def _keys():
     return [f"{m}:{s}" for m, s in AUTO_TARGETS]
 
 
+def _fixed_cores() -> list[str]:
+    """규칙으로 **박아 둔** 종목 — 매달 회전하지 않으므로 이름이 있어야 한다."""
+    return ([f"crypto:{s}" for s in CRYPTO_CORE]
+            + [f"kr_stock:{s}" for s in KR_CORE + KR_ASSET_CORE]
+            + [f"us_stock:{s}" for s in US_CORE + US_ASSET_CORE])
+
+
+def _must_be_named() -> list[str]:
+    """이름표가 반드시 덮어야 하는 목록.
+
+    ⚠️ 예전에는 이 검사가 ``AUTO_TARGETS``(옛 고정 20종목)만 봤다. 유니버스가
+       규칙 스냅샷으로 42종목이 된 2026-08-19 이후, 새로 들어온 스물두 종목은
+       **아무도 이름을 확인하지 않는 종목**이었다 — 그래서 사이트 전체에서
+       "UUP", "XLE", "132030.KS"로 나왔다(2026-08-26 사장님: "내용들이 무슨
+       말인지 모르겠어"). 하필 그날 잔고 1위가 UUP였다.
+
+       이제 셋을 합쳐 본다: 스냅샷이 없을 때 쓰는 고정 목록(AUTO_TARGETS),
+       규칙으로 박아 둔 코어, 그리고 **지금 실제로 운용 중인 목록**.
+    """
+    live = [f"{m}:{s}" for m, s in active_targets(str(ROOT / "state"))]
+    return sorted(set(_keys()) | set(_fixed_cores()) | set(live))
+
+
 def test_every_traded_symbol_has_a_name_and_a_reason():
     """이름이 없으면 사이트가 종목코드를 그대로 노출하고, 이유가 없으면
     '왜 이걸 굴리나'에 답할 수 없다."""
-    missing = [k for k in _keys() if k not in SYMBOL_INFO]
+    keys = _must_be_named()
+    missing = [k for k in keys if k not in SYMBOL_INFO]
     assert not missing, f"유니버스에 있는데 설명이 없는 종목: {missing}"
-    for k in _keys():
+    for k in keys:
         info = SYMBOL_INFO[k]
         assert info.get("name"), f"{k}: 이름이 비었다"
         assert info.get("why"), f"{k}: 편입 이유가 비었다"
 
 
+def test_a_name_is_a_meaning_not_a_ticker():
+    """이름이 종목 코드를 그대로 베낀 것이면 이름을 붙인 게 아니다.
+
+    대조군 — 위 검사만 있으면 ``{"name": "UUP"}``도 초록이다. 읽는 사람에게
+    "UUP"는 글자 셋이고 "달러"는 뜻이다. 이 저장소의 독자는 비개발자다.
+    """
+    bad = []
+    for key, info in SYMBOL_INFO.items():
+        symbol = key.split(":", 1)[1]
+        name = str(info.get("name", ""))
+        if name == symbol or name == symbol.split(".")[0]:
+            bad.append(f"{key} → {name!r}")
+    assert not bad, f"이름이 종목 코드 그대로다(뜻을 안 적었다): {bad}"
+
+
 def test_there_is_no_orphan_description():
-    """설명만 남고 유니버스에서 빠진 종목 — 사이트가 안 굴리는 걸 소개한다."""
-    orphans = sorted(set(SYMBOL_INFO) - set(_keys()))
+    """설명만 남고 유니버스에서 빠진 종목 — 사이트가 안 굴리는 걸 소개한다.
+
+    ⚠️ 회전분(매달 시총 상위로 갈리는 종목)은 여기서 고아로 치지 않는다.
+       이번 달에 빠졌다고 이름을 지우면 다음 달에 다시 들어올 때 또 생
+       티커가 된다. 기록도 남아 있어(장부는 지우지 않는다) 이름이 계속
+       필요하다. 고아는 **고정 코어도 아니고 옛 고정 목록도 아니고 지금
+       운용 목록도 아닌** 것만 뜻한다.
+    """
+    known = set(_must_be_named())
+    orphans = sorted(set(SYMBOL_INFO) - known)
     assert not orphans, f"유니버스에 없는데 설명이 남아 있다: {orphans}"
 
 

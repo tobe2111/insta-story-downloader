@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import functools
 import http.server
+import re
 import shutil
 import socketserver
 import sys
@@ -196,6 +197,41 @@ def test_clicking_a_symbol_opens_its_chart(browser, site):
     assert not errors, f"줄을 누르자 스크립트가 던졌다 — {errors}"
 
 
+def test_the_weekly_table_really_appears_on_the_home(browser, site):
+    """주간 표가 홈에서 **실제로 그려지는가** (2026-08-26 병합).
+
+    소스 계약(test_the_hundred_man_account_lives_on_one_page)은 배선이
+    적혀 있는지만 본다. 여기서는 진짜 브라우저가 카드를 열어 숫자를
+    확인한다 — 옛 주간 페이지가 스크립트 이름 하나 때문에 통째로 죽어
+    있던 적이 있다(감사 264). 옮긴 화면도 같은 방식으로 죽을 수 있다.
+    """
+    page = browser.new_page()
+    block_external(page)
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    try:
+        page.goto(f"{site}/index.html")
+        page.wait_for_timeout(2200)
+        page.click("#morebtn")
+        page.wait_for_timeout(500)
+        card = page.locator("#weekly-card")
+        assert card.is_visible(), (
+            "주간 카드가 안 열렸다 — 배선은 있는데 그려지지 않는다")
+        txt = card.inner_text()
+        assert "불러오는 중" not in txt, "주간 카드가 영원히 불러오는 중이다"
+        assert "주간 수익률" in txt, f"주간 표가 비어 있다:\n{txt[:300]}"
+        # 주 하나라도 실제 숫자가 있어야 한다 — 머리글만 있으면 빈 표다.
+        assert re.search(r"[+-]\d+\.\d\d%", txt), (
+            f"주간 표에 숫자가 없다 — 머리글만 그렸다:\n{txt[:300]}")
+        # 옮기면서 길을 끊지 않았는지 — 더 깊은 화면으로 가는 링크.
+        for href in ("paper.html", "today.html", "weekly.html"):
+            assert card.locator(f'a[href="{href}"]').count() == 1, (
+                f"{href}로 가는 길이 화면에 없다")
+    finally:
+        page.close()
+    assert not errors, f"주간 카드를 그리다 스크립트가 던졌다 — {errors}"
+
+
 # ── 소스 계약 — 페이지가 실패를 **말하는가** ──────────────────────
 
 @pytest.mark.parametrize("name", ["index.html", "today.html"])
@@ -213,9 +249,14 @@ def test_the_render_does_not_swallow_its_error(name):
 
 # ── 모바일 삼단 바 — 진짜 화면에서 열리는가 ──────────────────────
 
+# ⚠️ 2026-08-26부터 홈도 공용 바를 쓴다(사장님: "상단바도 페이지마다 구성이
+#    다르고 일치시켜줘"). 그전에는 홈만 선택자가 달랐다(.burger/.mnav) —
+#    선택자가 둘이라는 사실 자체가 구현이 둘이라는 증거였다. 그래도 홈은
+#    목록에 남긴다: 바를 실어야 할 페이지가 실제로 싣는지는 페이지마다 봐야
+#    한다(스크립트 한 줄이 빠지면 그 페이지만 조용히 바를 잃는다).
 @pytest.mark.parametrize("path,burger_sel,menu_link_sel", [
-    ("index.html", ".burger", ".mnav .mlnk"),          # 홈(원본 바)
-    ("trust.html", "#qnav .qn-burger", "#qnav .qn-menu a"),  # 공용 바
+    ("index.html", "#qnav .qn-burger", "#qnav .qn-menu a"),
+    ("trust.html", "#qnav .qn-burger", "#qnav .qn-menu a"),
 ])
 def test_the_mobile_menu_actually_opens(browser, site, path,
                                         burger_sel, menu_link_sel):

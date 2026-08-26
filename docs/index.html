@@ -68,60 +68,10 @@ a:hover{text-decoration:underline;text-underline-offset:3px}
 .num{font-variant-numeric:tabular-nums}
 .up{color:var(--up)} .down{color:var(--down)}
 
-/* ============ 상단 nav (풀와이드 고정) ============ */
-nav{position:sticky;top:0;z-index:40;height:var(--navh);
-  border-bottom:1px solid var(--line);
-  background:color-mix(in srgb,var(--bg) 88%,transparent);
-  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
-.navin{height:100%;display:flex;align-items:center;gap:4px;padding:0 22px}
-.logo{font-weight:800;font-size:15px;letter-spacing:.14em;color:var(--fg);
-  margin-right:18px}
-.logo:hover{text-decoration:none}
-.logo em{font-style:normal;color:var(--accent)}
-nav .lnk{color:var(--muted);font-size:13.5px;font-weight:500;padding:6px 12px;
-  border-radius:7px;white-space:nowrap}
-nav .lnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
-.navsp{margin-left:auto}
-.navcta{display:inline-flex;align-items:center;gap:7px;font-size:13px;
-  font-weight:700;color:#fff;background:var(--accent);
-  padding:8px 16px;border-radius:9px;white-space:nowrap}
-.navcta:hover{text-decoration:none;filter:brightness(1.08)}
-.navver{font-size:11px;color:var(--dim);margin-left:9px;white-space:nowrap}
-/* 대시보드 버튼 — 다운로드 버튼과 같은 크기·모양이되 채우지 않는다.
-   모바일(≤820px)에서는 상단 바에서 빠지고 삼단 바 메뉴 안(.mdash)으로
-   들어간다 — 좁은 화면에 버튼 둘을 나란히 두면 제목이 밀린다. */
-.navdash{display:inline-flex;align-items:center;gap:6px;font-size:13px;
-  font-weight:650;color:var(--muted);border:1px solid var(--line);
-  padding:7px 13px;border-radius:9px;white-space:nowrap;text-decoration:none;
-  margin-left:8px}
-.navdash:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
-.navdash svg{width:15px;height:15px;display:inline-block;margin:0}
-.mnav .mdash{color:var(--fg);font-size:15px;font-weight:650;padding:11px 12px;
-  border-radius:8px;text-decoration:none;border:1px solid var(--line);
-  margin-top:6px;text-align:center}
-@media(max-width:820px){.navdash{display:none}}
-/* 언어 버튼 — 좁은 화면에서도 **남긴다.** 글자 두 개라 자리를 거의 안
-   먹고, 영어권 방문자가 첫 화면에서 못 찾으면 그 사람에게 이 사이트는
-   한국어 전용이다. */
-.navlang{display:inline-flex;align-items:center;font-size:12px;font-weight:700;
-  letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);
-  border-radius:9px;padding:6px 10px;margin-left:8px;white-space:nowrap;
-  text-decoration:none}
-.navlang:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
-/* 삼단 바(모바일 메뉴, 2026-08-23 사장님: "모바일로 보면 다른 페이지를 볼
-   수가 없어"). 820px 아래에서 링크를 숨기기만 하고 대체 수단이 없었다. */
-.burger{display:none;background:none;border:0;cursor:pointer;padding:9px;
-  margin-left:6px;color:var(--fg);border-radius:8px}
-.burger:hover{background:var(--bg2)}
-.burger svg{width:22px;height:22px;display:block}
-.mnav{display:none;position:absolute;top:var(--navh);left:0;right:0;
-  flex-direction:column;gap:2px;padding:8px 14px 14px;background:var(--bg);
-  border-bottom:1px solid var(--line)}
-nav.open .mnav{display:flex}
-.mnav .mlnk{color:var(--muted);font-size:15px;font-weight:500;
-  padding:11px 12px;border-radius:8px;text-decoration:none}
-.mnav .mlnk:hover{color:var(--fg);background:var(--bg2);text-decoration:none}
-@media(min-width:821px){.mnav{display:none !important}}
+/* ⚠️ 상단 바 CSS는 여기 없다 — 공용 바(assets/nav.js)가 자기 CSS를 갖고
+   온다. 홈만 자기 바를 그리다 2026-08-26에 공용으로 합쳤다(사장님:
+   "상단바도 페이지마다 구성이 다르고 일치시켜줘"). 바 높이 56px은
+   --navh와 같은 값이라 아래 사이드바 sticky 계산은 그대로다. */
 
 /* ============ 시장 현황 띠 ============ */
 .strip{border-bottom:1px solid var(--line);background:var(--bg2);
@@ -365,8 +315,6 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
   .proof{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .proof .pv{font-size:17px}
   .main{padding:14px}
-  nav .lnk{display:none}
-  .burger{display:inline-flex}
 }
 </style>
 <script src="assets/i18n-en.js" defer></script>
@@ -374,120 +322,19 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
 </head>
 <body>
 
-<nav><div class="navin">
-  <a class="logo" href="index.html">QUANT<em>.</em></a>
-  <!-- ⚠️ 네 트랙을 **나란히, 같은 자리에** 둔다(2026-08-22 사장님 지시:
-       "100만원 투자 1페이지, 코인투자 1페이지, 선물투자 1페이지,
-        미국주식 1페이지 이렇게 나누자고. 지금은 막 섞여있어").
-       계좌가 넷이면 페이지도 넷이어야 한다 — 한 페이지에 두 계좌를 얹으면
-       읽는 사람이 매번 어느 숫자가 어느 계좌 것인지 골라내야 한다.
-       링크 구성이 assets/nav.js와 어긋나면 계약 검사가 잡는다. -->
-  <a class="lnk" href="index.html">100만 챌린지</a>
-  <a class="lnk" href="intraday.html">코인 단타</a>
-  <a class="lnk" href="us.html">미국주식 단타</a>
-  <a class="lnk" href="futures.html">코인 선물</a>
-  <span class="navsp" style="width:14px"></span>
-  <!-- ⚠️ paper.html은 100만 챌린지의 **자세히 보기**다(같은 트랙의 깊은
-       화면). 트랙 넷을 앞으로 뽑으면서 여기로 옮겼을 뿐, 감추지 않는다 —
-       화면을 정리한다면서 기록 하나가 사라지면 그건 정리가 아니다. -->
-  <!-- ⚠️ 머신러닝 페이지는 공용 바(assets/nav.js)에는 있는데 **홈 바에만
-       없었다.** 계약 검사가 "홈의 링크가 공용 바에 있는가" 한 방향만 봐서
-       공용 바에만 있는 링크는 걸리지 않았다(감사 317에서 양방향으로 고침). -->
-  <a class="lnk" href="ml.html">머신러닝</a>
-  <a class="lnk" href="paper.html">실기록 (100만)</a>
-  <a class="lnk" href="today.html">오늘의 판단</a>
-  <a class="lnk" href="trust.html">기록 검증</a>
-  <a class="lnk" href="weekly.html">주간 아카이브</a>
-  <span class="navsp"></span>
-  <a class="navcta" id="navdl"
-     href="https://github.com/tobe2111/insta-story-downloader/releases/latest">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-    무료 다운로드</a>
-  <!-- 대시보드(운영 설정)로 가는 문 — 2026-08-25 사장님 지시.
-       ⚠️ 눈에 띄는 파란 버튼(무료 다운로드)과 **경쟁하지 않게** 테두리만
-          있는 버튼으로 둔다. 방문자에게 중요한 것은 여전히 기록이다.
-       ⚠️ 이 문 뒤는 Cloudflare의 ADMIN_ID/ADMIN_PW 시크릿이 설정돼 있을
-          때만 로그인창이 뜬다(서버측 검증 — worker.js). 시크릿이 없으면
-          페이지는 열리지만 토큰 없이는 아무것도 바꿀 수 없다. -->
-  <a class="navdash" href="admin.html" title="운영 설정(로그인 필요)">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="7" height="9" rx="1.5"/>
-      <rect x="14" y="3" width="7" height="5" rx="1.5"/>
-      <rect x="14" y="12" width="7" height="9" rx="1.5"/>
-      <rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-    대시보드</a>
-  <!-- 언어 — 누르면 새로고침되며 선택이 이 브라우저에 남는다.
-       영어는 사전(assets/i18n-en.js)에 있는 문장만 바뀌고, 없는 문장은
-       한국어로 남는다. 기계 번역으로 메우지 않는다. -->
-  <a class="navlang" id="navlang" href="?lang=en">EN</a>
-  <span class="navver" id="navver">v0.14.1</span>
-  <!-- 삼단 바 — 링크 목록은 위 .lnk와 1:1이어야 한다(계약 검사 대상).
-       데스크톱에서는 CSS가 버튼·메뉴를 숨긴다. -->
-  <button class="burger" type="button" aria-label="메뉴 열기"
-    aria-expanded="false"><svg viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-    <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
-  <div class="mnav">
-    <a class="mlnk" href="index.html">100만 챌린지</a>
-    <a class="mlnk" href="intraday.html">코인 단타</a>
-    <a class="mlnk" href="us.html">미국주식 단타</a>
-    <a class="mlnk" href="futures.html">코인 선물</a>
-    <a class="mlnk" href="ml.html">머신러닝</a>
-    <a class="mlnk" href="paper.html">실기록 (100만)</a>
-    <a class="mlnk" href="today.html">오늘의 판단</a>
-    <a class="mlnk" href="trust.html">기록 검증</a>
-    <a class="mlnk" href="weekly.html">주간 아카이브</a>
-    <!-- 모바일에서도 닿아야 한다 — 사장님 지시가 "모바일 기준으로도"였다.
-         메뉴 링크(.mlnk)와 **다른 클래스**를 쓴다: .mlnk 목록은 상단 바의
-         .lnk와 글자까지 같아야 하는 계약이라, 여기 섞으면 계약이 깨진다. -->
-    <a class="mdash" href="admin.html">대시보드 (운영 설정)</a>
-    <a class="mdash" id="mlang" href="?lang=en">English</a>
-  </div>
-</div></nav>
-<script>
-(function(){
-  /* 언어 버튼은 **지금 언어의 반대**를 권한다 — 지금 영어인데 'EN'이
-     떠 있으면 되돌아갈 길이 없어 보인다. */
-  /* ⚠️ "지금 영어인가"는 QuantI18N 한 곳에서만 판단한다(FROZEN_IDEAS ①).
-     여기 사본이 따로 있었는데, 브라우저 언어로 자동 전환이 생기자마자
-     어긋났다 — 영어로 보고 있는 사람에게 버튼이 'EN'이라 되돌아갈 길이
-     없어 보였다. i18n.js는 defer라 파싱이 끝난 뒤에 실행되므로 판단은
-     DOMContentLoaded까지 미룬다. */
-  function paintLang(){
-    var en=window.QuantI18N&&QuantI18N.current()==="en";
-    [["navlang","EN"],["mlang","English"]].forEach(function(pair){
-      var el=document.getElementById(pair[0]); if(!el)return;
-      el.textContent=en?"한국어":pair[1];
-      el.href=en?"?lang=ko":"?lang=en";
-    });
-  }
-  if(document.readyState==="loading")
-    document.addEventListener("DOMContentLoaded",paintLang);
-  else paintLang();
-  document.querySelectorAll("#navlang,#mlang").forEach(function(el){
-    el.addEventListener("click",function(e){
-      e.preventDefault();
-      if(window.QuantI18N)QuantI18N.set(/lang=en/.test(el.href)?"en":"ko");
-      else location.href=el.href;
-    });
-  });
-})();
-(function(){
-  var nav=document.querySelector("nav"),b=document.querySelector(".burger");
-  function setOpen(o){nav.classList.toggle("open",o);
-    b.setAttribute("aria-expanded",o?"true":"false");
-    b.setAttribute("aria-label",o?"메뉴 닫기":"메뉴 열기");}
-  b.addEventListener("click",function(e){e.stopPropagation();
-    setOpen(!nav.classList.contains("open"));});
-  document.addEventListener("click",function(e){
-    if(!nav.contains(e.target))setOpen(false);});
-  document.addEventListener("keydown",function(e){
-    if(e.key==="Escape")setOpen(false);});
-})();
-</script>
+<!-- ⚠️ 상단 바는 **공용 한 벌**이다(assets/nav.js) — 2026-08-26 사장님 지시
+     ("상단바도 페이지마다 구성이 다르고 일치시켜줘").
+
+     그전까지 이 홈만 바를 손으로 그리고, 나머지 아홉 페이지는 nav.js를
+     썼다. 링크 **목록**은 계약 검사가 맞춰 줬지만 마크업과 CSS가 딴
+     구현이라 간격·활성 표시·버전 배지가 페이지마다 달랐다. 같은 것을 두
+     곳에 적으면 언젠가 갈라진다는 이 저장소의 원칙(FROZEN_IDEAS ①)이
+     상단 바에만 예외였던 셈이다.
+
+     네 트랙을 나란히 두는 원칙(2026-08-22 사장님: "100만원 투자 1페이지,
+     코인투자 1페이지, 선물투자 1페이지, 미국주식 1페이지")은 그대로다 —
+     그 목록이 이제 nav.js 한 곳에 산다. -->
+<script src="assets/nav.js" defer></script>
 
 <div class="strip"><div class="stripin" id="strip">
   <div class="si"><span class="k">불러오는 중…</span></div>
@@ -682,6 +529,42 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
         실시간이 아닙니다. 살아 있는 시세는 <b>맨 위 시세띠</b>와 잔고 표의
         '지금' 줄에 나오며(코인은 거래소 스트림으로 체결 즉시, 주식은 장중
         15초 간격), <b>판단·체결·평가에는 쓰지 않습니다</b>.
+      </div>
+    </section>
+
+    <!-- ── 주 단위로 묶어 보기 (2026-08-26 병합) ──────────────────────
+         사장님: *"오늘의 판단, 주간 아카이브, 실기록(100만) 페이지들은 그냥
+         메인페이지에 중복 없이 몰아넣으면 되는거 아니야? 분리할 필요가
+         없잖아."* 맞는 지적이었다 — 넷 다 **같은 계좌의 다른 화면**이고
+         같은 파일(status.json) 하나를 읽는다. 계좌가 넷이면 페이지도 넷이라는
+         원칙(2026-08-22)의 반대편이 지켜지지 않고 있었던 셈이다: 계좌 하나가
+         페이지 넷에 흩어져 있었다.
+
+         ⚠️ **여기서 계산하지 않는다**(감사 246). 예전에 주간 페이지가 자기
+            복사본으로 주간 수익률을 세다가 "그 주 마지막 하루치"를 주간
+            수익률로 적은 적이 있다(2026-08-10 주 실측: 아카이브 +0.02% /
+            사실 -0.02% — 부호가 반대였다). 배치가 낸 값을 읽기만 한다. -->
+    <section class="card c8 adv" id="weekly-card" style="display:none">
+      <h2>주 단위로 묶어 보기 <span class="tag">월요일 시작</span></h2>
+      <p class="sub" style="font-size:11.5px;margin:2px 0 10px">매일 새벽
+      확정된 기록을 주 단위로 묶은 것입니다. 좋은 주가 있어도 다음 주를
+      약속하지 않습니다.</p>
+      <div id="weekly-body"><p class="sub">불러오는 중…</p></div>
+      <div class="sub" style="margin-top:8px;font-size:11.5px">
+        주간 수익률 = 그 주 마지막 확정 자산 ÷ 그 주가 시작될 때의 자산 − 1.
+        시작 자산은 직전 주의 마지막 확정 자산이고, 직전 주가 없으면
+        원금입니다 — 그러지 않으면 계좌를 연 첫 주의 첫날 손익이 통째로
+        빠집니다. 입금은 수익이 아니므로 그 주 들어온 돈을 빼고 계산하며,
+        이 숫자는 텔레그램 주간 리포트와 <b>같은 코드</b>가 냅니다.
+      </div>
+      <!-- ⚠️ 상단 메뉴에서 뺀 화면들로 가는 길을 **여기 남긴다**(2026-08-26).
+           메뉴를 줄이면서 링크까지 없애면 그건 정리가 아니라 기록 차단이다 —
+           이 저장소는 화면을 접은 적은 있어도 지운 적은 없다. -->
+      <div class="sub" style="margin-top:10px;font-size:11.5px">
+        더 깊이 보기 —
+        <a href="paper.html">종목별 참고 계좌·일별 기록</a> ·
+        <a href="today.html">오늘 하루 한 장 요약</a> ·
+        <a href="weekly.html">주간 기록만 따로</a>
       </div>
     </section>
 
@@ -2272,6 +2155,67 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
     pollStocks(); if(!ws)openCryptoStream();
   });
 
+  /* ── 주 단위로 묶어 보기 (2026-08-26에 주간 페이지를 여기로 합쳤다) ──
+     ⚠️ 계산하지 않는다 — 배치가 낸 st.weekly를 읽기만 한다(감사 246).
+     집계가 아직 없으면 카드를 **띄우지 않는다**: 빈 표를 보여 주면
+     "이번 주 성적이 0"으로 읽힌다. */
+  (function(){
+    const box=document.getElementById("weekly-body");
+    const card=document.getElementById("weekly-card");
+    if(!box||!card)return;
+    const wk=st.weekly||null;
+    if(!wk||!Object.keys(wk).length)return;      // 없으면 조용히 접어 둔다
+    const keys=Object.keys(wk);
+    const weeks=new Set();
+    keys.forEach(k=>Object.keys(wk[k]).forEach(w=>weeks.add(w)));
+    const ws2=[...weeks].sort();                 // 과거 → 최근
+    const pfk=keys.filter(k=>k.startsWith("portfolio:"))[0];
+    const rest=keys.filter(k=>!k.startsWith("portfolio"));
+    const cell=v=>v==null?"–":pct(v);
+    const kls=v=>v==null?"":v>=0?"up":"down";
+    let html="";
+    if(pfk){
+      const rows=[];
+      for(let i=ws2.length-1;i>=0;i--){
+        const w=ws2[i], r=wk[pfk][w];
+        if(!r)continue;
+        rows.push('<tr><td>'+esc(w)+' 주</td><td class="'+kls(r.return_pct)+
+          '">'+cell(r.return_pct)+'</td><td>'+
+          (r.equity==null?"–":won(r.equity))+'</td><td>'+
+          (r.deposit?("+"+won(r.deposit)):"–")+'</td></tr>');
+      }
+      html+='<div class="tw"><table><thead><tr><th>주(월요일 시작)</th>'+
+        '<th>주간 수익률</th><th>주말 자산</th>'+
+        '<th title="후원 매칭으로 계좌에 들어온 돈입니다 — 수익이 아니므로 '+
+        '수익률 계산에서 뺍니다.">들어온 돈</th></tr></thead><tbody>'+
+        rows.join("")+'</tbody></table></div>';
+    }
+    if(rest.length){
+      /* 종목 이름은 **한 곳(status.json의 symbols)** 에서만 온다. 이름이
+         없으면 종목 코드가 그대로 나온다 — 2026-08-19 확장 때 스물두
+         종목이 그 상태였고, 2026-08-26에 이름을 붙여 고쳤다. */
+      const nm=k=>((st.symbols||{})[k]||{}).name||k.split(":")[1]||k;
+      const head=rest.map(k=>'<th>'+esc(nm(k))+'</th>').join("");
+      const rows=[];
+      for(let i=ws2.length-1;i>=0;i--){
+        const w=ws2[i];
+        const cells=rest.map(k=>{
+          const r=wk[k]&&wk[k][w];
+          if(!r)return "<td>–</td>";
+          return '<td class="'+kls(r.return_pct)+'">'+cell(r.return_pct)+'</td>';
+        }).join("");
+        if(cells.replace(/<td>–<\/td>/g,""))
+          rows.push('<tr><td>'+esc(w)+' 주</td>'+cells+'</tr>');
+      }
+      html+='<h2 style="margin-top:18px">종목별 주간 수익률</h2>'+
+        '<div class="tw"><table><thead><tr><th>주</th>'+head+
+        '</tr></thead><tbody>'+rows.join("")+'</tbody></table></div>';
+    }
+    if(!html)return;
+    box.innerHTML=html;
+    card.style.display="";
+  })();
+
 }).catch(err=>{
   /* ⚠️ 예전에는 `catch(()=>{})` — 렌더 도중 예외를 **통째로 삼켰다**(감사 245).
      이 렌더는 하나의 긴 then 하나라서, 중간 한 줄이 터지면 그 아래가 전부
@@ -2383,11 +2327,6 @@ fetch("referrals.json").then(r=>r.ok?r.json():null).then(j=>{
     '</a>').join("");
 }).catch(()=>{});
 
-/* 최신 릴리스 버전 표시 (실패해도 무해) */
-fetch("https://api.github.com/repos/tobe2111/insta-story-downloader/releases/latest")
-  .then(r=>r.ok?r.json():null).then(j=>{
-    if(j&&j.tag_name)document.getElementById("navver").textContent=j.tag_name;
-  }).catch(()=>{});
 </script>
 <!-- ── 종목 상세 창 (종목별 현황에서 종목을 누르면 열린다) ───────────────
      위쪽은 **우리 장부**, 아래쪽은 트레이딩뷰의 거래소 차트다. 두 출처를

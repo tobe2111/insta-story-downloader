@@ -74,9 +74,16 @@ def test_every_public_page_loads_the_dictionary(name):
     assert i < j, f"{name}: 사전이 엔진보다 뒤에 있다 — 아무것도 안 바뀐다"
 
 
-def test_both_bars_have_a_language_button():
-    assert 'class="navlang"' in IDX, "홈 바에 언어 버튼이 없다"
+def test_the_bar_has_a_language_button():
+    """언어 버튼은 **바 한 벌**에만 있으면 모든 페이지에 생긴다.
+
+    ⚠️ 예전 판은 홈의 손수 만든 바(`class="navlang"`)와 공용 바를 따로
+       확인했다. 2026-08-26에 홈도 공용 바를 쓰게 되면서(사장님: "상단바도
+       페이지마다 구성이 다르고 일치시켜줘") 확인할 바가 하나가 됐다 —
+       버튼이 한 곳에만 있으면 되는 것이 통일의 이점이다.
+    """
     assert "qn-lang" in NAV, "공용 바에 언어 버튼이 없다"
+    assert 'src="assets/nav.js"' in IDX, "홈이 공용 바를 안 싣는다"
 
 
 def test_the_language_button_survives_a_narrow_screen():
@@ -85,15 +92,68 @@ def test_the_language_button_survives_a_narrow_screen():
     글자 두 개라 자리를 거의 안 먹는다. 숨기면 영어권 방문자에게 이
     사이트는 한국어 전용이 된다.
     """
-    assert "@media(max-width:820px){.navlang{display:none}}" not in IDX, (
-        "홈: 좁은 화면에서 언어 버튼이 사라진다")
     assert "#qnav .qn-lang{display:none}" not in NAV, (
         "공용 바: 좁은 화면에서 언어 버튼이 사라진다")
-    # 홈의 삼단 바 메뉴에도 길이 있다(버튼을 못 봐도 메뉴에서 찾는다).
-    assert 'id="mlang"' in IDX, "홈의 모바일 메뉴에 언어 항목이 없다"
+    assert "@media(max-width:820px){#qnav .qn-lang" not in NAV, (
+        "공용 바: 좁은 화면 규칙이 언어 버튼을 건드린다")
 
 
 # ── ② 사전 자체의 계약 ────────────────────────────────────────
+
+# 화면이 **실행 중에 날짜를 끼워 넣는** 자리들. 이 문구 뒤에 오는 날짜는
+# 장부에서 오므로 매일(혹은 갱신될 때마다) 바뀐다.
+_LIVE_DATE_SLOTS = [
+    ("마지막 갱신: ", "주간 아카이브의 갱신일(status.updated)"),
+    ("수정 공지 (", "판정 시계 수정 공지(amended.on) — 괄호 있는 쪽"),
+    ("수정 공지 ", "판정 시계 수정 공지(amended.on) — 괄호 없는 쪽"),
+    ("마지막 확정일(", "단타 비교문의 확정일(장부 최신일)"),
+]
+
+
+def test_no_live_date_slot_is_pinned_in_a_dictionary_key():
+    """**바뀌는 날짜를 사전 열쇠에 박지 않는다** (2026-08-26에 값비싸게 배운 것).
+
+    사전은 한국어 문장 **전체**를 열쇠로 쓴다. 그런데 위 자리들에는 화면이
+    실행 중에 장부의 날짜를 끼워 넣는다. 그 문장을 통째로 사전에 넣으면
+    열쇠에 그날의 날짜가 박히고, **다음 밤 배치가 새 날짜를 쓰는 순간
+    열쇠가 어긋난다** — 영어 화면에 한국어가 남고 이 파일의 검사가 빨개진다.
+
+    실제로 그렇게 됐다: 사전을 쓴 08-25 아침에는 장부가 2026-08-24였고
+    검사가 초록이었다. 그날 밤 배치가 08-25를 쓰자 세 페이지가 빨개졌다.
+    **하루짜리 초록불**이었던 셈이고, 오늘 날짜를 다시 넣어 봐야 내일 또
+    빨개진다 — 매일 헛울리는 관문은 곧 무시당한다.
+
+    ⚠️ 왜 "열쇠에 날짜가 있으면 무조건 빨강"으로 하지 않았나. 사전에는
+       **과거 기록**의 날짜가 잔뜩 들어 있다(오답 노트·개선 이력 —
+       "2026-08-11, 기록 배열 순서 오류를 발견했습니다"). 그건 한번 적히면
+       영원히 안 바뀌므로 낡지 않는다. 둘을 글자만 보고 가를 방법은 없어서,
+       **바뀌는 자리를 이름으로 적어** 둔다. 새로 그런 자리가 생기면 위
+       목록에 한 줄 추가하는 것이 이 검사를 유지하는 방법이다.
+
+    바뀌는 자리는 사전이 아니라 **rules(정규식)** 가 잡는다 — 엔진에 그
+    장치가 이미 있었는데(i18n.js의 rules) 안 쓴 것이 문제였다.
+    """
+    import re as _re
+    keys = _re.findall(r'^\s+"((?:[^"\\]|\\.)*)":', DICT, _re.M)
+    assert len(keys) > 50, f"사전 열쇠를 못 읽었다({len(keys)}개) — 검사가 헛돈다"
+    bad = []
+    for slot, what in _LIVE_DATE_SLOTS:
+        pat = _re.escape(slot) + r"\d{4}-\d{2}-\d{2}"
+        for k in keys:
+            if _re.search(pat, k):
+                bad.append(f"{what}: {k[:70]}")
+    assert not bad, (
+        "바뀌는 날짜가 사전 열쇠에 박혀 있다 — 그 항목은 장부 날짜가 바뀌는 "
+        f"다음 밤에 스스로 만료된다. rules(정규식)로 옮길 것: {bad}")
+
+
+def test_the_rules_catch_those_dates_instead():
+    """대조군 — 사전에서 뺐는데 규칙에도 없으면 그냥 번역을 지운 것이다."""
+    for needle, what in (("^마지막 갱신: ", "주간 갱신일"),
+                         ("^수정 공지 ", "수정 공지 날짜"),
+                         ("마지막 확정일", "단타 확정일")):
+        assert needle in DICT, f"{what} 규칙이 없다 — 영어가 사라진다"
+
 
 def test_unknown_sentences_are_left_in_korean():
     """엔진이 **모르면 그대로 둔다**는 것이 코드에 있는가.
@@ -887,12 +947,17 @@ def test_the_home_button_offers_the_way_back_after_an_auto_switch(
     """
     page, _ = _open(browser, site, "index.html", wait=2500, lang="en-US")
     try:
-        for at in ("#navlang", "#mlang"):
-            el = page.locator(at)
-            assert el.count() == 1, f"{at} 버튼이 없다"
-            assert el.inner_text().strip() == "한국어", (
-                f"{at}가 '{el.inner_text().strip()}'라고 적혀 있다 — "
-                "영어로 보고 있는 사람에게 영어를 권하고 있다")
+        # ⚠️ 2026-08-26에 홈이 자기 바를 버리고 **공용 바**를 쓰게 되면서
+        #    선택자가 바뀌었다(#navlang/#mlang → .qn-lang). 지켜야 할 사실은
+        #    그대로다: 영어로 보고 있는 사람에게 버튼이 '한국어'를 권해야
+        #    한다. 공용 바는 이 버튼을 **좁은 화면에서도 숨기지 않으므로**
+        #    모바일용 사본(#mlang)이 따로 필요 없다 — 사본이 없어진 것은
+        #    기능이 빠진 게 아니라 사본을 둘 이유가 없어진 것이다.
+        el = page.locator("#qnav .qn-lang")
+        assert el.count() == 1, "공용 바에 언어 버튼이 없다"
+        assert el.inner_text().strip() == "한국어", (
+            f"버튼이 '{el.inner_text().strip()}'라고 적혀 있다 — "
+            "영어로 보고 있는 사람에게 영어를 권하고 있다")
     finally:
         page.close()
 
