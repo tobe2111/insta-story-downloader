@@ -3100,6 +3100,226 @@
       "시크릿을 추가하세요 —\n그 순간부터 이 페이지는 아이디/비밀번호 로그인창을 요구합니다(서버측 검증).":
         "secrets in the Cloudflare dashboard under Workers → quant → Settings → Variables — from that moment the page asks for an ID and password, checked on the server.",
 
+      "인스타그램 캡션 (영어)": "Instagram caption (English)",
+      "스레드 캡션 (영어)": "Threads caption (English)",
+
+      "백테스트": "Backtest",
+      "포트폴리오": "Portfolio",
+      "종목선별": "Screener",
+      "민감도": "Sensitivity",
+      "최적화": "Optimise",
+      "검증": "Validate",
+      "감시": "Monitor",
+      "내 전략": "My strategy",
+      "입금": "Deposit",
+      "긴급 정지": "Emergency stop",
+      "수집 동의": "Data consent",
+      "과거 데이터로 전략을 돌려 성과를 확인합니다. 처음이라면 시장을\n'모의 데이터'로 두고 감부터 잡아보세요 — 인터넷 없이도 됩니다.":
+        "Run a strategy over past data and see how it did. If this is your first time, leave the market on \"synthetic data\" and get a feel for it — it works without an internet connection.",
+      "1단계": "Step 1",
+      "2단계": "Step 2",
+      "3단계": "Step 3",
+      "4단계": "Step 4",
+      "과거로 감 잡기": "Get a feel from the past",
+      "과최적화 걸러내기": "Filter out overfitting",
+      "페이퍼": "Paper",
+      "가짜 돈 실전 연습": "Practice with play money",
+      "실전": "Live",
+      "소액부터, 직접 결정": "Small amounts, decided by you",
+      "모의 데이터 · 연습용 (synthetic)": "Synthetic data · for practice (synthetic)",
+      "코인 (암호화폐) (crypto)": "Crypto (crypto)",
+      "미국주식 (us_stock)": "US equities (us_stock)",
+      "국내주식 (kr_stock)": "Korean equities (kr_stock)",
+      "코인: BTC/USDT · 미국주식: AAPL, SPY":
+        "Crypto: BTC/USDT · US equities: AAPL, SPY",
+      "전략": "Strategy",
+      "이동평균 교차 · 추세추종 (ma_cross)":
+        "Moving-average cross · trend following (ma_cross)",
+      "모멘텀 · 추세추종 (momentum)": "Momentum · trend following (momentum)",
+      "평균회귀 · 되돌림 매수 (mean_reversion)":
+        "Mean reversion · buy the pullback (mean_reversion)",
+      "RSI 과매도 반등 (rsi)": "RSI oversold bounce (rsi)",
+      "채널 돌파 · 추세추종 (breakout)":
+        "Channel breakout · trend following (breakout)",
+      "터틀 트레이딩 · 20일 돌파 + 2N 손절 (turtle)":
+        "Turtle trading · 20-day breakout + 2N stop (turtle)",
+      "볼린저밴드 · 박스권/수축돌파 (bollinger)":
+        "Bollinger bands · range and squeeze breakout (bollinger)",
+      "파라볼릭 SAR · 추세 반전점 (psar)":
+        "Parabolic SAR · trend reversal points (psar)",
+      "일목균형표 · 호전 + 구름 돌파 (ichimoku)":
+        "Ichimoku · bullish cross + cloud breakout (ichimoku)",
+      "듀얼 스러스트 · 시가 기준 범위 돌파 (dual_thrust)":
+        "Dual thrust · range breakout from the open (dual_thrust)",
+      "수급 SOM · 외인·기관 순매수 군집 (supply_som)":
+        "Flow SOM · clusters of foreign and institutional net buying (supply_som)",
+      "가치 닻 · 자기 역사 대비 저평가 보유 (value_anchor)":
+        "Value anchor · hold when cheap against its own history (value_anchor)",
+      "슈퍼트렌드 · ATR 밴드 래칫 추세 (supertrend)":
+        "Supertrend · ratcheting ATR band trend (supertrend)",
+      "코너스 RSI(2) · 추세 위 눌림 매수, 단기선 복귀 청산 (connors_rsi2)":
+        "Connors RSI(2) · buy the dip in an uptrend, exit on the short-term line (connors_rsi2)",
+      "MACD 히스토그램 (macd)": "MACD histogram (macd)",
+      "켈트너 채널 돌파 (keltner)": "Keltner channel breakout (keltner)",
+      "스토캐스틱 (stochastic)": "Stochastic (stochastic)",
+      "머신러닝 · 상승확률 예측 (ml)": "Machine learning · probability of a rise (ml)",
+      "앙상블 · 여러 전략 결합 (ensemble)":
+        "Ensemble · several strategies combined (ensemble)",
+      "챔피언 · 야간 재학습 1위 (champion)":
+        "Champion · the winner of nightly retraining (champion)",
+      "타임프레임": "Timeframe",
+      "1d=일봉 · 1h=시간봉": "1d = daily bars · 1h = hourly bars",
+      "봉 개수": "Number of bars",
+      "일봉 500개 ≈ 2년": "500 daily bars ≈ 2 years",
+      "백테스트 실행": "Run backtest",
+      "⚠️ 과거 성과는 미래 수익을 보장하지 않습니다. 실거래 전 반드시 검증하세요.":
+        "⚠️ Past performance guarantees no future return. Validate before trading live.",
+      "계산 중입니다…": "Working…",
+      "머신러닝 전략은 20~30초 걸릴 수 있어요. 창을 닫지 마세요.":
+        "A machine-learning strategy can take 20–30 seconds. Do not close the window.",
+      "포트폴리오 백테스트": "Portfolio backtest",
+      "여러 종목에 분산투자해 변동성을 낮춥니다. 종목은 쉼표로 구분하세요.":
+        "Spread across several symbols to lower volatility. Separate symbols with commas.",
+      "종목 (쉼표 구분)": "Symbols (comma separated)",
+      "배분 방식": "Allocation method",
+      "변동성 역가중 · 안정적 배분 (inverse_vol)":
+        "Inverse volatility · steadier allocation (inverse_vol)",
+      "동일 비중 (equal)": "Equal weight (equal)",
+      "계층적 리스크 패리티 (HRP) (hrp)": "Hierarchical risk parity (HRP) (hrp)",
+      "⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.":
+        "⚠️ Past performance guarantees no future return.",
+      "종목 선별 (팩터 스크리너)": "Symbol screening (factor screener)",
+      "관심 종목을 넣으면 재무 팩터(밸류·퀄리티)로 상위 종목을 자동\n선별합니다. 미국주식 티커 권장(FMP 기준). 환경변수":
+        "Enter the symbols you care about and the top ones are selected automatically on financial factors (value and quality). US tickers are recommended (FMP data). The environment variable",
+      "필요.": "is required.",
+      "후보 종목 (쉼표 구분)": "Candidate symbols (comma separated)",
+      "선택 개수 (top N)": "How many to pick (top N)",
+      "팩터": "Factor",
+      "밸류+퀄리티 (PER↓·PBR↓·ROE↑)": "Value + quality (P/E↓ · P/B↓ · ROE↑)",
+      "밸류 (PER↓·PBR↓)": "Value (P/E↓ · P/B↓)",
+      "퀄리티 (ROE↑)": "Quality (ROE↑)",
+      "선별 실행": "Run screening",
+      "⚠️ 팩터 프리미엄은 수년씩 부진할 수 있습니다. 선별 결과를 맹신하지 마세요.":
+        "⚠️ A factor premium can underperform for years. Do not treat the screening result as certainty.",
+      "워크포워드 최적화": "Walk-forward optimisation",
+      "과거 구간(IS)에서 최적 파라미터를 찾고,":
+        "It finds the best parameters on a past window (in-sample) and validates them on",
+      "보지 않은 미래 구간(OOS)": "a future window it has not seen (out-of-sample)",
+      "에서\n검증합니다. IS와 OOS 성적 격차가 크면 과최적화예요.":
+        ". A large gap between the two means overfitting.",
+      "학습(IS) 길이": "Training (IS) length",
+      "검증(OOS) 길이": "Validation (OOS) length",
+      "최적화 실행": "Run optimisation",
+      "과최적화 검증 (워크포워드+DSR · PBO · CPCV)":
+        "Overfitting checks (walk-forward + DSR · PBO · CPCV)",
+      "\"이 전략을 믿어도 되는가\"를 세 가지 과최적화 탐지 도구로 한 화면에서\n확인합니다. 셋 다":
+        "\"Can this strategy be trusted?\" — checked on one screen with three overfitting detectors. All three are",
+      "탐지": "detection",
+      "도구입니다 — 통과가 곧 수익은 아닙니다.":
+        "tools — passing is not the same as making money.",
+      "검증 3종 실행": "Run all three checks",
+      "⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다.\n다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.":
+        "⚠️ Passing all three guarantees no future return. The next step is paper trading (learn) on real data.",
+      "파라미터 민감도 히트맵": "Parameter sensitivity heat map",
+      "이동평균 교차(단기×장기)의 성과 지형을 그립니다.\n넓은 초록 고원=견고, 외딴 점=과최적화.":
+        "It draws the performance terrain of the moving-average cross (short × long). A wide green plateau means robust; a lone dot means overfitted.",
+      "목표 지표": "Objective",
+      "히트맵 생성": "Draw the heat map",
+
+      "매칭 입금 (100만 챌린지 · 100만원 → 1억)":
+        "Matching deposit (1M Won Challenge · 1,000,000 KRW → 100 million)",
+      "방송 후원이 들어오면 같은 금액만큼 통합 계좌의":
+        "When a donation comes in during a broadcast, the combined account's",
+      "가상 원금": "virtual principal",
+      "을\n늘립니다. 아직 통합 계좌 기록이 없습니다 (매일 새벽 자동 생성)":
+        "is increased by the same amount. There is no combined-account record yet (one is created automatically each morning)",
+      "연결 설정이 필요합니다 (최초 1회).": "A connection has to be set up once.",
+      "입금 버튼이 GitHub의 입금 워크플로를 대신 눌러주려면 접근 토큰이 필요합니다.":
+        "For the deposit button to press GitHub's deposit workflow for you, an access token is needed.",
+      "설정 방법 보기": "Show me how",
+      "이 저장소만": "this repository only",
+      "선택": "select",
+      "발급된 토큰을 프로그램 폴더의": "Add the issued token as one line to the",
+      "파일에 한 줄 추가:": "file in the program folder:",
+      "웹 조종석 재시작": "Restart the web cockpit",
+      "토큰 없이도 GitHub 앱/웹 → Actions →\n\"Deposit (100만 챌린지 매칭 입금)\" → Run workflow 로 직접 등록할 수 있습니다.":
+        "Without a token you can register it yourself through the GitHub app or website: Actions → \"Deposit (1M Won Challenge matching deposit)\" → Run workflow.",
+      "입금액(원)": "Amount (KRW)",
+      "1회 최대 1,000만원 — 예: 10000":
+        "Up to 10,000,000 KRW at a time — e.g. 10000",
+      "메모 (선택)": "Memo (optional)",
+      "장부와 방송 배너에 함께 표시됩니다":
+        "It appears in the ledger and in the broadcast banner",
+      "입금 등록": "Register the deposit",
+      "⚠️ 법적 구조: 후원금 자체를 운용하지 않습니다. 후원과 동일한 금액만큼":
+        "⚠️ The legal structure: the donations themselves are never traded. It is a matching event that increases the",
+      "가상 계좌의 원금": "virtual account's principal",
+      "을 늘리는 매칭 이벤트이며(대가·지분 없음), 모든 입금은 git 커밋 장부로 공개됩니다. 수익률은 원금과 분리 계산(TWR)되어 입금이 실력처럼 보이지 않습니다.":
+        "by the same amount (no consideration, no equity), and every deposit is published in the git commit ledger. The return is computed separately from the principal (TWR), so a deposit never looks like skill.",
+      "봇 감시": "Bot monitor",
+      "실행 중인 페이퍼/실거래 세션이 없습니다.": "No paper or live session is running.",
+      "페이퍼(가짜 돈) 봇 시작하기": "Start the paper (play money) bot",
+      "윈도우는": "On Windows,",
+      "더블클릭,\n또는 터미널에서:": "double-click it; or from a terminal:",
+      "봇이 상태 파일을 쓰기 시작하면 이 페이지에 자산·포지션·주문이\n실시간으로 나타납니다.":
+        "Once the bot starts writing its state file, equity, positions and orders appear on this page live.",
+      "🟢 긴급 정지 — 꺼져 있음(정상 운용 중)": "🟢 Emergency stop — off (running normally)",
+      "무언가 이상하다고 느끼면 아래 버튼으로": "If something feels wrong, the button below",
+      "전체 매매를 즉시 멈출 수 있습니다.": "stops all trading immediately.",
+      "자동 브레이크(킬스위치·서킷브레이커)와 별개로 동작하며, 멈춰도 보유 포지션은 그대로 둡니다.":
+        "It works independently of the automatic brakes (kill switch, circuit breaker), and stopping leaves existing positions untouched.",
+      "지금 전체 매매 정지": "Stop all trading now",
+      "데이터 수집 동의": "Consent to data collection",
+      "제작사 데이터 수집 안내": "What the maker collects",
+      "현재 상태:": "Current status:",
+      "동의 안 함": "not consented",
+      "(아무것도 전송되지 않습니다)": "(nothing is sent)",
+      "이 프로그램을 계속 사용하며 아래에 동의하면, 다음이 제작사(운영자)에게\n전송·수집됩니다.":
+        "If you keep using this program and consent below, the following is sent to and collected by the maker (the operator).",
+      "등록한 전략의": "the rule specification of",
+      "규칙 명세": "a strategy you registered",
+      "(무엇을 언제 사고파는지)": "(what it buys and sells, and when)",
+      "계좌별": "per account,",
+      "성과 요약": "a summary of performance",
+      "— 수익률·최대낙폭·평가자산·기록 길이":
+        "— return, max drawdown, equity, length of record",
+      "앱 버전과": "the app version and",
+      "익명 설치 식별자": "an anonymous installation id",
+      "(누구인지는 식별하지 않는 임의 번호)":
+        "(a random number that does not identify who you are)",
+      "수집하지 않는 것(보안):": "What is never collected (security):",
+      "비밀번호,\n증권사·거래소 API 키, 세션 토큰 등 자격증명은":
+        "passwords, broker and exchange API keys, session tokens and any other credential are",
+      "절대 전송되지 않습니다": "never sent",
+      "—\n이건 동의로도 바뀌지 않는 안전선입니다.": "— that is a line consent cannot move.",
+      "수집 목적: 제품 개선과 전략 성과 파악. 동의는\n언제든 이 화면에서 철회할 수 있고, 철회하면 그 시점부터 전송이 멈춥니다.":
+        "Why it is collected: to improve the product and understand how strategies perform. You can withdraw consent from this screen at any time, and sending stops from that moment.",
+      "동의하고 수집 허용": "Consent and allow collection",
+      "동의 철회 / 수집 안 함": "Withdraw consent / do not collect",
+
+      "내 전략 — 자료에서 규칙 뽑기": "My strategy — pulling rules out of a document",
+      "책·PDF·유튜브 자막·직접 쓴 글에서":
+        "From a book, a PDF, YouTube subtitles or something you wrote yourself, it looks for",
+      "숫자로 적힌 매매 규칙": "trading rules written as numbers",
+      "을\n찾아 전략으로 만듭니다. 읽을 수 있는 규칙 9종: 이동평균 교차 · RSI ·\n가격 vs 이동평균 · 신고가/신저가 · 볼린저밴드 · 거래량 배수 · 연속 양봉/음봉 ·\nMACD · 손절/익절 %.":
+        "and turns them into a strategy. Nine kinds of rule can be read: moving-average cross · RSI · price vs moving average · new highs and lows · Bollinger bands · volume multiples · consecutive up/down bars · MACD · stop-loss and take-profit percentages.",
+      "규칙이 없으면 \"없다\"고 말합니다": "If there is no rule, it says so",
+      "— 없는 규칙을\n지어내지 않는 것이 이 기능의 핵심입니다.":
+        "— not inventing rules that are not there is the whole point of this feature.",
+      "자료 본문 붙여넣기": "Paste the text here",
+      "또는 아래에 PDF 파일 경로나 유튜브 주소를 입력하세요\n    (둘 다 있으면 경로/주소를 씁니다)":
+        "or enter a PDF path or a YouTube URL below (if both are given, the path or URL wins)",
+      "PDF 경로 · 유튜브 주소 (선택)": "PDF path · YouTube URL (optional)",
+      "전략 이름 (선택)": "Strategy name (optional)",
+      "읽어 보기 (아직 저장 안 함)": "Read it (nothing is saved yet)",
+      "읽힌 전략은": "A strategy that was read becomes",
+      "도전자": "a challenger",
+      "로 등록됩니다 —\n등록만으로는 매매하지 않고, 매일 밤 심사(선발전·결승전)를 이겨야 매매를\n맡습니다. 심사와 무관하게 쓰고 싶다면 저장 후":
+        "— registering alone trades nothing; it has to win the nightly audition (a qualifier and a final) before it trades. To use it regardless of the audition, save it and then",
+      "고정": "pin it",
+      "으로.": ".",
+      "Quant · 내 전략 — 자료 읽기": "Quant · My strategy — reading a document",
+
       // ── 주간 아카이브 ──────────────────────────────────────
       "주(월요일 시작)": "Week (starting Monday)",
       "주말 자산": "Equity at week end",
@@ -3155,7 +3375,11 @@
        "$*1 $*2"],
       ["^(VIX\\ 변동성지수\\(옵션시장\\ 공포\\)|하이일드\\ 스프레드\\(신용\\ 스트레스\\)|VIX\\ 기간구조\\(공포의\\ 급성도\\)|미\\ 10년물\\ 금리\\ 5일\\ 변화|미결제약정\\ 5일\\ 변화\\(수급\\)|미국\\ S\\&P500\\ 5일\\ 흐름|실현변동성\\ 비율\\(5/60일\\)|GK\\ 변동성\\(고저가\\ 기반\\)|김치\\ 프리미엄\\(국내\\ 수급\\)|장단기\\ 금리차\\(경기\\ 신호\\)|펀딩비\\ 변화\\(수급\\ 모멘텀\\)|공포탐욕지수\\(시장\\ 심리\\)|외국인\\ 5일\\ 순매수\\(z\\)|펀딩비\\(포지셔닝\\ 과열도\\)|기관\\ 5일\\ 순매수\\(z\\)|변동성\\ 레짐\\(단/장기\\)|기대인플레\\ 5일\\ 변화|달러인덱스\\ 5일\\ 변화|MACD\\ 히스토그램|비트코인\\ 5일\\ 흐름|원/달러\\ 5일\\ 변화|평균\\ 진폭\\(ATR\\)|변동성\\(20일\\)|10일\\ 수익률|20일\\ 모멘텀|20일선\\ 이격|50일선\\ 이격|60일\\ 모멘텀|RSI\\(14\\)|거래량\\ 이상치|5일\\ 수익률|RSI\\(7\\)|볼린저\\ 위치|전일\\ 수익률) ([−+\\-]?[\\d\\.,]+)(%p|%)?$",
        "$*1 $2$3"],
-      ["^(\\d+)일 (.+)$", "$1 days: $2"],
+      // ⚠️ 여기 있던 ["^(\\d+)일 (.+)$", "$1 days: $2"]를 뺐다
+      //    (2026-08-26). 뒷부분을 그대로 흘려보내는 규칙이라 모르는
+      //    문장에서 "90 days: 수정과 같은 원칙입니다."처럼 **반쪽
+      //    영어**를 만들었다. 반쪽은 한국어보다 나쁘다 — 읽는 사람이
+      //    고장으로 읽는다. 날짜가 든 문장은 문장마다 적는다.
       ["^수수료·세금·미끄러짐 · 위 이익은 이걸 뺀 값 · 이 기록일에 ([\\d,]+)원$",
        "Fees, taxes and slippage · the figure above is net of this · KRW $1 on this record day"],
       ["^([\\d,\\.]+)개 몫$", "the equivalent of $1"],

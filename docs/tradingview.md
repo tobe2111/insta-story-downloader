@@ -1,5 +1,7 @@
 # 트레이딩뷰(TradingView) 연동 가이드
 
+> 🇬🇧 English: [tradingview.en.md](tradingview.en.md)
+
 트레이딩뷰의 **Pine Script 전략**에서 낸 알림(alert)을 이 프로그램이 받아,
 검증된 실행 계층(리스크 사이징·데드밴드·장 시간 가드·체결 확인·킬스위치)을
 그대로 태워 주문을 냅니다.

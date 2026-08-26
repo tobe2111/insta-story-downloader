@@ -186,7 +186,7 @@ _LEFTOVER_JS = """() => {
   while ((n = w.nextNode())) {
     if (n.parentNode && SKIP[n.parentNode.tagName]) continue;
     // 언어 버튼 자신은 한국어여야 한다 — 되돌아갈 길이니까.
-    if (n.parentNode && /qn-lang|navlang|mlang/.test(
+    if (n.parentNode && /qn-lang|navlang|mlang|qi18n-back/.test(
         n.parentNode.className + " " + (n.parentNode.id || ""))) continue;
     const t = n.nodeValue.trim().replace(/\\s+/g, ' ');
     if (t && /[가-힣]/.test(t)) left.push(t);
@@ -195,9 +195,9 @@ _LEFTOVER_JS = """() => {
 }"""
 
 
-def _open(browser, site, path, wait=2500):
+def _open(browser, site, path, wait=2500, lang="ko-KR"):
     page = browser.new_page(viewport={"width": 1280, "height": 900})
-    block_external(page)
+    block_external(page, lang=lang)
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.goto(f"{site}/{path}")
@@ -743,3 +743,170 @@ def test_the_worst_day_reason_is_not_cut_at_ninety_letters():
         "오답 노트의 판단 근거를 90자에서 자르고 있다")
     assert "text-overflow:ellipsis" in paper, (
         "글자를 줄이는 일을 CSS가 하고 있지 않다")
+
+
+# ── ⑨ 한국 밖에서 들어오면 영어로 맞는다 ───────────────────────
+#
+# 사장님 지시(2026-08-26): *"한국 말고 다른 나라에서 우리 서비스 들어오면
+# 자동으로 영어로 보이게 해줘."*
+#
+# 버튼이 있어도 못 찾으면 없는 것과 같다. 영어권 방문자는 한국어로 가득 찬
+# 첫 화면에서 대개 3초 안에 떠난다 — 그 사람에게 이 사이트는 한국어 전용이다.
+#
+# 다만 **짐작은 짐작이다.** 사람이 고른 적이 있으면 그 선택이 언제나 이기고,
+# 짐작으로 영어가 된 화면은 그렇다고 밝히고 되돌아갈 길을 함께 준다.
+
+_ABROAD = ["en-US", "ja-JP", "de-DE", "zh-CN"]
+
+
+@pytest.mark.parametrize("lang", _ABROAD)
+def test_a_visitor_from_abroad_lands_in_english(browser, site, lang):
+    """한국어를 첫째로 원하지 않으면 **아무것도 안 눌러도** 영어다."""
+    page, errors = _open(browser, site, "us.html", wait=2000, lang=lang)
+    try:
+        assert not errors, f"{lang}: {errors}"
+        assert page.locator("html").get_attribute("lang") == "en", (
+            f"{lang} 브라우저인데 한국어로 떴다")
+        left = page.evaluate(_LEFTOVER_JS)
+        assert not left, f"{lang}: 영어인데 한국어가 남았다 — {left[:3]}"
+    finally:
+        page.close()
+
+
+def test_a_korean_visitor_still_lands_in_korean(browser, site):
+    """대조군 — 한국어 브라우저는 **원문 그대로**여야 한다.
+
+    이게 없으면 위 검사는 "무조건 영어"로도 통과한다. 이 사이트의 원본은
+    한국어이고, 사장님과 국내 독자가 첫 번째 독자다.
+    """
+    page, errors = _open(browser, site, "us.html", wait=2000, lang="ko-KR")
+    try:
+        assert not errors, errors
+        assert page.locator("html").get_attribute("lang") == "ko", (
+            "한국어 브라우저인데 영어로 떴다")
+        assert len(page.evaluate(_LEFTOVER_JS)) > 20, (
+            "한국어 브라우저인데 한국어가 거의 없다")
+    finally:
+        page.close()
+
+
+def test_a_korean_who_also_reads_english_gets_korean(browser, site):
+    """`ko-KR` 다음에 `en-US`가 붙어 있어도 **첫째만 본다.**
+
+    반대로 목록을 훑어 한국어를 '찾아내면', 영어를 더 좋아하지만 한국어도
+    읽을 줄 아는 사람에게 한국어가 나간다 — 그건 짐작을 거꾸로 하는 것이다.
+    """
+    page, _ = _open(browser, site, "us.html", wait=1200, lang="ko-KR")
+    try:
+        got = page.evaluate("""() => {
+          // 둘 다 갈아 끼운다 — `languages`가 비면 엔진은 `language`를
+          // 본다. 하나만 비우면 "아무것도 모를 때"를 흉내 낼 수 없다.
+          const ask = (list) => {
+            Object.defineProperty(navigator, 'languages',
+              {get: () => list, configurable: true});
+            Object.defineProperty(navigator, 'language',
+              {get: () => (list[0] || ''), configurable: true});
+            return QuantI18N.guess();
+          };
+          return [ask(['ko-KR', 'en-US']), ask(['en-US', 'ko-KR']),
+                  ask(['ko']), ask([]), ask(['fr'])];
+        }""")
+        # 아무것도 모르면 **원본(한국어)**이다 — 짐작이 원본을 밀어내면 안 된다.
+        assert got == ["ko", "en", "ko", "ko", "en"], got
+    finally:
+        page.close()
+
+
+def test_a_choice_beats_the_browser(browser, site):
+    """사람이 고른 것이 짐작보다 세다 — 주소로도, 저장값으로도."""
+    page, _ = _open(browser, site, "us.html?lang=ko", wait=1500,
+                    lang="en-US")
+    try:
+        assert page.locator("html").get_attribute("lang") == "ko", (
+            "?lang=ko 로 들어왔는데 브라우저 언어가 이겼다")
+        # 저장값도 마찬가지 — 한 번 고르면 다음 방문부터 그대로다.
+        page.evaluate("() => localStorage.setItem('quant.lang', 'ko')")
+        page.goto(page.url.split("?")[0])
+        page.wait_for_timeout(1500)
+        assert page.locator("html").get_attribute("lang") == "ko", (
+            "한국어를 골라 뒀는데 브라우저 언어가 이겼다")
+    finally:
+        page.close()
+
+
+def test_the_guess_is_not_remembered_as_a_choice(browser, site):
+    """짐작을 저장하면 **고른 것과 구별할 수 없어진다.**
+
+    구별이 사라지면 "짐작이라 밝히는 줄"이 영영 안 뜨고, 사람이 한국어를
+    골랐는지 브라우저가 그렇게 정한 건지 아무도 모른다.
+    """
+    page, _ = _open(browser, site, "us.html", wait=1500, lang="en-US")
+    try:
+        saved = page.evaluate("() => localStorage.getItem('quant.lang')")
+        assert saved is None, f"짐작이 선택으로 저장됐다: {saved!r}"
+        assert page.evaluate("() => QuantI18N.chosen()") is False
+    finally:
+        page.close()
+
+
+def test_the_automatic_switch_says_so_and_shows_the_way_back(browser, site):
+    """짐작으로 영어가 됐으면 **그렇다고 적고 한국어 링크를 준다.**"""
+    page, _ = _open(browser, site, "us.html", wait=2000, lang="en-US")
+    try:
+        note = page.locator("#qi18n-auto")
+        assert note.count() == 1, "자동 전환을 알리는 줄이 없다"
+        assert "browser" in note.inner_text().lower(), note.inner_text()
+        back = note.locator("a")
+        assert back.count() == 1, "한국어로 돌아갈 링크가 없다"
+        assert "lang=ko" in (back.get_attribute("href") or "")
+    finally:
+        page.close()
+
+
+def test_a_chosen_english_page_does_not_nag(browser, site):
+    """대조군 — **스스로 고른** 영어에는 그 줄이 뜨면 안 된다.
+
+    고른 사람에게 "브라우저가 그래서 영어입니다"는 사실이 아니다.
+    """
+    page, _ = _open(browser, site, "us.html?lang=en", wait=1500,
+                    lang="ko-KR")
+    try:
+        assert page.locator("#qi18n-auto").count() == 0, (
+            "직접 고른 영어인데 '브라우저가 정했다'고 적혀 있다")
+    finally:
+        page.close()
+
+
+def test_the_home_button_offers_the_way_back_after_an_auto_switch(
+        browser, site):
+    """자동으로 영어가 됐을 때 홈 바 버튼이 **'한국어'**를 권하는가.
+
+    실제로 당했다(2026-08-26): 첫 화면이 "지금 영어인가"를 스스로 한 번 더
+    판단하는 사본을 갖고 있어서, 자동 전환이 생기자마자 어긋났다. 영어로
+    보고 있는 사람에게 버튼은 계속 'EN'이었다 — 되돌아갈 길이 없어 보인다.
+    """
+    page, _ = _open(browser, site, "index.html", wait=2500, lang="en-US")
+    try:
+        for at in ("#navlang", "#mlang"):
+            el = page.locator(at)
+            assert el.count() == 1, f"{at} 버튼이 없다"
+            assert el.inner_text().strip() == "한국어", (
+                f"{at}가 '{el.inner_text().strip()}'라고 적혀 있다 — "
+                "영어로 보고 있는 사람에게 영어를 권하고 있다")
+    finally:
+        page.close()
+
+
+def test_the_screen_tests_pin_the_browser_language():
+    """검사용 브라우저의 언어를 **환경에 맡기지 않는다.**
+
+    자동 전환의 재료는 `navigator.languages`다. 검사용 크로미움은 보통
+    영어로 뜨므로, 못박지 않으면 한국어 화면을 보는 검사 수십 개가 조용히
+    **영어 화면**을 보게 된다 — 그건 검사가 다른 일을 하는 것이다
+    (감사 130·278에서 이미 치른 대가).
+    """
+    helper = (ROOT / "tests" / "_browser.py").read_text("utf-8")
+    assert "navigator, 'languages'" in helper, (
+        "화면 검사의 공용 준비가 브라우저 언어를 고정하지 않는다")
+    assert 'lang: str = "ko-KR"' in helper, (
+        "기본값이 한국어가 아니다 — 원본 화면을 보는 검사가 영어를 본다")
