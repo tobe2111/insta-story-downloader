@@ -3046,79 +3046,15 @@
 
       "어드민": "Admin",
       "운영 설정": "Operating settings",
-      "여기서 바꾼 값은": "Values changed here are saved as a",
-      "커밋으로\n저장되고, 다음 새벽 자동화부터 적용됩니다. 모든 변경은 git 역사에 남습니다 —\n장부의 투명성 원칙은 어드민 개입에도 똑같이 적용됩니다.":
-        "commit and take effect from the next dawn run. Every change stays in the git history — the ledger's transparency rule applies to admin intervention just the same.",
-      "GitHub 토큰": "GitHub token",
-      "repo 권한(Contents write)이 있는 Personal Access Token.\n    이 브라우저에만 저장되며 우리 서버로 전송되지 않습니다(깃허브 API 직접 호출).":
-        "A personal access token with repo (Contents: write) permission. It is stored in this browser only and never sent to our server — the GitHub API is called directly.",
       "연결": "Connect",
       "삭제": "Delete",
-      "매매 일시정지": "Pause trading",
-      "신규 매매 중단 — 보유 포지션은 유지, 대기 주문은 폐기.\n    재학습·기록·사이트 갱신은 계속 돕니다.":
-        "Stops new trades — existing positions are kept and pending orders are discarded. Retraining, recording and site updates carry on.",
-      "총노출 배수": "Total exposure multiplier",
-      "0.0~1.0 — 모든 목표 비중에 곱해집니다. 킬스위치와 중첩 적용\n    (더 보수적인 쪽). 예: 0.5 = 노출 절반.":
-        "0.0–1.0 — multiplies every target weight. It stacks with the kill switch, and the more conservative of the two wins. For example, 0.5 means half the exposure.",
-      "SNS 자동 게시": "Automatic social posting",
-      "끄면 스레드·인스타 게시를 건너뜁니다(콘텐츠 생성도 중단).":
-        "Turning this off skips Threads and Instagram posting (content generation stops too).",
-      "목표 변동성 (연율)": "Target volatility (annualised)",
-      "통합 계좌가 감수할 위험의 크기. 비워두면 코드 기본값\n    (엣지 미입증 12% / 입증 후 20%)을 따릅니다.":
-        "How much risk the combined account will take. Leave it blank to follow the code default (12% while the edge is unproven, 20% once proven).",
       "· 목표": "· target",
-      "· 사전추정": "· prior estimate",
-      "· 적용 배수": "· multiplier applied",
-      "→ 그날 총노출": "→ total exposure that day",
-      ". 목표를 올리면 배수가 커지고, 무레버리지 상한에 닿을 때까지 총노출이 늘어납니다.":
-        ". Raising the target raises the multiplier, and total exposure grows until it reaches the no-leverage ceiling.",
-      "미입증 상향 승인": "Approve raising it before the edge is proven",
-      "엣지가 통계로 입증되기 전에는 위 목표가 12%로 잘립니다.\n    이걸 켜야 그 잠금이 풀립니다 — 실수로 켜지지 않게 분리된 스위치입니다.":
-        "Until the edge is proven statistically, the target above is capped at 12%. Turning this on releases that lock — it is a separate switch so it cannot be flipped by accident.",
       "메모": "Note",
-      "이 설정을 왜 바꿨는지 — 커밋 메시지에도 들어갑니다.":
-        "Why this setting was changed — it goes into the commit message too.",
-      "저장 (커밋)": "Save (commit)",
-      "다시 읽기": "Reload",
-      "고객 등록 전략": "Strategies registered by users",
-      "동의한 설치의 전략 명세와": "The strategy specification and",
-      "성과(수익률·낙폭·자산)": "performance (return, drawdown, equity)",
-      "가\n    모입니다(약관 고지·동의 기반 · 개인정보/자격증명 없음). 수집함(KV)이\n    연결돼 있어야 쌓입니다.":
-        "from installations that opted in are collected here (disclosed in the terms, consent-based, no personal data or credentials). Nothing accumulates unless the collection store (KV) is connected.",
-      "불러오기": "Load",
-      "오늘의 SNS 콘텐츠 (수동 게시용)": "Today's social content (for manual posting)",
-      "매일 아침 자동 생성됩니다. 캡션을 눌러 복사하고, 이미지를\n    저장해 스레드·인스타에 올리면 끝. 토큰을 등록하면 이 과정도 자동화됩니다.":
-        "Generated automatically each morning. Click a caption to copy it, save the image, post to Threads and Instagram — done. Register a token and this becomes automatic too.",
-      "콘텐츠": "Content",
-      "인스타그램 캡션": "Instagram caption",
-      "(클릭=복사)": "(click to copy)",
       "스레드 캡션": "Threads caption",
-      "후원 기록 추가": "Add a donation record",
-      "홈페이지 후원 랭킹에 표시됩니다(누적 합산). ⚠️ 표시용\n    장부입니다 — 실제 돈을 계좌 원금에 넣을 때는 기존 매칭입금 절차를\n    쓰세요(회계 분리). 이름은 닉네임으로.":
-        "Shown in the donation ranking on the site (cumulative). ⚠️ This is a display ledger — to put real money into the account's principal, use the existing matching-deposit procedure (the accounts stay separate). Use a nickname for the name.",
       "기록": "Record",
-      "거래소 리베이트 링크": "Exchange rebate links",
-      "각 거래소의 '친구초대(레퍼럴)' 링크를 등록하면 홈페이지에\n    가입 카드가 뜹니다 — 방문자가 가입하면 거래 수수료 일부가 평생\n    지급됩니다. 같은 거래소 이름으로 다시 저장하면 덮어씁니다.":
-        "Register an exchange's referral link and a sign-up card appears on the site — when a visitor signs up, a share of their trading fees is paid for life. Saving again under the same exchange name overwrites it.",
       "저장": "Save",
-      "라이선스 키 발급 (1인 1키)": "Issue a licence key (one per person)",
-      "구매자 이메일에 묶인 영구 키를 만듭니다. 발급 비밀이\n    Cloudflare 시크릿(":
-        "Creates a permanent key bound to the buyer's email address. If the issuing secret is in the Cloudflare secrets (",
-      ")에 있으면 이메일만 넣으면 됩니다\n    (입력 불필요 — 서버가 발급). GitHub Secrets의":
-        "), the email address is all you need — the server issues it. It must match the",
-      "과\n    같은 값이어야 배포 프로그램이 이 키를 인정합니다.":
-        "in GitHub Secrets, or the distributed program will not accept the key.",
       "키 발급": "Issue key",
-      "⚠️ 이 페이지는 공개돼 있지만": "⚠️ This page is public, but",
-      "토큰·비밀 없이는 아무것도 할\n수 없습니다":
-        "nothing here works without a token or secret",
-      ". 설정 저장 권한은 GitHub 저장소 권한을, 키 발급은 발급 비밀을\n따릅니다. 접속 자체를 잠그려면 Cloudflare 대시보드 → Workers → quant →\nSettings → Variables에":
-        ". Saving settings follows GitHub repository permissions; issuing keys follows the issuing secret. To lock the page itself, add the",
-      "시크릿을 추가하세요 —\n그 순간부터 이 페이지는 아이디/비밀번호 로그인창을 요구합니다(서버측 검증).":
-        "secrets in the Cloudflare dashboard under Workers → quant → Settings → Variables — from that moment the page asks for an ID and password, checked on the server.",
 
-      "인스타그램 캡션 (영어)": "Instagram caption (English)",
-      "스레드 캡션 (영어)": "Threads caption (English)",
 
       "백테스트": "Backtest",
       "포트폴리오": "Portfolio",

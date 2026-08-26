@@ -156,9 +156,17 @@
       '<rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>대시보드</a>');
     // 언어 — 지금이 한국어면 'EN', 영어면 '한국어'를 권한다(할 수 있는
     // 일을 적는다). 누르면 새로고침되며 선택이 이 브라우저에 남는다.
-    var other = (root.QuantI18N && QuantI18N.current() === "en") ? "ko" : "en";
-    html.push('<a class="qn-lang" href="#" data-qn-lang="' + other + '">' +
-      (other === "en" ? "EN" : "한국어") + "</a>");
+    //
+    // ⚠️ 대시보드에는 **안 단다**(2026-08-26 사장님: "대시보드는 영어로 할
+    //    필요없어"). 그 페이지는 번역 엔진을 아예 안 싣는다. 버튼만 남기면
+    //    눌러도 이 화면은 그대로라 "고장 났나?"가 된다 — 할 수 없는 일을
+    //    적어 두는 버튼은 없는 버튼보다 나쁘다.
+    if (!/admin\.html$/.test(location.pathname)) {
+      var other = (root.QuantI18N && QuantI18N.current() === "en")
+        ? "ko" : "en";
+      html.push('<a class="qn-lang" href="#" data-qn-lang="' + other + '">' +
+        (other === "en" ? "EN" : "한국어") + "</a>");
+    }
     html.push('<span class="qn-ver" id="qnav-ver"></span>');
     // 삼단 바 버튼 + 세로 메뉴 — 링크 목록은 위 LINKS **그대로**다(같은
     // 사실은 한 곳에서만 산다). 데스크톱에서는 CSS가 버튼·메뉴를 숨긴다.

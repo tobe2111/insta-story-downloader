@@ -49,12 +49,18 @@ NAV = (DOCS / "assets" / "nav.js").read_text("utf-8")
 # 지금 영어가 **끝까지** 채워진 페이지. 여기 있는 페이지는 브라우저로 띄워
 # 한국어가 남지 않았는지 본다 — 목록에 없는 페이지는 아직 차례가 아니다.
 DONE = ["us.html", "intraday.html", "futures.html", "weekly.html",
-        "ml.html", "today.html", "trust.html", "admin.html"]
+        "ml.html", "today.html", "trust.html"]
+
+# **일부러 옮기지 않는** 페이지 (2026-08-26 사장님: "대시보드는 영어로 할
+# 필요없어"). 운영자 한 사람만 쓰는 화면이라 영어로 읽을 사람이 없다.
+# 사전을 아예 싣지 않는다 — 공용 사전의 낱말 몇 개만 걸려 **절반만 옮겨진**
+# 화면이 남는 것이 이 제품에서 가장 나쁜 모양이기 때문이다.
+KOREAN_ONLY = ["admin.html"]
 
 # 공개 페이지 전부 — 하나라도 사전을 안 실으면 그 페이지만 한국어로 남는다.
 PAGES = ["index.html", "paper.html", "today.html", "trust.html",
          "intraday.html", "us.html", "futures.html", "ml.html",
-         "weekly.html", "admin.html"]
+         "weekly.html"]
 
 
 # ── ① 배선 ────────────────────────────────────────────────────
@@ -1009,3 +1015,69 @@ def test_the_screen_tests_pin_the_browser_language():
         "화면 검사의 공용 준비가 브라우저 언어를 고정하지 않는다")
     assert 'lang: str = "ko-KR"' in helper, (
         "기본값이 한국어가 아니다 — 원본 화면을 보는 검사가 영어를 본다")
+
+
+# ── ⑩ 일부러 옮기지 않는 화면 ──────────────────────────────────
+#
+# 사장님 지시(2026-08-26): *"대시보드는 영어로 할 필요없어."*
+#
+# 운영자 한 사람만 쓰는 화면이다. 영어로 읽을 사람이 없는데 사전에 담아 두면
+# 문구를 고칠 때마다 따라 고쳐야 하는 짐만 남는다. 그렇다고 사전만 지우면 더
+# 나쁘다 — 공용 사전의 낱말 몇 개(상단 바·버튼)가 여전히 걸려 **절반만
+# 옮겨진 화면**이 된다. 그래서 엔진 자체를 안 싣는다.
+
+@pytest.mark.parametrize("name", KOREAN_ONLY)
+def test_a_korean_only_page_does_not_load_the_engine(name):
+    """사전만 빼면 공용 낱말이 걸려 반쪽이 된다 — 엔진째 안 싣는다."""
+    src = (DOCS / name).read_text("utf-8")
+    assert "assets/i18n.js" not in src, (
+        f"{name}이 번역 엔진을 싣고 있다 — 일부러 한국어로 두는 화면이다")
+    assert "assets/i18n-en.js" not in src, f"{name}이 사전을 싣고 있다"
+
+
+@pytest.mark.parametrize("name", KOREAN_ONLY)
+def test_a_korean_only_page_stays_korean_for_a_foreign_browser(browser, site,
+                                                               name):
+    """영어 브라우저로 들어와도 **원문 그대로**여야 한다."""
+    page, errors = _open(browser, site, name, wait=2000, lang="en-US")
+    try:
+        assert not errors, f"{name}: {errors}"
+        assert page.locator("html").get_attribute("lang") != "en", (
+            f"{name}이 영어로 바뀌었다")
+        assert len(page.evaluate(_LEFTOVER_JS)) > 20, (
+            f"{name}: 한국어가 거의 없다 — 어딘가에서 옮겨지고 있다")
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("name", KOREAN_ONLY)
+def test_a_korean_only_page_hides_the_language_button(browser, site, name):
+    """할 수 없는 일을 적어 둔 버튼은 **없는 버튼보다 나쁘다.**
+
+    눌러도 이 화면은 그대로다 — 그러면 읽는 사람은 고장으로 읽는다.
+    """
+    page, _ = _open(browser, site, name, wait=2000, lang="en-US")
+    try:
+        assert page.locator(".qn-lang").count() == 0, (
+            f"{name}에 언어 버튼이 있다 — 눌러도 아무 일도 일어나지 않는다")
+    finally:
+        page.close()
+
+
+def test_the_other_pages_still_have_the_button(browser, site):
+    """대조군 — 버튼을 통째로 없애 버리면 위 검사는 무의미하다."""
+    page, _ = _open(browser, site, "us.html", wait=2000, lang="en-US")
+    try:
+        assert page.locator(".qn-lang").count() == 1, (
+            "공용 바에서 언어 버튼이 사라졌다")
+    finally:
+        page.close()
+
+
+def test_the_korean_only_list_is_not_a_blanket():
+    """대조군 — 이 목록이 커지면 '영어로 읽힌다'는 주장이 무너진다."""
+    assert len(KOREAN_ONLY) <= 2, (
+        f"일부러 한국어로 두는 페이지가 {len(KOREAN_ONLY)}개로 늘었다 — "
+        "늘리기 전에 정말 영어로 읽을 사람이 없는지 보라")
+    assert not (set(KOREAN_ONLY) & set(DONE)), (
+        "같은 페이지가 '영어 완료'와 '일부러 한국어' 양쪽에 있다")
