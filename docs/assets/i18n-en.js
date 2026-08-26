@@ -30,7 +30,7 @@
   root.QUANT_EN = {
     /** 아직 영어가 덜 채워진 페이지 — 화면이 그렇다고 밝힌다. */
     partial: ["index.html", "paper.html", "today.html", "trust.html",
-              "ml.html", "admin.html"],
+              "admin.html"],
 
     strings: {
       // ── 상단 바 ────────────────────────────────────────────
@@ -719,6 +719,256 @@
       "\'5분마다\'는 예약일 뿐이며 실제 간격은 실측(observed_gap_minutes)이 말합니다 — 공용 러너는 예약을 크게 밀 수 있습니다":
         "\"every 5 minutes\" is only the schedule; the real gap is what we measure (observed_gap_minutes) — shared runners can push a schedule far back",
 
+      // ══ 머신러닝 성적표 (ml.html) ═══════════════════════════
+      "머신러닝 성적표": "Machine-learning report card",
+      "시뮬레이션 · 좋은 숫자만 고르지 않습니다":
+        "Simulation · we do not cherry-pick the good numbers",
+      "이 시스템의 판단 대부분은": "Most of this system's calls come from a",
+      "머신러닝 모델": "machine-learning model",
+      "이 냅니다. 이 페이지는 그 모델이": ". This page shows, as it is,",
+      "어떻게 판단하는지": "how that model decides",
+      "지금까지 얼마나 맞혔는지": "and how often it has been right so far",
+      "를 그대로 보여 줍니다. 성적이 나쁜 구간도 지우지 않습니다 — 지우는 순간 이 기록은 아무 의미가 없어집니다.":
+        ". Bad stretches are not deleted — the moment they are, this record means nothing.",
+      "지금 한 줄로 말하면": "In one line, right now",
+      "실전 적중률이": "the live hit rate is",
+      "우연과 구별되지 않습니다": "indistinguishable from chance",
+      "— 아직 잘한다는 증거도, 못한다는 증거도 없습니다.":
+        "— there is as yet no evidence that it is good, and none that it is bad.",
+      "실전 적중률": "Live hit rate",
+      "연습(인샘플) 적중률": "Practice (in-sample) hit rate",
+      "확신할수록 덜 맞히고 있습니다.":
+        "The more confident it is, the less often it is right.",
+      "적중률은": "A hit rate says",
+      "방향을 맞혔나": "was the direction right",
+      "이지": ", not",
+      "돈을 벌었나": "did it make money",
+      "가 아닙니다 — 작게 여러 번 맞고 크게 한 번 틀리면 적중률은 높고 잔고는 줄어듭니다.":
+        ". Being right small many times and wrong big once leaves a high hit rate and a smaller balance.",
+      "어떻게 판단하나": "How it decides",
+      "사람이 규칙을 정하지 않습니다": "no person writes the rules",
+      "가격에서 재료를 만든다": "It builds inputs out of price",
+      "최근 며칠 오르내린 폭, 거래량의 변화, 변동성 같은 것들을 숫자로 뽑습니다. 뉴스나 소문은 쓰지 않습니다 — 숫자로 셀 수 없는 것은 나중에 검증할 수도 없기 때문입니다.":
+        "How much it rose and fell over recent days, how volume changed, how volatile it has been — all pulled out as numbers. News and rumour are not used: what cannot be counted cannot be verified later either.",
+      "과거로 시험을 본다": "It sits an exam on the past",
+      "\"이런 재료였던 날, 다음 날 올랐나 내렸나\"를 과거 데이터로 반복해서 맞혀 봅니다. ⚠️ 이때":
+        "\"On days that looked like this, did the next day rise or fall?\" — asked over and over against past data. ⚠️ While doing so,",
+      "미래를 절대 보여 주지 않습니다.": "it is never shown the future.",
+      "2026년 3월 판단을 만들 때는 3월까지의 데이터만 씁니다. 이 규칙이 깨지면 성적표가 통째로 거짓말이 됩니다.":
+        "A call for March 2026 uses data only through March. If that rule breaks, the whole report card is a lie.",
+      "오늘의 확률을 말한다": "It states today's probability",
+      "모델이 내놓는 것은 \"산다/안 산다\"가 아니라":
+        "What the model produces is not \"buy / don't buy\" but a number like",
+      "\"오를 확률 62%\"": "\"62% chance of a rise\"",
+      "같은 숫자입니다. 확신이 없으면 없다고 말할 수 있어야 하기 때문입니다.":
+        ". It has to be able to say when it is not confident.",
+      "확률을 금액으로 바꾼다": "It turns the probability into an amount",
+      "확률이 높을수록 크게 삽니다. 문턱(보통 55%) 아래면 아예 사지 않습니다. 그래서":
+        "The higher the probability, the larger the purchase. Below the threshold (usually 55%) it does not buy at all. That is why",
+      "확률이 맞는지가 적중률보다 중요합니다":
+        "whether the probability is honest matters more than the hit rate",
+      "— 크게 거는 날일수록 더 자주 틀린다면 잔고는 줄어듭니다.":
+        "— if the days it bets big are the days it is more often wrong, the balance shrinks.",
+      "안전장치가 마지막에 깎는다": "Safeguards trim it at the end",
+      "과최적화 검증에서 의심스러운 종목은 비중을 절반으로 줄이거나 아예 관망합니다. 실적 발표 임박, 급락 중일 때도 줄입니다. 아래 \'안전장치가 붙잡은 것\'에 지금 상태가 나옵니다.":
+        "Symbols that look suspect in the overfitting checks get their weight halved or stand aside entirely. It also trims near an earnings release and during a sharp fall. The current state is under \"What the safeguards caught\" below.",
+      "매일 다시 배운다": "It relearns every day",
+      "새 하루가 지나면 그 하루를 포함해 다시 학습합니다. 오래된 시장 국면은 버립니다. 도전자 전략이 챔피언을 이기면 자리를 바꿉니다.":
+        "When a day ends it retrains including that day, and discards old market regimes. If a challenger strategy beats the champion, they swap places.",
+      "지금 무엇이 굴리고 있나": "What is running right now",
+      "굴리는 종목": "Symbols in play",
+      "머신러닝이 판단": "decided by machine learning",
+      "규칙이 판단 (ma_cross)": "decided by a rule (ma_cross)",
+      "도전자가 챔피언을 이긴 횟수": "Times a challenger beat the champion",
+      "도전자가 거의 못 이긴다는 것은": "Challengers almost never winning can be read as",
+      "안정": "stability",
+      "으로도,": ", or as",
+      "정체": "stagnation",
+      "로도 읽힙니다. 숫자만 적고 해석은 열어 둡니다. 머신러닝이 아닌 종목이 있다는 것은, 그 종목에서는":
+        ". We record the number and leave the reading open. Where a symbol is not run by machine learning, it means that there",
+      "단순한 규칙이 머신러닝을 이겼다": "a simple rule beat the model",
+      "는 뜻입니다.": ".",
+      "얼마나 맞혔나": "How often it was right",
+      "실전과 연습을 나눠서 셉니다": "counted separately for live and practice",
+      "불러오는 중…": "Loading…",
+      "확률이 맞는가": "Is the probability honest?",
+      "이 표가 이 페이지에서 가장 중요합니다":
+        "this is the most important table on the page",
+      "모델이": "Days the model called",
+      "\"오를 확률 70%\"": "\"70% chance of a rise\"",
+      "라고 말한 날들을 모아, 실제로 몇 %나 올랐는지 센 표입니다. 두 숫자가 가까울수록 모델이 자기 확신을 정직하게 말하고 있다는 뜻입니다.":
+        "are gathered here, and counted for how many actually rose. The closer the two numbers, the more honestly the model is stating its own confidence.",
+      "모델이 말한 확률": "Probability the model stated",
+      "표본": "Sample",
+      "모델이 말한 평균": "Model's average",
+      "실제로 오른 비율": "Share that actually rose",
+      "차이": "Gap",
+      "표본부족": "sample too small",
+      "확정": "confirmed",
+      "모은 (예측, 결과) 짝": "(prediction, outcome) pairs collected",
+      "건 · 예측확률과 실제결과의 상관계수":
+        "· correlation between predicted probability and actual outcome",
+      "(0에 가까우면 예측과 결과가 서로 무관하다는 뜻, 음수면 거꾸로 간다는 뜻입니다.)":
+        "(near zero means prediction and outcome are unrelated; negative means they run the wrong way.)",
+      "\'확정\'은 그 확률대의 어긋남이": "\"Confirmed\" means the mismatch in that probability band has",
+      "통계로 굳어졌다": "hardened statistically",
+      "는 뜻입니다(\'표본부족\'은 아직 판단을 유보한다는 뜻이지 괜찮다는 뜻이 아닙니다).":
+        " (\"sample too small\" means judgement is withheld, not that it is fine).",
+      "학습 때와 지금이 얼마나 다른가": "How different today is from training time",
+      "드리프트": "drift",
+      "모델은": "The model learned on",
+      "과거 시장": "a past market",
+      "에서 배웠습니다. 지금 시장이 그때와 많이 다르면, 모델은":
+        ". If today's market differs a lot from that one, the model is deciding in a situation it has",
+      "본 적 없는 상황": "never seen",
+      "에서 판단하고 있는 것입니다. 틀렸다는 증거는 아니지만 맞을 이유도 그만큼 약해집니다.":
+        ". That is not evidence it is wrong, but the reason to expect it to be right is weaker.",
+      "주의 (표본 잡음 범위)": "caution (within sampling noise)",
+      "심한 드리프트": "severe drift",
+
+      "기준선을 넘은 종목": "Symbols past the line",
+      "안전장치가 붙잡은 것": "What the safeguards caught",
+      "경보가 아니라 실제로 손을 묶습니다":
+        "not a warning — it actually ties the hands",
+      "오늘 관망 (비중 0)": "standing aside today (weight 0)",
+      "비중 절반으로": "weight halved",
+      "깎이지 않음": "not trimmed",
+      "⚠️ 지금": "⚠️ Right now",
+      "모든 종목이 붙잡혀 있습니다.": "every symbol is being held back.",
+      "시스템이 스스로 \"이 모델들을 지금 그대로 믿기 어렵다\"고 판단한 상태입니다. 이건 고장이 아니라 안전장치가 설계대로 작동하는 모습입니다 — 다만 그만큼 지금 굴리는 금액이 작다는 뜻이기도 합니다.":
+        "The system has decided for itself that \"these models are hard to trust as they stand\". That is not a fault; it is the safeguards working as designed — though it also means the amount being put to work right now is small.",
+      "비중 배수": "Weight multiplier",
+      "이유": "Reason",
+      "과최적화란": "Overfitting means",
+      "과거에만 잘 맞도록 맞춰진 것": "being tuned to fit only the past",
+      "을 말합니다. 시험 문제를 통째로 외운 학생이 새 문제를 못 푸는 것과 같습니다. 이 검사는 그 위험을 확률로 재고, 높으면 실제로 비중을 깎습니다.":
+        ". It is the student who memorised the exam paper and cannot answer a new question. This check measures that risk as a probability, and when it is high it actually trims the weight.",
+      "적중률은 \'방향을 맞혔나\'이지 \'돈을 벌었나\'가 아닙니다 — 작게 여러 번 맞고 크게 한 번 틀리면 적중률은 높고 잔고는 줍니다":
+        "A hit rate says \"was the direction right\", not \"did it make money\" — being right small many times and wrong big once leaves a high hit rate and a smaller balance",
+      "실전 표본이 얇으면 신뢰구간이 넓습니다. 구간이 50%를 품고 있으면 \'못한다\'가 아니라 \'아직 모른다\'입니다":
+        "A thin live sample makes the confidence interval wide. An interval containing 50% means \"we do not know yet\", not \"it is bad\"",
+      "인샘플 적중률은 모델이 이미 본 구간이라 실력의 증거가 아닙니다":
+        "The in-sample hit rate covers ground the model has already seen, so it is not evidence of skill",
+      "확률 보정은 지금 **표시 전용**입니다 — 어긋남이 확정돼도 그것만으로 비중을 줄이지는 않습니다(과최적화 검증 게이트는 줄입니다)":
+        "Probability calibration is display-only for now — even a confirmed mismatch does not by itself cut the weight (the overfitting gate does)",
+      "여기 숫자는 전부 시뮬레이션 장부에서 셌습니다. 실제 체결·호가를 겪은 값이 아닙니다":
+        "Every number here was counted from a simulated ledger. None of it met a real fill or a real order book",
+      "이 페이지의 숫자는 배치가 매일 계산해 커밋하는":
+        "Every number on this page is read only from",
+      "에서만 읽습니다 — 원본을 직접 볼 수 있습니다.":
+        ", which the batch computes and commits daily — you can read the source yourself.",
+      "가상 자금 시뮬레이션입니다. 실제 돈이 아니며 투자 권유가 아닙니다. 수익을 보장하지 않습니다.":
+        "This is a play-money simulation. It is not real money, not investment advice, and no return is guaranteed.",
+
+      // ══ 오늘의 판단 (today.html) ═════════════════════════════
+      "오늘의 판단 — 100만 챌린지": "Today's call — 1M Won Challenge",
+      "100만 챌린지 · 100만원 → 1억":
+        "1M Won Challenge · KRW 1,000,000 → 100,000,000",
+      "어젯밤 재학습: 전 종목 챔피언 유지 (확실히 나은 후보 없음 — 정상)":
+        "Last night's retraining: every champion kept (no clearly better candidate — normal)",
+      "오늘의 자세": "Today's stance",
+      "판단 근거 (새벽 기준)": "Reasoning (as of the morning call)",
+      "관망 (현금)": "Standing aside (cash)",
+
+      "95% 신뢰구간": "95% confidence interval",
+      "95% 구간": "95% interval",
+
+      // ══ 실기록 (paper.html) ══════════════════════════════════
+      "● 라이브 보는 중": "● Watching live",
+      "전일 확정": "settled yesterday",
+      "100만 챌린지 — 매일 자동 페이퍼":
+        "1M Won Challenge — automated paper trading, every day",
+      "통합 계좌는": "The combined account spreads risk across several symbols with",
+      "가상 자금": "play money",
+      "으로 여러 종목에 위험 분산하며, 클라우드가 매일 새벽(한국시간) 챔피언 전략으로 자동 모의 매매한 결과입니다.":
+        ", and this is the result of the cloud running the champion strategies as automated paper trades every morning (Korean time).",
+      "그대로 공개": "published as it is",
+      "⚠️ 아래": "⚠️ The",
+      "종목별 참고 계좌": "per-symbol reference accounts",
+      "는 종목마다 따로 굴리는": "below are run separately for each symbol —",
+      "별개의 1만원 계좌": "separate KRW 10,000 accounts",
+      "입니다 — 합계가 통합 계좌 원금을 넘는 것이 정상이며, 통합 계좌의 보유량이 아닙니다. 여러분은 아무것도 하지 않아도 됩니다.":
+        ". Their total exceeding the combined account's principal is normal, and it is not what the combined account holds. Nothing is required of you.",
+      "가짜 돈": "not real money",
+      "이며, 좋은 결과도 미래 수익을 보장하지 않습니다.":
+        ", and a good result guarantees nothing about the future.",
+      "원금 (매칭 입금 포함)": "Principal (matching deposits included)",
+      "운용 손익": "Trading P&L",
+      "실력 지표 (시간가중 TWR)": "Skill measure (time-weighted return)",
+      "무작위 전략 1,000개 대비": "against 1,000 random strategies",
+      "상위 0%": "top 0%",
+      "진화 없이 고정 전략이었다면": "if the strategy had been frozen with no evolution",
+      "첫날 균등 매수 후 보유했다면":
+        "if everything had been bought equally on day one and held",
+      "전략 − 보유 (초과성과)": "Strategy − buy & hold (excess)",
+      "─ 계좌 자산 · ┄ 원금 · ⋯ 그냥 보유 · ● 챔피언 교체 · ▲ 매칭 입금 ·":
+        "─ account equity · ┄ principal · ⋯ buy & hold · ● champion swap · ▲ matching deposit ·",
+      "구조 교체(이후 0일부터 다시)": "structure change (the count restarts from zero)",
+      "현재 챔피언:": "Current champion:",
+      "거래일": "Trading days",
+      "계좌 자산": "Account equity",
+      "총노출": "Gross exposure",
+      "과거 400봉 · 인샘플": "past 400 bars · in-sample",
+      "주간 수익률 보기 (최근 8주)": "Show weekly returns (last 8 weeks)",
+      "주간": "Weekly",
+      "매일 새벽 확정 기록": "Settled each morning",
+      "아래는": "Below are",
+      "종목마다 따로 굴리는 참고용 계좌":
+        "reference accounts run separately for each symbol",
+      "이며, 여기 자산·비중이 통합 계좌의 보유량은 아닙니다. 통합 계좌가 실제로 얼마를 들고 있는지는 위 카드의":
+        ". The equity and weights here are not what the combined account holds. For what the combined account actually holds, see",
+      "과": "and",
+      "첫 화면의 \'통합 노출\' 열": "the \"combined exposure\" column on the first screen",
+      "을 보세요.": ".",
+      "참고계좌 자산": "Reference-account equity",
+      "참고계좌 비중": "Reference-account weight",
+      "추이(30일)": "Trend (30 days)",
+      "배분 방식 실험": "Allocation-method experiment",
+      "가상 자금 · 상대 비교 전용":
+        "play money · for relative comparison only",
+      "(사전 등록 — 기준은": "(pre-registered — the criteria are published",
+      "에 공개)": ")",
+      "배분 방법": "Allocation method",
+      "실험계좌 자산": "Experiment equity",
+      "HRP (현행)": "HRP (current)",
+      "위험기여 균등": "Equal risk contribution",
+      "자본 균등": "Equal capital",
+      "역변동성": "Inverse volatility",
+      "— 본 계좌는 신호가 켜진 종목에 **똑같이** 나눠 담습니다(균등 조각). 이 그림자는 같은 신호를 받되 **줄을 세워 상위 몇 개에만**, 그것도 점수에 비례해 담습니다 — 확신이 두 배면 금액도 두 배입니다. 집중은 공짜가 아니라서 맞을 때 더 벌고 틀릴 때 더 잃습니다. 반드시 최대낙폭과 함께 읽으세요. 종가 평가·수수료만 차감이라 본 계좌와 절대 비교는 안 되고, 배분 방식의 효과를 보는 용도입니다.":
+        "— the main account splits equally across every symbol whose signal is on. This shadow takes the same signals but ranks them and buys only the top few, in proportion to score: twice the conviction, twice the amount. Concentration is not free — it earns more when right and loses more when wrong. Always read it next to the max drawdown. It marks to the close and deducts fees only, so it cannot be compared to the main account in absolute terms; it exists to show the effect of the allocation method.",
+      "담은 종목 수": "Symbols taken",
+      "조기 판정 진도": "Progress toward an early verdict",
+      "— 경계를 넘으면 그 시점에 조기 판정이 납니다. 넘기 전에는 \'진행 중\'이며, 진행 중은 \'아직 모른다\'이지 \'차이가 없다\'가 아닙니다. 이 경계는 결과를 보기 전에 등록했고, 매일 들여다봐도 거짓 승리 확률이 5%를 넘지 않는다는 것을 시뮬레이션 검사로 확인합니다.":
+        "— crossing the boundary produces an early verdict at that moment. Before it is crossed the state is \"in progress\", and in progress means \"we do not know yet\", not \"there is no difference\". The boundary was registered before any result was seen, and simulation checks confirm that even looking at it every day keeps the false-victory rate under 5%.",
+      "비교": "Comparison",
+      "상태": "State",
+      "경계까지": "To the boundary",
+      "표본 부족": "sample too small",
+      "AI 확률의 정직성 검증": "Checking whether the AI's probabilities are honest",
+      "보정": "calibration",
+      "된 것이고, 크게 어긋나면 그 사실이 그대로 여기 보입니다. 예측은 새벽에 먼저 기록되고 결과는 다음 날 붙습니다. 신뢰구간(95%)이 좁아질 때까지는 비율보다 구간을 믿으세요.":
+        ", and a large mismatch shows up right here as it is. The prediction is recorded in the morning and the outcome is attached the next day. Until the 95% confidence interval narrows, trust the interval rather than the ratio.",
+      "예측 확률": "Predicted probability",
+      "일수": "Days",
+
+      // ══ 매일 새벽 배치가 만드는 판단 설명 — **절 단위** ══════
+      //
+      // 통째로는 매일 글자가 달라 사전이 못 찾는다. 절(clause)로 끊으면
+      // 틀이 몇 개 안 되고, 모르는 절은 한국어로 남는다(엔진의 clauses()).
+      "관망 (현금)": "Standing aside (cash)",
+      "최근 변동성이 커서 위험 조절이 비중을 낮게 잡음":
+        "recent volatility is high, so risk control set the weight low",
+      "🛡 실적 가드: 발표 임박 → 비중 절반":
+        "🛡 Earnings guard: a release is imminent → weight halved",
+
+      "위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다":
+        "the explanation above is the reasoning of the largest seat-holder; today's weight is the seat-weighted average of every member's signal",
+      "다음 시가(주식)": "next open (stocks)",
+      "개장 시가": "opening price",
+      "다음 장 시가": "next session's open",
+      "판단 재료": "inputs behind the call",
+      "합산": "pooled",
+
       // ── 주간 아카이브 ──────────────────────────────────────
       "주(월요일 시작)": "Week (starting Monday)",
       "주말 자산": "Equity at week end",
@@ -836,6 +1086,94 @@
        "is measured against the principal (KRW $1)"],
       ["^🔒 엣지 미입증 — 검증 목표로 잠금 중\\. 판정 시계 진행 중 — (.+) (\\d+)일차\\/(\\d+)일 · 그동안 개선 (\\d+)회 공개$",
        "🔒 Edge unproven — locked to the validation target. Verdict clock running — $1, day $2 of $3 · $4 improvements published in the meantime"],
+      ["^\\/ (\\d+)종목 · 가장 심한 곳: (.+)$",
+       "/ $1 symbols · worst offenders: $2"],
+      ["^과최적화 확률\\(PBO\\) (\\d+)% — 문서가 \'버릴 것\'이라 정한 선\\((\\d+)%\\)을 넘었습니다\\. 오늘 이 종목은 관망합니다\\.$",
+       "Overfitting probability (PBO) $1% — past the $2% line the documentation defines as \"discard\". This symbol stands aside today."],
+      ["^CPCV 최악 경로 수익률 (.+) \\(기준: (.+) 초과\\) · 과최적화 확률\\(PBO\\) (\\d+)% > 기준 (\\d+)% · 보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
+       "CPCV worst-path return $1 (threshold: above $2) · overfitting probability (PBO) $3% > threshold $4% · deflated Sharpe (DSR) $5 < threshold $6 — the weight is halved."],
+      ["^CPCV 최악 경로 수익률 (.+) \\(기준: (.+) 초과\\) · 보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
+       "CPCV worst-path return $1 (threshold: above $2) · deflated Sharpe (DSR) $3 < threshold $4 — the weight is halved."],
+      ["^과최적화 확률\\(PBO\\) (\\d+)% > 기준 (\\d+)% · 보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
+       "Overfitting probability (PBO) $1% > threshold $2% · deflated Sharpe (DSR) $3 < threshold $4 — the weight is halved."],
+      ["^보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
+       "Deflated Sharpe (DSR) $1 < threshold $2 — the weight is halved."],
+      ["^\\((\\d+)\\/(\\d+)건\\)$", "($1 of $2)"],
+      ["^\\((\\d+)건\\)$", "($1 cases)"],
+      ["^모델이 오른다고 본 날\\((\\d+)건\\)은 실제로 ([\\d\\.]+)% 올랐고, 내린다고 본 날\\((\\d+)건\\)은 ([\\d\\.]+)% 올랐습니다 — 순서가 뒤집혀 있습니다\\. 표본이 얇아 확정은 아니지만, 이 시스템이 확률을 금액으로 바꾸는 이상 가장 눈여겨볼 신호입니다\\.$",
+       "On the $1 days the model called a rise, $2% actually rose; on the $3 days it called a fall, $4% rose — the order is inverted. The sample is thin so this is not settled, but as long as this system turns probabilities into amounts it is the signal most worth watching."],
+      ["^오늘 ([-−+][\\d\\.]+)%$", "today $1%"],
+      ["^· 최대낙폭 (.+)$", "· max drawdown $1"],
+      ["^매수 (\\d+)%$", "Buy $1%"],
+      ["^매도 (\\d+)%$", "Sell $1%"],
+      ["^(\\d+)회$", "$1 times"],
+      ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
+      ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],
+      ["^상위 비중: (.+)$", "Largest weights: $1"],
+      ["^신뢰도 곡선 · 표본 (\\d+)일$", "Reliability curve · sample of $1 days"],
+      ["^(\\d{4}-\\d{2}-\\d{2})에 원화 계좌로 다시 열었습니다 — 이전 기록은$",
+       "Reopened as a won account on $1 — the earlier record is"],
+      ["^([\\d,]+)원으로 시작한 가상 자금 · 최대낙폭$",
+       "play money started at KRW $1 · max drawdown"],
+      ["^100만 챌린지 · ([\\d,]+)원 → 1억$",
+       "1M Won Challenge · KRW $1 → 100,000,000"],
+      ["^([\\d,]+)원으로 시작$", "started at KRW $1"],
+      ["^해 그 종목만 매매한 결과라, (\\d+)개를 합치면 ([\\d,]+)원가 됩니다\\.$",
+       "and traded that symbol alone, so adding up all $1 of them comes to KRW $2."],
+      ["^100만 챌린지 본 계좌\\(원금 ([\\d,]+)원\\)와는 별개의 장부$",
+       "a ledger separate from the 1M Won Challenge's main account (principal KRW $1)"],
+      ["^입니다 — 각각$", "— each",],
+      // ── 판단 설명의 절(clause) — 위 clauses()가 끊어서 넘긴다 ──
+      ["^매수 \\+(\\d+)%$", "Buy +$1%"],
+      ["^매도 ([-−]\\d+)%$", "Sell $1%"],
+      ["^소액 매수 \\+([\\d\\.]+)%$", "Small buy +$1%"],
+      ["^소액 매도 ([-−][\\d\\.]+)%$", "Small sell $1%"],
+      ["^이동평균 교차: (\\d+)일선이 (\\d+)일선 위 \\(상승 추세 지속 판단\\)$",
+       "Moving-average cross: the $1-day line is above the $2-day line (read as an uptrend continuing)"],
+      ["^이동평균 교차: (\\d+)일선이 (\\d+)일선 아래 \\(하락 추세 판단\\)$",
+       "Moving-average cross: the $1-day line is below the $2-day line (read as a downtrend)"],
+      ["^로지스틱회귀·풀링\\(전 종목 합산 학습\\) 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the logistic-regression, pooled (trained on every symbol together) model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^로지스틱회귀·풀링\\(전 종목 합산 학습\\) 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the logistic-regression, pooled (trained on every symbol together) model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^로지스틱회귀 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the logistic-regression model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^로지스틱회귀 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the logistic-regression model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^랜덤포레스트·풀링\\(전 종목 합산 학습\\) 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the random-forest, pooled (trained on every symbol together) model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^랜덤포레스트·풀링\\(전 종목 합산 학습\\) 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the random-forest, pooled (trained on every symbol together) model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^랜덤포레스트 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the random-forest model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^랜덤포레스트 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the random-forest model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^그라디언트부스팅·풀링\\(전 종목 합산 학습\\) 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the gradient-boosting, pooled (trained on every symbol together) model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^그라디언트부스팅·풀링\\(전 종목 합산 학습\\) 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the gradient-boosting, pooled (trained on every symbol together) model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^그라디언트부스팅 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the gradient-boosting model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^그라디언트부스팅 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the gradient-boosting model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^앙상블·풀링\\(전 종목 합산 학습\\) 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the ensemble, pooled (trained on every symbol together) model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^앙상블·풀링\\(전 종목 합산 학습\\) 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the ensemble, pooled (trained on every symbol together) model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^앙상블 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
+       "the ensemble model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
+      ["^앙상블 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
+       "the ensemble model's chance of a rise falls short of the $1% threshold, so it stands aside"],
+      ["^사이징: 신호 원비중 (\\d+)% → 변동성 타깃 조절 후 (\\d+)%$",
+       "sizing: raw signal weight $1% → $2% after the volatility target"],
+      ["^챔피언 전략 신호에 따름$", "following the champion strategy's signal"],
+      ["^🏛 의회 운용: (.+)$", "🏛 Parliament: $1"],
+      ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함 · 봉이 빠진 (\\d+)번은 제외 · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",
+       "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat days · excluding $8 rounds with a missing bar · this symbol alone is still accumulating, $9 so far)"],
+      ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 봉이 빠진 (\\d+)번은 제외 · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",
+       "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · excluding $7 rounds with a missing bar · this symbol alone is still accumulating, $8 so far)"],
+      ["^참고: 이 확률대\\((\\d+)%±(\\d+)%p\\)의 과거 성적은 표본 축적 중 \\(종목 (\\d+)건부터 표시\\)$",
+       "note: the past record in this probability band ($1%±$2%pt) is still accumulating (shown from $3 cases per symbol)"],
       ["^([-−+])([\\d,]+)원$", "$1KRW $2"],
       ["^([\\d,\\.]+)개$", "$1"],
       ["^\\(([+−][\\d\\.]+)%\\) · 최대낙폭$", "($1) · max drawdown"],

@@ -143,8 +143,17 @@ def test_today_page_names_the_account_too():
 # 읽고서야 보였다("종목계좌 20.8%"가 아니라 그냥 "비중 20.8%"였다).
 
 def test_the_sidebar_names_the_account_too():
+    """⚠️ 뒤 900자만 잘라 보던 검사였다 — 바로 아래 형제가 **같은 이유로**
+       한 번 빨개져서 고쳤는데(주석 한 문단이 늘자 계약은 그대로인데 창
+       밖으로 밀렸다), 이 검사는 그때 같이 안 고쳤다. 오늘 도움말 잘림을
+       고치며 주석을 한 줄 더 붙였더니 똑같이 빨개졌다.
+
+       FROZEN_IDEAS ⑭ 그대로다 — **고친 결함은 형제를 찾기 전까지 고친 게
+       아니다.** 이제 둘 다 렌더 블록이 **끝나는 자리**까지를 범위로 잡는다.
+    """
     idx = (ROOT / "docs" / "index.html").read_text("utf-8")
-    body = idx.split('getElementById("sidelist")', 1)[1][:900]
+    body = idx.split('getElementById("sidelist")', 1)[1]
+    body = body.split('getElementById("side-swaps")', 1)[0]
     assert "종목계좌" in body, (
         "사이드바가 '비중'만 적는다 — 통합 계좌 보유량으로 읽힌다")
     assert not re.search(r">비중 '\+", body), "맨 '비중'이 남아 있다"
