@@ -415,6 +415,12 @@ fetch("social/latest.json").then(function(r){return r.ok?r.json():null})
     if(d.captions){
       copyBlock("인스타그램 캡션",d.captions.instagram||"");
       copyBlock("스레드 캡션",d.captions.threads||"");
+      /* 영어판은 **있을 때만** 보여준다 — 옛 폴더에는 없다. 빈 칸을
+         내밀면 복사해서 그대로 올리는 사람이 빈 글을 올린다. */
+      if(d.captions.instagram_en)
+        copyBlock("인스타그램 캡션 (영어)",d.captions.instagram_en);
+      if(d.captions.threads_en)
+        copyBlock("스레드 캡션 (영어)",d.captions.threads_en);
     }
   }).catch(function(){$("sns-body").textContent="콘텐츠 로딩 실패";});
 })();

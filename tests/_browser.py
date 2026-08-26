@@ -32,6 +32,7 @@
 
 from __future__ import annotations
 
+import json as _json
 import os
 from pathlib import Path
 
@@ -83,8 +84,8 @@ _LOCAL = ("http://127.0.0.1", "http://localhost",
           "data:", "blob:", "about:")
 
 
-def block_external(page) -> None:
-    """검사가 도는 동안 **바깥 네트워크를 끊는다**.
+def block_external(page, lang: str = "ko-KR") -> None:
+    """검사가 도는 동안 **바깥 네트워크를 끊고, 브라우저 언어를 고정한다**.
 
     ⚠️ 왜 필요한가 (감사 278). 이 개발 컨테이너는 바깥으로 못 나간다.
        그래서 화면 검사는 늘 "시세를 못 받은 상태"의 페이지를 봐 왔다.
@@ -118,6 +119,19 @@ def block_external(page) -> None:
     #    WebSocket을 지워 두면 페이지는 스스로 REST 폴링으로 내려가고
     #    (그 경로는 라우팅이 지배한다), 두 환경이 같은 페이지를 본다.
     page.add_init_script("delete window.WebSocket;")
+    # ⚠️ **브라우저가 무슨 언어를 원하는지도 환경이다** (2026-08-26).
+    #    사장님 지시로 "한국 밖에서 들어오면 자동으로 영어"가 생겼다. 그
+    #    판단의 재료는 `navigator.languages`인데, 검사용 크로미움은 보통
+    #    영어로 뜬다 — 그대로 두면 한국어 화면을 보는 검사 수십 개가
+    #    **영어 화면**을 보게 되고, 그건 검사가 다른 일을 하는 것이다
+    #    (감사 130·278에서 이미 치른 대가). 그래서 여기서 못박는다.
+    #    자동 전환 자체를 보는 검사는 `lang=`으로 다른 나라를 흉내 낸다.
+    page.add_init_script(
+        "Object.defineProperty(navigator, 'languages', "
+        "{get: () => %s, configurable: true});"
+        "Object.defineProperty(navigator, 'language', "
+        "{get: () => %s, configurable: true});"
+        % (_json.dumps([lang]), _json.dumps(lang)))
 
 
 def chromium_or_skip():

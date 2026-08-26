@@ -48,11 +48,39 @@
     }
   }
 
-  /** 지금 언어. 주소의 ?lang=en 이 저장값보다 세다(링크로 공유 가능). */
+  /**
+   * 브라우저가 한국어를 첫째로 원하지 않으면 **영어로 짐작한다.**
+   *
+   * (2026-08-26 사장님 지시: "한국 말고 다른 나라에서 우리 서비스 들어오면
+   * 자동으로 영어로 보이게 해줘.")
+   *
+   * 첫째로 선호하는 언어 하나만 본다 — 목록을 훑어 한국어를 찾아내면
+   * "영어를 더 좋아하는데 한국어도 읽을 줄 아는 사람"에게 한국어가 나간다.
+   * 짐작은 **저장하지 않는다.** 저장하면 나중에 진짜로 고른 것과 구별할 수
+   * 없어지고, 그때부터 버튼을 눌러도 되돌아온 것처럼 보인다.
+   */
+  function guess() {
+    var nav = root.navigator || {};
+    var list = nav.languages && nav.languages.length
+      ? nav.languages : (nav.language ? [nav.language] : []);
+    var first = String(list[0] || "").toLowerCase();
+    if (!first) return "ko";              // 모르면 원본(한국어)이다
+    return first.indexOf("ko") === 0 ? "ko" : "en";
+  }
+
+  /**
+   * 지금 언어. 센 것부터 — 주소의 ?lang=en(링크로 공유 가능) → 이 브라우저에
+   * 저장된 **사람의 선택** → 브라우저 언어로 짐작.
+   */
   function current() {
     var q = /[?&]lang=(ko|en)/.exec(root.location.search || "");
     if (q) return q[1];
-    return stored() || "ko";
+    return stored() || guess();
+  }
+
+  /** 사람이 고른 적이 있는가 — 짐작으로 영어가 된 것과 구별한다. */
+  function chosen() {
+    return /[?&]lang=(ko|en)/.test(root.location.search || "") || !!stored();
   }
 
   function set(lang) {
@@ -269,7 +297,10 @@
    * 남아 있는데 아무 말도 없으면 읽는 사람은 그것을 **고장**으로 읽는다.
    */
   function notice() {
-    var here = (location.pathname.split("/").pop() || "index.html");
+    // 페이지가 자기 이름을 직접 알려 줄 수 있다 — 조종석은 주소가 "/"라
+    // 사이트 첫 화면과 구별되지 않는다(quant/web/app.py가 심는다).
+    var here = root.QUANT_I18N_PAGE
+      || (location.pathname.split("/").pop() || "index.html");
     var partial = (root.QUANT_EN && root.QUANT_EN.partial) || [];
     if (partial.indexOf(here) < 0) return;
     var bar = document.createElement("div");
@@ -286,6 +317,34 @@
     document.body.insertBefore(bar, document.body.firstChild);
   }
 
+  /**
+   * 짐작으로 영어가 된 방문자에게는 **짐작이라고 말하고 되돌아갈 길을 준다.**
+   *
+   * 브라우저 언어만 보고 바꾼 것이므로 틀릴 수 있다 — 영어 브라우저를 쓰는
+   * 한국어 사용자가 그렇다. 아무 말 없이 영어가 나가면 그 사람은 원문이
+   * 사라졌다고 읽는다. 한 줄로 밝히고 한국어 링크를 함께 둔다.
+   */
+  function guessed_note() {
+    if (chosen()) return;                 // 고른 사람에게는 할 말이 없다
+    var bar = document.createElement("div");
+    bar.id = "qi18n-auto";
+    bar.setAttribute("role", "note");
+    bar.style.cssText = [
+      "padding:8px 16px", "font-size:12.5px", "line-height:1.5",
+      "color:var(--muted,#8f96a3)",
+      "background:var(--bg2,#0e1013)",
+      "border-bottom:1px solid var(--line,#1e2128)"].join(";");
+    bar.appendChild(document.createTextNode(
+      "Shown in English because your browser prefers it. "));
+    var back = document.createElement("a");
+    back.id = "qi18n-back";
+    back.href = "?lang=ko";
+    back.textContent = "한국어로 보기";
+    back.style.color = "inherit";
+    bar.appendChild(back);
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+
   function start() {
     if (current() !== "en") {
       document.documentElement.setAttribute("lang", "ko");
@@ -293,11 +352,13 @@
     }
     apply();
     notice();
+    guessed_note();
     watch();
   }
 
   root.QuantI18N = {
     current: current, set: set, apply: apply, look: look, LANGS: LANGS,
+    guess: guess, chosen: chosen,
     /** 이 페이지에서 아직 한국어로 남은 글자가 있는가 — 화면이 밝힌다. */
     hasUntranslated: function () {
       var left = false;

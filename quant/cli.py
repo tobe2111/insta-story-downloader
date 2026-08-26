@@ -13,7 +13,13 @@ from __future__ import annotations
 
 import argparse
 import copy as _copy
+import os as _os
 import pathlib as _pathlib
+import sys as _sys
+
+# 나가는 글자는 한 곳을 거친다 — 사전에 있으면 영어로, 없으면
+# 한국어 그대로(지어내지 않는다). quant/i18n.py 설명 참고.
+from quant.i18n import say, set_lang, t, translate_parser
 
 
 def _data_note(df, market: str) -> str:
@@ -65,19 +71,19 @@ def _cmd_backtest(args) -> None:
 
     # 데이터 품질 스캔 — 무결성 위반이 있으면 경고만 출력한다 (비파괴, 실행은 계속).
     # 오염된 데이터 위의 백테스트는 그럴듯한 거짓말이 되므로 먼저 알려준다.
-    print(_data_note(df, args.market))
+    say(_data_note(df, args.market))
     from quant.data.quality import is_severe, quality_report, scan_ohlcv
     findings = scan_ohlcv(df)
     if is_severe(findings):
-        print("\n⚠️ 데이터 품질 경고 — 아래 항목을 확인한 뒤 결과를 해석하세요.")
-        print(quality_report(df, findings))
+        say("\n⚠️ 데이터 품질 경고 — 아래 항목을 확인한 뒤 결과를 해석하세요.")
+        say(quality_report(df, findings))
 
     strat = default_ensemble() if args.strategy == "ensemble" else get_strategy(args.strategy)
     cost_model = None
     if args.market_costs:
         from quant.backtest.costs import CostModel
         cost_model = CostModel.for_market(args.market)
-        print(f"💸 시장 비용 프리셋({args.market}): 수수료 {cost_model.fee:.4%} · "
+        say(f"💸 시장 비용 프리셋({args.market}): 수수료 {cost_model.fee:.4%} · "
               f"슬리피지 {cost_model.slippage:.4%} (편도, 근사)")
     result = Backtester(
         strat, periods_per_year=_ppy(args.market),
@@ -87,13 +93,13 @@ def _cmd_backtest(args) -> None:
         dd_throttle=args.dd_throttle, dd_band=args.dd_band,
         intrabar_stops=args.intrabar_stops,
     ).run(df)
-    print(f"\n=== {args.strategy} · {args.symbol} ({len(df)}봉) ===")
-    print(result.summary())
+    say(f"\n=== {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    say(result.summary())
     if args.report:
         from quant.reporting import generate_report
         out = generate_report(result, args.report, title=f"{args.strategy} · {args.symbol}")
-        print(f"\n📄 리포트: {out}")
-    print("⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.")
+        say(f"\n📄 리포트: {out}")
+    say("⚠️ 과거 성과는 미래 수익을 보장하지 않습니다.")
 
 
 def _cmd_sweep(args) -> None:
@@ -103,13 +109,13 @@ def _cmd_sweep(args) -> None:
     from quant.strategies import MovingAverageCross
 
     df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe, limit=args.limit)
-    print(_data_note(df, args.market))
+    say(_data_note(df, args.market))
     fast, slow = [5, 10, 15, 20, 30, 40], [50, 60, 80, 100, 150, 200]
     grid = sensitivity_grid(df, MovingAverageCross, "fast", fast, "slow", slow,
                             objective=args.objective, periods_per_year=_ppy(args.market))
     out = generate_heatmap(fast, slow, grid, x_label="fast", y_label="slow",
                            objective=args.objective, path=args.out)
-    print(f"📊 히트맵: {out}\n💡 넓은 초록 고원=견고, 외딴 점=과최적화")
+    say(f"📊 히트맵: {out}\n💡 넓은 초록 고원=견고, 외딴 점=과최적화")
 
 
 def _cmd_web(args) -> None:
@@ -147,7 +153,7 @@ def _cmd_learn(args) -> None:
         # 야간 재학습이 뽑은 현재 챔피언을 사용 — 승격되면 재시작 없이 자동 반영
         from quant.live.retrain import champion_spec, champion_strategy
         strat = champion_strategy(args.market, args.symbol)
-        print(f"🏆 현재 챔피언 사용: {champion_spec(args.market, args.symbol)['params']}"
+        say(f"🏆 현재 챔피언 사용: {champion_spec(args.market, args.symbol)['params']}"
               " (야간 재학습이 교체하면 자동 반영됩니다)")
     elif args.strategy == "ensemble":
         strat = default_ensemble()
@@ -168,10 +174,10 @@ def _cmd_learn(args) -> None:
         market=args.market,
     )
     cycles = None if args.cycles <= 0 else args.cycles
-    print(f"🔁 자동 페이퍼 학습 시작: {args.strategy} · {args.symbol} "
+    say(f"🔁 자동 페이퍼 학습 시작: {args.strategy} · {args.symbol} "
           f"(주기 {args.interval}s, {'무기한' if cycles is None else str(cycles)+'회'})")
-    print("⚠️ 정확도는 50~55%에서 오르내립니다. 100%로 오르지 않습니다 — 그게 정상입니다.")
-    print(f"📺 대시보드: python -m quant web --open  →  감시 탭에서 {args.state} 확인")
+    say("⚠️ 정확도는 50~55%에서 오르내립니다. 100%로 오르지 않습니다 — 그게 정상입니다.")
+    say(f"📺 대시보드: python -m quant web --open  →  감시 탭에서 {args.state} 확인")
     learner.run(cycles=cycles, interval_sec=args.interval)
 
 
@@ -201,7 +207,7 @@ def _notify_extra(message: str) -> None:
         for c in extra:
             c.send(message)
     except Exception as exc:  # noqa: BLE001 — 알림 실패가 본 작업을 죽이면 안 된다
-        print(f"(알림 전송 실패: {exc})")
+        say(f"(알림 전송 실패: {exc})")
 
 
 def _halted(args) -> bool:
@@ -231,7 +237,7 @@ def _halted(args) -> bool:
     msg = gate_message(getattr(args, "state_dir", "state"))
     if not msg:
         return False
-    print(msg)
+    say(msg)
     return True
 
 
@@ -257,15 +263,15 @@ def _cmd_paper_daily(args) -> None:
         from quant.universe import due as _uni_due, rebuild as _uni_rebuild
         if _uni_due(args.state_dir):
             snap = _uni_rebuild(args.state_dir)
-            print(f"🗺 규칙 유니버스 재계산 — {len(snap['targets'])}종목 "
+            say(f"🗺 규칙 유니버스 재계산 — {len(snap['targets'])}종목 "
                   f"(기준일 {snap['asof']})")
     except Exception as exc:  # noqa: BLE001
-        print(f"⚠️ 유니버스 재계산 실패 — 직전 구성 유지: {exc}")
+        say(f"⚠️ 유니버스 재계산 실패 — 직전 구성 유지: {exc}")
 
     if args.all:
         from quant.live.daily import run_daily_portfolio
         from quant.universe import active_targets as _uni_targets
-        print(f"📅 매일 자동 페이퍼 — 전체 {len(_uni_targets(args.state_dir))}종목"
+        say(f"📅 매일 자동 페이퍼 — 전체 {len(_uni_targets(args.state_dir))}종목"
               " (챔피언 추종)")
         out = run_daily_paper_all(**common)
         lines = [f"  {k}: 자산 {r['equity']:,.0f} ({r['return_pct']:+.2f}%)"
@@ -300,7 +306,7 @@ def _cmd_paper_daily(args) -> None:
                         f" → 총 노출 {float(prec['risk_scale']):.0%}로 제한"
                         " (회복 시 단계 복귀)")
         except Exception as exc:  # noqa: BLE001
-            print(f"⚠️ 통합 포트폴리오 실패 — {exc}")
+            say(f"⚠️ 통합 포트폴리오 실패 — {exc}")
         try:
             # 섀도 대조군 — 진화(오디션) 없이 최초 기본 챔피언으로 고정한 계좌.
             # 오디션 시스템이 실제로 가치를 더하는지 증명하는 유일한 방법이다.
@@ -310,7 +316,7 @@ def _cmd_paper_daily(args) -> None:
                 lines.append(f"  🕯 섀도(진화 없음): 자산 {srec['equity']:,.0f} "
                              f"({srec['return_pct']:+.2f}%)")
         except Exception as exc:  # noqa: BLE001
-            print(f"⚠️ 섀도 대조군 실패 — {exc}")
+            say(f"⚠️ 섀도 대조군 실패 — {exc}")
         # 실패 알림은 lines가 비어도 나가야 한다 — 전 종목이 휴장·스킵이면
         # lines가 비는데, 예전에는 그때 실패 목록까지 함께 삼켜졌다.
         if lines or out["failed"]:
@@ -319,7 +325,7 @@ def _cmd_paper_daily(args) -> None:
                              f"{', '.join(out['failed'])}"
                              if out["failed"] else ""))
     else:
-        print(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
+        say(f"📅 매일 자동 페이퍼: {args.market}/{args.symbol} (챔피언 전략 추종)")
         rec = run_daily_paper(args.market, args.symbol, **common)
         if rec and not rec.get("skipped"):
             _notify_extra(
@@ -333,10 +339,10 @@ def _cmd_paper_daily(args) -> None:
     # 하지 않는다. 실패는 배치를 막지 않는다.
     try:
         from quant.telemetry import send as _tsend
-        print(_tsend(args.state_dir))
+        say(_tsend(args.state_dir))
     except Exception as exc:  # noqa: BLE001
-        print(f"(텔레메트리 생략: {exc})")
-    print("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
+        say(f"(텔레메트리 생략: {exc})")
+    say("⚠️ 페이퍼(모의) 운용입니다 — 실제 돈이 오가지 않으며, "
           "결과가 좋아도 미래 수익 보장이 아닙니다.")
 
 
@@ -352,7 +358,7 @@ def _cmd_deposit(args) -> None:
     _notify_extra(f"💝 후원 매칭 입금 +{out['deposit']['amount']:,.0f}원 "
                   f"({out['deposit']['memo'] or '메모 없음'}) — "
                   f"누적 원금 {out['principal']:,.0f}원")
-    print("⚠️ 후원금 자체를 굴리는 것이 아니라, 같은 금액만큼 가상 계좌 원금을 "
+    say("⚠️ 후원금 자체를 굴리는 것이 아니라, 같은 금액만큼 가상 계좌 원금을 "
           "늘리는 '매칭' 이벤트입니다(대가·지분 없음).")
 
 
@@ -361,11 +367,11 @@ def _cmd_redenominate(args) -> None:
     from quant.live.ledger_basics import redenominate_to_krw
 
     if not args.yes:
-        print("⚠️ 통합 계좌를 닫고 원화 계좌를 새로 엽니다. 옛 장부는 "
+        say("⚠️ 통합 계좌를 닫고 원화 계좌를 새로 엽니다. 옛 장부는 "
               "portfolio_ALL.pre-krw.json 으로 그대로 보관되지만, 현재 "
               "보유·현금은 새 계좌로 이어지지 않습니다.")
         if input("계속하려면 '원화'를 입력하세요: ").strip() != "원화":
-            print("취소했습니다.")
+            say("취소했습니다.")
             return
     out = redenominate_to_krw(args.state_dir, args.principal,
                               state_file=args.state_file)
@@ -390,21 +396,21 @@ def _cmd_live_daily(args) -> None:
 def _cmd_live_check(args) -> None:
     """실거래 준비 진단 — 주문 없이 키·인증·잔고 확인."""
     from quant.live.daily_live import check_readiness
-    print("\n🔍 실거래 전환 준비 진단"
+    say("\n🔍 실거래 전환 준비 진단"
           + (" (실전 도메인)" if args.real else " (모의투자 도메인)"))
     rows = list(check_readiness(paper=not args.real, broker_name=args.broker))
     ok_all = True
     for name, ok, note in rows:
-        print(f"  {'✅' if ok else '❌'} {name}: {note}")
+        say(f"  {'✅' if ok else '❌'} {name}: {note}")
         ok_all = ok_all and ok
     # 점검 항목이 하나도 없으면 '전부 통과'가 아니라 '점검하지 못함'이다.
     # 빈 목록이 True로 남으면 아무것도 확인하지 않고 실거래를 허용한다.
     if not rows:
-        print("  ❌ 점검 항목이 하나도 없습니다 — 진단이 돌지 않았습니다"
+        say("  ❌ 점검 항목이 하나도 없습니다 — 진단이 돌지 않았습니다"
               f"(브로커 이름 확인: {args.broker!r})")
         ok_all = False
     if ok_all:
-        print("\n✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
+        say("\n✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
               "있습니다.")
         return
     # ⚠️ 종료코드로도 실패를 말한다(2026-08-11 감사 87). 예전에는 화면에만
@@ -453,12 +459,12 @@ def _cmd_live(args) -> None:
             strategy = lambda sym: champion_strategy(args.market, sym)  # noqa: E731
             for sym in symbols:
                 spec = champion_spec(args.market, sym)
-                print(f"챔피언({sym}): {spec['strategy']} {spec['params']}")
+                say(f"챔피언({sym}): {spec['strategy']} {spec['params']}")
         else:
             strategy = champion_strategy(args.market, args.symbol)
             spec = champion_spec(args.market, args.symbol)
-            print(f"챔피언 자동 추종: {spec['strategy']} {spec['params']}")
-        print("   야간 재학습이 챔피언을 교체하면 재시작 없이 자동 반영됩니다.")
+            say(f"챔피언 자동 추종: {spec['strategy']} {spec['params']}")
+        say("   야간 재학습이 챔피언을 교체하면 재시작 없이 자동 반영됩니다.")
     else:
         from quant.strategies import get_strategy
         strategy = get_strategy(args.strategy)
@@ -474,18 +480,18 @@ def _cmd_live(args) -> None:
         if args.market not in LIVE_BROKER_FOR_MARKET:
             raise SystemExit(f"'{args.market}' 시장은 실거래를 지원하지 않습니다. "
                              f"지원: {sorted(LIVE_BROKER_FOR_MARKET)}")
-        print("\n⚠️ 실전 모드 — 실제 자금으로 주문합니다.")
-        print(f"   안전장치: 일일 손실 킬스위치 -{args.daily_max_loss:.0%} · "
+        say("\n⚠️ 실전 모드 — 실제 자금으로 주문합니다.")
+        say(f"   안전장치: 일일 손실 킬스위치 -{args.daily_max_loss:.0%} · "
               f"최대낙폭 서킷 -{args.max_drawdown:.0%} · "
               f"최대 비중 {args.max_weight:.0%} · 주문 재시도/체결 확인")
-        print("   ⚠️ 갭·급변 구간에서는 한도를 넘는 손실이 날 수 있습니다(보장 아님).")
-        print("   잃어도 되는 소액으로만 시작하세요. 수익 보장은 없습니다.")
+        say("   ⚠️ 갭·급변 구간에서는 한도를 넘는 손실이 날 수 있습니다(보장 아님).")
+        say("   잃어도 되는 소액으로만 시작하세요. 수익 보장은 없습니다.")
         try:
             confirm = input("계속하려면 '실전' 두 글자를 입력: ").strip()
         except EOFError:                 # 파이프/스크립트 실행 — 실전 진입 금지
             confirm = ""
         if confirm != "실전":
-            print("취소되었습니다.")
+            say("취소되었습니다.")
             return
         inner = get_broker(LIVE_BROKER_FOR_MARKET[args.market])
         is_stock = args.market in SCHEDULED_MARKETS
@@ -498,7 +504,7 @@ def _cmd_live(args) -> None:
     else:
         broker = get_broker("paper", cash=args.capital)
         mode = "paper"
-        print("📝 페이퍼 모드 (실제 자금 사용 안 함) — 실전은 --real")
+        say("📝 페이퍼 모드 (실제 자금 사용 안 함) — 실전은 --real")
 
     # 일일 손실은 킬스위치가, 최대낙폭은 서킷브레이커가 담당(역할 중복 없음)
     breaker = CircuitBreaker(BreakerConfig(max_daily_loss=None,
@@ -523,7 +529,7 @@ def _cmd_live(args) -> None:
             state_path=args.state, dashboard_path=args.dashboard,
             notifier=notifier, circuit_breaker=breaker, mode=mode,
             daily_max_loss=args.daily_max_loss, market=market_guard)
-    print(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
+    say(f"📺 감시: 웹 조종석 '감시' 탭 또는 {args.dashboard}")
     trader.run(interval_sec=args.interval, max_iters=args.iters)
 
 
@@ -538,10 +544,10 @@ def _cmd_notify(args) -> None:
     if args.discard:
         n = len(notice_queue.pending())
         notice_queue.discard()
-        print(f"🗑 미뤄 둔 알림 {n}건을 버렸습니다(저장되지 않은 일이라 방송하지 않습니다).")
+        say(f"🗑 미뤄 둔 알림 {n}건을 버렸습니다(저장되지 않은 일이라 방송하지 않습니다).")
         return
     if not args.flush:
-        print(f"미뤄 둔 알림 {len(notice_queue.pending())}건 "
+        say(f"미뤄 둔 알림 {len(notice_queue.pending())}건 "
               f"({notice_queue.queue_path()}). 보내려면 --flush.")
         return
 
@@ -549,7 +555,7 @@ def _cmd_notify(args) -> None:
     import os
     os.environ.pop(notice_queue.ENV_DEFER, None)
     sent = notice_queue.flush(_notify_extra)
-    print(f"📨 미뤄 둔 알림 {sent}건을 보냈습니다." if sent
+    say(f"📨 미뤄 둔 알림 {sent}건을 보냈습니다." if sent
           else "보낼 알림이 없습니다.")
 
 
@@ -558,18 +564,18 @@ def _cmd_verify(args) -> None:
 
     scope = (f"{args.market}/{args.symbol}"
              if args.symbol else "전체 종목")
-    print(f"🔍 재현성 검증: {args.date} · {scope}")
+    say(f"🔍 재현성 검증: {args.date} · {scope}")
     out = verify_retrain(args.date, market=args.market or None,
                          symbol=args.symbol or None,
                          state_dir=args.state_dir,
                          sample=int(getattr(args, "sample", 0) or 0))
     for r in out:
-        print(f"  {'✔' if r['ok'] else '✘'} {r['key']}: {r['detail']}")
+        say(f"  {'✔' if r['ok'] else '✘'} {r['key']}: {r['detail']}")
     if all(r["ok"] for r in out):
-        print("✅ 모든 결정이 재현되었습니다 — 같은 데이터·같은 코드에서 "
+        say("✅ 모든 결정이 재현되었습니다 — 같은 데이터·같은 코드에서 "
               "같은 결과가 나옵니다.")
     else:
-        print("⚠️ 일부 검증 실패 — 위 상세를 확인하세요.")
+        say("⚠️ 일부 검증 실패 — 위 상세를 확인하세요.")
         raise SystemExit(1)
 
 
@@ -577,7 +583,7 @@ def _cmd_briefing(args) -> None:
     from quant.live.briefing import collect_briefing
 
     collect_briefing(args.state_dir)
-    print("⚠️ 브리핑은 표시 전용입니다 — 매매 판단에 사용되지 않습니다.")
+    say("⚠️ 브리핑은 표시 전용입니다 — 매매 판단에 사용되지 않습니다.")
 
 
 def _cmd_social_content(args) -> None:
@@ -592,9 +598,9 @@ def _cmd_social_content(args) -> None:
         # 과거 공개 글을 조용히 바꾸느니 소리 내어 실패한다(감사 86).
         raise SystemExit(f"❌ {exc}")
     removed = prune_old(docs_dir=args.docs_dir, keep=args.keep)
-    print(meta["dir"])                    # 워크플로가 이 경로를 받아 캡처한다
+    say(meta["dir"])                    # 워크플로가 이 경로를 받아 캡처한다
     if removed:
-        print(f"오래된 게시 폴더 {len(removed)}개 정리: {', '.join(removed)}")
+        say(f"오래된 게시 폴더 {len(removed)}개 정리: {', '.join(removed)}")
 
 
 def _cmd_social_post(args) -> None:
@@ -603,7 +609,7 @@ def _cmd_social_post(args) -> None:
     from quant.reporting.social_post import run
 
     results = run(args.dir, args.base_url)
-    print(_json.dumps(results, ensure_ascii=False, indent=2))
+    say(_json.dumps(results, ensure_ascii=False, indent=2))
     if results.get("threads_error") and results.get("instagram_error"):
         raise SystemExit(1)               # 전 플랫폼 실패만 잡 실패로 처리
 
@@ -612,7 +618,7 @@ def _cmd_weekly(args) -> None:
     from quant.live.daily import format_weekly, weekly_summary
 
     text = format_weekly(weekly_summary(args.state_dir))
-    print(text)
+    say(text)
     if not args.no_notify:
         _notify_extra(text)
 
@@ -623,7 +629,7 @@ def _cmd_walkforward(args) -> None:
     rep = walkforward_report(args.state_dir, bars=args.bars,
                              fetch=not args.offline)
     text = format_walkforward(rep)
-    print(text)
+    say(text)
     if not args.no_notify:
         # 만들어 놓고 아무도 부르지 않는 보고서는 없는 보고서다(주간 워크플로
         # 주석과 같은 이유) — 사이트를 안 열어도 숫자가 도착해야 한다.
@@ -634,7 +640,7 @@ def _cmd_walkforward(args) -> None:
         _os.makedirs(_os.path.dirname(args.save) or ".", exist_ok=True)
         with open(args.save, "w", encoding="utf-8") as f:
             _json.dump(rep, f, ensure_ascii=False, indent=1)
-        print(f"\n💾 저장: {args.save}")
+        say(f"\n💾 저장: {args.save}")
 
 
 def _cmd_web_passwd(args) -> None:
@@ -645,18 +651,18 @@ def _cmd_web_passwd(args) -> None:
 
     user = input("아이디(이메일 등): ").strip()
     if not user:
-        print("아이디가 비어 있습니다 — 중단합니다.")
+        say("아이디가 비어 있습니다 — 중단합니다.")
         raise SystemExit(1)
     pw = getpass.getpass("비밀번호(입력해도 화면에 안 보입니다): ")
     pw2 = getpass.getpass("확인을 위해 한 번 더: ")
     if pw != pw2:
-        print("두 입력이 다릅니다 — 중단합니다.")
+        say("두 입력이 다릅니다 — 중단합니다.")
         raise SystemExit(1)
     if len(pw) < 8:
-        print("8자 이상으로 해주세요 — 중단합니다.")
+        say("8자 이상으로 해주세요 — 중단합니다.")
         raise SystemExit(1)
     set_credentials(user, pw)
-    print("🔐 저장했습니다(.env — 해시만 저장, 커밋 금지 목록). "
+    say("🔐 저장했습니다(.env — 해시만 저장, 커밋 금지 목록). "
           "웹 조종석을 다시 켜면 로그인 화면이 뜹니다.")
 
 
@@ -680,16 +686,16 @@ def _cmd_futures_round(args) -> None:
     write_public_report(st, docs_dir=args.docs_dir)
     longs = sum(1 for q in (r.get("positions") or {}).values() if q > 0)
     shorts = sum(1 for q in (r.get("positions") or {}).values() if q < 0)
-    print(f"📉 선물 도전자 — 자산 {r['equity']:,.2f} USDT · "
+    say(f"📉 선물 도전자 — 자산 {r['equity']:,.2f} USDT · "
           f"롱 {longs} · 숏 {shorts} · 총노출 {r['gross_exposure']:,.2f} · "
           f"이번 회차 체결 {len(r['trades'])}건 · "
           f"자금조달 누적 {r['funding_paid']:+,.4f}")
     if r.get("stopped"):
-        print(f"   🛑 숏 하드 스톱: {', '.join(r['stopped'])}")
+        say(f"   🛑 숏 하드 스톱: {', '.join(r['stopped'])}")
     if r.get("long_only"):
-        print(f"   ↗️ 롱 전용(규칙 전략이라 숏 불가): {', '.join(r['long_only'])}")
+        say(f"   ↗️ 롱 전용(규칙 전략이라 숏 불가): {', '.join(r['long_only'])}")
     if r.get("skipped"):
-        print(f"   ⏭️ 시세 못 받아 건너뜀: {', '.join(r['skipped'])}")
+        say(f"   ⏭️ 시세 못 받아 건너뜀: {', '.join(r['skipped'])}")
 
 
 def _cmd_intraday_round(args) -> None:
@@ -710,7 +716,7 @@ def _cmd_intraday_round(args) -> None:
     now = now_kst_iso()
     v = run_intraday_round(now, state_dir=args.state_dir,
                            docs_dir=args.docs_dir)
-    print(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
+    say(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
           f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
           f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
 
@@ -721,13 +727,13 @@ def _cmd_intraday_round(args) -> None:
         uv = run_us_round(now, state_dir=args.state_dir,
                           docs_dir=args.docs_dir)
         if uv.get("skipped"):
-            print(f"🇺🇸 미국 장중 도전자 — 회차 없음: {uv['skipped']}")
+            say(f"🇺🇸 미국 장중 도전자 — 회차 없음: {uv['skipped']}")
         else:
-            print(f"🇺🇸 미국 장중 도전자 — 자산 {uv['equity']:,.2f} USD "
+            say(f"🇺🇸 미국 장중 도전자 — 자산 {uv['equity']:,.2f} USD "
                   f"({uv['return_pct']:+.2f}%) · 체결 {uv['trades']}건 · "
                   f"누적 비용 {uv['cost_paid']:,.2f} USD")
     except Exception as exc:  # noqa: BLE001
-        print(f"🇺🇸 미국 장중 도전자 실패(코인 트랙 무관): {exc}")
+        say(f"🇺🇸 미국 장중 도전자 실패(코인 트랙 무관): {exc}")
 
 
 def _cmd_guard(args) -> None:
@@ -752,19 +758,19 @@ def _cmd_guard(args) -> None:
     # 낙폭 감시보다 먼저 부른다 — 아래 장부 읽기가 실패해도 이건 돌아야 한다.
     stale = check_ledger_freshness(args.state_dir)
     if stale:
-        print(f"   {stale['message']}")
+        say(f"   {stale['message']}")
     path = _os.path.join(args.state_dir, "paper", args.state_file)
     try:
         with open(path, encoding="utf-8") as f:
             st = _json.load(f)
     except (OSError, _json.JSONDecodeError) as exc:
-        print(f"❌ 장부를 읽지 못했습니다({path}): {exc}")
+        say(f"❌ 장부를 읽지 못했습니다({path}): {exc}")
         raise SystemExit(1) from exc
 
     hist = chrono(st.get("history") or [])
     eqs = [float(r["equity"]) for r in hist if r.get("equity") is not None]
     if not eqs:
-        print("기록이 없어 낙폭을 잴 수 없습니다 — 심장박동만 남깁니다.")
+        say("기록이 없어 낙폭을 잴 수 없습니다 — 심장박동만 남깁니다.")
         from quant.live.guard import record_heartbeat
         record_heartbeat(now, state_dir=args.state_dir)
         return
@@ -772,8 +778,8 @@ def _cmd_guard(args) -> None:
     v = guard_once(eqs[-1], max(eqs), float(st.get("risk_scale", 1.0)),
                    now_iso=now, state_dir=args.state_dir)
     gap = observed_gap_minutes(args.state_dir, now_iso=now)
-    print(f"🛡️ 장중 감시 — {v.reason}")
-    print(f"   관측된 최악 감시 간격: "
+    say(f"🛡️ 장중 감시 — {v.reason}")
+    say(f"   관측된 최악 감시 간격: "
           + (f"{gap:,.0f}분" if gap is not None else "아직 모름(기록이 모자람)"))
     if v.acted:
         # ⚠️ 노출 축소를 **장부에 적는다.** 감시가 판단만 하고 장부를 안
@@ -782,7 +788,7 @@ def _cmd_guard(args) -> None:
         st["risk_scale"] = v.scale
         from quant.utils.jsonio import atomic_write_json
         atomic_write_json(path, st)
-        print(f"   → 장부의 노출 배수를 {v.scale:.0%}로 낮췄습니다.")
+        say(f"   → 장부의 노출 배수를 {v.scale:.0%}로 낮췄습니다.")
 
 
 def _cmd_ingest(args) -> None:
@@ -799,10 +805,10 @@ def _cmd_ingest(args) -> None:
     try:
         loaded = load_any(args.ref)
     except SourceError as exc:
-        print(f"❌ 자료를 읽지 못했습니다.\n\n{exc}")
+        say(f"❌ 자료를 읽지 못했습니다.\n\n{exc}")
         raise SystemExit(1) from exc
 
-    print(f"📄 {loaded.source.get('kind')} · {loaded.source.get('ref')} — "
+    say(f"📄 {loaded.source.get('kind')} · {loaded.source.get('ref')} — "
           f"글자 {len(loaded.text):,}자")
     result = extract_spec(loaded.text, title=args.name or loaded.title,
                           source=loaded.source)
@@ -810,27 +816,27 @@ def _cmd_ingest(args) -> None:
         # ⚠️ 이게 이 명령의 **정상적인 결과 중 하나**다. 투자 자료 대부분에는
         #    검증 가능한 규칙이 없고, 그때 억지로 만들어 내면 그건 자료의
         #    전략이 아니라 우리가 지어낸 전략이다.
-        print(f"\n🔍 문장 {result.sentences_seen:,}개를 봤지만 "
+        say(f"\n🔍 문장 {result.sentences_seen:,}개를 봤지만 "
               f"**실행 가능한 규칙을 찾지 못했습니다.**\n")
         for r in result.reasons:
-            print(f"  · {r}\n")
-        print("전략을 만들지 않았습니다 — 없는 규칙을 지어내지 않습니다.")
+            say(f"  · {r}\n")
+        say("전략을 만들지 않았습니다 — 없는 규칙을 지어내지 않습니다.")
         raise SystemExit(2)
 
-    print("\n✅ 이렇게 읽었습니다:\n")
-    print(result.spec.summary())
-    print("\n  근거가 된 문장:")
+    say("\n✅ 이렇게 읽었습니다:\n")
+    say(result.spec.summary())
+    say("\n  근거가 된 문장:")
     for c in list(result.spec.entry) + list(result.spec.exit):
-        print(f"    · \"{c.quote[:90]}\"")
+        say(f"    · \"{c.quote[:90]}\"")
     for note in result.spec.notes:
-        print(f"\n  ⚠️ {note}")
+        say(f"\n  ⚠️ {note}")
 
     if args.dry_run:
-        print("\n(--dry-run: 저장하지 않았습니다)")
+        say("\n(--dry-run: 저장하지 않았습니다)")
         return
     path = save_spec(result.spec, state_dir=args.state_dir or None)
-    print(f"\n💾 저장: {path}")
-    print("\n이제 매일 밤 재학습에서 **도전자로** 링에 섭니다. 등록만으로는 "
+    say(f"\n💾 저장: {path}")
+    say("\n이제 매일 밤 재학습에서 **도전자로** 링에 섭니다. 등록만으로는 "
           "매매하지 않습니다 — 다른 후보와 같은 2단계 심사를 이기고, 과최적화 "
           "검증까지 통과해야 실제 비중을 받습니다. 대부분은 떨어집니다.")
 
@@ -845,18 +851,18 @@ def _cmd_pin(args) -> None:
 
     for line in scorecard(args.market, args.symbol, args.name,
                           state_dir=args.state_dir):
-        print(line)
-    print(f"\n고정하려면 다음 문구를 그대로 입력하세요:\n  {ACK_PHRASE}")
+        say(line)
+    say(f"\n고정하려면 다음 문구를 그대로 입력하세요:\n  {ACK_PHRASE}")
     typed = input("> ").strip()
     try:
         entry = save_pin(args.market, args.symbol, args.name, typed,
                          state_dir=args.state_dir)
     except ValueError as exc:
-        print(f"❌ {exc}")
+        say(f"❌ {exc}")
         raise SystemExit(1) from exc
-    print(f"\n📌 고정됨: {args.market}/{args.symbol} ← {entry['name']} "
+    say(f"\n📌 고정됨: {args.market}/{args.symbol} ← {entry['name']} "
           f"({entry['since']}부터)")
-    print("   오디션은 계속 돕니다 — 성적표가 매일 갱신되고, `unpin`으로 "
+    say("   오디션은 계속 돕니다 — 성적표가 매일 갱신되고, `unpin`으로 "
           "언제든 시스템 판단으로 돌아갈 수 있습니다.")
 
 
@@ -864,10 +870,10 @@ def _cmd_unpin(args) -> None:
     from quant.live.pin import remove_pin
 
     if remove_pin(args.market, args.symbol, state_dir=args.state_dir):
-        print(f"↩️ 고정 해제: {args.market}/{args.symbol} — 다음 실행부터 "
+        say(f"↩️ 고정 해제: {args.market}/{args.symbol} — 다음 실행부터 "
               "시스템 챔피언 판단이 복귀합니다.")
     else:
-        print(f"고정돼 있지 않습니다: {args.market}/{args.symbol}")
+        say(f"고정돼 있지 않습니다: {args.market}/{args.symbol}")
 
 
 def _cmd_pins(args) -> None:
@@ -875,10 +881,10 @@ def _cmd_pins(args) -> None:
 
     pins = load_pins(args.state_dir)
     if not pins:
-        print("고정된 전략이 없습니다 — 모든 종목이 심사(오디션) 결과를 따릅니다.")
+        say("고정된 전략이 없습니다 — 모든 종목이 심사(오디션) 결과를 따릅니다.")
         return
     for key, v in sorted(pins.items()):
-        print(f"📌 {key} ← {v.get('name')} ({v.get('since')}부터) — "
+        say(f"📌 {key} ← {v.get('name')} ({v.get('since')}부터) — "
               "심사 결과가 아니라 사용자 지정입니다")
 
 
@@ -886,9 +892,9 @@ def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
 
     target = "전체 종목(AUTO_TARGETS)" if args.all else f"{args.market}/{args.symbol}"
-    print(f"🌙 야간 재학습: {target} "
+    say(f"🌙 야간 재학습: {target} "
           f"(결승전 {args.confirm_window}봉, 기록: {args.state_dir}/)")
-    print("⚠️ 챔피언이 안 바뀌는 날이 대부분입니다 — 확실히 나은 후보가 없었다는 "
+    say("⚠️ 챔피언이 안 바뀌는 날이 대부분입니다 — 확실히 나은 후보가 없었다는 "
           "뜻이고, 그게 이 장치가 일하는 방식입니다.")
     common = dict(timeframe=args.timeframe, limit=args.limit,
                   state_dir=args.state_dir, confirm_window=args.confirm_window,
@@ -962,10 +968,10 @@ def _cmd_validate(args) -> None:
                 # ⚠️ 잘린 사실은 반드시 남긴다 — 조용히 줄면 "전 종목 검증
                 #    완료"로 읽히고, 그게 이 저장소가 막아 온 거짓말이다.
                 not_reached = [f"{m}:{sy}" for m, sy in targets[i - 1:]]
-                print(f"\n⏳ 시간 예산({budget:.0f}초) 소진 — 남은 "
+                say(f"\n⏳ 시간 예산({budget:.0f}초) 소진 — 남은 "
                       f"{len(not_reached)}종목은 다음 밤에 먼저 잽니다")
                 break
-            print(f"\n{'=' * 62}\n[{i}/{len(targets)}] {mk}:{sym}\n{'=' * 62}")
+            say(f"\n{'=' * 62}\n[{i}/{len(targets)}] {mk}:{sym}\n{'=' * 62}")
             one = _copy.copy(args)
             one.market, one.symbol, one.all_targets = mk, sym, False
             # ⚠️ 리포트 경로에 종목 이름을 넣는다. 안 그러면 20종목이 **같은
@@ -983,7 +989,7 @@ def _cmd_validate(args) -> None:
                 # 실패는 삼키지 않고 끝에 모아 보고하고, 종료코드로 드러낸다 —
                 # 조용히 넘어가면 그 종목은 '미측정'인 채 절반 감쇠만 받고
                 # 아무도 이유를 모른다.
-                print(f"❌ {mk}:{sym} 검증 실패: {type(exc).__name__}: {exc}")
+                say(f"❌ {mk}:{sym} 검증 실패: {type(exc).__name__}: {exc}")
                 failed.append(f"{mk}:{sym} ({type(exc).__name__})")
         if budget:
             try:
@@ -992,13 +998,13 @@ def _cmd_validate(args) -> None:
                                 "not_reached": not_reached,
                                 "budget_sec": budget}, f, ensure_ascii=False)
             except OSError as exc:
-                print(f"⚠️ 검증 커서를 남기지 못했습니다: {exc}")
+                say(f"⚠️ 검증 커서를 남기지 못했습니다: {exc}")
         done = len(targets) - len(not_reached)
-        print(f"\n{'=' * 62}")
-        print(f"검증 {done}/{len(targets)}종목: 성공 {done - len(failed)}"
+        say(f"\n{'=' * 62}")
+        say(f"검증 {done}/{len(targets)}종목: 성공 {done - len(failed)}"
               + (f" · 다음 밤으로 미룸 {len(not_reached)}" if not_reached else ""))
         if failed:
-            print("실패: " + ", ".join(failed))
+            say("실패: " + ", ".join(failed))
             raise SystemExit(
                 f"검증 실패 {len(failed)}종목 — 그 종목들은 '미측정'으로 "
                 "남아 비중이 절반으로 깎입니다.")
@@ -1014,19 +1020,19 @@ def _cmd_validate(args) -> None:
     grid = (_json.loads(args.grid) if args.grid
             else _VALIDATE_GRIDS.get(args.strategy))
     if not grid:
-        print(f"'{args.strategy}'의 기본 그리드가 없습니다. --grid JSON으로 지정하세요."
+        say(f"'{args.strategy}'의 기본 그리드가 없습니다. --grid JSON으로 지정하세요."
               f" (기본 지원: {', '.join(_VALIDATE_GRIDS)})")
         return
     strategy_cls = type(get_strategy(args.strategy))
     ppy = _ppy(args.market)
     df = get_provider(args.market).get_ohlcv(args.symbol, args.timeframe,
                                              limit=args.limit)
-    print(f"\n=== 검증: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
-    print(_data_note(df, args.market))
-    print(f"그리드: {grid}")
+    say(f"\n=== 검증: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    say(_data_note(df, args.market))
+    say(f"그리드: {grid}")
 
     # 1) 워크포워드 + DSR (다중검정 보정 샤프 신뢰도)
-    print("\n[1/4] 워크포워드 (롤링 IS→OOS)")
+    say("\n[1/4] 워크포워드 (롤링 IS→OOS)")
     dsr_value = None
     # 다중검정 보정의 N — 이 검증 그리드가 아니라 **그 챔피언을 뽑기까지
     # 실제로 시도한 횟수**를 쓴다. 장부(retrain_history)에 종목별 도전자 수가
@@ -1046,26 +1052,26 @@ def _cmd_validate(args) -> None:
                           oos_window=args.oos_window, embargo=args.embargo,
                           periods_per_year=ppy, extra_trials=ledger_trials)
         m = wf["oos_metrics"]
-        print(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
+        say(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
         dsr_value = float(wf["dsr"])
-        print(f"  DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
+        say(f"  DSR(시행 {wf['n_trials']}회 보정): {wf['dsr']:.2f} "
               f"{'— 실력 가능성' if wf['dsr'] >= 0.95 else '— 운일 수 있음(0.95 미만)'}")
     except ValueError as exc:
-        print(f"  건너뜀: {exc}")
+        say(f"  건너뜀: {exc}")
         skipped["dsr"] = str(exc)[:200]
 
     # 2) PBO — IS 1등이 OOS에서 동전던지기인지
-    print("\n[2/4] PBO (백테스트 과적합 확률)")
+    say("\n[2/4] PBO (백테스트 과적합 확률)")
     pbo_value = None
     try:
         mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
         pbo_res = pbo(mat, n_blocks=args.pbo_blocks)
         pbo_value = float(pbo_res.get("pbo")) if isinstance(pbo_res, dict) \
             else float(getattr(pbo_res, "pbo", None) or 0.0)
-        print("  " + pbo_report(pbo_res).replace("\n", "\n  "))
+        say("  " + pbo_report(pbo_res).replace("\n", "\n  "))
     except (ValueError, TypeError, AttributeError) as exc:
-        print(f"  건너뜀: {exc}")
+        say(f"  건너뜀: {exc}")
         skipped["pbo"] = str(exc)[:200]
 
     # 3) CPCV — 여러 OOS 경로의 분포
@@ -1074,17 +1080,17 @@ def _cmd_validate(args) -> None:
     #    문서는 "3중 관문(DSR·PBO·CPCV)"이라 말하고 통과 기준까지 적어 뒀는데
     #    ("가장 나쁜 경로에서도 플러스"), 그 값이 장부에 저장되지 않아
     #    **어떤 판단에도 닿지 않았다.** DSR·PBO를 게이트에 붙이면서 확인했다.
-    print("\n[3/4] CPCV (다중 OOS 경로 분포)")
+    say("\n[3/4] CPCV (다중 OOS 경로 분포)")
     cpcv_worst = None
     cpcv_min_sharpe = None
     try:
         cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
                   n_test=2, embargo=args.embargo, periods_per_year=ppy)
-        print("  " + cpcv_report(cv).replace("\n", "\n  "))
+        say("  " + cpcv_report(cv).replace("\n", "\n  "))
         cpcv_worst = float(cv["worst_path_return"])
         cpcv_min_sharpe = float(cv["sharpe_min"])
     except (ValueError, KeyError, TypeError) as exc:
-        print(f"  건너뜀: {exc}")
+        say(f"  건너뜀: {exc}")
         skipped["cpcv"] = str(exc)[:200]
 
     # 4) 파라미터 안정성 — 1등이 '넓은 고원'인가 '외딴 봉우리'인가
@@ -1095,16 +1101,16 @@ def _cmd_validate(args) -> None:
     #    검증 3종이 "이 성적이 운인가"를 묻는다면 이건 "이 **파라미터**가
     #    운인가"를 묻는다 — 옆칸으로 한 스텝만 옮겨도 무너지는 설정은
     #    데이터가 조금만 달라져도 무너진다.
-    print("\n[4/4] 파라미터 안정성 (고원 vs 외딴 봉우리)")
+    say("\n[4/4] 파라미터 안정성 (고원 vs 외딴 봉우리)")
     peak_only = None
     try:
         gs = grid_search(df, strategy_cls, grid, periods_per_year=ppy)
         scored = stability_scores(gs["results"])
-        print("  " + stability_report(scored).replace("\n", "\n  "))
+        say("  " + stability_report(scored).replace("\n", "\n  "))
         rb = robust_best(scored)
         peak_only = bool(rb is not None and rb != gs["best_params"])
     except (ValueError, TypeError, KeyError) as exc:
-        print(f"  건너뜀: {exc}")
+        say(f"  건너뜀: {exc}")
         skipped["stability"] = str(exc)[:200]
 
     # 검증 결과를 장부에 남긴다 — 과최적화 감시가 콘솔에만 찍히고 사라지면
@@ -1144,7 +1150,7 @@ def _cmd_validate(args) -> None:
             "peak_only": peak_only,
         }
         atomic_write_json(path, prev)
-        print(f"\n💾 검증 결과 저장: {path}")
+        say(f"\n💾 검증 결과 저장: {path}")
 
     if getattr(args, "report", None):
         from quant.reporting import render_validation_report
@@ -1154,9 +1160,9 @@ def _cmd_validate(args) -> None:
             is_window=args.is_window, oos_window=args.oos_window,
             embargo=args.embargo, pbo_blocks=args.pbo_blocks,
             cpcv_groups=args.cpcv_groups, periods_per_year=ppy)
-        print(f"\n📄 검증 리포트(그래프): {out}")
+        say(f"\n📄 검증 리포트(그래프): {out}")
 
-    print("\n⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다. "
+    say("\n⚠️ 세 검증을 모두 통과해도 미래 수익은 보장되지 않습니다. "
           "다음 단계는 페이퍼 트레이딩(learn)으로 실데이터 검증입니다.")
 
 
@@ -1197,20 +1203,20 @@ def _cmd_setup(args) -> None:
 
     from quant.utils.envfile import load_env_file, update_env_file
 
-    print("\n🔑 API 키 설정 마법사")
-    print("─" * 46)
-    print("· 백테스트·검증·페이퍼 트레이딩에는 키가 전혀 필요 없습니다.")
-    print("· 키 '발급'은 계좌 본인 인증이 필요해 직접 하셔야 하지만,")
-    print("  발급 후 입력·저장·확인은 여기서 한 번에 끝납니다.")
-    print("· 저장 위치: .env (git 미포함 · 리눅스/맥은 본인만 읽기 권한)")
-    print("· 각 그룹은 건너뛸 수 있습니다(엔터).\n")
+    say("\n🔑 API 키 설정 마법사")
+    say("─" * 46)
+    say("· 백테스트·검증·페이퍼 트레이딩에는 키가 전혀 필요 없습니다.")
+    say("· 키 '발급'은 계좌 본인 인증이 필요해 직접 하셔야 하지만,")
+    say("  발급 후 입력·저장·확인은 여기서 한 번에 끝납니다.")
+    say("· 저장 위치: .env (git 미포함 · 리눅스/맥은 본인만 읽기 권한)")
+    say("· 각 그룹은 건너뛸 수 있습니다(엔터).\n")
 
     load_env_file()          # 기존 값을 알아야 '이미 설정됨'을 표시할 수 있다
     import os
     updates: dict[str, str] = {}
     for title, guide, fields in _SETUP_GROUPS:
-        print(f"\n■ {title}")
-        print(f"  {guide}")
+        say(f"\n■ {title}")
+        say(f"  {guide}")
         use = input("  설정할까요? [y/N] ").strip().lower()
         if use not in ("y", "yes"):
             continue
@@ -1222,22 +1228,22 @@ def _cmd_setup(args) -> None:
                 updates[env] = val
 
     if not updates:
-        print("\n변경 없음 — 종료합니다.")
+        say("\n변경 없음 — 종료합니다.")
         return
     private = update_env_file(".env", updates)
     os.environ.update(updates)      # 이번 세션의 연결 확인에 바로 반영
-    print(f"\n✅ {len(updates)}개 키를 .env에 저장했습니다 (git 미포함).")
+    say(f"\n✅ {len(updates)}개 키를 .env에 저장했습니다 (git 미포함).")
     # 권한은 '확인한 사실'만 말한다. 예전에는 chmod 성공 여부와 무관하게
     # "권한 600"이라 단언했다 — 지켜지지 않은 보안 약속은 느슨한 권한보다
     # 위험하다(2026-08-11 감사 ㊾).
     if private:
-        print("   파일 권한: 600 (본인만 읽기) — 확인됨")
+        say("   파일 권한: 600 (본인만 읽기) — 확인됨")
     elif os.name != "posix":
-        print("   ⚠️ 파일 권한: 윈도우에서는 '본인만 읽기'를 보장할 수 없습니다.")
-        print("      .env 를 다른 사람이 쓰는 계정과 공유되지 않는 폴더에 두세요.")
+        say("   ⚠️ 파일 권한: 윈도우에서는 '본인만 읽기'를 보장할 수 없습니다.")
+        say("      .env 를 다른 사람이 쓰는 계정과 공유되지 않는 폴더에 두세요.")
     else:
-        print("   ⚠️ 파일 권한을 600으로 조이지 못했습니다 — 같은 기계의 다른")
-        print("      사용자가 키를 읽을 수 있습니다. `chmod 600 .env` 를 직접 실행하세요.")
+        say("   ⚠️ 파일 권한을 600으로 조이지 못했습니다 — 같은 기계의 다른")
+        say("      사용자가 키를 읽을 수 있습니다. `chmod 600 .env` 를 직접 실행하세요.")
 
     # 연결 확인 (best-effort — 실패해도 저장은 유지)
     if any(k.startswith("EXCHANGE_") for k in updates):
@@ -1245,9 +1251,9 @@ def _cmd_setup(args) -> None:
             from quant.data import get_provider
             df = get_provider("crypto").get_ohlcv("BTC/USDT", "1d", limit=5)
             fb = bool(df.attrs.get("synthetic_fallback"))
-            print("🔌 거래소 시세 연결: " + ("⚠️ 폴백(네트워크/키 확인)" if fb else "✅ 정상"))
+            say("🔌 거래소 시세 연결: " + ("⚠️ 폴백(네트워크/키 확인)" if fb else "✅ 정상"))
         except Exception as exc:  # noqa: BLE001
-            print(f"🔌 거래소 연결 확인 실패: {exc}")
+            say(f"🔌 거래소 연결 확인 실패: {exc}")
     if "TELEGRAM_BOT_TOKEN" in updates:
         try:
             from quant.live.notifications import TelegramNotifier
@@ -1255,10 +1261,10 @@ def _cmd_setup(args) -> None:
                 os.getenv("TELEGRAM_BOT_TOKEN", updates.get("TELEGRAM_BOT_TOKEN", "")),
                 os.getenv("TELEGRAM_CHAT_ID", updates.get("TELEGRAM_CHAT_ID", "")),
             ).send("🔑 Quant 설정 마법사 — 알림 연결 확인")
-            print("📨 텔레그램: 테스트 메시지를 보냈습니다(수신 확인하세요).")
+            say("📨 텔레그램: 테스트 메시지를 보냈습니다(수신 확인하세요).")
         except Exception as exc:  # noqa: BLE001
-            print(f"📨 텔레그램 확인 실패: {exc}")
-    print("\n⚠️ 키는 절대 커밋·공유하지 마세요. 실거래 키는 출금 권한을 꺼두세요.")
+            say(f"📨 텔레그램 확인 실패: {exc}")
+    say("\n⚠️ 키는 절대 커밋·공유하지 마세요. 실거래 키는 출금 권한을 꺼두세요.")
 
 
 def _cmd_webhook(args) -> None:
@@ -1281,7 +1287,7 @@ def _cmd_webhook(args) -> None:
 
     secret = os.getenv("QUANT_WEBHOOK_SECRET", "")
     if not secret:
-        print("❌ 환경변수 QUANT_WEBHOOK_SECRET(공유 비밀키)이 필요합니다.\n"
+        say("❌ 환경변수 QUANT_WEBHOOK_SECRET(공유 비밀키)이 필요합니다.\n"
               "   인증 없는 주문 엔드포인트는 누구나 내 계좌로 주문을 낼 수 있어 "
               "실행할 수 없습니다.\n   예: export QUANT_WEBHOOK_SECRET='아주-긴-무작위-문자열'")
         return
@@ -1292,12 +1298,12 @@ def _cmd_webhook(args) -> None:
         from quant.utils.dist import block_live_in_distribution
         block_live_in_distribution()     # 배포판: 실거래 금지(소스 설치 전용)
         if args.market not in _live_mode:
-            print(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
+            say(f"'{args.market}' 시장은 실거래를 지원하지 않습니다.")
             return
         c = input("⚠️ 실거래 웹훅입니다. 외부 신호가 실제 자금으로 주문을 냅니다. "
                   "계속? (yes 입력): ")
         if c.strip().lower() != "yes":
-            print("취소되었습니다.")
+            say("취소되었습니다.")
             return
         inner = get_broker(_live_mode[args.market])
         broker = RobustBroker(inner, retries=3, backoff=2.0,
@@ -1307,7 +1313,7 @@ def _cmd_webhook(args) -> None:
     else:
         broker = get_broker("paper", cash=args.cash)
         mode = "paper"
-        print("📝 페이퍼 모드 — 실제 자금 사용 안 함")
+        say("📝 페이퍼 모드 — 실제 자금 사용 안 함")
 
     # 페이로드에 price가 없을 때 쓰는 현재가 조회(선택). 트레이딩뷰는 {{close}}를
     # 실어 보내는 것을 권장(네트워크 조회 없이 즉시 실행).
@@ -1334,21 +1340,21 @@ def _cmd_webhook(args) -> None:
     elif args.allow_ips:
         allow_ips = {ip.strip() for ip in args.allow_ips.split(",") if ip.strip()}
 
-    print(f"🔌 웹훅 서버 시작 ({mode}) — {args.host}:{args.port}")
-    print("   Pine Script 알림 메시지(JSON) 예시:")
-    print('   {"secret":"<비밀키>","action":"long","symbol":"'
+    say(f"🔌 웹훅 서버 시작 ({mode}) — {args.host}:{args.port}")
+    say("   Pine Script 알림 메시지(JSON) 예시:")
+    say('   {"secret":"<비밀키>","action":"long","symbol":"'
           f'{(symbols or ["BTC/USDT"])[0]}","price":{{{{close}}}}}}')
     if not allow_ips:
-        print("   ⚠️ IP 허용목록 미설정 — --tradingview-ips 권장(공식 IP만 허용).")
+        say("   ⚠️ IP 허용목록 미설정 — --tradingview-ips 권장(공식 IP만 허용).")
     if not args.max_age:
         # 재전송 차단은 5분 창이라, 그보다 오래된 캡처 신호는 통과한다.
         # 신선도 검사를 켜면 그 구멍이 닫힌다 — 다만 페이로드에 timestamp가
         # 있어야 하므로 기본값으로 켜면 기존 알림이 전부 400이 된다.
         # 그래서 켜지 않되 **꺼져 있다는 사실은 말한다**(2026-08-11 감사).
-        print("   ⚠️ 신선도 검사 꺼짐 — 5분 지난 캡처 신호도 통과합니다. "
+        say("   ⚠️ 신선도 검사 꺼짐 — 5분 지난 캡처 신호도 통과합니다. "
               "알림 JSON에 \"timestamp\": {{timenow}} 를 넣고 --max-age 300 "
               "을 주면 막힙니다.")
-    print("   ⚠️ 이 포트를 인터넷에 열 때는 HTTPS(리버스 프록시) 뒤에 두세요.")
+    say("   ⚠️ 이 포트를 인터넷에 열 때는 HTTPS(리버스 프록시) 뒤에 두세요.")
     run_webhook_server(executor, host=args.host, port=args.port, secret=secret,
                        allow_ips=allow_ips, replay=True,
                        max_age_sec=args.max_age)
@@ -1362,8 +1368,8 @@ def _cmd_journal(args) -> None:
     # 그 값이 쓰이는 자리가 없었다(감사 174). 계산해 넘기기만 하면 사장님이
     # 시장을 고르면 뭔가 달라진다고 오해하게 된다.
     review = review_state_file(args.state)
-    print(f"\n=== 거래 복기: {args.state} ===")
-    print(review_report(review))
+    say(f"\n=== 거래 복기: {args.state} ===")
+    say(review_report(review))
 def _cmd_costcheck(args) -> None:
     """손익분기 비용 분석 — 이 전략이 실전 수수료를 이길 수 있는지 폭로한다.
     손익분기 수수료가 시장 비용보다 낮으면 고회전 전략의 환상이다."""
@@ -1380,11 +1386,11 @@ def _cmd_costcheck(args) -> None:
                                              limit=args.limit)
     factory = lambda: get_strategy(args.strategy)  # noqa: E731 — 상태 없는 새 전략
     fees = [0.0, 0.0005, 0.001, 0.002, 0.005]
-    print(f"\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
-    print(_data_note(df, args.market))
+    say(f"\n=== 손익분기 비용: {args.strategy} · {args.symbol} ({len(df)}봉) ===")
+    say(_data_note(df, args.market))
     sweep = cost_sweep(df, factory, fees, periods_per_year=ppy)
     be = break_even_cost(df, factory, periods_per_year=ppy)
-    print(cost_sensitivity_report(sweep, be))
+    say(cost_sensitivity_report(sweep, be))
 
 
 def _cmd_compare(args) -> None:
@@ -1398,11 +1404,11 @@ def _cmd_compare(args) -> None:
                                              limit=args.limit)
     fa = lambda: get_strategy(args.strategy_a)  # noqa: E731
     fb = lambda: get_strategy(args.strategy_b)  # noqa: E731
-    print(f"\n=== A/B 비교: A={args.strategy_a} vs B={args.strategy_b} · "
+    say(f"\n=== A/B 비교: A={args.strategy_a} vs B={args.strategy_b} · "
           f"{args.symbol} ({len(df)}봉) ===")
-    print(_data_note(df, args.market))
+    say(_data_note(df, args.market))
     result = ab_test(df, fa, fb, periods_per_year=ppy)
-    print(compare_report(result))
+    say(compare_report(result))
 
 
 def _cmd_pipeline(args) -> None:
@@ -1433,7 +1439,7 @@ def _cmd_krw_attach(args) -> None:
     """
     from quant.reporting.krw_attach import attach
     for name, what in sorted(attach(args.docs).items()):
-        print(f"  {name}: {what}")
+        say(f"  {name}: {what}")
 
 
 def _cmd_ml_report(args) -> None:
@@ -1452,16 +1458,34 @@ def _cmd_ml_report(args) -> None:
     live = d.get("live") or {}
     gate = d.get("gate") or {}
     hr = live.get("hit_rate")
-    print(f"머신러닝 성적표 → {path}")
-    print(f"  실전 적중 {('%.1f%%' % (hr * 100)) if hr is not None else 'N/A'}"
+    say(f"머신러닝 성적표 → {path}")
+    say(f"  실전 적중 {('%.1f%%' % (hr * 100)) if hr is not None else 'N/A'}"
           f" ({live.get('hits', 0)}/{live.get('n', 0)}건)"
           f" · 우연 배제 {'예' if live.get('beats_chance') else '아니오'}")
-    print(f"  검증 게이트 — 관망 {gate.get('halted', 0)}종목 ·"
+    say(f"  검증 게이트 — 관망 {gate.get('halted', 0)}종목 ·"
           f" 절반 {gate.get('halved', 0)}종목 · 정상 {gate.get('full', 0)}종목")
+
+
+def _pick_lang(argv) -> None:
+    """`--lang en` 을 argparse보다 먼저 읽어 환경에 심는다.
+
+    환경변수(QUANT_LANG)가 이미 있으면 그것이 기본이고, 명령줄이 더 세다 —
+    "이번 한 번만 영어로"가 가능해야 한다.
+    """
+    argv = list(argv or [])
+    for i, a in enumerate(argv):
+        if a == "--lang" and i + 1 < len(argv):
+            set_lang(argv[i + 1])
+        elif a.startswith("--lang="):
+            set_lang(a.split("=", 1)[1])
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="quant", description="퀀트 트레이딩 CLI")
+    # 언어는 **가장 먼저** 정해진다 — 도움말 자체가 그 언어로 나와야 하므로
+    # main()이 argv를 미리 훑어 환경에 심는다(아래 _pick_lang).
+    p.add_argument("--lang", choices=["ko", "en"],
+                   help="화면·로그 언어 (기본: 한국어. QUANT_LANG 로도 지정)")
     sub = p.add_subparsers(dest="command")
 
     bt = sub.add_parser("backtest", help="전략 백테스트 실행")
@@ -1872,7 +1896,12 @@ def main(argv=None) -> None:
     except Exception:  # noqa: BLE001 — 사용자 전략 오류가 CLI 전체를 막지 않게
         pass
 
+    # ⚠️ 언어를 **파서보다 먼저** 정한다. argparse는 파서를 만들 때 도움말
+    #    문자열을 이미 들고 있으므로, 파싱이 끝난 뒤에 언어를 알면
+    #    `--lang en --help`가 한국어 도움말을 낸다.
+    _pick_lang(_sys.argv[1:] if argv is None else argv)
     parser = build_parser()
+    translate_parser(parser)
     args = parser.parse_args(argv)
     if not getattr(args, "command", None):
         parser.print_help()
