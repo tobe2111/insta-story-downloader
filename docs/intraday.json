@@ -3,17 +3,19 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 10685.6,
-  "return_pct": 6.856,
-  "gross_return_pct": 9.6452,
-  "cost_paid": 278.92,
-  "trades_total": 333,
-  "rounds_total": 326,
+  "equity": 10684.3,
+  "return_pct": 6.843,
+  "gross_return_pct": 9.6453,
+  "cost_paid": 280.23,
+  "trades_total": 334,
+  "rounds_total": 327,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-26T22:39:09+09:00",
+  "last_time": "2026-08-26T23:26:58+09:00",
   "booked_interval_minutes": 5,
   "observed_gap_minutes": 112.71666666666667,
-  "positions": {},
+  "positions": {
+    "XRP/USDT": 624.59299063
+  },
   "rule_changes": [
     {
       "on": "2026-08-23",
@@ -21,16 +23,29 @@
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
     }
   ],
-  "holdings": [],
+  "holdings": [
+    {
+      "symbol": "XRP/USDT",
+      "direction": "long",
+      "quantity": 624.5929906274,
+      "avg_cost": 1.3943,
+      "last_price": 1.3943,
+      "currency": "USDT",
+      "value": 870.87,
+      "cost": 870.87,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    }
+  ],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 0,
+    "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 0.0,
-    "pct": 0.0,
-    "cash": 10685.6,
+    "gross": 870.87,
+    "pct": 8.1509,
+    "cash": 9813.43,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1339,9 +1354,13 @@
     [
       "2026-08-26T22:39:09+09:00",
       10685.6
+    ],
+    [
+      "2026-08-26T23:26:58+09:00",
+      10684.3
     ]
   ],
-  "hold_return_pct": 27.2862,
+  "hold_return_pct": 26.9046,
   "judgement": {
     "registered_on": "2026-08-18",
     "min_days": 90,
@@ -1371,39 +1390,30 @@
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10109.25,
-      "return_pct": 1.0925,
+      "equity": 10130.64,
+      "return_pct": 1.3064,
       "hold_return_pct": null,
-      "gross_return_pct": 6.6095,
-      "trades_total": 571,
-      "cost_paid": 551.7,
-      "rounds_total": 307,
+      "gross_return_pct": 6.8508,
+      "trades_total": 572,
+      "cost_paid": 554.44,
+      "rounds_total": 308,
       "since": "2026-08-18T16:03:06+00:00"
     },
     {
       "timeframe": "5m",
-      "equity": 9745.43,
-      "return_pct": -2.5457,
+      "equity": 9740.9,
+      "return_pct": -2.591,
       "hold_return_pct": null,
-      "gross_return_pct": 4.2029,
-      "trades_total": 624,
-      "cost_paid": 674.86,
-      "rounds_total": 307,
+      "gross_return_pct": 4.1896,
+      "trades_total": 627,
+      "cost_paid": 678.06,
+      "rounds_total": 308,
       "since": "2026-08-18T16:03:06+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
-  "elapsed_days": 8.36,
+  "elapsed_days": 8.39,
   "recent_trades": [
-    {
-      "time": "2026-08-25T07:11:17+09:00",
-      "symbol": "BNB/USDT",
-      "side": "buy",
-      "notional": 480.92,
-      "price": 704.0,
-      "cost": 0.7214,
-      "signal": 0.224
-    },
     {
       "time": "2026-08-25T07:46:11+09:00",
       "symbol": "BNB/USDT",
@@ -1798,6 +1808,15 @@
       "signal": 0.0,
       "realized_pnl": 8.4745,
       "avg_cost": 1.4099
+    },
+    {
+      "time": "2026-08-26T23:26:58+09:00",
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "notional": 870.87,
+      "price": 1.3943,
+      "cost": 1.3063,
+      "signal": 0.4075
     }
   ],
   "honest_limits": [
@@ -1810,9 +1829,9 @@
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1380.76,
-    "equity": 14754249.0,
+    "equity": 14752454.0,
     "start_cash": 13807600.0,
-    "pnl": 946649.0,
+    "pnl": 944854.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
