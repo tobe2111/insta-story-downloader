@@ -7848,8 +7848,8 @@ MUTATIONS = [
     #    사라졌고, 같은 판단이 nav.js 한 곳으로 옮겨 갔다 — 앵커도 옮긴다.
     ('바가 언어를 스스로 한 번 더 판단한다(되돌아갈 버튼이 EN으로 남는다)',
      'docs/assets/nav.js',
-     '    var other = (root.QuantI18N && QuantI18N.current() === "en") ? "ko" : "en";',
-     '    var other = /[?&]lang=en/.test(root.location.search) ? "ko" : "en";',
+     '      var other = (root.QuantI18N && QuantI18N.current() === "en")\n        ? "ko" : "en";',
+     '      var other = /[?&]lang=en/.test(root.location.search)\n        ? "ko" : "en";',
      'tests/test_the_site_reads_in_english_too.py'),
 
     # ── 방송도 영어로 나간다 (감사 325) ──────────────────────────
@@ -7945,6 +7945,11 @@ MUTATIONS = [
      '</script>{_i18n()}</body></html>"""',
      '</script></body></html>"""',
      'tests/test_the_program_speaks_english_too.py'),
+    ('대시보드에 언어 버튼을 도로 단다(눌러도 안 바뀌는 버튼이 고장으로 읽힌다)',
+     'docs/assets/nav.js',
+     '    if (!/admin\\.html$/.test(location.pathname)) {',
+     '    if (true) {',
+     'tests/test_the_site_reads_in_english_too.py'),
     ('나중에 그려지는 표를 안 본다(장부 표만 한국어로 남는다)',
      'docs/assets/i18n.js',
      '    mo.observe(document.body, {\n      childList: true, subtree: true, characterData: true});',
