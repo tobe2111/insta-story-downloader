@@ -243,7 +243,6 @@
       "실측 최악 113분": "worst observed gap 113 min",
       "— 이 기준은 첫 기록이 쌓이기 전에 등록했고 바꾸지 않는다. 바꿔야 한다면 그 사실과 이유를 이 자리에 함께 공개한다.":
         "— these criteria were registered before the first record and are not changed. If they ever must change, the change and the reason are published right here.",
-      "수정 공지 (2026-08-18)": "Amendment notice (2026-08-18)",
       "관찰 90일 이상 — 충족 전에는 어떤 승패 판정도 내리지 않는다(30일 시점은 중간 참고 판독만)":
         "At least 90 days of observation — no win-or-lose verdict before that (day 30 is an interim read only)",
       "비용을 뺀 누적 수익률이 같은 기간 본 계좌(하루 1회 판단)보다 높다":
@@ -384,8 +383,6 @@
         "\"shorts fire more often\" and \"shorts make money\" are different claims. This track has not yet proven the second one",
       "\'5분마다\'는 예약일 뿐이며 실제 간격은 실측(observed_gap_minutes)이 말합니다 — 공용 러너는 예약을 크게 밀 수 있습니다":
         "\"every 5 minutes\" is only the schedule; the real gap is what we measure (observed_gap_minutes) — shared runners can push a schedule far back",
-      "의 숫자입니다 — 그냥 보유도 살 때 한 번은 수수료를 냅니다(2026-08-19 교정). 본 계좌는 하루 한 번 새벽에 확정되므로 마지막 확정일(2026-08-24) 기준입니다. 실험 시작(2026-08-18) 이후의 변화율끼리 비교합니다 — 표본이 판정 기준(위)을 채우기 전의 우열은 운과 구별되지 않습니다.":
-        " figures — buy & hold also pays a fee once, at purchase (corrected 2026-08-19). The main account settles once a day at dawn, so it is shown as of its last settlement (2026-08-24). The comparison is between rates of change since the experiment began (2026-08-18) — any lead before the sample meets the criteria above is indistinguishable from luck.",
       "입니다 — 총수익률이 비슷한데 순수익률만 벌어졌다면 신호가 나쁜 것이 아니라 회전 비용을 못 견딘 것입니다(처방이 다릅니다: 전략 교체가 아니라 체결 개선). 짧은 구간의 순서는":
         " — if gross returns are similar but only the net returns diverge, the signal is not bad; it could not carry the turnover cost (a different prescription: improve execution, do not swap the strategy). Over short stretches the ordering",
       "우열 판정에 쓰지 않습니다. 주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.":
@@ -415,7 +412,12 @@
         ". 1x is not a failure; it is the answer \"there is no reason to bet big yet\" — raising it without evidence is luck, not learning.",
 
       // ── 주간 아카이브 ──────────────────────────────────────
-      "마지막 갱신: 2026-08-24": "Last updated: 2026-08-24",
+      // 레버리지 관문이 내는 사유 — quant/live/leverage.py가 만든다.
+      // 표본 부족 사유는 아래 rules가 잡고, 이쪽은 바뀌는 부분이 없어
+      // 문장 그대로 적는다.
+      "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다":
+        "the 95% lower bound on the mean return is at or below zero — indistinguishable from luck — held at 1x",
+
       "주(월요일 시작)": "Week (starting Monday)",
       "주말 자산": "Equity at week end",
       "매칭 입금": "Matching deposit",
@@ -453,6 +455,21 @@
       ["^([−+]?[\\d,\\.]+)원 손해$", "KRW $1 loss"],
       ["^([−+]?[\\d,\\.]+)원 이익$", "KRW $1 profit"],
       ["^(\\d{4}-\\d{2}-\\d{2}) 주$", "Week of $1"],
+      // ⚠️ **날짜를 사전 열쇠에 박지 않는다** (2026-08-26에 배운 것).
+      //    아래 두 문장은 사전에 통째로 들어 있었고, 그 열쇠에 그날의
+      //    장부 날짜(2026-08-24)가 박혀 있었다. 사전을 쓴 08-25 아침에는
+      //    맞았지만, 그날 밤 배치가 08-25를 쓰는 순간 열쇠가 어긋나
+      //    영어 화면에 한국어가 남았다 — 그리고 검사가 빨개졌다.
+      //    **매일 밤 스스로 만료되는 사전**이었던 셈이다. 날짜처럼 매일
+      //    바뀌는 자리는 사전이 아니라 여기(규칙)에서 붙잡는다.
+      ["^마지막 갱신: (\\d{4}-\\d{2}-\\d{2})$", "Last updated: $1"],
+      // 수정 공지의 날짜도 장부(amended.on)에서 온다 — 사전에 박으면
+      // 공지가 갱신되는 날 영어가 사라진다. 화면이 괄호를 붙이는 쪽과
+      // 안 붙이는 쪽 둘 다 있어 규칙도 둘이다(intraday·index).
+      ["^수정 공지 \\((\\d{4}-\\d{2}-\\d{2})\\)$", "Amendment notice ($1)"],
+      ["^📝 수정 공지 (\\d{4}-\\d{2}-\\d{2})$", "📝 Amendment notice $1"],
+      ["^의 숫자입니다 — 그냥 보유도 살 때 한 번은 수수료를 냅니다\\((\\d{4}-\\d{2}-\\d{2}) 교정\\)\\. 본 계좌는 하루 한 번 새벽에 확정되므로 마지막 확정일\\((\\d{4}-\\d{2}-\\d{2})\\) 기준입니다\\. 실험 시작\\((\\d{4}-\\d{2}-\\d{2})\\) 이후의 변화율끼리 비교합니다 — 표본이 판정 기준\\(위\\)을 채우기 전의 우열은 운과 구별되지 않습니다\\.$",
+       " figures — buy & hold also pays a fee once, at purchase (corrected $1). The main account settles once a day at dawn, so it is shown as of its last settlement ($2). The comparison is between rates of change since the experiment began ($3) — any lead before the sample meets the criteria above is indistinguishable from luck."],
       ["^(\\d{4}-\\d{2}-\\d{2}) — 규칙이 바뀌었습니다\\.$",
        "$1 — the rules changed."],
       ["^\\(한국 시간\\) · 실측 판단 간격 ([\\d,\\.]+)분$",

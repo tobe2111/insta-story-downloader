@@ -7660,6 +7660,18 @@ MUTATIONS = [
      '    "@media(max-width:820px){#qnav .qn-dash{display:none}}",',
      '    "@media(max-width:820px){#qnav .qn-dash{opacity:.99}}",',
      'tests/test_the_site_wears_one_navbar.py'),
+    # ── 영어 사전이 매일 밤 만료되던 것 (2026-08-26) ──────────────────
+    ('날짜를 규칙이 아니라 사전 열쇠에 박는다(다음 밤 배치에 스스로 만료된다)',
+     'docs/assets/i18n-en.js',
+     r'["^마지막 갱신: (\\d{4}-\\d{2}-\\d{2})$", "Last updated: $1"],',
+     '      "마지막 갱신: 2026-08-24": "Last updated: 2026-08-24",',
+     'tests/test_the_site_reads_in_english_too.py'),
+    ('확정일이 든 긴 문장의 날짜를 안 붙잡는다(단타 페이지에 한국어가 남는다)',
+     'docs/assets/i18n-en.js',
+     r'마지막 확정일\\((\\d{4}-\\d{2}-\\d{2})\\) 기준입니다',
+     r'마지막 확정일\\(2026-08-24\\) 기준입니다',
+     'tests/test_the_site_reads_in_english_too.py'),
+
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
     ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',
