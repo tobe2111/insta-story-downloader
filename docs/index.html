@@ -1657,9 +1657,15 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       const gap=(sumCost+cashB)-baseB;      // 음수면 그만큼 계좌 밖으로 나갔다
       const el=document.getElementById("bal-bridge");
       if(el&&isFinite(baseB)&&baseB>0){
-        el.innerHTML='이 표의 <b>'+won(sumVal-sumCost)+'</b>은 '+
+        /* ⚠️ 조각이 **조사 한 글자로 끝나지 않게** 쓴다(2026-08-26).
+              이 문장은 숫자마다 <b>로 잘려 영어 사전에 '조각'으로 들어간다.
+              예전 문장은 '…</b>은 <b>…' 꼴이라 조각 하나가 딱 "은"이었고,
+              그 열쇠가 **은(SLV) 종목 이름과 충돌**해 영어 화면에서 은
+              보유의 이름 자리에 엉뚱한 문장이 찍혔다. 조사 앞에 낱말을
+              하나 두면 조각이 스스로 뜻을 갖는다. */
+        el.innerHTML='이 표의 손익 <b>'+won(sumVal-sumCost)+'</b>, 기준은 '+
           '<b>매입금액 대비</b>입니다. 맨 위 <b>'+won((sumVal+cashB)-baseB)+
-          '</b>은 <b>원금('+won(baseB)+') 대비</b>라 값이 다릅니다'+
+          '</b>, 이쪽 기준은 <b>원금('+won(baseB)+') 대비</b>라 값이 다릅니다'+
           (Math.abs(gap)>=1
             ?' — 차이 <b>'+won(Math.abs(gap))+'</b>은 이미 낸 매매 수수료로, '+
              '계좌에서 빠져나가 어느 칸에도 남아 있지 않습니다.'
