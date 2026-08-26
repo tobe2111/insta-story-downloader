@@ -703,7 +703,7 @@ footer{padding:20px 4px 26px;color:var(--dim);font-size:12px;
       <p class="sub" style="margin-top:6px">이 시스템은 매일 자신의 결함을 찾아
       고칩니다. 아래는 그 기록이며, <b>사람이 따로 적는 일지가 아니라</b> 개선이
       저장소에 합쳐지는 순간 자동으로 남는 이력입니다. 성적이 나쁜 날의 수정도
-      그대로 실립니다.</p>
+      그대로 실립니다. 아래 항목은 저장소의 커밋 제목을 그대로 옮긴 것입니다.</p>
       <div id="c-changelog" class="sub" style="margin-top:8px">불러오는 중…</div>
     </section>
 
@@ -2509,7 +2509,9 @@ fetch("changelog.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(cl=>{
   sec.style.display="";
   const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const SHOW=6;
-  const row=e=>`<div style="margin:3px 0"><b style="font-variant-numeric:tabular-nums">${esc(e.date)}</b> · ${esc(e.title)}</div>`;
+  /* 커밋 제목은 끝이 없어 사전에 담을 수 없다 — 반쪽 영어가 되지 않게
+     그 자리만 번역에서 뺀다(data-qi18n="keep"). */
+  const row=e=>`<div style="margin:3px 0"><b style="font-variant-numeric:tabular-nums">${esc(e.date)}</b> · <span data-qi18n="keep">${esc(e.title)}</span></div>`;
   const head=es.slice(0,SHOW).map(row).join("");
   const rest=es.slice(SHOW).map(row).join("");
   document.getElementById("c-changelog").innerHTML =
