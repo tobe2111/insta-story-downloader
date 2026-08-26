@@ -7674,6 +7674,26 @@ MUTATIONS = [
      r'마지막 확정일\\(2026-08-24\\) 기준입니다',
      'tests/test_the_site_reads_in_english_too.py'),
 
+    # ── 사전 조각이 종목 이름 자리를 차지하던 것 (2026-08-26) ─────────
+    # 영어 화면에서 은(SLV) 보유의 **이름 자리에** 문장 조각이 찍혔다.
+    ('종목 이름 "은"을 다시 문장 조각으로 되돌린다'
+     '(영어 화면에서 은 보유의 이름 자리에 엉뚱한 문장이 찍힌다)',
+     'docs/assets/i18n-en.js',
+     '      "은": "Silver",',
+     '      "은": "in this table is measured",',
+     'tests/test_the_site_reads_in_english_too.py'),
+    ('종목 이름 하나를 사전에서 뺀다(영어 화면에 그 종목만 한국어로 남는다)',
+     'docs/assets/i18n-en.js',
+     '      "미국 장기국채": "US long-term Treasuries",',
+     '',
+     'tests/test_the_site_reads_in_english_too.py'),
+    ('잔고 다리 문장을 다시 조사 한 글자로 자른다'
+     '(그 조각이 종목 이름과 충돌한다)',
+     'docs/index.html',
+     "        el.innerHTML='이 표의 손익 <b>'+won(sumVal-sumCost)+'</b>, 기준은 '+",
+     "        el.innerHTML='이 표의 <b>'+won(sumVal-sumCost)+'</b>은 '+",
+     'tests/test_the_site_reads_in_english_too.py'),
+
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
     ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',
