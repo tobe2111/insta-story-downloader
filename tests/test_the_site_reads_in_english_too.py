@@ -302,3 +302,97 @@ def test_the_choice_survives_a_click_and_a_page_move(browser, site):
             "페이지를 옮기니 한국어로 되돌아갔다 — 매번 다시 눌러야 한다")
     finally:
         page.close()
+
+# ── ④ 덜 된 페이지도 **얼마나** 됐는지 잰다 ────────────────────
+#
+# "덜 됐다"만 적어 두면 90%든 5%든 같은 말이 된다. 바닥값을 재 두면
+# 다음 사람이 문구를 고치다 사전을 깨뜨렸을 때 그 사실이 드러난다.
+#
+# ⚠️ 첫 화면에 남는 한국어의 대부분은 **매일 새벽 배치가 만드는 문장**
+#    (종목별 판단 설명)과 **깃 커밋 제목**(개선 이력)이다. 둘 다 사전으로
+#    옮길 수 없다 — 내일이면 글자가 달라지므로 사전이 헛돈다. 그쪽은
+#    문장을 만드는 프로그램을 이중언어로 바꿔야 풀린다(다음 차례).
+COVERAGE_FLOOR = {"index.html": 0.65}
+
+_COVERAGE_JS = """() => {
+  const SKIP = {SCRIPT:1, STYLE:1, TEXTAREA:1, CODE:1, PRE:1};
+  let ko = 0, tot = 0;
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = w.nextNode())) {
+    if (n.parentNode && SKIP[n.parentNode.tagName]) continue;
+    const t = n.nodeValue.trim().replace(/\\s+/g, ' ');
+    if (!t) continue;
+    tot += t.length;
+    if (/[가-힣]/.test(t)) ko += t.length;
+  }
+  return {ko: ko, tot: tot};
+}"""
+
+
+@pytest.mark.parametrize("name,floor", sorted(COVERAGE_FLOOR.items()))
+def test_a_half_done_page_is_at_least_this_far_along(browser, site, name, floor):
+    page, errors = _open(browser, site, f"{name}?lang=en", wait=3000)
+    try:
+        assert not errors, f"{name}: {errors}"
+        r = page.evaluate(_COVERAGE_JS)
+        assert r["tot"] > 1000, f"{name}: 글자가 너무 적다 — 검사가 헛돈다"
+        share = 1.0 - r["ko"] / r["tot"]
+        assert share >= floor, (
+            f"{name}: 영어가 {share:.1%}뿐이다(바닥 {floor:.0%}) — "
+            "사전이 깨졌거나 문구가 바뀌었다")
+    finally:
+        page.close()
+
+
+def test_the_floor_is_not_set_so_low_it_means_nothing():
+    """대조군 — 바닥값이 0에 가까우면 위 검사는 아무것도 안 지킨다."""
+    assert COVERAGE_FLOOR, "바닥값 목록이 비었다"
+    for name, floor in COVERAGE_FLOOR.items():
+        assert floor >= 0.5, f"{name}의 바닥값 {floor}은 너무 낮다"
+
+# ── ⑤ 날짜가 박힌 열쇠는 언젠가 반드시 낡는다 ──────────────────
+#
+# 사전은 **정확히 같은 글자**만 찾는다. 그래서 열쇠 안에 날짜가 들어가면
+# 그 날짜가 바뀌는 순간 영어가 조용히 사라지고 한국어가 돌아온다.
+#
+# 실제로 당했다(2026-08-25): "마지막 갱신: 2026-08-24"를 열쇠로 넣었더니
+# 다음 날 배치가 날짜를 바꿔 주간 아카이브가 다시 한국어가 됐다. 규칙
+# (정규식)으로 옮겨 날짜를 **잡아서 그대로 흘려보내야** 한다.
+#
+# 아래 목록은 '아직 남아 있는 빚'이다. 여기 있는 문장들은 날짜가 바뀌는
+# 일이 드물어서(구조 리셋·사전등록 수정) 남겨 두었지만, 바뀌면 그날
+# 한국어로 돌아간다 — 위 ③의 검사가 그 사실을 큰 소리로 알려 준다.
+DATED_KEYS_ALLOWED = 7
+
+
+def test_no_new_date_is_baked_into_a_dictionary_key():
+    """날짜가 든 열쇠가 **늘어나지 않았는가.**
+
+    늘리려면 먼저 규칙(rules)으로 옮길 수 없는지 보라. 옮길 수 없어서
+    정말 늘려야 한다면 위 숫자와 이유를 함께 고쳐라.
+    """
+    body = DICT[DICT.index("strings: {"):DICT.index("rules: [")]
+    keys = re.findall(r'\n      "((?:[^"\\]|\\.)*)":', body)
+    dated = [k for k in keys if re.search(r"\d{4}-\d{2}-\d{2}", k)]
+    assert len(dated) <= DATED_KEYS_ALLOWED, (
+        f"날짜가 박힌 사전 열쇠가 {len(dated)}개로 늘었다(허용 "
+        f"{DATED_KEYS_ALLOWED}) — 날짜가 바뀌면 그 문장은 한국어로 "
+        f"돌아간다. 규칙(rules)으로 옮길 것:\n"
+        + "\n".join(f"  · {k[:60]}" for k in dated[DATED_KEYS_ALLOWED:]))
+
+
+def test_the_daily_figures_are_not_baked_into_keys():
+    """**매일** 바뀌는 값이 열쇠에 들어가면 영어는 하루도 못 간다.
+
+    금액(원)·회차·일차처럼 배치가 매일 새로 쓰는 숫자가 열쇠 안에 있으면
+    안 된다. 이런 문장은 규칙이 숫자를 잡아 그대로 흘려보내야 한다.
+    """
+    body = DICT[DICT.index("strings: {"):DICT.index("rules: [")]
+    keys = re.findall(r'\n      "((?:[^"\\]|\\.)*)":', body)
+    bad = [k for k in keys
+           if re.search(r"[\d,]{4,}원|\d+일차|\d+회차|n=\d+", k)]
+    assert not bad, (
+        "매일 바뀌는 숫자가 사전 열쇠에 박혀 있다 — 내일이면 영어가 "
+        f"사라진다. 규칙으로 옮길 것:\n"
+        + "\n".join(f"  · {k[:70]}" for k in bad))
