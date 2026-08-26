@@ -1,18 +1,18 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-26T10:54:00+09:00",
+  "updated": "2026-08-26T12:00:55+09:00",
   "start_cash": 10000.0,
-  "equity": 9787.9826,
-  "return_pct": -2.1202,
-  "cost_paid": 475.1053,
-  "funding_paid": 8.074193,
+  "equity": 9804.6194,
+  "return_pct": -1.9538,
+  "cost_paid": 478.8231,
+  "funding_paid": 8.11328,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
     "max_leverage": 1.0,
     "proven": false,
     "drawdown": 0.0435,
-    "n": 132,
+    "n": 133,
     "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
   },
   "rule_changes": [
@@ -33,12 +33,12 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 3.516622,
+  "margin_ratio": 30.14803,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 2783.348,
-  "long_positions": 2,
+  "gross_exposure": 325.2159,
+  "long_positions": 1,
   "short_positions": 0,
   "long_only_symbols": [
     "ETH/USDT",
@@ -46,7 +46,7 @@
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 133,
+  "rounds": 134,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -580,72 +580,41 @@
     {
       "at": "2026-08-26T10:54:00+09:00",
       "equity": 9787.9826
+    },
+    {
+      "at": "2026-08-26T12:00:55+09:00",
+      "equity": 9804.6194
     }
   ],
   "positions": {
-    "ETH/USDT": 0.7944776568,
-    "SOL/USDT": 8.6878660796
+    "SOL/USDT": 3.3430912646
   },
   "holdings": [
     {
-      "symbol": "ETH/USDT",
-      "direction": "long",
-      "quantity": 0.7944776568,
-      "avg_cost": 2444.27356422,
-      "last_price": 2446.47,
-      "currency": "USDT",
-      "value": 1943.6658,
-      "cost": 1941.9207,
-      "pnl": 1.745,
-      "pnl_pct": 0.0899
-    },
-    {
       "symbol": "SOL/USDT",
       "direction": "long",
-      "quantity": 8.6878660796,
+      "quantity": 3.3430912646,
       "avg_cost": 96.77097509,
-      "last_price": 96.65,
+      "last_price": 97.28,
       "currency": "USDT",
-      "value": 839.6823,
-      "cost": 840.7333,
-      "pnl": -1.051,
-      "pnl_pct": -0.125
+      "value": 325.2159,
+      "cost": 323.5142,
+      "pnl": 1.7017,
+      "pnl_pct": 0.526
     }
   ],
   "holdings_total": {
-    "pnl": 0.694,
-    "counted": 2,
+    "pnl": 1.7017,
+    "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 2783.3481,
-    "pct": 28.4364,
-    "cash": 7004.6345,
+    "gross": 325.2159,
+    "pct": 3.317,
+    "cash": 9479.4035,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "XRP/USDT",
-      "side": "buy",
-      "direction": "숏",
-      "notional": 3757.91,
-      "price": 1.5135,
-      "cost": 5.6369,
-      "signal": -0.0179,
-      "realized_pnl": -17.891,
-      "avg_cost": 1.508565,
-      "at": "2026-08-25T13:22:51+09:00"
-    },
-    {
-      "symbol": "BTC/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 149.74,
-      "price": 80374.0,
-      "cost": 0.2246,
-      "signal": 0.6135,
-      "at": "2026-08-25T14:03:13+09:00"
-    },
     {
       "symbol": "BTC/USDT",
       "side": "buy",
@@ -1069,6 +1038,30 @@
       "realized_pnl": -0.7787,
       "avg_cost": 96.770975,
       "at": "2026-08-26T10:54:00+09:00"
+    },
+    {
+      "symbol": "ETH/USDT",
+      "side": "sell",
+      "direction": "청산",
+      "notional": -1958.59,
+      "price": 2465.25,
+      "cost": 2.9379,
+      "signal": 0.0,
+      "realized_pnl": 13.7274,
+      "avg_cost": 2444.273564,
+      "at": "2026-08-26T12:00:55+09:00"
+    },
+    {
+      "symbol": "SOL/USDT",
+      "side": "sell",
+      "direction": "롱",
+      "notional": -519.94,
+      "price": 97.28,
+      "cost": 0.7799,
+      "signal": 0.1658,
+      "realized_pnl": 1.9407,
+      "avg_cost": 96.770975,
+      "at": "2026-08-26T12:00:55+09:00"
     }
   ],
   "limits": [
@@ -1081,9 +1074,9 @@
   ],
   "krw": {
     "rate": 1380.76,
-    "equity": 13514855.0,
+    "equity": 13537826.0,
     "start_cash": 13807600.0,
-    "pnl": -292745.0,
+    "pnl": -269774.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
