@@ -338,8 +338,15 @@ def test_the_public_page_reads_the_json_and_links_back():
     assert "intraday.json" in page, "공개 페이지가 장부를 안 읽는다"
     assert "가상 자금" in page and "실제 돈이 아니" in page, (
         "실험 표식 없이 숫자만 보여준다")
+    # 첫 화면에서 실험 페이지로 가는 길 — **바가 홈에 그려 주는 것도 길이다.**
+    # ⚠️ 2026-08-26에 홈이 자기 상단 바를 버리고 공용 바(assets/nav.js)를
+    #    쓰게 되면서 index.html 소스에서 이 링크가 사라졌다. 화면에는 그대로
+    #    있는데(공용 바가 그린다) 검사만 빨개졌다 — 검사가 지키려던 것은
+    #    "index.html 파일에 글자가 있다"가 아니라 "첫 화면에서 닿는다"였다.
     index = (ROOT / "docs" / "index.html").read_text("utf-8")
-    assert "intraday.html" in index, (
+    nav = (ROOT / "docs" / "assets" / "nav.js").read_text("utf-8")
+    assert 'src="assets/nav.js"' in index, "홈이 공용 바를 안 싣는다"
+    assert "intraday.html" in index or "intraday.html" in nav, (
         "첫 화면에서 실험 페이지로 가는 길이 없다 — 공개가 아니라 은닉이다")
 
 

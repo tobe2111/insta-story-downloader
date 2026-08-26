@@ -71,9 +71,16 @@ def test_every_public_page_loads_the_dictionary(name):
     assert i < j, f"{name}: 사전이 엔진보다 뒤에 있다 — 아무것도 안 바뀐다"
 
 
-def test_both_bars_have_a_language_button():
-    assert 'class="navlang"' in IDX, "홈 바에 언어 버튼이 없다"
+def test_the_bar_has_a_language_button():
+    """언어 버튼은 **바 한 벌**에만 있으면 모든 페이지에 생긴다.
+
+    ⚠️ 예전 판은 홈의 손수 만든 바(`class="navlang"`)와 공용 바를 따로
+       확인했다. 2026-08-26에 홈도 공용 바를 쓰게 되면서(사장님: "상단바도
+       페이지마다 구성이 다르고 일치시켜줘") 확인할 바가 하나가 됐다 —
+       버튼이 한 곳에만 있으면 되는 것이 통일의 이점이다.
+    """
     assert "qn-lang" in NAV, "공용 바에 언어 버튼이 없다"
+    assert 'src="assets/nav.js"' in IDX, "홈이 공용 바를 안 싣는다"
 
 
 def test_the_language_button_survives_a_narrow_screen():
@@ -82,12 +89,10 @@ def test_the_language_button_survives_a_narrow_screen():
     글자 두 개라 자리를 거의 안 먹는다. 숨기면 영어권 방문자에게 이
     사이트는 한국어 전용이 된다.
     """
-    assert "@media(max-width:820px){.navlang{display:none}}" not in IDX, (
-        "홈: 좁은 화면에서 언어 버튼이 사라진다")
     assert "#qnav .qn-lang{display:none}" not in NAV, (
         "공용 바: 좁은 화면에서 언어 버튼이 사라진다")
-    # 홈의 삼단 바 메뉴에도 길이 있다(버튼을 못 봐도 메뉴에서 찾는다).
-    assert 'id="mlang"' in IDX, "홈의 모바일 메뉴에 언어 항목이 없다"
+    assert "@media(max-width:820px){#qnav .qn-lang" not in NAV, (
+        "공용 바: 좁은 화면 규칙이 언어 버튼을 건드린다")
 
 
 # ── ② 사전 자체의 계약 ────────────────────────────────────────

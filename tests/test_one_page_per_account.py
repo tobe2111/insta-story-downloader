@@ -134,15 +134,30 @@ def test_the_four_tracks_come_first_and_in_order():
 
 
 def test_nothing_was_hidden_while_tidying():
-    """대조군 — 정리하면서 기존 페이지를 상단 바에서 떨어뜨리지 않았다.
+    """대조군 — 정리하면서 기존 페이지로 가는 길이 사라지지 않았다.
 
     화면을 정리한다며 기록 하나가 조용히 사라지면 그건 정리가 아니다.
+
+    ⚠️ 예전 판은 이 길을 **상단 바에서만** 찾았다. 2026-08-26에 100만 계좌의
+       부속 화면 셋(오늘의 판단·주간·실기록)을 홈으로 합치면서 메뉴에서
+       뺐는데(사장님: "중복 없이 몰아넣으면 되잖아"), 그때 이 검사가
+       빨개졌다 — 검사가 지키려던 것은 "메뉴에 있다"가 아니라 **"닿을 수
+       있다"**였다. 이제 사이트 어디서든 링크가 있으면 통과한다. 메뉴는
+       짧아져도 되고, 길은 끊어지면 안 된다.
     """
-    nav = (DOCS / "assets" / "nav.js").read_text("utf-8")
-    for page in ("paper.html", "today.html", "trust.html", "weekly.html"):
-        assert f'"{page}"' in nav, (
-            f"{page}가 상단 바에서 사라졌다 — 페이지는 그대로 있는데 "
-            "가는 길만 없어지면 없는 것과 같다")
+    reachable = set()
+    for f in sorted(DOCS.glob("*.html")) + [DOCS / "assets" / "nav.js"]:
+        src = f.read_text("utf-8")
+        for page in ("paper.html", "today.html", "trust.html", "weekly.html"):
+            if f.name == page:
+                continue                  # 자기 자신을 가리키는 것은 길이 아니다
+            if f'"{page}"' in src:
+                reachable.add(page)
+    missing = sorted({"paper.html", "today.html", "trust.html", "weekly.html"}
+                     - reachable)
+    assert not missing, (
+        f"{missing}로 가는 길이 사이트 어디에도 없다 — 페이지는 그대로 있는데 "
+        "가는 길만 없어지면 없는 것과 같다")
 
 
 @pytest.mark.parametrize("page", ["intraday.html", "us.html", "futures.html"])
