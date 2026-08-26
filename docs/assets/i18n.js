@@ -81,13 +81,80 @@
     return (root.QUANT_EN && root.QUANT_EN.rules) || [];
   }
 
+  /**
+   * 문장을 절(clause)로 끊는다 — **괄호 안은 건드리지 않는다.**
+   *
+   * 매일 새벽 배치가 만드는 판단 설명은 절을 ` · `와 ` — `로 이어 붙인
+   * 것이다. 통째로는 매일 글자가 달라 사전이 영영 못 찾지만, **절 단위**로는
+   * 틀이 몇 개 안 된다. 그래서 절마다 따로 찾아 다시 잇는다.
+   *
+   * ⚠️ 괄호 안에도 ` · `가 있다("(95% 신뢰구간 37%~62% · 보합 2일 포함 …)").
+   *    거기서 끊으면 문장이 부서진다 — 괄호 깊이가 0인 자리에서만 끊는다.
+   * ⚠️ 이음매를 **기억해서 그대로 다시 쓴다.** 전부 ` · `로 이어 붙이면
+   *    "매수 +36% · 로지스틱회귀 …"가 되어 원문과 다른 문장이 된다.
+   *
+   * 돌려주는 것: [조각, 이음매, 조각, 이음매, …, 조각]
+   */
+  var SEPS = [" · ", " — "];
+
+  function clauses(text) {
+    var out = [], depth = 0, start = 0, i = 0;
+    while (i < text.length) {
+      var c = text.charAt(i);
+      if (c === "(") { depth++; i++; continue; }
+      if (c === ")") { depth = Math.max(0, depth - 1); i++; continue; }
+      var hit = null;
+      if (depth === 0) {
+        for (var k = 0; k < SEPS.length; k++) {
+          if (text.substr(i, SEPS[k].length) === SEPS[k]) { hit = SEPS[k]; break; }
+        }
+      }
+      if (hit) {
+        out.push(text.slice(start, i));
+        out.push(hit);
+        i += hit.length;
+        start = i;
+      } else {
+        i++;
+      }
+    }
+    out.push(text.slice(start));
+    return out;
+  }
+
   /** 사전에서 찾기. 앞뒤 공백은 유지한 채 알맹이만 바꾼다. */
   function look(raw) {
-    var d = dict();
     var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(raw);
     var core = m[2];
     if (!core) return null;
-    // 표에서 온 글자는 공백이 여러 칸일 수 있다 — 한 칸으로 눌러서도 찾는다.
+    // ⚠️ 찾는 방법은 **one_of 한 곳에만** 있다. 예전에는 같은 사전·규칙
+    //    조회를 여기와 one_of 두 곳에 적어 뒀는데, 그러면 언젠가 갈라진다
+    //    (FROZEN_IDEAS ①).
+    var whole = one_of(core);
+    var hit = (whole === null) ? undefined : whole;
+    if (hit === undefined) {
+      // 통째로 못 찾았으면 **절 단위**로 다시 시도한다. 아는 절만 바뀌고
+      // 모르는 절은 한국어로 남는다 — 반쪽짜리 영어가 되지만, 통째로
+      // 한국어인 것보다는 낫고 **지어낸 영어보다는 훨씬 낫다.**
+      var parts = clauses(core);
+      if (parts.length > 1) {
+        var any = false;
+        var done = parts.map(function (part, idx) {
+          if (idx % 2 === 1) return part;          // 홀수 자리는 이음매
+          var one = one_of(part);
+          if (one !== null) { any = true; return one; }
+          return part;
+        });
+        if (any) hit = done.join("");
+      }
+    }
+    if (hit === undefined || hit === core) return null;
+    return m[1] + hit + m[3];
+  }
+
+  /** 절 하나만 찾는다(사전 → 규칙). 못 찾으면 null. */
+  function one_of(core) {
+    var d = dict();
     var hit = d[core];
     if (hit === undefined) hit = d[core.replace(/\s+/g, " ")];
     if (hit === undefined) {
@@ -97,8 +164,7 @@
         if (re.test(core)) { hit = core.replace(re, rs[i][1]); break; }
       }
     }
-    if (hit === undefined || hit === core) return null;
-    return m[1] + hit + m[3];
+    return (hit === undefined || hit === core) ? null : hit;
   }
 
   var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, CODE: 1, PRE: 1 };

@@ -46,7 +46,8 @@ NAV = (DOCS / "assets" / "nav.js").read_text("utf-8")
 
 # 지금 영어가 **끝까지** 채워진 페이지. 여기 있는 페이지는 브라우저로 띄워
 # 한국어가 남지 않았는지 본다 — 목록에 없는 페이지는 아직 차례가 아니다.
-DONE = ["us.html", "intraday.html", "futures.html", "weekly.html"]
+DONE = ["us.html", "intraday.html", "futures.html", "weekly.html",
+        "ml.html"]
 
 # 공개 페이지 전부 — 하나라도 사전을 안 실으면 그 페이지만 한국어로 남는다.
 PAGES = ["index.html", "paper.html", "today.html", "trust.html",
@@ -308,11 +309,15 @@ def test_the_choice_survives_a_click_and_a_page_move(browser, site):
 # "덜 됐다"만 적어 두면 90%든 5%든 같은 말이 된다. 바닥값을 재 두면
 # 다음 사람이 문구를 고치다 사전을 깨뜨렸을 때 그 사실이 드러난다.
 #
-# ⚠️ 첫 화면에 남는 한국어의 대부분은 **매일 새벽 배치가 만드는 문장**
-#    (종목별 판단 설명)과 **깃 커밋 제목**(개선 이력)이다. 둘 다 사전으로
-#    옮길 수 없다 — 내일이면 글자가 달라지므로 사전이 헛돈다. 그쪽은
-#    문장을 만드는 프로그램을 이중언어로 바꿔야 풀린다(다음 차례).
-COVERAGE_FLOOR = {"index.html": 0.65}
+# ⚠️ 첫 화면에 남는 한국어의 대부분은 **깃 커밋 제목**(개선 이력)이다.
+#    커밋 제목은 합쳐지는 순간 정해지는 글자라 사전으로 옮길 수 없다 —
+#    그리고 옮겨서도 안 된다(저장소 이력의 사본이라는 것이 그 목록의 뜻이다).
+#
+#    매일 새벽 배치가 만드는 판단 설명은 **절 단위**로 옮긴다(엔진의
+#    clauses()). 통째로는 매일 글자가 달라 못 찾지만 절로 끊으면 틀이 몇 개
+#    안 되고, 모르는 절만 한국어로 남는다.
+COVERAGE_FLOOR = {"index.html": 0.75, "paper.html": 0.72,
+                  "today.html": 0.80}
 
 _COVERAGE_JS = """() => {
   const SKIP = {SCRIPT:1, STYLE:1, TEXTAREA:1, CODE:1, PRE:1};
@@ -396,3 +401,74 @@ def test_the_daily_figures_are_not_baked_into_keys():
         "매일 바뀌는 숫자가 사전 열쇠에 박혀 있다 — 내일이면 영어가 "
         f"사라진다. 규칙으로 옮길 것:\n"
         + "\n".join(f"  · {k[:70]}" for k in bad))
+
+# ── ⑥ 절로 끊어 옮길 때 문장이 부서지지 않는가 ─────────────────
+
+def test_the_seams_are_put_back_exactly_as_they_were(browser, site):
+    """절을 잇던 ` — `를 ` · `로 바꿔 놓으면 원문과 다른 문장이 된다.
+
+    매일 만들어지는 판단 설명은 "매수 +32% — 이동평균 교차: … · 🏛 의회 …"
+    처럼 **두 가지 이음매**로 이어져 있다. 옮긴 뒤 전부 가운뎃점으로 이어
+    붙이면 머리말과 근거의 관계가 사라진다.
+    """
+    page, _ = _open(browser, site, "us.html?lang=en", wait=1500)
+    try:
+        got = page.evaluate(
+            "() => QuantI18N.look('매수 +32% — 최근 변동성이 커서 위험 조절이"
+            " 비중을 낮게 잡음')")
+        assert got, "절 단위 번역이 아예 안 걸렸다"
+        assert "Buy +32%" in got, got
+        assert " — " in got, f"이음매가 바뀌었다: {got}"
+        assert " · " not in got, f"없던 가운뎃점이 생겼다: {got}"
+    finally:
+        page.close()
+
+
+def test_a_clause_inside_brackets_is_not_split(browser, site):
+    """괄호 안의 가운뎃점에서 끊으면 신뢰구간 설명이 조각난다."""
+    page, _ = _open(browser, site, "us.html?lang=en", wait=1500)
+    try:
+        got = page.evaluate(
+            "() => QuantI18N.look('참고: 전 종목 합산으로 모델이 60%±10%p라"
+            " 말한 50번의 실제 상승 비율 55% (95% 신뢰구간 40%~70% · 봉이"
+            " 빠진 3번은 제외 · 이 종목 단독 표본은 2번으로 축적 중)')")
+        assert got and "95% CI 40-70%" in got, (
+            f"괄호 안이 통째로 옮겨지지 않았다: {got}")
+    finally:
+        page.close()
+
+
+def test_the_tooltip_carries_the_whole_reason(browser, site):
+    """도움말을 중간에서 자르지 않는다.
+
+    ⚠️ 예전에는 `esc(reason).slice(0,180)`이었다. 두 가지가 잘못이다:
+       ① **이스케이프한 뒤** 잘라서 `&amp;` 같은 실체 참조가 중간에서 끊길
+          수 있었다(따옴표 속성이 깨진다).
+       ② 설명하라고 붙인 도움말이 문장 한가운데서 끝났다.
+    끝 20글자가 그대로 들어 있는지로 확인한다 — 길이에 기대지 않는다.
+    """
+    import json as _json
+    st = _json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
+    reasons = []
+    for book in (st.get("paper") or {}).values():
+        hist = (book or {}).get("history") or []
+        if hist:
+            r = str((hist[-1] or {}).get("reason") or "")
+            if len(r) > 200:
+                reasons.append(r)
+    if not reasons:
+        pytest.skip("지금 장부에 긴 판단 설명이 없다 — 다음 배치에 다시 본다")
+    longest = max(len(r) for r in reasons)
+    page, _ = _open(browser, site, "index.html", wait=3000)
+    try:
+        titles = page.locator(".srow").evaluate_all(
+            "els => els.map(e => (e.getAttribute('title') || '').length)")
+        assert titles, "사이드바에 줄이 하나도 없다 — 검사가 헛돈다"
+        # ⚠️ 끝 20글자로 보면 안 된다: 판단 설명은 대부분 같은 문장으로
+        #    끝나서(의회 안내), 짧은 줄 하나만 안 잘려도 통과해 버린다.
+        #    **가장 긴 도움말의 길이**로 본다 — 자르면 바로 드러난다.
+        assert max(titles) > 180, (
+            f"도움말이 {max(titles)}자에서 끊긴다(장부의 가장 긴 설명은 "
+            f"{longest}자) — 설명하라고 붙인 것이 설명을 못 한다")
+    finally:
+        page.close()

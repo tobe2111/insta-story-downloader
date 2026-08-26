@@ -1245,7 +1245,12 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
   document.getElementById("sidecnt").textContent=rows.length+"종목";
   document.getElementById("sidelist").innerHTML=rows.map(r=>{
     const wpc=Math.min(100,(r.w||0)*100/0.25*100/100*4);
-    return '<div class="srow" title="'+esc(r.reason).slice(0,180)+'">'+
+    /* ⚠️ 예전에는 `esc(r.reason).slice(0,180)`이었다. 두 가지가 잘못이다:
+       ① **이스케이프한 뒤** 잘라서 `&amp;` 같은 실체 참조가 중간에서 끊길 수
+          있었다(따옴표 속성이 깨진다).
+       ② 도움말이 문장 한가운데서 끊겼다 — 설명하라고 붙인 것이 설명을 못 한다.
+       브라우저가 긴 도움말을 알아서 접어 주므로 그대로 싣는다. */
+    return '<div class="srow" title="'+esc(String(r.reason||""))+'">'+
       '<div><div class="nm">'+esc(r.name)+'</div>'+
       '<div class="cd">'+esc(r.code)+'</div>'+
       '<div class="wbar"><i style="width:'+Math.max(2,Math.min(100,(r.w||0)*400))+'%"></i></div></div>'+
@@ -1920,7 +1925,10 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
         '<td class="num'+(hf.dim?" sub":"")+'">'+hr+
           '<div class="cd">'+lhr+'</div></td>'+
         '<td style="text-align:left;color:var(--muted);max-width:420px;overflow:hidden;'+
-        'text-overflow:ellipsis">'+esc(String(last.reason||"").slice(0,110))+'</td></tr>';
+        /* ⚠️ 110자로 자르던 것을 그만뒀다 — 바로 위 CSS(overflow:hidden +
+           text-overflow:ellipsis)가 이미 눈에 보이는 길이를 잘라 준다.
+           자바스크립트로 또 자르면 **글자는 사라지고 말줄임표도 안 붙는다.** */
+        'text-overflow:ellipsis">'+esc(String(last.reason||""))+'</td></tr>';
     }).join("")||'<tr><td colspan="8" class="sub">기록 대기 중</td></tr>';
   /* 접힌 줄이 **몇 개인지 말한다.** 말없이 접으면 그건 숨긴 것이다. */
   {
