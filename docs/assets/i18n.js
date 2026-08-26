@@ -81,27 +81,144 @@
     return (root.QUANT_EN && root.QUANT_EN.rules) || [];
   }
 
+  /**
+   * 문장을 절(clause)로 끊는다 — **괄호 안은 건드리지 않는다.**
+   *
+   * 매일 새벽 배치가 만드는 판단 설명은 절을 ` · `와 ` — `로 이어 붙인
+   * 것이다. 통째로는 매일 글자가 달라 사전이 영영 못 찾지만, **절 단위**로는
+   * 틀이 몇 개 안 된다. 그래서 절마다 따로 찾아 다시 잇는다.
+   *
+   * ⚠️ 괄호 안에도 ` · `가 있다("(95% 신뢰구간 37%~62% · 보합 2일 포함 …)").
+   *    거기서 끊으면 문장이 부서진다 — 괄호 깊이가 0인 자리에서만 끊는다.
+   * ⚠️ 이음매를 **기억해서 그대로 다시 쓴다.** 전부 ` · `로 이어 붙이면
+   *    "매수 +36% · 로지스틱회귀 …"가 되어 원문과 다른 문장이 된다.
+   *
+   * 돌려주는 것: [조각, 이음매, 조각, 이음매, …, 조각]
+   */
+  var SEPS = [" · ", " — "];
+
+  function clauses(text) {
+    var out = [], depth = 0, start = 0, i = 0;
+    while (i < text.length) {
+      var c = text.charAt(i);
+      if (c === "(") { depth++; i++; continue; }
+      if (c === ")") { depth = Math.max(0, depth - 1); i++; continue; }
+      var hit = null;
+      if (depth === 0) {
+        for (var k = 0; k < SEPS.length; k++) {
+          if (text.substr(i, SEPS[k].length) === SEPS[k]) { hit = SEPS[k]; break; }
+        }
+      }
+      if (hit) {
+        out.push(text.slice(start, i));
+        out.push(hit);
+        i += hit.length;
+        start = i;
+      } else {
+        i++;
+      }
+    }
+    out.push(text.slice(start));
+    return out;
+  }
+
   /** 사전에서 찾기. 앞뒤 공백은 유지한 채 알맹이만 바꾼다. */
   function look(raw) {
-    var d = dict();
     var m = /^(\s*)([\s\S]*?)(\s*)$/.exec(raw);
     var core = m[2];
     if (!core) return null;
-    // 표에서 온 글자는 공백이 여러 칸일 수 있다 — 한 칸으로 눌러서도 찾는다.
-    var hit = d[core];
-    if (hit === undefined) hit = d[core.replace(/\s+/g, " ")];
-    if (hit === undefined) {
-      var rs = rules();
-      for (var i = 0; i < rs.length; i++) {
-        var re = new RegExp(rs[i][0]);
-        if (re.test(core)) { hit = core.replace(re, rs[i][1]); break; }
-      }
+    // ⚠️ 찾는 방법은 **one_of 한 곳에만** 있다. 예전에는 같은 사전·규칙
+    //    조회를 여기와 one_of 두 곳에 적어 뒀는데, 그러면 언젠가 갈라진다
+    //    (FROZEN_IDEAS ①).
+    var whole = one_of(core);
+    var hit = (whole === null) ? undefined : whole;
+    // 통째로 못 찾았으면 **절 단위**로 다시 시도한다. 아는 절만 바뀌고
+    // 모르는 절은 한국어로 남는다 — 반쪽짜리 영어가 되지만, 통째로
+    // 한국어인 것보다는 낫고 **지어낸 영어보다는 훨씬 낫다.**
+    //
+    // 통째로 찾았더라도 한 번 더 해 본다. 욕심 많은 규칙(`(.+)`)이 여러 절을
+    // 한꺼번에 삼키면 가운데 절만 옮겨지고 앞뒤는 한국어로 남는데, 그런 문장은
+    // 절 단위로 끊으면 대개 전부 옮겨진다. **한국어가 덜 남는 쪽**을 쓴다.
+    var by = by_clause(core);
+    if (by !== null && (hit === undefined || korean(by) < korean(hit))) {
+      hit = by;
     }
     if (hit === undefined || hit === core) return null;
     return m[1] + hit + m[3];
   }
 
+  var HANGUL = /[가-힣]/g;
+
+  function korean(text) {
+    var found = String(text).match(HANGUL);
+    return found ? found.length : 0;
+  }
+
+  function by_clause(core) {
+    var parts = clauses(core);
+    if (parts.length < 2) return null;
+    var any = false;
+    var done = parts.map(function (part, idx) {
+      if (idx % 2 === 1) return part;              // 홀수 자리는 이음매
+      var one = one_of(part);
+      if (one !== null) { any = true; return one; }
+      return part;
+    });
+    return any ? done.join("") : null;
+  }
+
+  /** 절 하나만 찾는다(사전 → 규칙). 못 찾으면 null. */
+  function one_of(core, depth) {
+    var d = dict();
+    var hit = d[core];
+    if (hit === undefined) hit = d[core.replace(/\s+/g, " ")];
+    if (hit === undefined) {
+      var rs = rules();
+      for (var i = 0; i < rs.length; i++) {
+        var m = new RegExp(rs[i][0]).exec(core);
+        if (m) { hit = fill(rs[i][1], m, depth || 0); break; }
+      }
+    }
+    return (hit === undefined || hit === core) ? null : hit;
+  }
+
+  // 치환문의 `$*2`는 "잡아 둔 그 조각을 한 번 더 옮겨라"는 뜻이다.
+  //
+  // 판단 근거는 "20일선 이격 +4.0%(선 위)"처럼 괄호 안에 상태 이름을 달고
+  // 나온다. 이름은 종목·날마다 달라지고(선 위/선 아래/밴드 중간/깊은
+  // 콘탱고(안정)…) 값과 이름의 조합은 수백 가지라, 규칙 하나에 다 적을 수
+  // 없다. 그래서 값은 그대로 흘려보내고(`$1`) 이름만 다시 사전으로 보낸다.
+  // 옮길 말이 없으면 **한국어를 그대로 둔다** — 지어내지 않는다.
+  var MAX_DEPTH = 4;                  // 규칙이 서로를 부르며 도는 것을 막는다
+
+  function fill(tpl, m, depth) {
+    return tpl.replace(/\$(\*?)(\d)/g, function (whole, star, n) {
+      var at = Number(n);
+      if (at >= m.length) return whole;        // 없는 자리는 글자 그대로
+      var g = m[at] === undefined ? "" : m[at];  // 안 걸린 괄호는 빈칸
+      if (!star || depth >= MAX_DEPTH) return g;
+      var deeper = one_of(g, depth + 1);
+      return deeper === null ? g : deeper;
+    });
+  }
+
   var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, CODE: 1, PRE: 1 };
+
+  /**
+   * `data-qi18n="keep"`이 붙은 자리는 손대지 않는다.
+   *
+   * 개선 이력처럼 **커밋 제목을 그대로 옮겨 적는 자리**가 있다. 그 문장은
+   * 매일 새로 생기고 끝이 없어서 사전에 담을 수 없는데, 일반 규칙이 문장의
+   * 앞머리만 잡아 "90 days: 시계가 선언만 봤다"처럼 반쪽짜리로 만든다.
+   * 반쪽 영어는 한국어보다 나쁘다 — 읽는 사람이 고장으로 읽는다.
+   */
+  function kept(node) {
+    for (var n = node; n; n = n.parentNode) {
+      if (n.nodeType === 1 && n.getAttribute
+          && n.getAttribute("data-qi18n") === "keep") return true;
+    }
+    return false;
+  }
 
   function walk(node) {
     if (!node) return;
@@ -112,6 +229,7 @@
     }
     if (node.nodeType !== 1) return;                // 주석 등
     if (SKIP[node.tagName]) return;
+    if (node.getAttribute && node.getAttribute("data-qi18n") === "keep") return;
     // 눈에 안 보이지만 읽히는 것들
     ["title", "placeholder", "aria-label", "alt"].forEach(function (a) {
       var v = node.getAttribute && node.getAttribute(a);
@@ -132,8 +250,12 @@
     var mo = new root.MutationObserver(function (recs) {
       for (var i = 0; i < recs.length; i++) {
         var added = recs[i].addedNodes || [];
-        for (var j = 0; j < added.length; j++) walk(added[j]);
-        if (recs[i].type === "characterData") walk(recs[i].target);
+        for (var j = 0; j < added.length; j++) {
+          if (!kept(added[j])) walk(added[j]);     // 조상까지 보고 판단한다
+        }
+        if (recs[i].type === "characterData" && !kept(recs[i].target)) {
+          walk(recs[i].target);
+        }
       }
     });
     mo.observe(document.body, {

@@ -542,7 +542,8 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
         const nm=sym?(((st.symbols||{})[sym.key]||{}).name||sym.key):"";
         return `<tr><td>${esc(d.date)}</td><td class="neg">${pct(d.ret)}</td>
           <td>${won(d.eq)}</td>
-          <td style="text-align:left;font-size:12px;color:var(--muted)">${sym?esc(nm)+" "+pct(sym.ret)+" — "+esc(String(sym.reason).slice(0,90)):"–"}</td></tr>`;
+          <td style="text-align:left;font-size:12px;color:var(--muted);max-width:430px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="${sym?esc(nm+" "+pct(sym.ret)+" — "+String(sym.reason)):""}">${sym?esc(nm)+" "+pct(sym.ret)+" — "+esc(String(sym.reason)):"–"}</td></tr>`;
       }).join("");
       wrong=`<div class="card"><h2>오답 노트 <span style="font-size:12px;color:var(--muted);font-weight:400">가장 크게 틀린 날들 — 상시 공개</span></h2>
         <p class="sub" style="margin:6px 0 4px;font-size:13px">모델이 가장 크게
@@ -696,8 +697,10 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   if(st.briefing&&(st.briefing.items||[]).length){
     const rows=st.briefing.items.map(b=>
       `<li style="margin:6px 0"><span style="font-size:11px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--muted);margin-right:7px">${esc(b.cat)}</span>`+
-      (b.link?`<a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a>`:esc(b.title))+
-      (b.source?` <span style="color:var(--muted);font-size:12px">— ${esc(b.source)}</span>`:"")+`</li>`).join("");
+      // 기사 제목·매체 이름은 남의 글이다 — 번역하지 않고 원문 그대로 둔다
+      // (data-qi18n="keep"). 매일 새로 들어오는 문장이라 사전에 담을 수도 없다.
+      (b.link?`<a href="${esc(b.link)}" target="_blank" rel="noopener" data-qi18n="keep">${esc(b.title)}</a>`:`<span data-qi18n="keep">${esc(b.title)}</span>`)+
+      (b.source?` <span style="color:var(--muted);font-size:12px" data-qi18n="keep">— ${esc(b.source)}</span>`:"")+`</li>`).join("");
     el.innerHTML+=`<div class="card"><h2>오늘의 시장 브리핑 <span style="font-size:12px;color:var(--muted);font-weight:400">(${esc(st.briefing.date||"")})</span></h2>
       <ul style="list-style:none;padding:0;margin:8px 0 4px">${rows}</ul>
       <div class="sub" style="font-size:12px">⚠️ ${esc(st.briefing.note||"판단에 사용되지 않는 참고 정보입니다.")}</div></div>`;
