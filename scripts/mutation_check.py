@@ -7766,7 +7766,7 @@ MUTATIONS = [
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 명단을 비운다(패널이 매일 아무것도 안 재는데 배치는 조용하다)',
      'quant/live/retrain.py',
-     '    out, seen = [], set()\n    for entry in DEFAULT_CHALLENGERS:',
+     '    out, seen = [], set()\n    for entry in list(DEFAULT_CHALLENGERS) + list(FIXED_CHALLENGERS):',
      '    out, seen = [], set()\n    for entry in []:',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('하룻밤 패널 명단의 상한을 푼다'
@@ -7818,6 +7818,27 @@ MUTATIONS = [
      '        {"strategy": "rebalance_flow", "params": {}},',
      '        {"strategy": "rebalance_flow_off", "params": {}},',
      'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+
+    # ── 패널 명단·침묵 (2026-08-27) ──────────────────────────────────────
+    ('재료가 0인 밤에는 패널 장부에 아무것도 안 적는다'
+     "('못 쟀다'와 '배치가 안 돌았다'가 장부에서 똑같아진다 — 둘 다 늦게 발견)",
+     'quant/live/retrain.py',
+     '        panel_rec = record_panel(panel_asof or _today_iso(), panel,',
+     '        if not panel.specs:\n            raise RuntimeError("skip")\n'
+     '        panel_rec = record_panel(panel_asof or _today_iso(), panel,',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('가설 규칙들을 패널 명단에서 뺀다'
+     '(패널에 가장 잘 어울리는 후보들이 정작 안 재진다)',
+     'quant/live/retrain.py',
+     '    for entry in list(DEFAULT_CHALLENGERS) + list(FIXED_CHALLENGERS):',
+     '    for entry in list(DEFAULT_CHALLENGERS):',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('오디션 링을 패널과 다른 목록에서 만든다'
+     '(두 곳에 적으면 갈라지고, 갈라진 쪽은 조용히 측정에서 빠진다)',
+     'quant/live/retrain.py',
+     '    challengers += list(FIXED_CHALLENGERS)',
+     '    challengers += list(FIXED_CHALLENGERS)[:3]',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',
