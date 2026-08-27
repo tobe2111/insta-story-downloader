@@ -7699,8 +7699,9 @@ MUTATIONS = [
     # ── 투자 로직은 기계가 개선한다 (2026-08-27 사장님 지시) ──────────
     ('자동 후보 생성기를 링에서 뗀다(탐색이 손으로 적은 격자에만 갇힌다)',
      'quant/live/retrain.py',
-     '    challengers += mutate_champion(current_spec, seed=seed)',
-     '    challengers += []  # mutate_champion(current_spec, seed=seed)',
+     '    challengers += mutate_champion(current_spec, seed=seed,\n'
+     '                                   strip_defaults=strip_defaults)',
+     '    challengers += []  # mutate_champion(...)',
      'tests/test_the_machine_searches_not_the_human.py'),
 
     # ── 탐색 공간이 스스로 넓어지는 장치 (2026-08-27 사장님 지시) ────────
@@ -7846,6 +7847,37 @@ MUTATIONS = [
      '    challengers += list(FIXED_CHALLENGERS)',
      '    challengers += list(FIXED_CHALLENGERS)[:3]',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+
+    # ── 언덕오르기의 헛수고 (2026-08-27 장부 실측 16.8%) ─────────────────
+    ('중복 판정을 다시 글자 그대로 한다'
+     '(하는 일이 같은 후보가 매일 탐색 기회 넷 중 하나를 가져간다)',
+     'quant/live/retrain.py',
+     '        return json.dumps(strip_default_params(cand) if strip_defaults else cand,',
+     '        return json.dumps(cand,',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    ('기본값과 다른 값까지 지운다(장부에 적힌 설정과 실제로 돈 것이 갈라진다)',
+     'quant/live/retrain.py',
+     '    kept = {k: v for k, v in params.items()\n'
+     '            if not (k in defaults and v == defaults[k]\n'
+     '                    and type(v) is type(defaults[k]))}',
+     '    kept = {k: v for k, v in params.items() if k not in defaults}',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    # ⚠️ 은퇴한 닻(2026-08-27): "모르는 전략의 설정도 지운다".
+    #    `if not defaults: return dict(spec)` 조기반환을 없애도 아래 축약이
+    #    같은 일을 해서 **변이가 무해했다**(놓침 1). 아무것도 안 지키는
+    #    분기였으므로 코드에서 걷어냈다 — 지키는 것은 여전히
+    #    test_an_unknown_strategy_loses_nothing이 한다.
+    ('재현 검증이 그날의 도전자 세대를 무시한다'
+     "(옛 결정을 오늘 규칙으로 재생해 '조작 의심' 경보가 틀린 이름으로 울린다)",
+     'quant/live/retrain.py',
+     '            strip_defaults=int(rec.get("challenger_version", 1)) >= 2)',
+     '            strip_defaults=True)',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    ('링 구성기가 옛 세대를 기본으로 되돌린다(고친 것이 밤 배치에 안 걸린다)',
+     'quant/live/retrain.py',
+     '                      strip_defaults: bool = True) -> list[dict]:',
+     '                      strip_defaults: bool = False) -> list[dict]:',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',

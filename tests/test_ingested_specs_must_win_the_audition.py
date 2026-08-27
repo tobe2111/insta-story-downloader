@@ -190,9 +190,16 @@ def test_verify_replays_the_specs_from_the_ledger_not_the_folder():
     assert 'rec.get("user_specs")' in RETRAIN, (
         "재현할 때 장부가 아니라 폴더를 읽는다")
     # 재현 경로가 폴더를 읽지 않는지 — verify 블록에 state_dir이 흘러들면 안 된다.
-    i = RETRAIN.find('challengers = build_challengers(before, seed=rec[')
+    # ⚠️ 호출이 여러 줄로 나뉠 수 있으므로 **인자 목록 전체**를 본다.
+    #    예전에는 한 줄이라고 가정하고 200자만 봤는데, 인자가 늘어 줄바꿈이
+    #    생기자 이 검사가 "재현 경로를 못 찾았다"로 죽었다 — 계약은 그대로인데
+    #    검사만 낡은 경우다.
+    verify = RETRAIN[RETRAIN.index("def verify_retrain("):]
+    i = verify.find("challengers = build_challengers(")
     assert i > 0, "재현 경로를 찾지 못했다 — 검사가 낡았다"
-    assert "state_dir" not in RETRAIN[i:i + 200], (
+    args = verify[i:verify.index(")\n", i)]
+    assert "seed=rec[" in args, "재현이 장부의 시드를 안 쓴다"
+    assert "state_dir" not in args, (
         "재현이 오늘 폴더를 읽는다 — 어제를 오늘 자료로 재현하게 된다")
 
 

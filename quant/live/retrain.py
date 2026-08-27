@@ -355,7 +355,8 @@ def ml_search_axes(params: dict | None = None) -> dict:
     return axes
 
 
-def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
+def mutate_champion(spec: dict, seed: str, n: int = 4, *,
+                    strip_defaults: bool = True) -> list[dict]:
     """현재 챔피언의 '돌연변이' 후보를 만든다 — 진화 탐색의 엔진.
 
     고정 후보만으로는 그 목록 밖의 설정을 영원히 탐색하지 못한다. 매일 밤
@@ -369,10 +370,16 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
     설정도 계속 움직이고, 이 탐색은 그 이동을 '따라가는' 장치일 뿐이다.
     """
     import random
+
+    def _key(cand: dict) -> str:
+        """중복 판정용 열쇠 — **하는 일**이 같으면 같은 열쇠가 나와야 한다."""
+        return json.dumps(strip_default_params(cand) if strip_defaults else cand,
+                          sort_keys=True)
+
     rng = random.Random(f"{seed}:{json.dumps(spec, sort_keys=True)}")
     params = spec.get("params", {})
     out: list[dict] = []
-    seen = {json.dumps(spec, sort_keys=True)}
+    seen = {_key(spec)}
     for _ in range(n * 8):                     # 중복 제거를 감안해 넉넉히 시도
         if len(out) >= n:
             break
@@ -401,11 +408,54 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
             v = p[k] * rng.choice([0.6, 0.8, 1.25, 1.6])
             p[k] = max(2, int(round(v))) if isinstance(p[k], int) else round(v, 4)
         cand = {"strategy": spec["strategy"], "params": p}
-        cand_key = json.dumps(cand, sort_keys=True)
+        cand_key = _key(cand)
         if cand_key not in seen:
             seen.add(cand_key)
-            out.append(cand)
+            # 기본값으로 적힌 손잡이는 **적힌 채로 두지 않는다** — 그래야
+            # 장부의 설정과 패널 열쇠가 '하는 일'과 1:1로 맞는다.
+            out.append(strip_default_params(cand) if strip_defaults else cand)
     return out
+
+
+def default_params(strategy: str) -> dict:
+    """전략 생성자가 **적지 않으면 쓰는 값**들 — 손잡이의 '기본 위치'.
+
+    레지스트리의 클래스에게 직접 묻는다(손으로 적은 표를 두면 언젠가 갈라진다).
+    래퍼(regime_wrap 등)와 사용자 명세(spec)는 생성자가 다른 전략을 품고
+    있어 이 방식이 안 맞으므로 빈 dict를 돌려준다 — 모르면 아무것도 지우지
+    않는 쪽이 안전하다.
+    """
+    import inspect
+
+    from quant.strategies import _REGISTRY
+
+    cls = _REGISTRY.get(strategy)
+    if cls is None:
+        return {}
+    try:
+        sig = inspect.signature(cls.__init__)
+    except (TypeError, ValueError):      # pragma: no cover — 내장/래핑 생성자
+        return {}
+    return {k: v.default for k, v in sig.parameters.items()
+            if v.default is not inspect.Parameter.empty}
+
+
+def strip_default_params(spec: dict) -> dict:
+    """기본값과 **똑같은 값으로 적힌** 파라미터를 지운 사본.
+
+    ``{"model": "logreg"}``와 ``{"model": "logreg", "sample_weight": None}``은
+    글자는 다르지만 **하는 일이 완전히 같다**(sample_weight의 기본값이 None).
+    그래서 정규화 없이 문자열로 중복을 판정하면 뒤의 것이 '새 후보'로 통과한다.
+    """
+    # ⚠️ 기본값을 못 읽는 전략(래퍼·사용자 명세)은 defaults가 비고, 그러면
+    #    아래에서 **아무것도 안 지워진다**. 모를 때 지우는 쪽을 택하면
+    #    사용자가 적어 넣은 값이 조용히 사라진다 — 되돌릴 수 없는 실수다.
+    params = dict(spec.get("params", {}))
+    defaults = default_params(spec.get("strategy", ""))
+    kept = {k: v for k, v in params.items()
+            if not (k in defaults and v == defaults[k]
+                    and type(v) is type(defaults[k]))}
+    return {**spec, "params": kept}
 
 
 def build_strategy(spec: dict):
@@ -1127,7 +1177,8 @@ FIXED_CHALLENGERS = [
 
 def build_challengers(current_spec: dict, seed: str,
                       evolve: bool = True,
-                      state_dir: str | None = None) -> list[dict]:
+                      state_dir: str | None = None,
+                      strip_defaults: bool = True) -> list[dict]:
     """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
 
     고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형
@@ -1145,7 +1196,8 @@ def build_challengers(current_spec: dict, seed: str,
     challengers += list(FIXED_CHALLENGERS)
     if not evolve:
         return challengers
-    challengers += mutate_champion(current_spec, seed=seed)
+    challengers += mutate_champion(current_spec, seed=seed,
+                                   strip_defaults=strip_defaults)
     if current_spec["strategy"] != "regime_wrap":
         challengers.append({"strategy": "regime_wrap",
                             "params": {"inner": current_spec,
@@ -1426,7 +1478,12 @@ def verify_retrain(asof: str, *, market: str | None = None,
         # 사용자 명세는 **장부에 적힌 그날 것**을 쓴다(폴더가 아니라).
         # 옛 기록에는 이 칸이 없다 — 그때는 기능이 없었으므로 빈 목록이
         # 맞다. 폴더를 읽으면 오늘 폴더로 어제를 재현하게 된다.
-        challengers = build_challengers(before, seed=rec["mutation_seed"])
+        challengers = build_challengers(
+            before, seed=rec["mutation_seed"],
+            # 도전자 생성 세대 — v2부터 헛수고 후보(이미 기본값인 손잡이를
+            # 기본값으로 설정한 것)를 만들지 않는다. 옛 기록은 그것들이
+            # 링에 섞여 있던 세계의 결정이므로 그대로 재현한다.
+            strip_defaults=int(rec.get("challenger_version", 1)) >= 2)
         challengers += list(rec.get("user_specs") or [])
         decision = nightly_retrain(
             df, before, challengers, confirm_window=confirm_window,
@@ -1721,6 +1778,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 오늘 링 전체를 놓고 '최고 성적이 우연일 확률'을 부트스트랩으로 잰다.
         # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
         "gate_version": 3,
+        # 도전자 생성 세대 — v2(2026-08-27): 언덕오르기가 "이미 기본값인
+        # 손잡이를 기본값으로 설정하는" 헛수고 후보를 만들지 않는다(실측
+        # 16.8%). 옛 기록(v1)은 그 헛수고가 링에 섞여 있던 세계의 결정이므로
+        # verify가 그대로 재현한다 — 과거 기록은 고치지 않는다.
+        "challenger_version": 2,
         # 동시검정 결과 — 결승까지 간 날만 값이 있다(그 외 None). p가 클수록
         # "후보가 많아 하나쯤 우연히 좋아 보였을" 가능성이 크다는 뜻.
         "reality_check": decision.get("reality_check"),
