@@ -7722,6 +7722,14 @@ MUTATIONS = [
      '"실측 최악 113분": "worst observed gap 113 min",',
      'tests/test_the_site_reads_in_english_too.py'),
 
+    # ── 합계 줄 검사가 어림짐작으로 숫자를 집던 것 (2026-08-27) ──────────
+    ('합계 줄에서 넣은 돈을 다시 어림짐작으로 집는다'
+     '(종목 매입금액이 50만원을 넘는 날 설명 칸을 잘못 읽는다)',
+     'tests/test_the_numbers_on_the_page_agree.py',
+     '    money_cell = _money(cells[-3])      # 넣은 돈 → 지금 값 (한 칸에 둘)',
+     '    money_cell = [n for c in cells for n in _money(c) if n > 500_000]',
+     'tests/test_the_numbers_on_the_page_agree.py'),
+
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
     ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',

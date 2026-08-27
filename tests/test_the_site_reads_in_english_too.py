@@ -284,8 +284,15 @@ def test_no_live_date_slot_is_pinned_in_a_dictionary_key():
 #    5시"…). 낡는 것은 **장부에서 온 값**뿐이고, 글자만 보고 둘을 가를
 #    방법은 없다. 그래서 바뀌는 자리를 이름으로 적는다.
 _LIVE_NUMBER_SLOTS = [
-    ("실측 최악 ", "감시 실측 최악 간격(observed_gap_minutes)"),
-    ("· 감시 주기 예약 ", "예약 감시 주기(booked_interval_minutes)"),
+    (r"실측 최악 [\d,]+", "감시 실측 최악 간격(observed_gap_minutes)"),
+    (r"· 감시 주기 예약 [\d,]+", "예약 감시 주기(booked_interval_minutes)"),
+    # 2026-08-27 — 같은 병의 셋째·넷째 얼굴. 하루 만에 또 나왔다.
+    (r"입니다 — 전략은 [\d,]+종", "링에 오른 전략 수(매일 바뀐다)"),
+    (r"비중과의 거리는 [\d.]+%", "상관 고려 비중과의 거리"),
+    # ⚠️ **실측**만 잡는다. "왕복비용 30bp(가정)"은 사람이 정한 상수라
+    #    안 바뀌고, 그건 사전 열쇠로 두는 것이 맞다. 프리픽스만 보면 둘을
+    #    못 가른다 — 그래서 이 목록은 정규식이다.
+    (r"왕복비용 [\d.]+bp\(실측", "실측 왕복비용(bp)과 표본 수"),
 ]
 
 
@@ -307,8 +314,7 @@ def test_no_live_measurement_is_pinned_in_a_dictionary_key():
     keys = _re.findall(r'^\s+"((?:[^"\\]|\\.)*)":', DICT, _re.M)
     assert len(keys) > 50, f"사전 열쇠를 못 읽었다({len(keys)}개) — 검사가 헛돈다"
     bad = []
-    for slot, what in _LIVE_NUMBER_SLOTS:
-        pat = _re.escape(slot) + r"[\d,]+"
+    for pat, what in _LIVE_NUMBER_SLOTS:
         for k in keys:
             if _re.search(pat, k):
                 bad.append(f"{what}: {k[:70]}")
