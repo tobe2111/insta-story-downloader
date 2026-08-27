@@ -427,24 +427,64 @@ def test_every_panel_spec_means_the_same_thing_on_every_symbol():
         build_strategy(spec)          # 못 만들면 여기서 죽는다(조용한 실패 금지)
 
 
-def test_the_panel_roster_does_not_depend_on_the_symbol():
-    """대조군 — 패널 명단이 **그 종목의 챔피언에 따라 달라지지 않는다**.
+def test_the_panel_roster_depends_on_the_date_and_nothing_else():
+    """패널 명단은 **날짜로만** 갈린다 — 종목으로는 절대 갈리지 않는다.
 
-    위 검사만으로는 부족하다: 종목마다 다른 명단을 만들어도 각 항목은
-    여전히 온전한 형태일 수 있다. 명단 자체가 종목과 무관해야 한 통에
-    담을 수 있다.
+    그날 밤 모든 종목이 **같은 부분집합**을 돌아야 한 통에 담을 수 있다.
+    종목별로 다르게 뽑으면 설정마다 참여 종목이 한둘로 쪼개져 패널이 영원히
+    최소 종목 수를 못 채운다 — **비용만 쓰고 아무것도 못 재는 상태**가 된다.
     """
     import inspect
 
     from quant.live.retrain import shared_panel_specs, spec_key
 
-    assert not inspect.signature(shared_panel_specs).parameters, (
-        "패널 명단이 인자를 받는다 — 종목마다 다른 명단이 될 수 있는 문이 "
-        "열려 있다")
-    a = [spec_key(s) for s in shared_panel_specs()]
-    b = [spec_key(s) for s in shared_panel_specs()]
-    assert a == b and len(set(a)) == len(a), (
-        f"패널 명단이 불안정하거나 중복이 있다: {len(a)}개 중 {len(set(a))}개 고유")
+    params = set(inspect.signature(shared_panel_specs).parameters)
+    assert params <= {"asof"}, (
+        f"패널 명단이 날짜 말고 다른 것에 의존한다: {params} — 종목마다 다른 "
+        "명단이 될 수 있는 문이 열려 있다")
+    a = [spec_key(s) for s in shared_panel_specs("2026-08-27")]
+    b = [spec_key(s) for s in shared_panel_specs("2026-08-27")]
+    assert a == b, "같은 날인데 명단이 달랐다 — 종목을 가로질러 묶을 수 없다"
+    assert len(set(a)) == len(a), f"명단에 중복이 있다: {a}"
+
+
+def test_the_nightly_roster_is_capped_so_the_relay_still_finishes():
+    """⚠️ 하룻밤 명단에 **상한**이 있다 — 없으면 오디션이 절반만 돈다.
+
+    실측(2026-08-27, 한국주식 6종목): 명단 전체(28개)를 매일 재면 종목당
+    시간이 오디션 69.8초 → 145.7초로 **+109%**가 된다. 시간 예산 1800초
+    기준으로 하룻밤에 도는 종목이 **26 → 12**로 반토막 난다. 그러면 각
+    종목의 오디션 주기가 1.5일에서 3일로 늘어나는데 **화면에는 아무
+    빨간불도 안 뜬다** — 커서에 '못 돈 종목'이 조금 늘 뿐이다.
+
+    이 저장소가 반복해서 막아 온 종류의 조용한 퇴행이라, 상한을 검사로
+    못 박는다.
+    """
+    from quant.live.retrain import (PANEL_ROSTER_PER_NIGHT, panel_roster,
+                                    shared_panel_specs)
+
+    assert len(shared_panel_specs("2026-08-27")) == PANEL_ROSTER_PER_NIGHT, (
+        "하룻밤 명단이 상한을 안 지킨다")
+    assert PANEL_ROSTER_PER_NIGHT * 4 <= len(panel_roster()) * 2, (
+        f"하룻밤 명단({PANEL_ROSTER_PER_NIGHT})이 전체({len(panel_roster())})에 "
+        "비해 너무 크다 — 회전의 뜻이 없어지고 밤 배치가 느려진다")
+
+
+def test_the_roster_rotates_so_every_setting_eventually_gets_measured():
+    """대조군 — 상한을 뒀는데 **같은 6개만 매일** 돌면 나머지는 영영 안 잰다.
+
+    상한 검사만 있으면 "명단 = 앞에서 6개 고정"도 초록이다. 그러면 22개
+    설정은 한 번도 패널에 못 서고, 그 사실은 어디에도 안 드러난다.
+    """
+    from quant.live.retrain import panel_roster, shared_panel_specs, spec_key
+
+    seen = set()
+    for day in range(1, 15):
+        seen |= {spec_key(s) for s in shared_panel_specs(f"2026-09-{day:02d}")}
+    total = len(panel_roster())
+    assert len(seen) >= total * 0.7, (
+        f"2주를 돌려도 명단 {total}개 중 {len(seen)}개만 패널에 섰다 — "
+        "회전이 안 돌고 같은 설정만 반복해서 재고 있다")
 
 
 def test_the_ledger_line_is_plain_json_and_says_how_many_symbols_stood(tmp_path):
@@ -569,3 +609,24 @@ def test_the_material_never_leaks_into_the_nightly_ledger():
     assert "**decision" not in call, (
         "판정 결과를 통째로 장부에 펼쳤다 — 앞으로 결정 dict에 무엇이 "
         "붙든 장부로 새어 나간다")
+
+
+def test_the_nightly_batch_asks_for_the_roster_by_date_not_by_symbol():
+    """밤 배치가 명단을 **날짜로** 요청한다 — 종목 열쇠로 요청하지 않는다.
+
+    ⚠️ 이 한 글자가 패널 전체를 무력화한다. ``shared_panel_specs(key)``라고
+       쓰면 함수는 정상적으로 6개를 돌려주고 계산도 정상적으로 돌지만,
+       종목마다 **다른 6개**가 나온다. 그러면 설정마다 참여 종목이 한둘로
+       쪼개져 최소 종목 수(5)를 영원히 못 채운다 — **비용은 그대로 다 쓰고
+       패널은 매일 아무것도 안 재는** 상태가 되는데, 장부에는 그냥
+       "판정 0/6"이 찍힐 뿐이라 고장처럼 보이지 않는다.
+
+    호출 한 줄을 계약으로 못 박는다(변이 시험이 이 자리를 놓쳤다).
+    """
+    src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
+    body = src[src.index("def run_retrain("):]
+    call = body[body.index("shared_panel_specs("):]
+    arg = call[len("shared_panel_specs("):call.index(")")].strip()
+    assert arg == "asof", (
+        f"밤 배치가 패널 명단을 '{arg}'로 요청한다 — 날짜(asof)가 아니면 "
+        "종목마다 다른 명단이 되고, 패널은 비용만 쓰고 아무것도 못 잰다")

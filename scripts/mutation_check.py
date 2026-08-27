@@ -7769,6 +7769,25 @@ MUTATIONS = [
      '    out, seen = [], set()\n    for entry in DEFAULT_CHALLENGERS:',
      '    out, seen = [], set()\n    for entry in []:',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('하룻밤 패널 명단의 상한을 푼다'
+     '(종목당 시간이 두 배가 되어 밤 배치가 도는 종목이 26 → 12로 반토막)',
+     'quant/live/retrain.py',
+     '    if asof is None or len(roster) <= PANEL_ROSTER_PER_NIGHT:\n'
+     '        return roster',
+     '    if True:\n        return roster',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 명단을 회전시키지 않고 앞에서 여섯 개로 고정한다'
+     '(나머지 22개 설정은 한 번도 패널에 못 서고 아무도 모른다)',
+     'quant/live/retrain.py',
+     '    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)',
+     '    return roster[:PANEL_ROSTER_PER_NIGHT]',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 명단을 종목별로 뽑는다'
+     '(설정마다 참여 종목이 한둘로 쪼개져 비용만 쓰고 아무것도 못 잰다)',
+     'quant/live/retrain.py',
+     '                               panel_specs=shared_panel_specs(asof),',
+     '                               panel_specs=shared_panel_specs(key),',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',

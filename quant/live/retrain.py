@@ -820,8 +820,20 @@ def nightly_retrain(
         "candidates": candidates, "inert": inert})
 
 
-def shared_panel_specs() -> list[dict]:
-    """패널에 세울 설정 — **모든 종목에서 글자 그대로 같은** 것만.
+# 하룻밤에 패널로 재는 설정 수. 전부(28개) 재면 종목당 시간이 **두 배**가
+# 되고(실측 +109%), 시간 예산 1800초 안에 도는 종목이 26 → 12로 반토막 난다.
+# 그러면 각 종목이 오디션을 받는 주기가 1.5일에서 3일로 늘어나는데,
+# 화면에는 아무 빨간불도 안 뜬다 — 이 저장소가 반복해서 막아 온 종류의
+# 조용한 퇴행이다(2026-08-27 실측으로 붙잡았다).
+#
+# 그래서 **날짜로 회전**한다: 그날 밤 모든 종목이 **같은 부분집합**을 돌고,
+# 며칠에 걸쳐 명단 전체가 한 바퀴 돈다. 패널의 전제("같은 설정을 여러 종목이
+# 함께 잰다")는 그대로다 — 나뉘는 것은 종목이 아니라 날짜다.
+PANEL_ROSTER_PER_NIGHT = 6
+
+
+def panel_roster() -> list[dict]:
+    """패널에 세울 수 있는 설정 전체 — **모든 종목에서 글자 그대로 같은** 것만.
 
     ⚠️ 2026-08-27, 실제 스냅샷 32종목으로 연기시험을 돌려 결함을 잡았다.
        처음에는 고정 격자 항목을 그대로 넘겼는데, 격자의 ML 항목은
@@ -859,6 +871,30 @@ def shared_panel_specs() -> list[dict]:
         seen.add(key)
         out.append(spec)
     return out
+
+
+def shared_panel_specs(asof: str | None = None) -> list[dict]:
+    """오늘 밤 패널로 잴 설정 — 날짜로 회전한 부분집합.
+
+    ⚠️ 시드는 **날짜만** 쓴다(종목이 아니다). 그날 밤 모든 종목이 같은
+       부분집합을 돌아야 한 통에 담을 수 있다. 종목별로 다르게 뽑으면
+       설정마다 참여 종목이 한둘로 쪼개져 패널이 영원히 최소 종목 수를
+       못 채운다 — 비용만 쓰고 아무것도 못 재는 상태가 된다.
+
+    ``asof``가 없으면 전체를 돌려준다(검사·분석용).
+
+    ⚠️ **나중에 이것이 관문이 될 때 다시 볼 것**(작업 #56): 지금 다중검정
+       보정은 그날 밤 명단 크기(6개)에만 걸린다. 회전 때문에 며칠에 걸쳐
+       28개를 다 재게 되므로, 승격을 패널로 정하는 순간에는 **날짜를 가로질러
+       누적된 시도 수**로 보정해야 한다. 그러지 않으면 "매일 6개만 봤다"는
+       셈법으로 28개를 뒤진 대가를 안 치르게 된다.
+    """
+    roster = panel_roster()
+    if asof is None or len(roster) <= PANEL_ROSTER_PER_NIGHT:
+        return roster
+    import random
+    rng = random.Random(f"panel-roster:{asof}")
+    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
@@ -1550,7 +1586,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                # 고정 격자 설정만. 판정에는 아직 안 쓰이고
                                # 장부에 나란히 기록된다(사장님 ①안: 관문을
                                # 바꾸되 기존 관문도 계속 남긴다).
-                               panel_specs=shared_panel_specs(),
+                               panel_specs=shared_panel_specs(asof),
                                confirm_window=confirm_window,
                                select_t=select_t_eff,
                                confirm_t=confirm_t_eff,
@@ -1766,6 +1802,10 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR) -> dict:
     rec: dict = {
         "asof": asof,
         "n_specs_collected": len(verdicts),
+        # 그날 밤 패널에 세운 설정 수(회전 부분집합) — 며칠에 걸쳐 명단
+        # 전체가 한 바퀴 돈다. 이 숫자를 안 적으면 나중에 "왜 이 설정이
+        # 저 날 장부에 없나"에 답할 수 없다.
+        "roster_size": PANEL_ROSTER_PER_NIGHT,
         "n_specs_judged": len(judged),
         "t_ref": PANEL_T_REF,
         # 판정된 설정만 담는다 — 종목이 모자라 못 잰 것을 '통과'로도
