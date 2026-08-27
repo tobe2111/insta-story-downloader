@@ -140,7 +140,6 @@
       "비용(USDT)": "Cost (USDT)",
       "입니다.": ".",
       "와": "and",
-      "· 감시 주기 예약 5분 /": "· watch scheduled every 5 min /",
       "(한국 시간)": "(KST)",
       "1시간봉": "1-hour bars",
       "1시간 (본 실험)": "1 hour (this experiment)",
@@ -268,7 +267,8 @@
         "= fees + slippage (the price moving slightly against you at the moment of the order) ·",
       "= 전략이 내린 매매 판단(사자/팔자/관망)":
         "= the strategy's call (buy / sell / stand aside)",
-      "실측 최악 113분": "worst observed gap 113 min",
+      "실측 최악 아직 모름(기록이 모자람)":
+        "worst observed gap not yet known (too few records)",
       "— 이 기준은 첫 기록이 쌓이기 전에 등록했고 바꾸지 않는다. 바꿔야 한다면 그 사실과 이유를 이 자리에 함께 공개한다.":
         "— these criteria were registered before the first record and are not changed. If they ever must change, the change and the reason are published right here.",
       "관찰 90일 이상 — 충족 전에는 어떤 승패 판정도 내리지 않는다(30일 시점은 중간 참고 판독만)":
@@ -3448,6 +3448,13 @@
        " figures — buy & hold also pays a fee once, at purchase (corrected $1). The main account settles once a day at dawn, so it is shown as of its last settlement ($2). The comparison is between rates of change since the experiment began ($3) — any lead before the sample meets the criteria above is indistinguishable from luck."],
       ["^평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다$",
        "the 95% lower bound on the average return is at or below zero — indistinguishable from chance — held at 1x"],
+      // 실측값이 든 자리 — 장부에서 온 숫자라 **매 회차 바뀐다**.
+      // 사전 열쇠에 값을 박으면(옛 "실측 최악 113분") 다음 측정에 만료된다.
+      // 날짜에서 배운 것과 같은 병이다(2026-08-26) — 그때는 날짜만 규칙으로
+      // 옮기고 **측정 숫자는 놓쳤다.** 형제를 찾기 전까지 고친 게 아니다.
+      ["^실측 최악 ([\\d,]+)분$", "worst observed gap $1 min"],
+      ["^· 감시 주기 예약 ([\\d,]+)분 /$",
+       "· watch scheduled every $1 min /"],
       ["^원금\\(([\\d,]+)원\\) 대비$",
        "against the principal (KRW $1)"],
       ["^🔒 엣지 미입증 — 검증 목표로 잠금 중\\. 판정 시계 진행 중 — (.+) (\\d+)일차\\/(\\d+)일 · 그동안 개선 (\\d+)회 공개$",

@@ -7701,6 +7701,13 @@ MUTATIONS = [
      '    challengers += []  # mutate_champion(current_spec, seed=seed)',
      'tests/test_the_machine_searches_not_the_human.py'),
 
+    # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
+    ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',
+     'docs/assets/i18n-en.js',
+     r'["^실측 최악 ([\\d,]+)분$", "worst observed gap $1 min"],',
+     '"실측 최악 113분": "worst observed gap 113 min",',
+     'tests/test_the_site_reads_in_english_too.py'),
+
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
     ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',

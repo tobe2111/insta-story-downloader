@@ -276,6 +276,60 @@ def test_no_live_date_slot_is_pinned_in_a_dictionary_key():
         f"다음 밤에 스스로 만료된다. rules(정규식)로 옮길 것: {bad}")
 
 
+# 화면이 **실행 중에 측정값을 끼워 넣는** 자리들. 날짜와 같은 병인데
+# 바뀌는 것이 날짜가 아니라 **숫자**다 — 그래서 위 날짜 검사가 못 봤다.
+#
+# ⚠️ 이 목록이 왜 따로 필요한가. 사전에는 숫자가 든 열쇠가 379개나 있는데
+#    대부분은 안 바뀐다("100만 챌린지", "1시간봉", "밤 10시 30분 ~ 새벽
+#    5시"…). 낡는 것은 **장부에서 온 값**뿐이고, 글자만 보고 둘을 가를
+#    방법은 없다. 그래서 바뀌는 자리를 이름으로 적는다.
+_LIVE_NUMBER_SLOTS = [
+    ("실측 최악 ", "감시 실측 최악 간격(observed_gap_minutes)"),
+    ("· 감시 주기 예약 ", "예약 감시 주기(booked_interval_minutes)"),
+]
+
+
+def test_no_live_measurement_is_pinned_in_a_dictionary_key():
+    """**바뀌는 측정값도** 사전 열쇠에 박지 않는다 (2026-08-27).
+
+    ⚠️ 이건 위 날짜 검사의 **형제**이고, 내가 놓쳤던 자리다. 2026-08-26에
+       "열쇠에 박힌 날짜"를 규칙으로 옮기면서 **같은 병의 다른 얼굴을 안
+       찾았다.** 사전에는 ``"실측 최악 113분"``이 그대로 남아 있었고, 감시
+       간격이 163분으로 바뀐 다음 회차에 CI가 빨개졌다.
+
+    고친 결함은 **형제를 찾기 전까지 고친 게 아니다**(FROZEN_IDEAS ⑭).
+    날짜를 고쳤으면 "실행 중에 끼워 넣는 값"을 전부 훑었어야 했다.
+
+    측정값이 든 자리는 사전이 아니라 **rules(정규식)** 가 잡는다 — 숫자는
+    그대로 흘려보내고 꼬리말만 옮긴다(장부 숫자는 절대 건드리지 않는다).
+    """
+    import re as _re
+    keys = _re.findall(r'^\s+"((?:[^"\\]|\\.)*)":', DICT, _re.M)
+    assert len(keys) > 50, f"사전 열쇠를 못 읽었다({len(keys)}개) — 검사가 헛돈다"
+    bad = []
+    for slot, what in _LIVE_NUMBER_SLOTS:
+        pat = _re.escape(slot) + r"[\d,]+"
+        for k in keys:
+            if _re.search(pat, k):
+                bad.append(f"{what}: {k[:70]}")
+    assert not bad, (
+        "바뀌는 측정값이 사전 열쇠에 박혀 있다 — 그 항목은 값이 바뀌는 다음 "
+        f"회차에 스스로 만료된다. rules(정규식)로 옮길 것: {bad}")
+
+
+def test_the_rules_catch_those_measurements_instead():
+    """대조군 — 열쇠에서 빼기만 하고 규칙을 안 만들면 그냥 미번역이 된다.
+
+    위 검사만 있으면 "사전에서 지운다"도 통과한다. 지우는 것과 옮기는 것은
+    다른 일이다.
+    """
+    import re as _re
+    rules = _re.findall(r'\["\^([^"]+)"', DICT)
+    joined = " ".join(rules)
+    assert "실측 최악" in joined, "실측 최악 간격을 잡는 규칙이 없다"
+    assert "감시 주기 예약" in joined, "예약 감시 주기를 잡는 규칙이 없다"
+
+
 def test_both_halves_of_a_two_way_label_are_translated():
     """짝으로 쓰이는 라벨은 **양쪽 다** 사전에 있어야 한다.
 
