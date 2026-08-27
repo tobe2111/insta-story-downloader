@@ -3,17 +3,20 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 10677.47,
-  "return_pct": 6.7747,
-  "gross_return_pct": 9.6159,
-  "cost_paid": 284.12,
-  "trades_total": 338,
-  "rounds_total": 332,
+  "equity": 10671.06,
+  "return_pct": 6.7106,
+  "gross_return_pct": 9.6158,
+  "cost_paid": 290.52,
+  "trades_total": 340,
+  "rounds_total": 333,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-27T11:16:15+09:00",
+  "last_time": "2026-08-27T21:54:16+09:00",
   "booked_interval_minutes": 5,
-  "observed_gap_minutes": 267.96666666666664,
-  "positions": {},
+  "observed_gap_minutes": 638.0166666666667,
+  "positions": {
+    "ETH/USDT": 0.85357967,
+    "BNB/USDT": 3.02135564
+  },
   "rule_changes": [
     {
       "on": "2026-08-23",
@@ -21,16 +24,41 @@
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
     }
   ],
-  "holdings": [],
+  "holdings": [
+    {
+      "symbol": "BNB/USDT",
+      "direction": "long",
+      "quantity": 3.0213556391,
+      "avg_cost": 706.8,
+      "last_price": 706.8,
+      "currency": "USDT",
+      "value": 2135.4942,
+      "cost": 2135.4942,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "ETH/USDT",
+      "direction": "long",
+      "quantity": 0.8535796746,
+      "avg_cost": 2501.81,
+      "last_price": 2501.81,
+      "currency": "USDT",
+      "value": 2135.4942,
+      "cost": 2135.4942,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    }
+  ],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 0,
+    "counted": 2,
     "unknown": 0
   },
   "deployed": {
-    "gross": 0.0,
-    "pct": 0.0,
-    "cash": 10677.47,
+    "gross": 4270.9884,
+    "pct": 40.024,
+    "cash": 6400.0716,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1363,9 +1391,13 @@
     [
       "2026-08-27T11:16:15+09:00",
       10677.47
+    ],
+    [
+      "2026-08-27T21:54:16+09:00",
+      10671.06
     ]
   ],
-  "hold_return_pct": 29.1751,
+  "hold_return_pct": 30.4432,
   "judgement": {
     "registered_on": "2026-08-18",
     "min_days": 90,
@@ -1395,48 +1427,30 @@
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10140.64,
-      "return_pct": 1.4064,
+      "equity": 10134.16,
+      "return_pct": 1.3416,
       "hold_return_pct": null,
-      "gross_return_pct": 7.0934,
-      "trades_total": 578,
-      "cost_paid": 568.7,
-      "rounds_total": 313,
+      "gross_return_pct": 7.0556,
+      "trades_total": 579,
+      "cost_paid": 571.4,
+      "rounds_total": 314,
       "since": "2026-08-18T16:03:06+00:00"
     },
     {
       "timeframe": "5m",
-      "equity": 9778.6,
-      "return_pct": -2.214,
+      "equity": 9780.76,
+      "return_pct": -2.1924,
       "hold_return_pct": null,
-      "gross_return_pct": 4.7679,
-      "trades_total": 638,
-      "cost_paid": 698.19,
-      "rounds_total": 313,
+      "gross_return_pct": 4.7976,
+      "trades_total": 639,
+      "cost_paid": 699.0,
+      "rounds_total": 314,
       "since": "2026-08-18T16:03:06+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
-  "elapsed_days": 8.89,
+  "elapsed_days": 9.33,
   "recent_trades": [
-    {
-      "time": "2026-08-25T16:14:25+09:00",
-      "symbol": "BTC/USDT",
-      "side": "buy",
-      "notional": 209.06,
-      "price": 80571.7,
-      "cost": 0.3136,
-      "signal": 0.5324
-    },
-    {
-      "time": "2026-08-25T17:02:22+09:00",
-      "symbol": "BTC/USDT",
-      "side": "buy",
-      "notional": 1013.44,
-      "price": 79704.4,
-      "cost": 1.5202,
-      "signal": 1.0
-    },
     {
       "time": "2026-08-25T18:35:50+09:00",
       "symbol": "BTC/USDT",
@@ -1824,6 +1838,24 @@
       "signal": 0.0,
       "realized_pnl": -2.4084,
       "avg_cost": 1.3943
+    },
+    {
+      "time": "2026-08-27T21:54:16+09:00",
+      "symbol": "ETH/USDT",
+      "side": "buy",
+      "notional": 2135.49,
+      "price": 2501.81,
+      "cost": 3.2032,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-08-27T21:54:16+09:00",
+      "symbol": "BNB/USDT",
+      "side": "buy",
+      "notional": 2135.49,
+      "price": 706.8,
+      "cost": 3.2032,
+      "signal": 1.0
     }
   ],
   "honest_limits": [
@@ -1836,9 +1868,9 @@
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1381.49,
-    "equity": 14750818.0,
+    "equity": 14741963.0,
     "start_cash": 13814900.0,
-    "pnl": 935918.0,
+    "pnl": 927063.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
