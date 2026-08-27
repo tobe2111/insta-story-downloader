@@ -40,10 +40,16 @@ CLAUDE_MD = (ROOT / "CLAUDE.md").read_text("utf-8")
 
 
 def _search_axes() -> list[str]:
-    """``mutate_champion``이 흔드는 ML 탐색 축 목록을 소스에서 뽑는다."""
-    m = re.search(r'axis = rng\.choice\(\[(.*?)\]\)', RETRAIN, re.S)
-    assert m, "탐색 축 목록을 못 찾았다 — mutate_champion의 모양이 바뀌었다"
-    return re.findall(r'"([a-z_]+)"', m.group(1))
+    """지금 흔들 수 있는 ML 탐색 축 — **함수에게 직접 묻는다.**
+
+    ⚠️ 예전에는 이 목록을 소스에서 정규식으로 긁었다. 그때는 축이
+       ``if/elif`` 사슬에 녹아 있어서 그것 말고는 방법이 없었다. 사슬을
+       표로 바꾼 이유가 바로 이것이다 — **기계가 자기 탐색 공간을 읽을 수
+       있어야** 구멍을 스스로 찾는다. 이제 물어보면 대답한다.
+    """
+    from quant.live.retrain import ml_search_axes
+
+    return sorted(ml_search_axes())
 
 
 def test_the_machine_generates_challengers_every_night():

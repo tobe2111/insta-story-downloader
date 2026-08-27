@@ -195,6 +195,142 @@ def _key(market: str, symbol: str) -> str:
     return f"{market}:{symbol}"
 
 
+# ── 탐색 축 등록부 ────────────────────────────────────────────────
+#
+# 사장님 지시(2026-08-27): *"머신러닝으로 개선을 계속할 수 있게끔 해야지
+# 너가 수동으로 고치는 방향 말고."*
+#
+# 예전에는 이 자리가 ``if axis == "model": … elif …`` 사슬이었다. 그러면
+# **기계가 자기 탐색 공간을 읽을 수 없다** — 축이 코드 흐름에 녹아 있어서
+# "지금 무엇을 탐색 중인가"를 물어볼 대상이 없었다. 그래서 손잡이를 하나
+# 새로 만들 때마다 사람이 사슬에 가지를 하나 더 쳐야 했고, 잊으면 그 축은
+# **영원히 탐색되지 않는데 아무 데도 빨간불이 안 떴다.**
+#
+# 실제로 그 상태였다(2026-08-27 실측): 살아 있는 ML 챔피언 40종목 중
+# **6종목이 언덕오르기가 못 건드리는 손잡이 위에 앉아 있었다** —
+# ``meta`` 3종목, ``pool`` 3종목. 고정 격자가 그 설정을 한 번 승격시키고
+# 나면, 그 뒤로는 "빼 보면 더 나은가"를 아무도 묻지 않았다.
+#
+# 그래서 사슬을 **표**로 바꾼다. 표는 읽을 수 있고, 읽을 수 있으면 기계가
+# 자기 공간의 구멍을 스스로 찾는다(아래 ``ml_search_axes``).
+
+DROP = object()      # 표본이 "이 손잡이를 아예 빼 본다"를 고를 때의 표시
+
+# 라벨 축이 함께 흔드는 종속 손잡이 — 따로 축을 세우지 않는다.
+_LABEL_SUBKEYS = {"label_k", "label_horizon"}
+
+
+def _axis_model(rng, p):
+    return {"model": rng.choice(["logreg", "rf", "gb", "vote"])}
+
+
+def _axis_threshold(rng, p):
+    base = float(p.get("threshold", 0.55))
+    step = rng.choice([-0.05, -0.02, 0.02, 0.05])
+    return {"threshold": round(min(0.70, max(0.52, base + step)), 2)}
+
+
+def _axis_train_window(rng, p):
+    return {"train_window": rng.choice([150, 250, 350, 500])}
+
+
+def _axis_retrain_every(rng, p):
+    return {"retrain_every": rng.choice([10, 20, 40])}
+
+
+def _axis_label(rng, p):
+    """라벨 축 — 배리어 폭(k)·만기(horizon)도 함께 흔들어 탐색."""
+    out = {"label": rng.choice(["nextbar", "triple"])}
+    if out["label"] == "triple":
+        out["label_k"] = rng.choice([1.0, 1.5, 2.0])
+        out["label_horizon"] = rng.choice([5, 10, 15])
+    return out
+
+
+def _axis_sizing(rng, p):
+    return {"sizing": rng.choice(["proba", "binary"])}
+
+
+def _axis_sample_weight(rng, p):
+    return {"sample_weight": rng.choice([None, "decay"])}
+
+
+def _axis_calibrate(rng, p):
+    return {"calibrate": rng.choice([None, "sigmoid"])}
+
+
+# 명시 축 — 범위를 사람이 정해 두는 것이 나은 손잡이들(문턱은 0.52~0.70으로
+# 묶어야 하고, 창 길이는 아무 숫자나 되면 곤란하다).
+ML_EXPLICIT_AXES = {
+    "model": _axis_model,
+    "threshold": _axis_threshold,
+    "train_window": _axis_train_window,
+    "retrain_every": _axis_retrain_every,
+    "label": _axis_label,
+    "sizing": _axis_sizing,
+    "sample_weight": _axis_sample_weight,
+    "calibrate": _axis_calibrate,
+}
+
+
+def _known_ml_param_values() -> dict[str, set]:
+    """지금까지 **어디서든 쓰인 적 있는** ML 손잡이와 그 값들을 모은다.
+
+    출처는 고정 격자(DEFAULT_CHALLENGERS)다. 사람이 손으로 후보를 하나
+    적어 넣는 순간, 그 손잡이는 **자동으로 탐색 대상이 된다** — 사슬에
+    가지를 치는 일을 사람이 기억할 필요가 없어진다.
+    """
+    seen: dict[str, set] = {}
+    for entry in DEFAULT_CHALLENGERS:
+        if "strategy" in entry:
+            if entry.get("strategy") != "ml":
+                continue
+            params = entry.get("params", {})
+        else:
+            params = entry
+        for k, v in params.items():
+            if k in ML_EXPLICIT_AXES or k in _LABEL_SUBKEYS:
+                continue
+            try:
+                hash(v)
+            except TypeError:            # 해시 불가한 값은 표본으로 못 쓴다
+                continue
+            seen.setdefault(k, set()).add(v)
+    return seen
+
+
+def ml_search_axes(params: dict | None = None) -> dict:
+    """지금 탐색 가능한 축 전부 — **명시 축 + 관측에서 유도한 축**.
+
+    ⚠️ 이 함수가 이 파일에서 가장 중요한 한 조각이다. 새 손잡이가 격자나
+       현재 챔피언에 나타나는 **그 순간부터** 언덕오르기가 그 축을 흔든다.
+       사람이 사슬에 가지를 치지 않아도 된다 — 잊어서 생기는 침묵이 없다.
+
+    유도 축의 표본에는 **DROP(빼 보기)** 이 항상 들어간다. 손잡이를 더하는
+    것만 탐색하고 빼는 것은 탐색하지 않으면, 한번 붙은 설정은 영영 안 떨어진다.
+
+    ⚠️ 이것은 후보 **수**를 늘리지 않는다(하루 n개 그대로). 넓어지는 것은
+       공간이지 시행 횟수가 아니므로 다중검정 부담이 늘지 않는다 —
+       ``confirm_threshold``는 시행 수에 반응하고, 그 수는 그대로다.
+    """
+    axes = dict(ML_EXPLICIT_AXES)
+    observed = _known_ml_param_values()
+    for k, vals in (params or {}).items():
+        if k not in ML_EXPLICIT_AXES and k not in _LABEL_SUBKEYS:
+            try:
+                hash(vals)
+            except TypeError:
+                continue
+            observed.setdefault(k, set()).add(vals)
+    for key, values in observed.items():
+        options = sorted(values, key=repr) + [DROP]
+        if len(options) < 2:
+            continue
+        axes[key] = (lambda k, opts: (lambda rng, p: {k: rng.choice(opts)}))(
+            key, options)
+    return axes
+
+
 def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
     """현재 챔피언의 '돌연변이' 후보를 만든다 — 진화 탐색의 엔진.
 
@@ -222,31 +358,13 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
             #    평균 노출을 0.09로 묶어 자본의 91%를 현금으로 놀렸는데,
             #    오디션 184회가 한 번도 여기를 흔들지 않았다. 없는 축은
             #    영원히 진다 — 탐색 공간에 없으면 이길 기회조차 없다.
-            axis = rng.choice(["model", "threshold", "train_window",
-                               "retrain_every", "calibrate", "label",
-                               "sample_weight", "sizing"])
-            if axis == "model":
-                p["model"] = rng.choice(["logreg", "rf", "gb", "vote"])
-            elif axis == "threshold":
-                base = float(p.get("threshold", 0.55))
-                step = rng.choice([-0.05, -0.02, 0.02, 0.05])
-                p["threshold"] = round(min(0.70, max(0.52, base + step)), 2)
-            elif axis == "train_window":
-                p["train_window"] = rng.choice([150, 250, 350, 500])
-            elif axis == "retrain_every":
-                p["retrain_every"] = rng.choice([10, 20, 40])
-            elif axis == "label":
-                # 라벨 축 — 배리어 폭(k)·만기(horizon)도 함께 흔들어 탐색
-                p["label"] = rng.choice(["nextbar", "triple"])
-                if p["label"] == "triple":
-                    p["label_k"] = rng.choice([1.0, 1.5, 2.0])
-                    p["label_horizon"] = rng.choice([5, 10, 15])
-            elif axis == "sizing":
-                p["sizing"] = rng.choice(["proba", "binary"])
-            elif axis == "sample_weight":
-                p["sample_weight"] = rng.choice([None, "decay"])
-            else:
-                p["calibrate"] = rng.choice([None, "sigmoid"])
+            axes = ml_search_axes(p)
+            axis = rng.choice(sorted(axes))
+            for k, v in axes[axis](rng, p).items():
+                if v is DROP:
+                    p.pop(k, None)          # 손잡이를 아예 빼 보는 것도 탐색이다
+                else:
+                    p[k] = v
         else:
             # 수치 파라미터 하나를 곱셈 변형(불리언·문자열은 건드리지 않는다).
             # 잘못된 조합(예: ma_cross fast>=slow)은 생성 단계에서 거르지 않고
