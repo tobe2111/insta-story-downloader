@@ -5282,11 +5282,13 @@ MUTATIONS = [
      '                _unused = {',
      "tests/test_the_report_shows_what_holding_would_have_done.py"),
 
-    ("사이징을 오디션 탐색 축에서 뺀다(없는 축은 영원히 진다)",
-     "quant/live/retrain.py",
-     '                               "sample_weight", "sizing"])',
-     '                               "sample_weight"])',
-     "tests/test_the_report_shows_what_holding_would_have_done.py"),
+    # ⚠️ 옛 앵커 "사이징을 오디션 탐색 축에서 뺀다"는 2026-08-27에 **은퇴**했다.
+    #    탐색 축이 사슬에서 표로 바뀌면서 sizing이 두 경로로 보호된다 —
+    #    명시 표(ML_EXPLICIT_AXES)에서 빼도 격자에 있으므로 관측 유도 축이
+    #    받아 준다. 즉 그 한 줄을 지워도 탐색은 안 끊긴다(실측: 놓침 1).
+    #    못 잡는 앵커는 가짜 안전망이므로 남기지 않는다(감사 ②).
+    #    이 축이 통째로 사라지는 경우는 바로 아래 두 앵커가 잡는다:
+    #    "관측 유도 축을 끈다" · "표본에서 빼 보기를 없앤다".
 
     ("사이징 후보를 고정 링에서 뺀다(돌연변이 운에만 맡긴다)",
      "quant/live/retrain.py",
@@ -7692,6 +7694,32 @@ MUTATIONS = [
      'docs/index.html',
      "        el.innerHTML='이 표의 손익 <b>'+won(sumVal-sumCost)+'</b>, 기준은 '+",
      "        el.innerHTML='이 표의 <b>'+won(sumVal-sumCost)+'</b>은 '+",
+     'tests/test_the_site_reads_in_english_too.py'),
+
+    # ── 투자 로직은 기계가 개선한다 (2026-08-27 사장님 지시) ──────────
+    ('자동 후보 생성기를 링에서 뗀다(탐색이 손으로 적은 격자에만 갇힌다)',
+     'quant/live/retrain.py',
+     '    challengers += mutate_champion(current_spec, seed=seed)',
+     '    challengers += []  # mutate_champion(current_spec, seed=seed)',
+     'tests/test_the_machine_searches_not_the_human.py'),
+
+    # ── 탐색 공간이 스스로 넓어지는 장치 (2026-08-27 사장님 지시) ────────
+    ('관측 유도 축을 끈다(격자에 적은 손잡이가 영원히 탐색되지 않는다)',
+     'quant/live/retrain.py',
+     '    observed = _known_ml_param_values()',
+     '    observed = {}',
+     'tests/test_the_search_space_widens_itself.py'),
+    ('표본에서 빼 보기를 없앤다(한번 붙은 설정이 영영 안 떨어진다)',
+     'quant/live/retrain.py',
+     '        options = sorted(values, key=repr) + [DROP]',
+     '        options = sorted(values, key=repr)',
+     'tests/test_the_search_space_widens_itself.py'),
+
+    # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
+    ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',
+     'docs/assets/i18n-en.js',
+     r'["^실측 최악 ([\\d,]+)분$", "worst observed gap $1 min"],',
+     '"실측 최악 113분": "worst observed gap 113 min",',
      'tests/test_the_site_reads_in_english_too.py'),
 
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
