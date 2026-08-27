@@ -478,13 +478,23 @@ def test_the_roster_rotates_so_every_setting_eventually_gets_measured():
     """
     from quant.live.retrain import panel_roster, shared_panel_specs, spec_key
 
-    seen = set()
-    for day in range(1, 15):
-        seen |= {spec_key(s) for s in shared_panel_specs(f"2026-09-{day:02d}")}
+    import datetime as _dt
+
+    from quant.live.retrain import PANEL_ROSTER_PER_NIGHT
+
     total = len(panel_roster())
-    assert len(seen) >= total * 0.7, (
-        f"2주를 돌려도 명단 {total}개 중 {len(seen)}개만 패널에 섰다 — "
-        "회전이 안 돌고 같은 설정만 반복해서 재고 있다")
+    # 한 바퀴에 필요한 밤 수 — 창이 매일 명단 크기만큼 밀리므로 이만큼이면
+    # **반드시** 전부 한 번씩 선다(무작위 추출이면 보장이 없다).
+    nights = -(-total // PANEL_ROSTER_PER_NIGHT)
+    day0 = _dt.date(2026, 9, 1)
+    seen = set()
+    for k in range(nights):
+        day = (day0 + _dt.timedelta(days=k)).isoformat()
+        seen |= {spec_key(s) for s in shared_panel_specs(day)}
+    assert len(seen) == total, (
+        f"{nights}밤이면 한 바퀴가 돌아야 하는데 명단 {total}개 중 "
+        f"{len(seen)}개만 섰다 — '회전'이라고 적어 놓고 실제로는 복원추출이라 "
+        "어떤 설정은 영영 안 재질 수 있다")
 
 
 def test_the_ledger_line_is_plain_json_and_says_how_many_symbols_stood(tmp_path):

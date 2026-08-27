@@ -820,16 +820,30 @@ def nightly_retrain(
         "candidates": candidates, "inert": inert})
 
 
-# 하룻밤에 패널로 재는 설정 수. 전부(28개) 재면 종목당 시간이 **두 배**가
-# 되고(실측 +109%), 시간 예산 1800초 안에 도는 종목이 26 → 12로 반토막 난다.
-# 그러면 각 종목이 오디션을 받는 주기가 1.5일에서 3일로 늘어나는데,
-# 화면에는 아무 빨간불도 안 뜬다 — 이 저장소가 반복해서 막아 온 종류의
-# 조용한 퇴행이다(2026-08-27 실측으로 붙잡았다).
+# 하룻밤에 패널로 재는 설정 수 — **짐작이 아니라 실측으로** 정했다
+# (한국주식 4~6종목, 스냅샷 2026-08-26, 종목당 오디션 ~71초 기준):
+#
+#     명단 전체(28개)  → +109%  · 예산 1800초 처리 종목 26 → 12  (반토막)
+#     하룻밤 6개       →  +37%  ·                      25 → 18
+#     하룻밤 3개       →   +8%  ·                      25 → 23   ← 채택
+#
+# 전부 매일 재면 각 종목의 오디션 주기가 1.5일에서 3일로 늘어나는데 **화면에는
+# 아무 빨간불도 안 뜬다** — 커서에 '못 돈 종목'이 조금 늘 뿐이다. 이 저장소가
+# 반복해서 막아 온 종류의 조용한 퇴행이고, 하필 패널 배선이 만들었다.
 #
 # 그래서 **날짜로 회전**한다: 그날 밤 모든 종목이 **같은 부분집합**을 돌고,
 # 며칠에 걸쳐 명단 전체가 한 바퀴 돈다. 패널의 전제("같은 설정을 여러 종목이
 # 함께 잰다")는 그대로다 — 나뉘는 것은 종목이 아니라 날짜다.
-PANEL_ROSTER_PER_NIGHT = 6
+#
+# ⚠️ 비용은 뽑히는 설정에 따라 **고르지 않다**. 6개일 때 +37%가 나온 것은
+#    그날 표본에 풀링(pool) ML이 섞였기 때문이다 — 그 설정들은 다른 종목
+#    스냅샷을 읽어 학습해서 몇 배 비싸다. 그래서 명단 크기를 조금만 키워도
+#    최악의 밤이 크게 나빠질 수 있다. 키울 거면 **다시 재고 키운다.**
+#
+# ⚠️ 지금 패널은 **기록만** 한다(승격은 종목별 관문이 정한다). 즉 이 8%는
+#    아직 이득 없이 내는 비용이다. 관문을 실제로 옮길 때 이 수치를 근거로
+#    명단 크기를 다시 정한다.
+PANEL_ROSTER_PER_NIGHT = 3
 
 
 def panel_roster() -> list[dict]:
@@ -900,9 +914,21 @@ def shared_panel_specs(asof: str | None = None) -> list[dict]:
     roster = panel_roster()
     if asof is None or len(roster) <= PANEL_ROSTER_PER_NIGHT:
         return roster
-    import random
-    rng = random.Random(f"panel-roster:{asof}")
-    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)
+    # ⚠️ **무작위 추출이 아니라 순환이다.** 처음에는 날짜를 시드로 뽑았는데,
+    #    복원추출이라 어떤 설정은 2주가 지나도 한 번도 안 뽑혔다(실측: 14일에
+    #    46개 중 30개). 그러면 "며칠에 걸쳐 명단 전체를 돈다"는 말이 사실이
+    #    아니게 되고, 안 뽑힌 설정은 **영영 안 재질 수도** 있다.
+    #    날짜에서 시작 위치를 정해 창을 밀면 ceil(46/3)=16일이면 반드시
+    #    한 바퀴가 돈다 — 그리고 여전히 날짜만 보므로 결정적이다.
+    import datetime as _dt
+
+    try:
+        day_no = _dt.date.fromisoformat(str(asof)[:10]).toordinal()
+    except ValueError:
+        day_no = abs(hash(str(asof)))          # 날짜를 못 읽어도 결정적으로
+    n = len(roster)
+    start = (day_no * PANEL_ROSTER_PER_NIGHT) % n
+    return [roster[(start + i) % n] for i in range(PANEL_ROSTER_PER_NIGHT)]
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:

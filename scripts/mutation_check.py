@@ -7776,11 +7776,18 @@ MUTATIONS = [
      '        return roster',
      '    if True:\n        return roster',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
-    ('패널 명단을 회전시키지 않고 앞에서 여섯 개로 고정한다'
-     '(나머지 22개 설정은 한 번도 패널에 못 서고 아무도 모른다)',
+    ('패널 명단을 회전시키지 않고 앞에서부터 고정한다'
+     '(나머지 설정은 한 번도 패널에 못 서고 아무도 모른다)',
      'quant/live/retrain.py',
-     '    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)',
-     '    return roster[:PANEL_ROSTER_PER_NIGHT]',
+     '    start = (day_no * PANEL_ROSTER_PER_NIGHT) % n',
+     '    start = 0',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('순환을 복원추출로 되돌린다'
+     "('며칠이면 한 바퀴'가 사실이 아니게 되고 어떤 설정은 영영 안 재질 수 있다)",
+     'quant/live/retrain.py',
+     '    return [roster[(start + i) % n] for i in range(PANEL_ROSTER_PER_NIGHT)]',
+     '    import random\n'
+     '    return random.Random(day_no).sample(roster, PANEL_ROSTER_PER_NIGHT)',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 명단을 종목별로 뽑는다'
      '(설정마다 참여 종목이 한둘로 쪼개져 비용만 쓰고 아무것도 못 잰다)',
