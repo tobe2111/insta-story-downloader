@@ -7715,6 +7715,25 @@ MUTATIONS = [
      '        options = sorted(values, key=repr)',
      'tests/test_the_search_space_widens_itself.py'),
 
+    # ── 패널 관문이 **느슨해지는 쪽**으로 망가지는 자리 (2026-08-27) ──────
+    ('패널 표본을 종목×날짜로 부풀린다'
+     '(같은 날 종목들은 독립이 아닌데 독립처럼 세면 관문이 거짓으로 열린다)',
+     'quant/live/panel_gate.py',
+     '    t_stat = 0.0 if (degenerate or n <= 1) else mean / (std / math.sqrt(n))',
+     '    t_stat = 0.0 if (degenerate or n <= 1) else mean / '
+     '(std / math.sqrt(n * len(symbols)))',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('날짜 최소 조건을 종목 수로 대신한다(관측 단위가 날짜라는 전제가 깨진다)',
+     'quant/live/panel_gate.py',
+     '    if n < min_dates:',
+     '    if n < min_dates and len(symbols) < 10:',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('참여 종목이 얇은 날을 그대로 쓴다(그날 한 종목의 잡음이 패널을 흔든다)',
+     'quant/live/panel_gate.py',
+     '    enough = frame.notna().sum(axis=1) >= max(1, int(min_symbols))',
+     '    enough = frame.notna().sum(axis=1) >= 1',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+
     # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
     ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',
      'docs/assets/i18n-en.js',
