@@ -7733,6 +7733,24 @@ MUTATIONS = [
      '    enough = frame.notna().sum(axis=1) >= max(1, int(min_symbols))',
      '    enough = frame.notna().sum(axis=1) >= 1',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('서로 다른 설정을 한 통에 담는다'
+     '(아무도 시험하지 않은 설정이 패널 판정을 받고 챔피언이 된다)',
+     'quant/live/panel_gate.py',
+     '            self._by_spec.setdefault(spec, {})[symbol_key] = series',
+     '            self._by_spec.setdefault("ALL", {})[symbol_key + spec] = series',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 판정에서 이득 측정을 뺀다'
+     '(관문을 바꿔서 결과가 달라진 건지 나중에 검증할 수 없어진다)',
+     'quant/live/panel_gate.py',
+     '                v["gain"] = power_gain(self._by_spec[spec], min_symbols)',
+     '                pass',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('홀드아웃 차이를 동시검정과 패널이 따로 계산하게 한다'
+     '(같은 값을 두 곳에서 만들면 언젠가 갈라진다)',
+     'quant/live/retrain.py',
+     '    diffs = holdout_diffs(champion_spec, specs, df, tail, build, bt_kwargs)',
+     '    diffs = {}',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
 
     # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
     ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',

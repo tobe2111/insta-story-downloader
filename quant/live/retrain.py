@@ -717,6 +717,24 @@ def nightly_retrain(
                   rebalance_band=rebalance_band)
         mat = _holdout_diff_matrix(champion_spec, [c["spec"] for c in candidates],
                                    df, confirm_window, build, bt)
+        # ⚠️ 건너뜀에는 **두 종류**가 있고 둘을 섞으면 안 된다(2026-08-27 발견).
+        #    · 홀드아웃이 짧다 → 잴 수 없는 것이 사실이다. 생략하고 기록한다.
+        #    · 후보가 있는데 **행렬이 비었다** → 재려다 실패한 것이다.
+        #      그런데 예전에는 둘 다 "생략"으로 흘러 그대로 승격됐다.
+        #      승격 20건 중 19건을 막아 온 관문이 조용히 없어지는 경로였다.
+        #    변이 시험이 잡아냈다: holdout_diffs를 빈 dict로 만들어도 아무
+        #    검사가 죽지 않았다(놓침 1). 못 잰 것을 통과로 읽지 않는다.
+        if mat is None and candidates:
+            return {"promoted": False, "reality_check": {
+                "skipped": True, "broken": True, "reason": (
+                    "후보가 있는데 홀드아웃 차이 행렬을 못 만들었습니다 — "
+                    "동시검정을 **재려다 실패**한 것이라 생략이 아닙니다. "
+                    "관문을 못 건 채로 승격시키지 않습니다.")},
+                "reason": (
+                    "동시검정을 수행하지 못해 승격 보류 — 재지 못한 것을 "
+                    "통과로 읽지 않습니다."),
+                "best_candidate": best, "final": final,
+                "candidates": candidates, "inert": inert}
         if mat is None or mat.shape[0] < RC_MIN_N:
             rc_res = {"skipped": True, "reason": (
                 f"홀드아웃 표본 부족(<{RC_MIN_N}봉) — 동시검정 생략(관문 미적용)")}
@@ -1060,25 +1078,51 @@ def reality_check(diffs, *, n_boot: int = RC_BOOT, block: int = RC_BLOCK,
             "t_max": round(t_obs, 4), "n": n, "n_cand": k}
 
 
-def _holdout_diff_matrix(champion_spec: dict, specs: list[dict], df,
-                         tail: int, build, bt_kwargs: dict):
-    """오늘 링의 모든 후보를 홀드아웃에서 재생해 수익 차 행렬을 만든다.
+def spec_key(spec: dict) -> str:
+    """설정을 **문자열 하나**로 — 종목을 가로질러 같은 설정을 알아보는 열쇠.
 
-    평가에 실패한 후보는 열에서 빠진다(n_cand가 그만큼 줄어 장부에 남는다).
+    패널 관문은 "한 **설정**이 여러 종목에서 함께 좋은가"를 묻는다. 그러려면
+    종목이 달라도 같은 설정임을 알아봐야 하고, 그 동일성 판정을 한 곳에서만
+    한다(같은 규칙을 두 곳에 적으면 언젠가 갈라진다 — FROZEN_IDEAS ①).
     """
-    import numpy as np
+    return json.dumps(spec, sort_keys=True, ensure_ascii=False)
 
+
+def holdout_diffs(champion_spec: dict, specs: list[dict], df,
+                  tail: int, build, bt_kwargs: dict) -> dict:
+    """후보별 홀드아웃 수익 차를 **날짜 색인 그대로** 돌려준다.
+
+    동시검정(행렬)과 패널 관문(날짜별 횡단 평균)이 **같은 계산을 두 번 돌지
+    않도록** 여기 한 곳에서 만든다. 패널은 날짜가 있어야 종목을 가로질러
+    같은 날끼리 묶을 수 있고, 동시검정은 날짜가 필요 없어 값만 쓴다.
+
+    평가에 실패한 후보는 빠진다(n_cand가 그만큼 줄어 장부에 남는다).
+    """
     from quant.backtest import Backtester
 
     r_champ = Backtester(build(champion_spec), **bt_kwargs).run(df).returns
-    cols = []
+    out: dict = {}
     for spec in specs:
         try:
             r_ch = Backtester(build(spec), **bt_kwargs).run(df).returns
         except Exception as exc:  # noqa: BLE001 — 한 후보 실패로 검정을 죽이지 않는다
             log.warning("동시검정 후보 재생 실패 %s: %s", spec, exc)
             continue
-        cols.append((r_ch - r_champ).iloc[-tail:].fillna(0.0).to_numpy())
+        out[spec_key(spec)] = (r_ch - r_champ).iloc[-tail:].fillna(0.0)
+    return out
+
+
+def _holdout_diff_matrix(champion_spec: dict, specs: list[dict], df,
+                         tail: int, build, bt_kwargs: dict):
+    """오늘 링의 모든 후보를 홀드아웃에서 재생해 수익 차 행렬을 만든다.
+
+    ⚠️ 계산은 ``holdout_diffs``가 한다 — 여기서 다시 백테스트하면 같은 값을
+    두 곳에서 만들게 되고, 언젠가 갈라진다.
+    """
+    import numpy as np
+
+    diffs = holdout_diffs(champion_spec, specs, df, tail, build, bt_kwargs)
+    cols = [s.to_numpy() for s in diffs.values()]
     return np.column_stack(cols) if cols else None
 
 

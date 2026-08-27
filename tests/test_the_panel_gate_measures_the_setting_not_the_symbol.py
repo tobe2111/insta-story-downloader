@@ -20,13 +20,17 @@
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from quant.live.panel_gate import (MIN_PANEL_DATES, MIN_PANEL_SYMBOLS,
-                                   panel_diff, panel_verdict, power_gain)
+                                   PanelCollector, panel_diff, panel_verdict,
+                                   power_gain)
 
+ROOT = Path(__file__).resolve().parent.parent
 DATES = pd.date_range("2026-01-01", periods=120, freq="D")
 
 
@@ -157,3 +161,157 @@ def test_perfectly_correlated_symbols_give_no_free_lunch():
     assert not g["skipped"], g
     assert g["variance_gain"] == pytest.approx(1.0, rel=1e-6), (
         f"완전히 같이 움직이는 종목들인데 분산이 줄었다: {g}")
+
+
+# ── 종목을 가로질러 **무엇을 묶어도 되는가** ─────────────────────────
+
+def test_only_the_same_setting_is_pooled_across_symbols():
+    """⚠️ 서로 다른 설정을 한 통에 담으면 그 평균은 아무 뜻도 없다.
+
+    ``mutate_champion()``의 변형은 그 종목 챔피언 주변에서 나오므로 종목마다
+    다르다. 그것들을 묶으면 "같은 설정이 여러 종목에서 좋았다"가 아니라
+    **서로 다른 설정들의 평균**이 되는데, 그 숫자로 승격을 결정하면 아무도
+    시험하지 않은 설정이 챔피언이 된다.
+    """
+    rng = np.random.default_rng(3)
+    col = PanelCollector()
+    shared = '{"model":"gb"}'
+    for i in range(8):
+        col.add(f"sym{i}", {
+            shared: _series(0.002 + rng.normal(0, 0.01, len(DATES))),
+            f"mut{i}": _series(rng.normal(0, 0.01, len(DATES))),   # 종목 고유
+        })
+    verdicts = {v["spec_key"]: v for v in col.verdicts(t_threshold=2.0)}
+    assert not verdicts[shared]["skipped"], "여러 종목에 선 공통 설정이 판정 안 됐다"
+    assert verdicts[shared]["n_symbols"] == 8
+    for i in range(8):
+        assert verdicts[f"mut{i}"]["skipped"], (
+            f"종목 하나에만 선 변형(mut{i})이 패널 판정을 받았다 — 서로 다른 "
+            "설정을 묶으면 아무도 시험하지 않은 설정이 챔피언이 된다")
+
+
+def test_the_collector_does_not_decide_only_measures():
+    """재는 자와 정하는 자를 나눈다 — 수집기는 문턱을 스스로 정하지 않는다.
+
+    다중검정 보정은 **설정 개수**에 걸어야 하는데(종목 수가 아니라), 그
+    보정을 어디서 거는지가 흐려지면 두 곳에서 서로 다르게 걸린다.
+    """
+    src = (ROOT / "quant" / "live" / "panel_gate.py").read_text("utf-8")
+    body = src[src.index("def verdicts("):]
+    body = body[:body.index("\n\n") if "\n\n" in body else len(body)]
+    assert "confirm_threshold" not in body, (
+        "수집기가 문턱을 스스로 계산한다 — 보정이 두 곳에서 걸리면 갈라진다")
+    # ⚠️ 상수 계열은 쓰지 않는다 — 분산이 0이면 코드가 degenerate로 보고
+    #    t=0을 돌려주므로(감사 146·149·159) 문턱을 시험할 수 없다.
+    rng = np.random.default_rng(11)
+    col = PanelCollector()
+    for i in range(6):
+        col.add(f"s{i}", {"cfg": _series(0.002 + rng.normal(0, 0.005, len(DATES)))})
+    strict = col.verdicts(t_threshold=99.0)[0]
+    loose = col.verdicts(t_threshold=0.0)[0]
+    assert strict["t_stat"] == loose["t_stat"], "문턱이 통계량을 바꿨다"
+    assert strict["pass"] is False and loose["pass"] is True
+
+
+def test_the_gain_rides_along_with_every_verdict():
+    """판정에는 **이득의 크기**가 함께 실린다 — 나중에 검증할 수 있어야 한다.
+
+    사장님 ①안의 조건: "관문을 바꿔서 결과가 달라진 건가"를 뒤에 확인할 수
+    있어야 한다. 판정만 남기고 이득을 안 남기면 그 확인이 불가능하다.
+    """
+    col = PanelCollector()
+    rng = np.random.default_rng(5)
+    for i in range(9):
+        col.add(f"s{i}", {"cfg": _series(0.001 + rng.normal(0, 0.01, len(DATES)))})
+    v = col.verdicts(t_threshold=2.0)[0]
+    assert "gain" in v and not v["gain"]["skipped"], f"이득이 안 실렸다: {v}"
+    assert v["gain"]["variance_gain"] > 1.0
+
+
+# ── 못 잰 것을 통과로 읽지 않는다 (2026-08-27 변이 시험이 잡아낸 구멍) ──
+
+def test_a_reality_check_that_could_not_run_blocks_promotion():
+    """⚠️ 동시검정을 **재려다 실패한 것**은 '생략'이 아니다.
+
+    발견 경위: 패널 관문을 붙이며 홀드아웃 차이 계산을 한 곳으로 모았는데,
+    그 함수가 빈 결과를 돌려주도록 망가뜨려도 **아무 검사가 죽지 않았다**
+    (변이 시험 놓침 1). 코드를 따라가 보니 행렬이 None이면 동시검정이
+    '표본 부족'으로 흘러 생략되고, 그대로 **승격이 통과**했다.
+
+    그 관문은 지금까지 결승을 이긴 20건 중 **19건**을 막아 온 자리다. 즉
+    계산 한 줄이 고장 나면 가장 센 관문이 조용히 사라지는 경로였다.
+
+    건너뜀에는 두 종류가 있다:
+      · 홀드아웃이 짧다 → 잴 수 없는 것이 **사실**이다. 생략하고 기록한다.
+      · 후보가 있는데 행렬이 비었다 → **고장**이다. 승격시키지 않는다.
+    """
+    import pandas as _pd
+
+    from quant.live import retrain as R
+
+    idx = _pd.date_range("2026-01-01", periods=400, freq="D")
+    rng = np.random.default_rng(0)
+    close = _pd.Series(100 * np.exp(np.cumsum(rng.normal(0, 0.01, len(idx)))),
+                       index=idx)
+    df = _pd.DataFrame({"open": close, "high": close * 1.01,
+                        "low": close * 0.99, "close": close,
+                        "volume": 1_000.0}, index=idx)
+
+    champ = {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}}
+    chals = [{"strategy": "ma_cross", "params": {"fast": f, "slow": 20}}
+             for f in (3, 4, 6, 7, 8)]
+
+    real = R.holdout_diffs
+    try:
+        R.holdout_diffs = lambda *a, **k: {}          # 계산이 고장 난 상태
+        out = R.nightly_retrain(df, champ, chals, confirm_window=120,
+                                select_t=0.0, confirm_t=-99.0, min_obs=1)
+    finally:
+        R.holdout_diffs = real
+
+    assert out["promoted"] is False, (
+        "동시검정을 못 쟀는데 승격됐다 — 관문이 조용히 사라지는 경로다: "
+        f"{out.get('reason')}")
+    rc = out.get("reality_check") or {}
+    assert rc.get("broken"), (
+        "'재려다 실패'가 '표본 부족 생략'과 구별되지 않는다 — 장부만 보면 "
+        f"정상적으로 생략한 밤과 똑같아 보인다: {rc}")
+
+
+def test_the_reality_check_actually_runs_on_a_normal_night():
+    """대조군 — 정상 경로에서 동시검정이 **실제로 계산되는가**.
+
+    ⚠️ 위 검사만으로는 부족했다(변이 시험 실측). 그 검사는 계산을 스스로
+       고장 낸 뒤 결과를 보므로, 계산이 **원래부터** 고장 나 있어도 똑같이
+       통과한다. 고장을 넣어 보는 검사에는 **고장이 없을 때를 보는 짝**이
+       반드시 있어야 한다.
+    """
+    import pandas as _pd
+
+    from quant.live import retrain as R
+
+    idx = _pd.date_range("2026-01-01", periods=400, freq="D")
+    rng = np.random.default_rng(1)
+    close = _pd.Series(100 * np.exp(np.cumsum(rng.normal(0, 0.01, len(idx)))),
+                       index=idx)
+    df = _pd.DataFrame({"open": close, "high": close * 1.01,
+                        "low": close * 0.99, "close": close,
+                        "volume": 1_000.0}, index=idx)
+    champ = {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}}
+    chals = [{"strategy": "ma_cross", "params": {"fast": f, "slow": 20}}
+             for f in (3, 4, 6, 7, 8)]
+
+    diffs = R.holdout_diffs(champ, chals, df, 120, R.build_strategy, {})
+    assert diffs, "정상 데이터인데 홀드아웃 차이가 하나도 안 나왔다"
+    assert len(diffs) == len(chals), (
+        f"후보 {len(chals)}개인데 차이 계열이 {len(diffs)}개다")
+    for series in diffs.values():
+        assert len(series) > 0 and series.index.is_monotonic_increasing, (
+            "차이 계열에 날짜 색인이 없다 — 패널이 종목을 가로질러 같은 날끼리 "
+            "묶을 수 없다")
+
+    mat = R._holdout_diff_matrix(champ, chals, df, 120, R.build_strategy, {})
+    assert mat is not None and mat.shape[1] == len(chals), (
+        "동시검정 행렬이 비었다 — 승격 20건 중 19건을 막아 온 관문이 "
+        "조용히 사라진다")
+
