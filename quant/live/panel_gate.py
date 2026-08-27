@@ -148,3 +148,79 @@ def power_gain(per_symbol: dict[str, pd.Series],
         "t_gain": med / panel_sd,                 # t가 커지는 배수
         "if_independent": float(len(symbols)),    # 상한(완전 독립일 때)
     }
+
+
+class PanelCollector:
+    """밤 배치가 종목을 도는 동안 **설정별로** 초과수익 계열을 모은다.
+
+    ⚠️ 종목을 가로질러 묶을 수 있는 것은 **여러 종목에 똑같이 선 설정**뿐이다.
+       ``mutate_champion()``이 만든 변형은 그 종목 챔피언 주변에서 나온
+       것이라 종목마다 다르다 — 그것들을 한 통에 담으면 "같은 설정이 여러
+       종목에서 좋았다"가 아니라 **서로 다른 설정들의 평균**이 되고, 그건
+       아무 뜻도 없는 숫자다. 그래서 설정 열쇠가 같은 것만 쌓인다.
+
+    수집만 한다 — 판정은 ``verdicts()``를 부르는 쪽의 몫이고, 승격은 또 그
+    바깥이다. 재는 것과 정하는 것을 한 함수에 섞지 않는다.
+    """
+
+    def __init__(self) -> None:
+        self._by_spec: dict[str, dict[str, pd.Series]] = {}
+
+    def add(self, symbol_key: str, diffs: dict[str, pd.Series]) -> None:
+        """한 종목의 {설정열쇠: 초과수익 계열}을 통에 붓는다."""
+        for spec, series in (diffs or {}).items():
+            if series is None or not len(series):
+                continue
+            self._by_spec.setdefault(spec, {})[symbol_key] = series
+
+    @property
+    def specs(self) -> list[str]:
+        return sorted(self._by_spec)
+
+    def symbols_for(self, spec: str) -> int:
+        return len(self._by_spec.get(spec, {}))
+
+    def verdicts(self, *, t_threshold: float,
+                 min_dates: int = MIN_PANEL_DATES,
+                 min_symbols: int = MIN_PANEL_SYMBOLS) -> list[dict]:
+        """설정마다 패널 판정 — **판정된 것만** 돌려준다.
+
+        ⚠️ 다중검정 보정은 **설정 개수**에 걸어야 한다(종목 수가 아니라).
+           한 설정을 40종목에 돌리는 것은 40번의 시도가 아니라 한 번의 시도를
+           40배 정밀하게 재는 것이다. 그 보정은 호출자가 ``t_threshold``에
+           실어 넘긴다 — 여기서 문턱을 스스로 정하지 않는다(정하는 자와 재는
+           자를 나눈다).
+        """
+        out: list[dict] = []
+        for spec in self.specs:
+            v = panel_verdict(self._by_spec[spec], t_threshold=t_threshold,
+                              min_dates=min_dates, min_symbols=min_symbols)
+            v["spec_key"] = spec
+            if not v.get("skipped"):
+                v["gain"] = power_gain(self._by_spec[spec], min_symbols)
+            out.append(v)
+        return out
+
+    def panel_frame(self, min_symbols: int = MIN_PANEL_SYMBOLS,
+                    min_dates: int = MIN_PANEL_DATES) -> pd.DataFrame:
+        """설정별 패널 계열을 **같은 날짜 위에 나란히** 세운 표(날짜 × 설정).
+
+        동시검정(현실성 검사)을 패널에도 걸기 위한 재료다. 그 검정은 "오늘
+        링의 후보 N명 중 최고 t가 우연으로 나올 확률"을 부트스트랩으로 직접
+        재는데, **여기서 N은 종목 수가 아니라 설정 수**다. 설정을 많이 세울수록
+        귀무 세계의 최고 t도 같이 커져 p가 정직하게 커진다 — 로그 공식도
+        상한도 필요 없다(``confirm_threshold``가 상한에 붙어 더 안 오르는
+        구간이 생겼던 문제의 해법이 이것이었다).
+
+        ⚠️ 날짜는 **교집합**을 쓴다. 설정마다 다른 날짜 위의 값을 한 표에
+           담으면, 부트스트랩이 같은 날의 시장 움직임을 서로 다른 날처럼
+           재조합해 상관을 지워 버린다 — p가 거짓으로 작아진다.
+        """
+        cols: dict[str, pd.Series] = {}
+        for spec in self.specs:
+            series = panel_diff(self._by_spec[spec], min_symbols)
+            if len(series) >= min_dates:
+                cols[spec] = series
+        if not cols:
+            return pd.DataFrame()
+        return pd.DataFrame(cols).dropna(how="any")
