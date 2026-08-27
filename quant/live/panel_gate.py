@@ -201,3 +201,26 @@ class PanelCollector:
             out.append(v)
         return out
 
+    def panel_frame(self, min_symbols: int = MIN_PANEL_SYMBOLS,
+                    min_dates: int = MIN_PANEL_DATES) -> pd.DataFrame:
+        """설정별 패널 계열을 **같은 날짜 위에 나란히** 세운 표(날짜 × 설정).
+
+        동시검정(현실성 검사)을 패널에도 걸기 위한 재료다. 그 검정은 "오늘
+        링의 후보 N명 중 최고 t가 우연으로 나올 확률"을 부트스트랩으로 직접
+        재는데, **여기서 N은 종목 수가 아니라 설정 수**다. 설정을 많이 세울수록
+        귀무 세계의 최고 t도 같이 커져 p가 정직하게 커진다 — 로그 공식도
+        상한도 필요 없다(``confirm_threshold``가 상한에 붙어 더 안 오르는
+        구간이 생겼던 문제의 해법이 이것이었다).
+
+        ⚠️ 날짜는 **교집합**을 쓴다. 설정마다 다른 날짜 위의 값을 한 표에
+           담으면, 부트스트랩이 같은 날의 시장 움직임을 서로 다른 날처럼
+           재조합해 상관을 지워 버린다 — p가 거짓으로 작아진다.
+        """
+        cols: dict[str, pd.Series] = {}
+        for spec in self.specs:
+            series = panel_diff(self._by_spec[spec], min_symbols)
+            if len(series) >= min_dates:
+                cols[spec] = series
+        if not cols:
+            return pd.DataFrame()
+        return pd.DataFrame(cols).dropna(how="any")

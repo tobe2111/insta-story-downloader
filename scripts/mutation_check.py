@@ -7751,6 +7751,37 @@ MUTATIONS = [
      '    diffs = holdout_diffs(champion_spec, specs, df, tail, build, bt_kwargs)',
      '    diffs = {}',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 재료를 결승까지 간 밤에만 줍는다'
+     '(결승은 시행 11,721회 중 186회뿐 — 패널이 최소 종목 수를 영영 못 채운다)',
+     'quant/live/retrain.py',
+     '        if not panel_specs:\n            return result',
+     '        if not panel_specs or not result.get("promoted"):\n'
+     '            return result',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('아무도 요청하지 않은 밤에도 홀드아웃을 한 번 더 재생한다'
+     '(시간 예산을 먹어 그만큼 다른 종목이 오늘 밤 오디션을 못 연다)',
+     'quant/live/retrain.py',
+     '        if not panel_specs:',
+     '        if False:',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('종목마다 다른 변형까지 패널 재료로 센다'
+     '(서로 다른 설정들의 평균을 "한 설정의 성적"이라고 부르게 된다)',
+     'quant/live/retrain.py',
+     '    return [c for c in challengers if spec_key(c) in fixed]',
+     '    return list(challengers)',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
+     '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
+     'quant/live/retrain.py',
+     '    judged = [v for v in verdicts if not v.get("skipped")]',
+     '    judged = list(verdicts)',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('패널 동시검정을 날짜별로 쪼개 세운다'
+     '(설정 개수가 아니라 날짜 수를 다중검정으로 세게 된다)',
+     'quant/live/retrain.py',
+     '        rec["reality_check"] = reality_check(frame.to_numpy())',
+     '        rec["reality_check"] = reality_check(frame.to_numpy()[:, :1])',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
 
     # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
     ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',

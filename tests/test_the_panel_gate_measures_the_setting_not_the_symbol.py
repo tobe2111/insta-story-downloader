@@ -315,3 +315,235 @@ def test_the_reality_check_actually_runs_on_a_normal_night():
         "동시검정 행렬이 비었다 — 승격 20건 중 19건을 막아 온 관문이 "
         "조용히 사라진다")
 
+
+
+# ── 배선 — 재료가 실제로 모이는가, 그리고 아직 판정에 손대지 않는가 ──────
+
+def _price_frame(seed: int, n: int = 400):
+    import pandas as _pd
+
+    idx = _pd.date_range("2026-01-01", periods=n, freq="D")
+    rng = np.random.default_rng(seed)
+    close = _pd.Series(100 * np.exp(np.cumsum(rng.normal(0, 0.01, n))),
+                       index=idx)
+    return _pd.DataFrame({"open": close, "high": close * 1.01,
+                          "low": close * 0.99, "close": close,
+                          "volume": 1_000.0}, index=idx)
+
+
+_CHAMP = {"strategy": "ma_cross", "params": {"fast": 5, "slow": 20}}
+_CHALS = [{"strategy": "ma_cross", "params": {"fast": f, "slow": 20}}
+          for f in (3, 6, 9)]
+
+
+def test_the_material_is_collected_on_ordinary_nights_not_only_finals():
+    """⚠️ 재료를 **결승에 간 밤에만** 주우면 패널은 영원히 안 찬다.
+
+    동시검정용 홀드아웃 계산은 결승까지 간 밤에만 돈다. 그런데 장부 실측으로
+    시행 11,721회 중 결승은 186회뿐이다 — 그 자리에서 재료를 주우면 대부분의
+    밤에 아무것도 안 모이고, 패널은 최소 종목 수(5)를 몇 달이 지나도 못
+    채운다. **판정이 어떻게 끝났든** 재료는 모여야 한다.
+    """
+    from quant.live import retrain as R
+
+    df = _price_frame(2)
+    # 결승에 아무도 못 가도록 문턱을 아주 높게 — 승격은 확실히 없다.
+    out = R.nightly_retrain(df, _CHAMP, _CHALS, panel_specs=_CHALS,
+                            confirm_window=120, select_t=99.0, confirm_t=99.0,
+                            min_obs=1)
+    assert out["promoted"] is False, "이 검사는 승격이 없는 밤을 본다"
+    diffs = out.get("panel_diffs")
+    assert diffs, ("아무도 결승에 못 간 밤에 패널 재료가 하나도 안 모였다 — "
+                   "이러면 패널은 최소 종목 수를 영원히 못 채운다")
+    for series in diffs.values():
+        assert isinstance(series.index, pd.DatetimeIndex), (
+            "패널 재료에 날짜가 없다 — 종목을 가로질러 같은 날끼리 묶을 수 없다")
+
+
+def test_asking_for_no_panel_costs_nothing():
+    """대조군 — ``panel_specs``를 안 넘기면 **추가 계산이 아예 없다**.
+
+    위 검사만 있으면 "언제나 재료를 만든다"도 초록이다. 그런데 그 계산은
+    후보를 홀드아웃에서 한 번 더 재생하는 일이고, 밤 배치는 시간 예산 안에서
+    도는 이어달리기다 — 한 종목이 느려지면 그만큼 다른 종목이 오늘 밤 못
+    돈다. 재현 검증(verify)도 이 비용을 낼 이유가 없다.
+    """
+    from quant.live import retrain as R
+
+    out = R.nightly_retrain(_price_frame(3), _CHAMP, _CHALS,
+                            confirm_window=120, select_t=99.0, confirm_t=99.0,
+                            min_obs=1)
+    assert "panel_diffs" not in out, (
+        "패널을 요청하지 않았는데 재료를 만들었다 — 아무도 안 쓰는 계산에 "
+        "밤 배치의 시간 예산을 쓴다")
+
+
+def test_the_panel_does_not_yet_decide_who_gets_promoted():
+    """⚠️ 지금 단계에서 패널은 **관측이지 관문이 아니다**(사장님 ①안).
+
+    조건이 "관문을 바꾸되 기존 관문도 계속 기록한다"이므로, 먼저 두 관문이
+    같은 밤에 각각 뭐라고 하는지를 쌓는다. 그 대조 없이 갈아 끼우면 나중에
+    성적이 변했을 때 **관문 때문인지 시장 때문인지 구별할 수 없다.**
+
+    그래서 재료를 모으든 안 모으든 승격 결정은 **한 글자도 달라지지 않아야
+    한다.** 달라진다면 그건 조용히 관문이 바뀐 것이고, 이 저장소에서 가장
+    하지 말아야 할 종류의 변경이다.
+    """
+    from quant.live import retrain as R
+
+    df = _price_frame(4)
+    kw = dict(confirm_window=120, select_t=0.0, confirm_t=-99.0, min_obs=1)
+    without = R.nightly_retrain(df, _CHAMP, _CHALS, **kw)
+    with_panel = R.nightly_retrain(df, _CHAMP, _CHALS, panel_specs=_CHALS, **kw)
+    assert without["promoted"] == with_panel["promoted"], (
+        "패널 재료를 모았다는 이유만으로 승격 결정이 달라졌다 — "
+        "관측이 관문으로 조용히 승격됐다")
+    assert without["reason"] == with_panel["reason"], (
+        "같은 밤인데 근거 문장이 다르다 — 판정 경로가 갈렸다는 뜻이다")
+
+
+def test_only_specs_that_stand_on_every_symbol_pay_the_cost():
+    """종목마다 다른 변형은 패널 재료에서 빠진다 — 담아 봐야 뜻이 없다.
+
+    ``mutate_champion()``의 변형은 그 종목 챔피언 주변에서 나온 것이라
+    종목마다 다르다. 한 통에 담으면 "같은 설정이 여러 종목에서 좋았다"가
+    아니라 서로 다른 설정들의 평균이 되고, 그건 아무 뜻도 없는 숫자다.
+    """
+    from quant.live.retrain import (DEFAULT_CHALLENGERS, build_challengers,
+                                    shared_panel_specs)
+
+    champ = {"strategy": "ml", "params": {"model": "logreg"}}
+    built = build_challengers(champ, seed="2026-08-27:us_stock:AAPL")
+    shared = shared_panel_specs(built)
+    assert shared, "고정 격자 후보가 하나도 안 잡혔다"
+    assert len(shared) < len(built), (
+        "종목마다 다른 변형까지 패널 재료로 세고 있다 — 그 평균은 뜻이 없고 "
+        "홀드아웃 재생 비용만 그만큼 더 든다")
+    fixed = [repr(sorted(c.items())) for c in DEFAULT_CHALLENGERS]
+    for spec in shared:
+        assert repr(sorted(spec.items())) in fixed, (
+            f"여러 종목에 똑같이 서지 않는 설정이 섞였다: {spec}")
+
+
+def test_the_ledger_line_is_plain_json_and_says_how_many_symbols_stood(tmp_path):
+    """장부 한 줄은 **그대로 JSON**이어야 하고, 실제 종목 수를 적어야 한다.
+
+    ⚠️ 이어달리기 때문에 하룻밤에 전 종목을 못 돈다(시간 예산). "40종목
+       패널"이라고 적어 두고 실제로는 12종목이면, 그건 이 저장소가 반복해서
+       막아 온 종류의 거짓말이다. 그리고 pandas 객체가 섞이면 그 줄은 아예
+       안 써지고 밤마다 조용히 사라진다.
+    """
+    import json as _json
+
+    from quant.live.retrain import PANEL_FILE, record_panel
+
+    coll = PanelCollector()
+    for i in range(7):
+        coll.add(f"us_stock:S{i}", {"spec-A": _series(
+            0.002 + np.random.default_rng(i).normal(0, 0.01, len(DATES)))})
+    rec = record_panel("2026-08-27", coll, str(tmp_path))
+
+    line = (tmp_path / PANEL_FILE).read_text("utf-8").strip()
+    assert _json.loads(line) == _json.loads(_json.dumps(rec, ensure_ascii=False)), (
+        "장부 줄이 반환값과 다르다 — 화면과 장부가 갈라진다")
+    assert rec["specs"][0]["n_symbols"] == 7, (
+        f"패널에 실제로 선 종목 수가 장부와 다르다: {rec['specs'][0]}")
+    assert rec["specs"][0]["n_dates"] == len(DATES)
+
+
+def test_a_thin_panel_is_recorded_as_skipped_not_as_a_pass(tmp_path):
+    """종목이 모자란 밤은 **판정하지 않았다**고 적힌다 — 통과가 아니다.
+
+    감사 226의 규칙(건너뜀은 통과가 아니다)이 새 장부에서도 지켜지는지 본다.
+    """
+    from quant.live.retrain import record_panel
+
+    coll = PanelCollector()
+    for i in range(MIN_PANEL_SYMBOLS - 1):          # 최소 종목 수에 하나 모자람
+        coll.add(f"us_stock:S{i}", {"spec-A": _series(
+            np.random.default_rng(i).normal(0, 0.01, len(DATES)))})
+    rec = record_panel("2026-08-27", coll, str(tmp_path))
+
+    assert rec["n_specs_judged"] == 0, "종목이 모자란데 판정했다"
+    assert rec["skipped"], "못 잰 사실이 장부에 안 남는다"
+    assert not rec["specs"], "판정 못 한 설정이 판정 목록에 들어갔다"
+    assert rec["reality_check"].get("skipped"), (
+        "패널 표가 비었는데 동시검정이 '통과'로 남았다")
+
+
+def test_the_panel_multiple_testing_counts_settings_not_symbols(tmp_path):
+    """다중검정은 **설정 개수**를 센다 — 종목 수가 아니다.
+
+    한 설정을 40종목에 돌리는 것은 40번의 시도가 아니라 한 번의 시도를
+    정밀하게 재는 것이다. 종목 수를 시도 수로 세면 관문이 거짓으로 빡빡해지고
+    (아무것도 승격 못 함), 반대로 설정 수를 안 세면 거짓으로 열린다.
+
+    ⚠️ **대조 방법이 까다롭다.** 후보를 늘린 두 밤의 p를 그냥 비교하면 안
+       된다 — 서로 다른 난수에서 나온 최고 성적을 비교하는 것이라 어느
+       방향으로든 나올 수 있다(첫 시도에서 실제로 반대로 나왔다). 이기는
+       설정은 **똑같이 고정**해 두고, 그 옆에 잡음 설정만 더 세운다.
+       그러면 관측된 최고 t는 그대로인데 귀무 세계의 최고 t만 커지므로,
+       보정이 살아 있다면 p는 **반드시** 오른다.
+    """
+    from quant.live.retrain import record_panel
+
+    def _coll(n_noise: int) -> PanelCollector:
+        c = PanelCollector()
+        for i in range(8):
+            # 이기는 설정 — 종목 시드를 고정해 두 판에서 **완전히 같다**.
+            rng = np.random.default_rng(1000 + i)
+            specs = {"winner": _series(0.0012 + rng.normal(0, 0.01, len(DATES)))}
+            for j in range(n_noise):                   # 옆에 세우는 잡음 설정
+                nr = np.random.default_rng(50_000 + 100 * j + i)
+                specs[f"noise-{j}"] = _series(nr.normal(0, 0.01, len(DATES)))
+            c.add(f"us_stock:S{i}", specs)
+        return c
+
+    alone = record_panel("2026-08-27", _coll(0), str(tmp_path))
+    crowded = record_panel("2026-08-27", _coll(11), str(tmp_path))
+
+    assert alone["reality_check"]["n_cand"] == 1
+    assert crowded["reality_check"]["n_cand"] == 12, (
+        "동시검정이 세는 것이 설정 개수가 아니다 — 패널의 다중검정 보정이 "
+        "엉뚱한 것을 세고 있다")
+
+    # 이기는 설정의 관측 성적은 두 판에서 같다 — 달라진 것은 옆에 선 수뿐.
+    def _t(rec):
+        return next(x["t_stat"] for x in rec["specs"] if x["spec_key"] == "winner")
+
+    assert _t(alone) == pytest.approx(_t(crowded)), (
+        "대조가 성립하지 않는다 — 이기는 설정의 성적이 두 판에서 다르다")
+    assert (alone["reality_check"]["t_max"]
+            == pytest.approx(crowded["reality_check"]["t_max"])), (
+        "대조가 성립하지 않는다 — 관측된 최고 성적이 두 판에서 다르면 p의 "
+        "차이가 보정 때문인지 잡음 때문인지 구별할 수 없다")
+    assert crowded["reality_check"]["p"] > alone["reality_check"]["p"], (
+        "같은 성적인데 옆에 선 설정을 11개 더 세워도 '우연일 확률'이 그대로다 "
+        f"({alone['reality_check']['p']} → {crowded['reality_check']['p']}) — "
+        "설정을 많이 세울수록 하나쯤 우연히 좋아 보인다는 사실이 반영되지 않는다")
+
+
+def test_the_material_never_leaks_into_the_nightly_ledger():
+    """패널 재료(pandas 객체)가 **재학습 장부에 실리지 않는다.**
+
+    장부는 필드를 하나씩 골라 쓰므로 지금은 새지 않는다. 하지만 나중에
+    누군가 편하게 ``**decision``으로 펼치면 그날부터 장부 줄이 통째로
+    **안 써진다**(JSON 직렬화 실패). 밤 배치는 그 예외를 삼키도록 돼 있어
+    화면은 조용하고, 며칠 뒤에야 "장부가 비었다"로 발견된다.
+
+    그래서 장부에 적는 필드 목록을 계약으로 못 박는다.
+    """
+    import re as _re
+
+    src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
+    body = src[src.index("def run_retrain("):]
+    call = body[body.index("append_history({"):]
+    call = call[:call.index("\n    }, state_dir)")]
+    keys = set(_re.findall(r'^\s{8}"([a-z_0-9]+)":', call, _re.M))
+    assert "asof" in keys, "장부 필드를 못 읽었다 — 이 검사가 헛돈다"
+    assert "panel_diffs" not in keys, (
+        "패널 재료가 재학습 장부 필드에 들어갔다 — pandas 객체라 그날부터 "
+        "장부 줄이 통째로 안 써진다")
+    assert "**decision" not in call, (
+        "판정 결과를 통째로 장부에 펼쳤다 — 앞으로 결정 dict에 무엇이 "
+        "붙든 장부로 새어 나간다")

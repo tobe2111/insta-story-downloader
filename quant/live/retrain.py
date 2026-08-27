@@ -571,6 +571,7 @@ def nightly_retrain(
     challenger_specs: list[dict],
     *,
     build: Callable[[dict], object] = build_strategy,
+    panel_specs: list[dict] | None = None,
     confirm_window: int = 120,
     select_t: float = SELECT_SCREEN_T,
     confirm_t: float = 1.0,
@@ -600,14 +601,49 @@ def nightly_retrain(
     """
     from quant.live.champion_challenger import ChampionChallenger
 
+    def _out(result: dict) -> dict:
+        """판정 결과에 **패널 재료**를 얹어 돌려준다.
+
+        ``panel_specs``를 넘긴 밤에만 계산한다. 그 설정들이 이 종목의
+        홀드아웃에서 낸 (도전자 − 챔피언) 일수익 차를 **날짜와 함께** 담는다 —
+        밤 배치가 종목을 돌면서 그것을 모아 "한 설정이 여러 종목에서 함께
+        좋은가"를 잰다(``quant.live.panel_gate``).
+
+        ⚠️ **판정이 어떻게 끝났든 재료는 모은다.** 동시검정용 홀드아웃 계산은
+           결승까지 간 밤에만 도는데, 결승에 가는 밤은 드물다(장부 실측:
+           시행 11,721회 중 결승 186회). 그 자리에서만 주우면 대부분의 밤에
+           아무것도 안 모이고, 패널은 최소 종목 수를 몇 달이 지나도 못 채운다.
+           그래서 판정이 끝나는 **모든 출구**가 이 자리를 지난다.
+
+        ⚠️ 반대로 ``panel_specs``가 없으면 **한 줄도 더 계산하지 않는다.**
+           이건 후보를 홀드아웃에서 한 번 더 재생하는 일이고, 밤 배치는 시간
+           예산 안에서 도는 이어달리기다 — 한 종목이 느려지면 그만큼 다른
+           종목이 오늘 밤 못 돈다. 재현 검증(verify)도 이 비용을 낼 이유가 없다.
+
+        ⚠️ 담기는 값은 pandas 객체라 **장부에 그대로 적히면 안 된다.**
+           장부는 필드를 하나씩 골라 쓰므로 자동으로 새지 않지만, 검사로
+           못을 박아 둔다.
+        """
+        if not panel_specs:
+            return result
+        try:
+            result["panel_diffs"] = holdout_diffs(
+                champion_spec, panel_specs, df, confirm_window, build,
+                dict(cost_model=cost_model, next_open_fill=next_open_fill,
+                     rebalance_band=rebalance_band))
+        except Exception as exc:  # noqa: BLE001 — 재료 수집 실패가 판정을 못 죽인다
+            log.warning("패널 재료 수집 실패: %s", exc)
+            result["panel_diffs"] = {}
+        return result
+
     if len(df) <= confirm_window + min_obs:
         # 이것도 '검증 못 한 날'이다 — 오디션이 아예 열리지 않았으므로
         # 그날의 '챔피언 유지'는 검증 결과가 아니다(공회전과 같은 부류).
-        return {"promoted": False, "vacuous": True, "reason": (
+        return _out({"promoted": False, "vacuous": True, "reason": (
             f"⚠️ 평가 불가 — 데이터 부족({len(df)}봉)으로 선발전+결승전"
             f"({confirm_window}봉)을 나눌 수 없어 오디션을 열지 못했습니다. "
             "챔피언을 유지하지만 이는 검증 결과가 아닙니다."),
-            "candidates": [], "inert": []}
+            "candidates": [], "inert": []})
 
     used = effective_select_t(select_t, confirm_t, clamp_screen)
     if used != select_t:
@@ -672,20 +708,20 @@ def nightly_retrain(
                "못했을 가능성이 큽니다." if inert else
                "세울 수 있는 후보가 하나도 없었습니다"
                "(후보 목록이 비었거나 전부 평가 중 예외).")
-        return {"promoted": False, "vacuous": True, "reason": (
+        return _out({"promoted": False, "vacuous": True, "reason": (
             f"⚠️ 평가 불가 — {why} 이날의 오디션은 아무것도 검증하지 "
             "못했습니다 — '이긴 후보가 없다'와 다릅니다."),
-            "candidates": candidates, "inert": inert}
+            "candidates": candidates, "inert": inert})
 
     passed = [c for c in candidates if c["swap"] and _consistent(c)]
     if not passed:
         note = (f" ⚠️ 다만 후보 {len(inert) + len(candidates)}개 중 {len(inert)}개는 "
                 "챔피언과 신호가 같아 대결 자체가 성립하지 않았습니다."
                 if vacuous else " 정상입니다.")
-        return {"promoted": False, "vacuous": vacuous, "reason": (
+        return _out({"promoted": False, "vacuous": vacuous, "reason": (
             f"선발전에서 챔피언을 통계적으로 이긴 후보 없음"
             f"(실제 대결 {len(candidates)}개) — 챔피언 유지.{note}"),
-            "candidates": candidates, "inert": inert}
+            "candidates": candidates, "inert": inert})
 
     best = max(passed, key=lambda c: c["t_stat"])
 
@@ -699,11 +735,11 @@ def nightly_retrain(
     final = cc.evaluate(df, tail=confirm_window)
 
     if not final["swap"]:
-        return {"promoted": False, "reason": (
+        return _out({"promoted": False, "reason": (
             "선발전 1위가 결승전(최근 미공개 구간)에서 검증 실패 — 챔피언 유지. "
             "선발전 성적은 우연이었을 가능성이 큽니다."),
             "best_candidate": best, "final": final,
-            "candidates": candidates, "inert": inert}
+            "candidates": candidates, "inert": inert})
 
     # 동시검정(현실성 검사) — 결승 t를 넘어도 '후보 N명 중 최고'는 혼자만의
     # 검정이 아니다(2026-08-18). confirm_threshold의 로그+상한 보정은 시도가
@@ -725,7 +761,7 @@ def nightly_retrain(
         #    변이 시험이 잡아냈다: holdout_diffs를 빈 dict로 만들어도 아무
         #    검사가 죽지 않았다(놓침 1). 못 잰 것을 통과로 읽지 않는다.
         if mat is None and candidates:
-            return {"promoted": False, "reality_check": {
+            return _out({"promoted": False, "reality_check": {
                 "skipped": True, "broken": True, "reason": (
                     "후보가 있는데 홀드아웃 차이 행렬을 못 만들었습니다 — "
                     "동시검정을 **재려다 실패**한 것이라 생략이 아닙니다. "
@@ -734,30 +770,47 @@ def nightly_retrain(
                     "동시검정을 수행하지 못해 승격 보류 — 재지 못한 것을 "
                     "통과로 읽지 않습니다."),
                 "best_candidate": best, "final": final,
-                "candidates": candidates, "inert": inert}
+                "candidates": candidates, "inert": inert})
         if mat is None or mat.shape[0] < RC_MIN_N:
             rc_res = {"skipped": True, "reason": (
                 f"홀드아웃 표본 부족(<{RC_MIN_N}봉) — 동시검정 생략(관문 미적용)")}
         else:
             rc_res = reality_check(mat)
             if rc_res["p"] > RC_ALPHA:
-                return {"promoted": False, "reality_check": rc_res, "reason": (
+                return _out({"promoted": False, "reality_check": rc_res, "reason": (
                     f"결승 t={final['t_stat']:.2f}는 넘었지만, 오늘 링에 선 "
                     f"{rc_res['n_cand']}개 후보를 **동시에** 놓고 보면 이 정도 "
                     f"성적이 우연으로 나올 확률 p={rc_res['p']:.3f} > "
                     f"{RC_ALPHA} — 승격 보류(부트스트랩 동시검정). 후보를 많이 "
                     "세울수록 하나쯤은 우연히 좋아 보인다는 사실의 값이다."),
                     "best_candidate": best, "final": final,
-                    "candidates": candidates, "inert": inert}
+                    "candidates": candidates, "inert": inert})
 
-    return {"promoted": True, "champion": best["spec"], "reality_check": rc_res,
+    return _out({"promoted": True, "champion": best["spec"], "reality_check": rc_res,
             "reason": (
         f"선발전 t={best['t_stat']:.2f}, 결승전 t={final['t_stat']:.2f} 모두 통과"
         + (f", 동시검정 p={rc_res['p']:.3f}≤{RC_ALPHA}"
            if rc_res and not rc_res.get("skipped") else "")
         + " — 새 챔피언으로 승격."),
         "best_candidate": best, "final": final,
-        "candidates": candidates, "inert": inert}
+        "candidates": candidates, "inert": inert})
+
+
+def shared_panel_specs(challengers: list[dict]) -> list[dict]:
+    """종목을 가로질러 **똑같이 서는** 설정만 골라낸다 — 패널의 재료.
+
+    고정 격자(``DEFAULT_CHALLENGERS``)는 모든 종목에 같은 내용으로 선다.
+    반면 ``mutate_champion()``의 변형은 그 종목 챔피언 주변에서 나온 것이라
+    종목마다 다르다 — 그것들을 한 통에 담으면 "같은 설정이 여러 종목에서
+    좋았다"가 아니라 **서로 다른 설정들의 평균**이 되고, 아무 뜻도 없다.
+
+    ⚠️ 이 선별은 비용도 정한다. 패널 재료를 만들려면 홀드아웃에서 후보를
+       한 번 더 재생해야 하는데, 후보 전체(실측 ~50개)가 아니라 이 부분집합
+       (실측 28개)에만 든다. 밤 배치는 시간 예산 안에서 도는 이어달리기라,
+       한 종목이 느려지면 그만큼 다른 종목이 오늘 밤 못 돈다.
+    """
+    fixed = {spec_key(c) for c in DEFAULT_CHALLENGERS}
+    return [c for c in challengers if spec_key(c) in fixed]
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
@@ -1445,6 +1498,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                         symbol=symbol)
     audition_band = _rebalance_band_rel(market, state_dir)
     decision = nightly_retrain(df, current_spec, challengers,
+                               # 패널 관문 재료 — 여러 종목에 똑같이 서는
+                               # 고정 격자 설정만. 판정에는 아직 안 쓰이고
+                               # 장부에 나란히 기록된다(사장님 ①안: 관문을
+                               # 바꾸되 기존 관문도 계속 남긴다).
+                               panel_specs=shared_panel_specs(challengers),
                                confirm_window=confirm_window,
                                select_t=select_t_eff,
                                confirm_t=confirm_t_eff,
@@ -1577,7 +1635,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     print(f"[{asof}] {market}/{symbol} — 챔피언 {label}: "
           f"{champions[key]['strategy']} {champions[key]['params']}")
     print(f"  근거: {decision['reason']}")
-    return {"key": key, "champion": champions[key], **decision}
+    return {"key": key, "asof": asof, "champion": champions[key], **decision}
 
 
 # 며칠을 건너뛰어야 '주말'이 아니라 '고장'인가 — 정상 주말은 2일, 긴 연휴
@@ -1620,6 +1678,79 @@ def stale_targets(skipped: list, state_dir: str = STATE_DIR,
         if days > threshold:
             out[key] = days
     return out
+
+
+# 패널 관문 장부 — 밤마다 한 줄. 종목별 관문 장부(retrain_history)와 **나란히**
+# 남는다(사장님 ①안). 나중에 "관문을 바꿔서 결과가 달라진 건가"를 물으면,
+# 같은 밤의 두 관문이 각각 뭐라고 했는지 장부만 보고 답할 수 있어야 한다.
+PANEL_FILE = "panel_history.jsonl"
+
+# 패널 설정별 t의 **참조** 문턱. 다중검정 보정은 여기 걸지 않는다 — 아래
+# 패널 동시검정(설정 개수를 세는 부트스트랩)이 통째로 맡는다. 문턱과
+# 부트스트랩 양쪽에 보정을 걸면 같은 다중성을 두 번 세게 되고, 그 실수는
+# 이 저장소가 이미 한 번 했다(2026-08-14: 선발전과 결승전에 같은 보정을
+# 이중으로 걸어 결승전이 15/15 무력화됐다).
+PANEL_T_REF = CONFIRM_T_CAP
+
+
+def _today_iso() -> str:
+    import datetime as _dt
+
+    return _dt.date.today().isoformat()
+
+
+def record_panel(asof: str, collector, state_dir: str = STATE_DIR) -> dict:
+    """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
+
+    승격 판단은 아직 이 값을 보지 않는다. 사장님 ①안의 조건이 "관문을 바꾸되
+    기존 관문도 계속 기록한다"이므로, 먼저 두 관문이 같은 밤에 각각 뭐라고
+    하는지를 며칠 쌓는다. 그 대조 없이 관문을 갈아 끼우면, 나중에 성적이
+    변했을 때 **관문 때문인지 시장 때문인지 구별할 방법이 없다.**
+
+    다중검정은 문턱이 아니라 **부트스트랩**이 맡는다. 패널 계열을 설정별로
+    한 표에 세우고 "설정 N개 중 최고 t가 우연으로 나올 확률"을 직접 잰다 —
+    설정을 늘리면 귀무 세계의 최고 t도 같이 커져 p가 정직하게 커진다.
+    ⚠️ 세는 것은 **설정 개수**다. 종목 수가 아니다 — 한 설정을 40종목에
+       돌리는 것은 40번의 시도가 아니라 한 번의 시도를 정밀하게 재는 것이다.
+    """
+    verdicts = collector.verdicts(t_threshold=PANEL_T_REF)
+    judged = [v for v in verdicts if not v.get("skipped")]
+    rec: dict = {
+        "asof": asof,
+        "n_specs_collected": len(verdicts),
+        "n_specs_judged": len(judged),
+        "t_ref": PANEL_T_REF,
+        # 판정된 설정만 담는다 — 종목이 모자라 못 잰 것을 '통과'로도
+        # '탈락'으로도 세지 않는다(감사 226: 건너뜀은 통과가 아니다).
+        "specs": [{
+            "spec_key": v["spec_key"], "n_symbols": v["n_symbols"],
+            "n_dates": v["n_dates"], "mean_diff": round(v["mean_diff"], 8),
+            "t_stat": round(v["t_stat"], 4), "pass_t": bool(v["pass"]),
+            "symbol_wins": v["symbol_wins"],
+            "symbol_win_rate": round(v["symbol_win_rate"], 4),
+            # 이득의 크기를 숫자로 남긴다 — "패널로 바꿨다"는 선언은
+            # 이득의 증거가 아니다.
+            "variance_gain": round(float((v.get("gain") or {})
+                                         .get("variance_gain", 0.0)), 3),
+        } for v in judged],
+        "skipped": [{"spec_key": v["spec_key"], "reason": v["reason"]}
+                    for v in verdicts if v.get("skipped")],
+    }
+    frame = collector.panel_frame()
+    if frame.shape[0] >= RC_MIN_N and frame.shape[1] >= 1:
+        rec["reality_check"] = reality_check(frame.to_numpy())
+    else:
+        rec["reality_check"] = {"skipped": True, "reason": (
+            f"패널 표가 {frame.shape[0]}일 x {frame.shape[1]}설정 — 동시검정에 "
+            f"필요한 최소 {RC_MIN_N}일에 못 미칩니다(생략이며 통과가 아닙니다)")}
+    try:
+        os.makedirs(state_dir, exist_ok=True)
+        with open(os.path.join(state_dir, PANEL_FILE), "a",
+                  encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        log.warning("패널 장부 기록 실패: %s", exc)
+    return rec
 
 
 def run_retrain_all(targets=None, **kwargs) -> dict:
@@ -1677,6 +1808,14 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     ok, promoted, failed, skipped = [], [], {}, []
     deadline = (_time.monotonic() + budget) if budget else None
     not_reached: list[str] = []
+    # 패널 재료 수집기 — 종목을 도는 동안 **설정별로** 초과수익 계열을 쌓는다.
+    # ⚠️ 이어달리기 때문에 하룻밤에 전 종목을 못 돈다(시간 예산). 그래서
+    #    패널에 서는 종목 수는 그날 실제로 돈 종목 수이고, 장부에 그 숫자를
+    #    그대로 남긴다 — "40종목 패널"이라고 적어 두고 실제로는 12종목이면
+    #    그건 이 저장소가 반복해서 막아 온 종류의 거짓말이다.
+    from quant.live.panel_gate import PanelCollector
+    panel = PanelCollector()
+    panel_asof = ""
     for idx, (market, symbol) in enumerate(targets):
         key = _key(market, symbol)
         if deadline is not None and _time.monotonic() > deadline:
@@ -1691,6 +1830,8 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             (skipped if out.get("skipped") else ok).append(key)
             if out.get("promoted"):
                 promoted.append(key)
+            panel.add(key, out.get("panel_diffs") or {})
+            panel_asof = max(panel_asof, str(out.get("asof") or ""))
         except Exception as exc:  # noqa: BLE001
             failed[key] = str(exc)
             log.warning("재학습 실패 %s: %s", key, exc)
@@ -1705,6 +1846,22 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
                 "budget_sec": budget})
         except Exception:  # noqa: BLE001 — 커서 실패가 재학습을 못 죽인다
             log.warning("재학습 커서 저장 실패")
+    # 패널 관문 — 판정하고 **기록만** 한다(승격은 아직 종목별 관문이 정한다).
+    # 실패해도 밤 배치를 죽이지 않는다: 이건 아직 관문이 아니라 관측이다.
+    panel_rec = None
+    if panel.specs:
+        try:
+            panel_rec = record_panel(panel_asof or _today_iso(), panel,
+                                     kwargs.get("state_dir", STATE_DIR))
+            rc = panel_rec.get("reality_check") or {}
+            print(f"  📊 패널 관문(기록 전용): 설정 "
+                  f"{panel_rec['n_specs_judged']}/"
+                  f"{panel_rec['n_specs_collected']}개 판정 · "
+                  + ("동시검정 생략" if rc.get("skipped")
+                     else f"동시검정 p={rc.get('p')}"))
+        except Exception as exc:  # noqa: BLE001 — 관측 실패가 배치를 못 죽인다
+            log.warning("패널 관문 기록 실패: %s", exc)
+
     print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 건너뜀 "
           f"{len(skipped)} · 실패 {len(failed)}"
           + (f" · 시간 예산으로 못 돈 종목 {len(not_reached)}"
@@ -1722,4 +1879,4 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     if targets and not ok and not skipped:
         raise RuntimeError(f"전 종목 재학습 실패: {failed}")
     return {"ok": ok, "failed": failed, "skipped": skipped,
-            "promoted": promoted}
+            "promoted": promoted, "panel": panel_rec}
