@@ -7788,6 +7788,36 @@ MUTATIONS = [
      '                               panel_specs=shared_panel_specs(asof),',
      '                               panel_specs=shared_panel_specs(key),',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+
+    # ── 가설 6호: 월말 강제 리밸런싱 (2026-08-27 수집 라운드) ────────────
+    ('월말 판정에 다음 봉을 쓰게 한다'
+     '(백테스트에서만 좋아 보이는 규칙이 모든 관문을 정당하게 통과한다)',
+     'quant/strategies/rebalance_flow.py',
+     '        first_of_month = pd.Series(month_id, index=idx).diff().fillna(1) != 0',
+     '        first_of_month = pd.Series(month_id, index=idx).diff(-1).fillna(1) != 0',
+     'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+    ('월말 다리의 부호를 뒤집는다'
+     '(오른 자산을 사고 내린 자산을 피한다 — 리밸런싱 가설이 아니라 추세추종)',
+     'quant/strategies/rebalance_flow.py',
+     '        sig[pressure & (mtd < -self.band)] = 1.0',
+     '        sig[pressure & (mtd > self.band)] = 1.0',
+     'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+    ('되돌림 다리를 뗀다'
+     '(가설이 참일 때 나타날 패턴의 절반만 보게 되어 이겨도 뜻을 못 읽는다)',
+     'quant/strategies/rebalance_flow.py',
+     '        sig[unwind & (prev_month_ret > self.band)] = 1.0',
+     '        pass',
+     'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+    ("'많이 움직였다'의 기준을 없앤다(잡음 한 톨에도 방향이 뒤집힌다)",
+     'quant/strategies/rebalance_flow.py',
+     '        if band <= 0:\n            raise ValueError(',
+     '        if False:\n            raise ValueError(',
+     'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+    ('가설 6호를 링에서 뺀다(전략 파일만 있고 오디션이 안 부른다)',
+     'quant/live/retrain.py',
+     '        {"strategy": "rebalance_flow", "params": {}},',
+     '        {"strategy": "rebalance_flow_off", "params": {}},',
+     'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',
