@@ -189,7 +189,8 @@ def _ema(s: pd.Series, span: int) -> pd.Series:
     return s.ewm(span=span, adjust=False).mean()
 
 
-def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFrame:
+def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None,
+              derive=None) -> pd.DataFrame:
     """과거 정보만으로 구성한 피처 행렬 (룩어헤드 없음).
 
     모든 값은 '해당 봉 종가까지'의 정보만 사용한다. 미래 봉을 참조하는 항목은
@@ -283,7 +284,15 @@ def _features(df: pd.DataFrame, extra: pd.DataFrame | None = None) -> pd.DataFra
         ext = extra.reindex(df.index).ffill()
         for col in extra.columns:
             out[f"x_{col}"] = ext[col]
-    return out.replace([np.inf, -np.inf], np.nan)
+    out = out.replace([np.inf, -np.inf], np.nan)
+    # 조합 피처 — **기계가 지어낸** 식(있는 열끼리 곱·비·표준화·지연).
+    # ⚠️ 반드시 여기, 즉 모든 원재료가 붙은 **뒤에** 얹는다. 앞에 얹으면
+    #    조합이 참조할 수 있는 재료가 그날그날 달라져, 같은 식이 종목마다
+    #    다른 것을 뜻하게 된다. 문법은 전부 인과적이다(quant.strategies.derive).
+    if derive:
+        from quant.strategies.derive import apply_recipes
+        out = apply_recipes(out, derive)
+    return out
 
 
 def _triple_barrier_labels(df: pd.DataFrame, horizon: int = 10,
@@ -482,6 +491,7 @@ class MLStrategy(Strategy):
                  sample_weight: str | None = None,
                  weight_halflife: int = 125,
                  top_features: int = 0,
+                 derive=None,
                  pool: object | None = None):
         if calibrate not in (None, "sigmoid", "isotonic"):
             raise ValueError(
@@ -568,6 +578,12 @@ class MLStrategy(Strategy):
         # 피처가 과적합 재료가 된다 — 추가의 반대 방향 레버. 채택은 오디션이
         # 결정한다(챌린저로만 참전, 강제 적용 없음).
         self.top_features = max(0, int(top_features))
+        # 조합 피처 식 목록 — 기계가 지어내고 오디션이 채택 여부를 정한다.
+        # 명세(문자열)라 장부에 그대로 남고, verify가 같은 피처로 그날의
+        # 결정을 재현할 수 있다. 계산 불가능한 식은 조용히 빠지되, 그날
+        # 실제로 붙은 열은 장부의 features_used에 남는다.
+        from quant.strategies.derive import MAX_DERIVED
+        self.derive = [str(r) for r in (derive or [])][:MAX_DERIVED]
         # 외부(거시) 피처: DataFrame 또는 callable(df)->DataFrame. 예: 공포탐욕지수.
         self.extra_features = extra_features
         # 최근 학습에 쓰인 피처 이름(기본 15개 + 외부 피처)
@@ -678,7 +694,7 @@ class MLStrategy(Strategy):
             for pdf in frames:
                 if pdf is None or len(pdf) < 80 or "close" not in pdf:
                     continue
-                pf = _features(pdf)
+                pf = _features(pdf, derive=self.derive)
                 # 라벨은 **한 곳**에서 만든다(_labels_of) — 신호 경로와 같은
                 # 규칙이어야 한다. 두 곳에 적었더니 한쪽에만 `cost`가 있었다.
                 py, _span = _labels_of(pdf, self.label, self.label_horizon,
@@ -774,7 +790,7 @@ class MLStrategy(Strategy):
         extra = self.extra_features
         if callable(extra):
             extra = extra(df)
-        feats = _features(df, extra)
+        feats = _features(df, extra, self.derive)
         self.feature_names_ = list(feats.columns)
         # 라벨은 **한 곳**에서 만든다(_labels_of) — 동료 데이터 경로와 같은
         # 규칙이어야 한다. 두 곳에 적었더니 `cost` 라벨이 여기에만 빠져,

@@ -259,6 +259,26 @@ def _axis_calibrate(rng, p):
     return {"calibrate": rng.choice([None, "sigmoid"])}
 
 
+def _axis_derive(rng, p):
+    """조합 피처 축 — **기계가 지어낸 식**을 한 걸음 흔든다(더하기·빼기·바꾸기).
+
+    다른 축과 결이 다르다. 나머지 축은 사람이 미리 적어 둔 **값 목록에서
+    고르는** 일이지만, 이 축은 값 자체를 **그 자리에서 만든다.** 손잡이를
+    돌리는 것이 아니라 손잡이를 만드는 장치다(2026-08-27 사장님 방침).
+
+    ⚠️ 재료 목록으로 실제 df의 열이 아니라 **이름 목록**을 쓴다. 언덕오르기가
+       도는 시점에는 데이터가 없기 때문이다. 그날 없는 열을 가리키는 식은
+       피처를 만들 때 조용히 빠지고, 실제로 붙은 열은 장부의 features_used에
+       남는다 — 선언과 실제가 갈라지지 않게 재는 장치가 이미 있다.
+    """
+    from quant.strategies.derive import mutate_recipes
+    from quant.strategies.ml import FEATURE_NAMES, OPTIONAL_FEATURES
+
+    vocab = list(FEATURE_NAMES) + list(OPTIONAL_FEATURES)
+    out = mutate_recipes(p.get("derive"), vocab, rng)
+    return {"derive": out} if out else {"derive": DROP}
+
+
 # 명시 축 — 범위를 사람이 정해 두는 것이 나은 손잡이들(문턱은 0.52~0.70으로
 # 묶어야 하고, 창 길이는 아무 숫자나 되면 곤란하다).
 ML_EXPLICIT_AXES = {
@@ -270,6 +290,10 @@ ML_EXPLICIT_AXES = {
     "sizing": _axis_sizing,
     "sample_weight": _axis_sample_weight,
     "calibrate": _axis_calibrate,
+    # ⚠️ 이 축만 값을 **만든다**(고르지 않는다). 그래서 관측 유도 축이 아니라
+    #    명시 축에 둔다 — 관측 유도는 "지금까지 쓰인 값 중에서 고르기"라,
+    #    한 번도 안 나온 조합은 영원히 안 나온다.
+    "derive": _axis_derive,
 }
 
 
@@ -796,21 +820,45 @@ def nightly_retrain(
         "candidates": candidates, "inert": inert})
 
 
-def shared_panel_specs(challengers: list[dict]) -> list[dict]:
-    """종목을 가로질러 **똑같이 서는** 설정만 골라낸다 — 패널의 재료.
+def shared_panel_specs() -> list[dict]:
+    """패널에 세울 설정 — **모든 종목에서 글자 그대로 같은** 것만.
 
-    고정 격자(``DEFAULT_CHALLENGERS``)는 모든 종목에 같은 내용으로 선다.
-    반면 ``mutate_champion()``의 변형은 그 종목 챔피언 주변에서 나온 것이라
-    종목마다 다르다 — 그것들을 한 통에 담으면 "같은 설정이 여러 종목에서
-    좋았다"가 아니라 **서로 다른 설정들의 평균**이 되고, 아무 뜻도 없다.
+    ⚠️ 2026-08-27, 실제 스냅샷 32종목으로 연기시험을 돌려 결함을 잡았다.
+       처음에는 고정 격자 항목을 그대로 넘겼는데, 격자의 ML 항목은
+       ``{"model": "gb", "threshold": 0.55}`` 같은 **덧씌우기 형태**다.
+       오디션은 그것을 **그 종목 챔피언의 파라미터 위에** 얹어 해석한다
+       (``nightly_retrain``의 full_spec). 그래서 같은 한 줄이 종목마다
+       **다른 설정**을 뜻한다 — 챔피언이 종목마다 다르기 때문이다.
 
-    ⚠️ 이 선별은 비용도 정한다. 패널 재료를 만들려면 홀드아웃에서 후보를
-       한 번 더 재생해야 하는데, 후보 전체(실측 ~50개)가 아니라 이 부분집합
-       (실측 28개)에만 든다. 밤 배치는 시간 예산 안에서 도는 이어달리기라,
-       한 종목이 느려지면 그만큼 다른 종목이 오늘 밤 못 돈다.
+       그 상태로 패널에 담으면 "같은 설정이 여러 종목에서 좋았다"가 아니라
+       서로 다른 설정들의 평균이 된다. 게다가 덧씌우기 형태는 그 자체로는
+       전략을 만들 수 없어(``strategy`` 키가 없다) 홀드아웃 재생이 종목마다
+       조용히 실패했다 — 경고만 쌓이고 판정은 계속 도는, 이 저장소가 가장
+       싫어하는 종류의 침묵이다.
+
+    그래서 여기서 **절대 설정**으로 못 박는다: 덧씌우기 항목은 그 종목의
+    챔피언이 아니라 **기본 챔피언** 위에 얹는다. 그러면 어느 종목에서 재든
+    똑같은 한 가지 설정이고, 비교되는 것은 "이 고정 설정이 각 종목의 현
+    챔피언을 이기는가"라는 하나의 질문이 된다.
+
+    ⚠️ 어떤 종목에서는 이 설정이 그 종목의 챔피언과 같을 수 있다(차이가
+       전부 0). 빼지 않는다 — 그 종목에서 이 설정이 이득이 없다는 것이
+       **사실**이고, 사실을 빼면 패널이 낙관 쪽으로 기운다.
     """
-    fixed = {spec_key(c) for c in DEFAULT_CHALLENGERS}
-    return [c for c in challengers if spec_key(c) in fixed]
+    out, seen = [], set()
+    for entry in DEFAULT_CHALLENGERS:
+        if "strategy" in entry:
+            spec = {"strategy": entry["strategy"],
+                    "params": dict(entry.get("params", {}))}
+        else:
+            spec = {"strategy": "ml",
+                    "params": {**DEFAULT_CHAMPION["params"], **entry}}
+        key = spec_key(spec)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(spec)
+    return out
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
@@ -1502,7 +1550,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                # 고정 격자 설정만. 판정에는 아직 안 쓰이고
                                # 장부에 나란히 기록된다(사장님 ①안: 관문을
                                # 바꾸되 기존 관문도 계속 남긴다).
-                               panel_specs=shared_panel_specs(challengers),
+                               panel_specs=shared_panel_specs(),
                                confirm_window=confirm_window,
                                select_t=select_t_eff,
                                confirm_t=confirm_t_eff,

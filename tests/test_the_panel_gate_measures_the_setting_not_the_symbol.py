@@ -402,27 +402,49 @@ def test_the_panel_does_not_yet_decide_who_gets_promoted():
         "같은 밤인데 근거 문장이 다르다 — 판정 경로가 갈렸다는 뜻이다")
 
 
-def test_only_specs_that_stand_on_every_symbol_pay_the_cost():
-    """종목마다 다른 변형은 패널 재료에서 빠진다 — 담아 봐야 뜻이 없다.
+def test_every_panel_spec_means_the_same_thing_on_every_symbol():
+    """패널에 서는 설정은 **종목이 달라도 글자 그대로 같아야** 한다.
 
-    ``mutate_champion()``의 변형은 그 종목 챔피언 주변에서 나온 것이라
-    종목마다 다르다. 한 통에 담으면 "같은 설정이 여러 종목에서 좋았다"가
-    아니라 서로 다른 설정들의 평균이 되고, 그건 아무 뜻도 없는 숫자다.
+    ⚠️ 실제 스냅샷 32종목 연기시험이 잡아낸 결함이다(2026-08-27). 고정 격자의
+       ML 항목은 ``{"model": "gb", "threshold": 0.55}`` 같은 **덧씌우기 형태**
+       이고, 오디션은 그것을 **그 종목 챔피언의 파라미터 위에** 얹어 해석한다.
+       챔피언은 종목마다 다르므로 같은 한 줄이 종목마다 다른 설정을 뜻한다 —
+       그걸 한 통에 담으면 "같은 설정이 여러 종목에서 좋았다"가 아니라 서로
+       다른 설정들의 평균이 되고, 아무 뜻도 없는 숫자가 된다.
+
+       게다가 덧씌우기 형태는 그 자체로 전략을 만들 수 없어서(``strategy``
+       키가 없다) 홀드아웃 재생이 **종목마다 조용히 실패**했다. 경고만 쌓이고
+       판정은 계속 돌았다.
     """
-    from quant.live.retrain import (DEFAULT_CHALLENGERS, build_challengers,
-                                    shared_panel_specs)
+    from quant.live.retrain import build_strategy, shared_panel_specs
 
-    champ = {"strategy": "ml", "params": {"model": "logreg"}}
-    built = build_challengers(champ, seed="2026-08-27:us_stock:AAPL")
-    shared = shared_panel_specs(built)
-    assert shared, "고정 격자 후보가 하나도 안 잡혔다"
-    assert len(shared) < len(built), (
-        "종목마다 다른 변형까지 패널 재료로 세고 있다 — 그 평균은 뜻이 없고 "
-        "홀드아웃 재생 비용만 그만큼 더 든다")
-    fixed = [repr(sorted(c.items())) for c in DEFAULT_CHALLENGERS]
-    for spec in shared:
-        assert repr(sorted(spec.items())) in fixed, (
-            f"여러 종목에 똑같이 서지 않는 설정이 섞였다: {spec}")
+    specs = shared_panel_specs()
+    assert len(specs) >= 5, f"패널에 세울 설정이 너무 적다: {len(specs)}"
+    for spec in specs:
+        assert "strategy" in spec and "params" in spec, (
+            f"덧씌우기 형태가 패널에 섞였다: {spec} — 이건 종목마다 다른 "
+            "설정을 뜻하고, 그 자체로는 전략을 만들 수도 없다")
+        build_strategy(spec)          # 못 만들면 여기서 죽는다(조용한 실패 금지)
+
+
+def test_the_panel_roster_does_not_depend_on_the_symbol():
+    """대조군 — 패널 명단이 **그 종목의 챔피언에 따라 달라지지 않는다**.
+
+    위 검사만으로는 부족하다: 종목마다 다른 명단을 만들어도 각 항목은
+    여전히 온전한 형태일 수 있다. 명단 자체가 종목과 무관해야 한 통에
+    담을 수 있다.
+    """
+    import inspect
+
+    from quant.live.retrain import shared_panel_specs, spec_key
+
+    assert not inspect.signature(shared_panel_specs).parameters, (
+        "패널 명단이 인자를 받는다 — 종목마다 다른 명단이 될 수 있는 문이 "
+        "열려 있다")
+    a = [spec_key(s) for s in shared_panel_specs()]
+    b = [spec_key(s) for s in shared_panel_specs()]
+    assert a == b and len(set(a)) == len(a), (
+        f"패널 명단이 불안정하거나 중복이 있다: {len(a)}개 중 {len(set(a))}개 고유")
 
 
 def test_the_ledger_line_is_plain_json_and_says_how_many_symbols_stood(tmp_path):

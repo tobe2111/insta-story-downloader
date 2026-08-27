@@ -7764,11 +7764,10 @@ MUTATIONS = [
      '        if not panel_specs:',
      '        if False:',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
-    ('종목마다 다른 변형까지 패널 재료로 센다'
-     '(서로 다른 설정들의 평균을 "한 설정의 성적"이라고 부르게 된다)',
+    ('패널 명단을 비운다(패널이 매일 아무것도 안 재는데 배치는 조용하다)',
      'quant/live/retrain.py',
-     '    return [c for c in challengers if spec_key(c) in fixed]',
-     '    return list(challengers)',
+     '    out, seen = [], set()\n    for entry in DEFAULT_CHALLENGERS:',
+     '    out, seen = [], set()\n    for entry in []:',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
@@ -7782,6 +7781,57 @@ MUTATIONS = [
      '        rec["reality_check"] = reality_check(frame.to_numpy())',
      '        rec["reality_check"] = reality_check(frame.to_numpy()[:, :1])',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('덧씌우기 형태를 그대로 패널에 세운다'
+     '(같은 한 줄이 종목마다 다른 설정을 뜻하고, 홀드아웃 재생이 조용히 실패한다)',
+     'quant/live/retrain.py',
+     '            spec = {"strategy": "ml",\n'
+     '                    "params": {**DEFAULT_CHAMPION["params"], **entry}}',
+     '            spec = dict(entry)',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+
+    # ── 피처를 기계가 만든다 (2026-08-27) — 룩어헤드가 여기로 들어오면 끝이다 ──
+    #
+    # 조합 문법이 미래를 한 칸이라도 보면, 그 피처를 쓴 모델은 백테스트에서
+    # **정직하게** 좋아 보이고 오디션의 모든 관문을 통과한다. 관문은 성적을
+    # 보지 데이터의 출처를 보지 않는다. 그래서 여기가 가장 센 닻이다.
+    ('조합 문법이 미래 값을 당겨 오게 한다'
+     '(그 피처를 쓴 모델이 모든 관문을 정당하게 통과하고 실계좌에서만 무너진다)',
+     'quant/strategies/derive.py',
+     '            out = sa.shift(k)',
+     '            out = sa.shift(-k)',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('조합 피처에서 빼 보기를 없앤다(한번 붙은 피처가 영영 안 떨어진다)',
+     'quant/strategies/derive.py',
+     '    moves = ["add", "drop", "swap"] if cur else ["add"]',
+     '    moves = ["add"]',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('조합 피처 개수 상한을 푼다(매일 하나씩 붙어 수십 개짜리 설정이 된다)',
+     'quant/strategies/derive.py',
+     '    if len(cur) >= MAX_DERIVED:\n        moves = ["drop", "swap"]',
+     '    if False:\n        moves = ["drop", "swap"]',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('뜻 없는(상수·거의 결측) 조합 열을 그대로 학습에 넣는다'
+     '(피처인 척하는 상수가 모델의 자리를 차지한다)',
+     'quant/strategies/derive.py',
+     '    if len(valid) < 30 or float(valid.std()) <= 0:',
+     '    if False:',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('조합 위에 조합을 쌓게 한다(아무도 뜻을 설명 못 하는 피처가 챔피언이 된다)',
+     'quant/strategies/derive.py',
+     '    base = sorted(str(c) for c in columns if not str(c).startswith("d_"))',
+     '    base = sorted(str(c) for c in columns)',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('지어낸 조합식이 학습에 안 들어가게 한다'
+     '(설정에는 적혀 있는데 모델은 한 번도 그 피처를 못 본다 — 감사 127·313)',
+     'quant/strategies/ml.py',
+     '        feats = _features(df, extra, self.derive)',
+     '        feats = _features(df, extra)',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
+    ('조합 피처 축을 탐색 표에서 뗀다(기계가 지어낸 식이 링에 못 올라간다)',
+     'quant/live/retrain.py',
+     '    "derive": _axis_derive,',
+     '    "derive_off": _axis_derive,',
+     'tests/test_the_machine_invents_features_not_the_human.py'),
 
     # ── 날짜를 고치고 **형제(측정값)를 놓쳤던 자리** (2026-08-27) ────────
     ('실측 간격을 다시 사전 열쇠에 박는다(다음 회차 측정에 스스로 만료된다)',
