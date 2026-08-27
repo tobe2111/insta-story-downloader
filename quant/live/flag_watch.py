@@ -68,6 +68,33 @@ def _measured_cost_note(n: int) -> str:
             f"전환됩니다(현재 {n}건 — 아직 가정을 씁니다).")
 
 
+# 며칠을 넘기면 '일시 장애'가 아니라 '끊긴 소스'인가. 외부 소스는 하루
+# 이틀 흔들릴 수 있으므로 짧게 잡으면 매번 "사람이 고치세요"가 되고, 그런
+# 경보는 곧 무시된다(감사 99: 매일 울리는 경보는 꺼진 경보와 같다).
+LONG_OUTAGE_DAYS = 3
+
+
+def _missing_streak(hist: list, gone: list) -> int:
+    """이 피처들이 **연속 며칠** 전 종목에서 빠져 있었나.
+
+    ⚠️ 경보 열쇠는 그대로 둔다(피처 이름으로만 만든다). 열쇠에 날짜 수를
+       넣으면 매일 새 열쇠가 되어 **매일 알림이 간다** — 그건 고치는 게
+       아니라 늑대소년을 하나 더 만드는 것이다. 기간은 열쇠가 아니라
+       **문장**에 들어간다.
+    """
+    want = set(gone or ())
+    if not want:
+        return 0
+    days = 0
+    for rec in reversed(hist or ()):
+        miss = set(((rec or {}).get("feature_health") or {})
+                   .get("missing_everywhere") or ())
+        if not want <= miss:
+            break
+        days += 1
+    return days
+
+
 def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
     """status.json 재료에서 지금 켜져 있는 플래그를 {키: 알림 문구}로 모은다.
 
@@ -365,11 +392,26 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
         fh = (hist[-1].get("feature_health") if hist else None) or {}
         gone = fh.get("missing_everywhere") or []
         if gone:
+            days = _missing_streak(hist, gone)
+            why = "; ".join(
+                f"{src}: {(info or {}).get('reason', '')}"
+                for src, info in (fh.get("why_missing") or {}).items())
+            # ⚠️ **하루 장애와 끊긴 소스를 같은 문장으로 말하지 않는다.**
+            #    경보 열쇠는 그대로라 매일 다시 울리지는 않지만, 울릴 때
+            #    "어제 잠깐"인지 "42일째"인지가 안 적히면 읽는 쪽이 할 일을
+            #    못 정한다 — 전자는 기다리면 되고 후자는 사람이 고쳐야 한다.
+            span = (f"{days}일째 계속" if days >= LONG_OUTAGE_DAYS
+                    else (f"{days}일 연속" if days > 1 else "오늘"))
+            kind = ("**일시 장애가 아닙니다** — 소스가 끊겼거나 설정이 빠진 "
+                    "것이라 사람이 고쳐야 합니다."
+                    if days >= LONG_OUTAGE_DAYS else
+                    "외부 데이터 소스의 일시 장애일 수 있습니다.")
             flags["features_missing:" + ",".join(sorted(gone))] = (
-                f"⚠️ 피처 유실: {len(gone)}개가 전 종목에서 빠졌습니다 "
-                f"({', '.join(gone)}). 외부 데이터 소스 장애일 가능성이 큽니다 — "
+                f"⚠️ 피처 유실({span}): {len(gone)}개가 전 종목에서 빠졌습니다 "
+                f"({', '.join(gone)}). {kind} "
                 f"장부에는 같은 구조 태그로 기록되지만 모델은 다른 피처로 "
-                f"학습·판단합니다.")
+                f"학습·판단합니다."
+                + (f"\n사유: {why}" if why else ""))
 
     # ⑦ 새벽 배치 부분 실패 — '전 종목 실패'만 예외로 올리던 탓에 20종목 중
     #    19개가 실패한 날도 잡은 초록이었다(2026-08-11 발견). 실패한 종목은

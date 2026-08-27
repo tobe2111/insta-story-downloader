@@ -355,7 +355,8 @@ def ml_search_axes(params: dict | None = None) -> dict:
     return axes
 
 
-def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
+def mutate_champion(spec: dict, seed: str, n: int = 4, *,
+                    strip_defaults: bool = True) -> list[dict]:
     """현재 챔피언의 '돌연변이' 후보를 만든다 — 진화 탐색의 엔진.
 
     고정 후보만으로는 그 목록 밖의 설정을 영원히 탐색하지 못한다. 매일 밤
@@ -369,10 +370,16 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
     설정도 계속 움직이고, 이 탐색은 그 이동을 '따라가는' 장치일 뿐이다.
     """
     import random
+
+    def _key(cand: dict) -> str:
+        """중복 판정용 열쇠 — **하는 일**이 같으면 같은 열쇠가 나와야 한다."""
+        return json.dumps(strip_default_params(cand) if strip_defaults else cand,
+                          sort_keys=True)
+
     rng = random.Random(f"{seed}:{json.dumps(spec, sort_keys=True)}")
     params = spec.get("params", {})
     out: list[dict] = []
-    seen = {json.dumps(spec, sort_keys=True)}
+    seen = {_key(spec)}
     for _ in range(n * 8):                     # 중복 제거를 감안해 넉넉히 시도
         if len(out) >= n:
             break
@@ -401,11 +408,54 @@ def mutate_champion(spec: dict, seed: str, n: int = 4) -> list[dict]:
             v = p[k] * rng.choice([0.6, 0.8, 1.25, 1.6])
             p[k] = max(2, int(round(v))) if isinstance(p[k], int) else round(v, 4)
         cand = {"strategy": spec["strategy"], "params": p}
-        cand_key = json.dumps(cand, sort_keys=True)
+        cand_key = _key(cand)
         if cand_key not in seen:
             seen.add(cand_key)
-            out.append(cand)
+            # 기본값으로 적힌 손잡이는 **적힌 채로 두지 않는다** — 그래야
+            # 장부의 설정과 패널 열쇠가 '하는 일'과 1:1로 맞는다.
+            out.append(strip_default_params(cand) if strip_defaults else cand)
     return out
+
+
+def default_params(strategy: str) -> dict:
+    """전략 생성자가 **적지 않으면 쓰는 값**들 — 손잡이의 '기본 위치'.
+
+    레지스트리의 클래스에게 직접 묻는다(손으로 적은 표를 두면 언젠가 갈라진다).
+    래퍼(regime_wrap 등)와 사용자 명세(spec)는 생성자가 다른 전략을 품고
+    있어 이 방식이 안 맞으므로 빈 dict를 돌려준다 — 모르면 아무것도 지우지
+    않는 쪽이 안전하다.
+    """
+    import inspect
+
+    from quant.strategies import _REGISTRY
+
+    cls = _REGISTRY.get(strategy)
+    if cls is None:
+        return {}
+    try:
+        sig = inspect.signature(cls.__init__)
+    except (TypeError, ValueError):      # pragma: no cover — 내장/래핑 생성자
+        return {}
+    return {k: v.default for k, v in sig.parameters.items()
+            if v.default is not inspect.Parameter.empty}
+
+
+def strip_default_params(spec: dict) -> dict:
+    """기본값과 **똑같은 값으로 적힌** 파라미터를 지운 사본.
+
+    ``{"model": "logreg"}``와 ``{"model": "logreg", "sample_weight": None}``은
+    글자는 다르지만 **하는 일이 완전히 같다**(sample_weight의 기본값이 None).
+    그래서 정규화 없이 문자열로 중복을 판정하면 뒤의 것이 '새 후보'로 통과한다.
+    """
+    # ⚠️ 기본값을 못 읽는 전략(래퍼·사용자 명세)은 defaults가 비고, 그러면
+    #    아래에서 **아무것도 안 지워진다**. 모를 때 지우는 쪽을 택하면
+    #    사용자가 적어 넣은 값이 조용히 사라진다 — 되돌릴 수 없는 실수다.
+    params = dict(spec.get("params", {}))
+    defaults = default_params(spec.get("strategy", ""))
+    kept = {k: v for k, v in params.items()
+            if not (k in defaults and v == defaults[k]
+                    and type(v) is type(defaults[k]))}
+    return {**spec, "params": kept}
 
 
 def build_strategy(spec: dict):
@@ -820,16 +870,30 @@ def nightly_retrain(
         "candidates": candidates, "inert": inert})
 
 
-# 하룻밤에 패널로 재는 설정 수. 전부(28개) 재면 종목당 시간이 **두 배**가
-# 되고(실측 +109%), 시간 예산 1800초 안에 도는 종목이 26 → 12로 반토막 난다.
-# 그러면 각 종목이 오디션을 받는 주기가 1.5일에서 3일로 늘어나는데,
-# 화면에는 아무 빨간불도 안 뜬다 — 이 저장소가 반복해서 막아 온 종류의
-# 조용한 퇴행이다(2026-08-27 실측으로 붙잡았다).
+# 하룻밤에 패널로 재는 설정 수 — **짐작이 아니라 실측으로** 정했다
+# (한국주식 4~6종목, 스냅샷 2026-08-26, 종목당 오디션 ~71초 기준):
+#
+#     명단 전체(28개)  → +109%  · 예산 1800초 처리 종목 26 → 12  (반토막)
+#     하룻밤 6개       →  +37%  ·                      25 → 18
+#     하룻밤 3개       →   +8%  ·                      25 → 23   ← 채택
+#
+# 전부 매일 재면 각 종목의 오디션 주기가 1.5일에서 3일로 늘어나는데 **화면에는
+# 아무 빨간불도 안 뜬다** — 커서에 '못 돈 종목'이 조금 늘 뿐이다. 이 저장소가
+# 반복해서 막아 온 종류의 조용한 퇴행이고, 하필 패널 배선이 만들었다.
 #
 # 그래서 **날짜로 회전**한다: 그날 밤 모든 종목이 **같은 부분집합**을 돌고,
 # 며칠에 걸쳐 명단 전체가 한 바퀴 돈다. 패널의 전제("같은 설정을 여러 종목이
 # 함께 잰다")는 그대로다 — 나뉘는 것은 종목이 아니라 날짜다.
-PANEL_ROSTER_PER_NIGHT = 6
+#
+# ⚠️ 비용은 뽑히는 설정에 따라 **고르지 않다**. 6개일 때 +37%가 나온 것은
+#    그날 표본에 풀링(pool) ML이 섞였기 때문이다 — 그 설정들은 다른 종목
+#    스냅샷을 읽어 학습해서 몇 배 비싸다. 그래서 명단 크기를 조금만 키워도
+#    최악의 밤이 크게 나빠질 수 있다. 키울 거면 **다시 재고 키운다.**
+#
+# ⚠️ 지금 패널은 **기록만** 한다(승격은 종목별 관문이 정한다). 즉 이 8%는
+#    아직 이득 없이 내는 비용이다. 관문을 실제로 옮길 때 이 수치를 근거로
+#    명단 크기를 다시 정한다.
+PANEL_ROSTER_PER_NIGHT = 3
 
 
 def panel_roster() -> list[dict]:
@@ -848,6 +912,14 @@ def panel_roster() -> list[dict]:
        조용히 실패했다 — 경고만 쌓이고 판정은 계속 도는, 이 저장소가 가장
        싫어하는 종류의 침묵이다.
 
+    ⚠️ 명단은 고정 격자(``DEFAULT_CHALLENGERS``)와 고정 전략형 후보
+       (``FIXED_CHALLENGERS``) **둘 다**에서 나온다. 처음에는 앞의 것만
+       봤는데, 그러면 패널에 **가장 잘 어울리는 후보들이 빠진다**: 가설
+       규칙 여섯 개(월말 수급·PEAD·만기 주간·FOMC 표류·펀딩 과열 회피·
+       월말 강제 리밸런싱)는 파라미터까지 전 종목이 동일해서, "이 규칙이
+       여러 종목에서 **함께** 도움이 되는가"가 바로 그 규칙들이 답해야 할
+       질문이다. 회전 때문에 하룻밤 비용은 안 늘고 한 바퀴 주기만 길어진다.
+
     그래서 여기서 **절대 설정**으로 못 박는다: 덧씌우기 항목은 그 종목의
     챔피언이 아니라 **기본 챔피언** 위에 얹는다. 그러면 어느 종목에서 재든
     똑같은 한 가지 설정이고, 비교되는 것은 "이 고정 설정이 각 종목의 현
@@ -858,7 +930,7 @@ def panel_roster() -> list[dict]:
        **사실**이고, 사실을 빼면 패널이 낙관 쪽으로 기운다.
     """
     out, seen = [], set()
-    for entry in DEFAULT_CHALLENGERS:
+    for entry in list(DEFAULT_CHALLENGERS) + list(FIXED_CHALLENGERS):
         if "strategy" in entry:
             spec = {"strategy": entry["strategy"],
                     "params": dict(entry.get("params", {}))}
@@ -892,9 +964,21 @@ def shared_panel_specs(asof: str | None = None) -> list[dict]:
     roster = panel_roster()
     if asof is None or len(roster) <= PANEL_ROSTER_PER_NIGHT:
         return roster
-    import random
-    rng = random.Random(f"panel-roster:{asof}")
-    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)
+    # ⚠️ **무작위 추출이 아니라 순환이다.** 처음에는 날짜를 시드로 뽑았는데,
+    #    복원추출이라 어떤 설정은 2주가 지나도 한 번도 안 뽑혔다(실측: 14일에
+    #    46개 중 30개). 그러면 "며칠에 걸쳐 명단 전체를 돈다"는 말이 사실이
+    #    아니게 되고, 안 뽑힌 설정은 **영영 안 재질 수도** 있다.
+    #    날짜에서 시작 위치를 정해 창을 밀면 ceil(46/3)=16일이면 반드시
+    #    한 바퀴가 돈다 — 그리고 여전히 날짜만 보므로 결정적이다.
+    import datetime as _dt
+
+    try:
+        day_no = _dt.date.fromisoformat(str(asof)[:10]).toordinal()
+    except ValueError:
+        day_no = abs(hash(str(asof)))          # 날짜를 못 읽어도 결정적으로
+    n = len(roster)
+    start = (day_no * PANEL_ROSTER_PER_NIGHT) % n
+    return [roster[(start + i) % n] for i in range(PANEL_ROSTER_PER_NIGHT)]
 
 
 def champion_spec(market: str, symbol: str, state_dir: str = STATE_DIR) -> dict:
@@ -1015,47 +1099,37 @@ def _user_specs(state_dir: str | None) -> list[dict]:
     return cands
 
 
-def build_challengers(current_spec: dict, seed: str,
-                      evolve: bool = True,
-                      state_dir: str | None = None) -> list[dict]:
-    """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
-
-    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형
-    + **사용자가 자료에서 가져온 명세**(있으면).
-
-    래핑된 챔피언에는 '벗긴 원본'을 도전시켜 되돌아갈 길을 항상 열어 둔다.
-
-    ⚠️ 사용자 명세는 여기 **도전자로** 들어온다. 챔피언으로 바로 가는 길은
-       없다 — 검증이 이 제품의 전부인데 새 전략만 그것을 건너뛰면 앞뒤가
-       안 맞는다. 그리고 후보가 늘어난 만큼 다중검정 문턱도 같이 올라간다
-       (호출부가 `len(challengers)`로 시도 수를 세므로 저절로 따라온다).
-    """
-    challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
-    challengers += _user_specs(state_dir)
+# ── 종목이 달라도 **글자 그대로 같은** 고정 후보들 ────────────────────────
+#
+# 예전에는 이 목록이 build_challengers 안에 인라인으로 흩어져 있었다. 그래서
+# 패널 관문(panel_roster)이 이것들을 못 봤다 — 패널은 "한 설정이 여러 종목에서
+# 함께 좋은가"를 묻는 장치인데, **가장 잘 어울리는 후보들**(가설 규칙 여섯 개는
+# 파라미터까지 전 종목 동일하다)이 명단 밖에 있었던 것이다.
+#
+# 목록을 여기 한 곳에 두고 양쪽이 같은 출처를 본다. 두 곳에 적으면 언젠가
+# 갈라지고, 갈라진 쪽은 조용히 탐색·측정에서 빠진다(FROZEN_IDEAS ①).
+#
+# ⚠️ 여기 한 줄을 더하면 **두 가지가 동시에 일어난다**: 밤 오디션 링에 서고,
+#    패널 명단에도 들어간다. 패널은 날짜로 회전하므로 하룻밤 비용은 안 늘고
+#    한 바퀴 도는 주기만 길어진다.
+FIXED_CHALLENGERS = [
     # 터틀 트레이딩(사장님 제안 2026-08-18) — 규칙이 완전히 공개된 결정적
     # 추세추종. 시스템1(20/10)과 시스템2(55/20) 둘 다 링에 세운다.
     # 전설이라도 심사는 똑같다 — 이겨야 챔피언이다.
-    challengers += [
         {"strategy": "turtle", "params": {"entry_window": 20, "exit_window": 10}},
         {"strategy": "turtle", "params": {"entry_window": 55, "exit_window": 20}},
-    ]
     # 사장님이 공유한 차트 자료(2026-08-18)에서 옮긴 결정적 전략 3종 —
     # 볼린저 두 활용법·파라볼릭 SAR·일목균형표. 링은 넓어지고, 다중검정
     # 문턱은 후보 수만큼 자동으로 올라간다.
-    challengers += [
         {"strategy": "bollinger", "params": {"mode": "reversion"}},
         {"strategy": "bollinger", "params": {"mode": "squeeze"}},
         {"strategy": "psar", "params": {}},
         {"strategy": "ichimoku", "params": {}},
-    ]
     # 자동 자료 수집 라운드(2026-08-18, 사장님 승인 "수집 주기적으로 해")가
     # 가져온 첫 도전자 — 듀얼 스러스트(공개 수식, 시가 기준 범위 돌파).
-    challengers += [
         {"strategy": "dual_thrust", "params": {"window": 4, "k1": 0.5, "k2": 0.5}},
-    ]
     # 수급 논문 재현(사장님 자료, 2026-08-18) — SOM 군집 + 군집별 통계.
     # 수급 피처가 없는 시장에서는 관망만 내는 무해한 후보다.
-    challengers += [
         {"strategy": "supply_som", "params": {}},
         # 슈퍼트렌드(2026-08-19 수집 라운드) — ATR 밴드 래칫 추세.
         {"strategy": "supertrend", "params": {"period": 10, "mult": 3.0}},
@@ -1098,10 +1172,32 @@ def build_challengers(current_spec: dict, seed: str,
         # 롱 쏠림 = 강제 청산(가격에 둔감한 매도) 연쇄에 취약하다는 가설.
         # funding 컬럼이 없는 시장(주식)은 관망 — 무해하다.
         {"strategy": "funding_guard", "params": {"window": 180, "quantile": 0.9}},
-    ]
+]
+
+
+def build_challengers(current_spec: dict, seed: str,
+                      evolve: bool = True,
+                      state_dir: str | None = None,
+                      strip_defaults: bool = True) -> list[dict]:
+    """그날의 도전자 링을 결정적으로 구성한다 (run_retrain과 verify가 공유).
+
+    고정 기본 후보 + 챔피언 돌연변이(시드 결정적) + 레짐/이벤트 래핑 변형
+    + **사용자가 자료에서 가져온 명세**(있으면).
+
+    래핑된 챔피언에는 '벗긴 원본'을 도전시켜 되돌아갈 길을 항상 열어 둔다.
+
+    ⚠️ 사용자 명세는 여기 **도전자로** 들어온다. 챔피언으로 바로 가는 길은
+       없다 — 검증이 이 제품의 전부인데 새 전략만 그것을 건너뛰면 앞뒤가
+       안 맞는다. 그리고 후보가 늘어난 만큼 다중검정 문턱도 같이 올라간다
+       (호출부가 `len(challengers)`로 시도 수를 세므로 저절로 따라온다).
+    """
+    challengers = _normalize_challengers(DEFAULT_CHALLENGERS, current_spec)
+    challengers += _user_specs(state_dir)
+    challengers += list(FIXED_CHALLENGERS)
     if not evolve:
         return challengers
-    challengers += mutate_champion(current_spec, seed=seed)
+    challengers += mutate_champion(current_spec, seed=seed,
+                                   strip_defaults=strip_defaults)
     if current_spec["strategy"] != "regime_wrap":
         challengers.append({"strategy": "regime_wrap",
                             "params": {"inner": current_spec,
@@ -1139,18 +1235,54 @@ def build_challengers(current_spec: dict, seed: str,
 POOL_WAKE_DAYS = 120
 
 
+def effective_params(cand: dict, champion: dict | None = None) -> dict:
+    """후보가 **실제로 돌 때** 쓰게 될 파라미터.
+
+    링에는 두 가지 모양이 섞여 있다:
+
+        온전형   {"strategy": "ml", "params": {"model": "gb", ...}}
+        덧씌우기 {"model": "gb", "pool": "peers"}   ← 챔피언 위에 얹힌다
+
+    덧씌우기형은 ``nightly_retrain``이 챔피언 파라미터 위에 얹어 해석한다.
+    그러니 "이 후보가 무엇을 쓰는가"를 물으려면 **같은 방식으로** 합쳐 봐야
+    한다. 합치지 않고 ``params``만 들여다보면 덧씌우기형은 언제나 빈 dict로
+    보인다 — 실제로 그 착각이 안전장치 하나를 통째로 잠재웠다(아래).
+    """
+    if not isinstance(cand, dict):
+        return {}
+    if "strategy" in cand:
+        return dict(cand.get("params") or {})
+    base = dict((champion or {}).get("params") or {})
+    base.update(cand)
+    return base
+
+
 def _split_sleeping(challengers: list, state_dir: str,
-                    min_days: int = POOL_WAKE_DAYS) -> tuple[list, list]:
+                    min_days: int = POOL_WAKE_DAYS,
+                    champion: dict | None = None) -> tuple[list, list]:
     """지금 돌 수 있는 후보와 **아직 잠든** 후보로 가른다 (감사 297).
 
     잠든 후보는 오늘 링에서 빠지고 시도 수에도 안 들어간다. 다만 후보
     목록에서 사라지는 것은 아니다 — 조건이 차면 다음 밤부터 저절로 돌아온다.
+
+    ⚠️ **이 장치는 붙여 놓고 한 번도 작동한 적이 없었다**(2026-08-27 장부
+       실측으로 발견). 예전 코드는 ``c.get("params")``만 봤는데, 이 장치가
+       지키려던 바로 그 후보들 — 고정 격자의 ``{"model": "gb", "pool":
+       "peers"}`` — 은 **덧씌우기형**이라 ``params`` 키가 아예 없다. 그래서
+       ``pool``이 언제나 ``None``으로 읽혔고, 잠든 후보는 **0개**로 나왔다.
+
+       장부가 그것을 그대로 보여 준다: 장치를 붙인 2026-08-20 **이후에도**
+       ``pool="peers"``가 무동작으로 계속 잡혔다(8/24 34종목 중 29,
+       8/26 32종목 중 30). 즉 매일 밤 거의 모든 종목에서 못 도는 후보가
+       링에 서서 시도 수를 부풀리고 백테스트 시간을 썼다.
+
+       고장 난 안전장치와 조용한 실패가 서로를 가려 준 전형적인 모양이다 —
+       화면에는 아무 빨간불도 안 떴다.
     """
     from quant.strategies.ml import pool_ready
     live, asleep = [], []
     for c in challengers:
-        p = (c.get("params") or {}) if isinstance(c, dict) else {}
-        pool = p.get("pool")
+        pool = effective_params(c, champion).get("pool")
         if pool is not None and not pool_ready(pool, state_dir, min_days):
             asleep.append(c)
         else:
@@ -1382,7 +1514,12 @@ def verify_retrain(asof: str, *, market: str | None = None,
         # 사용자 명세는 **장부에 적힌 그날 것**을 쓴다(폴더가 아니라).
         # 옛 기록에는 이 칸이 없다 — 그때는 기능이 없었으므로 빈 목록이
         # 맞다. 폴더를 읽으면 오늘 폴더로 어제를 재현하게 된다.
-        challengers = build_challengers(before, seed=rec["mutation_seed"])
+        challengers = build_challengers(
+            before, seed=rec["mutation_seed"],
+            # 도전자 생성 세대 — v2부터 헛수고 후보(이미 기본값인 손잡이를
+            # 기본값으로 설정한 것)를 만들지 않는다. 옛 기록은 그것들이
+            # 링에 섞여 있던 세계의 결정이므로 그대로 재현한다.
+            strip_defaults=int(rec.get("challenger_version", 1)) >= 2)
         challengers += list(rec.get("user_specs") or [])
         decision = nightly_retrain(
             df, before, challengers, confirm_window=confirm_window,
@@ -1547,7 +1684,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     #       없어 장기적으로는 더 정직한 쪽이다. 스냅샷이 쌓이면 이 관문은
     #       저절로 열리고 그날부터 링에 다시 선다. 지금 빼는 것은 후보가
     #       아니라 **헛세기**다.
-    challengers, asleep = _split_sleeping(challengers, state_dir)
+    challengers, asleep = _split_sleeping(challengers, state_dir,
+                                          champion=current_spec)
     if asleep:
         log.info("아직 못 도는 후보 %d개는 시도 수에서 뺍니다(스냅샷 부족) "
                  "— 목록에는 남고, 쌓이면 다시 링에 섭니다", len(asleep))
@@ -1677,6 +1815,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 오늘 링 전체를 놓고 '최고 성적이 우연일 확률'을 부트스트랩으로 잰다.
         # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
         "gate_version": 3,
+        # 도전자 생성 세대 — v2(2026-08-27): 언덕오르기가 "이미 기본값인
+        # 손잡이를 기본값으로 설정하는" 헛수고 후보를 만들지 않는다(실측
+        # 16.8%). 옛 기록(v1)은 그 헛수고가 링에 섞여 있던 세계의 결정이므로
+        # verify가 그대로 재현한다 — 과거 기록은 고치지 않는다.
+        "challenger_version": 2,
         # 동시검정 결과 — 결승까지 간 날만 값이 있다(그 외 None). p가 클수록
         # "후보가 많아 하나쯤 우연히 좋아 보였을" 가능성이 크다는 뜻.
         "reality_check": decision.get("reality_check"),
@@ -1788,7 +1931,8 @@ def _today_iso() -> str:
     return _dt.date.today().isoformat()
 
 
-def record_panel(asof: str, collector, state_dir: str = STATE_DIR) -> dict:
+def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
+                 n_symbols_seen: int = 0) -> dict:
     """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
 
     승격 판단은 아직 이 값을 보지 않는다. 사장님 ①안의 조건이 "관문을 바꾸되
@@ -1811,6 +1955,11 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR) -> dict:
         # 전체가 한 바퀴 돈다. 이 숫자를 안 적으면 나중에 "왜 이 설정이
         # 저 날 장부에 없나"에 답할 수 없다.
         "roster_size": PANEL_ROSTER_PER_NIGHT,
+        # 그날 밤 오디션을 **실제로 연** 종목 수. 설정이 0개 판정된 날
+        # 이 숫자가 0이면 "밤 배치가 안 돌았다"이고, 0이 아니면 "돌았는데
+        # 패널이 재료를 못 모았다"(고장)이다 — 둘은 다른 사건이고 다른
+        # 사람이 고쳐야 한다.
+        "n_symbols_seen": int(n_symbols_seen),
         "n_specs_judged": len(judged),
         "t_ref": PANEL_T_REF,
         # 판정된 설정만 담는다 — 종목이 모자라 못 잰 것을 '통과'로도
@@ -1941,19 +2090,26 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             log.warning("재학습 커서 저장 실패")
     # 패널 관문 — 판정하고 **기록만** 한다(승격은 아직 종목별 관문이 정한다).
     # 실패해도 밤 배치를 죽이지 않는다: 이건 아직 관문이 아니라 관측이다.
+    # ⚠️ **재료가 하나도 안 모인 밤에도 줄을 남긴다.** 예전에는 `if
+    #    panel.specs:`로 감싸서, 재료가 0이면 장부에 아무것도 안 적혔다.
+    #    그러면 "패널이 아무것도 못 쟀다"와 "밤 배치가 아예 안 돌았다"가
+    #    장부에서 **똑같이 보인다** — 전자는 고장이고 후자는 다른 경보가
+    #    맡는 사건인데, 구별할 방법이 없으면 둘 다 늦게 발견된다.
+    #    없는 줄은 침묵이고, 침묵은 이 저장소에서 가장 비싼 실패다.
     panel_rec = None
-    if panel.specs:
-        try:
-            panel_rec = record_panel(panel_asof or _today_iso(), panel,
-                                     kwargs.get("state_dir", STATE_DIR))
-            rc = panel_rec.get("reality_check") or {}
-            print(f"  📊 패널 관문(기록 전용): 설정 "
-                  f"{panel_rec['n_specs_judged']}/"
-                  f"{panel_rec['n_specs_collected']}개 판정 · "
-                  + ("동시검정 생략" if rc.get("skipped")
-                     else f"동시검정 p={rc.get('p')}"))
-        except Exception as exc:  # noqa: BLE001 — 관측 실패가 배치를 못 죽인다
-            log.warning("패널 관문 기록 실패: %s", exc)
+    try:
+        panel_rec = record_panel(panel_asof or _today_iso(), panel,
+                                 kwargs.get("state_dir", STATE_DIR),
+                                 n_symbols_seen=len(ok))
+        rc = panel_rec.get("reality_check") or {}
+        print(f"  📊 패널 관문(기록 전용): 설정 "
+              f"{panel_rec['n_specs_judged']}/"
+              f"{panel_rec['n_specs_collected']}개 판정 · "
+              f"종목 {panel_rec['n_symbols_seen']} · "
+              + ("동시검정 생략" if rc.get("skipped")
+                 else f"동시검정 p={rc.get('p')}"))
+    except Exception as exc:  # noqa: BLE001 — 관측 실패가 배치를 못 죽인다
+        log.warning("패널 관문 기록 실패: %s", exc)
 
     print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 건너뜀 "
           f"{len(skipped)} · 실패 {len(failed)}"

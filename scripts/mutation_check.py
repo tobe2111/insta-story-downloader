@@ -6832,7 +6832,8 @@ MUTATIONS = [
     # ── 못 도는 후보는 찾아본 것이 아니다 (2026-08-20 감사 297) ─────
     ('잠든 후보도 시도 수에 넣는다(못 돈 후보가 문턱을 올려 진짜 발견을 깎는다)',
      'quant/live/retrain.py',
-     '    challengers, asleep = _split_sleeping(challengers, state_dir)',
+     '    challengers, asleep = _split_sleeping(challengers, state_dir,\n'
+     '                                          champion=current_spec)',
      '    asleep = []',
      'tests/test_a_sleeping_candidate_is_not_a_search.py'),
     ('풀링 후보를 영영 재운다(스냅샷이 쌓여도 peers가 다시 안 선다)',
@@ -7699,8 +7700,9 @@ MUTATIONS = [
     # ── 투자 로직은 기계가 개선한다 (2026-08-27 사장님 지시) ──────────
     ('자동 후보 생성기를 링에서 뗀다(탐색이 손으로 적은 격자에만 갇힌다)',
      'quant/live/retrain.py',
-     '    challengers += mutate_champion(current_spec, seed=seed)',
-     '    challengers += []  # mutate_champion(current_spec, seed=seed)',
+     '    challengers += mutate_champion(current_spec, seed=seed,\n'
+     '                                   strip_defaults=strip_defaults)',
+     '    challengers += []  # mutate_champion(...)',
      'tests/test_the_machine_searches_not_the_human.py'),
 
     # ── 탐색 공간이 스스로 넓어지는 장치 (2026-08-27 사장님 지시) ────────
@@ -7766,7 +7768,7 @@ MUTATIONS = [
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 명단을 비운다(패널이 매일 아무것도 안 재는데 배치는 조용하다)',
      'quant/live/retrain.py',
-     '    out, seen = [], set()\n    for entry in DEFAULT_CHALLENGERS:',
+     '    out, seen = [], set()\n    for entry in list(DEFAULT_CHALLENGERS) + list(FIXED_CHALLENGERS):',
      '    out, seen = [], set()\n    for entry in []:',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('하룻밤 패널 명단의 상한을 푼다'
@@ -7776,11 +7778,18 @@ MUTATIONS = [
      '        return roster',
      '    if True:\n        return roster',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
-    ('패널 명단을 회전시키지 않고 앞에서 여섯 개로 고정한다'
-     '(나머지 22개 설정은 한 번도 패널에 못 서고 아무도 모른다)',
+    ('패널 명단을 회전시키지 않고 앞에서부터 고정한다'
+     '(나머지 설정은 한 번도 패널에 못 서고 아무도 모른다)',
      'quant/live/retrain.py',
-     '    return rng.sample(roster, PANEL_ROSTER_PER_NIGHT)',
-     '    return roster[:PANEL_ROSTER_PER_NIGHT]',
+     '    start = (day_no * PANEL_ROSTER_PER_NIGHT) % n',
+     '    start = 0',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('순환을 복원추출로 되돌린다'
+     "('며칠이면 한 바퀴'가 사실이 아니게 되고 어떤 설정은 영영 안 재질 수 있다)",
+     'quant/live/retrain.py',
+     '    return [roster[(start + i) % n] for i in range(PANEL_ROSTER_PER_NIGHT)]',
+     '    import random\n'
+     '    return random.Random(day_no).sample(roster, PANEL_ROSTER_PER_NIGHT)',
      'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
     ('패널 명단을 종목별로 뽑는다'
      '(설정마다 참여 종목이 한둘로 쪼개져 비용만 쓰고 아무것도 못 잰다)',
@@ -7818,6 +7827,110 @@ MUTATIONS = [
      '        {"strategy": "rebalance_flow", "params": {}},',
      '        {"strategy": "rebalance_flow_off", "params": {}},',
      'tests/test_the_rebalance_flow_hypothesis_is_testable.py'),
+
+    # ── 패널 명단·침묵 (2026-08-27) ──────────────────────────────────────
+    ('재료가 0인 밤에는 패널 장부에 아무것도 안 적는다'
+     "('못 쟀다'와 '배치가 안 돌았다'가 장부에서 똑같아진다 — 둘 다 늦게 발견)",
+     'quant/live/retrain.py',
+     '        panel_rec = record_panel(panel_asof or _today_iso(), panel,',
+     '        if not panel.specs:\n            raise RuntimeError("skip")\n'
+     '        panel_rec = record_panel(panel_asof or _today_iso(), panel,',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('가설 규칙들을 패널 명단에서 뺀다'
+     '(패널에 가장 잘 어울리는 후보들이 정작 안 재진다)',
+     'quant/live/retrain.py',
+     '    for entry in list(DEFAULT_CHALLENGERS) + list(FIXED_CHALLENGERS):',
+     '    for entry in list(DEFAULT_CHALLENGERS):',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('오디션 링을 패널과 다른 목록에서 만든다'
+     '(두 곳에 적으면 갈라지고, 갈라진 쪽은 조용히 측정에서 빠진다)',
+     'quant/live/retrain.py',
+     '    challengers += list(FIXED_CHALLENGERS)',
+     '    challengers += list(FIXED_CHALLENGERS)[:3]',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+
+    # ── 언덕오르기의 헛수고 (2026-08-27 장부 실측 16.8%) ─────────────────
+    ('중복 판정을 다시 글자 그대로 한다'
+     '(하는 일이 같은 후보가 매일 탐색 기회 넷 중 하나를 가져간다)',
+     'quant/live/retrain.py',
+     '        return json.dumps(strip_default_params(cand) if strip_defaults else cand,',
+     '        return json.dumps(cand,',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    ('기본값과 다른 값까지 지운다(장부에 적힌 설정과 실제로 돈 것이 갈라진다)',
+     'quant/live/retrain.py',
+     '    kept = {k: v for k, v in params.items()\n'
+     '            if not (k in defaults and v == defaults[k]\n'
+     '                    and type(v) is type(defaults[k]))}',
+     '    kept = {k: v for k, v in params.items() if k not in defaults}',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    # ⚠️ 은퇴한 닻(2026-08-27): "모르는 전략의 설정도 지운다".
+    #    `if not defaults: return dict(spec)` 조기반환을 없애도 아래 축약이
+    #    같은 일을 해서 **변이가 무해했다**(놓침 1). 아무것도 안 지키는
+    #    분기였으므로 코드에서 걷어냈다 — 지키는 것은 여전히
+    #    test_an_unknown_strategy_loses_nothing이 한다.
+    ('재현 검증이 그날의 도전자 세대를 무시한다'
+     "(옛 결정을 오늘 규칙으로 재생해 '조작 의심' 경보가 틀린 이름으로 울린다)",
+     'quant/live/retrain.py',
+     '            strip_defaults=int(rec.get("challenger_version", 1)) >= 2)',
+     '            strip_defaults=True)',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+    ('링 구성기가 옛 세대를 기본으로 되돌린다(고친 것이 밤 배치에 안 걸린다)',
+     'quant/live/retrain.py',
+     '                      strip_defaults: bool = True) -> list[dict]:',
+     '                      strip_defaults: bool = False) -> list[dict]:',
+     'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+
+    # ── 잠든 후보 장치 (2026-08-27) — 붙여 놓고 한 번도 안 돌던 자리 ─────
+    #
+    # 감사 297이 만든 장치인데, 링의 **덧씌우기형**(params 키가 없는 고정
+    # 격자 ML 항목)을 못 읽어 잠든 후보가 늘 0개였다. 장부가 그것을 그대로
+    # 보여 준다: 장치를 붙인 뒤에도 pool="peers"가 8/26 32종목 중 30에서
+    # 무동작으로 잡혔다. 고장 난 안전장치와 조용한 실패가 서로를 가려 줬다.
+    ('덧씌우기형 후보의 손잡이를 다시 못 보게 한다'
+     '(못 도는 후보가 매일 링에 서서 시도 수를 부풀리고 시간을 쓴다)',
+     'quant/live/retrain.py',
+     '    if "strategy" in cand:\n        return dict(cand.get("params") or {})\n'
+     '    base = dict((champion or {}).get("params") or {})\n'
+     '    base.update(cand)\n'
+     '    return base',
+     '    return dict(cand.get("params") or {})',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
+    ('온전형 후보에 챔피언 값을 섞는다(그 자체로 완결인 설정이 오염된다)',
+     'quant/live/retrain.py',
+     '    if "strategy" in cand:\n        return dict(cand.get("params") or {})',
+     '    if False:\n        return dict(cand.get("params") or {})',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
+    # (같은 줄을 찌르는 닻이 이미 있다: "잠든 후보도 시도 수에 넣는다".
+    #  챔피언을 넘기는지는 test_the_nightly_batch_passes_the_champion_in이
+    #  호출 계약으로 지킨다.)
+    ('돌 수 있는 후보까지 재운다(링이 통째로 비는데 이름은 여전히 관문이다)',
+     'quant/live/retrain.py',
+     '        if pool is not None and not pool_ready(pool, state_dir, min_days):',
+     '        if True:',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
+
+    # ── 피처 유실 경보에 '얼마나 오래' (2026-08-27) ──────────────────────
+    ('연속 결손 일수를 안 센다(하루 장애와 42일째 끊긴 소스를 같은 문장으로 말한다)',
+     'quant/live/flag_watch.py',
+     '            days = _missing_streak(hist, gone)',
+     '            days = 1',
+     'tests/test_a_long_outage_is_not_a_hiccup.py'),
+    ('회복한 날에서 안 끊고 이어 센다'
+     "(어제 회복된 소스도 '42일째'라고 말하게 된다)",
+     'quant/live/flag_watch.py',
+     '        if not want <= miss:\n            break',
+     '        if not want <= miss:\n            continue',
+     'tests/test_a_long_outage_is_not_a_hiccup.py'),
+    ('경보 열쇠에 기간을 넣는다(매일 새 열쇠가 되어 매일 알림이 간다)',
+     'quant/live/flag_watch.py',
+     '            flags["features_missing:" + ",".join(sorted(gone))] = (',
+     '            flags[f"features_missing:{days}:" + ",".join(sorted(gone))] = (',
+     'tests/test_a_long_outage_is_not_a_hiccup.py'),
+    ('장부가 아는 사유를 경보에서 뺀다(읽는 쪽이 장부를 열어야 하고 대개 안 연다)',
+     'quant/live/flag_watch.py',
+     '                + (f"\\n사유: {why}" if why else ""))',
+     '                )',
+     'tests/test_a_long_outage_is_not_a_hiccup.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',

@@ -478,13 +478,23 @@ def test_the_roster_rotates_so_every_setting_eventually_gets_measured():
     """
     from quant.live.retrain import panel_roster, shared_panel_specs, spec_key
 
-    seen = set()
-    for day in range(1, 15):
-        seen |= {spec_key(s) for s in shared_panel_specs(f"2026-09-{day:02d}")}
+    import datetime as _dt
+
+    from quant.live.retrain import PANEL_ROSTER_PER_NIGHT
+
     total = len(panel_roster())
-    assert len(seen) >= total * 0.7, (
-        f"2주를 돌려도 명단 {total}개 중 {len(seen)}개만 패널에 섰다 — "
-        "회전이 안 돌고 같은 설정만 반복해서 재고 있다")
+    # 한 바퀴에 필요한 밤 수 — 창이 매일 명단 크기만큼 밀리므로 이만큼이면
+    # **반드시** 전부 한 번씩 선다(무작위 추출이면 보장이 없다).
+    nights = -(-total // PANEL_ROSTER_PER_NIGHT)
+    day0 = _dt.date(2026, 9, 1)
+    seen = set()
+    for k in range(nights):
+        day = (day0 + _dt.timedelta(days=k)).isoformat()
+        seen |= {spec_key(s) for s in shared_panel_specs(day)}
+    assert len(seen) == total, (
+        f"{nights}밤이면 한 바퀴가 돌아야 하는데 명단 {total}개 중 "
+        f"{len(seen)}개만 섰다 — '회전'이라고 적어 놓고 실제로는 복원추출이라 "
+        "어떤 설정은 영영 안 재질 수 있다")
 
 
 def test_the_ledger_line_is_plain_json_and_says_how_many_symbols_stood(tmp_path):
@@ -630,3 +640,89 @@ def test_the_nightly_batch_asks_for_the_roster_by_date_not_by_symbol():
     assert arg == "asof", (
         f"밤 배치가 패널 명단을 '{arg}'로 요청한다 — 날짜(asof)가 아니면 "
         "종목마다 다른 명단이 되고, 패널은 비용만 쓰고 아무것도 못 잰다")
+
+
+# ── 침묵을 없앤다 — 못 잰 밤도 장부에 남는다 ───────────────────────────
+
+def test_a_night_that_measured_nothing_still_leaves_a_line(tmp_path):
+    """⚠️ 재료가 하나도 안 모인 밤에도 **줄을 남긴다**.
+
+    예전에는 재료가 0이면 장부에 아무것도 안 적혔다. 그러면 장부에서
+    "패널이 아무것도 못 쟀다"(고장)와 "밤 배치가 아예 안 돌았다"(다른
+    경보가 맡는 사건)가 **똑같이 보인다** — 줄이 없다는 사실만 남는다.
+    구별할 방법이 없으면 둘 다 늦게 발견되고, 그동안 패널은 매일 비용을
+    쓰면서 아무것도 안 잰다.
+
+    없는 줄은 침묵이고, 침묵은 이 저장소에서 가장 비싼 실패다.
+    """
+    import json as _json
+
+    from quant.live.retrain import PANEL_FILE, record_panel
+
+    rec = record_panel("2026-08-27", PanelCollector(), str(tmp_path),
+                       n_symbols_seen=12)
+    line = (tmp_path / PANEL_FILE).read_text("utf-8").strip()
+    assert line, "재료가 0인 밤에 장부 줄이 아예 안 써졌다"
+    assert _json.loads(line)["n_specs_judged"] == 0
+    assert rec["n_symbols_seen"] == 12, (
+        "그날 오디션을 연 종목 수가 장부에 없다 — '배치가 안 돌았다'와 "
+        "'돌았는데 못 쟀다'를 구별할 수 없다")
+
+
+def test_the_batch_records_the_panel_even_when_it_collected_nothing():
+    """대조군 — 밤 배치가 그 기록을 **조건 없이** 부른다(호출 한 줄 계약).
+
+    위 검사는 함수만 본다. 배치 쪽에서 `if panel.specs:`로 다시 감싸면
+    함수는 멀쩡한데 그 밤은 여전히 아무 줄도 안 남는다.
+    """
+    src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
+    body = src[src.index("def run_retrain_all("):]
+    between = body[body.index("panel_rec = None"):body.index("record_panel(")]
+    code = [ln.strip() for ln in between.splitlines()[1:]
+            if ln.strip() and not ln.strip().startswith("#")]
+    # 기록 호출까지 가는 길에 서 있어도 되는 것은 try: 와 대입 시작뿐이다.
+    allowed = {"try:", "panel_rec ="}   # 마지막 줄은 호출 직전에서 잘린 대입
+    intruders = [ln for ln in code if ln not in allowed]
+    assert not intruders, (
+        f"패널 기록 앞에 조건이 끼어 있다: {intruders} — 못 잰 밤이 장부에서 "
+        "'배치가 안 돈 밤'과 구별되지 않는다")
+
+
+def test_the_panel_roster_includes_the_hypothesis_rules():
+    """가설 규칙들이 패널 명단에 **들어 있다**.
+
+    패널은 "한 설정이 여러 종목에서 **함께** 도움이 되는가"를 묻는 장치다.
+    가설 규칙 여섯 개(월말 수급·PEAD·만기 주간·FOMC 표류·펀딩 과열 회피·
+    월말 강제 리밸런싱)는 파라미터까지 전 종목이 동일해서, 그 질문에 가장
+    잘 어울리는 후보들이다. 처음에는 고정 격자만 봐서 이들이 명단 밖에
+    있었다 — 정작 재야 할 것을 안 재고 있었던 셈이다.
+    """
+    from quant.live.retrain import panel_roster
+
+    names = {s["strategy"] for s in panel_roster()}
+    for rule in ("turn_of_month", "pead", "expiry_week", "fomc_drift",
+                 "funding_guard", "rebalance_flow"):
+        assert rule in names, f"가설 규칙이 패널 명단에 없다: {rule}"
+
+
+def test_one_list_feeds_both_the_ring_and_the_panel():
+    """링과 패널이 **같은 출처**를 본다 — 두 곳에 적으면 언젠가 갈라진다.
+
+    갈라지면 한쪽에만 있는 후보가 생기고, 그 후보는 조용히 측정에서
+    빠진다(FROZEN_IDEAS ①의 재발 방지).
+    """
+    from quant.live.retrain import (FIXED_CHALLENGERS, build_challengers,
+                                    panel_roster, spec_key)
+
+    champ = {"strategy": "ml", "params": {"model": "logreg"}}
+    ring = {spec_key({"strategy": c["strategy"],
+                      "params": dict(c.get("params", {}))})
+            for c in build_challengers(champ, seed="2026-08-27:us:AAPL",
+                                       evolve=False) if "strategy" in c}
+    roster = {spec_key(s) for s in panel_roster()}
+    missing = [spec_key(c) for c in FIXED_CHALLENGERS
+               if spec_key({"strategy": c["strategy"],
+                            "params": dict(c.get("params", {}))}) not in roster]
+    assert not missing, f"링에는 서는데 패널 명단에 없는 고정 후보: {missing}"
+    assert len(ring & roster) >= len(FIXED_CHALLENGERS), (
+        "링과 패널 명단이 갈라졌다 — 같은 목록을 봐야 한다")
