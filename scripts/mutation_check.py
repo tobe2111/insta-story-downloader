@@ -7694,6 +7694,13 @@ MUTATIONS = [
      "        el.innerHTML='이 표의 <b>'+won(sumVal-sumCost)+'</b>은 '+",
      'tests/test_the_site_reads_in_english_too.py'),
 
+    # ── 투자 로직은 기계가 개선한다 (2026-08-27 사장님 지시) ──────────
+    ('자동 후보 생성기를 링에서 뗀다(탐색이 손으로 적은 격자에만 갇힌다)',
+     'quant/live/retrain.py',
+     '    challengers += mutate_champion(current_spec, seed=seed)',
+     '    challengers += []  # mutate_champion(current_spec, seed=seed)',
+     'tests/test_the_machine_searches_not_the_human.py'),
+
     # ── 화면을 한 곳으로 · 사람 말로 (2026-08-26 사장님 지시 셋) ──────
     ('주간 표를 홈에서 안 편다(합쳤다면서 카드가 영원히 접혀 있다)',
      'docs/index.html',
