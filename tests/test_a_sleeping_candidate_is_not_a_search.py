@@ -100,8 +100,10 @@ def test_the_count_is_taken_after_the_split_not_before():
 
     src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
     lines = src.splitlines()
+    # ⚠️ 호출이 한 줄이라고 가정하지 않는다 — 인자가 늘어 줄바꿈이 생기면
+    #    이 검사가 "호출이 없다"로 죽는다(계약은 그대로인데 검사만 낡은 경우).
     split_at = [i for i, l in enumerate(lines)
-                if "_split_sleeping(challengers, state_dir)" in l]
+                if "_split_sleeping(challengers, state_dir" in l]
     count_at = [i for i, l in enumerate(lines)
                 if l.strip() == "n_cand = len(challengers)"]
     assert split_at, ("잠든 후보를 가르는 호출이 없다 — 헬퍼만 있고 아무도 "

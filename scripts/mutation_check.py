@@ -6832,7 +6832,8 @@ MUTATIONS = [
     # ── 못 도는 후보는 찾아본 것이 아니다 (2026-08-20 감사 297) ─────
     ('잠든 후보도 시도 수에 넣는다(못 돈 후보가 문턱을 올려 진짜 발견을 깎는다)',
      'quant/live/retrain.py',
-     '    challengers, asleep = _split_sleeping(challengers, state_dir)',
+     '    challengers, asleep = _split_sleeping(challengers, state_dir,\n'
+     '                                          champion=current_spec)',
      '    asleep = []',
      'tests/test_a_sleeping_candidate_is_not_a_search.py'),
     ('풀링 후보를 영영 재운다(스냅샷이 쌓여도 peers가 다시 안 선다)',
@@ -7878,6 +7879,35 @@ MUTATIONS = [
      '                      strip_defaults: bool = True) -> list[dict]:',
      '                      strip_defaults: bool = False) -> list[dict]:',
      'tests/test_the_hill_climb_does_not_waste_its_moves.py'),
+
+    # ── 잠든 후보 장치 (2026-08-27) — 붙여 놓고 한 번도 안 돌던 자리 ─────
+    #
+    # 감사 297이 만든 장치인데, 링의 **덧씌우기형**(params 키가 없는 고정
+    # 격자 ML 항목)을 못 읽어 잠든 후보가 늘 0개였다. 장부가 그것을 그대로
+    # 보여 준다: 장치를 붙인 뒤에도 pool="peers"가 8/26 32종목 중 30에서
+    # 무동작으로 잡혔다. 고장 난 안전장치와 조용한 실패가 서로를 가려 줬다.
+    ('덧씌우기형 후보의 손잡이를 다시 못 보게 한다'
+     '(못 도는 후보가 매일 링에 서서 시도 수를 부풀리고 시간을 쓴다)',
+     'quant/live/retrain.py',
+     '    if "strategy" in cand:\n        return dict(cand.get("params") or {})\n'
+     '    base = dict((champion or {}).get("params") or {})\n'
+     '    base.update(cand)\n'
+     '    return base',
+     '    return dict(cand.get("params") or {})',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
+    ('온전형 후보에 챔피언 값을 섞는다(그 자체로 완결인 설정이 오염된다)',
+     'quant/live/retrain.py',
+     '    if "strategy" in cand:\n        return dict(cand.get("params") or {})',
+     '    if False:\n        return dict(cand.get("params") or {})',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
+    # (같은 줄을 찌르는 닻이 이미 있다: "잠든 후보도 시도 수에 넣는다".
+    #  챔피언을 넘기는지는 test_the_nightly_batch_passes_the_champion_in이
+    #  호출 계약으로 지킨다.)
+    ('돌 수 있는 후보까지 재운다(링이 통째로 비는데 이름은 여전히 관문이다)',
+     'quant/live/retrain.py',
+     '        if pool is not None and not pool_ready(pool, state_dir, min_days):',
+     '        if True:',
+     'tests/test_the_sleeping_guard_actually_wakes_up.py'),
     ('패널 장부가 못 잰 설정도 판정한 것으로 센다'
      '(건너뜀이 통과로 읽힌다 — 감사 226이 막아 온 바로 그 자리)',
      'quant/live/retrain.py',

@@ -1235,18 +1235,54 @@ def build_challengers(current_spec: dict, seed: str,
 POOL_WAKE_DAYS = 120
 
 
+def effective_params(cand: dict, champion: dict | None = None) -> dict:
+    """후보가 **실제로 돌 때** 쓰게 될 파라미터.
+
+    링에는 두 가지 모양이 섞여 있다:
+
+        온전형   {"strategy": "ml", "params": {"model": "gb", ...}}
+        덧씌우기 {"model": "gb", "pool": "peers"}   ← 챔피언 위에 얹힌다
+
+    덧씌우기형은 ``nightly_retrain``이 챔피언 파라미터 위에 얹어 해석한다.
+    그러니 "이 후보가 무엇을 쓰는가"를 물으려면 **같은 방식으로** 합쳐 봐야
+    한다. 합치지 않고 ``params``만 들여다보면 덧씌우기형은 언제나 빈 dict로
+    보인다 — 실제로 그 착각이 안전장치 하나를 통째로 잠재웠다(아래).
+    """
+    if not isinstance(cand, dict):
+        return {}
+    if "strategy" in cand:
+        return dict(cand.get("params") or {})
+    base = dict((champion or {}).get("params") or {})
+    base.update(cand)
+    return base
+
+
 def _split_sleeping(challengers: list, state_dir: str,
-                    min_days: int = POOL_WAKE_DAYS) -> tuple[list, list]:
+                    min_days: int = POOL_WAKE_DAYS,
+                    champion: dict | None = None) -> tuple[list, list]:
     """지금 돌 수 있는 후보와 **아직 잠든** 후보로 가른다 (감사 297).
 
     잠든 후보는 오늘 링에서 빠지고 시도 수에도 안 들어간다. 다만 후보
     목록에서 사라지는 것은 아니다 — 조건이 차면 다음 밤부터 저절로 돌아온다.
+
+    ⚠️ **이 장치는 붙여 놓고 한 번도 작동한 적이 없었다**(2026-08-27 장부
+       실측으로 발견). 예전 코드는 ``c.get("params")``만 봤는데, 이 장치가
+       지키려던 바로 그 후보들 — 고정 격자의 ``{"model": "gb", "pool":
+       "peers"}`` — 은 **덧씌우기형**이라 ``params`` 키가 아예 없다. 그래서
+       ``pool``이 언제나 ``None``으로 읽혔고, 잠든 후보는 **0개**로 나왔다.
+
+       장부가 그것을 그대로 보여 준다: 장치를 붙인 2026-08-20 **이후에도**
+       ``pool="peers"``가 무동작으로 계속 잡혔다(8/24 34종목 중 29,
+       8/26 32종목 중 30). 즉 매일 밤 거의 모든 종목에서 못 도는 후보가
+       링에 서서 시도 수를 부풀리고 백테스트 시간을 썼다.
+
+       고장 난 안전장치와 조용한 실패가 서로를 가려 준 전형적인 모양이다 —
+       화면에는 아무 빨간불도 안 떴다.
     """
     from quant.strategies.ml import pool_ready
     live, asleep = [], []
     for c in challengers:
-        p = (c.get("params") or {}) if isinstance(c, dict) else {}
-        pool = p.get("pool")
+        pool = effective_params(c, champion).get("pool")
         if pool is not None and not pool_ready(pool, state_dir, min_days):
             asleep.append(c)
         else:
@@ -1648,7 +1684,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     #       없어 장기적으로는 더 정직한 쪽이다. 스냅샷이 쌓이면 이 관문은
     #       저절로 열리고 그날부터 링에 다시 선다. 지금 빼는 것은 후보가
     #       아니라 **헛세기**다.
-    challengers, asleep = _split_sleeping(challengers, state_dir)
+    challengers, asleep = _split_sleeping(challengers, state_dir,
+                                          champion=current_spec)
     if asleep:
         log.info("아직 못 도는 후보 %d개는 시도 수에서 뺍니다(스냅샷 부족) "
                  "— 목록에는 남고, 쌓이면 다시 링에 섭니다", len(asleep))
