@@ -27,6 +27,7 @@ from quant.strategies.ichimoku import IchimokuStrategy
 from quant.strategies.dualthrust import DualThrustStrategy
 from quant.strategies.connors import ConnorsRSI2
 from quant.strategies.ibs import IBSStrategy
+from quant.strategies.rebalance_flow import RebalanceFlow
 from quant.strategies.turn_of_month import TurnOfMonth
 from quant.strategies.pead import PEADStrategy
 from quant.strategies.expiry_week import ExpiryWeek
@@ -52,6 +53,7 @@ _REGISTRY = {
     "supertrend": SuperTrendStrategy,
     "connors_rsi2": ConnorsRSI2,
     "ibs": IBSStrategy,
+    "rebalance_flow": RebalanceFlow,
     "turn_of_month": TurnOfMonth,
     "pead": PEADStrategy,
     "expiry_week": ExpiryWeek,
