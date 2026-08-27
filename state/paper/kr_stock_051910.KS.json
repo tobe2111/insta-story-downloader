@@ -2,7 +2,7 @@
   "cash": 9478.373346974013,
   "quantity": 0.002141954348783353,
   "avg_price": 263062.61845655524,
-  "last_bar": "2026-08-25 00:00:00",
+  "last_bar": "2026-08-26 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -572,11 +572,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-26",
+      "price": 263500.0,
+      "weight": 0.0,
+      "held_weight": 0.0562,
+      "fractional_lot": true,
+      "equity": 10042.78,
+      "return_pct": 0.43,
+      "hit_rate": 0.5153061224489796,
+      "hit_n": 196,
+      "hit_lo": 0.4457198321171735,
+      "hit_hi": 0.584303946715662,
+      "hit_conclusive": false,
+      "live_hit": 0.4,
+      "live_hit_n": 10,
+      "live_hit_flat": 1,
+      "hit_flat": 4,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "sample_weight": "decay"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 43% + ml 40% + breakout 17% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 265500.0,
+        "bar": "2026-08-26 00:00:00",
+        "weight": 0.0408,
+        "decided_bar": "2026-08-25 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "b8749ed6d397",
+      "data_sha256": "f27bd971f957a0bc0f465f3315c00fc6b255f1fa57787974ffa364981de830c3",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4962884751562639,
+      "drift_psi": 0.9765,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.7317
     }
   ],
   "pending": {
-    "weight": 0.0408,
-    "decided_bar": "2026-08-25 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-26 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "051910.KS",

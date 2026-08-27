@@ -1,8 +1,8 @@
 {
-  "cash": 8198.457395874999,
-  "quantity": 8.333607494788493,
+  "cash": 8986.294093809553,
+  "quantity": 4.62251771727221,
   "avg_price": 215.82855287372166,
-  "last_bar": "2026-08-25 00:00:00",
+  "last_bar": "2026-08-26 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -591,13 +591,66 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-26",
+      "price": 209.66000366210938,
+      "weight": 0.0838,
+      "held_weight": 0.0973,
+      "fractional_lot": false,
+      "equity": 9955.45,
+      "return_pct": -0.45,
+      "hit_rate": 0.5255474452554745,
+      "hit_n": 137,
+      "hit_lo": 0.4423782454608223,
+      "hit_hi": 0.6073229791773529,
+      "hit_conclusive": false,
+      "live_hit": 0.25,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +8% — 로지스틱회귀 모델이 내일 상승확률을 약 83%로 추정(기준 55% 초과) · 사이징: 신호 원비중 30% → 변동성 타깃 조절 후 8% · 참고: 전 종목 합산으로 모델이 83%±10%p라 말한 36번의 실제 상승 비율 56% (95% 신뢰구간 40%~70% · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🛡 실적 가드: 발표(2026-08-26) 임박 → 비중 절반 · 🏛 의회 운용: ml 48% + ml 29% + ml 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 212.419998,
+        "bar": "2026-08-26 00:00:00",
+        "weight": 0.0985,
+        "decided_bar": "2026-08-25 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "b8749ed6d397",
+      "data_sha256": "03f51107c2a4bf64071ce5bf1c1bead281d41495c7d5a1ead44cba2b9e690c6f",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.829026769763497,
+      "drift_psi": 0.8729,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": {
+        "date": "2026-08-26",
+        "factor": 0.5
+      },
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "NVDA",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0985,
-    "decided_bar": "2026-08-25 00:00:00"
+    "weight": 0.0838,
+    "decided_bar": "2026-08-26 00:00:00"
   }
 }

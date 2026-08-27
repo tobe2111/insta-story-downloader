@@ -2,7 +2,7 @@
   "cash": 6416.526128831843,
   "quantity": 37.58321297227348,
   "avg_price": 95.2905510969634,
-  "last_bar": "2026-08-25 00:00:00",
+  "last_bar": "2026-08-26 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -148,11 +148,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-26",
+      "price": 95.43000030517578,
+      "weight": 0.3622,
+      "held_weight": 0.3585,
+      "fractional_lot": false,
+      "equity": 10003.09,
+      "return_pct": 0.03,
+      "hit_rate": 0.5294117647058824,
+      "hit_n": 119,
+      "hit_lo": 0.44021971705433516,
+      "hit_hi": 0.6167642362644103,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 2,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +36% — 로지스틱회귀 모델이 내일 상승확률을 약 77%로 추정(기준 55% 초과) · 사이징: 신호 원비중 39% → 변동성 타깃 조절 후 36% · 참고: 전 종목 합산으로 모델이 77%±10%p라 말한 56번의 실제 상승 비율 54% (95% 신뢰구간 41%~66% · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 1번으로 축적 중) · 🏛 의회 운용: ml 55% + ml 24% + ml 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 95.540001,
+        "bar": "2026-08-26 00:00:00",
+        "weight": 0.316,
+        "decided_bar": "2026-08-25 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "b8749ed6d397",
+      "data_sha256": "47be8afcc3426a3308d882b9f692c4d0302c2d2d88b20fd10284f94daae67f4e",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7666333647315074,
+      "drift_psi": 0.138,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.316,
-    "decided_bar": "2026-08-25 00:00:00"
+    "weight": 0.3622,
+    "decided_bar": "2026-08-26 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EWJ",
