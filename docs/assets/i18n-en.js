@@ -1195,10 +1195,6 @@
         ". Leverage was left untouched — that lock opens",
       "으로 분산 운용 중입니다(최대 3석 / 상한 3석). 다만 자리 수와":
         "(maximum 3 seats / cap 3). But the number of seats and",
-      "입니다 — 전략은 24종인데 그중 가장 큰 하나가 자금의":
-        "are different questions — there are 24 strategies, and the largest single one holds",
-      "를 쥐고 있습니다. 상관까지 고려한 비중과의 거리는 27%입니다(40계좌 실측 · 재기만 하고 매매에는 쓰지 않습니다 — 배분을 바꾸면 판정 시계가 리셋되기 때문입니다).":
-        "of the money. The distance from a correlation-aware weighting is 27% (measured over 40 accounts · measured only, never traded on — changing the allocation would reset the verdict clock).",
       "(2026-08-13 정정: 이 문단은 \"통과자 최대 3개가 의석을 나눠 갖고… 단일 전략 붕괴가 계좌 붕괴가 되는 구조를":
         "(Corrected 2026-08-13: this paragraph said, in the present tense, that \"up to three qualifiers share the seats… so a single strategy collapsing no longer collapses the account\" —",
       "없앤 것": "eliminated",
@@ -2866,11 +2862,7 @@
       "왕복비용 30bp(가정) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
         "Based on a 30bp round-trip cost (assumed) — anything inside that is left alone",
       "한국주식 재조정 밴드": "Korean stock rebalance band",
-      "왕복비용 46.8bp(실측 · 표본 52건) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
-        "Based on a 46.8bp round-trip cost (measured · 52 samples) — anything inside that is left alone",
       "미국주식 재조정 밴드": "US stock rebalance band",
-      "왕복비용 12bp(실측 · 표본 67건) 기준 — 이보다 덜 벗어나면 그대로 둡니다":
-        "Based on a 12bp round-trip cost (measured · 67 samples) — anything inside that is left alone",
       "※ 주식은 \"결정한 날 종가에 산 척\"하지 않고\n      실제로 가능한 체결(다음 세션 개장 시가, 갭 감수)만 인정합니다 — 백테스트 눈속임 방지 규칙.":
         "※ For stocks we do not pretend to have bought at the close of the deciding day; only a fill that was actually possible counts (the next session's opening price, gap included) — a rule against backtest sleight of hand.",
       "실시간 차트": "Live chart",
@@ -3452,6 +3444,15 @@
       // 사전 열쇠에 값을 박으면(옛 "실측 최악 113분") 다음 측정에 만료된다.
       // 날짜에서 배운 것과 같은 병이다(2026-08-26) — 그때는 날짜만 규칙으로
       // 옮기고 **측정 숫자는 놓쳤다.** 형제를 찾기 전까지 고친 게 아니다.
+      // 같은 병의 셋째·넷째 얼굴(2026-08-27) — 전략 수·분산 거리·왕복비용은
+      // 전부 장부에서 계산돼 매일 바뀐다. 옛 열쇠는 24종/27%/46.8bp/52건에
+      // 박혀 있어 값이 바뀌자 그대로 만료됐다.
+      ["^입니다 — 전략은 ([\\d,]+)종인데 그중 가장 큰 하나가 자금의$",
+       "are different questions — there are $1 strategies, and the largest single one holds"],
+      ["^를 쥐고 있습니다\\. 상관까지 고려한 비중과의 거리는 ([\\d.]+)%입니다\\(([\\d,]+)계좌 실측 · 재기만 하고 매매에는 쓰지 않습니다 — 배분을 바꾸면 판정 시계가 리셋되기 때문입니다\\)\\.$",
+       "of the money. The distance from a correlation-aware weighting is $1% (measured over $2 accounts · measured only, never traded on — changing the allocation would reset the verdict clock)."],
+      ["^왕복비용 ([\\d.]+)bp\\(실측 · 표본 ([\\d,]+)건\\) 기준 — 이보다 덜 벗어나면 그대로 둡니다$",
+       "Based on a $1bp round-trip cost (measured · $2 samples) — anything inside that is left alone"],
       ["^실측 최악 ([\\d,]+)분$", "worst observed gap $1 min"],
       ["^· 감시 주기 예약 ([\\d,]+)분 /$",
        "· watch scheduled every $1 min /"],

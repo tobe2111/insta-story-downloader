@@ -119,3 +119,40 @@ def test_the_search_is_still_deterministic():
     assert a == b, "같은 씨앗인데 후보가 달라졌다 — verify가 옛 링을 못 되살린다"
     assert a != mutate_champion(CHAMP, seed="2026-08-28:us_stock:SPY"), (
         "날짜가 바뀌어도 같은 후보다 — 탐색이 제자리걸음이다")
+
+
+def test_a_retired_champion_is_not_counted_as_live():
+    """``champions.json``의 길이는 **운용 종목 수가 아니다.**
+
+    ⚠️ 2026-08-27에 내가 그렇게 잘못 셌다. 파일에 42개가 있어 "42종목 운용"
+       이라고 적었는데, 그중 둘은 **은퇴한 챔피언**이었다(META·TSLA —
+       08-22 시총 회전에서 유니버스를 떠났다). 실제 운용은 40종목이고
+       ML은 38종목이다. 그 숫자가 커밋·PR·노션 문서까지 나갔다.
+
+    은퇴 항목을 지우지는 않는다 — 과거 기록이고, 그 종목이 돌아오면 다시
+    쓴다. 대신 **세는 쪽이 운용 목록을 기준으로 세게** 만든다.
+
+    이 검사는 '지금 몇 개인가'를 박아 두지 않는다(그러면 회전할 때마다
+    빨개진다). 대신 **champions.json 길이와 운용 목록 길이가 다를 수 있다는
+    사실**을 방침 기록이 알고 있는지 본다.
+    """
+    md = (ROOT / "CLAUDE.md").read_text("utf-8")
+    assert "은퇴한 챔피언" in md, (
+        "방침 기록이 '은퇴한 챔피언'의 존재를 안 적는다 — 다음 사람이 "
+        "champions.json 길이를 운용 종목 수로 읽는다")
+
+    path = ROOT / "state" / "champions.json"
+    if not path.exists():
+        return
+    from quant.universe import active_targets
+
+    champs = json.loads(path.read_text("utf-8"))
+    live = {f"{m}:{s}" for m, s in active_targets()}
+    retired = [k for k in champs if k not in live]
+    # 은퇴가 있어도 정상이다. 다만 **운용 목록에 있는데 챔피언이 없는** 것은
+    # 다른 문제다 — 그 종목은 오늘 밤 무엇으로 매매하는지가 불분명해진다.
+    orphan = [k for k in live if k not in champs]
+    assert not orphan, (
+        f"운용 목록에 있는데 챔피언 기록이 없는 종목이 있다: {orphan}")
+    assert len(champs) - len(retired) == len(live & set(champs))
+

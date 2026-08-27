@@ -165,12 +165,20 @@ def test_the_total_row_subtracts_to_its_own_profit(page):
     빼 보면 +725,977원 '이익'이 나온다 — 어느 칸도 틀리지 않았는데
     줄 전체가 거짓말을 한다.
     """
+    # ⚠️ 숫자를 **어느 칸에서** 집는지가 이 검사의 목숨이다(2026-08-27).
+    #    예전에는 "50만원 넘는 첫 숫자"를 넣은 돈으로 집었다. 그런데 합계
+    #    줄에는 설명 칸("종목 매입금액 504,696 + 현금 514,304")이 먼저 오고,
+    #    종목 매입금액이 처음으로 50만원을 넘은 날 그 값을 넣은 돈으로
+    #    잘못 집어 **화면이 멀쩡한데 검사가 빨개졌다.**
+    #    단정은 그대로 두고, 값을 **그 값이 사는 칸**에서 읽는다 —
+    #    문턱 어림짐작은 데이터가 자라면 언젠가 반드시 어긋난다.
     cells = _total_row(page)
-    nums = [_money(c) for c in cells]
-    cost = next(n[0] for n in nums if n and n[0] > 500_000)     # 넣은 돈
-    flat = [v for n in nums for v in n]
-    value = next(v for v in flat if 900_000 < v < 1_100_000 and v != cost)
-    pnl = next(v for v in flat if abs(v) < 100_000)
+    assert len(cells) >= 4, f"합계 줄의 칸 수가 예상과 다르다: {cells}"
+    money_cell = _money(cells[-3])      # 넣은 돈 → 지금 값 (한 칸에 둘)
+    assert len(money_cell) >= 2, (
+        f"합계 줄의 금액 칸에 '넣은 돈 → 지금 값'이 둘 다 없다: {cells[-3]!r}")
+    cost, value = money_cell[0], money_cell[1]
+    pnl = _money(cells[-2])[0]
     assert abs((value - cost) - pnl) <= 2, (
         f"합계 줄이 스스로 안 맞는다: {cost:,} → {value:,} 인데 손익 {pnl:,}")
 
