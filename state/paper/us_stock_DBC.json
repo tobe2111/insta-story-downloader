@@ -1,8 +1,8 @@
 {
-  "cash": 8715.0,
-  "quantity": 42.2166160125488,
+  "cash": 9925.628226919522,
+  "quantity": 2.6169091181044877,
   "avg_price": 30.420000076293945,
-  "last_bar": "2026-08-26 00:00:00",
+  "last_bar": "2026-08-27 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -148,11 +148,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-27",
+      "price": 30.860000610351562,
+      "weight": 0.0,
+      "held_weight": 0.0081,
+      "fractional_lot": false,
+      "equity": 10006.39,
+      "return_pct": 0.06,
+      "hit_rate": 0.5932203389830508,
+      "hit_n": 118,
+      "hit_lo": 0.503005656466807,
+      "hit_hi": 0.677556647376872,
+      "hit_conclusive": true,
+      "live_hit": 0.0,
+      "live_hit_n": 1,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 57% + ml 23% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 30.59,
+        "bar": "2026-08-27 00:00:00",
+        "weight": 0.008,
+        "decided_bar": "2026-08-26 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "3ceec5a9befc",
+      "data_sha256": "16c08c842a5ae3dba18995966972e0d08efaddc4caa0995b5209fd3c3c7038fb",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.42560520301015664,
+      "drift_psi": 0.3958,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.7391
     }
   ],
   "pending": {
-    "weight": 0.008,
-    "decided_bar": "2026-08-26 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-27 00:00:00"
   },
   "market": "us_stock",
   "symbol": "DBC",
