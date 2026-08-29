@@ -50,11 +50,34 @@ IN_SAMPLE_NOTE = ("챔피언을 뽑은 것과 같은 데이터에서 잰 값입�
 
 MARKET_OF = {"crypto": "crypto", "kr_stock": "kr_stock", "us_stock": "us_stock"}
 
-# 스냅샷을 고를 때 훑는 최근 날짜 수. 왜 '가장 최근'이 아닌가 —
+# 스냅샷을 고를 때 훑는 최근 날짜 수. 왜 '가장 최근 하루'가 아닌가 —
 # **하루가 통째로 안 찍히는 날이 있다.** 실측(2026-08-15): 그날 스냅샷에는
 # 코인 5종목만 저장됐다(주식 배치가 그날 기록을 남기지 못함). 그 날을
 # 그대로 쓰면 "20종목 중 14 플러스(t=+0.97)"가 "5종목 중 1 플러스(t=-1.39)"가
-# 되어 정반대 결론이 나온다. 최근 며칠 중 **가장 많이 담긴 날**을 쓴다.
+# 되어 정반대 결론이 나온다.
+#
+# ⚠️ **그래서 '가장 많이 담긴 하루'를 골랐는데, 그 처방도 수명이 끝났다**
+#    (2026-08-29 실측). 밤 배치가 이어달리기 + 멱등 가드로 바뀌면서 유니버스가
+#    **여러 밤에 나뉘어** 찍힌다. 이제 어느 하루에도 전 시장이 없다:
+#
+#        2026-08-26  32종목  한국·미국          ← '가장 많이 담긴 날'
+#        2026-08-27  29종목  한국·미국
+#        2026-08-28  17종목  코인·한국·미국
+#        2026-08-29   5종목  코인
+#
+#    그날을 고르면 **코인이 통째로 빠진 채** 화면에 "전체 32종목"이라고
+#    찍힌다. 이 지표의 존재 이유가 "주식과 코인이 반대 방향이더라"인데,
+#    정작 한쪽을 안 보고 있었다 — 빠진 자리가 '0종목'이 아니라 아예
+#    **줄이 없는 것**이라 화면만 봐서는 알 수 없다.
+#
+#    그래서 하루를 고르지 않고 **종목마다 가장 최근 스냅샷**을 모은다.
+#    종목별 백테스트는 서로 독립이므로(각자 자기 800봉으로 샤프를 낸다)
+#    날짜가 며칠 갈려도 뜻이 변하지 않는다. 다만 **며칠에 걸쳐 모았는지를
+#    장부와 화면에 함께 적는다** — 안 적으면 '하루치'로 읽힌다.
+#
+#    ⚠️ 이 규칙을 `repro.fullest_snapshot_day`(횡단면 랭킹 전략)에는 적용하지
+#       않는다. 그쪽은 **같은 날 종목들을 줄 세우는** 일이라 날짜가 갈리면
+#       비교 자체가 성립하지 않는다. 여기와 저기는 같은 함정에 다른 답이다.
 SNAPSHOT_LOOKBACK = 5
 
 
@@ -69,6 +92,32 @@ def _fullest_snapshot(state_dir: str) -> str | None:
 
     day = fullest_snapshot_day(state_dir, SNAPSHOT_LOOKBACK)
     return os.path.join(state_dir, "snapshots", day) if day else None
+
+
+def latest_per_symbol(state_dir: str = "state",
+                      lookback: int = SNAPSHOT_LOOKBACK) -> dict[str, str]:
+    """최근 며칠을 훑어 **종목마다 가장 최근 스냅샷 파일**을 고른다.
+
+    반환: {"시장:종목": 파일경로}. 최신 날짜부터 훑으며 처음 만난 것만
+    남기므로, 한 종목이 여러 밤에 찍혔어도 가장 최근 것 하나만 쓴다.
+
+    ⚠️ 하루를 고르지 않는 이유는 위 ``SNAPSHOT_LOOKBACK`` 주석에 있다 —
+       유니버스가 여러 밤에 나뉘어 찍히므로, 어느 하루를 골라도 시장 하나가
+       통째로 빠진다.
+    """
+    root = os.path.join(state_dir, "snapshots")
+    if not os.path.isdir(root):
+        return {}
+    days = sorted((d for d in os.listdir(root)
+                   if os.path.isdir(os.path.join(root, d))), reverse=True)
+    picked: dict[str, str] = {}
+    for day in days[:max(1, int(lookback))]:
+        for path in sorted(glob.glob(os.path.join(root, day, "*.csv.gz"))):
+            parsed = _split_key(path)
+            if not parsed:
+                continue
+            picked.setdefault(f"{parsed[0]}:{parsed[1]}", path)
+    return picked
 
 
 def _split_key(filename: str) -> tuple[str, str] | None:
@@ -119,12 +168,19 @@ def pooled_evidence(state_dir: str = "state", snapshot: str | None = None,
     if champions is None:
         from quant.live.retrain import load_champions
         champions = load_champions(state_dir)
-    snapshot = snapshot or _fullest_snapshot(state_dir)
-    if not snapshot or not os.path.isdir(snapshot):
+    # 폴더를 명시하면 그 하루만 쓴다(재현·검사용). 아니면 종목마다 가장
+    # 최근 스냅샷을 모은다 — 유니버스가 여러 밤에 나뉘어 찍히기 때문이다.
+    if snapshot:
+        if not os.path.isdir(snapshot):
+            return {}
+        paths = sorted(glob.glob(os.path.join(snapshot, "*.csv.gz")))
+    else:
+        paths = sorted(latest_per_symbol(state_dir).values())
+    if not paths:
         return {}
 
-    per_symbol, groups = [], {}
-    for path in sorted(glob.glob(os.path.join(snapshot, "*.csv.gz"))):
+    per_symbol, groups, days_used = [], {}, set()
+    for path in paths:
         parsed = _split_key(path)
         if not parsed:
             continue
@@ -141,12 +197,16 @@ def pooled_evidence(state_dir: str = "state", snapshot: str | None = None,
             m = bt.run(df).metrics
             row = {"key": f"{market}:{symbol}", "market": market,
                    "bars": int(len(df)),
+                   # 이 종목이 **어느 밤 스냅샷**인지. 며칠에 걸쳐 모으므로
+                   # 종목마다 다를 수 있고, 안 적으면 '하루치'로 읽힌다.
+                   "asof": os.path.basename(os.path.dirname(path)),
                    "total_return": round(float(m.total_return), 6),
                    "sharpe": round(float(m.sharpe), 4)}
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 전체를 막지 않는다
             log.warning("횡단면 %s:%s 실패: %s", market, symbol, exc)
             continue
         per_symbol.append(row)
+        days_used.add(row["asof"])
         groups.setdefault(market, []).append(row)
 
     if not per_symbol:
@@ -157,8 +217,14 @@ def pooled_evidence(state_dir: str = "state", snapshot: str | None = None,
                       sum(1 for r in rows if r["total_return"] > 0))
 
     stocks = [r for r in per_symbol if r["market"] in ("kr_stock", "us_stock")]
+    days = sorted(days_used)
     out = {
-        "asof": os.path.basename(snapshot),
+        # 가장 최근 스냅샷 날짜. 여러 밤에서 모았으면 `days`가 그 사실을 말한다.
+        "asof": days[-1] if days else "",
+        # ⚠️ **며칠에서 모았는지 반드시 함께 남긴다.** 안 남기면 여러 밤을
+        #    모은 숫자가 '하루치'로 읽히고, 그건 이 저장소가 반복해서 막아 온
+        #    종류의 조용한 과장이다.
+        "days": days,
         "in_sample": True,          # ⚠️ 이 값을 지우면 화면이 실전 성적으로 읽는다
         "note": IN_SAMPLE_NOTE,
         "all": _agg(per_symbol),
@@ -166,8 +232,8 @@ def pooled_evidence(state_dir: str = "state", snapshot: str | None = None,
         "markets": {m: _agg(rows) for m, rows in sorted(groups.items())},
         "symbols": sorted(per_symbol, key=lambda r: -r["sharpe"]),
     }
-    log.info("횡단면 증거: 전체 %s종목 중 %s 플러스 · t=%s",
-             out["all"]["n"], out["all"]["wins"], out["all"]["t"])
+    log.info("횡단면 증거: 전체 %s종목 중 %s 플러스 · t=%s (스냅샷 %s밤)",
+             out["all"]["n"], out["all"]["wins"], out["all"]["t"], len(days))
     return out
 
 
@@ -175,7 +241,12 @@ def format_pooled(ev: dict) -> str:
     """사람이 읽는 한 덩어리 — 배치 로그·주간 리포트에 그대로 쓴다."""
     if not ev or not ev.get("all"):
         return "횡단면 증거: 아직 없습니다(스냅샷 부족)."
-    lines = [f"📐 횡단면 증거 ({ev.get('asof', '?')} 스냅샷) — "
+    # ⚠️ 여러 밤에서 모았으면 **문장이 그렇게 말한다.** 날짜 하나만 찍으면
+    #    읽는 쪽은 그날 하루에 전 종목을 잰 것으로 읽는다.
+    days = ev.get("days") or ([ev["asof"]] if ev.get("asof") else [])
+    when = (f"{ev.get('asof', '?')} 스냅샷" if len(days) <= 1 else
+            f"{days[0]}~{days[-1]} {len(days)}밤 스냅샷")
+    lines = [f"📐 횡단면 증거 ({when}) — "
              f"오늘의 챔피언 설정을 전 종목에 적용"]
     label = {"all": "전체", "stocks": "주식(한국+미국)",
              "crypto": "코인", "kr_stock": "  한국", "us_stock": "  미국"}

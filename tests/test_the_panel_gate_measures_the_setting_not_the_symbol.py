@@ -625,24 +625,31 @@ def test_the_nightly_batch_asks_for_the_roster_by_date_not_by_symbol():
     """밤 배치가 명단을 **날짜로** 요청한다 — 종목 열쇠로 요청하지 않는다.
 
     ⚠️ 이 한 글자가 패널 전체를 무력화한다. ``shared_panel_specs(key)``라고
-       쓰면 함수는 정상적으로 6개를 돌려주고 계산도 정상적으로 돌지만,
-       종목마다 **다른 6개**가 나온다. 그러면 설정마다 참여 종목이 한둘로
+       쓰면 함수는 정상적으로 명단을 돌려주고 계산도 정상적으로 돌지만,
+       종목마다 **다른 명단**이 나온다. 그러면 설정마다 참여 종목이 한둘로
        쪼개져 최소 종목 수(5)를 영원히 못 채운다 — **비용은 그대로 다 쓰고
        패널은 매일 아무것도 안 재는** 상태가 되는데, 장부에는 그냥
        "판정 0/6"이 찍힐 뿐이라 고장처럼 보이지 않는다.
 
-    호출 한 줄을 계약으로 못 박는다(변이 시험이 이 자리를 놓쳤다).
+    ⚠️ **이 검사는 원래 ``arg == "asof"``를 요구했다 — 그게 결함이었다.**
+       ``asof``는 그 종목의 **마지막 봉 날짜**다. 날짜이긴 하지만 종목마다
+       다르다(코인은 주말에 봉이 있고 주식은 없다). 그래서 "날짜로 요청한다"
+       는 검사를 통과한 채로 명단이 밤마다 둘로 쪼개졌다(2026-08-29 장부
+       실측: 12종목이 5 + 7). 요구할 것은 **날짜라는 형식**이 아니라
+       **밤 전체가 같은 값을 쓴다**는 성질이다.
     """
     src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
     body = src[src.index("def run_retrain("):]
     call = body[body.index("shared_panel_specs("):]
     arg = call[len("shared_panel_specs("):call.index(")")].strip()
-    assert arg == "asof", (
-        f"밤 배치가 패널 명단을 '{arg}'로 요청한다 — 날짜(asof)가 아니면 "
-        "종목마다 다른 명단이 되고, 패널은 비용만 쓰고 아무것도 못 잰다")
-
-
-# ── 침묵을 없앤다 — 못 잰 밤도 장부에 남는다 ───────────────────────────
+    arg = " ".join(arg.split())
+    assert "key" not in arg and "symbol" not in arg, (
+        f"밤 배치가 패널 명단을 '{arg}'로 요청한다 — 종목이 섞이면 종목마다 "
+        "다른 명단이 되고, 패널은 비용만 쓰고 아무것도 못 잰다")
+    assert arg.startswith("panel_asof"), (
+        f"밤 배치가 패널 명단을 '{arg}'로 요청한다 — 밤 전체가 공유하는 "
+        "날짜(panel_asof)를 먼저 보지 않으면, 봉 날짜가 갈리는 밤에 명단이 "
+        "쪼개진다")
 
 def test_a_night_that_measured_nothing_still_leaves_a_line(tmp_path):
     """⚠️ 재료가 하나도 안 모인 밤에도 **줄을 남긴다**.

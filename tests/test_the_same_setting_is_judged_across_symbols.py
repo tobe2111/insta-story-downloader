@@ -29,6 +29,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -94,8 +95,20 @@ def test_the_sign_of_t_follows_the_mean():
 
 # ── 진짜 스냅샷으로 도는가 ────────────────────────────────────
 
+_REAL_CACHE: dict = {}
+
+
 def _real():
-    ev = pooled_evidence("state")
+    """진짜 스냅샷으로 낸 증거 — **한 번만 계산한다.**
+
+    ⚠️ 이 한 번이 40종목 백테스트라 **약 60초**다. 캐시가 없던 동안 이
+       파일의 검사 일곱이 각자 다시 계산해서 혼자 7분을 썼고, CI의 35분
+       한도(매달림 감지용)를 넘겨 잡이 잘렸다. 결과는 입력이 같으면 같으므로
+       다시 계산할 이유가 없다 — 검사를 줄이지 않고 시간만 돌려받는다.
+    """
+    if "ev" not in _REAL_CACHE:
+        _REAL_CACHE["ev"] = pooled_evidence("state")
+    ev = _REAL_CACHE["ev"]
     if not ev:
         pytest.skip("스냅샷 없음")
     return ev
@@ -202,3 +215,99 @@ def test_it_does_not_change_promotion():
     retrain = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
     assert "crosssection" not in retrain, (
         "횡단면 지표가 승격 경로에 들어갔다 — 관찰로만 두기로 한 값이다")
+
+
+# ── 유니버스가 여러 밤에 나뉘어 찍힌다 (2026-08-29 실측) ────────────────
+
+def test_a_whole_market_cannot_go_missing_because_of_the_relay():
+    """어느 하루를 골라도 시장 하나가 빠지던 것 — 이 결함의 재현 검사.
+
+    밤 배치가 이어달리기 + 멱등 가드로 바뀌면서 유니버스가 **여러 밤에
+    나뉘어** 찍힌다. 실측 장부:
+
+        2026-08-26  32종목  한국·미국   ← '가장 많이 담긴 날'
+        2026-08-28  17종목  코인·한국·미국
+        2026-08-29   5종목  코인
+
+    '가장 많이 담긴 날'을 고르면 **코인이 통째로 빠진 채** 화면에 "전체
+    32종목"이 찍힌다. 이 지표의 존재 이유가 "주식과 코인이 반대 방향이더라"
+    인데 정작 한쪽을 안 보게 된다 — 그리고 빠진 자리는 '0종목'이 아니라
+    **아예 줄이 없어서** 화면만 봐서는 알 수 없다.
+    """
+    ev = _real()
+    assert {"crypto", "kr_stock", "us_stock"} <= set(ev["markets"]), (
+        f"시장 하나가 통째로 빠졌다: {sorted(ev['markets'])}")
+
+
+def test_it_says_out_loud_that_it_pooled_several_nights():
+    """며칠에서 모았으면 **문장이 그렇게 말한다**.
+
+    ⚠️ 안 말하면 여러 밤을 모은 숫자가 '하루치'로 읽힌다. 이 저장소가
+       반복해서 막아 온 조용한 과장이고, 숫자를 부풀리지 않아도 **읽는
+       방식**만으로 과장이 된다.
+    """
+    ev = _real()
+    assert ev.get("days"), "어느 밤에서 모았는지 안 남긴다"
+    assert ev["asof"] == ev["days"][-1], "asof가 가장 최근 밤이 아니다"
+    text = format_pooled(ev)
+    if len(ev["days"]) > 1:
+        assert "밤 스냅샷" in text and ev["days"][0] in text, (
+            f"여러 밤에서 모았는데 문장이 하루처럼 말한다: {text.splitlines()[0]}")
+    else:
+        assert "밤 스냅샷" not in text, "하루치인데 여러 밤인 척한다"
+
+
+def test_each_symbol_carries_the_night_it_came_from():
+    """종목마다 **어느 밤 스냅샷**인지 붙어 있다 — 안 붙으면 되짚을 수 없다."""
+    ev = _real()
+    for row in ev["symbols"]:
+        assert row.get("asof") in ev["days"], f"밤 표식이 없다: {row['key']}"
+
+
+def test_only_the_newest_snapshot_of_a_symbol_is_used(tmp_path):
+    """한 종목이 여러 밤에 찍혔으면 **가장 최근 것 하나만** 센다.
+
+    ⚠️ 안 그러면 같은 종목이 여러 번 표에 들어가 표본 수가 부풀고, t가
+       근거 없이 커진다 — 관측을 늘리지 않고 숫자만 늘리는 종류다.
+    """
+    from quant.live.crosssection import latest_per_symbol
+
+    root = tmp_path / "snapshots"
+    for day, names in (("2026-08-01", ["crypto_BTC_USDT", "us_stock_AAPL"]),
+                       ("2026-08-03", ["crypto_BTC_USDT"])):
+        (root / day).mkdir(parents=True)
+        for n in names:
+            (root / day / f"{n}.csv.gz").write_bytes(b"")
+    got = latest_per_symbol(str(tmp_path))
+    assert set(got) == {"crypto:BTC/USDT", "us_stock:AAPL"}
+    assert "2026-08-03" in got["crypto:BTC/USDT"], "옛 밤을 골랐다"
+    assert "2026-08-01" in got["us_stock:AAPL"], "그 밤에만 있는 종목을 놓쳤다"
+
+
+def test_the_lookback_window_is_respected(tmp_path):
+    """대조군 — 창 밖의 묵은 스냅샷은 **안 끌어온다**.
+
+    창이 없으면 반년 전 데이터로 오늘의 챔피언을 평가하게 되고, 그건
+    증거가 아니라 소음이다.
+    """
+    from quant.live.crosssection import latest_per_symbol
+
+    root = tmp_path / "snapshots"
+    for day in ("2026-01-01", "2026-08-01", "2026-08-02", "2026-08-03"):
+        (root / day).mkdir(parents=True)
+        (root / day / "us_stock_SPY.csv.gz").write_bytes(b"")
+    (root / "2026-01-01" / "crypto_BTC_USDT.csv.gz").write_bytes(b"")
+    got = latest_per_symbol(str(tmp_path), lookback=3)
+    assert "crypto:BTC/USDT" not in got, "창 밖의 묵은 스냅샷을 끌어왔다"
+    assert "2026-08-03" in got["us_stock:SPY"]
+
+
+def test_an_explicit_folder_still_means_that_one_night():
+    """폴더를 명시하면 **그 하루만** 쓴다 — 재현 검증이 그것에 기댄다."""
+    from quant.live.crosssection import latest_per_symbol, pooled_evidence
+
+    day = sorted({os.path.dirname(p)
+                  for p in latest_per_symbol("state").values()})[-1]
+    ev = pooled_evidence("state", snapshot=day)
+    if ev:
+        assert ev["days"] == [os.path.basename(day)]

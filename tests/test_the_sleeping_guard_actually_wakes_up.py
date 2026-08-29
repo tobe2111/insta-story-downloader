@@ -184,3 +184,25 @@ def test_sleeping_candidates_do_not_inflate_the_trial_count():
     assert "n_cand = len(challengers)" in after, (
         "잠든 후보를 가른 뒤에 시도 수를 세지 않는다 — 가른 뜻이 없다")
     assert json.dumps(asleep, ensure_ascii=False)  # 기록 가능한 형태여야 한다
+
+def test_the_ledger_says_how_many_were_put_to_sleep():
+    """재운 후보를 **장부에 남긴다** — 안 남기면 0이 두 가지 뜻이 된다.
+
+    ⚠️ 이 장치는 2026-08-20에 붙고도 일주일 내내 0개를 재웠다(위 결함).
+       그런데 장부에는 그 숫자가 아예 없어서, '잘 돌아서 0'인지 '고장 나서
+       0'인지 구별할 방법이 없었다 — 결국 무동작 후보 목록을 뒤져 간접으로
+       알아냈다. 이 저장소가 반복해서 잡아 온 침묵의 모양이다.
+    """
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parent.parent / "quant" / "live"
+           / "retrain.py").read_text("utf-8")
+    body = src[src.index("def run_retrain("):]
+    assert '"asleep_candidates": asleep,' in body, (
+        "재운 후보를 장부에 안 남긴다 — 0이 '잘 돌았다'인지 '고장 났다'인지 "
+        "구별할 수 없게 된다")
+    # 기록하는 값이 **실제로 가른 그것**이어야 한다(다른 변수를 적으면 뜻이 없다).
+    split = body.index("challengers, asleep = _split_sleeping(")
+    assert split < body.index('"asleep_candidates": asleep,'), (
+        "가르기 전에 기록한다 — 적히는 값이 그날의 판정이 아니다")
+
