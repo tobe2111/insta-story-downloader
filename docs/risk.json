@@ -5,28 +5,28 @@
   "kind": "simulation",
   "period": {
    "from": "2023-03-28",
-   "to": "2026-08-28",
-   "days": 1168
+   "to": "2026-08-29",
+   "days": 1169
   },
   "n_symbols": 42,
   "target_vol": 0.12,
   "raw": {
-   "final_multiple": 3.3211,
-   "ann_vol": 0.2214,
+   "final_multiple": 3.3184,
+   "ann_vol": 0.2213,
    "mdd": -0.3088,
    "worst_day": -0.0946,
    "worst_20d": -0.1968,
    "longest_underwater_days": 211
   },
   "braked": {
-   "final_multiple": 2.4642,
-   "ann_vol": 0.1669,
+   "final_multiple": 2.4633,
+   "ann_vol": 0.1668,
    "mdd": -0.1967,
    "worst_day": -0.0828,
    "worst_20d": -0.17,
-   "longest_underwater_days": 217
+   "longest_underwater_days": 218
   },
-  "mean_exposure": 0.6512,
+  "mean_exposure": 0.651,
   "kill_switch_episodes": [
    {
     "from": "2024-08-06",
@@ -47,7 +47,7 @@
     "dd_at_trigger": -0.1547,
     "min_scale": 0.5,
     "to": null,
-    "days": 207
+    "days": 208
    }
   ],
   "ruin": {
@@ -64,20 +64,20 @@
  "stress": {
   "kind": "simulation",
   "inputs": {
-   "equity": 1021138.8,
+   "equity": 1022690.63,
    "principal": 1000000.0,
-   "gross_weight": 0.3519,
+   "gross_weight": 0.1281,
    "fx_share": 1.0,
-   "worst_single_weight": 0.3356
+   "worst_single_weight": 0.0805
   },
   "scenarios": [
    {
     "scenario": "gap_-10",
     "desc": "하룻밤 갭 -10% (전 종목 동반 하락, 상관 1)",
     "days": 1,
-    "equity_after": 985204.93,
-    "loss_pct": -3.52,
-    "drawdown_pct": -3.52,
+    "equity_after": 1009589.96,
+    "loss_pct": -1.28,
+    "drawdown_pct": -1.28,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -85,9 +85,9 @@
     "scenario": "gap_-20",
     "desc": "하룻밤 갭 -20% (2020-03 규모)",
     "days": 1,
-    "equity_after": 949271.05,
-    "loss_pct": -7.04,
-    "drawdown_pct": -7.04,
+    "equity_after": 996489.3,
+    "loss_pct": -2.56,
+    "drawdown_pct": -2.56,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -95,9 +95,9 @@
     "scenario": "gap_-30",
     "desc": "하룻밤 갭 -30% (역대급 단일일)",
     "days": 1,
-    "equity_after": 913337.18,
-    "loss_pct": -10.56,
-    "drawdown_pct": -10.56,
+    "equity_after": 983388.63,
+    "loss_pct": -3.84,
+    "drawdown_pct": -3.84,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -105,9 +105,9 @@
     "scenario": "cascade_5x-8",
     "desc": "닷새 연속 -8% (2022 루나·FTX형 연쇄 붕괴)",
     "days": 5,
-    "equity_after": 885271.54,
-    "loss_pct": -13.31,
-    "drawdown_pct": -13.31,
+    "equity_after": 971351.06,
+    "loss_pct": -5.02,
+    "drawdown_pct": -5.02,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -115,9 +115,9 @@
     "scenario": "slow_bleed_20x-2",
     "desc": "20일 연속 -2% (완만한 침식형 약세)",
     "days": 20,
-    "equity_after": 886619.65,
-    "loss_pct": -13.17,
-    "drawdown_pct": -13.17,
+    "equity_after": 971544.0,
+    "loss_pct": -5.0,
+    "drawdown_pct": -5.0,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -125,8 +125,8 @@
     "scenario": "krw_+15",
     "desc": "원/달러 +15% — 외화 자산(100%)만 영향",
     "days": 1,
-    "equity_after": 1075039.61,
-    "loss_pct": 5.28,
+    "equity_after": 1042341.63,
+    "loss_pct": 1.92,
     "drawdown_pct": 0.0,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
@@ -135,37 +135,37 @@
     "scenario": "krw_-15",
     "desc": "원/달러 -15% — 외화 자산(100%)만 영향",
     "days": 1,
-    "equity_after": 967237.99,
-    "loss_pct": -5.28,
-    "drawdown_pct": -5.28,
+    "equity_after": 1003039.63,
+    "loss_pct": -1.92,
+    "drawdown_pct": -1.92,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
    {
     "scenario": "single_-50",
-    "desc": "최대 비중 종목(33.6%) 하루 -50%",
+    "desc": "최대 비중 종목(8.1%) 하루 -50%",
     "days": 1,
-    "equity_after": 849791.71,
-    "loss_pct": -16.78,
-    "drawdown_pct": -16.78,
-    "kill_switch_after": 0.5,
+    "equity_after": 981527.33,
+    "loss_pct": -4.03,
+    "drawdown_pct": -4.03,
+    "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
    {
     "scenario": "stale_5d_-20",
     "desc": "시세가 5일 멈춘 사이 시장 -20% — 장부는 그동안 낙폭 0을 보고한다",
     "days": 5,
-    "equity_after": 949271.05,
-    "loss_pct": -7.04,
-    "drawdown_pct": -7.04,
+    "equity_after": 996489.3,
+    "loss_pct": -2.56,
+    "drawdown_pct": -2.56,
     "kill_switch_after": null,
     "engaged_on_day": null,
     "blind": true
    }
   ],
   "worst": {
-   "scenario": "single_-50",
-   "drawdown_pct": -16.78
+   "scenario": "cascade_5x-8",
+   "drawdown_pct": -5.02
   },
   "honest_limits": [
    "시나리오는 가정 — 실제 위기는 여기 없는 모양으로 온다. 하한 점검이지 보증이 아님",
