@@ -1,8 +1,8 @@
 {
-  "cash": 10000.0,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-08-27 00:00:00",
+  "cash": 7257.0,
+  "quantity": 29.617062005133402,
+  "avg_price": 92.55999755859375,
+  "last_bar": "2026-08-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -249,11 +249,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-28",
+      "price": 91.9800033569336,
+      "weight": 0.121,
+      "held_weight": 0.2729,
+      "fractional_lot": false,
+      "equity": 9981.18,
+      "return_pct": -0.19,
+      "hit_rate": 0.5137614678899083,
+      "hit_n": 109,
+      "hit_lo": 0.4210714006745304,
+      "hit_hi": 0.6055145392625141,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "rf",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +12% — 랜덤포레스트 모델이 내일 상승확률을 약 60%로 추정(기준 55% 초과) · 사이징: 신호 원비중 7% → 변동성 타깃 조절 후 12% · 참고: 전 종목 합산으로 모델이 60%±10%p라 말한 110번의 실제 상승 비율 52% (95% 신뢰구간 43%~61% · 보합 3일 포함 · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 2번으로 축적 중) · 🏛 의회 운용: ml 34% + ml 34% + ml 33% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 92.559998,
+        "bar": "2026-08-28 00:00:00",
+        "weight": 0.2743,
+        "decided_bar": "2026-08-27 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "1115deedcfba",
+      "data_sha256": "fc86e2f3ba834be56fed01a9ac3d36d46ac0563b64595aac185bc84afc67ec5e",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5979438713999959,
+      "drift_psi": 0.0705,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.2743,
-    "decided_bar": "2026-08-27 00:00:00"
+    "weight": 0.121,
+    "decided_bar": "2026-08-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "VGK",

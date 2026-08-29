@@ -2,7 +2,7 @@
   "cash": 10000.0,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-27 00:00:00",
+  "last_bar": "2026-08-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -252,11 +252,63 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.7556
+    },
+    {
+      "date": "2026-08-28",
+      "price": 92.8499984741211,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.0,
+      "return_pct": 0.0,
+      "hit_rate": 0.5217391304347826,
+      "hit_n": 46,
+      "hit_lo": 0.38137172148151327,
+      "hit_hi": 0.6587554012432788,
+      "hit_conclusive": false,
+      "live_hit": null,
+      "live_hit_n": 0,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 41% + ml 34% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 93.18,
+        "bar": "2026-08-28 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-27 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "1115deedcfba",
+      "data_sha256": "5d05e3bb9b1f3ddfb60d6c05a2eaad16120f5b2a2d761325b3e68706d03b7cb1",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4998686352356592,
+      "drift_psi": 0.2134,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.6852
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-08-27 00:00:00"
+    "decided_bar": "2026-08-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "IEF",

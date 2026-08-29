@@ -2,7 +2,7 @@
   "cash": 9982.92361968692,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-27 00:00:00",
+  "last_bar": "2026-08-28 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -693,13 +693,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-28",
+      "price": 769.3499755859375,
+      "weight": 0.0318,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9982.92,
+      "return_pct": -0.17,
+      "hit_rate": 0.4791666666666667,
+      "hit_n": 96,
+      "hit_lo": 0.3819724566925992,
+      "hit_hi": 0.577964082785935,
+      "hit_conclusive": false,
+      "live_hit": 0.2857142857142857,
+      "live_hit_n": 7,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "lookback": 60,
+        "top_frac": 0.3
+      },
+      "reason": "관망 (현금) — cross_rank 전략 신호에 따름 · 🏛 의회 운용: cross_rank 43% + ml 40% + ml 18% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 771.76001,
+        "bar": "2026-08-28 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-08-27 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "1115deedcfba",
+      "data_sha256": "b0ec961b34173734d1c3f92ec46ebebd5fc324ada072d716cdf8d5ca245b0df8",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.0967,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "SPY",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-08-27 00:00:00"
+    "weight": 0.0318,
+    "decided_bar": "2026-08-28 00:00:00"
   }
 }

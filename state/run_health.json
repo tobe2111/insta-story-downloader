@@ -24,10 +24,10 @@
     "errors": {}
   },
   "paper": {
-    "date": "2026-08-28",
+    "date": "2026-08-29",
     "runs": 1,
-    "ok": 40,
-    "failed": 0,
+    "ok": 39,
+    "failed": 1,
     "skipped": 0,
     "ok_keys": [
       "crypto:BNB/USDT",
@@ -49,7 +49,6 @@
       "kr_stock:273130.KS",
       "us_stock:AAPL",
       "us_stock:AMZN",
-      "us_stock:DBC",
       "us_stock:EEM",
       "us_stock:EWJ",
       "us_stock:GLD",
@@ -72,7 +71,11 @@
       "us_stock:XLU"
     ],
     "skipped_keys": [],
-    "failed_keys": [],
-    "errors": {}
+    "failed_keys": [
+      "us_stock:DBC"
+    ],
+    "errors": {
+      "us_stock:DBC": "us_stock/DBC: 데이터 무결성 위반 {'gaps': 179, 'ohlc_violations': 1} — 기록하지 않습니다."
+    }
   }
 }

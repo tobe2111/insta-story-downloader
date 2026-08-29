@@ -2,7 +2,7 @@
   "cash": 10022.391737084476,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-08-27 00:00:00",
+  "last_bar": "2026-08-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -248,11 +248,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-28",
+      "price": 179490.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10022.39,
+      "return_pct": 0.22,
+      "hit_rate": 0.6557377049180327,
+      "hit_n": 61,
+      "hit_lo": 0.5304951542045838,
+      "hit_hi": 0.7625266096013678,
+      "hit_conclusive": true,
+      "live_hit": 0.5,
+      "live_hit_n": 2,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 45% + ml 28% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 180550.0,
+        "bar": "2026-08-28 00:00:00",
+        "weight": 0.0184,
+        "decided_bar": "2026-08-27 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "1115deedcfba",
+      "data_sha256": "4bb432352264997418882ec8030deee93b9853467e7bd649e9a25fc4302af304",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.13119285219269408,
+      "drift_psi": 1.0965,
+      "drift_grade": "심한 드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.6667
     }
   ],
   "pending": {
-    "weight": 0.0184,
-    "decided_bar": "2026-08-27 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-08-28 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "133690.KS",
