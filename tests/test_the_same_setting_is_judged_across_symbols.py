@@ -95,8 +95,20 @@ def test_the_sign_of_t_follows_the_mean():
 
 # ── 진짜 스냅샷으로 도는가 ────────────────────────────────────
 
+_REAL_CACHE: dict = {}
+
+
 def _real():
-    ev = pooled_evidence("state")
+    """진짜 스냅샷으로 낸 증거 — **한 번만 계산한다.**
+
+    ⚠️ 이 한 번이 40종목 백테스트라 **약 60초**다. 캐시가 없던 동안 이
+       파일의 검사 일곱이 각자 다시 계산해서 혼자 7분을 썼고, CI의 35분
+       한도(매달림 감지용)를 넘겨 잡이 잘렸다. 결과는 입력이 같으면 같으므로
+       다시 계산할 이유가 없다 — 검사를 줄이지 않고 시간만 돌려받는다.
+    """
+    if "ev" not in _REAL_CACHE:
+        _REAL_CACHE["ev"] = pooled_evidence("state")
+    ev = _REAL_CACHE["ev"]
     if not ev:
         pytest.skip("스냅샷 없음")
     return ev
