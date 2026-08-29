@@ -1583,7 +1583,8 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                 limit: int = 800, state_dir: str = STATE_DIR,
                 confirm_window: int = 120,
                 require_real_data: bool = True,
-                evolve: bool = True) -> dict:
+                evolve: bool = True,
+                panel_asof: str | None = None) -> dict:
     """데이터 수신 → 대결 → 승격/유지 → 기록까지의 야간 재학습 1회분."""
     from quant.data import get_provider
 
@@ -1729,7 +1730,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                # 고정 격자 설정만. 판정에는 아직 안 쓰이고
                                # 장부에 나란히 기록된다(사장님 ①안: 관문을
                                # 바꾸되 기존 관문도 계속 남긴다).
-                               panel_specs=shared_panel_specs(asof),
+                               #
+                               # ⚠️ 명단은 **밤 전체가 하나**여야 한다
+                               #    (`panel_asof`). 종목의 마지막 봉 날짜로
+                               #    뽑으면, 봉 날짜가 갈리는 밤에 종목마다
+                               #    다른 명단을 돌아 패널이 쪼개진다.
+                               panel_specs=shared_panel_specs(
+                                   panel_asof or asof),
                                confirm_window=confirm_window,
                                select_t=select_t_eff,
                                confirm_t=confirm_t_eff,
@@ -1799,6 +1806,14 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 이름을 남긴다: 어떤 기능이 '시험 중'인 척하며 실제로는 꺼져 있었는지
         # 장부만 봐도 드러나야 한다(감사 127의 재발 방지).
         "inert_candidates": decision.get("inert", []),
+        # 잠든 후보 — 스냅샷이 모자라 아직 못 도는 설정들. 링에서 뺐고
+        # 시도 수에도 안 넣었다.
+        # ⚠️ **안 남기면 "장치가 일을 했다"와 "장치가 고장 났다"가 장부에서
+        #    똑같이 보인다**(둘 다 조용하다). 실제로 이 장치는 2026-08-20에
+        #    붙고도 일주일 내내 0개를 재웠는데, 장부만 봐서는 그것이
+        #    '잘 돌아서 0'인지 '고장 나서 0'인지 알 수 없었다 — 결국
+        #    무동작 후보 목록을 뒤져 간접으로 알아냈다.
+        "asleep_candidates": asleep,
         # 공회전 표식 — 후보 대부분이 챔피언 사본이라 대결이 성립하지 않은 날.
         # '이긴 후보가 없다'(정상)와 '비교를 못 했다'(고장)는 다른 사건이다.
         "vacuous": bool(decision.get("vacuous")),
@@ -1932,7 +1947,7 @@ def _today_iso() -> str:
 
 
 def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
-                 n_symbols_seen: int = 0) -> dict:
+                 n_symbols_seen: int = 0, roster_asof: str = "") -> dict:
     """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
 
     승격 판단은 아직 이 값을 보지 않는다. 사장님 ①안의 조건이 "관문을 바꾸되
@@ -1962,6 +1977,10 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
         "n_symbols_seen": int(n_symbols_seen),
         "n_specs_judged": len(judged),
         "t_ref": PANEL_T_REF,
+        # 그날 밤 명단을 정한 날짜. 이것이 없으면 "저 날 왜 저 설정을
+        # 쟀나"를 나중에 재현할 수 없다(회전은 날짜만 보므로 이 한 칸이면
+        # 명단 전체가 되살아난다).
+        "roster_asof": str(roster_asof or asof),
         # 판정된 설정만 담는다 — 종목이 모자라 못 잰 것을 '통과'로도
         # '탈락'으로도 세지 않는다(감사 226: 건너뜀은 통과가 아니다).
         "specs": [{
@@ -1978,6 +1997,18 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
         "skipped": [{"spec_key": v["spec_key"], "reason": v["reason"]}
                     for v in verdicts if v.get("skipped")],
     }
+    # ⚠️ **명단보다 많은 설정이 담겼으면 그 밤은 쪼개진 것이다.**
+    #    한 밤에 명단은 하나이므로 설정 수는 명단 크기를 넘을 수 없다.
+    #    넘었다면 종목마다 다른 명단을 돌았다는 뜻이고, 그러면 설정마다
+    #    참여 종목이 갈려 패널의 존재 이유(횡단 평균)가 사라진다.
+    #    이건 성적이 나쁜 것이 아니라 **측정이 고장 난 것**이라, 숫자를
+    #    그대로 두면 나중에 시장 탓으로 잘못 읽힌다. 장부가 스스로 말하게
+    #    한다 — 조용한 고장이 이 저장소에서 가장 비싼 실패다.
+    if len(verdicts) > PANEL_ROSTER_PER_NIGHT:
+        rec["roster_split"] = (
+            f"한 밤에 명단은 {PANEL_ROSTER_PER_NIGHT}개인데 설정 "
+            f"{len(verdicts)}개가 담겼습니다 — 종목마다 다른 명단을 돈 "
+            "것이라 설정별 참여 종목이 쪼개졌습니다(측정 고장).")
     frame = collector.panel_frame()
     if frame.shape[0] >= RC_MIN_N and frame.shape[1] >= 1:
         rec["reality_check"] = reality_check(frame.to_numpy())
@@ -2058,13 +2089,29 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     from quant.live.panel_gate import PanelCollector
     panel = PanelCollector()
     panel_asof = ""
+    # ⚠️ **명단 날짜는 밤에 하나다** — 종목마다 정하면 패널이 쪼개진다.
+    #    예전에는 각 종목이 *자기 마지막 봉 날짜*로 명단을 뽑았다. 코인은
+    #    주말에도 봉이 생기고 주식은 안 생기므로, 봉 날짜가 갈리는 밤에는
+    #    한 통에 **서로 다른 명단 둘**이 담겼다. 그러면 설정마다 참여 종목이
+    #    반으로 쪼개지고, 표를 세로로 맞출 때 날짜까지 같이 깎인다.
+    #
+    #    실측(2026-08-29 장부): 12종목이 5 + 7로 갈렸다. 설정은 3개가
+    #    아니라 6개가 되어 부트스트랩의 다중검정 부담이 두 배가 됐고,
+    #    검정에 쓰인 날짜는 120일 → 79일(-34%)로 줄었다. 패널을 만든
+    #    이유가 "재는 자가 짧다"였는데, 쪼개짐이 그 자를 도로 잘라 먹었다.
+    #
+    #    그래서 밤 시작 시각에 한 번 정하고 모든 종목에 같은 것을 준다.
+    #    회전은 여전히 날짜만 보므로 결정적이고, 어느 명단이었는지는
+    #    장부의 ``roster_asof``에 남는다.
+    roster_asof = str(kwargs.pop("panel_asof", "") or _today_iso())
     for idx, (market, symbol) in enumerate(targets):
         key = _key(market, symbol)
         if deadline is not None and _time.monotonic() > deadline:
             not_reached = [_key(m, s) for m, s in targets[idx:]]
             break
         try:
-            out = run_retrain(market, symbol, **kwargs)
+            out = run_retrain(market, symbol, panel_asof=roster_asof,
+                              **kwargs)
             # 멱등 가드에 걸린 종목은 오디션을 **한 번도 안 열었다**.
             # 그걸 성공으로 세면 시세가 얼어붙은 날도 장부는 "20/20 성공"이다
             # (감사 226 — "건너뜀은 통과가 아니다"는 이미 변이 시험의 규칙인데
@@ -2100,7 +2147,8 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     try:
         panel_rec = record_panel(panel_asof or _today_iso(), panel,
                                  kwargs.get("state_dir", STATE_DIR),
-                                 n_symbols_seen=len(ok))
+                                 n_symbols_seen=len(ok),
+                                 roster_asof=roster_asof)
         rc = panel_rec.get("reality_check") or {}
         print(f"  📊 패널 관문(기록 전용): 설정 "
               f"{panel_rec['n_specs_judged']}/"

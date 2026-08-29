@@ -3464,6 +3464,19 @@
        "/ $1 symbols · worst offenders: $2"],
       ["^과최적화 확률\\(PBO\\) (\\d+)% — 문서가 \'버릴 것\'이라 정한 선\\((\\d+)%\\)을 넘었습니다\\. 오늘 이 종목은 관망합니다\\.$",
        "Overfitting probability (PBO) $1% — past the $2% line the documentation defines as \"discard\". This symbol stands aside today."],
+      // ⚠️ 같은 문장에 **꼬리가 붙는 경우**가 따로 있다(만료된 실패 기록).
+      //    위 규칙은 "$" 로 끝나서 꼬리가 붙는 순간 통째로 안 맞았고,
+      //    영어 화면에 한국어 문장이 그대로 남았다(2026-08-29 실측).
+      ["^과최적화 확률\\(PBO\\) (\\d+)% — 문서가 \'버릴 것\'이라 정한 선\\((\\d+)%\\)을 넘었습니다\\. 오늘 이 종목은 관망합니다\\. \\(기록이 (\\d+)일 전 것이지만 판정은 그대로다\\)$",
+       "Overfitting probability (PBO) $1% — past the $2% line the documentation defines as \"discard\". This symbol stands aside today. (The record is $3 days old, but the verdict stands.)"],
+      ["^검증 기록이 (\\d+)일 전 것입니다\\(유통기한 (\\d+)일\\) — 오늘의 판정으로 쓸 수 없어 비중을 절반으로 줄입니다\\.$",
+       "The validation record is $1 days old (it keeps for $2 days) — it cannot stand as today's verdict, so the weight is halved."],
+      // ⚠️ **전략 이름이 문장 안에 들어간다.** 사전이 문장 통째로 열쇠를
+      //    삼으므로, 새 전략이 챔피언이 되는 날 그 문장만 조용히 한국어로
+      //    남는다 — 실제로 bollinger·turtle·cross_rank가 그렇게 남았다.
+      //    이름은 코드값이라 번역하지 않고 그대로 싣는다.
+      ["^(.+) 전략 신호에 따름$", "following the $1 strategy's signal"],
+      ["^규칙이 판단 \\((.+)\\)$", "decided by a rule ($1)"],
       ["^CPCV 최악 경로 수익률 (.+) \\(기준: (.+) 초과\\) · 과최적화 확률\\(PBO\\) (\\d+)% > 기준 (\\d+)% · 보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
        "CPCV worst-path return $1 (threshold: above $2) · overfitting probability (PBO) $3% > threshold $4% · deflated Sharpe (DSR) $5 < threshold $6 — the weight is halved."],
       ["^CPCV 최악 경로 수익률 (.+) \\(기준: (.+) 초과\\) · 보정 샤프\\(DSR\\) (.+) < 기준 (.+) — 비중을 절반으로 줄입니다\\.$",
@@ -3504,8 +3517,13 @@
       ["^소액 매도 ([-−][\\d\\.]+)%$", "Small sell $1%"],
       ["^이동평균 교차: (\\d+)일선이 (\\d+)일선 위 \\(상승 추세 지속 판단\\)$",
        "Moving-average cross: the $1-day line is above the $2-day line (read as an uptrend continuing)"],
-      ["^이동평균 교차: (\\d+)일선이 (\\d+)일선 아래 \\(하락 추세 판단\\)$",
-       "Moving-average cross: the $1-day line is below the $2-day line (read as a downtrend)"],
+      // ⚠️ 이 규칙은 **한 번도 맞은 적이 없었다**(2026-08-29 실측). 코드가
+      //    찍는 글자는 "하락/횡보 추세"인데 사전에는 "하락 추세"라고 적혀
+      //    있었다 — 사전을 실제 문장이 아니라 짐작으로 썼다. ma_cross는
+      //    지금 운용 중인 챔피언이라(코인 2종), 그 종목이 하락·횡보로
+      //    돌아선 날마다 영어 화면에 한국어가 남았다.
+      ["^이동평균 교차: (\\d+)일선이 (\\d+)일선 아래 \\(하락\\/횡보 추세 판단\\)$",
+       "Moving-average cross: the $1-day line is below the $2-day line (read as a downtrend or a sideways market)"],
       ["^로지스틱회귀·풀링\\(전 종목 합산 학습\\) 모델이 내일 상승확률을 약 (\\d+)%로 추정\\(기준 (\\d+)% 초과\\)$",
        "the logistic-regression, pooled (trained on every symbol together) model puts tomorrow's chance of a rise at about $1% (above the $2% threshold)"],
       ["^로지스틱회귀·풀링\\(전 종목 합산 학습\\) 모델의 상승확률이 기준\\((\\d+)%\\)에 못 미쳐 관망$",
@@ -3540,6 +3558,25 @@
        "the ensemble model's chance of a rise falls short of the $1% threshold, so it stands aside"],
       ["^사이징: 신호 원비중 (\\d+)% → 변동성 타깃 조절 후 (\\d+)%$",
        "sizing: raw signal weight $1% → $2% after the volatility target"],
+      // ── 전략별 해설 문장 (quant/live/explain.py의 가지들) ──────────────
+      // ⚠️ 여기 빠진 가지는 **그 전략이 챔피언이 되는 날** 영어 화면에
+      //    한국어로 튀어나온다. 사전은 그날까지 아무 말도 안 한다.
+      ["^채널 돌파: 최근 돌파 후 추세 추종 중$",
+       "channel breakout: riding the trend after a recent breakout"],
+      ["^채널 돌파: (\\d+)일 최고가\\(([\\d,\\.]+)\\) 돌파 대기$",
+       "channel breakout: waiting for a break above the $1-day high ($2)"],
+      ["^모멘텀: 최근 (\\d+)일 수익률 ([-−+][\\d\\.]+)% \\(상승 흐름 추종\\)$",
+       "momentum: $2% over the last $1 days (riding the up-move)"],
+      ["^모멘텀: 최근 (\\d+)일 수익률 ([-−+][\\d\\.]+)% \\(흐름 약화 → 축소\\/관망\\)$",
+       "momentum: $2% over the last $1 days (momentum fading → trim or stand aside)"],
+      ["^RSI\\((\\d+)\\)=(\\d+) \\(과매도 반등 노림\\)$",
+       "RSI($1)=$2 (playing for an oversold bounce)"],
+      ["^RSI\\((\\d+)\\)=(\\d+) \\(과매수 경계\\)$",
+       "RSI($1)=$2 (wary of overbought)"],
+      ["^RSI\\((\\d+)\\)=(\\d+) \\(중립 구간\\)$",
+       "RSI($1)=$2 (neutral zone)"],
+      ["^매매 없이 보유: 이 종목은 오디션에서 \\*\\*아무것도 하지 않는 쪽\\*\\*이 AI 전략을 이겼습니다\\(2단계 심사 통과\\)\\. 매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다$",
+       "hold without trading: for this symbol, **doing nothing** beat the AI strategies in the audition (it passed both rounds). It is simply held — no buying, no selling — and it takes the drawdowns as they come."],
       ["^챔피언 전략 신호에 따름$", "following the champion strategy's signal"],
       ["^🏛 의회 운용: (.+)$", "🏛 Parliament: $1"],
       ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함 · 봉이 빠진 (\\d+)번은 제외 · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",

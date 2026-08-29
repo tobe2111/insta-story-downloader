@@ -1264,3 +1264,113 @@ def test_the_korean_only_list_is_not_a_blanket():
         "늘리기 전에 정말 영어로 읽을 사람이 없는지 보라")
     assert not (set(KOREAN_ONLY) & set(DONE)), (
         "같은 페이지가 '영어 완료'와 '일부러 한국어' 양쪽에 있다")
+
+
+# ── 전략이 늘어나는 속도를 사전이 못 따라간다 (2026-08-29 실측) ─────────
+
+def _translate(text: str) -> str | None:
+    """사전(고정 열쇠 + 규칙)이 이 문장을 영어로 바꿔 주는가. 못 하면 None."""
+    import json as _json
+    import re as _re
+
+    keys = _dict_keys()
+    if text in keys:
+        return "고정 열쇠"
+    for pat, _en in _re.findall(r'\["(\^[^"]*)",\s*\n?\s*"((?:[^"\\]|\\.)*)"\]',
+                                DICT):
+        try:
+            rx = _re.compile(_json.loads(f'"{pat}"'))
+        except (ValueError, _re.error):
+            continue
+        if rx.search(text):
+            return pat
+    return None
+
+
+def _every_strategy_explanation() -> dict[str, str]:
+    """등록된 **모든 전략**의 해설 문장을 실제로 만들어 본다.
+
+    ⚠️ 화면을 훑는 검사는 **오늘 챔피언인 전략**만 본다. 새 전략은 등록된
+       날이 아니라 *처음 챔피언이 되는 날* 영어 화면에 한국어로 튀어나오고,
+       그 사이에 아무 빨간불도 안 뜬다(실측: bollinger·turtle·cross_rank가
+       그렇게 남았다). 여기서는 등록부를 직접 돌아 그 시차를 없앤다.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from quant.live.explain import explain_signal
+    from quant.strategies import _REGISTRY
+
+    idx = pd.date_range("2026-01-01", periods=400, freq="D")
+    rng = np.random.default_rng(7)
+    close = pd.Series(100 * np.exp(np.cumsum(rng.normal(0, 0.012, 400))),
+                      index=idx)
+    df = pd.DataFrame({"open": close, "high": close * 1.02,
+                       "low": close * 0.98, "close": close,
+                       "volume": 1_000.0}, index=idx)
+    out = {}
+    for name in sorted(_REGISTRY):
+        for weight in (0.3, 0.0):
+            try:
+                text = explain_signal({"strategy": name, "params": {}},
+                                      df, weight)
+            except Exception:                      # noqa: BLE001 — 못 만들면 건너뛴다
+                continue
+            body = text.split(" — ", 1)[-1]
+            out.setdefault(f"{name}:{weight}", body)
+    return out
+
+
+def _covered(text: str) -> bool:
+    """사전이 이 해설을 감당하는가 — 통째로든, 토막으로든.
+
+    ⚠️ 문장은 가운뎃점으로 토막나 붙기도 하고(사전 규칙도 토막 단위다)
+       통째로 한 규칙이 받기도 한다. 한쪽만 인정하면 이 검사가 늑대소년이
+       된다 — 실제로 괄호 **안에** 가운뎃점이 있는 문장이 있어서, 토막만
+       보면 멀쩡한 규칙을 '없다'고 말하게 된다.
+    """
+    if _translate(text) is not None:
+        return True
+    # ⚠️ 괄호 **안**의 가운뎃점은 토막이 아니다("(종목 n=0 · 합산 n=0)").
+    #    거기서 자르면 멀쩡한 규칙을 '없다'고 말하게 된다.
+    parts, buf, depth = [], "", 0
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        depth += ch in "(" and 1 or (-1 if ch == ")" else 0)
+        if depth <= 0 and text[i:i + 3] == " · ":
+            parts.append(buf)
+            buf, i = "", i + 3
+            continue
+        buf += ch
+        i += 1
+    parts.append(buf)
+    parts = [p.strip() for p in parts if p.strip()]
+    return len(parts) > 1 and all(_translate(p) is not None for p in parts)
+
+
+def test_every_registered_strategy_can_explain_itself_in_english():
+    """등록된 전략의 해설이 **전부** 영어로 바뀐다.
+
+    ⚠️ 이 검사가 없으면 사전은 "오늘 화면에 뜬 것"까지만 따라간다. 그러면
+       새 전략이 승격되는 날 — 하필 사람들이 그 종목을 들여다보는 날 —
+       영어 화면에 한국어가 튀어나온다. 사전이 데이터를 뒤쫓는 대신
+       **등록부를 앞질러 가게** 만드는 것이 이 검사의 일이다.
+    """
+    missing = {k: v for k, v in _every_strategy_explanation().items()
+               if not _covered(v)}
+    assert not missing, (
+        f"해설을 영어로 못 바꾸는 전략 {len(missing)}개 — "
+        f"{list(missing.items())[:3]}")
+
+
+def test_that_check_is_not_vacuous():
+    """대조군 — 해설을 **실제로 만들어** 보고 있는가.
+
+    ⚠️ 위 검사는 해설이 하나도 안 만들어져도 초록이다(빈 dict는 빈 dict다).
+       그러면 아무것도 안 지킨다.
+    """
+    got = _every_strategy_explanation()
+    assert len(got) >= 20, f"해설을 너무 적게 만들었다: {len(got)}"
+    assert _translate("이런 문장은 사전에 절대 없다 12345") is None, (
+        "번역 판정기가 아무 문장이나 통과시킨다 — 위 검사가 늘 초록이 된다")
