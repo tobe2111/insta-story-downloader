@@ -1,18 +1,18 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-30T02:46:45+09:00",
+  "updated": "2026-08-30T05:01:27+09:00",
   "start_cash": 10000.0,
-  "equity": 9674.2968,
-  "return_pct": -3.257,
-  "cost_paid": 519.37,
-  "funding_paid": 10.069861,
+  "equity": 9679.5405,
+  "return_pct": -3.2046,
+  "cost_paid": 522.0626,
+  "funding_paid": 10.120234,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
     "max_leverage": 1.0,
     "proven": false,
     "drawdown": 0.0458,
-    "n": 161,
+    "n": 162,
     "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
   },
   "rule_changes": [
@@ -33,12 +33,12 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 5.413579,
+  "margin_ratio": null,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 1787.0426,
-  "long_positions": 2,
+  "gross_exposure": 0.0,
+  "long_positions": 0,
   "short_positions": 0,
   "long_only_symbols": [
     "BTC/USDT",
@@ -47,7 +47,7 @@
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 162,
+  "rounds": 163,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -697,72 +697,26 @@
     {
       "at": "2026-08-30T02:46:45+09:00",
       "equity": 9674.2968
-    }
-  ],
-  "positions": {
-    "SOL/USDT": 11.0279007521,
-    "XRP/USDT": 453.1558222766
-  },
-  "holdings": [
-    {
-      "symbol": "SOL/USDT",
-      "direction": "long",
-      "quantity": 11.0279007521,
-      "avg_cost": 104.86,
-      "last_price": 104.86,
-      "currency": "USDT",
-      "value": 1156.3857,
-      "cost": 1156.3857,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
     },
     {
-      "symbol": "XRP/USDT",
-      "direction": "long",
-      "quantity": 453.1558222766,
-      "avg_cost": 1.3917,
-      "last_price": 1.3917,
-      "currency": "USDT",
-      "value": 630.657,
-      "cost": 630.657,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "at": "2026-08-30T05:01:27+09:00",
+      "equity": 9679.5405
     }
   ],
+  "positions": {},
+  "holdings": [],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 2,
+    "counted": 0,
     "unknown": 0
   },
   "deployed": {
-    "gross": 1787.0427,
-    "pct": 18.4721,
-    "cash": 7887.2541,
+    "gross": 0.0,
+    "pct": 0.0,
+    "cash": 9679.5405,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "XRP/USDT",
-      "side": "sell",
-      "direction": "청산",
-      "notional": -324.63,
-      "price": 1.4383,
-      "cost": 0.487,
-      "signal": 0.0,
-      "realized_pnl": -9.0412,
-      "avg_cost": 1.4762,
-      "at": "2026-08-26T07:11:32+09:00"
-    },
-    {
-      "symbol": "SOL/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 895.02,
-      "price": 97.19,
-      "cost": 1.3425,
-      "signal": 0.4573,
-      "at": "2026-08-26T07:47:25+09:00"
-    },
     {
       "symbol": "SOL/USDT",
       "side": "sell",
@@ -1186,6 +1140,30 @@
       "cost": 0.946,
       "signal": 0.3259,
       "at": "2026-08-30T02:46:45+09:00"
+    },
+    {
+      "symbol": "SOL/USDT",
+      "side": "sell",
+      "direction": "청산",
+      "notional": -1161.79,
+      "price": 105.35,
+      "cost": 1.7427,
+      "signal": 0.0,
+      "realized_pnl": 3.661,
+      "avg_cost": 104.86,
+      "at": "2026-08-30T05:01:27+09:00"
+    },
+    {
+      "symbol": "XRP/USDT",
+      "side": "sell",
+      "direction": "숏",
+      "notional": -633.24,
+      "price": 1.3974,
+      "cost": 0.9499,
+      "signal": 0.0,
+      "realized_pnl": 1.6331,
+      "avg_cost": 1.3917,
+      "at": "2026-08-30T05:01:27+09:00"
     }
   ],
   "limits": [
@@ -1197,10 +1175,10 @@
     "'숏이 더 자주 발동한다'와 '숏이 돈을 번다'는 다른 말입니다. 이 트랙은 후자를 아직 증명하지 않았습니다"
   ],
   "krw": {
-    "rate": 1380.45,
-    "equity": 13354883.0,
-    "start_cash": 13804500.0,
-    "pnl": -449617.0,
+    "rate": 1371.5,
+    "equity": 13275490.0,
+    "start_cash": 13715000.0,
+    "pnl": -439510.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
