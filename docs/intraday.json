@@ -3,18 +3,20 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 10551.14,
-  "return_pct": 5.5114,
-  "gross_return_pct": 8.6277,
-  "cost_paid": 311.63,
-  "trades_total": 358,
-  "rounds_total": 346,
+  "equity": 10571.54,
+  "return_pct": 5.7154,
+  "gross_return_pct": 8.8737,
+  "cost_paid": 315.83,
+  "trades_total": 360,
+  "rounds_total": 347,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-31T00:21:37+09:00",
+  "last_time": "2026-08-31T03:41:32+09:00",
   "booked_interval_minutes": 5,
   "observed_gap_minutes": 750.7666666666667,
   "positions": {
-    "ETH/USDT": 0.85221903
+    "ETH/USDT": 0.85221903,
+    "BNB/USDT": 3.01690092,
+    "XRP/USDT": 486.51806732
   },
   "rule_changes": [
     {
@@ -25,27 +27,51 @@
   ],
   "holdings": [
     {
+      "symbol": "BNB/USDT",
+      "direction": "long",
+      "quantity": 3.0169009153,
+      "avg_cost": 701.1,
+      "last_price": 701.1,
+      "currency": "USDT",
+      "value": 2115.1492,
+      "cost": 2115.1492,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 0.8522190272,
       "avg_cost": 2476.94,
-      "last_price": 2476.94,
+      "last_price": 2505.81,
       "currency": "USDT",
-      "value": 2110.8954,
+      "value": 2135.499,
       "cost": 2110.8954,
+      "pnl": 24.6036,
+      "pnl_pct": 1.1656
+    },
+    {
+      "symbol": "XRP/USDT",
+      "direction": "long",
+      "quantity": 486.5180673178,
+      "avg_cost": 1.4191,
+      "last_price": 1.4191,
+      "currency": "USDT",
+      "value": 690.4178,
+      "cost": 690.4178,
       "pnl": 0.0,
       "pnl_pct": 0.0
     }
   ],
   "holdings_total": {
-    "pnl": 0.0,
-    "counted": 1,
+    "pnl": 24.6036,
+    "counted": 3,
     "unknown": 0
   },
   "deployed": {
-    "gross": 2110.8954,
-    "pct": 20.0063,
-    "cash": 8440.2446,
+    "gross": 4941.066,
+    "pct": 46.7393,
+    "cash": 5630.474,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1434,9 +1460,13 @@
     [
       "2026-08-31T00:21:37+09:00",
       10551.14
+    ],
+    [
+      "2026-08-31T03:41:32+09:00",
+      10571.54
     ]
   ],
-  "hold_return_pct": 29.9986,
+  "hold_return_pct": 30.6768,
   "judgement": {
     "registered_on": "2026-08-18",
     "min_days": 90,
@@ -1456,60 +1486,40 @@
   "limit_shadow": {
     "since": "2026-08-18T14:50:04+00:00",
     "start_equity": 9995.2,
-    "equity": 10656.78,
-    "return_pct_since": 6.619,
-    "cost_paid": 196.52,
-    "filled_total": 329,
+    "equity": 10679.38,
+    "return_pct_since": 6.8451,
+    "cost_paid": 198.77,
+    "filled_total": 331,
     "unfilled_total": 212,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10223.77,
-      "return_pct": 2.2377,
+      "equity": 10275.87,
+      "return_pct": 2.7587,
       "hold_return_pct": null,
-      "gross_return_pct": 8.3889,
-      "trades_total": 597,
-      "cost_paid": 615.12,
-      "rounds_total": 327,
+      "gross_return_pct": 8.9142,
+      "trades_total": 598,
+      "cost_paid": 615.55,
+      "rounds_total": 328,
       "since": "2026-08-18T16:03:06+00:00"
     },
     {
       "timeframe": "5m",
-      "equity": 9593.59,
-      "return_pct": -4.0641,
+      "equity": 9679.37,
+      "return_pct": -3.2063,
       "hold_return_pct": null,
-      "gross_return_pct": 3.7848,
-      "trades_total": 674,
-      "cost_paid": 784.89,
-      "rounds_total": 327,
+      "gross_return_pct": 4.6497,
+      "trades_total": 675,
+      "cost_paid": 785.6,
+      "rounds_total": 328,
       "since": "2026-08-18T16:03:06+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
-  "elapsed_days": 12.43,
+  "elapsed_days": 12.57,
   "recent_trades": [
-    {
-      "time": "2026-08-26T07:10:46+09:00",
-      "symbol": "XRP/USDT",
-      "side": "sell",
-      "notional": -353.84,
-      "price": 1.4383,
-      "cost": 0.5308,
-      "signal": 0.0,
-      "realized_pnl": -9.8545,
-      "avg_cost": 1.4762
-    },
-    {
-      "time": "2026-08-26T07:46:34+09:00",
-      "symbol": "SOL/USDT",
-      "side": "buy",
-      "notional": 974.91,
-      "price": 97.19,
-      "cost": 1.4624,
-      "signal": 0.4573
-    },
     {
       "time": "2026-08-26T08:12:20+09:00",
       "symbol": "SOL/USDT",
@@ -1895,6 +1905,24 @@
       "signal": 0.0,
       "realized_pnl": 1.3508,
       "avg_cost": 105.302788
+    },
+    {
+      "time": "2026-08-31T03:41:32+09:00",
+      "symbol": "BNB/USDT",
+      "side": "buy",
+      "notional": 2115.15,
+      "price": 701.1,
+      "cost": 3.1727,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-08-31T03:41:32+09:00",
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "notional": 690.42,
+      "price": 1.4191,
+      "cost": 1.0356,
+      "signal": 0.3264
     }
   ],
   "honest_limits": [
@@ -1907,9 +1935,9 @@
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1380.45,
-    "equity": 14565321.0,
+    "equity": 14593482.0,
     "start_cash": 13804500.0,
-    "pnl": 760821.0,
+    "pnl": 788982.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
