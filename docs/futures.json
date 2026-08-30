@@ -1,18 +1,18 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-08-31T03:42:15+09:00",
+  "updated": "2026-08-31T06:37:31+09:00",
   "start_cash": 10000.0,
-  "equity": 9681.2566,
-  "return_pct": -3.1874,
-  "cost_paid": 533.1137,
-  "funding_paid": 10.191912,
+  "equity": 9647.8995,
+  "return_pct": -3.521,
+  "cost_paid": 533.7982,
+  "funding_paid": 10.355961,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
     "max_leverage": 1.0,
     "proven": false,
-    "drawdown": 0.0469,
-    "n": 168,
+    "drawdown": 0.0484,
+    "n": 169,
     "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
   },
   "rule_changes": [
@@ -33,11 +33,11 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 2.139366,
+  "margin_ratio": 1.949421,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 4525.2925,
+  "gross_exposure": 4949.1104,
   "long_positions": 3,
   "short_positions": 0,
   "long_only_symbols": [
@@ -47,7 +47,7 @@
   ],
   "stopped": [],
   "skipped": [],
-  "rounds": 169,
+  "rounds": 170,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -725,12 +725,16 @@
     {
       "at": "2026-08-31T03:42:15+09:00",
       "equity": 9681.2566
+    },
+    {
+      "at": "2026-08-31T06:37:31+09:00",
+      "equity": 9647.8995
     }
   ],
   "positions": {
     "ETH/USDT": 0.7805757346,
     "BNB/USDT": 2.7628560974,
-    "XRP/USDT": 445.5497368099
+    "XRP/USDT": 772.548314526
   },
   "holdings": [
     {
@@ -738,62 +742,50 @@
       "direction": "long",
       "quantity": 2.7628560974,
       "avg_cost": 701.1,
-      "last_price": 701.1,
+      "last_price": 697.4,
       "currency": "USDT",
-      "value": 1937.0384,
+      "value": 1926.8158,
       "cost": 1937.0384,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "pnl": -10.2226,
+      "pnl_pct": -0.5277
     },
     {
       "symbol": "ETH/USDT",
       "direction": "long",
       "quantity": 0.7805757346,
       "avg_cost": 2476.94,
-      "last_price": 2505.81,
+      "last_price": 2490.73,
       "currency": "USDT",
-      "value": 1955.9745,
+      "value": 1944.2034,
       "cost": 1933.4393,
-      "pnl": 22.5352,
-      "pnl_pct": 1.1656
+      "pnl": 10.7641,
+      "pnl_pct": 0.5567
     },
     {
       "symbol": "XRP/USDT",
       "direction": "long",
-      "quantity": 445.5497368099,
-      "avg_cost": 1.4191,
-      "last_price": 1.4191,
+      "quantity": 772.548314526,
+      "avg_cost": 1.40911077,
+      "last_price": 1.3955,
       "currency": "USDT",
-      "value": 632.2796,
-      "cost": 632.2796,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "value": 1078.0912,
+      "cost": 1088.6061,
+      "pnl": -10.515,
+      "pnl_pct": -0.9659
     }
   ],
   "holdings_total": {
-    "pnl": 22.5352,
+    "pnl": -9.9735,
     "counted": 3,
     "unknown": 0
   },
   "deployed": {
-    "gross": 4525.2925,
-    "pct": 46.7428,
-    "cash": 5155.9641,
+    "gross": 4949.1104,
+    "pct": 51.2973,
+    "cash": 4698.7891,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "SOL/USDT",
-      "side": "sell",
-      "direction": "롱",
-      "notional": -931.28,
-      "price": 96.79,
-      "cost": 1.3969,
-      "signal": 0.1482,
-      "realized_pnl": -0.1459,
-      "avg_cost": 96.659982,
-      "at": "2026-08-26T16:03:15+09:00"
-    },
     {
       "symbol": "SOL/USDT",
       "side": "buy",
@@ -1223,6 +1215,16 @@
       "cost": 0.9484,
       "signal": 0.3264,
       "at": "2026-08-31T03:42:15+09:00"
+    },
+    {
+      "symbol": "XRP/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 456.33,
+      "price": 1.3955,
+      "cost": 0.6845,
+      "signal": 0.5587,
+      "at": "2026-08-31T06:37:31+09:00"
     }
   ],
   "limits": [
@@ -1234,10 +1236,10 @@
     "'숏이 더 자주 발동한다'와 '숏이 돈을 번다'는 다른 말입니다. 이 트랙은 후자를 아직 증명하지 않았습니다"
   ],
   "krw": {
-    "rate": 1380.45,
-    "equity": 13364490.0,
-    "start_cash": 13804500.0,
-    "pnl": -440009.0,
+    "rate": 1377.1,
+    "equity": 13286122.0,
+    "start_cash": 13771000.0,
+    "pnl": -484878.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
