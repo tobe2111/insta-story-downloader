@@ -3,17 +3,19 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 10554.81,
-  "return_pct": 5.5481,
+  "equity": 10554.54,
+  "return_pct": 5.5454,
   "gross_return_pct": 8.6191,
-  "cost_paid": 307.1,
-  "trades_total": 353,
-  "rounds_total": 342,
+  "cost_paid": 307.37,
+  "trades_total": 354,
+  "rounds_total": 343,
   "since": "2026-08-18T05:00:03+00:00",
-  "last_time": "2026-08-30T07:36:59+09:00",
+  "last_time": "2026-08-30T09:42:24+09:00",
   "booked_interval_minutes": 5,
   "observed_gap_minutes": 750.7666666666667,
-  "positions": {},
+  "positions": {
+    "SOL/USDT": 1.70935048
+  },
   "rule_changes": [
     {
       "on": "2026-08-23",
@@ -21,16 +23,29 @@
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
     }
   ],
-  "holdings": [],
+  "holdings": [
+    {
+      "symbol": "SOL/USDT",
+      "direction": "long",
+      "quantity": 1.7093504838,
+      "avg_cost": 105.61,
+      "last_price": 105.61,
+      "currency": "USDT",
+      "value": 180.5245,
+      "cost": 180.5245,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    }
+  ],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 0,
+    "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 0.0,
-    "pct": 0.0,
-    "cash": 10554.81,
+    "gross": 180.5245,
+    "pct": 1.7104,
+    "cash": 10374.0155,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1403,9 +1418,13 @@
     [
       "2026-08-30T07:36:59+09:00",
       10554.81
+    ],
+    [
+      "2026-08-30T09:42:24+09:00",
+      10554.54
     ]
   ],
-  "hold_return_pct": 28.6666,
+  "hold_return_pct": 28.9746,
   "judgement": {
     "registered_on": "2026-08-18",
     "min_days": 90,
@@ -1435,41 +1454,30 @@
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 10188.0,
-      "return_pct": 1.88,
+      "equity": 10201.68,
+      "return_pct": 2.0168,
       "hold_return_pct": null,
-      "gross_return_pct": 7.9581,
-      "trades_total": 593,
-      "cost_paid": 607.81,
-      "rounds_total": 323,
+      "gross_return_pct": 8.0983,
+      "trades_total": 594,
+      "cost_paid": 608.15,
+      "rounds_total": 324,
       "since": "2026-08-18T16:03:06+00:00"
     },
     {
       "timeframe": "5m",
-      "equity": 9620.47,
-      "return_pct": -3.7953,
+      "equity": 9617.25,
+      "return_pct": -3.8275,
       "hold_return_pct": null,
-      "gross_return_pct": 3.7995,
-      "trades_total": 664,
-      "cost_paid": 759.48,
-      "rounds_total": 323,
+      "gross_return_pct": 3.8414,
+      "trades_total": 667,
+      "cost_paid": 766.89,
+      "rounds_total": 324,
       "since": "2026-08-18T16:03:06+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
-  "elapsed_days": 11.73,
+  "elapsed_days": 11.82,
   "recent_trades": [
-    {
-      "time": "2026-08-26T04:08:49+09:00",
-      "symbol": "SOL/USDT",
-      "side": "sell",
-      "notional": -195.25,
-      "price": 98.5,
-      "cost": 0.2929,
-      "signal": 0.0,
-      "realized_pnl": 0.3216,
-      "avg_cost": 98.19
-    },
     {
       "time": "2026-08-26T04:08:49+09:00",
       "symbol": "XRP/USDT",
@@ -1866,6 +1874,15 @@
       "signal": 0.0,
       "realized_pnl": 1.7808,
       "avg_cost": 1.3917
+    },
+    {
+      "time": "2026-08-30T09:42:24+09:00",
+      "symbol": "SOL/USDT",
+      "side": "buy",
+      "notional": 180.52,
+      "price": 105.61,
+      "cost": 0.2708,
+      "signal": 0.0855
     }
   ],
   "honest_limits": [
@@ -1878,9 +1895,9 @@
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1371.5,
-    "equity": 14475922.0,
+    "equity": 14475552.0,
     "start_cash": 13715000.0,
-    "pnl": 760922.0,
+    "pnl": 760552.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }

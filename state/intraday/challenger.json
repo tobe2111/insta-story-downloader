@@ -1,8 +1,10 @@
 {
-  "cash": 10554.808422435732,
+  "cash": 10374.013131081409,
   "start_cash": 10000.0,
   "currency": "USDT",
-  "positions": {},
+  "positions": {
+    "SOL/USDT": 1.709350483831331
+  },
   "rounds": [
     {
       "time": "2026-08-18T05:00:03+00:00",
@@ -12380,15 +12382,56 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "time": "2026-08-30T09:42:24+09:00",
+      "equity": 10554.54,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0855,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-08-29 23:00:00",
+        "ETH/USDT": "2026-08-29 23:00:00",
+        "SOL/USDT": "2026-08-29 23:00:00",
+        "BNB/USDT": "2026-08-29 23:00:00",
+        "XRP/USDT": "2026-08-29 23:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "SOL/USDT",
+          "side": "buy",
+          "notional": 180.52,
+          "price": 105.61,
+          "cost": 0.2708,
+          "signal": 0.0855
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10656.71,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      },
+      "conviction_scale": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 3.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
-  "cost_paid": 307.10025077904163,
+  "cost_paid": 307.3710375359378,
   "last_prices": {
-    "BTC/USDT": 78168.7,
-    "ETH/USDT": 2451.56,
-    "SOL/USDT": 105.04,
-    "BNB/USDT": 692.6,
-    "XRP/USDT": 1.3925
+    "BTC/USDT": 78233.0,
+    "ETH/USDT": 2457.51,
+    "SOL/USDT": 105.61,
+    "BNB/USDT": 692.5,
+    "XRP/USDT": 1.3964
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -12409,10 +12452,19 @@
       "SOL/USDT": 1.2064553345680906e-05,
       "XRP/USDT": 0.002290769236651613
     },
-    "pending": {},
+    "pending": {
+      "SOL/USDT": {
+        "side": "buy",
+        "limit": 105.61,
+        "notional": 182.27,
+        "placed_bar": "2026-08-29 23:00:00"
+      }
+    },
     "cost_paid": 195.72086151762744,
     "filled_total": 326,
     "unfilled_total": 212
   },
-  "avg_cost": {}
+  "avg_cost": {
+    "SOL/USDT": 105.61
+  }
 }
