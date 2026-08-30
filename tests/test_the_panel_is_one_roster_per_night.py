@@ -192,3 +192,99 @@ def test_the_batch_really_hands_a_real_date_down(monkeypatch, tmp_path):
     line = json.loads((tmp_path / R.PANEL_FILE).read_text("utf-8").strip())
     assert line["roster_asof"] == got[0], (
         "장부에 적힌 명단 날짜가 실제로 쓴 것과 다르다")
+
+
+# ── 밤의 두 회차가 UTC 자정에 갈리던 것 (2026-08-30 장부 실측) ──────────
+
+def test_the_two_runs_of_one_night_share_a_roster_date():
+    """⚠️ 이 결함의 재현 — **밤 배치는 하루에 두 번 돈다.**
+
+    본 실행 21:15 UTC · 예비 22:45 UTC. 러너가 밀리면 두 번째가 **UTC
+    자정을 넘어간다.** 그러면 같은 밤의 두 회차가 다른 날짜를 갖고, 명단이
+    날짜로 회전하므로 **다른 명단을 돌게 된다.**
+
+    실측(패널 장부가 쌓인 3밤, 커밋 시각):
+
+        08-28 05:53 · 06:52          UTC 같은 날 ✓
+        08-29 03:40 · 04:22          UTC 같은 날 ✓
+        08-29 23:57 · 08-30 01:15    UTC **다른 날** ✗
+
+    UTC로 묶으면 1/3, 한국 날짜로 묶으면 3/3이다.
+    """
+    import datetime as _dt
+
+    U = _dt.timezone.utc
+    nights = [("2026-08-28 05:53", "2026-08-28 06:52"),
+              ("2026-08-29 03:40", "2026-08-29 04:22"),
+              ("2026-08-29 23:57", "2026-08-30 01:15")]   # 자정을 넘은 밤
+    for a, b in nights:
+        ka, kb = (R.night_key(_dt.datetime.fromisoformat(t).replace(tzinfo=U))
+                  for t in (a, b))
+        assert ka == kb, (
+            f"한 밤의 두 회차가 다른 열쇠를 받는다: {a}→{ka} vs {b}→{kb} — "
+            "명단이 갈리면 작업 #56이 그 밤의 두 줄을 합칠 수 없다")
+        assert (R.shared_panel_specs(ka) == R.shared_panel_specs(kb)), (
+            "열쇠는 같은데 명단이 다르다 — 회전이 날짜만 보지 않는다")
+
+
+def test_utc_really_would_have_split_that_night():
+    """대조군 — **UTC로는 실제로 갈렸다**는 것을 못 박는다.
+
+    ⚠️ 이게 없으면 위 검사는 "아무 열쇠나 항상 같다"로도 통과한다. 그리고
+       더 중요하게, 갈리지 않는 상황을 지키는 검사는 안전장치가 아니라
+       장식이다 — 전제가 사라지면 빨간불이 뜨게 한다.
+    """
+    import datetime as _dt
+
+    U = _dt.timezone.utc
+    a = _dt.datetime(2026, 8, 29, 23, 57, tzinfo=U)
+    b = _dt.datetime(2026, 8, 30, 1, 15, tzinfo=U)
+    assert a.date() != b.date(), "UTC로도 안 갈린다 — 이 결함이 났던 자리가 없다"
+    assert R.night_key(a) == R.night_key(b) == "2026-08-30"
+    assert (R.shared_panel_specs(a.date().isoformat())
+            != R.shared_panel_specs(b.date().isoformat())), (
+        "UTC 날짜 둘이 같은 명단을 준다 — 그러면 고칠 것이 없었다는 뜻이다")
+
+
+def test_the_night_key_is_the_korean_calendar_day():
+    """열쇠는 **한국 달력일**이다 — 경계가 배치 창 밖에 있어야 한다.
+
+    한국 자정은 15:00 UTC다. 배치 창(06:15~12:00 KST)에서 가장 멀리 떨어진
+    자리라 어느 회차도 경계에 걸리지 않는다.
+    """
+    import datetime as _dt
+
+    from quant.live.market_hours import KST
+
+    U = _dt.timezone.utc
+    # 한국 자정 직전/직후에서 열쇠가 바뀐다(경계가 15:00 UTC).
+    assert R.night_key(_dt.datetime(2026, 8, 29, 14, 59, tzinfo=U)) == "2026-08-29"
+    assert R.night_key(_dt.datetime(2026, 8, 29, 15, 1, tzinfo=U)) == "2026-08-30"
+    # 예정된 두 회차(21:15 · 22:45 UTC)는 같은 열쇠를 받는다.
+    for hh, mm in ((21, 15), (22, 45)):
+        assert R.night_key(
+            _dt.datetime(2026, 8, 29, hh, mm, tzinfo=U)) == "2026-08-30"
+    # ⚠️ 시간대는 한 곳에서만 온다 — 같은 규칙이 두 곳에 있으면 갈라진다.
+    src = inspect.getsource(R.night_key)
+    assert "market_hours import KST" in src, (
+        "시간대를 여기서 다시 정의한다 — 언젠가 저쪽과 갈라진다")
+    assert KST.utcoffset(None) == _dt.timedelta(hours=9)
+
+
+def test_a_naive_time_does_not_silently_shift_the_night():
+    """시간대가 없는 시각을 줘도 **조용히 어긋나지 않는다**(UTC로 읽는다)."""
+    import datetime as _dt
+
+    naive = _dt.datetime(2026, 8, 29, 23, 57)
+    aware = naive.replace(tzinfo=_dt.timezone.utc)
+    assert R.night_key(naive) == R.night_key(aware) == "2026-08-30"
+
+
+def test_the_batch_uses_the_night_key_not_the_utc_day():
+    """밤 배치가 **실제로** 그 열쇠를 쓴다(배선 확인)."""
+    src = inspect.getsource(R.run_retrain_all)
+    line = next(l for l in src.splitlines() if "roster_asof =" in l)
+    assert "night_key()" in line, (
+        f"밤 배치가 UTC 달력일로 명단을 정한다: {line.strip()} — "
+        "두 회차가 자정을 사이에 두면 다른 명단을 돈다")
+    assert "_today_iso()" not in line

@@ -1946,6 +1946,43 @@ def _today_iso() -> str:
     return _dt.date.today().isoformat()
 
 
+def night_key(now=None) -> str:
+    """그 밤을 가리키는 열쇠 — **한국 달력일**이다(2026-08-30 장부 실측).
+
+    ⚠️ 왜 UTC 달력일이 아닌가. 밤 배치는 하루에 **두 회차** 돈다
+       (21:15 UTC 본 실행 · 22:45 UTC 예비). 그런데 러너가 밀리면 두 번째
+       회차가 **UTC 자정을 넘어간다.** 그러면 같은 밤의 두 회차가 서로 다른
+       날짜를 갖고, 명단이 날짜로 회전하므로 **다른 명단을 돌게 된다.**
+
+       실측(패널 장부가 쌓인 3밤, 커밋 시각 기준):
+
+           08-28 05:53 · 06:52   UTC 같은 날 ✓
+           08-29 03:40 · 04:22   UTC 같은 날 ✓
+           08-29 23:57 · 08-30 01:15   UTC **다른 날** ✗
+
+       UTC로 묶으면 두 회차가 같은 밤인 경우가 1/3, 한국 날짜로 묶으면
+       3/3이다. 한국 자정(15:00 UTC)은 배치 창(06:15~12:00 KST)에서
+       가장 멀리 떨어진 자리라 경계가 배치를 가르지 않는다.
+
+    ⚠️ **오늘 당장 잃는 것은 없다** — 회차마다 명단이 하나씩이라 쪼개짐은
+       안 난다. 막히는 것은 **작업 #56**이다: 승격을 패널로 옮길 때 같은
+       밤의 두 줄을 합쳐 종목 폭을 넓혀야 하는데, 명단이 다르면 합칠 수가
+       없다. 지금 고쳐 두지 않으면 그때 "왜 못 합치지"부터 다시 알아내야
+       한다.
+
+    시간대는 `market_hours.KST` 하나만 쓴다 — 같은 규칙을 두 곳에 두면
+    언젠가 갈라진다.
+    """
+    import datetime as _dt
+
+    from quant.live.market_hours import KST
+
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    if now.tzinfo is None:                      # 순진한 시각은 UTC로 읽는다
+        now = now.replace(tzinfo=_dt.timezone.utc)
+    return now.astimezone(KST).date().isoformat()
+
+
 def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
                  n_symbols_seen: int = 0, roster_asof: str = "") -> dict:
     """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
@@ -2103,7 +2140,7 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     #    그래서 밤 시작 시각에 한 번 정하고 모든 종목에 같은 것을 준다.
     #    회전은 여전히 날짜만 보므로 결정적이고, 어느 명단이었는지는
     #    장부의 ``roster_asof``에 남는다.
-    roster_asof = str(kwargs.pop("panel_asof", "") or _today_iso())
+    roster_asof = str(kwargs.pop("panel_asof", "") or night_key())
     for idx, (market, symbol) in enumerate(targets):
         key = _key(market, symbol)
         if deadline is not None and _time.monotonic() > deadline:
