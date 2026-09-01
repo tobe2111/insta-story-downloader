@@ -104,6 +104,7 @@ def panel_verdict(per_symbol: dict[str, pd.Series], *, t_threshold: float,
     # 만든 값이면 '설정이 진짜'가 아니다.
     wins = sum(1 for k in symbols
                if len(per_symbol[k].dropna()) and float(per_symbol[k].mean()) > 0)
+    per_t = symbol_t_stats(per_symbol, symbols, t_threshold)
     return {
         "skipped": False,
         "n_symbols": len(symbols),
@@ -114,7 +115,65 @@ def panel_verdict(per_symbol: dict[str, pd.Series], *, t_threshold: float,
         "symbol_win_rate": wins / len(symbols),
         "t_threshold": float(t_threshold),
         "pass": bool(t_stat > t_threshold),
+        # ⚠️ **같은 설정을 종목별로도 재서 나란히 남긴다**(사장님 ①안).
+        #    아래 `symbol_t_stats`의 주석 참조 — 이게 없으면 승격이 0건인
+        #    동안 두 관문의 대조가 성립하지 않는다.
+        **per_t,
     }
+
+
+def symbol_t_stats(per_symbol: dict[str, pd.Series], symbols: list[str],
+                   t_threshold: float) -> dict:
+    """같은 설정을 **종목 하나씩** 재면 뭐라고 하는가 — 대조용 통계.
+
+    ■ 왜 필요한가 (2026-09-01 장부 실측)
+
+    사장님 ①안은 "관문을 패널로 바꾸되 **기존 종목별 관문도 계속 계산해
+    나란히 기록**하라"였다. 그래야 나중에 성적이 변했을 때 관문 때문인지
+    시장 때문인지 가릴 수 있다.
+
+    그런데 장부에 실제로 남던 것은 패널 t와 **부호만 센 승률**뿐이었다.
+    "종목별 관문이 이 설정을 어떻게 봤나"(t가 문턱을 넘었나)는 없었다 —
+    병기가 반만 되고 있었다.
+
+    그 사이 실측(수정 후 4밤): 패널 판정 15건 **통과 0** · 종목별 심사 27건
+    **승격 0**. 두 관문이 내내 똑같이 "아니오"만 했으니, 승격을 기다려
+    대조를 얻으려는 계획은 **영영 안 온다**(종목별 관문의 역대 승격률은
+    시행 11,721회 중 2회다). 대조는 판정 그 자체에서 나와야 한다.
+
+    ■ ⚠️ 이것은 밤 오디션의 재연이 **아니다**
+
+    진짜 종목별 관문은 그 종목·그날의 시도 수로 문턱을 정하고
+    (``confirm_threshold``) 부트스트랩 동시검정까지 건다. 여기서는 **패널과
+    같은 기준선**(`t_threshold`)을 종목마다 그대로 적용한다. 그래야 두 숫자가
+    같은 자 위에 서고, "패널로 접으니 t가 이만큼 달라졌다"를 읽을 수 있다.
+    다른 자로 잰 두 숫자를 나란히 놓으면 대조가 아니라 착시다.
+
+    추가 백테스트는 없다 — 이미 모아 둔 종목별 초과수익 계열을 다시 셀 뿐이다.
+    """
+    from quant.utils.numerics import degenerate_spread
+
+    ts: list[float] = []
+    for k in symbols:
+        s = per_symbol[k].dropna()
+        if len(s) <= 1:
+            continue
+        sd = float(s.std(ddof=1))
+        if degenerate_spread(sd, float(s.abs().mean())):
+            ts.append(0.0)
+            continue
+        ts.append(float(s.mean()) / (sd / math.sqrt(len(s))))
+    if not ts:
+        return {"symbol_t_median": None, "symbol_pass": 0,
+                "symbol_pass_rate": None, "symbol_t_n": 0}
+    ts.sort()
+    mid = len(ts) // 2
+    median = ts[mid] if len(ts) % 2 else (ts[mid - 1] + ts[mid]) / 2
+    hits = sum(1 for t in ts if t > t_threshold)
+    return {"symbol_t_median": round(median, 4),
+            "symbol_pass": hits,
+            "symbol_pass_rate": round(hits / len(ts), 4),
+            "symbol_t_n": len(ts)}
 
 
 def power_gain(per_symbol: dict[str, pd.Series],

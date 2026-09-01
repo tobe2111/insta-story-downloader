@@ -2030,6 +2030,15 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
             # 이득의 증거가 아니다.
             "variance_gain": round(float((v.get("gain") or {})
                                          .get("variance_gain", 0.0)), 3),
+            # ⚠️ **같은 설정을 종목별로도 잰 값**(사장님 ①안의 병기).
+            #    예전에는 부호만 센 승률(symbol_win_rate)뿐이라 "종목별
+            #    관문이 이 설정을 어떻게 봤나"를 장부에서 읽을 수 없었다.
+            #    승격이 0건인 동안에도 두 관문을 대조하려면 이 값이 있어야
+            #    한다 — 승격을 기다리면 대조는 영영 안 온다(역대 11,721회
+            #    시행에 승격 2회).
+            "symbol_t_median": v.get("symbol_t_median"),
+            "symbol_pass": v.get("symbol_pass"),
+            "symbol_pass_rate": v.get("symbol_pass_rate"),
         } for v in judged],
         "skipped": [{"spec_key": v["spec_key"], "reason": v["reason"]}
                     for v in verdicts if v.get("skipped")],

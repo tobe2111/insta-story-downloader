@@ -733,3 +733,104 @@ def test_one_list_feeds_both_the_ring_and_the_panel():
     assert not missing, f"링에는 서는데 패널 명단에 없는 고정 후보: {missing}"
     assert len(ring & roster) >= len(FIXED_CHALLENGERS), (
         "링과 패널 명단이 갈라졌다 — 같은 목록을 봐야 한다")
+
+# ── ①안의 병기 — 같은 설정을 종목별로도 잰다 (2026-09-01 장부 실측) ─────
+
+def test_the_ledger_carries_the_per_symbol_verdict_too():
+    """패널 판정 옆에 **종목별 판정**이 함께 남는다(사장님 ①안).
+
+    ⚠️ 예전에는 패널 t와 **부호만 센 승률**뿐이었다. "종목별 관문이 이
+       설정을 어떻게 봤나"(t가 문턱을 넘었나)는 장부에 없었다 — 병기가
+       반만 되고 있었다.
+
+    실측(수정 후 4밤): 패널 판정 15건 **통과 0** · 종목별 심사 27건
+    **승격 0**. 두 관문이 내내 똑같이 "아니오"만 했으니, 승격을 기다려
+    대조를 얻으려는 계획은 영영 안 온다(역대 11,721회 시행에 승격 2회).
+    **대조는 판정 그 자체에서 나와야 한다.**
+    """
+    idx = pd.date_range("2026-01-01", periods=140, freq="D")
+    rng = np.random.default_rng(3)
+    per = {f"s{i}": pd.Series(rng.normal(0.0003, 0.01, 140), index=idx)
+           for i in range(8)}
+    v = panel_verdict(per, t_threshold=1.35)
+    for key in ("symbol_t_median", "symbol_pass", "symbol_pass_rate",
+                "symbol_t_n"):
+        assert key in v, f"종목별 판정이 안 남는다: {key}"
+    assert v["symbol_t_n"] == 8
+    assert 0 <= v["symbol_pass"] <= 8
+    assert v["symbol_pass_rate"] == v["symbol_pass"] / v["symbol_t_n"]
+
+
+def test_both_verdicts_stand_on_the_same_bar():
+    """두 판정이 **같은 문턱**으로 재진다 — 다른 자로 재면 대조가 아니라 착시다.
+
+    문턱을 올리면 종목별 통과 수는 **줄기만** 해야 한다(같은 t를 더 높은
+    바에 대는 것이므로).
+    """
+    idx = pd.date_range("2026-01-01", periods=140, freq="D")
+    rng = np.random.default_rng(5)
+    per = {f"s{i}": pd.Series(rng.normal(0.002, 0.01, 140), index=idx)
+           for i in range(9)}
+    # ⚠️ 느슨하게 재면(단조성만 보면) "문턱을 아예 안 본다"도 통과한다.
+    #    모든 t보다 높은 자와 낮은 자를 대서 **문턱을 못 박는다.**
+    probe = panel_verdict(per, t_threshold=0.0)
+    n = probe["symbol_t_n"]
+    assert n >= 5
+    huge = panel_verdict(per, t_threshold=1e9)
+    tiny = panel_verdict(per, t_threshold=-1e9)
+    assert huge["symbol_pass"] == 0, (
+        f"어떤 t도 못 넘을 문턱인데 {huge['symbol_pass']}종목이 통과했다 — "
+        "종목별 통과를 문턱으로 세지 않는다")
+    assert tiny["symbol_pass"] == n, (
+        f"모든 t가 넘는 문턱인데 {tiny['symbol_pass']}/{n}만 통과했다")
+    assert huge["symbol_t_median"] == tiny["symbol_t_median"], (
+        "종목별 t 자체가 문턱에 따라 바뀐다 — t는 문턱과 무관해야 한다")
+    assert huge["t_threshold"] == 1e9 and tiny["t_threshold"] == -1e9
+
+
+def test_the_contrast_can_actually_disagree():
+    """⚠️ 대조군 — 두 관문이 **갈릴 수 있는가**.
+
+    갈릴 수 없다면 나란히 적는 뜻이 없다. 종목마다 부호가 갈리면 패널은
+    상쇄돼 t가 떨어지는데 종목별로는 각자 큰 t가 나온다 — 그게 이 관문을
+    만든 이유이자, 병기가 보여 줘야 하는 바로 그 장면이다.
+    """
+    idx = pd.date_range("2026-01-01", periods=140, freq="D")
+    rng = np.random.default_rng(7)
+    per = {}
+    # 짝을 지어 **정확히 상쇄**시킨다 — 무작위로 반반 나누면 잔여 표류가
+    # 남아 패널 t가 커지고, 그러면 이 검사가 무엇을 보는지 흐려진다.
+    for i in range(4):
+        x = rng.normal(0.004, 0.004, 140)
+        per[f"up{i}"] = pd.Series(x, index=idx)
+        per[f"dn{i}"] = pd.Series(-x, index=idx)
+    v = panel_verdict(per, t_threshold=1.35)
+    assert abs(v["t_stat"]) < 2.0, (
+        f"부호가 갈렸는데 패널 t가 크다: {v['t_stat']}")
+    assert v["symbol_pass"] >= 3, (
+        f"종목별로는 문턱을 넘는 것이 있어야 대조가 성립한다: "
+        f"{v['symbol_pass']}종목")
+
+
+def test_a_degenerate_series_does_not_invent_a_t():
+    """움직임이 없는 계열은 t를 **지어내지 않는다**(0으로 둔다)."""
+    idx = pd.date_range("2026-01-01", periods=140, freq="D")
+    per = {f"s{i}": pd.Series(0.0, index=idx) for i in range(6)}
+    v = panel_verdict(per, t_threshold=1.35)
+    assert v["symbol_t_median"] == 0.0 and v["symbol_pass"] == 0
+
+
+def test_the_batch_writes_those_fields_to_the_ledger():
+    """밤 배치가 그 값을 **장부에 적는다**(배선 확인).
+
+    함수가 값을 내는 것과 장부에 남는 것은 다른 일이다 — 안 적히면
+    나중에 대조할 재료가 없다.
+    """
+    import inspect
+
+    from quant.live import retrain as R
+
+    src = inspect.getsource(R.record_panel)
+    for key in ("symbol_t_median", "symbol_pass", "symbol_pass_rate"):
+        assert f'"{key}": v.get("{key}")' in src, (
+            f"장부에 {key}를 안 적는다 — ①안의 병기가 반만 된다")
