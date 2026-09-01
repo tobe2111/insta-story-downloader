@@ -1797,6 +1797,16 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
     decided = decision["champion"] if decision["promoted"] else current_spec
     append_history({
         "asof": asof, "market": market, "symbol": symbol, "bars": len(df),
+        # ⚠️ **밤의 열쇠** — `asof`는 그 종목의 **마지막 봉 날짜**이지 밤이
+        #    아니다. 매일 봉이 생기는 시장은 코인뿐이라, 주말이 낀 밤에는
+        #    주식의 `asof`가 금요일에 멈춘 채 코인만 앞으로 간다. 그래서
+        #    장부를 `asof`로 묶으면 한 밤이 여러 칸으로 쪼개지고, 서로 다른
+        #    밤이 한 칸에 붙는다 — 실측(2026-09-01): 밤 8/31의 17줄이
+        #    asof 세 칸(08-28 8 · 08-30 4 · 08-31 5)에 흩어져 있었다.
+        #    그 상태로 "어젯밤 N종목"을 세면 **언제나 코인 5개**만 잡힌다.
+        #    밤 배치가 한 번 정한 명단 날짜가 곧 밤의 열쇠다(한국 달력일,
+        #    `night_key()`) — 한 밤의 두 회차가 같은 값을 받는다.
+        "night": str(panel_asof or night_key()),
         "promoted": decision["promoted"], "reason": decision["reason"],
         "champion": decided["params"],
         "champion_strategy": decided["strategy"],
