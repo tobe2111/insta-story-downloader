@@ -2322,11 +2322,20 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     # 남지 않는다(2026-08-11 감사).
     state_dir = kwargs.get("state_dir") or STATE_DIR
     from quant.live.daily import _write_run_health
+    # ⚠️ 명단을 함께 넘긴다 — 그래야 "못 돈 종목"이 장부에 남는다. 시간
+    #    예산에 걸려 끊긴 종목은 실패도 건너뜀도 아니라, 명단이 없으면
+    #    세 칸 어디에도 안 들어가고 밤이 깨끗하게 끝난 것처럼 보인다
+    #    (실측 2026-09-01: 명단 40 · 심사 24 · 실패 0 · 건너뜀 0).
     _write_run_health(state_dir, "retrain", ok, failed, skipped=skipped,
-                      stale=stale_targets(skipped, state_dir))
+                      stale=stale_targets(skipped, state_dir),
+                      roster=[_key(m, s) for m, s in targets])
     # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
     #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
-    if targets and not ok and not skipped:
+    # ⚠️ **못 돈 것도 실패가 아니다**(2026-09-01, 위 기록을 붙이다 드러났다).
+    #    시간 예산이 첫 종목 전에 이미 지났으면 `ok`도 `skipped`도 비어서
+    #    이 줄이 `전 종목 재학습 실패: {}`를 던진다 — **실패한 종목이 하나도
+    #    없는데** 전멸이라고 말하는 것이고, 그러면 진짜 전멸과 구별이 안 된다.
+    if targets and not ok and not skipped and not not_reached:
         raise RuntimeError(f"전 종목 재학습 실패: {failed}")
     return {"ok": ok, "failed": failed, "skipped": skipped,
             "promoted": promoted, "panel": panel_rec}
