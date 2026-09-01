@@ -3450,6 +3450,16 @@ def write_docs_status(state_dir: str = STATE_DIR,
                 continue
             status["retrain_recent"].append({
                 "asof": rec.get("asof"),
+                # ⚠️ **밤의 열쇠** — `asof`는 그 종목의 마지막 봉 날짜다.
+                #    이 목록을 '그날 오디션'으로 묶어 읽는 화면이 둘 있는데
+                #    (공개 SNS 카드 · 공회전 경보), `asof`로 묶으면 매일 봉이
+                #    생기는 코인만 잡히고 주식은 금요일에 멈춰 빠진다.
+                #    실측(2026-09-01, 최근 120줄): 8/29 카드가 후보 247명을
+                #    발표했는데 그 밤 실제는 1,183명이었고, 8/28은 반대로
+                #    한 칸에 네 밤이 섞여 1,332명이 2,283명으로 부풀었다.
+                #    옛 줄에는 이 칸이 없다(그때는 안 남겼다) — 읽는 쪽이
+                #    `asof`로 되돌아간다. 과거 기록은 고치지 않는다.
+                "night": rec.get("night"),
                 "key": f"{rec.get('market')}:{rec.get('symbol')}",
                 "promoted": bool(rec.get("promoted")),
                 "n_candidates": rec.get("n_candidates"),

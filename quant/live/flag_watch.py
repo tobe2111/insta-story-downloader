@@ -461,8 +461,19 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
     #      '비교를 못 했다'(고장)를 화면에서 구별하기 위한 경보다.
     vac = [r for r in (status.get("retrain_recent") or []) if r.get("vacuous")]
     if vac:
-        day = max((r.get("asof") or "") for r in vac)
-        today = [r for r in vac if (r.get("asof") or "") == day]
+        # ⚠️ 밤은 `asof`가 아니다 — 밤 열쇠(`night`)로 묶는다. `asof`는 그
+        #    종목의 마지막 봉 날짜라, 코인과 주식이 함께 공회전한 밤에는
+        #    최댓값이 코인 날짜가 되고 **주식 쪽 공회전이 통째로 빠진다.**
+        #    공회전은 고장 신호이므로, 그걸 세는 자가 밤을 잘못 묶으면
+        #    고장이 축소돼 보인다.
+        #    ⚠️ 정직하게 — 이 자리에서 측정된 피해는 아직 없다(장부 493줄 중
+        #    공회전은 2줄, 둘 다 2026-08 중순). 같은 뿌리라 함께 고친 것이지
+        #    실측된 사고가 있어서가 아니다. 옛 줄은 `asof`로 되돌아간다.
+        def _night(rec: dict) -> str:
+            return str(rec.get("night") or rec.get("asof") or "")
+
+        day = max(_night(r) for r in vac)
+        today = [r for r in vac if _night(r) == day]
         names = ", ".join(str(r.get("key")) for r in sorted(
             today, key=lambda r: str(r.get("key")))[:5])
         more = "…" if len(today) > 5 else ""

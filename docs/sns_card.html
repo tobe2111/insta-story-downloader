@@ -99,7 +99,22 @@ fetch("status.json").then(function(r){return r.json()}).then(function(st){
       out.push("운영자가 노출 배수를 "+(xs*100).toFixed(0)+"%로 조정했습니다");
     return out.join(" · ");
   })();
-  var recent=(st.retrain_recent||[]).filter(function(r){return r.asof===date});
+  /* ⚠️ 그날 오디션은 **밤 열쇠**로 고른다 — 봉 날짜(asof)가 아니다.
+     asof 는 그 종목의 마지막 봉 날짜라 시장마다 다르다: 매일 봉이 생기는
+     것은 코인뿐이고 주식은 금요일에 멈춘다. 그래서 asof===date 로 고르면
+     공개 게시물의 숫자가 **양방향으로** 틀렸다(실측 2026-09-01, 최근 120줄):
+
+         8/29  카드 후보 247명   ← 그 밤 실제 1,183명 (5분의 1로 축소)
+         8/28  카드 후보 2,283명 ← 그 밤 실제 1,332명 (한 칸에 네 밤이 섞임)
+         8/31  카드 후보 1,199명 ← 그 밤 실제 846명
+
+     그리고 미국주식만 돈 밤에는 일치하는 줄이 하나도 없어 카드가
+     "오늘은 오디션이 없었습니다"를 내보냈다 — 미국주식 21개를 실제로 심사한
+     밤에 대해서다.
+     이 계정의 정체성이 '선택 편향 없는 공개 실험'이므로 이 숫자가 흔들리면
+     안 된다. 밤 열쇠가 없던 옛 줄은 asof 로 되돌아간다(과거 기록 무수정). */
+  var recent=(st.retrain_recent||[]).filter(function(r){
+    return (r.night||r.asof)===date});
   var swaps=recent.filter(function(r){return r.promoted}).length;
   var nCand=recent.reduce(function(a,r){return a+(r.n_candidates||0)},0);
 
