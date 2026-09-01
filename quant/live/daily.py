@@ -3006,7 +3006,8 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
 def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                       skipped: list | None = None,
                       stale: dict | None = None,
-                      stale_unit: str = "일") -> None:
+                      stale_unit: str = "일",
+                      roster: list | None = None) -> None:
     """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
 
     '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
@@ -3075,6 +3076,32 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
              "failed_keys": sorted(failed_map)[:20],
              "errors": {k: str(v)[:200] for k, v in
                         list(failed_map.items())[:5] if v}}
+    # ⚠️ **못 돈 종목** — 세 칸(ok·failed·skipped)만으로는 장부의 산술이
+    #    닫히지 않는다. 밤 배치에는 시간 예산이 있어서 명단 끝까지 못 가고
+    #    끊기는데, 그렇게 **한 번도 손대지 않은** 종목은 실패도 건너뜀도
+    #    아니라 세 칸 어디에도 안 들어간다.
+    #
+    #    실측(2026-09-01 밤): 명단 40종목인데 장부는 `ok 24 · failed 0 ·
+    #    skipped 0`이었다. 24 ≠ 40인데 그 사실이 어디에도 안 적히고, 화면과
+    #    경보는 "실패 0 · 건너뜀 0"만 보고 **깨끗하게 끝난 밤**으로 읽는다.
+    #    그 숫자는 이어달리기 커서 파일에만 있고 어떤 경보도 그 파일을
+    #    안 읽는다.
+    #
+    #    ⚠️ 정직하게 — 지금 굶는 종목은 없다. 40종목 전부가 최근 다섯 밤 안에
+    #    오디션을 받았고 최악의 간격은 3밤이다(이어달리기가 도는 중이다).
+    #    이건 실측된 사고가 아니라 **기록의 구멍**이고, 예산이 더 조여져
+    #    한 종목이 계속 뒤로 밀리기 시작하면 그때는 아무 빨간불도 안 뜬다.
+    #
+    #    명단을 받으면 **빼서 구한다** — 따로 넘겨받으면 두 값이 어긋날 수
+    #    있고, 어긋난 쪽이 조용히 이긴다. 그리고 이렇게 해야 밤의 두 회차를
+    #    합칠 때도 저절로 맞는다: 1회차가 못 돈 종목을 2회차가 돌면 그 종목은
+    #    합쳐진 `ok`에 들어가 자동으로 목록에서 빠진다.
+    if roster:
+        roster_set = set(roster)
+        missing = sorted(roster_set - ok_set - set(failed_map) - skip_set)
+        entry["roster"] = len(roster_set)
+        entry["not_reached"] = len(missing)
+        entry["not_reached_keys"] = missing[:20]
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
