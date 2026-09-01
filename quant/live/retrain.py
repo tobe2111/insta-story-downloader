@@ -1983,6 +1983,95 @@ def night_key(now=None) -> str:
     return now.astimezone(KST).date().isoformat()
 
 
+def _panel_terms(collector, spec_key: str) -> dict:
+    """장부에 실을 합산 재료 — 재료를 못 뽑아도 그 밤 기록을 깨뜨리지 않는다."""
+    try:
+        terms = collector.terms_for(spec_key)
+    except Exception as exc:            # pragma: no cover - 방어
+        return {"daily_error": f"{type(exc).__name__}: {exc}"}
+    return {"daily": {k: terms[k] for k in ("dates", "sums", "counts",
+                                            "symbols")},
+            "symbol_terms": terms.get("symbol_terms") or {}}
+
+
+def panel_nights(state_dir: str = STATE_DIR,
+                 t_threshold: float | None = None) -> list[dict]:
+    """패널 장부를 **밤 단위로** 읽는다 — 한 밤의 여러 회차를 하나로 포개서.
+
+    ■ ⚠️ 밤의 열쇠는 ``roster_asof``이고 ``asof``가 **아니다** (2026-09-01 실측)
+
+    ``asof``는 그 회차가 실제로 돈 종목들의 **마지막 봉 날짜 중 최댓값**이라
+    회차마다 달라진다. 장부를 그걸로 묶으면 두 가지가 한꺼번에 틀린다:
+
+      · 한 밤이 **쪼개진다** — 두 회차를 가진 밤 2/2가 asof 가 서로 달랐다
+        (밤 8/31 → 08-30·08-31, 밤 9/1 → 09-01·08-31).
+      · 두 밤이 **붙는다** — ``asof=2026-08-31`` 한 칸에 밤 8/31과 밤 9/1의
+        줄이 같이 들어 있었다.
+
+    나도 그렇게 세어서 상황 보고를 한 번 틀리게 냈다. 겉보기엔 멀쩡한
+    숫자가 나오므로 **틀렸다는 신호가 어디에도 안 뜬다.**
+
+    옛 줄(``roster_asof`` 이전)은 그 값이 없으므로 ``asof``로 묶고, 합산
+    재료도 없으므로 **합치지 않고 회차 그대로** 돌려준다 — 없는 재료를
+    있는 척 채우지 않는다.
+    """
+    from quant.live.panel_gate import merge_daily_terms, verdict_from_terms
+
+    path = os.path.join(state_dir, PANEL_FILE)
+    rows: list[dict] = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    try:
+                        rows.append(json.loads(line))
+                    except ValueError:
+                        continue
+    except OSError:
+        return []
+
+    t_ref = PANEL_T_REF if t_threshold is None else float(t_threshold)
+    by_night: dict[str, list[dict]] = {}
+    for rec in rows:
+        key = str(rec.get("roster_asof") or rec.get("asof") or "")
+        by_night.setdefault(key, []).append(rec)
+
+    out: list[dict] = []
+    for night in sorted(by_night):
+        recs = by_night[night]
+        chunks: dict[str, list[dict]] = {}
+        syms: dict[str, dict] = {}
+        unmergeable: list[str] = []
+        for rec in recs:
+            for spec in rec.get("specs") or []:
+                key = spec.get("spec_key")
+                daily = spec.get("daily")
+                if not daily or not daily.get("dates"):
+                    unmergeable.append(key)
+                    continue
+                chunks.setdefault(key, []).append(daily)
+                syms.setdefault(key, {}).update(spec.get("symbol_terms") or {})
+        merged: list[dict] = []
+        for key in sorted(chunks):
+            terms = merge_daily_terms(chunks[key])
+            v = verdict_from_terms(terms, syms.get(key), t_threshold=t_ref)
+            v["spec_key"] = key
+            v["n_runs"] = len(chunks[key])
+            merged.append(v)
+        out.append({
+            "night": night,
+            "n_runs": len(recs),
+            "n_symbols_seen": sum(int(r.get("n_symbols_seen") or 0)
+                                  for r in recs),
+            "specs": merged,
+            # 재료가 없어 못 합친 설정 — 조용히 빼면 "그 밤엔 그 설정이
+            # 없었다"와 구별이 안 된다.
+            "unmergeable": sorted(set(unmergeable)),
+        })
+    return out
+
+
 def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
                  n_symbols_seen: int = 0, roster_asof: str = "") -> dict:
     """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
@@ -2039,6 +2128,14 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
             "symbol_t_median": v.get("symbol_t_median"),
             "symbol_pass": v.get("symbol_pass"),
             "symbol_pass_rate": v.get("symbol_pass_rate"),
+            # ⚠️ **밤의 여러 회차를 나중에 합치기 위한 재료**(작업 #56의 ⓑ).
+            #    밤 배치는 하루 두 번 돌고 두 회차는 서로 겹치지 않는 종목을
+            #    본다(실측: 12+5, 13+11). 합치면 횡단 폭이 거의 두 배가 되는데,
+            #    설정별 요약(평균·t)만 남기면 **합칠 방법이 없다** — 서로 다른
+            #    종목 집합에서 나온 두 t로 union 의 t 를 만들 수는 없다.
+            #    날짜별 합·개수가 있어야 만들 수 있고, 그건 지금 안 남기면
+            #    나중에 되살릴 수 없다(챔피언이 그 사이 바뀐다).
+            **_panel_terms(collector, v["spec_key"]),
         } for v in judged],
         "skipped": [{"spec_key": v["spec_key"], "reason": v["reason"]}
                     for v in verdicts if v.get("skipped")],

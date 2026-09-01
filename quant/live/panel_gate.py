@@ -209,6 +209,176 @@ def power_gain(per_symbol: dict[str, pd.Series],
     }
 
 
+# ── 밤의 여러 회차를 나중에 **합칠 수 있게** 남기는 재료 ────────────────────
+#
+# ■ 왜 필요했나 (2026-09-01 장부 실측)
+#
+# 밤 배치는 하루에 두 번 돈다. 두 번째 회차는 앞 회차가 이미 심사한 종목을
+# 건너뛰므로, 한 밤의 두 줄은 **서로 겹치지 않는 종목**을 본다. 실측:
+#
+#     밤 2026-08-31 : 12종목 + 5종목  (같은 명단 3설정)
+#     밤 2026-09-01 : 13종목 + 11종목 (같은 명단 3설정)
+#
+# 즉 합치면 패널의 횡단 폭이 **거의 두 배**가 된다 — 그게 패널 관문을 만든
+# 이유 그 자체다(작업 #56의 ⓑ).
+#
+# ⚠️ 그런데 지금 장부로는 **합칠 수가 없다.** 남는 것이 설정별 요약
+#    (평균·t·날짜 수)뿐이라, 서로 다른 종목 집합에서 나온 두 t를 합쳐
+#    union 의 t 를 만들 방법이 없다. 필요한 것은 **날짜별 합과 개수**다:
+#
+#        union 평균[날짜] = (합₁[날짜] + 합₂[날짜]) / (개수₁ + 개수₂)
+#
+#    이 두 줄은 기록해 두지 않으면 **나중에 되살릴 수 없다** — 그 밤의
+#    백테스트를 통째로 다시 돌려야 하고, 챔피언은 그 사이 바뀐다.
+#    그래서 승격을 옮기기 전에 재료부터 남긴다.
+#
+# ⚠️ 합산은 두 회차가 **겹치지 않는 종목**을 봤을 때만 옳다. 겹치면 그
+#    종목이 두 번 세어진다. 그래서 설정마다 종목 열쇠도 함께 남기고,
+#    겹치면 합치지 않고 **겹쳤다고 말한다**(조용히 두 번 세는 것보다 낫다).
+
+
+def daily_terms(per_symbol: dict[str, pd.Series]) -> dict:
+    """설정 하나의 **날짜별 합·개수** — 회차를 넘어 합치기 위한 재료.
+
+    ⚠️ 최소 종목 수 필터를 **걸기 전** 값이다. 회차마다 걸어 버리면, 두
+       회차가 각각 3·4종목이라 버린 날이 합쳐서 7종목이 되어도 되살아나지
+       않는다. 거르는 일은 합친 **뒤에** 한 번만 한다.
+    """
+    frame = pd.DataFrame(
+        {k: v for k, v in (per_symbol or {}).items()
+         if v is not None and len(v)})
+    if frame.empty:
+        return {"dates": [], "sums": [], "counts": [], "symbols": []}
+    sums = frame.sum(axis=1, min_count=1)
+    counts = frame.notna().sum(axis=1)
+    keep = counts > 0
+    idx = frame.index[keep]
+    dates = [d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
+             for d in idx]
+    return {
+        "dates": dates,
+        "sums": [round(float(x), 10) for x in sums[keep]],
+        "counts": [int(x) for x in counts[keep]],
+        "symbols": sorted(frame.columns.astype(str)),
+    }
+
+
+def symbol_terms(per_symbol: dict[str, pd.Series]) -> dict[str, list[float]]:
+    """설정 하나의 **종목별 [t, 평균]** — ①안 병기를 밤 단위로 합치기 위한 재료.
+
+    종목별 계열 전체를 남기면 장부가 몇 배로 커진다. 종목별 관문의 대조에
+    실제로 쓰는 것은 t와 부호뿐이므로 그 둘만 남긴다.
+    """
+    from quant.utils.numerics import degenerate_spread
+
+    out: dict[str, list[float]] = {}
+    for k, series in (per_symbol or {}).items():
+        if series is None:
+            continue
+        s = series.dropna()
+        if len(s) <= 1:
+            continue
+        mean = float(s.mean())
+        sd = float(s.std(ddof=1))
+        deg = degenerate_spread(sd, float(s.abs().mean()))
+        t = 0.0 if deg else mean / (sd / math.sqrt(len(s)))
+        out[str(k)] = [round(t, 6), round(mean, 10)]
+    return out
+
+
+def merge_daily_terms(chunks: list[dict]) -> dict:
+    """같은 설정을 본 **여러 회차**의 날짜별 합·개수를 하나로 포갠다.
+
+    겹치는 종목이 있으면 합치지 않고 ``overlap``에 그 종목을 담아 돌려준다 —
+    같은 종목을 두 번 세면 개수가 부풀어 t가 **거짓으로 커진다.**
+    """
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    seen: set[str] = set()
+    overlap: set[str] = set()
+    for chunk in chunks or []:
+        syms = set(chunk.get("symbols") or [])
+        overlap |= (seen & syms)
+        seen |= syms
+        for d, s, c in zip(chunk.get("dates") or [], chunk.get("sums") or [],
+                           chunk.get("counts") or []):
+            sums[d] = sums.get(d, 0.0) + float(s)
+            counts[d] = counts.get(d, 0) + int(c)
+    dates = sorted(sums)
+    merged = {
+        "dates": dates,
+        "sums": [sums[d] for d in dates],
+        "counts": [counts[d] for d in dates],
+        "symbols": sorted(seen),
+    }
+    if overlap:
+        merged["overlap"] = sorted(overlap)
+    return merged
+
+
+def verdict_from_terms(daily: dict,
+                       sym_terms: dict[str, list[float]] | None = None, *,
+                       t_threshold: float,
+                       min_dates: int = MIN_PANEL_DATES,
+                       min_symbols: int = MIN_PANEL_SYMBOLS) -> dict:
+    """날짜별 합·개수만으로 패널 판정을 되살린다 — ``panel_verdict``와 같은 자.
+
+    ⚠️ 겹친 종목이 있는 재료는 **판정하지 않는다**(건너뜀은 통과가 아니다).
+    """
+    if daily.get("overlap"):
+        return {"skipped": True, "n_symbols": len(daily.get("symbols") or []),
+                "n_dates": 0,
+                "reason": ("회차 사이에 같은 종목이 겹쳐 있습니다"
+                           f"({', '.join(daily['overlap'][:3])} 등 "
+                           f"{len(daily['overlap'])}종목) — 합치면 그 종목이 "
+                           "두 번 세어져 t가 거짓으로 커집니다")}
+    counts = [int(c) for c in daily.get("counts") or []]
+    n_symbols = len(daily.get("symbols") or []) or (max(counts) if counts else 0)
+    if n_symbols < min_symbols:
+        return {"skipped": True, "n_symbols": n_symbols, "n_dates": 0,
+                "reason": (f"패널에 선 종목이 {n_symbols}개뿐입니다"
+                           f"(최소 {min_symbols})")}
+    vals = [float(s) / int(c)
+            for s, c in zip(daily.get("sums") or [], counts)
+            if int(c) >= min_symbols]
+    n = len(vals)
+    if n < int(min_dates):
+        return {"skipped": True, "n_symbols": n_symbols, "n_dates": n,
+                "reason": (f"패널 날짜가 {n}일뿐입니다(최소 {min_dates}) — "
+                           "종목을 늘려도 날짜가 짧으면 t를 못 믿습니다")}
+    from quant.utils.numerics import degenerate_spread
+
+    series = pd.Series(vals, dtype=float)
+    mean = float(series.mean())
+    std = float(series.std(ddof=1))
+    deg = degenerate_spread(std, float(series.abs().mean()))
+    t_stat = 0.0 if (deg or n <= 1) else mean / (std / math.sqrt(n))
+    out = {
+        "skipped": False,
+        "n_symbols": n_symbols,
+        "n_dates": n,
+        "mean_diff": mean,
+        "t_stat": t_stat,
+        "t_threshold": float(t_threshold),
+        "pass": bool(t_stat > t_threshold),
+    }
+    ts = sorted(float(v[0]) for v in (sym_terms or {}).values())
+    if ts:
+        mid = len(ts) // 2
+        wins = sum(1 for v in sym_terms.values() if float(v[1]) > 0)
+        hits = sum(1 for t in ts if t > float(t_threshold))
+        out.update({
+            "symbol_wins": wins,
+            "symbol_win_rate": round(wins / len(ts), 4),
+            "symbol_t_median": round(
+                ts[mid] if len(ts) % 2 else (ts[mid - 1] + ts[mid]) / 2, 4),
+            "symbol_pass": hits,
+            "symbol_pass_rate": round(hits / len(ts), 4),
+            "symbol_t_n": len(ts),
+        })
+    return out
+
+
 class PanelCollector:
     """밤 배치가 종목을 도는 동안 **설정별로** 초과수익 계열을 모은다.
 
@@ -258,6 +428,17 @@ class PanelCollector:
             if not v.get("skipped"):
                 v["gain"] = power_gain(self._by_spec[spec], min_symbols)
             out.append(v)
+        return out
+
+    def terms_for(self, spec: str) -> dict:
+        """설정 하나의 **합칠 수 있는 재료**(날짜별 합·개수 + 종목별 t·평균).
+
+        장부에 이것을 남겨야 같은 밤의 여러 회차를 나중에 하나로 포갤 수
+        있다. 안 남기면 그 밤은 **영영 못 합친다**(작업 #56의 ⓑ).
+        """
+        per = self._by_spec.get(spec, {})
+        out = daily_terms(per)
+        out["symbol_terms"] = symbol_terms(per)
         return out
 
     def panel_frame(self, min_symbols: int = MIN_PANEL_SYMBOLS,
