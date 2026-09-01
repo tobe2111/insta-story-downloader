@@ -8369,6 +8369,21 @@ MUTATIONS = [
      '    return now.astimezone(KST).date().isoformat()',
      '    return now.astimezone(_dt.timezone.utc).date().isoformat()',
      'tests/test_the_panel_is_one_roster_per_night.py'),
+    ('종목별 판정을 패널 판정에서 뺀다(①안의 병기가 다시 반쪽이 된다)',
+     'quant/live/panel_gate.py',
+     '        **per_t,\n    }',
+     '    }',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('종목별 통과를 패널과 다른 문턱으로 센다(대조가 착시가 된다)',
+     'quant/live/panel_gate.py',
+     '    hits = sum(1 for t in ts if t > t_threshold)',
+     '    hits = sum(1 for t in ts if t > 0)',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
+    ('장부에서 종목별 판정 칸을 지운다(대조할 재료가 안 쌓인다)',
+     'quant/live/retrain.py',
+     '            "symbol_t_median": v.get("symbol_t_median"),',
+     '            "symbol_t_median_": v.get("symbol_t_median"),',
+     'tests/test_the_panel_gate_measures_the_setting_not_the_symbol.py'),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
