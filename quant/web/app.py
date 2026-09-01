@@ -1531,8 +1531,27 @@ def broadcast_json(state_dir: str = "state", with_live: bool = True) -> str:
                   "strategy": r.get("champion_strategy")}
                  for r in recs if r.get("promoted")]
         if recs:
-            last_day = max(r.get("asof", "") for r in recs)
-            day_recs = [r for r in recs if r.get("asof") == last_day]
+            # ⚠️ **밤은 `asof`가 아니다**(2026-09-01 장부 실측). `asof`는 그
+            #    종목의 마지막 봉 날짜라, 매일 봉이 생기는 코인만 앞으로
+            #    가고 주식은 금요일에 멈춘다. 그래서 `asof`로 묶으면 배너의
+            #    "N종목 대결"이 **언제나 코인 5개**가 됐다:
+            #
+            #        밤 8/29 실제 24종목 → 5    밤 8/31 실제 17종목 → 5
+            #        밤 9/1  실제 24종목 → 5    밤 8/30(전부 미국주식) → 그
+            #          밤 줄이 하나도 안 잡혀 **다른 밤**을 '어젯밤'이라 부름
+            #
+            #    수가 5분의 1로 줄어드는 것보다 나쁜 것은 **승격이 숨는
+            #    것**이다. 주식에서 챔피언이 바뀌면 그 줄의 asof는 금요일이라
+            #    그날 목록에 안 들어가고, 화면에는 "전원 챔피언 유지"가
+            #    나간다 — 이 배너가 존재하는 이유 그 자체를 놓친다.
+            #
+            #    이제 밤 배치가 남기는 밤 열쇠(`night`)로 묶는다. 그 칸이
+            #    없는 옛 줄은 `asof`로 되돌아간다(옛 기록은 고치지 않는다).
+            def _night(rec: dict) -> str:
+                return str(rec.get("night") or rec.get("asof") or "")
+
+            last_day = max(_night(r) for r in recs)
+            day_recs = [r for r in recs if _night(r) == last_day]
             promoted = [f"{r.get('symbol')}→{r.get('champion_strategy')}"
                         for r in day_recs if r.get("promoted")]
             if promoted:
