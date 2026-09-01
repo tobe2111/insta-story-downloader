@@ -1,8 +1,8 @@
 {
-  "cash": -1.8189894035458565e-12,
-  "quantity": 357.69518277779025,
+  "cash": 8916.591368448495,
+  "quantity": 40.52686420872362,
   "avg_price": 27.940000534057617,
-  "last_bar": "2026-08-28 00:00:00",
+  "last_bar": "2026-08-31 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -298,11 +298,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-08-31",
+      "price": 28.1200008392334,
+      "weight": 0.0206,
+      "held_weight": 0.1133,
+      "fractional_lot": false,
+      "equity": 10056.21,
+      "return_pct": 0.56,
+      "hit_rate": 0.5217391304347826,
+      "hit_n": 161,
+      "hit_lo": 0.4449734572634109,
+      "hit_hi": 0.5974915515693109,
+      "hit_conclusive": false,
+      "live_hit": 0.75,
+      "live_hit_n": 4,
+      "live_hit_flat": 1,
+      "hit_flat": 9,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +2.1% — 로지스틱회귀 모델이 내일 상승확률을 약 56%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 참고: 전 종목 합산으로 모델이 56%±10%p라 말한 142번의 실제 상승 비율 52% (95% 신뢰구간 44%~60% · 보합 3일 포함 · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 0번으로 축적 중) · 🏛 의회 운용: ml 47% + ml 30% + breakout 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 28.129999,
+        "bar": "2026-08-31 00:00:00",
+        "weight": 0.1133,
+        "decided_bar": "2026-08-28 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "ceb2f586626f",
+      "data_sha256": "ecd097fef7cc844f0bb6f8a445ae7cebfd334c5ec7ed096dc971f03921e9a0e3",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5565526653134393,
+      "drift_psi": 0.2832,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1133,
-    "decided_bar": "2026-08-28 00:00:00"
+    "weight": 0.0206,
+    "decided_bar": "2026-08-31 00:00:00"
   },
   "market": "us_stock",
   "symbol": "UUP",
