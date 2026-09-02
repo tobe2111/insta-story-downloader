@@ -870,6 +870,37 @@ def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
                         else "상한" if band >= REBALANCE_BAND_REL_MAX else None)}
 
 
+def _champion_band_rel(key: str, state_dir: str = STATE_DIR) -> float:
+    """그 종목이 **실제로 도는** 밴드 = 시장 밴드 × 챔피언의 밴드 배수.
+
+    2026-09-02 사장님 지시("이런 것도 머신러닝 차원에서 알아서") — 회전을
+    정하는 밴드 배수가 오디션의 탐색 축이 됐다. 승격된 배수를 체결기가
+    안 따르면 기계가 고른 회전은 링 안에서만 존재한다. 챔피언 기록이 없거나
+    읽기 실패면 배수 1(지금까지와 같음).
+    """
+    market = key.split(":")[0]
+    base = _rebalance_band_rel(market, state_dir)
+    try:
+        from quant.live.retrain import band_mult_of, champion_spec
+        _m, _s = key.split(":", 1)
+        mult = band_mult_of((champion_spec(_m, _s, state_dir) or {}).get("params"))
+    except Exception:  # noqa: BLE001 — 배수 조회 실패가 매매를 막으면 안 된다
+        mult = 1.0
+    return base * mult
+
+
+def cost_basis_bp(state_dir: str = STATE_DIR) -> dict:
+    """공개 자료에 싣는 **비용 기준** — 시장별 실측 편도(bp). 모든 트랙이
+    같은 자로 재는지 화면에서 확인할 수 있게(2026-09-02 사장님 지시)."""
+    out = {}
+    for m in ("kr_stock", "us_stock", "crypto"):
+        try:
+            out[m] = round(float(measured_cost_model(m, state_dir).total_one_way()) * 1e4, 1)
+        except Exception:  # noqa: BLE001
+            out[m] = None
+    return out
+
+
 def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
     """시장별 상대 리밸런스 밴드 — 왕복 비용에 비례(하한·상한 클립).
 
@@ -2207,7 +2238,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
         order = broker.target_weight(
             key, float(pend["weight"]) * sl, fopen, eq_now,
-            rebalance_band_rel=_rebalance_band_rel(key.split(":")[0]))
+            rebalance_band_rel=_champion_band_rel(key, state_dir))
         if order is None:
             pending.pop(key, None)
             continue                       # 밴드 안 — 고쳐 잡지 않는다
@@ -2490,7 +2521,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             pending.pop(key, None)
             continue
         if _in_cooldown(key, last_trade, bar, tw, held_w,
-                        _rebalance_band_rel(market, state_dir)):
+                        _champion_band_rel(key, state_dir)):
             skipped_cool.append(key)
             pending.pop(key, None)
             continue
@@ -2505,7 +2536,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             broker.fee = _fill_cost(market)
             # 비용 비례 상대 밴드 — 비싼 시장일수록 더 벗어나야 고쳐 잡는다
             broker.target_weight(key, tw, prices[key], equity,
-                                 rebalance_band_rel=_rebalance_band_rel(market))
+                                 rebalance_band_rel=_champion_band_rel(key, state_dir))
         else:
             # 예산 반영 후의 최종 비중을 통째로 남긴다(slice=1.0).
             # 예전에는 eff와 slice를 나눠 저장하고 체결 때 곱했는데,

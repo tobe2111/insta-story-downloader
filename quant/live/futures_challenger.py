@@ -538,11 +538,14 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     그 회차를 건너뛰고 그렇게 적는다** — 합성 시세로 가짜 체결을 만들지
     않는다(장중 트랙과 같은 규칙).
     """
-    from quant.backtest.costs import CostModel
     from quant.live.conviction import recalibrate, scale_of, spec_of
     universe = list(universe if universe is not None else UNIVERSE)
     if per_side is None:
-        per_side = float(CostModel.for_market("crypto").total_one_way())
+        # 오디션·본 계좌·그림자와 **같은 실측 비용 모델**(2026-09-02 사장님
+        # 지시 "모든 투자 마찬가지"). 트랙마다 다른 비용을 쓰면 트랙 비교가
+        # 비용 비교로 오염된다.
+        from quant.live.daily import measured_cost_model
+        per_side = float(measured_cost_model("crypto", state_dir).total_one_way())
     st = load_state(state_dir)
 
     signals: dict = {}
@@ -715,6 +718,15 @@ def _leverage_cap(st: dict) -> dict:
                 "why": "배율 상한을 재지 못했습니다 — 1배로 둡니다"}
 
 
+def _cost_basis_bp() -> float | None:
+    """이 트랙이 무는 편도 비용(bp) — 화면에 비용 기준을 함께 싣는다."""
+    try:
+        from quant.live.daily import measured_cost_model
+        return round(float(measured_cost_model("crypto").total_one_way()) * 1e4, 1)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _gross_return_pct(st: dict, eq: float) -> float | None:
     """수수료·자금조달을 **내기 전** 자산 기준 수익률(%) — 전략 자체의 성적."""
     base = float(st.get("start_cash") or 0.0)
@@ -788,6 +800,7 @@ def public_report(st: dict) -> dict:
         #    보이면 "전략이 잃었다"로 읽히고, 그건 사실이 아니다. 반대로
         #    총수익률만 보이면 광고다 — 그래서 둘을 같은 화면에 놓는다.
         "gross_return_pct": _gross_return_pct(st, eq),
+        "cost_basis_bp": _cost_basis_bp(),
         # 최근 7일의 수수료와 총이득 — **기록만 한다**(관문이 아니다). 수수료가
         # 총이득을 넘어서는 구간이 얼마나 자주 오는지 먼저 장부에 쌓는다.
         # 비율로 적지 않는다: 총이득이 0이나 음수인 주에는 비율이 뜻을 잃는다.

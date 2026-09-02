@@ -230,6 +230,19 @@ def _axis_threshold(rng, p):
     return {"threshold": round(min(0.70, max(0.52, base + step)), 2)}
 
 
+def _axis_band_mult(rng, p):
+    """회전 축 — 리밸런스 밴드 배수. 지금 값과 **다른** 값을 고른다.
+
+    0은 '밴드 없음'(매 봉 고쳐 잡는다, 회전 최대), 2는 시장 기본의 두 배
+    (웬만한 이탈은 그냥 둔다, 회전 최소). 비용이 물린 오디션에서 이 축을
+    흔들면, 신호가 수수료를 못 이기는 종목에서는 회전을 줄인 후보가 이긴다
+    — 사람이 회전을 정하지 않는다.
+    """
+    cur = band_mult_of(p)
+    choices = [c for c in BAND_MULT_CHOICES if c != cur] or list(BAND_MULT_CHOICES)
+    return {"band_mult": rng.choice(choices)}
+
+
 def _axis_train_window(rng, p):
     return {"train_window": rng.choice([150, 250, 350, 500])}
 
@@ -290,6 +303,8 @@ ML_EXPLICIT_AXES = {
     "sizing": _axis_sizing,
     "sample_weight": _axis_sample_weight,
     "calibrate": _axis_calibrate,
+    # 회전(리밸런스 밴드 배수) — 실행 전용 손잡이. 위 EXEC_PARAM_DEFAULTS 참조.
+    "band_mult": _axis_band_mult,
     # ⚠️ 이 축만 값을 **만든다**(고르지 않는다). 그래서 관측 유도 축이 아니라
     #    명시 축에 둔다 — 관측 유도는 "지금까지 쓰인 값 중에서 고르기"라,
     #    한 번도 안 나온 조합은 영원히 안 나온다.
@@ -417,6 +432,41 @@ def mutate_champion(spec: dict, seed: str, n: int = 4, *,
     return out
 
 
+# ── 실행 전용 손잡이 — 전략 생성자가 아니라 **체결기**가 읽는다 ──────────────
+#
+# ⚠️ 왜 따로 두나(2026-09-02 사장님 지시 "수수료도 고려해서 수익을 생각해야지 —
+#    이런 것도 머신러닝 차원에서 알아서 해야지"). 회전을 정하는 손잡이
+#    (리밸런스 밴드)는 지금까지 **시장별 고정값 하나**라 후보마다 같았다.
+#    비용은 오디션에서 이미 물리고 있었지만, 후보가 회전을 달리 할 수 없으니
+#    기계가 "덜 사고팔아 수수료를 아끼는 쪽이 더 남는가"를 **물어볼 방법이
+#    없었다.** 선물 실험이 열흘에 수수료 5.47%p를 내는 동안 아무 후보도
+#    그 회전을 줄여 보지 못한 이유다.
+#
+#    그래서 밴드 배수(`band_mult`)를 후보의 손잡이로 만든다. 값은 시장 밴드의
+#    배수(0 = 밴드 없음 · 0.5 · 1 = 시장 기본 · 2)라 시장을 몰라도 흔들 수
+#    있고, 승격되면 실거래 체결기가 그 배수를 그대로 따른다 — 기계가 고른
+#    회전이 링에서 끝나지 않고 장부까지 간다.
+#
+#    전략 생성자는 이 키를 모르므로 `build_strategy`가 빼고 넘긴다. 중복
+#    판정은 아래 기본값으로 정규화한다(`band_mult: 1.0`은 안 적은 것과 같다).
+EXEC_PARAM_DEFAULTS: dict = {"band_mult": 1.0}
+BAND_MULT_CHOICES = (0.0, 0.5, 1.0, 2.0)
+
+
+def band_mult_of(params: dict | None) -> float:
+    """파라미터에 적힌 밴드 배수 — 없으면 1(시장 기본). 음수는 0으로."""
+    try:
+        return max(0.0, float((params or {}).get("band_mult", 1.0)))
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def strategy_params(spec: dict) -> dict:
+    """전략 생성자에 **넘길** 파라미터 — 실행 전용 손잡이는 뺀다."""
+    return {k: v for k, v in (spec.get("params") or {}).items()
+            if k not in EXEC_PARAM_DEFAULTS}
+
+
 def default_params(strategy: str) -> dict:
     """전략 생성자가 **적지 않으면 쓰는 값**들 — 손잡이의 '기본 위치'.
 
@@ -451,7 +501,7 @@ def strip_default_params(spec: dict) -> dict:
     #    아래에서 **아무것도 안 지워진다**. 모를 때 지우는 쪽을 택하면
     #    사용자가 적어 넣은 값이 조용히 사라진다 — 되돌릴 수 없는 실수다.
     params = dict(spec.get("params", {}))
-    defaults = default_params(spec.get("strategy", ""))
+    defaults = {**EXEC_PARAM_DEFAULTS, **default_params(spec.get("strategy", ""))}
     kept = {k: v for k, v in params.items()
             if not (k in defaults and v == defaults[k]
                     and type(v) is type(defaults[k]))}
@@ -489,7 +539,7 @@ def build_strategy(spec: dict):
         from quant.ingest.spec import SpecStrategy, spec_from_dict
         return SpecStrategy(spec_from_dict(spec["params"]["spec"]))
     from quant.strategies import get_strategy
-    return get_strategy(spec["strategy"], **spec.get("params", {}))
+    return get_strategy(spec["strategy"], **strategy_params(spec))
 
 
 def load_champions(state_dir: str = STATE_DIR) -> dict:
@@ -728,6 +778,9 @@ def nightly_retrain(
     select_t = used
 
     select_df = df.iloc[:-confirm_window]      # 선발전: 결승 구간을 전혀 못 본다
+    # 시장 밴드 × 챔피언의 배수 = 챔피언이 실제로 도는 밴드. 후보는 자기
+    # 배수로 돈다 — 둘을 같은 밴드로 돌리면 회전 축은 아무것도 못 잰다.
+    champ_band = rebalance_band * band_mult_of(champion_spec.get("params"))
     candidates, inert = [], []
     for spec in challenger_specs:
         if "strategy" in spec:                  # 다른 전략(전통 전략 등)의 도전
@@ -744,7 +797,8 @@ def nightly_retrain(
                 build(champion_spec), build(full_spec),
                 min_obs=min_obs, edge=edge, t_threshold=select_t,
                 cost_model=cost_model, next_open_fill=next_open_fill,
-                rebalance_band=rebalance_band)
+                rebalance_band=champ_band,
+                challenger_band=rebalance_band * band_mult_of(full_spec["params"]))
             r = cc.evaluate(select_df, folds=select_folds)
         except Exception as exc:  # noqa: BLE001 — 후보 하나의 실패로 전체를 죽이지 않는다
             log.warning("챌린저 평가 실패 %s: %s", spec, exc)
@@ -1374,11 +1428,18 @@ def holdout_diffs(champion_spec: dict, specs: list[dict], df,
     """
     from quant.backtest import Backtester
 
-    r_champ = Backtester(build(champion_spec), **bt_kwargs).run(df).returns
+    base_band = float(bt_kwargs.get("rebalance_band", 0.0) or 0.0)
+
+    def _kw(sp: dict) -> dict:
+        # 스펙마다 자기 밴드 배수로 돈다 — 회전 축이 홀드아웃에서도 살아 있게.
+        return {**bt_kwargs,
+                "rebalance_band": base_band * band_mult_of(sp.get("params"))}
+
+    r_champ = Backtester(build(champion_spec), **_kw(champion_spec)).run(df).returns
     out: dict = {}
     for spec in specs:
         try:
-            r_ch = Backtester(build(spec), **bt_kwargs).run(df).returns
+            r_ch = Backtester(build(spec), **_kw(spec)).run(df).returns
         except Exception as exc:  # noqa: BLE001 — 한 후보 실패로 검정을 죽이지 않는다
             log.warning("동시검정 후보 재생 실패 %s: %s", spec, exc)
             continue

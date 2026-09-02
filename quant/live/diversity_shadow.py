@@ -46,6 +46,24 @@ log = get_logger("live.diversity_shadow")
 TRACKS = ("actual", "diversity")
 START_CASH = 1_000_000.0
 FEE = 0.001            # 회전율당 10bp — 두 계좌 공통(상대 비교 전용)
+
+
+def _turnover_cost(target: dict, prev: dict, state_dir: str) -> float:
+    """회전 × **그 종목 시장의 실측 편도 비용** — 본 계좌와 같은 자.
+
+    2026-09-02 사장님 지시("각 수수료도 고려해서 수익을 생각해야지 — 모든
+    투자 마찬가지"). 예전엔 시장 무관 10bp 고정이라 한국·코인은 싸게,
+    미국은 비싸게 셌다 — 본 계좌와 나란히 놓는 비교가 기울어 있었다.
+    """
+    try:
+        from quant.live.daily import measured_cost_model
+        def _one_way(key: str) -> float:
+            return float(measured_cost_model(key.split(":")[0], state_dir).total_one_way())
+    except Exception:  # noqa: BLE001 — 비용 조회 실패가 그림자 기록을 막으면 안 된다
+        def _one_way(key: str) -> float:
+            return FEE
+    return sum(abs(float(target.get(k, 0.0)) - float(prev.get(k, 0.0))) * _one_way(k)
+               for k in set(target) | set(prev))
 DIR = "diversity_shadow"
 KEEP_DAYS = 400
 
@@ -132,7 +150,7 @@ def run_diversity_shadow(*, bar: str, pairs: dict, marks: dict,
         target = {k: pair[ti] / n for k, pair in usable.items()}
         turnover = sum(abs(target.get(k, 0.0) - float(pw.get(k, 0.0)))
                        for k in set(target) | set(pw))
-        equity -= equity * turnover * FEE
+        equity -= equity * _turnover_cost(target, pw, state_dir)
 
         keys = set(target) | set(pw)
         st.update({
@@ -166,7 +184,8 @@ def diversity_public(state_dir: str = "state") -> dict | None:
                        "days": len(st["history"])}
     if not rows:
         return None
-    return {"tracks": rows, "note": (
+    from quant.live.daily import cost_basis_bp
+    return {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
         "의회가 2석 이상인 계좌에서 **같은 의원 신호**를 두 비중으로 섞은 "
         "가상 계좌입니다 — actual은 지금 실제 비중, diversity는 전략 간 "
         "상관까지 본 비중. 종가 평가·수수료만 반영(본 계좌의 안전장치 없음 — "
