@@ -119,6 +119,39 @@ CURVE_KEEP = 500
 #    내려가는지 함께 보고 정해야 한다.
 MAX_GROSS_EXPOSURE = 3.0
 
+# ── 수수료 예산 안전장치 (2026-09-02 사장님 "모두 다 해") ──────────────
+#
+# 계기: 열흘 −4.17% 중 수수료가 5.47%p였다(전략 자체는 +1.42%).
+#
+# ⚠️ 사장님 제안 원안은 "최근 7일 수수료가 **총이득의 50%**를 넘으면"
+#    이었는데, 장부로 재 보니 그 기준은 관문 구실을 못 한다:
+#
+#      · 총이득이 **음수**면 비율이 정의되지 않는다. 9/1·9/2의 7일 창이
+#        실제로 총이득 −129·−153이었다 — 가장 걱정되는 상태에서 하필
+#        관문이 침묵한다.
+#      · 총이득이 양수인 날에도 8/25 이후 비율이 **내내 150%를 넘었다**
+#        (443/291 · 485/309 · 500/218 · 509/123). 언제나 참인 조건은
+#        관문이 아니라 상시 상태다.
+#
+#    그래서 재는 대상을 **자산 대비**로 바꾼다 — 총이득의 부호와 무관하게
+#    언제나 정의되고, "이 계좌가 수수료로 얼마를 흘리고 있나"를 직접 묻는다.
+#
+# 문턱 3%를 고른 근거(같은 장부, 7일 창 수수료/자산):
+#
+#      폭주 사흘이 창에 있던 8/25~8/30   3.13 · 4.51 · 4.95 · 5.08 · 5.16 · 5.26%
+#      레버리지 관문(8/26) 이후 회복기   2.33% → 1.00%
+#
+#    즉 3%는 폭주기를 잡고 회복기는 안 잡는 자리다. 연 환산하면 약 156%로,
+#    **어떤 전략도 수수료로 연 150%를 내고 살아남지 못한다** — 최적화한
+#    손잡이가 아니라 "명백히 병적인 상태"의 문턱이다.
+#
+# ⚠️ 이건 회전을 고르는 장치가 **아니다**(그건 아래 밴드가 하고, 값은 밤
+#    오디션이 정한다). 여기는 그 장치가 실패했을 때 잡는 안전장치이고,
+#    그래서 사람이 값을 적는 것이 방침에 어긋나지 않는다(청산·레버리지
+#    관문과 같은 성격).
+FEE_BUDGET_WINDOW_DAYS = 7
+FEE_BUDGET_PCT_OF_EQUITY = 3.0
+
 # 유지증거금률 — 자산이 총 노출의 이 비율 밑으로 내려가면 **강제 청산**.
 # 실제 거래소는 종목·구간마다 다르게 매기지만(0.4%~수%), 여기서는 하나로
 # 잡고 화면에 가정이라고 적는다. 0으로 두는 것보다 이쪽이 정직하다 —
@@ -155,6 +188,19 @@ RULE_CHANGES.append({
            "머신러닝에서 할 일\". 다만 '가장 많이 번 배율'을 고르면 "
            "과최적화이므로, **위험 대비로도 우연을 배제했을 때만** "
            "상한이 올라갑니다. 지금은 표본이 얇아 1배입니다.",
+})
+
+# 회전을 기계가 고르게 하고, 수수료 폭주에 안전장치를 붙인 날.
+RULE_CHANGES.append({
+    "on": "2026-09-02",
+    "what": "얼마나 자주 사고팔지를 **밤 오디션이 종목마다 고른 값**대로 "
+            "따르게 했습니다. 그리고 최근 7일 수수료가 자산의 3%를 넘으면 "
+            "포지션을 **키우는 거래만** 멈춥니다(줄이는 거래는 계속합니다).",
+    "why": "사장님 지시 — \"각 수수료도 고려해서 수익을 생각해야지\". "
+           "여기 수수료의 절반 이상이 포지션을 뒤집는 큰 거래에서 나왔고, "
+           "그 폭주는 8월 26일 배율 안전장치가 이미 크게 줄였습니다. "
+           "밴드는 작은 헛거래를 거르고(체결 −29%·수수료 −3%), 예산은 "
+           "폭주가 다시 오면 잡는 장치입니다.",
 })
 
 # 무기한 선물 자금조달 — 8시간마다 정산된다. 실제 요율은 시장마다 매
@@ -370,7 +416,9 @@ def stopped_out(st: dict, prices: dict,
 
 def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
                     per_side: float, universe: list[str] | None = None,
-                    max_gross: float = MAX_GROSS_EXPOSURE) -> list:
+                    max_gross: float = MAX_GROSS_EXPOSURE,
+                    bands: dict | None = None,
+                    allow_growth: bool = True) -> list:
     """목표 방향·비중 → 체결. 롱과 숏을 **같은 한 곳**에서 처리한다.
 
     ⚠️ 장중 트랙의 `_execute_targets`를 빌려 오지 않고 여기 따로 둔 이유:
@@ -423,9 +471,24 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
         delta = target - cur_notional
         if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
             continue
+        # 리밸런스 밴드 — 비중 차가 밴드 미만이면 거래하지 않는다.
+        #
+        # ⚠️ **청산(목표 0)은 밴드와 무관하게 항상 실행한다.** 백테스트
+        #    엔진과 같은 규약이다(engine.py 4-c) — 안 그러면 신호가 관망으로
+        #    바뀐 종목의 잔여 포지션이 영원히 남는다. 두 곳의 규약이 갈리면
+        #    링에서 이긴 회전이 실계좌에서 재현되지 않는다.
+        band = float((bands or {}).get(sym) or 0.0)
+        if band > 0 and target != 0 and slice_budget > 0:
+            if abs(delta) / slice_budget < band:
+                continue
         # 노출이 **늘어나는 만큼**만 한도를 먹는다. 줄이는 거래(청산)는
         # 언제나 허용된다 — 위험을 줄이는 길을 막으면 스톱이 동작 못 한다.
         grow = abs(target) - abs(cur_notional)
+        # 수수료 예산을 넘긴 회차에는 **노출을 늘리는 거래만** 막는다.
+        # 줄이는 거래(청산·축소)는 언제나 허용한다 — 위험을 줄이는 길을
+        # 막으면 안전장치가 스스로 위험이 된다(레버리지 관문과 같은 규약).
+        if grow > 0 and not allow_growth:
+            continue
         if grow > 0:
             # ⚠️ 남은 자리는 **음수가 될 수 있다** — 손실이 나서 이미 한도를
             #    넘긴 상태다. 그때 그 값을 그대로 쓰면 `-allowed`가 부호를
@@ -500,6 +563,47 @@ def net_return_pct(st: dict) -> float | None:
     last = curve[-1]
     eq = float((last or {}).get("equity") if isinstance(last, dict) else last)
     return round((eq / base - 1.0) * 100, 4)
+
+
+def champion_band_rel(symbol: str, state_dir: str = "state") -> float:
+    """이 코인이 **실제로 도는** 밴드 = 코인 시장 밴드 × 챔피언의 밴드 배수.
+
+    2026-09-02 사장님 "이런 것도 머신러닝 차원에서 알아서" 지시의 연장이다.
+    본 계좌는 이미 그날 승격된 배수대로 돌고 있는데(``daily._champion_band_rel``)
+    선물만 밴드가 아예 없어, 같은 챔피언이 트랙마다 다른 회전으로 돌았다.
+    그러면 두 트랙의 성적 차이가 '방향 허용'인지 '회전'인지 갈리지 않는다.
+
+    ⚠️ 사람이 값을 정하지 않는다 — 시장 밴드는 실측 비용에서 나오고,
+       배수는 밤 오디션이 고른다. 챔피언이 없거나 읽기 실패면 배수 1이다.
+    """
+    from quant.live.daily import _rebalance_band_rel
+    base = float(_rebalance_band_rel("crypto", state_dir))
+    try:
+        from quant.live.retrain import band_mult_of
+        return base * band_mult_of(_spec(symbol, state_dir).get("params"))
+    except Exception:  # noqa: BLE001 — 배수 조회 실패가 체결을 막으면 안 된다
+        return base
+
+
+def fee_budget(st: dict, *, days: int = FEE_BUDGET_WINDOW_DAYS,
+               pct: float = FEE_BUDGET_PCT_OF_EQUITY) -> dict:
+    """최근 ``days``일 수수료가 자산의 ``pct``%를 넘었나 — 넘으면 노출 확대 금지.
+
+    돌려주는 것: ``{days, fees, equity, pct_of_equity, limit_pct, breached}``.
+    잴 수 없으면(회차 없음·자산 0) ``breached=False``다 — **모르는 것을
+    위반으로 세면 안 된다**(그러면 첫 회차부터 계좌가 얼어붙는다).
+    """
+    win = _fee_window(st, days=days)
+    rounds = st.get("rounds") or []
+    eq = float((rounds[-1] or {}).get("equity") or 0.0) if rounds else 0.0
+    fees = win.get("fees")
+    if fees is None or not (eq > 0):
+        return {"days": days, "fees": fees, "equity": round(eq, 4),
+                "pct_of_equity": None, "limit_pct": pct, "breached": False}
+    ratio = float(fees) / eq * 100.0
+    return {"days": days, "fees": round(float(fees), 4), "equity": round(eq, 4),
+            "pct_of_equity": round(ratio, 4), "limit_pct": pct,
+            "breached": bool(ratio > pct), "since": win.get("since")}
 
 
 def _spec(symbol: str, state_dir: str) -> dict:
@@ -616,8 +720,21 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     from quant.live.leverage import adaptive_max_leverage
     lev_cap = adaptive_max_leverage(st.get("curve") or [],
                                     hard_cap=MAX_GROSS_EXPOSURE)
+    # ── 회전은 밤 오디션이 고른다 ─────────────────────────────────────
+    # 종목마다 그 코인 챔피언의 밴드 배수를 따른다(사람이 안 정한다).
+    bands = {sym: champion_band_rel(sym, state_dir) for sym in universe}
+    # ── 수수료 예산은 **이번 회차 체결 전에** 잰다 ─────────────────────
+    # 체결 뒤에 재면 이번 회차의 수수료가 이미 들어가, 예산을 넘긴 그
+    # 회차가 예산 안이라고 기록된다(한 회차 늦게 잡힌다).
+    budget = fee_budget(st)
+    if budget.get("breached"):
+        log.warning("💸 선물 수수료 예산 초과 — 최근 %d일 %.2f%% > %.2f%% · "
+                    "노출 확대를 막는다(축소는 허용)",
+                    budget["days"], budget["pct_of_equity"], budget["limit_pct"])
     trades = execute_targets(st, signals, prices, equity, per_side, universe,
-                             max_gross=float(lev_cap["max_leverage"]))
+                             max_gross=float(lev_cap["max_leverage"]),
+                             bands=bands,
+                             allow_growth=not budget.get("breached"))
     equity = mark_equity(st, prices) if prices else float(st["cash"])
     # 마지막으로 본 시세를 남긴다 — 종목별 손익을 그리려면 '지금 값'이
     # 있어야 한다. 이번 회차에 못 받은 종목은 **이전 값을 지우지 않는다**
@@ -644,6 +761,11 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         rec["liquidated"] = liq
     # 이 회차에 허락된 배율 상한과 그 이유 — 화면이 그대로 읽는다.
     rec["leverage_cap"] = lev_cap
+    # 수수료 예산과 그날 적용된 밴드 — 회전이 왜 그랬는지를 장부가 말한다.
+    # ⚠️ 넘지 **않은** 회차에도 남긴다. 넘은 회차만 남기면 "예산이 없던 때"와
+    #    "예산 안이던 때"가 장부에서 똑같이 보인다.
+    rec["fee_budget"] = budget
+    rec["rebalance_bands"] = {k: round(float(v), 6) for k, v in bands.items()}
     # 실제로 적용된 확신도 배수 — 조용히 꺼지면 여기가 1.0으로 돌아온다.
     if any(v != 1.0 for v in (scales or {}).values()):
         rec["conviction_scale"] = {k: round(float(v), 4)
@@ -801,10 +923,16 @@ def public_report(st: dict) -> dict:
         #    총수익률만 보이면 광고다 — 그래서 둘을 같은 화면에 놓는다.
         "gross_return_pct": _gross_return_pct(st, eq),
         "cost_basis_bp": _cost_basis_bp(),
-        # 최근 7일의 수수료와 총이득 — **기록만 한다**(관문이 아니다). 수수료가
-        # 총이득을 넘어서는 구간이 얼마나 자주 오는지 먼저 장부에 쌓는다.
-        # 비율로 적지 않는다: 총이득이 0이나 음수인 주에는 비율이 뜻을 잃는다.
+        # 최근 7일의 수수료와 총이득. **비율로 적지 않는다** — 총이득이 0이나
+        # 음수인 주에는 비율이 뜻을 잃는다(그래서 예산 관문은 총이득이 아니라
+        # 자산을 기준으로 잰다. FEE_BUDGET_PCT_OF_EQUITY 주석 참조).
         "fee_window": _fee_window(st, days=7),
+        # 수수료 예산 — 넘으면 노출 확대만 막는다. 안 넘은 날도 싣는다:
+        # 안 실으면 "예산이 없던 때"와 "예산 안이던 때"가 화면에서 같아진다.
+        "fee_budget": fee_budget(st),
+        # 그 회차에 실제로 적용된 밴드(종목별). 사람이 정한 값이 아니라
+        # 밤 오디션이 고른 배수 × 코인 실측 비용이다.
+        "rebalance_bands": last.get("rebalance_bands") or {},
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,

@@ -101,6 +101,10 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
      둘을 같은 이름으로 부르면 화면이 3배라 말하는 동안 실제로는 1배로
      돌 수 있다. -->
 <div class="card sub" id="levcap">불러오는 중…</div>
+<!-- 수수료 예산 — 최근 7일 수수료가 자산의 몇 %인지. 넘으면 포지션을
+     키우는 거래만 멈춘다(줄이는 거래는 계속한다). 안 넘은 날도 보여야
+     "예산이 없던 때"와 "예산 안이던 때"가 화면에서 구별된다. -->
+<div class="card sub" id="feebudget">불러오는 중…</div>
 
 <h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
 <div class="card" id="rules">불러오는 중…</div>
@@ -347,6 +351,40 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
        '않았으므로 <b>1배</b>입니다. 1배는 실패가 아니라 "지금은 크게 걸 '+
        '이유가 없다"는 답입니다 — 증거 없이 키우면 그건 학습이 아니라 '+
        '요행입니다.</div>');
+  })();
+  /* 수수료 예산 — 회전이 스스로 멈추는 자리(2026-09-02). */
+  (function(){
+    var b=d.fee_budget, el=document.getElementById("feebudget");
+    if(!el) return;
+    if(!b||b.pct_of_equity==null){
+      el.innerHTML='<span class="sub">최근 수수료를 아직 재지 못했습니다 — '+
+        '회차가 쌓이면 여기에 나옵니다.</span>';return;
+    }
+    var pct=Number(b.pct_of_equity), lim=Number(b.limit_pct);
+    var bands=d.rebalance_bands||{}, keys=Object.keys(bands);
+    var bandTxt="";
+    if(keys.length){
+      var vals=keys.map(function(k){return Number(bands[k]);});
+      var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+      /* ⚠️ 숫자를 문장 **중간**에 끼우지 않는다 — 영어 사전은 글자 마디
+         단위로 찾으므로, 값이 바뀔 때마다 마디가 달라져 번역이 끊긴다.
+         숫자는 태그 안에 가두고 고정 문장만 마디로 남긴다. */
+      bandTxt='<div class="sub" style="margin-top:6px">'+
+        '얼마나 자주 사고팔지는 밤 심사가 종목마다 고른 값을 따릅니다 — 지금 '+
+        '<b>'+(lo===hi?(lo*100).toFixed(0)+'%':
+               (lo*100).toFixed(0)+'~'+(hi*100).toFixed(0)+'%')+'</b>'+
+        '입니다. 목표 비중과 지금 비중의 차이가 이보다 작으면 굳이 '+
+        '거래하지 않습니다(수수료만 내는 거래를 줄입니다).</div>';
+    }
+    el.innerHTML='최근 '+b.days+'일 수수료 <b class="'+(b.breached?"down":"")+'">'+
+      pct.toFixed(2)+'%</b> <span class="sub">(자산 대비 · 한도 '+
+      lim.toFixed(0)+'%)</span>'+
+      '<div style="margin-top:6px">'+(b.breached?
+        '한도를 넘어 <b>포지션을 키우는 거래를 멈췄습니다.</b> 줄이거나 '+
+        '정리하는 거래는 그대로 합니다 — 위험을 줄이는 길을 막으면 '+
+        '안전장치가 그 자체로 위험이 됩니다.':
+        '한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.')+'</div>'+
+      bandTxt;
   })();
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),

@@ -121,6 +121,31 @@
       "주기": "Bar interval",
       "총 노출": "Gross exposure",
       "수수료 빼기 전": "Before fees",
+      "최근 7일 수수료": "Fees over the last 7 days",
+      "(자산 대비 · 한도 3%)": "(of equity · limit 3%)",
+      "한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.":
+        "Within the limit. This guard only acts when fees run away.",
+      "한도를 넘어": "Over the limit —",
+      "포지션을 키우는 거래를 멈췄습니다.":
+        "trades that grow a position are paused.",
+      "줄이거나 정리하는 거래는 그대로 합니다 — 위험을 줄이는 길을 막으면 안전장치가 그 자체로 위험이 됩니다.":
+        "Trades that shrink or close a position still go through — a guard " +
+        "that blocks the way out becomes the risk itself.",
+      "얼마나 자주 사고팔지는 밤 심사가 종목마다 고른 값을 따릅니다 — 지금":
+        "How often it trades follows the value the nightly audition picked " +
+        "per symbol — currently",
+      "입니다. 목표 비중과 지금 비중의 차이가 이보다 작으면 굳이 거래하지 않습니다(수수료만 내는 거래를 줄입니다).":
+        ". If the gap between target and current weight is smaller than that, " +
+        "it does not trade (cutting trades that only pay fees).",
+      "얼마나 자주 사고팔지를 **밤 오디션이 종목마다 고른 값**대로 따르게 했습니다. 그리고 최근 7일 수수료가 자산의 3%를 넘으면 포지션을 **키우는 거래만** 멈춥니다(줄이는 거래는 계속합니다). 사장님 지시 — \"각 수수료도 고려해서 수익을 생각해야지\". 여기 수수료의 절반 이상이 포지션을 뒤집는 큰 거래에서 나왔고, 그 폭주는 8월 26일 배율 안전장치가 이미 크게 줄였습니다. 밴드는 작은 헛거래를 거르고(체결 −29%·수수료 −3%), 예산은 폭주가 다시 오면 잡는 장치입니다.":
+        "How often it trades now follows the value the nightly audition picked " +
+        "per symbol. And when fees over the last 7 days exceed 3% of equity, " +
+        "only trades that grow a position stop (shrinking trades continue). " +
+        "Owner's instruction — \"returns have to be thought of after fees too\". " +
+        "More than half the fees here came from large trades that flip a " +
+        "position, and that runaway was already cut sharply by the leverage " +
+        "guard on Aug 26. The band filters small pointless trades (fills −29%, " +
+        "fees −3%); the budget catches a runaway if it returns.",
       "수수료와 자금조달을 내기 전 자산 기준입니다. 전략 자체가 얼마나 벌었는지를 보여줍니다.":
         "Equity before fees and funding. Shows what the strategy itself earned.",
       "증거금률": "Margin ratio",
