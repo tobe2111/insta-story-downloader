@@ -186,6 +186,13 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
     '<div class="grid">'+
       '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
         pct(d.return_pct)+'</div></div>'+
+      /* 수수료 빼기 전 성적을 나란히 둔다. 순수익률만 보이면 "전략이
+         잃었다"로 읽히는데, 실측(2026-09-02)은 전략 +1.42% · 수수료 −5.47%p
+         였다. 반대로 이것만 보이면 광고다 — 그래서 둘을 같은 줄에 놓는다. */
+      (d.gross_return_pct!=null?
+        '<div><div class="k" title="수수료와 자금조달을 내기 전 자산 기준입니다. 전략 자체가 얼마나 벌었는지를 보여줍니다.">수수료 빼기 전</div><div class="v '+
+          (Number(d.gross_return_pct)>=0?"up":"down")+'">'+pct(d.gross_return_pct)+
+          '</div></div>':'')+
       '<div><div class="k">롱</div><div class="v">'+(d.long_positions||0)+'종목</div></div>'+
       '<div><div class="k">숏</div><div class="v">'+(d.short_positions||0)+'종목</div></div>'+
       '<div><div class="k">총 노출</div><div class="v">'+usdt(d.gross_exposure)+'</div></div>'+

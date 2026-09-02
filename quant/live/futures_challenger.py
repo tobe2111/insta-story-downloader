@@ -715,6 +715,52 @@ def _leverage_cap(st: dict) -> dict:
                 "why": "배율 상한을 재지 못했습니다 — 1배로 둡니다"}
 
 
+def _gross_return_pct(st: dict, eq: float) -> float | None:
+    """수수료·자금조달을 **내기 전** 자산 기준 수익률(%) — 전략 자체의 성적."""
+    base = float(st.get("start_cash") or 0.0)
+    if not (base > 0):
+        return None
+    gross = eq + float(st.get("cost_paid") or 0.0) + float(st.get("funding_paid") or 0.0)
+    return round((gross / base - 1.0) * 100, 4)
+
+
+def _fee_window(st: dict, days: int = 7) -> dict:
+    """최근 ``days``일의 수수료와 총이득(수수료 내기 전 손익).
+
+    회차 기록의 ``cost_paid``·``funding_paid``는 누계이므로, 창 직전 회차를
+    기준선으로 잡아 차이를 낸다. 회차가 창보다 짧으면 첫 회차가 기준선이다.
+    """
+    import datetime as _dt
+    rounds = st.get("rounds") or []
+    if not rounds:
+        return {"days": days, "rounds": 0, "fees": None, "gross_pnl": None}
+    try:
+        last_at = _dt.datetime.fromisoformat(str(rounds[-1].get("at")))
+    except (TypeError, ValueError):
+        return {"days": days, "rounds": len(rounds), "fees": None, "gross_pnl": None}
+    cutoff = last_at - _dt.timedelta(days=days)
+    base = rounds[0]
+    inside = 0
+    for r in rounds:
+        try:
+            at = _dt.datetime.fromisoformat(str(r.get("at")))
+        except (TypeError, ValueError):
+            continue
+        if at < cutoff:
+            base = r
+        else:
+            inside += 1
+    def _g(r):
+        return (float(r.get("equity") or 0.0) + float(r.get("cost_paid") or 0.0)
+                + float(r.get("funding_paid") or 0.0))
+    last = rounds[-1]
+    fees = float(last.get("cost_paid") or 0.0) - float(base.get("cost_paid") or 0.0)
+    return {"days": days, "rounds": inside,
+            "fees": round(fees, 4),
+            "gross_pnl": round(_g(last) - _g(base), 4),
+            "since": base.get("at")}
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -736,6 +782,16 @@ def public_report(st: dict) -> dict:
         "start_cash": round(base, 2),
         "equity": round(eq, 4),
         "return_pct": (round((eq / base - 1.0) * 100, 4) if base > 0 else None),
+        # ⚠️ **수수료 빼기 전 성적을 나란히**(2026-09-02, 사장님 질문 "코인
+        #    선물 손해가 꽤 크네"). 실측: 열흘에 −4.17%인데 수수료가 5.47%p,
+        #    즉 전략 자체는 +1.42%였고 손실의 131%가 수수료였다. 순수익률만
+        #    보이면 "전략이 잃었다"로 읽히고, 그건 사실이 아니다. 반대로
+        #    총수익률만 보이면 광고다 — 그래서 둘을 같은 화면에 놓는다.
+        "gross_return_pct": _gross_return_pct(st, eq),
+        # 최근 7일의 수수료와 총이득 — **기록만 한다**(관문이 아니다). 수수료가
+        # 총이득을 넘어서는 구간이 얼마나 자주 오는지 먼저 장부에 쌓는다.
+        # 비율로 적지 않는다: 총이득이 0이나 음수인 주에는 비율이 뜻을 잃는다.
+        "fee_window": _fee_window(st, days=7),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,
