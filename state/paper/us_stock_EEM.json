@@ -1,8 +1,8 @@
 {
-  "cash": 4318.873796576698,
-  "quantity": 84.19258536792921,
-  "avg_price": 67.43728734386937,
-  "last_bar": "2026-08-31 00:00:00",
+  "cash": 3217.0447207125917,
+  "quantity": 100.61322978977034,
+  "avg_price": 67.37571153101705,
+  "last_bar": "2026-09-01 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -353,11 +353,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-01",
+      "price": 66.7699966430664,
+      "weight": 0.5917,
+      "held_weight": 0.6762,
+      "fractional_lot": false,
+      "equity": 9934.99,
+      "return_pct": -0.65,
+      "hit_rate": 0.5345911949685535,
+      "hit_n": 318,
+      "hit_lo": 0.47968092116066763,
+      "hit_hi": 0.588675686561889,
+      "hit_conclusive": false,
+      "live_hit": 0.25,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +59% — 그라디언트부스팅 모델이 내일 상승확률을 약 86%로 추정(기준 55% 초과) · 사이징: 신호 원비중 69% → 변동성 타깃 조절 후 59% · 참고: 전 종목 합산으로 모델이 86%±10%p라 말한 40번의 실제 상승 비율 57% (95% 신뢰구간 42%~71% · 보합 1일 포함 · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 1번으로 축적 중) · 🏛 의회 운용: ml 48% + psar 30% + ml 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 67.059998,
+        "bar": "2026-09-01 00:00:00",
+        "weight": 0.6775,
+        "decided_bar": "2026-08-31 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "dfe843923e7d",
+      "data_sha256": "8545a55e72433666f5c87548006eb2d181038d4d99e6a82867a0305a92799196",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.8603232358977871,
+      "drift_psi": 0.2738,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.6775,
-    "decided_bar": "2026-08-31 00:00:00"
+    "weight": 0.5917,
+    "decided_bar": "2026-09-01 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EEM",

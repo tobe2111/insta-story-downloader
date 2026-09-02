@@ -2,7 +2,7 @@
   "cash": 9498.390020994932,
   "quantity": 0.00029605283898001246,
   "avg_price": 1704000.0,
-  "last_bar": "2026-08-28 00:00:00",
+  "last_bar": "2026-09-01 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -724,11 +724,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-01",
+      "price": 1693000.0,
+      "weight": 0.093,
+      "held_weight": 0.0501,
+      "fractional_lot": true,
+      "equity": 9999.61,
+      "return_pct": -0.0,
+      "hit_rate": 0.5919540229885057,
+      "hit_n": 174,
+      "hit_lo": 0.5177070171404667,
+      "hit_hi": 0.662228386049788,
+      "hit_conclusive": true,
+      "live_hit": 0.5555555555555556,
+      "live_hit_n": 9,
+      "live_hit_flat": 0,
+      "hit_flat": 4,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "sizing": "binary"
+      },
+      "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 77%로 추정(기준 55% 초과) · 사이징: 신호 원비중 66% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 77%±10%p라 말한 70번의 실제 상승 비율 49% (95% 신뢰구간 37%~60% · 보합 1일 포함 · 봉이 빠진 30번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 40% + ml 34% + bollinger 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 1596000.0,
+        "bar": "2026-08-31 00:00:00",
+        "weight": 0.0677,
+        "decided_bar": "2026-08-28 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "dfe843923e7d",
+      "data_sha256": "4c9f902311fd5999713d5b566ca1cfc58f8e0adeabd575c0d01af666286f2876",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7726949159198327,
+      "drift_psi": 0.5187,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4167
     }
   ],
   "pending": {
-    "weight": 0.0677,
-    "decided_bar": "2026-08-28 00:00:00"
+    "weight": 0.093,
+    "decided_bar": "2026-09-01 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "000660.KS",

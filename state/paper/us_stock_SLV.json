@@ -2,7 +2,7 @@
   "cash": 8962.0,
   "quantity": 16.821430261989384,
   "avg_price": 61.66999816894531,
-  "last_bar": "2026-08-31 00:00:00",
+  "last_bar": "2026-09-01 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -349,11 +349,61 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4595
+    },
+    {
+      "date": "2026-09-01",
+      "price": 57.91999816894531,
+      "weight": 0.0403,
+      "held_weight": 0.0981,
+      "fractional_lot": false,
+      "equity": 9936.3,
+      "return_pct": -0.64,
+      "hit_rate": 0.5700934579439252,
+      "hit_n": 107,
+      "hit_lo": 0.4754673892922151,
+      "hit_hi": 0.6598608629163419,
+      "hit_conclusive": false,
+      "live_hit": 0.6,
+      "live_hit_n": 5,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "소액 매수 +4.0% — 로지스틱회귀 모델이 내일 상승확률을 약 51%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 사이징: 신호 원비중 9% → 변동성 타깃 조절 후 4% · 참고: 전 종목 합산으로 모델이 51%±10%p라 말한 139번의 실제 상승 비율 56% (95% 신뢰구간 48%~64% · 보합 1일 포함 · 봉이 빠진 23번은 제외 · 이 종목 단독 표본은 1번으로 축적 중) · 🏛 의회 운용: ml 44% + ml 33% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 58.389999,
+        "bar": "2026-09-01 00:00:00",
+        "weight": 0.0861,
+        "decided_bar": "2026-08-31 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "dfe843923e7d",
+      "data_sha256": "9a340e47dd53ef24cb3a837e9d5e8323e820c3443b29aeb77fc22928d30f55ba",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5134757826067103,
+      "drift_psi": 0.166,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0861,
-    "decided_bar": "2026-08-31 00:00:00"
+    "weight": 0.0403,
+    "decided_bar": "2026-09-01 00:00:00"
   },
   "market": "us_stock",
   "symbol": "SLV",
