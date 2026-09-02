@@ -154,7 +154,15 @@ def test_old_records_replay_without_the_new_gate(monkeypatch):
     src = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
     assert 'reality_gate=int(rec.get("gate_version", 1)) >= 3' in src, (
         "verify가 관문 세대를 보지 않는다 — 옛 결정이 새 규칙으로 재현된다")
-    assert '"gate_version": 3' in src, "새 기록이 관문 세대를 안 밝힌다"
+    # ⚠️ 세대 **숫자를 박지 않는다.** 관문이 하나 늘 때마다 이 줄이 깨지면,
+    #    고치는 사람이 "검사를 숫자에 맞추는" 습관을 들이게 된다. 여기서
+    #    지킬 것은 "새 기록이 자기 세대를 밝히는가"이고, 그 세대는 동시검정이
+    #    생긴 v3 이상이어야 한다.
+    import re as _re
+    m = _re.search(r'"gate_version": (\d+)', src)
+    assert m, "새 기록이 관문 세대를 안 밝힌다"
+    assert int(m.group(1)) >= 3, (
+        f"동시검정은 v3에 생겼다 — 기록 세대가 {m.group(1)}로 내려갔다")
 
 
 def test_the_ledger_keeps_the_reality_check(tmp_path):

@@ -459,8 +459,12 @@ def _futures_bought(monkeypatch, tmp_path, champion, two_sided=True) -> float:
 
 
 def test_the_futures_track_uses_the_same_dial(monkeypatch, tmp_path):
-    new = _futures_bought(monkeypatch, tmp_path / "ml", _ProbaChampion(0.1))
-    old = _futures_bought(monkeypatch, tmp_path / "rule", _RuleChampion(0.1))
+    # ⚠️ 신호를 밴드 위로 잡는다(2026-09-02). 선물 체결기에 리밸런스 밴드가
+    #    붙으면서, 비중 0.1짜리 진입은 코인 밴드(0.15)에 걸려 **아예 안 나간다**
+    #    — 대조군이 0이 되어 눈금 비교 자체가 성립하지 않는다. 여기서 재는
+    #    것은 밴드가 아니라 확신도 눈금이므로, 둘 다 밴드를 넘는 자리에서 잰다.
+    new = _futures_bought(monkeypatch, tmp_path / "ml", _ProbaChampion(0.25))
+    old = _futures_bought(monkeypatch, tmp_path / "rule", _RuleChampion(0.25))
     assert old > 0, "대조군이 아무것도 안 샀다"
     assert new > old * 2.0, (
         f"선물 트랙: 확률 {new:.2f} vs 규칙 {old:.2f} — 눈금이 안 걸렸다")
