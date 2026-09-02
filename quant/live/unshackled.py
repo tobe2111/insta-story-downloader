@@ -30,6 +30,24 @@ log = get_logger("live.unshackled")
 
 START_CASH = 1_000_000.0
 FEE = 0.001
+
+
+def _turnover_cost(target: dict, prev: dict, state_dir: str) -> float:
+    """회전 × **그 종목 시장의 실측 편도 비용** — 본 계좌와 같은 자.
+
+    2026-09-02 사장님 지시("각 수수료도 고려해서 수익을 생각해야지 — 모든
+    투자 마찬가지"). 예전엔 시장 무관 10bp 고정이라 한국·코인은 싸게,
+    미국은 비싸게 셌다 — 본 계좌와 나란히 놓는 비교가 기울어 있었다.
+    """
+    try:
+        from quant.live.daily import measured_cost_model
+        def _one_way(key: str) -> float:
+            return float(measured_cost_model(key.split(":")[0], state_dir).total_one_way())
+    except Exception:  # noqa: BLE001 — 비용 조회 실패가 그림자 기록을 막으면 안 된다
+        def _one_way(key: str) -> float:
+            return FEE
+    return sum(abs(float(target.get(k, 0.0)) - float(prev.get(k, 0.0))) * _one_way(k)
+               for k in set(target) | set(prev))
 FILE = "unshackled.json"
 KEEP_DAYS = 400
 
@@ -76,7 +94,7 @@ def run_unshackled(*, bar: str, weights: dict, slices: dict, marks: dict,
         gross = 1.0
     turnover = sum(abs(target.get(k, 0.0) - float(pw.get(k, 0.0)))
                    for k in set(target) | set(pw))
-    equity -= equity * turnover * FEE
+    equity -= equity * _turnover_cost(target, pw, state_dir)
 
     peak = max(float(st.get("peak") or START_CASH), equity)
     keys = set(target) | set(pw)
@@ -105,7 +123,9 @@ def unshackled_public(state_dir: str = "state") -> dict | None:
         return None
     last = st["history"][-1]
     worst = min((r.get("mdd_pct", 0.0) for r in st["history"]), default=0.0)
+    from quant.live.daily import cost_basis_bp
     return {"equity": last["equity"], "return_pct": last["return_pct"],
+            "cost_basis_bp": cost_basis_bp(state_dir),
             "days": len(st["history"]), "worst_mdd_pct": round(worst, 2),
             "note": (
         "본 계좌와 같은 신호를 받되 안전장치(변동성 타깃·킬스위치·검증 "

@@ -1047,10 +1047,25 @@ def _cmd_validate(args) -> None:
         ledger_trials = 0
     # 돌지 못한 검증의 **이유**를 모은다(감사 249) — 아래에서 장부에 실린다.
     skipped: dict[str, str] = {}
+    # ⚠️ 검증 3종도 **수수료 뺀 뒤**로 잰다(2026-09-02 사장님 지시). 이전엔
+    #    비용 옵션 자체가 없어 DSR·PBO·CPCV가 전부 수수료 빼기 전 성적이었다
+    #    — 그 결과가 비중 게이트와 공개 화면에 쓰였다. 오디션·본 계좌와 같은
+    #    실측 비용 모델을 쓴다. 연습용 합성 시장만 예외(비용 기준 없음으로 기록).
+    fee_one_way = None
+    if args.market != "synthetic":
+        try:
+            from quant.live.daily import measured_cost_model
+            fee_one_way = float(measured_cost_model(args.market, "state").total_one_way())
+            say(f"💸 비용 기준: {args.market} 편도 {fee_one_way * 1e4:.1f}bp "
+                "(오디션·본 계좌와 같은 실측 모델)")
+        except Exception as exc:  # noqa: BLE001 — 비용 조회 실패는 기록에 남긴다
+            skipped["cost"] = f"비용 모델 조회 실패: {exc}"[:200]
+    fee_kw = {"fee": fee_one_way} if fee_one_way is not None else {}
     try:
         wf = walk_forward(df, strategy_cls, grid, is_window=args.is_window,
                           oos_window=args.oos_window, embargo=args.embargo,
-                          periods_per_year=ppy, extra_trials=ledger_trials)
+                          periods_per_year=ppy, extra_trials=ledger_trials,
+                          **fee_kw)
         m = wf["oos_metrics"]
         say(f"  OOS 샤프 {m.sharpe:.2f} · 총수익 {m.total_return:.2%} · "
               f"최대낙폭 {m.max_drawdown:.2%} · 구간 {len(wf['segments'])}개")
@@ -1065,7 +1080,8 @@ def _cmd_validate(args) -> None:
     say("\n[2/4] PBO (백테스트 과적합 확률)")
     pbo_value = None
     try:
-        mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy)
+        mat = param_returns_matrix(df, strategy_cls, grid, periods_per_year=ppy,
+                                   **fee_kw)
         pbo_res = pbo(mat, n_blocks=args.pbo_blocks)
         pbo_value = float(pbo_res.get("pbo")) if isinstance(pbo_res, dict) \
             else float(getattr(pbo_res, "pbo", None) or 0.0)
@@ -1085,7 +1101,8 @@ def _cmd_validate(args) -> None:
     cpcv_min_sharpe = None
     try:
         cv = cpcv(df, strategy_cls, grid, n_groups=args.cpcv_groups,
-                  n_test=2, embargo=args.embargo, periods_per_year=ppy)
+                  n_test=2, embargo=args.embargo, periods_per_year=ppy,
+                  **fee_kw)
         say("  " + cpcv_report(cv).replace("\n", "\n  "))
         cpcv_worst = float(cv["worst_path_return"])
         cpcv_min_sharpe = float(cv["sharpe_min"])
@@ -1104,7 +1121,7 @@ def _cmd_validate(args) -> None:
     say("\n[4/4] 파라미터 안정성 (고원 vs 외딴 봉우리)")
     peak_only = None
     try:
-        gs = grid_search(df, strategy_cls, grid, periods_per_year=ppy)
+        gs = grid_search(df, strategy_cls, grid, periods_per_year=ppy, **fee_kw)
         scored = stability_scores(gs["results"])
         say("  " + stability_report(scored).replace("\n", "\n  "))
         rb = robust_best(scored)
@@ -1135,6 +1152,11 @@ def _cmd_validate(args) -> None:
             #    이 판정의 기준이다.
             "asof": str(df.index[-1])[:10] if len(df) else None,
             "dsr": dsr_value, "pbo": pbo_value,
+            # 어떤 비용 기준으로 쟀나(편도 bp). 없으면(합성 시장) None —
+            # 수수료 빼기 전 성적과 뺀 뒤 성적을 한 파일에 섞지 않기 위해
+            # 반드시 남긴다(2026-09-02 사장님 지시).
+            "cost_basis_bp": (round(fee_one_way * 1e4, 1)
+                              if fee_one_way is not None else None),
             # 3중 관문의 세 번째 — 통과 기준은 "가장 나쁜 경로에서도 플러스".
             # 2026-08-14까지 이 값은 화면에만 찍히고 사라졌다.
             "cpcv_worst_return": cpcv_worst,

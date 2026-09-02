@@ -164,6 +164,11 @@ def test_wired_into_portfolio_and_recorded():
     src = (Path(__file__).resolve().parent.parent
            / "quant" / "live" / "daily.py").read_text("utf-8")
     assert "_smooth_weights(weights" in src and "prev_weights" in src
-    assert "rebalance_band_rel=_rebalance_band_rel" in src
+    # 2026-09-02: 체결기는 시장 밴드가 아니라 **챔피언의 밴드 배수를 곱한**
+    # 밴드로 돈다(회전이 오디션의 탐색 축이 됐다). 시장 밴드를 직접 넘기는
+    # 자리가 하나라도 남으면 기계가 고른 회전은 링 안에서만 존재한다.
+    assert "rebalance_band_rel=_rebalance_band_rel" not in src
+    assert src.count("rebalance_band_rel=_champion_band_rel(key, state_dir)") >= 2
+    assert "band_mult_of" in src
     assert '"turnover"' in src               # 회전율을 매일 기록한다
     assert "REBALANCE_BAND / n" not in src   # 종목 수로 나누던 밴드 제거

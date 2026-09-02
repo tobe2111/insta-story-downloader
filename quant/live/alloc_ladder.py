@@ -37,6 +37,24 @@ log = get_logger("live.alloc_ladder")
 ALLOC_METHODS = ("hrp", "erc", "equal", "inv_vol")
 START_CASH = 1_000_000.0
 FEE = 0.001            # 회전율당 10bp — 네 계좌 공통(상대 비교 전용)
+
+
+def _turnover_cost(target: dict, prev: dict, state_dir: str) -> float:
+    """회전 × **그 종목 시장의 실측 편도 비용** — 본 계좌와 같은 자.
+
+    2026-09-02 사장님 지시("각 수수료도 고려해서 수익을 생각해야지 — 모든
+    투자 마찬가지"). 예전엔 시장 무관 10bp 고정이라 한국·코인은 싸게,
+    미국은 비싸게 셌다 — 본 계좌와 나란히 놓는 비교가 기울어 있었다.
+    """
+    try:
+        from quant.live.daily import measured_cost_model
+        def _one_way(key: str) -> float:
+            return float(measured_cost_model(key.split(":")[0], state_dir).total_one_way())
+    except Exception:  # noqa: BLE001 — 비용 조회 실패가 그림자 기록을 막으면 안 된다
+        def _one_way(key: str) -> float:
+            return FEE
+    return sum(abs(float(target.get(k, 0.0)) - float(prev.get(k, 0.0))) * _one_way(k)
+               for k in set(target) | set(prev))
 DIR = "alloc_ladder"
 KEEP_DAYS = 400
 
@@ -127,7 +145,7 @@ def run_alloc_ladder(*, bar: str, weights: dict, rets_map: dict,
                   for k, w in weights.items()}
         turnover = sum(abs(target.get(k, 0.0) - float(pw.get(k, 0.0)))
                        for k in set(target) | set(pw))
-        equity -= equity * turnover * FEE
+        equity -= equity * _turnover_cost(target, pw, state_dir)
 
         keys = set(target) | set(pw)
         st.update({
@@ -161,7 +179,8 @@ def ladder_public(state_dir: str = "state") -> dict | None:
                         "days": len(st["history"])}
     if not rows:
         return None
-    return {"tracks": rows, "note": (
+    from quant.live.daily import cost_basis_bp
+    return {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
         "같은 신호에 배분 방법만 바꾼 가상 계좌들입니다(종가 평가·수수료만, "
         "본 계좌의 변동성 타깃·킬스위치 등은 없음 — 배분 간 상대 비교 전용). "
         "트랙이 4개라 우연히 좋아 보이는 승자가 나올 확률도 4배입니다 — "

@@ -26,7 +26,8 @@ class ChampionChallenger:
     def __init__(self, champion: Strategy, challenger: Strategy,
                  min_obs: int = 60, edge: float = 0.0, t_threshold: float = 2.0,
                  cost_model=None, next_open_fill: bool = False,
-                 rebalance_band: float = 0.0):
+                 rebalance_band: float = 0.0,
+                 challenger_band: float | None = None):
         """champion을 challenger로 교체할지 판단한다.
 
         min_obs     : 판단에 필요한 최소 봉 수(표본이 적으면 교체 보류)
@@ -50,6 +51,10 @@ class ChampionChallenger:
         self.cost_model = cost_model
         self.next_open_fill = bool(next_open_fill)
         self.rebalance_band = max(0.0, float(rebalance_band))
+        # 도전자만의 밴드(없으면 챔피언과 같은 밴드). 회전이 후보의 손잡이가
+        # 되면서 생겼다 — 둘을 같은 밴드로 돌리면 그 손잡이는 아무것도 못 잰다.
+        self.challenger_band = (None if challenger_band is None
+                                else max(0.0, float(challenger_band)))
 
     def evaluate(self, df: pd.DataFrame, tail: int | None = None,
                  folds: int = 0) -> dict:
@@ -71,7 +76,9 @@ class ChampionChallenger:
                   next_open_fill=self.next_open_fill,
                   rebalance_band=self.rebalance_band)
         res_c = Backtester(self.champion, **bt).run(df)
-        res_h = Backtester(self.challenger, **bt).run(df)
+        bt_h = ({**bt, "rebalance_band": self.challenger_band}
+                if self.challenger_band is not None else bt)
+        res_h = Backtester(self.challenger, **bt_h).run(df)
         rc, rh = res_c.returns, res_h.returns
         if tail is not None and tail > 0:
             rc, rh = rc.iloc[-tail:], rh.iloc[-tail:]
