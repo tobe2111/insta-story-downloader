@@ -120,6 +120,9 @@
       "회차": "Rounds",
       "주기": "Bar interval",
       "총 노출": "Gross exposure",
+      "수수료 빼기 전": "Before fees",
+      "수수료와 자금조달을 내기 전 자산 기준입니다. 전략 자체가 얼마나 벌었는지를 보여줍니다.":
+        "Equity before fees and funding. Shows what the strategy itself earned.",
       "증거금률": "Margin ratio",
       "낸 비용": "Costs paid",
       "자금조달 누계": "Funding paid (cumulative)",
