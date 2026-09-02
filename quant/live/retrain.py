@@ -707,6 +707,7 @@ def nightly_retrain(
     rebalance_band: float = 0.0,
     clamp_screen: bool = True,
     reality_gate: bool = True,
+    panel_lookup: Callable[[dict], dict | None] | None = None,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -914,7 +915,41 @@ def nightly_retrain(
                     "best_candidate": best, "final": final,
                     "candidates": candidates, "inert": inert})
 
+    # ── 패널 관문 (2026-09-02 사장님 ①안의 마지막 단계) ────────────────
+    #
+    # 종목별 관문을 다 통과한 뒤 **마지막으로** 묻는다: 이 설정이 이 종목
+    # 하나가 아니라 **여러 종목에서 같은 방향으로** 도움이 되는가.
+    #
+    # ⚠️ 기존 관문을 갈아 끼우는 것이 **아니다** — 위의 선발전·결승전·
+    #    동시검정은 그대로 돌고 그대로 기록된다(사장님 ①안의 조건). 패널은
+    #    그 위에 얹는 AND 조건이라, 이 관문이 틀려도 일어나는 일은 "승격이
+    #    덜 되는 것"이지 "나쁜 후보가 승격되는 것"이 아니다. 방향이 안전한
+    #    쪽이라 1밤치 대조로도 걸 수 있다.
+    #
+    # ⚠️ 판정이 **없으면 막지 않는다.** 패널은 전 종목에 똑같이 서는 고정
+    #    설정만 재고(하룻밤 3개 회전), 언덕오르기 변이는 종목마다 달라 애초에
+    #    담기지 않는다. 없는 것을 위반으로 세면 변이 후보가 영영 승격 못 하고
+    #    언덕오르기가 죽는다 — 그건 이 저장소의 개선 장치를 끄는 일이다.
+    panel_res = None
+    if panel_lookup is not None:
+        try:
+            panel_res = panel_lookup(best["spec"])
+        except Exception as exc:  # noqa: BLE001 — 조회 실패가 판정을 못 죽인다
+            log.warning("패널 관문 조회 실패: %s", exc)
+            panel_res = None
+        if panel_res and panel_res.get("blocked"):
+            return _out({"promoted": False, "reality_check": rc_res,
+                         "panel_gate": panel_res, "reason": (
+                f"종목별 관문은 다 통과했지만(결승 t={final['t_stat']:.2f}), "
+                f"같은 설정을 {panel_res.get('n_symbols')}종목에 함께 놓고 보면 "
+                f"t={panel_res.get('t_stat'):.2f} < {panel_res.get('t_threshold')} "
+                "— 이 종목에서만 좋아 보이는 것은 대개 잡음입니다. 승격 보류"
+                "(패널 관문)."),
+                "best_candidate": best, "final": final,
+                "candidates": candidates, "inert": inert})
+
     return _out({"promoted": True, "champion": best["spec"], "reality_check": rc_res,
+            "panel_gate": panel_res,
             "reason": (
         f"선발전 t={best['t_stat']:.2f}, 결승전 t={final['t_stat']:.2f} 모두 통과"
         + (f", 동시검정 p={rc_res['p']:.3f}≤{RC_ALPHA}"
@@ -1596,6 +1631,14 @@ def verify_retrain(asof: str, *, market: str | None = None,
             # v3부터 결승 통과자에게 동시검정(현실성 검사)이 붙었다. 옛
             # 기록(v1·v2)은 그 관문이 없던 세계의 결정 — 그대로 재현한다.
             reality_gate=int(rec.get("gate_version", 1)) >= 3,
+            # v4부터 승격에 패널 관문이 AND로 붙었다. 재현은 **그날 장부에
+            # 적힌 판정을 그대로** 되먹인다 — 오늘의 패널 장부로 어제 결정을
+            # 재생하면(그 사이 명단이 회전하고 종목이 늘었으므로) 판정이
+            # 달라져 재현이 깨진다. 결정의 전제는 결정과 함께 보존한다.
+            # 옛 기록(v1~v3)은 이 관문이 없던 세계이므로 None을 넘긴다.
+            panel_lookup=(
+                (lambda _spec, _pg=rec.get("panel_gate"): _pg)
+                if int(rec.get("gate_version", 1)) >= 4 else None),
             # 그날의 오디션 조건을 장부에서 그대로 되살린다. 실측 비용은
             # 날마다 변하므로 '오늘 값'으로 어제 결정을 재생하면 재현이
             # 깨진다 — 결정의 전제는 결정과 함께 보존돼야 한다.
@@ -1804,7 +1847,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                cost_model=audition_cost,
                                next_open_fill=audition_next_open,
                                rebalance_band=audition_band,
-                               select_folds=SELECT_FOLDS)
+                               select_folds=SELECT_FOLDS,
+                               # 마지막 관문 — 이 설정이 **여러 종목에서**
+                               # 같은 방향으로 도움이 되는가(사장님 ①안).
+                               # 판정이 없으면 막지 않는다.
+                               panel_lookup=panel_gate_lookup(state_dir))
 
     # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
     from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
@@ -1900,7 +1947,10 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # v3(2026-08-18): 결승 통과자에게 동시검정(현실성 검사)이 추가됐다 —
         # 오늘 링 전체를 놓고 '최고 성적이 우연일 확률'을 부트스트랩으로 잰다.
         # verify가 옛 결정을 옛 규칙으로 재현하기 위한 표식.
-        "gate_version": 3,
+        # v4(2026-09-02): 승격에 **패널 관문**이 AND로 붙었다(사장님 ①안).
+        # 옛 기록(v3)은 그 관문이 없던 세계의 결정이므로 verify가 그대로
+        # 재현한다 — 과거 기록은 고치지 않는다.
+        "gate_version": 4,
         # 도전자 생성 세대 — v2(2026-08-27): 언덕오르기가 "이미 기본값인
         # 손잡이를 기본값으로 설정하는" 헛수고 후보를 만들지 않는다(실측
         # 16.8%). 옛 기록(v1)은 그 헛수고가 링에 섞여 있던 세계의 결정이므로
@@ -1909,6 +1959,12 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # 동시검정 결과 — 결승까지 간 날만 값이 있다(그 외 None). p가 클수록
         # "후보가 많아 하나쯤 우연히 좋아 보였을" 가능성이 크다는 뜻.
         "reality_check": decision.get("reality_check"),
+        # 패널 관문이 그 후보를 어떻게 봤나 — **막았든 통과시켰든 남긴다.**
+        # 막은 밤만 남기면 "관문이 없던 때"와 "관문이 통과시킨 때"가 장부에서
+        # 똑같이 보이고, 나중에 이 관문의 효과를 잴 방법이 사라진다.
+        # 판정이 아예 없으면 None이다(그것도 사실이다 — 그 설정은 패널에
+        # 담기지 않는 변이 후보였다).
+        "panel_gate": decision.get("panel_gate"),
         # 그날 실제로 나온 숫자(감사 235). 문턱만 적고 기록을 안 적으면
         # "왜 안 바뀌었나"에 장부가 답하지 못한다.
         "audition_result": audition_evidence(decision),
@@ -2063,6 +2119,68 @@ def _panel_terms(collector, spec_key: str) -> dict:
     return {"daily": {k: terms[k] for k in ("dates", "sums", "counts",
                                             "symbols")},
             "symbol_terms": terms.get("symbol_terms") or {}}
+
+
+# 패널 판정을 승격에 쓸 때 인정하는 **최대 나이**(밤 수).
+#
+# 패널 명단은 하룻밤 3개씩 회전하므로, 어떤 설정의 최신 판정은 며칠 전
+# 것일 수 있다. 그렇다고 아무리 오래된 판정이나 다 쓰면 "그때는 그랬다"로
+# 오늘의 승격을 막게 된다. 명단이 한 바퀴 도는 데 걸리는 시간
+# (고정 격자 46개 ÷ 밤 3개 ≈ 15밤)의 절반쯤을 인정한다.
+PANEL_VERDICT_MAX_AGE_NIGHTS = 7
+
+
+def panel_gate_lookup(state_dir: str = STATE_DIR,
+                      max_age_nights: int = PANEL_VERDICT_MAX_AGE_NIGHTS
+                      ) -> Callable[[dict], dict | None]:
+    """승격 직전에 물을 **패널 판정 조회기**를 만든다.
+
+    돌려주는 함수는 후보 스펙을 받아 다음 중 하나를 돌려준다:
+
+      · ``None`` — 최근 장부에 그 설정의 판정이 없다. **막지 않는다.**
+        (언덕오르기 변이는 종목마다 달라 애초에 패널에 담기지 않는다.
+        없는 것을 위반으로 세면 변이 후보가 영영 승격 못 한다.)
+      · ``{"blocked": True, ...}`` — 최근 판정이 있고 통과하지 못했다.
+      · ``{"blocked": False, ...}`` — 최근 판정이 있고 통과했다.
+
+    ⚠️ **오늘 밤 판정을 오늘 밤 승격에 쓸 수는 없다.** 패널 판정은 그 밤의
+       모든 종목을 다 돈 뒤에야 나오는데 승격은 종목을 돌면서 그때그때
+       결정된다. 그래서 **직전까지 쌓인 장부**를 본다 — 한 설정이 여러
+       종목에서 도움이 되는가는 하루 이틀로 뒤집히는 성질이 아니다.
+
+    ⚠️ 장부를 **밤 단위로** 읽는다(``panel_nights``). 회차 단위로 읽으면 한
+       밤이 쪼개져 종목 폭이 반토막 난 판정을 보게 된다.
+    """
+    def _lookup(spec: dict) -> dict | None:
+        try:
+            nights = panel_nights(state_dir)
+        except Exception as exc:  # noqa: BLE001 — 장부를 못 읽으면 안 막는다
+            log.warning("패널 장부 읽기 실패: %s", exc)
+            return None
+        if not nights:
+            return None
+        key = spec_key(spec)
+        # 최신 밤부터 훑어 **처음 만난 판정**을 쓴다(가장 최근 것).
+        for age, night in enumerate(reversed(nights)):
+            if age >= max(1, int(max_age_nights)):
+                break
+            for rec in night.get("specs") or []:
+                if rec.get("spec_key") != key or rec.get("skipped"):
+                    continue
+                return {"blocked": not bool(rec.get("pass")),
+                        "night": night.get("night"),
+                        "age_nights": age,
+                        "t_stat": rec.get("t_stat"),
+                        "t_threshold": rec.get("t_threshold"),
+                        "n_symbols": rec.get("n_symbols"),
+                        "n_dates": rec.get("n_dates"),
+                        # ①안 — 종목별 관문이 같은 설정을 어떻게 봤는지도
+                        # 나란히 남긴다. 나중에 "관문을 바꿔서 달라진 건가"를
+                        # 검증할 수 있어야 한다.
+                        "symbol_pass": rec.get("symbol_pass"),
+                        "symbol_t_median": rec.get("symbol_t_median")}
+        return None
+    return _lookup
 
 
 def panel_nights(state_dir: str = STATE_DIR,

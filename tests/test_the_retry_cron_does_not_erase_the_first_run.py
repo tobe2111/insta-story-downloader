@@ -118,8 +118,13 @@ def test_an_old_entry_without_ok_keys_is_not_a_crash(tmp_path):
     """`ok_keys`가 없던 시절 기록 위에 그대로 써도 죽지 않아야 한다."""
     (tmp_path / "run_health.json").write_text(json.dumps(
         {"paper": {"date": "2020-01-01", "ok": 20, "failed": 0}}), "utf-8")
-    import datetime as _dt
-    today = _dt.date.today().isoformat()
+    # ⚠️ **UTC 날짜가 아니라 밤 열쇠(한국 날짜)로** 오늘을 만든다. 기록의
+    #    병합 열쇠가 2026-09-02에 한국 날짜로 바뀌었는데(밤 배치와 같은 열쇠),
+    #    검사만 UTC로 남아 있었다. 그러면 **하루 중 9시간(UTC 15시~자정)에만**
+    #    두 날짜가 갈려 검사가 빨개진다 — CI가 도는 시각에 따라 초록이었다가
+    #    빨개지는 검사는, 고장을 잡는 게 아니라 시계를 잡는 것이다.
+    from quant.live.retrain import night_key
+    today = night_key()
     (tmp_path / "run_health.json").write_text(json.dumps(
         {"paper": {"date": today, "ok": 20, "failed": 0}}), "utf-8")
     _write_run_health(str(tmp_path), "paper", ok=["m:00"], failed={})
