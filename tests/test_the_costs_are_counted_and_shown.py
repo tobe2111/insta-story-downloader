@@ -255,8 +255,10 @@ def test_the_ledger_publishes_the_rate_the_benchmark_must_use():
     fn = next(f for f in ast.walk(ast.parse(src))
               if isinstance(f, ast.FunctionDef) and f.name == "run_daily_portfolio")
     body = "\n".join(src.splitlines()[fn.lineno - 1:fn.end_lineno])
-    # 바구니를 이루는 종목들의 시장 평균이어야 한다 — 한 시장 값을 쓰면 틀린다.
-    assert 'sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices)' in body
+    # 바구니를 이루는 종목들의 평균이어야 한다 — 한 시장 값을 쓰면 틀린다.
+    # ⚠️ 2026-09-03부터 **종목까지** 넘긴다. 한국 ETF는 증권거래세를 안 내는데
+    #    시장만 보면 그 6종목에 안 내는 세금을 물린 기준선을 발표하게 된다.
+    assert 'sum(_fill_cost(*k.split(":", 1)) for k in prices) / len(prices)' in body
     assert '"bench_cost_rate": bench_cost_rate,' in body
 
 
