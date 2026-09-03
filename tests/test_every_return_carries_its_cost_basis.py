@@ -20,12 +20,21 @@ from quant.live.futures_challenger import public_report
 
 def test_cost_basis_is_per_market_and_measured(tmp_path):
     bp = cost_basis_bp(str(tmp_path))
-    assert set(bp) == {"kr_stock", "us_stock", "crypto"}
+    # ⚠️ 한국은 **두 줄**이다(2026-09-03). 증권거래세가 주식에만 붙고 ETF는
+    #    비과세라, 한 숫자로 적으면 둘 중 하나는 반드시 거짓말이 된다.
+    #    운용 한국 12종목 중 6종목이 ETF이므로 이 구분은 장식이 아니다.
+    assert set(bp) == {"kr_stock", "us_stock", "crypto", "kr_stock_etf"}
     assert all(v is not None and v > 0 for v in bp.values())
     # 대조군 — 시장마다 다른 값이다(고정 10bp 였다면 전부 같았을 것)
     assert len(set(bp.values())) >= 2
     for m, v in bp.items():
-        assert v == pytest.approx(measured_cost_model(m, str(tmp_path)).total_one_way() * 1e4, abs=0.05)
+        sym = "069500.KS" if m == "kr_stock_etf" else None
+        market = "kr_stock" if m == "kr_stock_etf" else m
+        assert v == pytest.approx(
+            measured_cost_model(market, str(tmp_path),
+                                symbol=sym).total_one_way() * 1e4, abs=0.05)
+    assert bp["kr_stock_etf"] < bp["kr_stock"], (
+        "ETF가 주식보다 싸지 않다 — 거래세 면제가 공개 자료에 안 닿았다")
 
 
 def _run_shadow(tmp_path, market: str):

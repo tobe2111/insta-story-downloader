@@ -170,10 +170,24 @@ def _fit_to_budget(targets: dict, prices: dict, equity: float,
     return out, deferred
 
 
-def _fill_cost(market: str) -> float:
-    """편도 체결 비용(수수료+거래세+슬리피지) — 시장별 현실 프리셋."""
+def _fill_cost(market: str, symbol: str | None = None) -> float:
+    """편도 체결 비용(수수료+거래세+슬리피지) — 시장·**종목별** 현실 프리셋.
+
+    ⚠️ 왜 종목까지 보나(2026-09-03에 발견). 증권거래세는 주권 양도에 붙는
+       세금이고 **ETF는 수익증권이라 매도 시 비과세**다. 그런데 이 함수는
+       시장만 보고 세금을 물려, 운용 중인 한국 12종목 중 **ETF 6종목**이
+       내지 않는 세금을 왕복 15bp씩 내고 있었다.
+
+       이 값은 페이퍼 브로커의 실제 체결 수수료로 그대로 들어가므로,
+       틀린 만큼 **장부의 손익이 실제와 달라진다.** 방향이 '보수적'이라
+       늦게 잡혔지만, 보수적인 것과 옳은 것은 다르다 — 게다가 밴드가
+       비용에 비례하므로 비싸게 잡으면 기계가 고쳐 잡아야 할 자리를
+       안 고친다.
+
+    종목을 안 주면 예전처럼 시장 기준으로 본다(주식 = 비싼 쪽 = 보수적).
+    """
     from quant.backtest.costs import CostModel
-    cm = CostModel.for_market(market)
+    cm = CostModel.for_market(market, is_etf=is_etf(market, symbol))
     return cm.total_one_way()
 
 
@@ -507,7 +521,8 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
     except Exception:  # noqa: BLE001 — 표기 실패가 기록을 막으면 안 된다
         pass
 
-    broker = PaperBroker(cash=float(st["cash"]), fee=_fill_cost(market))
+    broker = PaperBroker(cash=float(st["cash"]),
+                         fee=_fill_cost(market, symbol))
     if abs(float(st.get("quantity", 0.0))) > 0:
         broker._positions[symbol] = Position(       # 어제의 포지션 복원
             symbol, float(st["quantity"]), float(st.get("avg_price", 0.0)))
@@ -597,7 +612,7 @@ def run_daily_paper(market: str, symbol: str, *, timeframe: str = "1d",
         "reason": reason,
         # 체결 현실성: 실제 체결(다음 시가) 내역과 비용 반영 여부를 기록
         "fill": fill,
-        "fill_cost": round(_fill_cost(market), 6),
+        "fill_cost": round(_fill_cost(market, symbol), 6),
         # 재현성: 코드 커밋 + 입력 데이터 해시 — verify로 재검증 가능
         "code_sha": _code_sha(),
         "data_sha256": _data_sha256(df),
@@ -836,7 +851,8 @@ def measured_cost_model(market: str, state_dir: str = STATE_DIR,
                      market=base.market, is_etf=base.is_etf)
 
 
-def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
+def rebalance_band_basis(market: str, state_dir: str = STATE_DIR,
+                         symbol: str | None = None) -> dict:
     """밴드와 **그 밴드가 나온 근거**를 함께 돌려준다.
 
     ⚠️ 왜 근거까지 남기나(2026-08-11 감사 74): 이 밴드는 표본이 문턱
@@ -850,8 +866,13 @@ def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
     바뀐다**는 점이므로, 로직이 아니라 흔적을 추가한다 — 오늘 내내 나온
     "판단한 쪽이 결과를 남기고, 보여주는 쪽은 읽기만 한다"와 같은 처방이다.
     """
+    # ⚠️ 실측이 있으면 실측이 이긴다 — 그때는 ETF와 주식이 한 표본에 섞여
+    #    있어 종목 구분이 사라진다. 그건 이 함수의 결함이 아니라 표본의
+    #    성질이고(실측은 실측이다), 가정으로 도는 동안에는 ETF가 안 내는
+    #    세금을 밴드에 반영하지 않는다.
     measured = _measured_roundtrip_cost(market, state_dir)
-    cost = measured if measured is not None else 2.0 * _fill_cost(market)
+    cost = (measured if measured is not None
+            else 2.0 * _fill_cost(market, symbol))
     band = max(REBALANCE_BAND_REL_MIN,
                min(REBALANCE_BAND_REL_MAX, REBALANCE_BAND_REL_K * cost))
     n = 0
@@ -864,6 +885,8 @@ def rebalance_band_basis(market: str, state_dir: str = STATE_DIR) -> dict:
         pass
     return {"band": round(band, 4),
             "source": "실측" if measured is not None else "가정",
+            # 그 밴드가 **어느 종목 기준**인가 — 없으면 시장 기준(주식)이다.
+            "symbol": symbol,
             "roundtrip_bp": round(cost * 1e4, 1),
             "n": n, "min_samples": MEASURED_COST_MIN_SAMPLES,
             "clipped": ("하한" if band <= REBALANCE_BAND_REL_MIN
@@ -878,11 +901,11 @@ def _champion_band_rel(key: str, state_dir: str = STATE_DIR) -> float:
     안 따르면 기계가 고른 회전은 링 안에서만 존재한다. 챔피언 기록이 없거나
     읽기 실패면 배수 1(지금까지와 같음).
     """
-    market = key.split(":")[0]
-    base = _rebalance_band_rel(market, state_dir)
+    _m, _s = key.split(":", 1)
+    market = _m
+    base = _rebalance_band_rel(market, state_dir, _s)
     try:
         from quant.live.retrain import band_mult_of, champion_spec
-        _m, _s = key.split(":", 1)
         mult = band_mult_of((champion_spec(_m, _s, state_dir) or {}).get("params"))
     except Exception:  # noqa: BLE001 — 배수 조회 실패가 매매를 막으면 안 된다
         mult = 1.0
@@ -891,22 +914,33 @@ def _champion_band_rel(key: str, state_dir: str = STATE_DIR) -> float:
 
 def cost_basis_bp(state_dir: str = STATE_DIR) -> dict:
     """공개 자료에 싣는 **비용 기준** — 시장별 실측 편도(bp). 모든 트랙이
-    같은 자로 재는지 화면에서 확인할 수 있게(2026-09-02 사장님 지시)."""
+    같은 자로 재는지 화면에서 확인할 수 있게(2026-09-02 사장님 지시).
+
+    ⚠️ 한국은 **두 값**이다(2026-09-03). 증권거래세가 주식에만 붙고 ETF는
+       비과세라, 한 숫자로 적으면 둘 중 하나는 반드시 거짓말이 된다.
+       운용 한국 12종목 중 6종목이 ETF이므로 이 구분은 장식이 아니다.
+    """
     out = {}
     for m in ("kr_stock", "us_stock", "crypto"):
         try:
             out[m] = round(float(measured_cost_model(m, state_dir).total_one_way()) * 1e4, 1)
         except Exception:  # noqa: BLE001
             out[m] = None
+    try:
+        out["kr_stock_etf"] = round(float(measured_cost_model(
+            "kr_stock", state_dir, symbol="069500.KS").total_one_way()) * 1e4, 1)
+    except Exception:  # noqa: BLE001
+        out["kr_stock_etf"] = None
     return out
 
 
-def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR) -> float:
+def _rebalance_band_rel(market: str, state_dir: str = STATE_DIR,
+                        symbol: str | None = None) -> float:
     """시장별 상대 리밸런스 밴드 — 왕복 비용에 비례(하한·상한 클립).
 
     비용은 실측이 있으면 실측, 없으면 CostModel 가정을 쓴다.
     """
-    return rebalance_band_basis(market, state_dir)["band"]
+    return rebalance_band_basis(market, state_dir, symbol)["band"]
 
 
 # 최소 주문금액(원) — 이보다 작은 매매는 비용만 남기므로 주문하지 않는다.
@@ -2233,7 +2267,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             log.error("포트폴리오 %s 체결 거부: 시가 %.6f vs 평가 %.6f",
                       key, float(fopen), float(mark_px))
             continue                       # 대기 주문은 남겨 둔다(재시도)
-        broker.fee = _fill_cost(key.split(":")[0])
+        broker.fee = _fill_cost(*key.split(":", 1))
         eq_now = broker.equity({**marks, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
         order = broker.target_weight(
@@ -2533,7 +2567,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             pending.pop(key, None)
             continue
         if market in IMMEDIATE_FILL_MARKETS:
-            broker.fee = _fill_cost(market)
+            broker.fee = _fill_cost(*key.split(":", 1))
             # 비용 비례 상대 밴드 — 비싼 시장일수록 더 벗어나야 고쳐 잡는다
             broker.target_weight(key, tw, prices[key], equity,
                                  rebalance_band_rel=_champion_band_rel(key, state_dir))
@@ -2646,7 +2680,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    그래서 숫자를 여기서 만들어 장부에 남긴다 — 화면이 제 마음대로
     #    비용률을 고를 수 없게.
     bench_cost_rate = round(
-        sum(_fill_cost(k.split(":")[0]) for k in prices) / len(prices), 6)
+        sum(_fill_cost(*k.split(":", 1)) for k in prices) / len(prices), 6)
     # 기록되는 총노출은 '실제로 적용한' 비중의 합이어야 한다 — 감쇠(실적
     # 가드)와 켈리 상한을 빼먹으면 장부가 실제보다 큰 노출을 말하게 된다.
     # ⚠️ 여기서 다시 계산하지 않는다. 예전에는 주문 루프와 이 기록이 같은

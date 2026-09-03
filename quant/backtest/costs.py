@@ -41,8 +41,24 @@ MARKET_COST_PRESETS: dict[str, dict] = {
                  "short_borrow": _BORROW_US},
     # 한국주식: 위탁수수료 ~0.015% + 증권거래세(매도 시 ~0.15%, 2025 기준)를
     # 편도당 절반(0.075%)으로 근사 배분. 왕복 합계는 실제와 일치.
+    #
+    # ⚠️ **ETF·ETN은 이 거래세를 안 낸다**(2026-09-03에 발견). 증권거래세는
+    #    주권 양도에 붙는 세금이고 ETF는 수익증권이라 매도 시 비과세다.
+    #    그런데 이 표는 시장만 보고 세금을 물려, 운용 중인 한국 12종목 중
+    #    **ETF 6종목**(KODEX 200 · 나스닥100 · 금 · 국고채10년 · 화장품 ·
+    #    종합채권)이 내지 않는 세금을 왕복 15bp씩 물고 있었다.
+    #
+    #    조용한 오류였고 방향이 '보수적'이라 더 늦게 잡혔다. 그런데 보수적인
+    #    것과 옳은 것은 다르고, 여기서는 세 가지가 함께 틀어진다:
+    #      ① 한국 성적이 실제보다 나빠 보인다.
+    #      ② **리밸런스 밴드가 비용에 비례**한다 — 비용을 2배로 잡으면
+    #         밴드가 넓어져 기계가 고쳐 잡아야 할 자리를 안 고친다.
+    #      ③ 오디션이 고회전 한국 후보를 부당하게 떨어뜨린다.
     "kr_stock": {"fee": 0.00015 + 0.00075, "slippage": 0.0005,
                  "short_borrow": _BORROW_KR},
+    # 한국 ETF — 위탁수수료만. 거래세 없음(위 주석 참조).
+    "kr_stock_etf": {"fee": 0.00015, "slippage": 0.0005,
+                     "short_borrow": _BORROW_KR},
     # 합성 데이터: 기본값 그대로 (검증용)
     "synthetic": {"fee": 0.001, "slippage": 0.0005},
 }
@@ -82,7 +98,14 @@ class CostModel:
         실제 비용은 다르며, 특히 한국주식 거래세는 '매도에만' 붙지만 이 모델은
         방향을 모르므로 편도당 절반으로 나눠 근사한다(왕복 합계는 정확).
         """
-        p = MARKET_COST_PRESETS.get(market.lower())
+        # ⚠️ ETF는 같은 시장이어도 **세금이 다르다**(한국 거래세 비과세).
+        #    프리셋을 고를 때 그 사실을 반영한다 — 안 하면 ETF가 내지 않는
+        #    세금을 왕복 15bp 물고, 그 값이 밴드·오디션·성적으로 다 흘러간다.
+        key = market.lower()
+        if overrides.get("is_etf") and f"{key}_etf" in MARKET_COST_PRESETS:
+            p = MARKET_COST_PRESETS[f"{key}_etf"]
+        else:
+            p = MARKET_COST_PRESETS.get(key)
         base = dict(p) if p else {}
         base.setdefault("market", market)      # 틱 하한이 시장을 알아야 한다
         base.update(overrides)
