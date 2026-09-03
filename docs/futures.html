@@ -106,6 +106,12 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
      "예산이 없던 때"와 "예산 안이던 때"가 화면에서 구별된다. -->
 <div class="card sub" id="feebudget">불러오는 중…</div>
 
+<h2>내림에 거는 것이 도움이 되나 <span class="tag">사람이 정하지 않습니다 · 밤 심사가 판정합니다</span></h2>
+<!-- 사장님 질문(2026-09-03): "특히 선물은 롱숏 포지션 다 가능한데 더 손해가 커."
+     맞는 지적이었고, 그때까지 **비교 대상 자체가 없었다** — 같은 챔피언이
+     롱만 했으면 얼마였을지를 아무도 계산하지 않았다. 이제 밤마다 잰다. -->
+<div class="card sub" id="direction">불러오는 중…</div>
+
 <h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
 <div class="card" id="rules">불러오는 중…</div>
 
@@ -385,6 +391,43 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
         '안전장치가 그 자체로 위험이 됩니다.':
         '한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.')+'</div>'+
       bandTxt;
+  })();
+  /* ── 방향(내림에 거는 것)을 지금 쓰고 있나, 그 근거는 무엇인가 ── */
+  (function(){
+    var g=d.direction_gate||{}, el=document.getElementById("direction");
+    if(!el) return;
+    /* ⚠️ 숫자를 문장 **중간**에 끼우지 않는다 — 영어 사전은 글자 마디
+       단위로 찾으므로, 값이 바뀔 때마다 마디가 달라져 번역이 끊긴다. */
+    var head=(g.two_sided===false)
+      ? '<b class="down">지금은 오를 때만 삽니다.</b>'
+      : '<b>지금은 오를 때와 내릴 때 모두 겁니다.</b>';
+    var why;
+    if(g.t_stat==null){
+      why='<div style="margin-top:6px">아직 판정이 없습니다 — '+
+        '재 보지 않은 것을 위반으로 세지 않기 때문에, 그동안은 실험을 '+
+        '그대로 계속합니다.</div>';
+    }else{
+      /* ⚠️ 숫자는 **태그 안에 가둔다.** 영어 사전은 글자 마디를 통째로
+         찾으므로, 숫자가 문장 중간에 있으면 값이 바뀔 때마다 마디가
+         달라져 번역이 조용히 끊긴다. 그리고 마디는 **길고 특징적으로**
+         남긴다 — 짧은 조각("종목 ", "일")은 다른 페이지의 마디와 부딪친다
+         (2026-08-25에 사전 조각 하나가 종목 이름 자리를 차지한 적이 있다). */
+      why='<div style="margin-top:6px">'+
+        '밤 심사가 여러 종목을 가로질러 잰 점수(문턱을 넘으면 판정이 바뀝니다): '+
+        '<b>'+Number(g.t_stat).toFixed(2)+' / \u00b1'+
+        Number(g.t_threshold||0).toFixed(2)+'</b></div>'+
+        '<div class="sub" style="margin-top:4px">'+
+        '잰 범위(종목 수 · 날짜 수): <b>'+Number(g.n_symbols||0)+' · '+
+        Number(g.n_dates||0)+'</b></div>'+
+        '<div style="margin-top:6px">'+(g.two_sided===false
+          ? '내림에 거는 쪽이 뚜렷하게 나빠서 잠시 껐습니다.'
+          : '아직 좋다고도 나쁘다고도 말할 수 없는 자리라 실험을 계속합니다.')+
+        '</div>';
+    }
+    el.innerHTML=head+why+
+      '<div class="sub" style="margin-top:6px">이 비교에는 자금조달비가 '+
+      '빠져 있습니다 — 방향마다 부호가 반대라 한쪽으로 물리면 숏이 부당하게 '+
+      '불리해집니다. 그래서 이 판정은 숏에 보수적인 쪽입니다.</div>';
   })();
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),

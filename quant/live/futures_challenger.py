@@ -611,7 +611,8 @@ def _spec(symbol: str, state_dir: str) -> dict:
     return champion_spec("crypto", symbol, state_dir) or {}
 
 
-def build_two_sided(symbol: str, state_dir: str):
+def build_two_sided(symbol: str, state_dir: str, *,
+                    allow_two_sided: bool = True):
     """그 종목의 챔피언 규칙을 **양방향으로** 세운 전략.
 
     ⚠️ 규칙을 다시 쓰지 않는다(FROZEN_IDEAS ①). 챔피언 스펙을 그대로
@@ -621,10 +622,15 @@ def build_two_sided(symbol: str, state_dir: str):
 
     숏을 못 내는 챔피언(규칙 전략)은 **그대로** 세운다. 억지로 숏을
     만들지 않고, 결과 기록이 그 종목은 롱 전용이라고 적는다.
+
+    ``allow_two_sided=False``면 숏을 낼 수 있는 챔피언도 롱 전용으로 세운다.
+    이 값을 **사람이 정하지 않는다** — 방향 관문(``direction_gate``)이 장부의
+    판정으로 정한다(2026-09-03 사장님 "특히 선물은 롱숏 포지션 다 가능한데
+    더 손해가 커"). 판정이 없거나 유의하지 않으면 True다.
     """
     from quant.live.retrain import build_strategy
     spec = _spec(symbol, state_dir)
-    if not can_short(spec):
+    if not can_short(spec) or not allow_two_sided:
         return build_strategy(spec), False
     two = dict(spec)
     params = dict(two.get("params") or {})
@@ -658,6 +664,16 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     skipped: list[str] = []
     # 종목별로 실제 적용된 확신도 배수 — 1.0이면 재보정이 안 걸린 것이다.
     scales: dict = {}
+    # ── 방향(숏 허용)은 **기계가 정한다** ────────────────────────────────
+    # 장부에 쌓인 판정을 보고, 양방향이 **유의하게 나쁠 때만** 롱 전용으로
+    # 돌린다. 판정이 없거나 유의하지 않으면 지금까지처럼 양방향이다 —
+    # 못 잰 것과 나쁜 것은 다른 사건이다(패널 관문과 같은 규약).
+    from quant.live import direction_gate
+    try:
+        two_sided_ok, direction = direction_gate.two_sided_allowed(state_dir)
+    except Exception as exc:                           # noqa: BLE001
+        log.warning("방향 관문 조회 실패: %s", exc)
+        two_sided_ok, direction = True, None
     for sym in universe:
         try:
             df = _fetch_real(sym)
@@ -674,7 +690,8 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
             signals[sym] = None
             continue
         try:
-            strat, two_sided = build_two_sided(sym, state_dir)
+            strat, two_sided = build_two_sided(
+                sym, state_dir, allow_two_sided=two_sided_ok)
             sig = float(strat.generate_signals(df).iloc[-1])
         except Exception as exc:                       # noqa: BLE001
             log.warning("선물 %s 신호 실패: %s", sym, exc)
@@ -757,6 +774,19 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
                             if margin_ratio(st, prices) is not None else None),
            "trades": trades, "skipped": skipped,
            "long_only": long_only, "stopped": stops}
+    # ── 방향 관문 — 밤에 **한 번만** 재고, 판정을 회차마다 적는다 ────────
+    #
+    # ⚠️ 판정은 이번 회차가 **쓴** 값이지 지금 잰 값이 아니다. 오늘 밤
+    #    판정을 오늘 회차에 쓰면 미래를 보는 셈이 되고, 그건 이 저장소가
+    #    가장 싫어하는 종류의 조용한 반칙이다(패널 관문과 같은 규약).
+    rec["direction_gate"] = ({"two_sided": two_sided_ok,
+                              "night": direction.get("night"),
+                              "age_nights": direction.get("age_nights"),
+                              "t_stat": direction.get("t_stat"),
+                              "t_threshold": direction.get("t_threshold"),
+                              "n_symbols": direction.get("n_symbols"),
+                              "n_dates": direction.get("n_dates")}
+                             if direction else {"two_sided": two_sided_ok})
     if liq:
         rec["liquidated"] = liq
     # 이 회차에 허락된 배율 상한과 그 이유 — 화면이 그대로 읽는다.
@@ -933,6 +963,10 @@ def public_report(st: dict) -> dict:
         # 그 회차에 실제로 적용된 밴드(종목별). 사람이 정한 값이 아니라
         # 밤 오디션이 고른 배수 × 코인 실측 비용이다.
         "rebalance_bands": last.get("rebalance_bands") or {},
+        # 방향(숏 허용)을 지금 쓰고 있는가, 그리고 그 근거는 무엇인가.
+        # ⚠️ 판정이 없는 상태도 그대로 싣는다 — 안 실으면 "아직 못 쟀다"와
+        #    "재 보니 괜찮더라"가 화면에서 똑같이 보인다.
+        "direction_gate": last.get("direction_gate") or {},
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,

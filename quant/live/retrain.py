@@ -708,6 +708,10 @@ def nightly_retrain(
     clamp_screen: bool = True,
     reality_gate: bool = True,
     panel_lookup: Callable[[dict], dict | None] | None = None,
+    # 방향 관문 재료를 함께 주울 것인가 — 켜면 이 종목 챔피언의 '방향 허용'
+    # 쌍둥이를 홀드아웃에서 **한 번 더** 재생한다(백테스트 1회 추가).
+    # 재현 검증(verify)은 켜지 않는다 — 옛 기록을 재생하는 데 필요 없는 비용이다.
+    direction_probe: bool = False,
 ) -> dict:
     """챔피언 1명 vs 챌린저 N명 — 2단계 검증으로 승격 여부를 결정한다.
 
@@ -749,13 +753,48 @@ def nightly_retrain(
            장부는 필드를 하나씩 골라 쓰므로 자동으로 새지 않지만, 검사로
            못을 박아 둔다.
         """
-        if not panel_specs:
+        if not panel_specs and not direction_probe:
             return result
+        # ── 방향 관문의 재료도 **같은 재생에서** 줍는다 ────────────────────
+        #
+        # 이 종목의 챔피언을 방향 허용만 켜서 한 번 더 돌린 것이 재료다
+        # (2026-09-03 사장님 "특히 선물은 롱숏 포지션 다 가능한데 더 손해가
+        # 커"). ``holdout_diffs``는 챔피언을 **한 번만** 재생하고 후보마다
+        # 차이를 내므로, 여기 한 줄을 얹는 값은 백테스트 **1회**다.
+        #
+        # ⚠️ 챔피언 스펙과 열쇠가 같아지면(이미 allow_short 가 켜져 있으면)
+        #    그건 잴 것이 없다는 뜻이다 — 억지로 담으면 '차이 0'이 관측으로
+        #    세어져 패널 평균이 인위적으로 0쪽으로 끌린다.
+        probe_spec = None
+        if direction_probe:
+            from quant.live.direction_gate import can_probe, two_sided_spec
+            if can_probe(champion_spec):
+                cand = two_sided_spec(champion_spec)
+                if spec_key(cand) != spec_key(champion_spec):
+                    probe_spec = cand
+            if probe_spec is None:
+                # ⚠️ 왜 이 칸이 필요한가. 이 종목이 방향 판정에서 빠진 이유가
+                #    "규칙 전략이라 음수 신호를 못 낸다"인지 "재다가 터졌다"인지
+                #    구별돼야 한다. 둘 다 재료가 없는 건 같지만 고칠 사람이 다르고,
+                #    앞의 것은 고장이 아니라 사실이다.
+                result["direction_probe_skipped"] = (
+                    "이 종목 챔피언은 음수 신호를 내지 않는 규칙 전략입니다")
         try:
-            result["panel_diffs"] = holdout_diffs(
-                champion_spec, panel_specs, df, confirm_window, build,
+            diffs = holdout_diffs(
+                champion_spec, list(panel_specs or [])
+                + ([probe_spec] if probe_spec else []),
+                df, confirm_window, build,
                 dict(cost_model=cost_model, next_open_fill=next_open_fill,
                      rebalance_band=rebalance_band))
+            if probe_spec is not None:
+                pk = spec_key(probe_spec)
+                # ⚠️ 패널 명단에 우연히 같은 설정이 있으면 **빼지 않는다** —
+                #    빼면 그 밤 패널에서 설정 하나가 조용히 사라진다.
+                panel_keys = {spec_key(sp) for sp in (panel_specs or [])}
+                result["direction_diff"] = (diffs[pk] if pk in diffs else None)
+                if pk not in panel_keys:
+                    diffs.pop(pk, None)
+            result["panel_diffs"] = diffs
         except Exception as exc:  # noqa: BLE001 — 재료 수집 실패가 판정을 못 죽인다
             log.warning("패널 재료 수집 실패: %s", exc)
             result["panel_diffs"] = {}
@@ -1851,7 +1890,11 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
                                # 마지막 관문 — 이 설정이 **여러 종목에서**
                                # 같은 방향으로 도움이 되는가(사장님 ①안).
                                # 판정이 없으면 막지 않는다.
-                               panel_lookup=panel_gate_lookup(state_dir))
+                               panel_lookup=panel_gate_lookup(state_dir),
+                               # 방향 관문 재료 — 이 종목 챔피언의 '방향
+                               # 허용' 쌍둥이를 홀드아웃에서 한 번 더 재생해
+                               # 초과수익 계열을 준다(2026-09-03).
+                               direction_probe=True)
 
     # 재현성 — 입력 스냅샷 보존 + 해시·시드·환경 지문 기록 → verify로 재검증 가능
     from quant.utils.repro import (code_sha, data_sha256, env_fingerprint,
@@ -2263,12 +2306,16 @@ def panel_nights(state_dir: str = STATE_DIR,
 
 def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
                  n_symbols_seen: int = 0, roster_asof: str = "") -> dict:
-    """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다 — **기록만 한다.**
+    """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다.
 
-    승격 판단은 아직 이 값을 보지 않는다. 사장님 ①안의 조건이 "관문을 바꾸되
-    기존 관문도 계속 기록한다"이므로, 먼저 두 관문이 같은 밤에 각각 뭐라고
-    하는지를 며칠 쌓는다. 그 대조 없이 관문을 갈아 끼우면, 나중에 성적이
-    변했을 때 **관문 때문인지 시장 때문인지 구별할 방법이 없다.**
+    ⚠️ 이 줄은 **오늘 밤 승격에 쓰이지 않는다.** 판정은 그 밤의 종목을 다
+    돈 뒤에 나오는데 승격은 종목을 돌면서 그때그때 결정되기 때문이다. 승격이
+    보는 것은 ``panel_gate_lookup``이 읽는 **직전까지 쌓인 장부**다
+    (2026-09-02부터 AND 관문, gate_version 4).
+
+    사장님 ①안의 조건("관문을 바꾸되 기존 관문도 계속 기록한다")에 따라
+    같은 설정의 **종목별 관문 판정도 나란히** 남긴다 — 그 대조가 없으면
+    나중에 성적이 변했을 때 **관문 때문인지 시장 때문인지 구별할 방법이 없다.**
 
     다중검정은 문턱이 아니라 **부트스트랩**이 맡는다. 패널 계열을 설정별로
     한 표에 세우고 "설정 N개 중 최고 t가 우연으로 나올 확률"을 직접 잰다 —
@@ -2421,6 +2468,10 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     from quant.live.panel_gate import PanelCollector
     panel = PanelCollector()
     panel_asof = ""
+    # 방향 관문 재료 — 종목마다 '방향 허용 − 롱 전용' 초과수익 계열 한 줄.
+    # 관측 단위는 종목이 아니라 **날짜**다(패널 관문과 같은 규약).
+    direction_diffs: dict = {}
+    direction_long_only: list[str] = []
     # ⚠️ **명단 날짜는 밤에 하나다** — 종목마다 정하면 패널이 쪼개진다.
     #    예전에는 각 종목이 *자기 마지막 봉 날짜*로 명단을 뽑았다. 코인은
     #    주말에도 봉이 생기고 주식은 안 생기므로, 봉 날짜가 갈리는 밤에는
@@ -2452,6 +2503,15 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             if out.get("promoted"):
                 promoted.append(key)
             panel.add(key, out.get("panel_diffs") or {})
+            # 방향 관문 재료 — 종목마다 '방향 허용 − 롱 전용' 계열 한 줄.
+            # ⚠️ None 은 **담지 않는다.** 규칙 전략(음수 신호를 아예 못 내는
+            #    챔피언)을 '차이 0'으로 담으면 없는 것을 관측으로 세는 일이고,
+            #    패널 평균이 인위적으로 0쪽으로 끌린다.
+            dseries = out.get("direction_diff")
+            if dseries is not None and len(dseries):
+                direction_diffs[key] = dseries
+            elif out.get("direction_probe_skipped"):
+                direction_long_only.append(key)
             panel_asof = max(panel_asof, str(out.get("asof") or ""))
         except Exception as exc:  # noqa: BLE001
             failed[key] = str(exc)
@@ -2467,8 +2527,10 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
                 "budget_sec": budget})
         except Exception:  # noqa: BLE001 — 커서 실패가 재학습을 못 죽인다
             log.warning("재학습 커서 저장 실패")
-    # 패널 관문 — 판정하고 **기록만** 한다(승격은 아직 종목별 관문이 정한다).
-    # 실패해도 밤 배치를 죽이지 않는다: 이건 아직 관문이 아니라 관측이다.
+    # 패널 관문 — 그 밤의 판정을 장부에 남긴다. **승격에는 이미 걸려 있다**
+    # (2026-09-02, gate_version 4): 다만 그 판단은 종목을 도는 중에 *직전까지
+    # 쌓인* 장부를 보고 내리므로, 여기서 쓰는 줄은 **내일 이후의 밤**이 쓴다.
+    # 실패해도 밤 배치를 죽이지 않는다: 이건 관문의 재료이지 체결 경로가 아니다.
     # ⚠️ **재료가 하나도 안 모인 밤에도 줄을 남긴다.** 예전에는 `if
     #    panel.specs:`로 감싸서, 재료가 0이면 장부에 아무것도 안 적혔다.
     #    그러면 "패널이 아무것도 못 쟀다"와 "밤 배치가 아예 안 돌았다"가
@@ -2482,7 +2544,7 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
                                  n_symbols_seen=len(ok),
                                  roster_asof=roster_asof)
         rc = panel_rec.get("reality_check") or {}
-        print(f"  📊 패널 관문(기록 전용): 설정 "
+        print(f"  📊 패널 관문: 설정 "
               f"{panel_rec['n_specs_judged']}/"
               f"{panel_rec['n_specs_collected']}개 판정 · "
               f"종목 {panel_rec['n_symbols_seen']} · "
@@ -2490,6 +2552,25 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
                  else f"동시검정 p={rc.get('p')}"))
     except Exception as exc:  # noqa: BLE001 — 관측 실패가 배치를 못 죽인다
         log.warning("패널 관문 기록 실패: %s", exc)
+
+    # ── 방향 관문 — "내림 예측을 쓰는 것이 나은가"를 종목 가로질러 판정 ──
+    #
+    # ⚠️ **재료가 0인 밤에도 줄을 남긴다.** 안 남기면 "방향을 못 쟀다"(고장)와
+    #    "밤 배치가 아예 안 돌았다"(다른 경보의 일)가 장부에서 똑같이 보인다.
+    try:
+        from quant.live import direction_gate
+        drec = direction_gate.record(
+            direction_gate.judge(
+                direction_diffs, night=roster_asof, n_symbols_seen=len(ok),
+                state_dir=kwargs.get("state_dir", STATE_DIR),
+                long_only=direction_long_only),
+            kwargs.get("state_dir", STATE_DIR))
+        print("  🧭 방향 관문: 종목 "
+              f"{drec.get('n_symbols')} · 날짜 {drec.get('n_dates')} · "
+              + (str(drec.get("reason")) if drec.get("skipped")
+                 else f"t={drec.get('t_stat')} (문턱 ±{drec.get('t_threshold')})"))
+    except Exception as exc:  # noqa: BLE001 — 관측 실패가 배치를 못 죽인다
+        log.warning("방향 관문 기록 실패: %s", exc)
 
     print(f"\n요약: 성공 {len(ok)} · 교체 {len(promoted)} · 건너뜀 "
           f"{len(skipped)} · 실패 {len(failed)}"
