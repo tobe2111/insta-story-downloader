@@ -449,8 +449,11 @@ def _futures_bought(monkeypatch, tmp_path, champion, two_sided=True) -> float:
                        "close": closes, "volume": [1.0] * len(closes)},
                       index=idx)
     monkeypatch.setattr(F, "_fetch_real", lambda sym, timeframe=None: df)
+    # ⚠️ `**kw`를 받는다 — 진짜 함수가 키워드를 하나 더 받게 됐고
+    #    (`allow_two_sided`, 2026-09-03 방향 관문), 가짜가 진짜 서명을 안
+    #    따라가면 **가짜 쪽이 터져서** "숏이 안 나갔다"는 엉뚱한 실패가 뜬다.
     monkeypatch.setattr(F, "build_two_sided",
-                        lambda sym, state_dir: (champion, two_sided))
+                        lambda sym, state_dir, **kw: (champion, two_sided))
     monkeypatch.setattr(F, "MIN_BARS", 5)
     rec = F.run_futures_round("2026-06-01T00:00:00+09:00",
                               state_dir=str(tmp_path),

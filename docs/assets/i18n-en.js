@@ -138,6 +138,32 @@
       "한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.":
         "Within the limit. This guard only acts when fees run away.",
       "한도를 넘어": "Over the limit —",
+      /* 방향 관문 — 내림에 거는 것이 도움이 되는가 (2026-09-03).
+         ⚠️ "지금은 오를 때만 삽니다."는 **판정이 뒤집힌 날에만** 화면에
+            나온다. 그런 날은 드물어서 영어 화면 검사가 그 문구를 영영 못
+            보고, 실제로 뒤집히는 날 공개 페이지에서 처음 한국어가 뜬다.
+            그래서 여기서 미리 못 박는다(수수료 예산 문구와 같은 이유). */
+      "내림에 거는 것이 도움이 되나": "Does betting on falls help?",
+      "사람이 정하지 않습니다 · 밤 심사가 판정합니다":
+        "Not set by hand · the nightly review decides",
+      "지금은 오를 때와 내릴 때 모두 겁니다.":
+        "Right now it bets on both rises and falls.",
+      "지금은 오를 때만 삽니다.": "Right now it only buys on rises.",
+      "아직 판정이 없습니다 — 재 보지 않은 것을 위반으로 세지 않기 때문에, 그동안은 실험을 그대로 계속합니다.":
+        "No verdict yet — what has not been measured is not counted as a " +
+        "violation, so the experiment keeps running in the meantime.",
+      "밤 심사가 여러 종목을 가로질러 잰 점수(문턱을 넘으면 판정이 바뀝니다):":
+        "Score measured across symbols by the nightly review " +
+        "(crossing the threshold flips the verdict):",
+      "잰 범위(종목 수 · 날짜 수):": "Measured over (symbols · days):",
+      "내림에 거는 쪽이 뚜렷하게 나빠서 잠시 껐습니다.":
+        "Betting on falls came out clearly worse, so it is off for now.",
+      "아직 좋다고도 나쁘다고도 말할 수 없는 자리라 실험을 계속합니다.":
+        "That is not enough to call it good or bad, so the experiment continues.",
+      "이 비교에는 자금조달비가 빠져 있습니다 — 방향마다 부호가 반대라 한쪽으로 물리면 숏이 부당하게 불리해집니다. 그래서 이 판정은 숏에 보수적인 쪽입니다.":
+        "Funding costs are left out of this comparison — their sign flips " +
+        "with direction, so charging one side would unfairly penalise the " +
+        "short leg. This verdict therefore leans conservative against shorts.",
       "포지션을 키우는 거래를 멈췄습니다.":
         "trades that grow a position are paused.",
       "줄이거나 정리하는 거래는 그대로 합니다 — 위험을 줄이는 길을 막으면 안전장치가 그 자체로 위험이 됩니다.":

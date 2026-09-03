@@ -491,8 +491,11 @@ def _offline_round(monkeypatch, tmp_path, closes, signal, *, now=None):
             return pd.Series([signal] * len(frame), index=frame.index)
 
     monkeypatch.setattr(F, "_fetch_real", lambda sym, timeframe=None: df)
+    # ⚠️ `**kw`를 받는다 — 진짜 함수가 `allow_two_sided`를 받게 됐다
+    #    (2026-09-03 방향 관문). 가짜가 진짜 서명을 안 따라가면 **가짜 쪽이
+    #    터져서** 이 파일과 상관없는 엉뚱한 실패가 뜬다.
     monkeypatch.setattr(F, "build_two_sided",
-                        lambda sym, state_dir: (_Strat(), True))
+                        lambda sym, state_dir, **kw: (_Strat(), True))
     monkeypatch.setattr(F, "MIN_BARS", 5)
     # ⚠️ 배율 상한은 2026-08-25부터 **이 트랙의 기록이** 정한다(감사 314).
     #    빈 장부로 시작하는 검사는 당연히 1배를 받고, 1배에서는 값이 30%

@@ -319,8 +319,11 @@ def _round_with_curve(monkeypatch, tmp_path, curve, signal=1.0):
             return pd.Series([signal] * len(frame), index=frame.index)
 
     monkeypatch.setattr(F, "_fetch_real", lambda sym, timeframe=None: df)
+    # ⚠️ `**kw`를 받는다 — 진짜 함수가 `allow_two_sided`를 받게 됐다
+    #    (2026-09-03 방향 관문). 가짜가 진짜 서명을 안 따라가면 **가짜 쪽이
+    #    터져서** 이 파일과 상관없는 엉뚱한 실패가 뜬다.
     monkeypatch.setattr(F, "build_two_sided",
-                        lambda sym, state_dir: (_Strat(), True))
+                        lambda sym, state_dir, **kw: (_Strat(), True))
     monkeypatch.setattr(F, "MIN_BARS", 5)
 
     st = F.load_state(str(tmp_path))
