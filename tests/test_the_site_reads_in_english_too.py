@@ -1374,3 +1374,37 @@ def test_that_check_is_not_vacuous():
     assert len(got) >= 20, f"해설을 너무 적게 만들었다: {len(got)}"
     assert _translate("이런 문장은 사전에 절대 없다 12345") is None, (
         "번역 판정기가 아무 문장이나 통과시킨다 — 위 검사가 늘 초록이 된다")
+
+
+# ── ⑤ 조용한 날에만 나오는 문구 ────────────────────────────────────────
+#
+# ⚠️ 빈 상태 문구("오늘 체결된 주문이 없습니다" 같은 것)는 **보여 줄 것이
+#    없는 날에만** 그려진다. 위의 브라우저 검사는 그날의 실제 데이터로
+#    화면을 띄우므로, 데이터가 있는 날에는 이 문구들을 **아예 못 본다** —
+#    그러다 하필 조용한 날 공개 페이지에서 처음 한국어가 뜬다.
+#
+#    2026-09-03에 실제로 그렇게 됐다: 매매가 없던 날 today.html이 "오늘
+#    체결된 주문이 없습니다."를 영어 화면에 그대로 내보내 CI가 빨개졌다.
+#    같은 계열이 어제도 한 번 있었다(선물 페이지의 '수수료 빼기 전' 칸은
+#    장부에 값이 실린 뒤에야 그려졌다).
+#
+#    그래서 브라우저를 안 거치고 **사전을 직접** 본다.
+EMPTY_STATE = [
+    ("today.html", "오늘 체결된 주문이 없습니다."),
+    ("today.html", "예약된 주문이 없습니다(전 종목 관망 또는 이미 체결)."),
+    ("today.html", "아직 기록이 없습니다."),
+    ("futures.html", "아직 기록이 없습니다 — 첫 회차가 돌면 채워집니다."),
+    ("ml.html", "아직 표를 만들 기록이 없습니다"),
+]
+
+
+@pytest.mark.parametrize("page,phrase", EMPTY_STATE)
+def test_an_empty_state_phrase_is_already_translated(page, phrase):
+    """조용한 날 문구가 사전에 **미리** 들어 있다."""
+    src = (ROOT / "docs" / page).read_text("utf-8")
+    assert phrase in src, (
+        f"{page}에 그 문구가 없다 — 문구를 바꿨으면 이 목록도 바꿔야 한다: {phrase}")
+    dic = (ROOT / "docs" / "assets" / "i18n-en.js").read_text("utf-8")
+    assert f'"{phrase}"' in dic, (
+        f"{page}의 빈 상태 문구가 영어 사전에 없다 — 조용한 날 공개 화면에 "
+        f"한국어가 뜬다: {phrase}")

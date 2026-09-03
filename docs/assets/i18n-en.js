@@ -121,6 +121,18 @@
       "주기": "Bar interval",
       "총 노출": "Gross exposure",
       "수수료 빼기 전": "Before fees",
+      // ── 빈 상태 문구 ────────────────────────────────────────────────
+      // ⚠️ 이 문구들은 **그 화면에 보여 줄 것이 없는 날에만** 그려진다.
+      //    그래서 영어 화면 검사가 평소에는 그것을 못 보고, 하필 조용한
+      //    날(매매가 없거나 첫 회차 전)에 공개 페이지에서 처음 한국어가
+      //    뜬다. 2026-09-03에 실제로 그렇게 CI가 빨개졌다.
+      "오늘 체결된 주문이 없습니다.": "No orders filled today.",
+      "예약된 주문이 없습니다(전 종목 관망 또는 이미 체결).":
+        "No orders queued (all symbols flat, or already filled).",
+      "아직 기록이 없습니다.": "No records yet.",
+      "아직 기록이 없습니다 — 첫 회차가 돌면 채워집니다.":
+        "No records yet — this fills in after the first round runs.",
+      "아직 표를 만들 기록이 없습니다": "No records yet to build this table",
       "최근 7일 수수료": "Fees over the last 7 days",
       "(자산 대비 · 한도 3%)": "(of equity · limit 3%)",
       "한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.":
