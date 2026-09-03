@@ -1,8 +1,8 @@
 {
-  "cash": 9300.692307126454,
-  "quantity": 589.0939151633187,
-  "avg_price": 1.4785,
-  "last_bar": "2026-09-02 00:00:00",
+  "cash": 8794.71896812374,
+  "quantity": 963.3276305182223,
+  "avg_price": 1.4285802936616325,
+  "last_bar": "2026-09-03 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -1022,6 +1022,58 @@
       },
       "data_source": "okx",
       "prob_up_cal": 0.5946
+    },
+    {
+      "date": "2026-09-03",
+      "price": 1.35,
+      "weight": 0.129,
+      "held_weight": 0.1288,
+      "fractional_lot": false,
+      "equity": 10095.21,
+      "return_pct": 0.95,
+      "hit_rate": 0.4375,
+      "hit_n": 16,
+      "hit_lo": 0.2309836333518552,
+      "hit_hi": 0.6682180439322347,
+      "hit_conclusive": false,
+      "live_hit": 0.45,
+      "live_hit_n": 20,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple",
+        "meta": true
+      },
+      "reason": "매수 +13% — 로지스틱회귀 모델이 내일 상승확률을 약 0%로 추정(기준 55% 초과) · 사이징: 신호 원비중 46% → 변동성 타깃 조절 후 13% · 참고: 전 종목 합산으로 모델이 0%±10%p라 말한 38번의 실제 상승 비율 58% (95% 신뢰구간 42%~72% · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 10번으로 축적 중) · 🏛 의회 운용: ml 54% + breakout 46% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": null,
+      "fill_cost": 0.0015,
+      "code_sha": "62fe188dba2b",
+      "data_sha256": "f7d8994dd168118c25710ed27dbac48d8a4c10d8a539af23ca8dbe4961f7f65c",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 8.431128361719288e-15,
+      "drift_psi": 0.2311,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": {
+        "elapsed": 0.0132,
+        "timeframe": "1d",
+        "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+      },
+      "data_source": "okx",
+      "prob_up_cal": 0.5789
     }
   ],
   "market": "crypto",
