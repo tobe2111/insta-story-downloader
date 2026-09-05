@@ -8378,6 +8378,13 @@ MUTATIONS = [
      '        if band > 0 and target != 0 and slice_budget > 0:',
      '        if band > 0 and slice_budget > 0:',
      'tests/test_the_futures_track_picks_its_own_turnover.py'),
+    # ── 2026-09-05 · 반려한 후보가 조용히 링에 돌아오지 않는다 ────────────
+    ('반려한 월중 급여일 후보를 링에 세운다(⑦에서 부호가 반대로 나온 가설이 되살아난다)',
+     'quant/live/retrain.py',
+     'FIXED_CHALLENGERS = [',
+     'FIXED_CHALLENGERS = [\n    {"strategy": "mid_month", "params": {}},',
+     'tests/test_the_calendar_tells_who_must_trade.py'),
+
     # ── 2026-09-03 · 한국 ETF는 증권거래세를 안 낸다 ──────────────────────
     ('ETF에도 증권거래세를 물린다(안 내는 세금을 왕복 15bp 물고, 그 값이 밴드·오디션·손익으로 다 흘러간다)',
      'quant/backtest/costs.py',
