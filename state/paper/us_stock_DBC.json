@@ -2,7 +2,7 @@
   "cash": 7494.903565281031,
   "quantity": 80.58225358867027,
   "avg_price": 31.149999618530273,
-  "last_bar": "2026-09-02 00:00:00",
+  "last_bar": "2026-09-03 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -403,11 +403,61 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.6216
+    },
+    {
+      "date": "2026-09-03",
+      "price": 31.959999084472656,
+      "weight": 0.2908,
+      "held_weight": 0.2557,
+      "fractional_lot": false,
+      "equity": 10070.31,
+      "return_pct": 0.7,
+      "hit_rate": 0.5734767025089605,
+      "hit_n": 279,
+      "hit_lo": 0.51483145485001,
+      "hit_hi": 0.6301260054387169,
+      "hit_conclusive": true,
+      "live_hit": 0.75,
+      "live_hit_n": 4,
+      "live_hit_flat": 1,
+      "hit_flat": 2,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +29% — 로지스틱회귀 모델이 내일 상승확률을 약 34%로 추정(기준 55% 초과) · 사이징: 신호 원비중 32% → 변동성 타깃 조절 후 29% · 참고: 전 종목 합산으로 모델이 34%±10%p라 말한 105번의 실제 상승 비율 44% (95% 신뢰구간 35%~53% · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 35% + ml 33% + psar 32% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 31.799999,
+        "bar": "2026-09-03 00:00:00",
+        "weight": 0.2838,
+        "decided_bar": "2026-09-02 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "cad64813d337",
+      "data_sha256": "7dbec16f180a927cd4e5fcfdc3fb5f32366d334ff3dbb3dd17bbfd420e0ceddf",
+      "env": "py3.12.14|np2.5.2|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.3383516393716671,
+      "drift_psi": 0.214,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.2838,
-    "decided_bar": "2026-09-02 00:00:00"
+    "weight": 0.2908,
+    "decided_bar": "2026-09-03 00:00:00"
   },
   "market": "us_stock",
   "symbol": "DBC",
