@@ -1408,3 +1408,107 @@ def test_an_empty_state_phrase_is_already_translated(page, phrase):
     assert f'"{phrase}"' in dic, (
         f"{page}의 빈 상태 문구가 영어 사전에 없다 — 조용한 날 공개 화면에 "
         f"한국어가 뜬다: {phrase}")
+
+
+# ══ 절로 쪼개진 뒤에도 맞는가 — 죽은 규칙을 잡는다 (2026-09-05) ══════════
+#
+# 2026-09-05 CI가 처음 빨개져서 드러났다. `buy_hold` 해설에 대한 규칙이
+# 사전에 **있었지만 합성된 화면에서는 안 들었다**:
+#
+#     화면    "매수 +26% — {해설} · 🏛 의회 운용: … — 위 설명은 …"
+#     번역기  통째로 먼저 찾고, 못 찾으면 ` · `·` — `로 끊어 다시 찾는다
+#     결과    통째 앵커는 문장 전체가 아니라 못 맞고, 절 단위로는 해설
+#             **안의** ` — `에서 쪼개져 역시 못 맞는다
+#
+# 즉 규칙이 틀린 게 아니라 **한 가지 모양만** 덮고 있었다. 드러난 계기도
+# 그 성질 그대로다 — 이 문장은 `buy_hold` 챔피언이 있는 날에만 화면에
+# 나오므로, 챔피언이 바뀐 날에야 처음 보였다.
+#
+# 그래서 **브라우저를 안 띄우고도** 같은 것을 잡는 검사를 둔다: 판단 설명을
+# 만드는 쪽(quant/live/explain.py)이 내놓는 문장을 번역기와 **같은 규칙으로**
+# 끊어, 각 절이 사전이나 규칙에 걸리는지 본다.
+
+_SEPS = (" · ", " — ")
+
+
+def _clauses(text: str) -> list[str]:
+    """번역기(i18n.js)와 **같은 방식**으로 절을 끊는다.
+
+    ⚠️ 괄호 깊이가 0인 자리에서만 끊는다 — 괄호 안에도 ` · `가 있고
+       거기서 끊으면 문장이 부서진다(원본 주석과 같은 규약).
+    """
+    out, buf, depth = [], "", 0
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if c in "(（":
+            depth += 1
+        elif c in ")）":
+            depth = max(0, depth - 1)
+        hit = None
+        if depth == 0:
+            for s in _SEPS:
+                if text[i:i + len(s)] == s:
+                    hit = s
+                    break
+        if hit:
+            out.append(buf)
+            buf = ""
+            i += len(hit)
+            continue
+        buf += c
+        i += 1
+    out.append(buf)
+    return [c for c in out if c.strip()]
+
+
+_DICT_JS = ROOT / "docs" / "assets" / "i18n-en.js"
+
+
+def _translatable(clause: str) -> bool:
+    """이 절이 사전에 걸리는가 — 숫자만 남은 조각은 통과."""
+    import re as _re
+    d = _DICT_JS.read_text("utf-8")
+    if f'"{clause}"' in d:
+        return True
+    if not _re.search(r"[가-힣]", clause):
+        return True                      # 숫자·기호뿐이면 옮길 말이 없다
+    return False
+
+
+def test_the_buy_hold_explanation_survives_the_clause_splitter():
+    """쪼개진 **각 절**이 사전에 있어야 한다 — 통째 규칙은 못 맞는다.
+
+    ⚠️ 통째 규칙(해설이 문장 전체인 화면용)은 기존 검사
+       `test_every_registered_strategy_can_explain_itself_in_english`가
+       지킨다. 여기서 지키는 것은 **합성된 화면용**인 쪼개진 절이다 —
+       둘 중 하나만 두면 나머지 화면에서 한국어가 남는다.
+    """
+    from quant.live.explain import _WHY_BUY_HOLD_CLAUSES
+
+    # ① 목록이 번역기의 눈금과 같은 굵기여야 한다. 한 항목 안에 이음매가
+    #    또 있으면 번역기가 거기서 한 번 더 끊어 그 조각이 사전에 없다.
+    assert _clauses(" — ".join(_WHY_BUY_HOLD_CLAUSES)) == list(
+        _WHY_BUY_HOLD_CLAUSES), (
+        "해설 목록의 한 항목 안에 ` · `나 ` — `가 또 들어 있다 — 번역기는 "
+        "거기서 한 번 더 끊으므로 그 조각은 사전에 걸리지 않는다.")
+
+    # ② 그리고 각 절이 실제로 사전에 있어야 한다.
+    for clause in _WHY_BUY_HOLD_CLAUSES:
+        assert _translatable(clause), (
+            f"절이 사전에 없다 — 화면에 한국어로 남는다: {clause!r}\n"
+            "번역기는 ` · `와 ` — `로 절을 끊는다. 문장 안에 그 이음매가 "
+            "있으면 통째 규칙(^…$)은 정의상 안 맞는다 — 끊긴 모양 그대로 적을 것.")
+
+
+# ⚠️ 여기에 "이음매를 넘어 앵커를 건 규칙은 죽은 규칙"이라는 검사를 넣었다가
+#    **전제가 틀려서** 뺐다(2026-09-05). 번역기(i18n.js `look`)는 **통째로
+#    먼저** 찾고, 못 찾으면 절 단위로 다시 찾아 한국어가 덜 남는 쪽을 쓴다.
+#    그래서 이음매를 품은 규칙도 그것이 **문장 전체일 때는** 정상적으로 맞는다
+#    (실제로 그런 규칙이 50개 가까이 살아서 돌고 있다).
+#
+#    buy_hold 해설이 안 듣던 진짜 이유는 이음매 자체가 아니라 **합성**이다:
+#    화면에 나가는 문장은 "매수 +26% — {해설} · 🏛 의회 운용: …"이라
+#    해설이 문장 전체가 아니고, 그러면 통째 앵커는 못 맞고 절 단위로는
+#    쪼개져서 역시 못 맞는다. 즉 "다른 절과 이어 붙는 해설"만 절 단위로
+#    적어야 한다 — 위 검사가 지키는 것이 정확히 그것이다.

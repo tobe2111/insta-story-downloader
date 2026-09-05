@@ -143,6 +143,11 @@
             나온다. 그런 날은 드물어서 영어 화면 검사가 그 문구를 영영 못
             보고, 실제로 뒤집히는 날 공개 페이지에서 처음 한국어가 뜬다.
             그래서 여기서 미리 못 박는다(수수료 예산 문구와 같은 이유). */
+      "매매 없이 보유: 이 종목은 오디션에서 **아무것도 하지 않는 쪽**이 AI 전략을 이겼습니다(2단계 심사 통과). 매수·매도 없이 계속 들고 갑니다":
+        "hold without trading: for this symbol, **doing nothing** beat the " +
+        "AI strategies in the audition (it passed both rounds). It is simply " +
+        "held — no buying, no selling",
+      "하락도 그대로 겪습니다": "and it takes the drawdowns as they come",
       "내림에 거는 것이 도움이 되나": "Does betting on falls help?",
       "사람이 정하지 않습니다 · 밤 심사가 판정합니다":
         "Not set by hand · the nightly review decides",
@@ -3641,6 +3646,23 @@
        "RSI($1)=$2 (wary of overbought)"],
       ["^RSI\\((\\d+)\\)=(\\d+) \\(중립 구간\\)$",
        "RSI($1)=$2 (neutral zone)"],
+      /* ⚠️ 이 규칙은 **문장 전체일 때만** 맞는다 — 그것만으로는 모자랐다
+         (2026-09-05 CI가 처음 빨개져 드러났다).
+
+         번역기(i18n.js `look`)는 통째로 먼저 찾고, 못 찾으면 절 단위로
+         다시 찾는다. 그런데 화면에 실제로 나가는 문장은 이 해설 하나가
+         아니라 **합성**이다:
+
+             "매수 +26% — {이 해설} · 🏛 의회 운용: … — 위 설명은 …"
+
+         그러면 통째 앵커(^…$)는 못 맞고, 절 단위로는 해설 **안의**
+         ` — `에서 쪼개져 역시 못 맞는다. 규칙은 있는데 그 자리에서만
+         조용히 안 듣던 것이다. 드러난 계기도 그 성질 그대로다 —
+         이 문장은 buy_hold 챔피언이 있는 날에만 화면에 나온다.
+
+         그래서 **둘 다 둔다**: 통째 규칙(해설이 문장 전체인 화면용)과,
+         아래 사전의 **쪼개진 두 절**(합성된 화면용). 어느 쪽 하나만
+         두면 나머지 화면에서 한국어가 남는다. */
       ["^매매 없이 보유: 이 종목은 오디션에서 \\*\\*아무것도 하지 않는 쪽\\*\\*이 AI 전략을 이겼습니다\\(2단계 심사 통과\\)\\. 매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다$",
        "hold without trading: for this symbol, **doing nothing** beat the AI strategies in the audition (it passed both rounds). It is simply held — no buying, no selling — and it takes the drawdowns as they come."],
       ["^챔피언 전략 신호에 따름$", "following the champion strategy's signal"],
