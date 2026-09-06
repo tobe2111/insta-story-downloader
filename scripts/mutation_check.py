@@ -8384,6 +8384,16 @@ MUTATIONS = [
      '        return f"{head} — " + " — ".join(_WHY_BUY_HOLD_CLAUSES)',
      '        return f"{head} — " + "".join(_WHY_BUY_HOLD_CLAUSES)',
      'tests/test_the_site_reads_in_english_too.py'),
+    # ── 2026-09-06 · 반려한 주식-채권 캘린더 신호가 조용히 링에 안 돌아온다 ──
+    #    ⑬은 6호와 겉이 거의 같다(같은 달력·같은 월말 창). 다른 것은 부호를
+    #    정하는 변수 하나뿐이고, 바로 그 하나가 데이터에서 반대로 나왔다.
+    #    그래서 "비슷하니까 넣자"로 들어오기 가장 쉬운 후보다.
+    ('반려한 주식-채권 캘린더 신호를 링에 세운다(⑬의 거울 예측이 다섯 창 모두 반대였다)',
+     'quant/live/retrain.py',
+     '        {"strategy": "expiry_week", "params": {}},',
+     '        {"strategy": "expiry_week", "params": {}},\n'
+     '        {"strategy": "calendar_signal", "params": {}},',
+     'tests/test_the_calendar_tells_who_must_trade.py'),
     # ── 2026-09-05 · 반려한 후보가 조용히 링에 돌아오지 않는다 ────────────
     ('반려한 월중 급여일 후보를 링에 세운다(⑦에서 부호가 반대로 나온 가설이 되살아난다)',
      'quant/live/retrain.py',
