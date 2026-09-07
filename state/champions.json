@@ -256,8 +256,8 @@
       "label": "triple"
     },
     "promotions": 0,
-    "last_run_asof": "2026-09-04",
-    "trials_total": 651,
+    "last_run_asof": "2026-09-07",
+    "trials_total": 704,
     "parliament": [
       {
         "strategy": "ml",
@@ -268,7 +268,7 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.3991,
+        "weight": 0.4236,
         "alt_weight": 0.1667
       },
       {
@@ -280,8 +280,8 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3354,
-        "alt_weight": 0.2917
+        "weight": 0.3284,
+        "alt_weight": 0.6416
       },
       {
         "strategy": "ml",
@@ -291,10 +291,10 @@
           "train_window": 250,
           "retrain_every": 20,
           "label": "triple",
-          "meta": true
+          "sizing": "binary"
         },
-        "weight": 0.2655,
-        "alt_weight": 0.5416
+        "weight": 0.248,
+        "alt_weight": 0.1917
       }
     ]
   },
@@ -308,8 +308,8 @@
       "label": "triple"
     },
     "promotions": 0,
-    "last_run_asof": "2026-09-04",
-    "trials_total": 798,
+    "last_run_asof": "2026-09-07",
+    "trials_total": 851,
     "parliament": [
       {
         "strategy": "ml",
@@ -320,7 +320,7 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.4055,
+        "weight": 0.3845,
         "alt_weight": 0.2667
       },
       {
@@ -328,8 +328,8 @@
         "params": {
           "mode": "squeeze"
         },
-        "weight": 0.3265,
-        "alt_weight": 0.5166
+        "weight": 0.3648,
+        "alt_weight": 0.5666
       },
       {
         "strategy": "ml",
@@ -339,8 +339,8 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.2679,
-        "alt_weight": 0.2167
+        "weight": 0.2506,
+        "alt_weight": 0.1667
       }
     ]
   },
@@ -1734,7 +1734,7 @@
       "meta": true
     },
     "promotions": 0,
-    "trials_total": 373,
+    "trials_total": 426,
     "parliament": [
       {
         "strategy": "ml",
@@ -1746,8 +1746,8 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.4418,
-        "alt_weight": 0.4167
+        "weight": 0.4264,
+        "alt_weight": 0.4417
       },
       {
         "strategy": "ml",
@@ -1760,7 +1760,7 @@
           "meta": true,
           "calibrate": "isotonic"
         },
-        "weight": 0.3229,
+        "weight": 0.3499,
         "alt_weight": 0.3917
       },
       {
@@ -1774,11 +1774,11 @@
           "meta": true,
           "sizing": "binary"
         },
-        "weight": 0.2353,
-        "alt_weight": 0.1917
+        "weight": 0.2237,
+        "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-09-04"
+    "last_run_asof": "2026-09-07"
   },
   "kr_stock:132030.KS": {
     "strategy": "ml",
@@ -1789,7 +1789,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 372,
+    "trials_total": 425,
     "parliament": [
       {
         "strategy": "ml",
@@ -1799,8 +1799,20 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.4074,
+        "weight": 0.3977,
         "alt_weight": 0.6666
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "pool": "universe"
+        },
+        "weight": 0.3095,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
@@ -1812,23 +1824,11 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.2998,
-        "alt_weight": 0.1667
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "pool": "universe"
-        },
         "weight": 0.2928,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-09-04"
+    "last_run_asof": "2026-09-07"
   },
   "kr_stock:148070.KS": {
     "strategy": "ml",
@@ -1840,7 +1840,7 @@
       "calibrate": "isotonic"
     },
     "promotions": 0,
-    "trials_total": 372,
+    "trials_total": 425,
     "parliament": [
       {
         "strategy": "ml",
@@ -1851,7 +1851,7 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.4062,
+        "weight": 0.3846,
         "alt_weight": 0.1667
       },
       {
@@ -1863,7 +1863,7 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3129,
+        "weight": 0.319,
         "alt_weight": 0.1667
       },
       {
@@ -1877,11 +1877,11 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.2809,
+        "weight": 0.2964,
         "alt_weight": 0.6666
       }
     ],
-    "last_run_asof": "2026-09-04"
+    "last_run_asof": "2026-09-07"
   },
   "kr_stock:228790.KS": {
     "strategy": "breakout",
@@ -1890,7 +1890,7 @@
       "exit_window": 20
     },
     "promotions": 0,
-    "trials_total": 372,
+    "trials_total": 425,
     "parliament": [
       {
         "strategy": "breakout",
@@ -1898,7 +1898,7 @@
           "window": 55,
           "exit_window": 20
         },
-        "weight": 0.3746,
+        "weight": 0.366,
         "alt_weight": 0.1667
       },
       {
@@ -1906,7 +1906,7 @@
         "params": {
           "mode": "reversion"
         },
-        "weight": 0.3137,
+        "weight": 0.321,
         "alt_weight": 0.1667
       },
       {
@@ -1918,11 +1918,11 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.3117,
+        "weight": 0.3131,
         "alt_weight": 0.6666
       }
     ],
-    "last_run_asof": "2026-09-04"
+    "last_run_asof": "2026-09-07"
   },
   "kr_stock:273130.KS": {
     "strategy": "ml",
@@ -1933,7 +1933,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 372,
+    "trials_total": 425,
     "parliament": [
       {
         "strategy": "ml",
@@ -1943,8 +1943,8 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.5738,
-        "alt_weight": 0.25
+        "weight": 0.446,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
@@ -1956,10 +1956,23 @@
           "label": "cost",
           "label_cost": 0.0012
         },
-        "weight": 0.4262,
-        "alt_weight": 0.75
+        "weight": 0.3566,
+        "alt_weight": 0.2167
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "label": "cost",
+          "label_cost": 0.003
+        },
+        "weight": 0.1974,
+        "alt_weight": 0.6166
       }
     ],
-    "last_run_asof": "2026-09-04"
+    "last_run_asof": "2026-09-07"
   }
 }
