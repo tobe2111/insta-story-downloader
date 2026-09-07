@@ -219,7 +219,13 @@ def test_the_night_record_carries_the_panel_verdict():
     src = inspect.getsource(R)
     assert '"panel_gate": decision.get("panel_gate"),' in src, (
         "밤 기록에 패널 판정 칸이 없다 — 관문의 효과를 나중에 잴 수 없다")
-    assert '"gate_version": 4,' in src, (
+    # ⚠️ 값을 **못 박아 둔다** — 관문을 건드리면 이 검사가 빨개져서 "세대를
+    #    올릴 것인가"를 반드시 생각하게 만든다. 그게 이 검사의 목적이다.
+    #    v4(2026-09-02): 패널이 승격에 AND로 붙었다.
+    #    v5(2026-09-07): 패널이 **부트스트랩 동시검정도** 본다. 그전에는
+    #                    `t > PANEL_T_REF` 하나로만 판정했고, 밤마다 계산되던
+    #                    동시검정은 로그로만 나가고 아무 관문도 안 읽었다.
+    assert '"gate_version": 5,' in src, (
         "관문이 바뀌었으면 세대도 올려야 한다(재현이 옛 규칙으로 돌아간다)")
 
 
