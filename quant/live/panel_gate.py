@@ -402,6 +402,37 @@ class PanelCollector:
                 continue
             self._by_spec.setdefault(spec, {})[symbol_key] = series
 
+    def drop(self, spec: str, symbols) -> list[str]:
+        """이 설정에서 **이미 다른 회차가 기록한 종목**을 뺀다.
+
+        ⚠️ 왜 필요한가 (2026-09-07 실측). 밤 배치는 하루 두 번 도는데, 두
+           회차가 **같은 종목을 다시 볼 수 있다**(코인은 회차 사이에 새 봉이
+           생겨 멱등 가드가 '할 일이 남았다'로 본다). 그러면 두 회차의
+           날짜별 합을 포갤 때 그 종목이 두 번 세어져 t가 거짓으로 커지므로,
+           ``merge_daily_terms``가 **밤 전체를 합치지 않고 버린다.**
+
+           안전하지만 너무 무디다 — 실측으로 2026-09-07 밤은 설정 3개가
+           **전부** 그렇게 버려졌다(설정-밤 18건 중 3건, 17%). 겹친 종목
+           하나 때문에 그 밤의 횡단 폭 전체를 잃는 것이다.
+
+           그래서 **겹치기 전에 뺀다.** 뒤 회차는 앞 회차가 이미 기록한
+           종목을 담지 않는다. 남는 것은 서로 겹치지 않는 두 조각이고,
+           그러면 합치기가 정확해진다.
+
+        ⚠️ 판정 규칙은 **그대로다** — 문턱도 최소 종목 수도 안 건드린다.
+           달라지는 것은 재료를 모으는 방식뿐이라 `gate_version`을 올리지
+           않는다. 다만 무엇을 뺐는지는 장부에 적는다(조용히 빼지 않는다).
+        """
+        pool = self._by_spec.get(spec)
+        if not pool:
+            return []
+        gone = sorted(set(pool) & set(symbols or ()))
+        for k in gone:
+            pool.pop(k, None)
+        if not pool:
+            self._by_spec.pop(spec, None)
+        return gone
+
     @property
     def specs(self) -> list[str]:
         return sorted(self._by_spec)

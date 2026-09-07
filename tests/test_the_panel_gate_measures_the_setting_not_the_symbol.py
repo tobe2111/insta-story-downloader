@@ -571,8 +571,15 @@ def test_the_panel_multiple_testing_counts_settings_not_symbols(tmp_path):
             c.add(f"us_stock:S{i}", specs)
         return c
 
-    alone = record_panel("2026-08-27", _coll(0), str(tmp_path))
-    crowded = record_panel("2026-08-27", _coll(11), str(tmp_path))
+    # ⚠️ **두 판은 서로 다른 장부에 적는다.** 원래는 같은 `tmp_path`에
+    #    같은 날짜로 두 번 적었는데, 2026-09-07부터 `record_panel`은
+    #    "같은 밤의 앞 회차가 이미 담은 종목"을 뺀다(겹치면 그 밤이
+    #    통째로 버려지던 것을 고친 장치). 그래서 두 번째 판에서
+    #    `winner`가 통째로 빠졌다. 이 검사가 보려는 것은 **한 밤의 두
+    #    회차**가 아니라 **서로 독립인 두 시나리오**이므로 장부를 나눈다.
+    alone = record_panel("2026-08-27", _coll(0), str(tmp_path / "alone"))
+    crowded = record_panel("2026-08-27", _coll(11),
+                           str(tmp_path / "crowded"))
 
     assert alone["reality_check"]["n_cand"] == 1
     assert crowded["reality_check"]["n_cand"] == 12, (
