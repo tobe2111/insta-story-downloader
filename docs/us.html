@@ -185,7 +185,13 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
         '<div class="big '+(up?"up":"down")+'">'+usd(u.equity)+'</div></div>'+
       '<div><div class="k">수익률</div><div class="v '+(up?"up":"down")+'">'+
         (up?"+":"")+Number(u.return_pct||0).toFixed(2)+'%</div></div>'+
-      '<div><div class="k">이미 낸 비용</div><div class="v">'+usd(u.cost_paid||0)+'</div></div>'+
+      /* 낸 금액 옆에 **요율**을 함께 적는다(2026-09-07) — 금액만 있으면 그 값이
+       실측 요율로 나온 것인지 가정인지 읽는 쪽이 알 수 없다. 장부에서 읽는다. */
+    '<div><div class="k">이미 낸 비용</div><div class="v">'+usd(u.cost_paid||0)+
+      (u.cost_basis_bp&&u.cost_basis_bp.us_stock!=null
+        ? '<span class="sub" style="font-size:12px"> · 편도 '+
+          Number(u.cost_basis_bp.us_stock).toFixed(1)+'bp(실측)</span>' : '')+
+      '</div></div>'+
       '<div><div class="k">체결 / 회차</div><div class="v">'+
         (u.trades_total||0)+'건 / '+(u.rounds_total||0)+'회</div></div>'+
     '</div>'+

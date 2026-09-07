@@ -8808,6 +8808,20 @@ MUTATIONS = [
      "            if (_thin := thin_features(df)):\n                opt_thin[key] = _thin",
      "            if False:\n                opt_thin[key] = {}",
      "tests/test_the_meter_counts_content_not_names.py"),
+    # ── 장중 트랙도 비용 기준을 싣는다 (2026-09-07) ────────────────
+    # 실측: docs/intraday.json · docs/intraday_us.json 둘 다 cost_basis 없음.
+    # 돈은 물리고 있었는데 요율이 공개 자료에 없어, 계약 검사가 손으로 적은
+    # 명단 밖이라 이 둘을 아예 안 보고 있었다.
+    ("장중 코인 트랙이 비용 기준을 안 싣는다(요율이 실측인지 가정인지 모른다)",
+     "quant/live/intraday_challenger.py",
+     '        "cost_basis_bp": cost_basis_bp(state_dir),',
+     "",
+     "tests/test_every_return_carries_its_cost_basis.py"),
+    ("장중 미국 트랙이 비용 기준을 안 싣는다(요율이 실측인지 가정인지 모른다)",
+     "quant/live/intraday_us.py",
+     '        "cost_basis_bp": cost_basis_bp(state_dir),',
+     "",
+     "tests/test_every_return_carries_its_cost_basis.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
