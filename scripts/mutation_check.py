@@ -8384,6 +8384,27 @@ MUTATIONS = [
      '        return f"{head} — " + " — ".join(_WHY_BUY_HOLD_CLAUSES)',
      '        return f"{head} — " + "".join(_WHY_BUY_HOLD_CLAUSES)',
      'tests/test_the_site_reads_in_english_too.py'),
+    # ── 2026-09-07 · 배치 장부가 종목을 잃지 않고, 굶는 종목에 불이 켜진다 ──
+    ('건강 기록의 종목 목록을 다시 자른다(병합이 되읽으므로 종목이 사라진다)',
+     'quant/live/daily.py',
+     '             "skipped_keys": sorted(skip_set)[:KEYS_CAP],',
+     '             "skipped_keys": sorted(skip_set)[:20],',
+     'tests/test_the_batch_ledger_does_not_lose_symbols.py'),
+    ('상한이 걸려도 아무 말 안 한다(세는 수와 목록이 조용히 어긋난다)',
+     'quant/live/daily.py',
+     '        entry["keys_truncated"] = True',
+     '        pass',
+     'tests/test_the_batch_ledger_does_not_lose_symbols.py'),
+    ('굶는 종목을 명단 밖까지 센다(은퇴한 챔피언 때문에 경보가 영영 켜져 있다)',
+     'quant/live/retrain.py',
+     '    for k in sorted(roster):',
+     '    for k in sorted(set(roster) | set(last)):',
+     'tests/test_the_batch_ledger_does_not_lose_symbols.py'),
+    ('장부에 없는 종목의 간격을 지어낸다(방금 명단에 든 종목이 굶는다고 잡힌다)',
+     'quant/live/retrain.py',
+     '        gaps[k] = (newest - idx[last[k]]) if k in last else None',
+     '        gaps[k] = (newest - idx[last[k]]) if k in last else newest',
+     'tests/test_the_batch_ledger_does_not_lose_symbols.py'),
     # ── 2026-09-07 · 선물의 방향별 성적이 조용히 거짓말하지 않는다 ────────
     #    셋 다 "숫자가 멀쩡해 보이는" 종류의 고장이다 — 화면에는 표가 그대로
     #    뜨는데 그 안의 값만 틀린다.
