@@ -331,6 +331,94 @@ def funding_cost(st: dict, prices: dict, hours: float,
     return net * float(rate_per_8h) * periods
 
 
+def direction_split(prev_positions: dict, prev_prices: dict,
+                    prices: dict) -> dict:
+    """직전 회차 이후의 **평가손익을 방향별로** 가른다.
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ⚠️ 왜 체결(확정) 손익이 아니라 **평가**인가.
+
+    확정 손익만 세면 **아직 안 판 포지션의 성적이 통째로 빠진다.** 이
+    트랙은 신호가 유지되는 동안 포지션을 들고 있으므로, 확정만 보면
+    "많이 사고판 방향"이 "성적이 있는 방향"처럼 보인다. 그건 방향을
+    비교하는 자가 아니라 회전을 비교하는 자다.
+
+    평가로 가르면 항등식이 성립한다(체결이 현금과 포지션을 상쇄해서
+    움직이므로):
+
+        자산 변화 = Σ 직전수량 × (지금가 − 직전가) − 수수료 − 자금조달
+
+    즉 롱 몫 + 숏 몫 + 수수료 + 자금조달이 자산 변화와 **맞아떨어진다.**
+    맞지 않으면 어느 한쪽이 틀린 것이고, 검사가 그것을 본다.
+
+    ⚠️ **가격이 없는 종목은 0으로 세지 않는다.** 시세를 못 받은 회차가
+       "그 방향은 아무 일도 없었다"로 기록되면, 조용한 실패와 진짜 무동작이
+       장부에서 똑같이 보인다. 그런 종목은 ``unpriced``에 이름을 남긴다.
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    """
+    out = {"long": 0.0, "short": 0.0, "unpriced": []}
+    for sym, q in (prev_positions or {}).items():
+        q = float(q or 0.0)
+        if q == 0:
+            continue
+        a, b = (prev_prices or {}).get(sym), (prices or {}).get(sym)
+        if not a or not b:
+            out["unpriced"].append(sym)
+            continue
+        pnl = q * (float(b) - float(a))
+        out["long" if q > 0 else "short"] += pnl
+    out["long"] = round(out["long"], 6)
+    out["short"] = round(out["short"], 6)
+    out["unpriced"] = sorted(out["unpriced"])
+    return out
+
+
+def funding_split(positions: dict, prices: dict, hours: float,
+                  rate_per_8h: float = FUNDING_RATE_PER_8H) -> dict:
+    """자금조달을 방향별로 가른다 — 롱은 내고 숏은 받는다.
+
+    ⚠️ 부호 규약은 ``funding_cost``와 같다(양수 = 낸 돈). 숏 몫이 음수로
+       나오는 것이 정상이고, 절댓값으로 바꾸면 숏이 부당하게 불리해진다.
+    """
+    out = {"long": 0.0, "short": 0.0}
+    if not (hours > 0):
+        return out
+    # ⚠️ `funding_cost`와 **같은 글자로 쓰지 않는다** — 변이 앵커는 원본
+    #    문자열이 파일에서 유일해야 겨냥이 서고, 겹치면 그 앵커가 통째로
+    #    무력해진다(그 사실은 화면에 안 뜬다).
+    n_periods = float(hours) / FUNDING_HOURS
+    for sym, q in (positions or {}).items():
+        q = float(q or 0.0)
+        px = (prices or {}).get(sym)
+        if not px or q == 0:
+            continue
+        amt = q * float(px) * float(rate_per_8h) * n_periods
+        out["long" if q > 0 else "short"] += amt
+    return {k: round(v, 6) for k, v in out.items()}
+
+
+def fee_split(trades: list) -> dict:
+    """수수료를 방향별로 가른다.
+
+    ⚠️ 한 체결이 **두 방향에 걸칠 수 있다** — 롱을 닫고 그대로 숏으로
+       뒤집는 주문은 닫는 몫과 여는 몫을 함께 낸다. 통째로 새 방향에
+       달면 그 회차의 숏 수수료가 부풀고 롱은 공짜로 돌아 보인다.
+       그래서 체결이 스스로 적어 둔 ``fee_by_direction``을 쓴다.
+    """
+    out = {"long": 0.0, "short": 0.0}
+    for t in (trades or []):
+        by = (t or {}).get("fee_by_direction")
+        if isinstance(by, dict):
+            out["long"] += float(by.get("long") or 0.0)
+            out["short"] += float(by.get("short") or 0.0)
+            continue
+        # 옛 기록(방향별 몫이 없다) — 지금 방향에 통째로 단다. 거칠지만
+        # 0으로 세는 것보다 낫고, 새 기록에서는 이 길로 오지 않는다.
+        out["short" if str((t or {}).get("direction")) == "숏" else "long"] += \
+            float((t or {}).get("cost") or 0.0)
+    return {k: round(v, 6) for k, v in out.items()}
+
+
 def leverage_for(signal, max_leverage: float = MAX_GROSS_EXPOSURE) -> float:
     """그 신호의 확신에 비례한 배율 (2026-08-22 사장님 지시).
 
@@ -533,7 +621,13 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
                "direction": ("숏" if new_qty < 0 else
                              ("롱" if new_qty > 0 else "청산")),
                "notional": round(delta, 2), "price": px,
-               "cost": round(fee, 4), "signal": round(float(sig), 4)}
+               "cost": round(fee, 4), "signal": round(float(sig), 4),
+               # 이 수수료가 **어느 방향의 것인가**. 닫는 몫은 옛 방향이,
+               # 여는 몫은 새 방향이 낸다 — 뒤집는 주문은 둘 다 낸다.
+               # ⚠️ `direction`(새 방향)으로 대신 세면 안 된다: 롱을 통째로
+               #    닫는 주문의 `direction`은 "청산"이라 어느 방향에도 안
+               #    달리고, 뒤집는 주문은 롱이 낸 몫까지 숏에 달린다.
+               "fee_by_direction": _fee_by_direction(cur_qty, qty, fee)}
         if realized is not None:
             rec["realized_pnl"] = realized
             rec["avg_cost"] = round(prev_avg, 6)
@@ -541,6 +635,28 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
     st["positions"] = positions
     st["avg_cost"] = avg
     return trades
+
+
+def _fee_by_direction(cur_qty: float, qty: float, fee: float) -> dict:
+    """한 체결의 수수료를 닫는 몫(옛 방향)과 여는 몫(새 방향)으로 가른다.
+
+    수량 비례로 가른다 — 수수료가 체결 금액에 비례하므로 금액 비례와 같다.
+    """
+    cur_qty, qty, fee = float(cur_qty), float(qty), float(fee)
+    out = {"long": 0.0, "short": 0.0}
+    if fee == 0 or qty == 0:
+        return out
+    if cur_qty != 0 and (cur_qty > 0) != (qty > 0):
+        closed = min(abs(qty), abs(cur_qty))
+        opened = abs(qty) - closed
+        out["long" if cur_qty > 0 else "short"] += fee * closed / abs(qty)
+        if opened > 0:
+            out["short" if cur_qty > 0 else "long"] += fee * opened / abs(qty)
+    else:
+        # 새로 열거나 같은 방향으로 키운다 — 전부 그 방향의 몫이다.
+        side = cur_qty if cur_qty != 0 else qty
+        out["long" if side > 0 else "short"] += fee
+    return {k: round(v, 6) for k, v in out.items()}
 
 
 def apply_funding(st: dict, prices: dict, hours: float,
@@ -639,6 +755,144 @@ def build_two_sided(symbol: str, state_dir: str, *,
     return build_strategy(two), True
 
 
+def backfill_direction_pnl(st: dict) -> dict:
+    """지나간 회차의 방향별 성적을 **재구성해** 채운다 (2026-09-07).
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ⚠️ 재구성한 값은 **기록된 값이 아니다.** 옛 회차에는 마크 가격이 없어서,
+       그 회차에 체결이 있었던 종목의 **체결가**를 그 회차의 가격으로 쓴다.
+       체결이 없던 종목은 그 회차의 가격을 모르므로 **0으로 세지 않고**
+       ``unpriced``에 남긴다.
+
+       그래서 재구성 줄에는 ``reconstructed: True``가 붙는다. 붙이지 않으면
+       "정확히 잰 값"과 "가진 것으로 짜 맞춘 값"이 화면에서 똑같이 보이고,
+       그 구별이 사라지는 것이 이 저장소가 반복해서 잡아 온 병이다.
+
+    ⚠️ 이미 기록이 있는 회차는 **건드리지 않는다.** 옛 기록을 고치지 않는
+       것이 이 저장소의 규약이다.
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    """
+    rounds = list(st.get("rounds") or [])
+    prev_pos: dict = {}
+    prev_px: dict = {}
+    filled = 0
+    for r in rounds:
+        if not isinstance(r, dict):
+            continue
+        # 이 회차의 가격: 기록이 있으면 그것, 없으면 체결가로 짜 맞춘다.
+        px = dict(r.get("prices") or {})
+        recon = not px
+        if recon:
+            for t in (r.get("trades") or []):
+                sym, pr = (t or {}).get("symbol"), (t or {}).get("price")
+                if sym and pr:
+                    px[sym] = float(pr)
+        if "direction_pnl" not in r:
+            one = _round_direction_pnl(st, prev_pos, prev_px, px,
+                                       r.get("trades") or [], 0.0)
+            # 자금조달은 시간이 필요한데 옛 회차에는 그 구간의 시간이 없다.
+            # 장부에 남은 그 회차의 자금조달 총액을 방향 비중으로 가른다 —
+            # 짜 맞춘 값이라 아래 `reconstructed`가 함께 붙는다.
+            one["funding"] = _split_by_exposure(prev_pos, px,
+                                                float(r.get("funding") or 0.0))
+            one["net"] = {k: round(one["gross"][k] - one["fee"].get(k, 0.0)
+                                   - one["funding"].get(k, 0.0), 6)
+                          for k in ("long", "short")}
+            if recon:
+                one["reconstructed"] = True
+            r["direction_pnl"] = one
+            filled += 1
+        prev_pos = dict(r.get("positions") or {})
+        prev_px = px
+    st["rounds"] = rounds
+    # 누적은 회차를 다시 훑어 처음부터 세운다(이미 센 것을 두 번 세지 않게).
+    st.pop("direction_totals", None)
+    for r in rounds:
+        one = (r or {}).get("direction_pnl")
+        if one:
+            _accumulate_direction(st, one)
+    tot = dict(st.get("direction_totals") or {})
+    tot["reconstructed_rounds"] = sum(
+        1 for r in rounds
+        if ((r or {}).get("direction_pnl") or {}).get("reconstructed"))
+    st["direction_totals"] = tot
+    return {"filled": filled, "rounds": len(rounds),
+            "reconstructed": tot["reconstructed_rounds"]}
+
+
+def _split_by_exposure(positions: dict, prices: dict, amount: float) -> dict:
+    """한 덩어리 금액을 방향별 **노출 비중**으로 가른다(재구성 전용).
+
+    ⚠️ 자금조달은 원래 부호가 방향마다 반대다(롱은 내고 숏은 받는다).
+       비중으로 가르면 그 부호가 사라지므로, 이 함수는 **옛 회차를 짜
+       맞출 때만** 쓰고 새 회차는 ``funding_split``이 정확히 가른다.
+    """
+    out = {"long": 0.0, "short": 0.0}
+    if not amount:
+        return out
+    tot = 0.0
+    w = {"long": 0.0, "short": 0.0}
+    for sym, q in (positions or {}).items():
+        px = (prices or {}).get(sym)
+        q = float(q or 0.0)
+        if not px or q == 0:
+            continue
+        v = abs(q * float(px))
+        w["long" if q > 0 else "short"] += v
+        tot += v
+    if tot <= 0:
+        return out
+    return {k: round(float(amount) * w[k] / tot, 6) for k in out}
+
+
+def _round_direction_pnl(st: dict, prev_positions: dict, prev_prices: dict,
+                         prices: dict, trades: list, hours: float) -> dict:
+    """이 회차의 방향별 성적 한 줄.
+
+    ⚠️ **총이득과 순이득을 둘 다 적는다.** 수수료 빼기 전만 적으면 회전이
+       심한 방향이 좋아 보이고, 순만 적으면 "전략이 벌었는데 수수료가
+       먹었다"는 사실이 사라진다(사장님 2026-09-02 지시의 요지다).
+    """
+    split = direction_split(prev_positions, prev_prices, prices)
+    fees = fee_split(trades)
+    fund = funding_split(prev_positions, prices, hours)
+    out = {"gross": {"long": split["long"], "short": split["short"]},
+           "fee": fees, "funding": fund,
+           "net": {k: round(split[k] - fees.get(k, 0.0) - fund.get(k, 0.0), 6)
+                   for k in ("long", "short")},
+           "positions": {
+               "long": sum(1 for q in (prev_positions or {}).values()
+                           if float(q or 0) > 0),
+               "short": sum(1 for q in (prev_positions or {}).values()
+                            if float(q or 0) < 0)}}
+    # 시세를 못 받아 못 잰 종목 — 있으면 **이름을 남긴다**(0으로 세지 않는다).
+    if split["unpriced"]:
+        out["unpriced"] = split["unpriced"]
+    # 첫 회차는 직전 가격이 없다. 그 사실을 적어 두지 않으면 "아무 일도
+    # 없던 회차"와 구별되지 않는다.
+    if not prev_prices:
+        out["no_prior_marks"] = True
+    return out
+
+
+def _accumulate_direction(st: dict, one: dict) -> dict:
+    """방향별 누적 — 회차 보관 한도(ROUNDS_KEEP)를 넘겨도 살아남는 값이다.
+
+    ⚠️ 회차 목록만 보고 합산하면, 오래된 회차가 잘려 나간 뒤 누적이 조용히
+       줄어든다. 화면이 "숏이 덜 잃었다"로 바뀌는데 아무 빨간불도 안 뜬다.
+    """
+    tot = dict(st.get("direction_totals") or {})
+    for key in ("gross", "fee", "funding", "net"):
+        cur = dict(tot.get(key) or {})
+        for side in ("long", "short"):
+            cur[side] = round(float(cur.get(side) or 0.0)
+                              + float((one.get(key) or {}).get(side) or 0.0), 6)
+        tot[key] = cur
+    tot["rounds"] = int(tot.get("rounds") or 0) + 1
+    st["direction_totals"] = tot
+    return tot
+
+
 def run_futures_round(now_iso: str, *, state_dir: str = "state",
                       universe: list[str] | None = None,
                       per_side: float | None = None) -> dict:
@@ -657,6 +911,13 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         from quant.live.daily import measured_cost_model
         per_side = float(measured_cost_model("crypto", state_dir).total_one_way())
     st = load_state(state_dir)
+    # ── 지나간 회차를 **한 번** 채운다(멱등) ────────────────────────────
+    # 방향별 성적을 처음 남기기 시작한 날 이전의 회차에는 그 칸이 없다.
+    # 비워 두면 화면의 누적이 "그때는 아무 일도 없었다"로 읽히므로, 가진
+    # 재료(체결가)로 짜 맞춰 채우고 **재구성이라고 적는다**.
+    # ⚠️ 이미 칸이 있는 회차는 건드리지 않는다 — 옛 기록은 고치지 않는다.
+    if any("direction_pnl" not in (r or {}) for r in (st.get("rounds") or [])):
+        backfill_direction_pnl(st)
 
     signals: dict = {}
     prices: dict = {}
@@ -710,6 +971,14 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         signals[sym] = recalibrate(sig, spec_of(strat), allow_short=True)
         prices[sym] = float(df["close"].iloc[-1])
 
+    # ⚠️ 평가손익은 **직전 회차가 남긴 포지션·가격**으로 잰다. 그래서
+    #    여기서, **청산 검사보다 앞에서** 붙잡는다 — 청산은 포지션을 닫으므로
+    #    뒤에서 붙잡으면 청산으로 잃은 몫이 어느 방향에도 안 달리고, 자산
+    #    변화와 방향별 합이 조용히 어긋난다(항등식이 깨진다).
+    _last_round = (st.get("rounds") or [])[-1] if (st.get("rounds") or []) else {}
+    prev_positions = dict(st.get("positions") or {})
+    prev_prices = dict((_last_round or {}).get("prices") or {})
+
     # ⚠️ **청산이 가장 먼저다.** 증거금이 바닥났으면 그 자리에서 끝이고,
     #    그날의 판단은 의미가 없다. 순서를 바꾸면 이미 털렸어야 할 계좌가
     #    한 회차를 더 버티며 새 포지션을 여는, 현실에 없는 장부가 된다.
@@ -762,6 +1031,11 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
 
     rec = {"at": now_iso, "equity": round(equity, 4),
            "cash": round(float(st["cash"]), 4),
+           # ⚠️ **이 회차에 쓴 마크 가격을 남긴다.** 없으면 방향별 성적을
+           #    나중에 되살릴 수 없고, 되살리려면 그때의 시세를 다시
+           #    받아와야 하는데 그건 지나가면 못 하는 일이다(작업 #64와
+           #    같은 종류의 재료다). 못 받은 종목은 애초에 안 들어온다.
+           "prices": {k: round(float(v), 10) for k, v in prices.items()},
            "gross_exposure": round(gross_exposure(st, prices), 4),
            "funding": round(funding, 6),
            "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
@@ -789,6 +1063,15 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
                              if direction else {"two_sided": two_sided_ok})
     if liq:
         rec["liquidated"] = liq
+    # ── 방향별 성적 — **기록으로** 남긴다 (2026-09-07 사장님 지시) ─────
+    #
+    # 그전까지 화면에는 롱 개수와 숏 개수가 나란히 떠 있었지만, **각각
+    # 얼마를 벌고 잃었는지는 어디에도 없었다.** 나란히 보이는 것이 비교는
+    # 아니다 — 이 트랙이 한 번 걸렸던 바로 그 모양이다(선물에 "나란히 도는
+    # 반대쪽"이 없던 일). 이제 회차마다 적는다.
+    rec["direction_pnl"] = _round_direction_pnl(
+        st, prev_positions, prev_prices, prices, trades, hours)
+    _accumulate_direction(st, rec["direction_pnl"])
     # 이 회차에 허락된 배율 상한과 그 이유 — 화면이 그대로 읽는다.
     rec["leverage_cap"] = lev_cap
     # 수수료 예산과 그날 적용된 밴드 — 회전이 왜 그랬는지를 장부가 말한다.
@@ -925,6 +1208,52 @@ def _fee_window(st: dict, days: int = 7) -> dict:
             "since": base.get("at")}
 
 
+def _direction_public(st: dict) -> dict:
+    """공개용 방향별 성적 — 누적과 '얼마나 짜 맞춘 값인가'를 함께 싣는다."""
+    tot = dict(st.get("direction_totals") or {})
+    if not tot:
+        # 칸을 비우지 않는다 — 비우면 "0이다"와 "아직 안 잰다"가 같아진다.
+        return {"measured": False,
+                "why": "아직 방향별로 기록한 회차가 없습니다"}
+    n = int(tot.get("rounds") or 0)
+    recon = int(tot.get("reconstructed_rounds") or 0)
+    out = {"measured": True,
+           "gross": tot.get("gross") or {},
+           "fee": tot.get("fee") or {},
+           "funding": tot.get("funding") or {},
+           "net": tot.get("net") or {},
+           "rounds": n,
+           "reconstructed_rounds": recon}
+    if recon:
+        out["note"] = (f"{n}회차 중 {recon}회차는 마크 가격이 없던 때라 "
+                       "체결가로 재구성한 값입니다")
+    # ── **못 가른 몫을 숫자로 적는다** ────────────────────────────────────
+    #
+    # 항등식은 `자산 변화 = 롱 + 숏 − 수수료 − 자금조달`이다. 마크 가격을
+    # 남기는 회차에서는 이 잔차가 0이다. 재구성한 옛 회차에서는 **체결이
+    # 없던 종목의 가격을 모르므로** 그만큼이 어느 방향에도 안 달리고,
+    # 잔차로 남는다.
+    #
+    # ⚠️ 이 칸을 안 두면 재구성의 한계가 "주의 문구 한 줄"로만 남는다.
+    #    숫자로 적어야 읽는 사람이 **얼마나 못 갈랐는지**를 알 수 있고,
+    #    앞으로 이 값이 0으로 수렴하는 것이 이 작업이 끝났다는 증거가 된다.
+    rounds = st.get("rounds") or []
+    base = float(st.get("start_cash") or 0.0)
+    if rounds and base:
+        eq = float((rounds[-1] or {}).get("equity") or 0.0)
+        attributed = (sum(float(v) for v in (tot.get("gross") or {}).values())
+                      - sum(float(v) for v in (tot.get("fee") or {}).values())
+                      - sum(float(v) for v in (tot.get("funding") or {}).values()))
+        out["unattributed"] = round((eq - base) - attributed, 4)
+    # 지금 들고 있는 포지션의 방향별 개수도 함께 — 금액과 개수는 다른 것이고,
+    # 둘을 같이 놓아야 "숏이 적어서 작은 것"인지 "숏이 나빠서 작은 것"인지
+    # 읽는 사람이 구별할 수 있다.
+    lo = sum(1 for q in (st.get("positions") or {}).values() if float(q) > 0)
+    sh = sum(1 for q in (st.get("positions") or {}).values() if float(q) < 0)
+    out["open_positions"] = {"long": lo, "short": sh}
+    return out
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -967,6 +1296,14 @@ def public_report(st: dict) -> dict:
         # ⚠️ 판정이 없는 상태도 그대로 싣는다 — 안 실으면 "아직 못 쟀다"와
         #    "재 보니 괜찮더라"가 화면에서 똑같이 보인다.
         "direction_gate": last.get("direction_gate") or {},
+        # ── 방향별 성적 — **개수가 아니라 금액이다** (2026-09-07) ─────────
+        # 그전까지 화면에는 롱 개수와 숏 개수만 있었다. 나란히 보이는 것이
+        # 비교는 아니다 — 각각 얼마를 벌고 잃었는지가 없으면 "숏 때문인가"에
+        # 답할 수 없다. 총이득(수수료 전)과 순이득(수수료·자금조달 뒤)을
+        # 함께 싣는다: 총만 실으면 광고이고, 순만 실으면 "전략은 벌었는데
+        # 수수료가 먹었다"는 사실이 사라진다.
+        # ⚠️ 옛 회차 몫은 **재구성한 값**이라 그 사실을 함께 싣는다.
+        "direction_pnl": _direction_public(st),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 4),
         "funding_paid": round(float(st.get("funding_paid") or 0.0), 6),
         "funding_rate_per_8h": FUNDING_RATE_PER_8H,

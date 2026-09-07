@@ -112,6 +112,13 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
      롱만 했으면 얼마였을지를 아무도 계산하지 않았다. 이제 밤마다 잰다. -->
 <div class="card sub" id="direction">불러오는 중…</div>
 
+<h2>롱과 숏이 각각 얼마를 벌었나 <span class="tag">개수가 아니라 금액입니다</span></h2>
+<!-- 사장님 질문(2026-09-07): "선물투자 시, 롱숏 포지션 고려도 잘 하는거지?"
+     열어 보니 방향을 **고르는** 장치는 다 돌고 있는데 방향별 **성적**은
+     어디에도 없었다. 화면에는 롱 개수와 숏 개수만 나란히 떠 있어서, 마치
+     둘을 비교하고 있는 것처럼 보였다 — 이 트랙이 이미 한 번 걸린 모양이다. -->
+<div class="card sub" id="dirpnl">불러오는 중…</div>
+
 <h2>이 트랙이 스스로에게 거는 제한 <span class="tag">결과를 보기 전에 정했습니다</span></h2>
 <div class="card" id="rules">불러오는 중…</div>
 
@@ -428,6 +435,61 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       '<div class="sub" style="margin-top:6px">이 비교에는 자금조달비가 '+
       '빠져 있습니다 — 방향마다 부호가 반대라 한쪽으로 물리면 숏이 부당하게 '+
       '불리해집니다. 그래서 이 판정은 숏에 보수적인 쪽입니다.</div>';
+  })();
+  /* ── 롱과 숏이 각각 얼마를 벌었나 ── */
+  (function(){
+    var v=d.direction_pnl||{}, el=document.getElementById("dirpnl");
+    if(!el) return;
+    if(!v.measured){
+      el.innerHTML='<b>아직 방향별로 기록한 회차가 없습니다.</b>'+
+        '<div style="margin-top:6px">비어 있는 것과 0인 것은 다릅니다 — '+
+        '그래서 0이라고 적지 않습니다.</div>';
+      return;
+    }
+    function money(x){
+      var n=Number(x||0);
+      return '<b class="'+(n<0?"down":(n>0?"up":""))+'">'+
+        (n>=0?"+":"")+n.toFixed(1)+'</b>';
+    }
+    var g=v.gross||{}, f=v.fee||{}, fu=v.funding||{}, nt=v.net||{}, op=v.open_positions||{};
+    /* ⚠️ 숫자는 **태그 안에 가둔다.** 영어 사전은 글자 마디를 통째로 찾으므로
+       숫자가 문장 중간에 있으면 값이 바뀔 때마다 마디가 달라져 번역이 조용히
+       끊긴다(방향 관문 블록과 같은 규약). */
+    var rows=[["오를 때 건 쪽(롱)","long"],["내릴 때 건 쪽(숏)","short"]]
+      .map(function(r){
+        return '<tr><td>'+r[0]+'</td><td>'+money(g[r[1]])+
+          '</td><td>'+money(-Math.abs(Number(f[r[1]]||0)))+
+          '</td><td>'+money(-Number(fu[r[1]]||0))+
+          '</td><td>'+money(nt[r[1]])+'</td></tr>';
+      }).join("");
+    el.innerHTML=
+      '<table><thead><tr><th>방향</th>'+
+      '<th title="수수료와 자금조달을 빼기 전, 전략 자체가 낸 성적입니다">수수료 빼기 전</th>'+
+      '<th>수수료</th><th title="오를 때 건 쪽이 내고 내릴 때 건 쪽이 받습니다">자금조달</th>'+
+      '<th>최종</th></tr></thead>'+
+      '<tbody>'+rows+'</tbody></table>'+
+      '<div class="sub" style="margin-top:8px">단위는 USDT입니다. '+
+      '자금조달은 오를 때 건 쪽이 내고 내릴 때 건 쪽이 받으므로, 부호가 '+
+      '방향마다 반대인 것이 정상입니다.</div>'+
+      /* ⚠️ 아래 문장들은 **태그를 안에 끼우지 않는다.** 사전은 텍스트 마디
+         단위로 찾는데 <b>가 문장 가운데 있으면 마디가 셋으로 쪼개져 그
+         조각들이 영영 안 맞는다(2026-09-05 buy_hold 해설에서 겪은 그것과
+         같은 뿌리다). 숫자만 태그 안에 가두고 문장은 통째로 둔다. */
+      '<div style="margin-top:8px">지금 들고 있는 자리(오를 때 · 내릴 때): '+
+      '<b>'+Number(op.long||0)+' · '+Number(op.short||0)+'</b></div>'+
+      '<div class="sub" style="margin-top:4px">개수와 금액을 같이 놓는 이유는, '+
+      '한쪽이 작을 때 그게 적게 걸어서인지 걸어서 잃어서인지를 읽는 분이 '+
+      '구별할 수 있어야 하기 때문입니다.</div>'+
+      (v.reconstructed_rounds?
+        '<div class="sub" style="margin-top:8px">⚠️ 마크 가격이 없던 때라 '+
+        '체결가로 재구성한 회차: <b>'+Number(v.reconstructed_rounds)+' / '+
+        Number(v.rounds||0)+'</b></div>':"")+
+      (v.unattributed!=null?
+        '<div class="sub" style="margin-top:4px">어느 방향에도 못 가른 몫: '+
+        '<b>'+Number(v.unattributed).toFixed(1)+'</b></div>'+
+        '<div class="sub" style="margin-top:4px">재구성한 회차는 그날 '+
+        '사고팔지 않은 종목의 값을 몰라서 생깁니다. 앞으로 쌓이는 회차에서는 '+
+        '이 값이 0으로 갑니다.</div>':"");
   })();
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),
