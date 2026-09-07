@@ -2375,12 +2375,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 가상 계좌 4개를 나란히 굴린다(상대 비교 전용, 본 계좌 판정 미사용).
     # 본 계좌 경로는 이 아래로도 그대로다 — 실험의 어떤 실패도 본 계좌
     # 배치를 죽이면 안 되므로 예외는 삼키고 사유만 남긴다.
-    try:
-        from quant.live.alloc_ladder import run_alloc_ladder
-        run_alloc_ladder(bar=bar, weights=weights, rets_map=rets_map,
-                         marks=marks, n_total=n, state_dir=state_dir)
-    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
-        log.warning("배분 사다리 실패(본 계좌 무관): %s", exc)
+    # ⚠️ **본 계좌 회차에서만 굴린다** (2026-09-07 장부 실측). 이 함수는
+    #    하루에 두 번 도는데(본 계좌 · 섀도 대조군) 두 회차가 **같은 장부
+    #    파일**에 썼다. 판정일이 같은 평일에는 멱등 가드가 둘째 줄을 삼켜
+    #    아무 표시도 없었지만, 갈리는 주말에는 대조군의 줄이 그대로 끼어들었다
+    #    — 장부 10개 × 2줄, 그리고 그 줄이 매번 마지막 줄이라 화면의 대표
+    #    숫자 10개가 전부 **다른 계좌의 값**이었다.
+    #
+    #    대조군은 "오디션이 가치를 더하는가"를 재는 계좌라 **신호 자체가
+    #    다르다.** 이 실험들의 약속은 "본 계좌와 **같은 신호**에 X만 바꿈"이므로
+    #    대조군의 신호는 여기 들어오면 안 된다. 다양성 그림자만 처음부터
+    #    깨끗했는데, 그 재료(`mix_pair`)가 이미 이 가드 안에 있었기 때문이다.
+    if use_champions:
+        try:
+            from quant.live.alloc_ladder import run_alloc_ladder
+            run_alloc_ladder(bar=bar, weights=weights, rets_map=rets_map,
+                             marks=marks, n_total=n, state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("배분 사다리 실패(본 계좌 무관): %s", exc)
 
     tilt = _xsec_tilt(weights)
     budget = sum(slices.get(k, 1.0 / n) for k in weights)
@@ -2400,18 +2412,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 사이징 사다리(2026-08-22, 사장님 "왜 조금씩만 사?") — 같은 확률에
     # **크기 규칙만** 바꾼 가상 계좌 4개. 이 축은 오디션이 한 번도 흔든 적이
     # 없다(저장소가 스스로 적어 둔 사실). 진입 조건은 넷이 공유한다.
-    try:
-        from quant.live.sizing_ladder import run_sizing_ladder
-        run_sizing_ladder(bar=bar, probs=probs, thresholds=thresholds,
-                          marks=marks, state_dir=state_dir)
-    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
-        log.warning("사이징 사다리 실패(본 계좌 무관): %s", exc)
-    try:
-        from quant.live.gen2 import run_gen2
-        run_gen2(bar=bar, weights=weights, marks=marks,
-                 grades=valid_grades, tilt=None, state_dir=state_dir)
-    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
-        log.warning("2세대 그림자 실패(본 계좌 무관): %s", exc)
+    if use_champions:                       # 위와 같은 이유(2026-09-07)
+        try:
+            from quant.live.sizing_ladder import run_sizing_ladder
+            run_sizing_ladder(bar=bar, probs=probs, thresholds=thresholds,
+                              marks=marks, state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("사이징 사다리 실패(본 계좌 무관): %s", exc)
+        try:
+            from quant.live.gen2 import run_gen2
+            run_gen2(bar=bar, weights=weights, marks=marks,
+                     grades=valid_grades, tilt=None, state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("2세대 그림자 실패(본 계좌 무관): %s", exc)
     # 다양성 가중 그림자(2026-08-23, 사장님 조기 착수 지시) — 같은 의원
     # 신호를 '섞는 비중'만 바꾼 두 계좌. 의회 softmax 비중이 상관을 안 보는
     # 격차(weight_gap 0.196)가 실제 돈 곡선에서 얼마인지 잰다.
@@ -2421,12 +2434,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                              state_dir=state_dir)
     except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
         log.warning("다양성 가중 그림자 실패(본 계좌 무관): %s", exc)
-    try:
-        from quant.live.unshackled import run_unshackled
-        run_unshackled(bar=bar, weights=weights, slices=slices,
-                       marks=marks, n_total=n, state_dir=state_dir)
-    except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
-        log.warning("무제약 그림자 실패(본 계좌 무관): %s", exc)
+    if use_champions:                       # 위와 같은 이유(2026-09-07)
+        try:
+            from quant.live.unshackled import run_unshackled
+            run_unshackled(bar=bar, weights=weights, slices=slices,
+                           marks=marks, n_total=n, state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("무제약 그림자 실패(본 계좌 무관): %s", exc)
     # 포트폴리오 목표 변동성 — 종목 사이징(20% 목표) × 1/n 슬라이스의 이중
     # 감쇠로 총노출이 우연히 결정되던 것을 명시적 목표로 교정한다. 엣지가
     # 입증되기 전에는 게이트가 검증 목표(연 1%)를 상한으로 강제한다.

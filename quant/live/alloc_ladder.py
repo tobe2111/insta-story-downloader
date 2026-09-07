@@ -30,6 +30,7 @@ from __future__ import annotations
 import json
 import os
 
+from quant.live import shadow_clock as clock
 from quant.utils.logging import get_logger
 
 log = get_logger("live.alloc_ladder")
@@ -126,8 +127,16 @@ def run_alloc_ladder(*, bar: str, weights: dict, rets_map: dict,
     for method in ALLOC_METHODS:
         path = os.path.join(root, f"{method}.json")
         st = _load(path)
-        if st["history"] and st["history"][-1].get("date") == bar:
-            out[method] = st["history"][-1]          # 같은 봉 재실행 — 멱등
+        move = clock.step(st["history"], bar)
+        if move == clock.SAME:
+            out[method] = st["history"][-1]      # 같은 봉 재실행 — 멱등
+            continue
+        if move == clock.BACKWARDS:
+            # ⚠️ 과거로 가는 봉은 사고다 — 이 장부에 **다른 계좌**가
+            #    썼거나 시세가 뒤처졌다는 뜻이라 쓰지 않는다
+            #    (2026-09-07. 본 계좌는 2026-08-16에 같은 관문을 얻었다).
+            log.error("배분 사다리: 판정일이 과거로 갔다 — 기록 %s → 지금 %s. "
+                      "쓰지 않는다.", st["history"][-1].get("date"), bar)
             continue
 
         # ① 전일 목표를 오늘 수익에 적용(1봉 지연 — 본 계좌와 같은 방향의 규약)
@@ -168,20 +177,27 @@ def ladder_public(state_dir: str = "state") -> dict | None:
     root = os.path.join(state_dir, DIR)
     if not os.path.isdir(root):
         return None
-    rows = {}
+    rows, mixed = {}, {}
     for method in ALLOC_METHODS:
         st = _load(os.path.join(root, f"{method}.json"))
         if not st["history"]:
             continue
-        last = st["history"][-1]
+        # ⚠️ 마지막으로 **쓴** 줄이 아니라 가장 최신 **봉**의 줄이다
+        #    (2026-09-07 — 둘이 갈려 있었고 화면은 앞의 것을 읽었다).
+        last = clock.latest_row(st["history"])
         rows[method] = {"equity": last["equity"],
                         "return_pct": last["return_pct"],
-                        "days": len(st["history"])}
+                        "days": clock.distinct_days(st["history"])}
+        if (ooo := clock.out_of_order(st["history"])):
+            mixed[method] = ooo
     if not rows:
         return None
     from quant.live.daily import cost_basis_bp
-    return {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
+    out = {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
         "같은 신호에 배분 방법만 바꾼 가상 계좌들입니다(종가 평가·수수료만, "
         "본 계좌의 변동성 타깃·킬스위치 등은 없음 — 배분 간 상대 비교 전용). "
         "트랙이 4개라 우연히 좋아 보이는 승자가 나올 확률도 4배입니다 — "
         "판정은 곡선이 충분히 갈라진 뒤에만 의미가 있습니다.")}
+    if mixed:
+        out["mixed_rows"] = {"why": clock.MIXED_WHY, "tracks": mixed}
+    return out

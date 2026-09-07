@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import os
 
+from quant.live import shadow_clock as clock
 from quant.utils.logging import get_logger
 
 log = get_logger("live.diversity_shadow")
@@ -132,8 +133,16 @@ def run_diversity_shadow(*, bar: str, pairs: dict, marks: dict,
     for ti, track in enumerate(TRACKS):
         path = os.path.join(root, f"{track}.json")
         st = _load(path)
-        if st["history"] and st["history"][-1].get("date") == bar:
-            out[track] = st["history"][-1]            # 같은 봉 재실행 — 멱등
+        move = clock.step(st["history"], bar)
+        if move == clock.SAME:
+            out[track] = st["history"][-1]      # 같은 봉 재실행 — 멱등
+            continue
+        if move == clock.BACKWARDS:
+            # ⚠️ 과거로 가는 봉은 사고다 — 이 장부에 **다른 계좌**가
+            #    썼거나 시세가 뒤처졌다는 뜻이라 쓰지 않는다
+            #    (2026-09-07. 본 계좌는 2026-08-16에 같은 관문을 얻었다).
+            log.error("다양성 가중 그림자: 판정일이 과거로 갔다 — 기록 %s → 지금 %s. "
+                      "쓰지 않는다.", st["history"][-1].get("date"), bar)
             continue
 
         # ① 전일 목표를 오늘 수익에 적용(1봉 지연 — 사다리들과 같은 규약)
@@ -173,21 +182,29 @@ def diversity_public(state_dir: str = "state") -> dict | None:
     root = os.path.join(state_dir, DIR)
     if not os.path.isdir(root):
         return None
-    rows = {}
+    rows, mixed = {}, {}
     for track in TRACKS:
         st = _load(os.path.join(root, f"{track}.json"))
         if not st["history"]:
             continue
-        last = st["history"][-1]
+        # ⚠️ 마지막으로 **쓴** 줄이 아니라 가장 최신 **봉**의 줄이다
+        #    (2026-09-07 — 다른 장부 넷에서 둘이 갈려 있었다. 이 장부는
+        #    깨끗했지만 읽는 규칙은 다섯이 같아야 한다).
+        last = clock.latest_row(st["history"])
         rows[track] = {"equity": last["equity"],
                        "return_pct": last["return_pct"],
-                       "days": len(st["history"])}
+                       "days": clock.distinct_days(st["history"])}
+        if (ooo := clock.out_of_order(st["history"])):
+            mixed[track] = ooo
     if not rows:
         return None
     from quant.live.daily import cost_basis_bp
-    return {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
+    out = {"tracks": rows, "cost_basis_bp": cost_basis_bp(state_dir), "note": (
         "의회가 2석 이상인 계좌에서 **같은 의원 신호**를 두 비중으로 섞은 "
         "가상 계좌입니다 — actual은 지금 실제 비중, diversity는 전략 간 "
         "상관까지 본 비중. 종가 평가·수수료만 반영(본 계좌의 안전장치 없음 — "
         "두 트랙의 상대 비교 전용). 착수 문턱(격차 0.2) 미달(0.196) 상태에서 "
         "지시로 조기 시작했음을 함께 적습니다. 판정은 2026-12-20.")}
+    if mixed:
+        out["mixed_rows"] = {"why": clock.MIXED_WHY, "tracks": mixed}
+    return out

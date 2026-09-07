@@ -56,6 +56,7 @@ from __future__ import annotations
 import json
 import os
 
+from quant.live import shadow_clock as clock
 from quant.utils.logging import get_logger
 
 log = get_logger("live.sizing_ladder")
@@ -129,8 +130,16 @@ def run_sizing_ladder(*, bar: str, probs: dict, thresholds: dict,
     for sizer in SIZERS:
         path = os.path.join(root, f"{sizer}.json")
         st = _load(path)
-        if st["history"] and st["history"][-1].get("date") == bar:
-            out[sizer] = st["history"][-1]           # 같은 봉 재실행 — 멱등
+        move = clock.step(st["history"], bar)
+        if move == clock.SAME:
+            out[sizer] = st["history"][-1]      # 같은 봉 재실행 — 멱등
+            continue
+        if move == clock.BACKWARDS:
+            # ⚠️ 과거로 가는 봉은 사고다 — 이 장부에 **다른 계좌**가
+            #    썼거나 시세가 뒤처졌다는 뜻이라 쓰지 않는다
+            #    (2026-09-07. 본 계좌는 2026-08-16에 같은 관문을 얻었다).
+            log.error("사이징 사다리: 판정일이 과거로 갔다 — 기록 %s → 지금 %s. "
+                      "쓰지 않는다.", st["history"][-1].get("date"), bar)
             continue
 
         # ① 전일 목표를 오늘 수익에 적용(1봉 지연 — 배분 사다리와 같은 규약)
@@ -173,21 +182,28 @@ def sizing_public(state_dir: str = "state") -> dict | None:
     root = os.path.join(state_dir, DIR)
     if not os.path.isdir(root):
         return None
-    rows = {}
+    rows, mixed = {}, {}
     for sizer in SIZERS:
         st = _load(os.path.join(root, f"{sizer}.json"))
         if not st["history"]:
             continue
-        last = st["history"][-1]
+        # ⚠️ 마지막으로 **쓴** 줄이 아니라 가장 최신 **봉**의 줄이다
+        #    (2026-09-07 — 둘이 갈려 있었고 화면은 앞의 것을 읽었다).
+        last = clock.latest_row(st["history"])
         gs = [float(r.get("gross") or 0.0) for r in st["history"]]
         rows[sizer] = {"equity": last["equity"],
                        "return_pct": last["return_pct"],
                        "gross_avg": round(sum(gs) / len(gs), 4),
-                       "days": len(st["history"])}
+                       "days": clock.distinct_days(st["history"])}
+        if (ooo := clock.out_of_order(st["history"])):
+            mixed[sizer] = ooo
     if not rows:
         return None
-    return {"tracks": rows, "note": (
+    out = {"tracks": rows, "note": (
         "같은 확률에 **크기 규칙만** 바꾼 가상 계좌들입니다(종가 평가·"
         "수수료만, 본 계좌의 변동성 타깃·킬스위치·검증 게이트는 없음 — "
         "규칙 간 상대 비교 전용). 진입 조건(데드존)은 넷이 같습니다. "
         "트랙이 4개라 우연히 좋아 보이는 승자가 나올 확률도 4배입니다.")}
+    if mixed:
+        out["mixed_rows"] = {"why": clock.MIXED_WHY, "tracks": mixed}
+    return out
