@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 
+from quant.live import shadow_clock as clock
 from quant.utils.logging import get_logger
 
 log = get_logger("live.unshackled")
@@ -73,8 +74,15 @@ def run_unshackled(*, bar: str, weights: dict, slices: dict, marks: dict,
         return None
     path = os.path.join(state_dir, FILE)
     st = _load(path)
-    if st["history"] and st["history"][-1].get("date") == bar:
-        return st["history"][-1]
+    move = clock.step(st["history"], bar)
+    if move == clock.SAME:
+        return st["history"][-1]                 # 같은 봉 재실행 — 멱등
+    if move == clock.BACKWARDS:
+        # ⚠️ 과거로 가는 봉은 사고다 — 이 장부에 **다른 계좌**가 썼거나
+        #    시세가 뒤처졌다는 뜻이라 쓰지 않는다(2026-09-07).
+        log.error("무제약 그림자: 판정일이 과거로 갔다 — 기록 %s → 지금 %s. "
+                  "쓰지 않는다.", st["history"][-1].get("date"), bar)
+        return None
 
     # ① 전일 목표 × 오늘 수익 (1봉 지연)
     ret = 0.0
@@ -121,12 +129,17 @@ def unshackled_public(state_dir: str = "state") -> dict | None:
     st = _load(os.path.join(state_dir, FILE))
     if not st["history"]:
         return None
-    last = st["history"][-1]
+    # ⚠️ 마지막으로 **쓴** 줄이 아니라 가장 최신 **봉**의 줄이다
+    #    (2026-09-07 — 둘이 갈려 있었고 화면은 앞의 것을 읽었다).
+    last = clock.latest_row(st["history"])
     worst = min((r.get("mdd_pct", 0.0) for r in st["history"]), default=0.0)
     from quant.live.daily import cost_basis_bp
     return {"equity": last["equity"], "return_pct": last["return_pct"],
             "cost_basis_bp": cost_basis_bp(state_dir),
-            "days": len(st["history"]), "worst_mdd_pct": round(worst, 2),
+            "days": clock.distinct_days(st["history"]),
+            "worst_mdd_pct": round(worst, 2),
+            **({"mixed_rows": {"why": clock.MIXED_WHY, **ooo}}
+               if (ooo := clock.out_of_order(st["history"])) else {}),
             "note": (
         "본 계좌와 같은 신호를 받되 안전장치(변동성 타깃·킬스위치·검증 "
         "게이트·켈리 상한)를 전부 뗀 가상 계좌입니다(무레버리지만 유지). "

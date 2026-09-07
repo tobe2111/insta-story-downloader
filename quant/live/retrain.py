@@ -191,6 +191,21 @@ def _features_used(df) -> list[str]:
         return []
 
 
+def _features_thin(df) -> dict:
+    """그날 밤 이 종목에서 **거의 비어 있던** 재료 (2026-09-07).
+
+    ``_features_used``와 짝을 이룬다. 앞의 것은 "이름이 붙었나"이고 이것은
+    "내용이 있나"다 — 둘이 갈리는 순간이 계측기가 후하게 말하는 순간이다
+    (실측: ``x_oi_chg5``가 800봉 중 31봉만 채워진 채 '사용됨'으로 적혔다).
+    깨끗하면 빈 dict이고, 호출부가 그때는 칸을 안 만든다.
+    """
+    try:
+        from quant.strategies.ml import thin_features
+        return thin_features(df)
+    except Exception:  # noqa: BLE001 — 기록 장치가 재학습을 죽이면 안 된다
+        return {}
+
+
 def _key(market: str, symbol: str) -> str:
     return f"{market}:{symbol}"
 
@@ -1178,11 +1193,17 @@ def shared_panel_specs(asof: str | None = None) -> list[dict]:
 
     ``asof``가 없으면 전체를 돌려준다(검사·분석용).
 
-    ⚠️ **나중에 이것이 관문이 될 때 다시 볼 것**(작업 #56): 지금 다중검정
-       보정은 그날 밤 명단 크기(6개)에만 걸린다. 회전 때문에 며칠에 걸쳐
-       28개를 다 재게 되므로, 승격을 패널로 정하는 순간에는 **날짜를 가로질러
-       누적된 시도 수**로 보정해야 한다. 그러지 않으면 "매일 6개만 봤다"는
-       셈법으로 28개를 뒤진 대가를 안 치르게 된다.
+    ⚠️ **이 숙제는 2026-09-07에 절반 갚았다.** 여기 원래 "나중에 이것이
+       관문이 될 때 다시 볼 것"이라고 적혀 있었고, 그 순간은 2026-09-02에
+       왔는데(패널이 AND 관문) **아무도 안 봤다** — 승격 조회기가 통과 여부
+       하나만 읽었고, 밤마다 계산되던 부트스트랩은 콘솔 로그로만 나갔다.
+       이제 ``panel_gate_lookup``이 그 밤의 부트스트랩을 함께 본다.
+
+       ⚠️ **여전히 부분적이다.** 부트스트랩이 세는 것은 그 밤에 담긴 설정
+       (``PANEL_ROSTER_PER_NIGHT``개)이다. 회전 때문에 며칠에 걸쳐 명단
+       전체(46개)를 다 재므로 **누적 시도 수로는 아직 덜 센다.** 그 한계는
+       판정과 함께 ``n_cand``로 남긴다 — 숫자로 안 적으면 "보정이 걸려 있다"는
+       말만 남는다.
     """
     roster = panel_roster()
     if asof is None or len(roster) <= PANEL_ROSTER_PER_NIGHT:
@@ -1770,6 +1791,8 @@ def verify_retrain(asof: str, *, market: str | None = None,
             # 재생하면(그 사이 명단이 회전하고 종목이 늘었으므로) 판정이
             # 달라져 재현이 깨진다. 결정의 전제는 결정과 함께 보존한다.
             # 옛 기록(v1~v3)은 이 관문이 없던 세계이므로 None을 넘긴다.
+            # ⚠️ v5(동시검정을 함께 보는 세대)도 같은 길로 재생된다 — 재현기가
+            #    되먹이는 것은 그날의 **판정 결과**이지 판정 과정이 아니다.
             panel_lookup=(
                 (lambda _spec, _pg=rec.get("panel_gate"): _pg)
                 if int(rec.get("gate_version", 1)) >= 4 else None),
@@ -2088,7 +2111,13 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         # v4(2026-09-02): 승격에 **패널 관문**이 AND로 붙었다(사장님 ①안).
         # 옛 기록(v3)은 그 관문이 없던 세계의 결정이므로 verify가 그대로
         # 재현한다 — 과거 기록은 고치지 않는다.
-        "gate_version": 4,
+        # v5(2026-09-07): 패널 관문이 **부트스트랩 동시검정도** 본다. v4에서는
+        # `t > PANEL_T_REF` 하나로만 판정했고, 밤마다 계산되던 동시검정은
+        # 로그로만 나가고 아무 관문도 안 읽었다(코드가 스스로 남긴 숙제였다).
+        # ⚠️ 재현은 그대로다 — 재현기는 **그날 장부에 적힌 판정**을 되먹이므로
+        #    v4·v5 모두 같은 길로 재생된다. 세대를 올리는 것은 "그날 어느
+        #    규칙이 결정했는가"를 장부가 말하게 하기 위해서다.
+        "gate_version": 5,
         # 도전자 생성 세대 — v2(2026-08-27): 언덕오르기가 "이미 기본값인
         # 손잡이를 기본값으로 설정하는" 헛수고 후보를 만들지 않는다(실측
         # 16.8%). 옛 기록(v1)은 그 헛수고가 링에 섞여 있던 세계의 결정이므로
@@ -2138,6 +2167,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         #    시계는 그대로** — 90일 뒤에 "그 표본은 섞여 있었다"를 알게 된다.
         #    그래서 그날 밤 **실제로 붙은 선택 피처**를 함께 남긴다.
         "features_used": _features_used(df),
+        **({"features_thin": _thin} if (_thin := _features_thin(df)) else {}),
         # 의회 구성 — "챔피언 교체" 대신 "구성 변화"의 서사이자 감사 흔적
         "parliament": [{"strategy": m["strategy"], "weight": m["weight"]}
                        for m in entry.get("parliament", [])],
@@ -2268,6 +2298,59 @@ def _panel_terms(collector, spec_key: str) -> dict:
 PANEL_VERDICT_MAX_AGE_NIGHTS = 7
 
 
+def _night_reality_check(recs: list[dict]) -> dict:
+    """한 밤의 회차들이 남긴 동시검정을 **가장 보수적으로** 하나로 접는다.
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ⚠️ 왜 필요한가 — **코드가 스스로 남긴 숙제였다** (2026-09-07 확인).
+
+    `shared_panel_specs`에 이렇게 적혀 있었다:
+
+        "⚠️ 나중에 이것이 관문이 될 때 다시 볼 것(작업 #56): 지금 다중검정
+         보정은 그날 밤 명단 크기에만 걸린다. … 승격을 패널로 정하는
+         순간에는 날짜를 가로질러 누적된 시도 수로 보정해야 한다."
+
+    그 순간은 **2026-09-02에 왔다**(패널이 AND 관문이 되었다, gate_version 4).
+    그런데 확인해 보니 승격 조회기는 `pass`(= t > PANEL_T_REF) **하나만**
+    읽고 있었다. 밤마다 계산되던 부트스트랩(`reality_check`)은 **콘솔 로그로만
+    나가고 아무 관문도 안 읽었다.**
+
+    즉 CLAUDE.md가 "패널의 다중검정 보정은 문턱이 아니라 **부트스트랩**이
+    맡는다"고 적어 둔 그 장치가, 정작 관문에 연결돼 있지 않았다.
+
+    ⚠️ **오늘 이 연결이 막는 것은 없다**(실측): 패널 판정 15건에 통과 0건이라
+       부트스트랩을 볼 차례 자체가 아직 온 적이 없다. 고치는 것은 "지금 틀린
+       판정"이 아니라 **"통과하는 날이 왔을 때 보정 없이 통과할 수 있다"**는
+       것이다.
+
+    ⚠️ 그리고 정직하게 — 이 부트스트랩은 **그 밤에 담긴 설정**(하루 3개)을
+       센다. 회전 때문에 며칠에 걸쳐 46개를 다 재므로, 누적 시도 수로는
+       여전히 덜 세는 셈이다. 그 한계를 `n_cand`로 장부에 남긴다 — 숫자로
+       적어 두지 않으면 "보정이 걸려 있다"는 말만 남는다.
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    """
+    seen = [r.get("reality_check") or {} for r in (recs or [])]
+    seen = [rc for rc in seen if rc]
+    if not seen:
+        return {"skipped": True, "reason": "그 밤에 동시검정 기록이 없습니다"}
+    # 재려다 실패한 회차가 하나라도 있으면 그 밤은 **못 건 것**이다
+    # (결승 관문과 같은 규약 — 생략과 고장은 다른 사건이다).
+    broken = [rc for rc in seen if rc.get("broken")]
+    if broken:
+        return {"skipped": True, "broken": True,
+                "reason": "동시검정을 재려다 실패한 회차가 있습니다"}
+    measured = [rc for rc in seen if not rc.get("skipped")]
+    if not measured:
+        return {"skipped": True,
+                "reason": str(seen[0].get("reason")
+                              or "표본이 짧아 동시검정을 생략했습니다")}
+    # 가장 보수적인 값 — p는 최대, 후보 수는 최대.
+    return {"skipped": False,
+            "p": max(float(rc.get("p") or 0.0) for rc in measured),
+            "n_cand": max(int(rc.get("n_cand") or 0) for rc in measured),
+            "runs": len(measured)}
+
+
 def panel_gate_lookup(state_dir: str = STATE_DIR,
                       max_age_nights: int = PANEL_VERDICT_MAX_AGE_NIGHTS
                       ) -> Callable[[dict], dict | None]:
@@ -2305,13 +2388,48 @@ def panel_gate_lookup(state_dir: str = STATE_DIR,
             for rec in night.get("specs") or []:
                 if rec.get("spec_key") != key or rec.get("skipped"):
                     continue
-                return {"blocked": not bool(rec.get("pass")),
+                # ── 다중검정 — **부트스트랩이 맡는다** (2026-09-07) ────────
+                #
+                # 그전까지 이 관문은 `pass`(= t > PANEL_T_REF) 하나만 봤다.
+                # 밤마다 계산되던 동시검정은 콘솔 로그로만 나가고 **아무
+                # 관문도 안 읽었다** — CLAUDE.md가 "패널의 다중검정 보정은
+                # 문턱이 아니라 부트스트랩이 맡는다"고 적어 둔 그 장치가
+                # 관문에 연결돼 있지 않았던 것이다. 코드 자신이 남긴 숙제였다
+                # (`shared_panel_specs`의 "나중에 이것이 관문이 될 때 다시 볼
+                # 것" — 그 순간은 2026-09-02에 왔다).
+                #
+                # ⚠️ 생략과 고장은 다른 사건이다(결승 관문과 같은 규약):
+                #    · 재려다 실패했으면 **막는다** — 관문을 못 건 채로
+                #      승격시키지 않는다.
+                #    · 표본이 짧아 생략했으면 **안 막는다** — 못 잰 것을
+                #      위반으로 세지 않는다. 다만 그 사실을 실어 보낸다.
+                rc = night.get("reality_check") or {}
+                passed = bool(rec.get("pass"))
+                rc_block = None
+                if passed:
+                    if rc.get("broken"):
+                        rc_block = ("그 밤의 동시검정을 재려다 실패했습니다 — "
+                                    "관문을 못 건 채로 승격시키지 않습니다")
+                    elif not rc.get("skipped"):
+                        p_val = float(rc.get("p") or 0.0)
+                        if p_val > RC_ALPHA:
+                            rc_block = (
+                                f"패널 t는 넘었지만, 그 밤 함께 잰 설정 "
+                                f"{rc.get('n_cand')}개를 동시에 놓고 보면 이 "
+                                f"정도 성적이 우연으로 나올 확률 p={p_val:.3f} "
+                                f"> {RC_ALPHA}입니다")
+                return {"blocked": (not passed) or bool(rc_block),
                         "night": night.get("night"),
                         "age_nights": age,
                         "t_stat": rec.get("t_stat"),
                         "t_threshold": rec.get("t_threshold"),
                         "n_symbols": rec.get("n_symbols"),
                         "n_dates": rec.get("n_dates"),
+                        # 다중검정을 실제로 걸었는가 — 그 사실과 한계를
+                        # 함께 싣는다. 안 실으면 "보정이 걸려 있다"는 말만
+                        # 남고 무엇을 몇 개로 셌는지가 사라진다.
+                        "reality_check": rc,
+                        "reality_block": rc_block,
                         # ①안 — 종목별 관문이 같은 설정을 어떻게 봤는지도
                         # 나란히 남긴다. 나중에 "관문을 바꿔서 달라진 건가"를
                         # 검증할 수 있어야 한다.
@@ -2392,6 +2510,12 @@ def panel_nights(state_dir: str = STATE_DIR,
             "n_symbols_seen": sum(int(r.get("n_symbols_seen") or 0)
                                   for r in recs),
             "specs": merged,
+            # ⚠️ **그 밤의 동시검정을 함께 들고 온다** (2026-09-07).
+            #    이게 없으면 승격 조회기가 부트스트랩을 볼 방법이 없어서,
+            #    패널 관문이 `t > 1.35` 하나로만 판정한다 — 다중검정 보정이
+            #    통째로 빠진 채 승격에 관여하는 것이다. 자세한 경위는
+            #    `_night_reality_check` 주석 참조.
+            "reality_check": _night_reality_check(recs),
             # 재료가 없어 못 합친 설정 — 조용히 빼면 "그 밤엔 그 설정이
             # 없었다"와 구별이 안 된다.
             "unmergeable": sorted(set(unmergeable)),

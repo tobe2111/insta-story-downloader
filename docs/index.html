@@ -1055,7 +1055,13 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       '<b class="'+(up2?"up":"down")+'">'+won(u.equity)+'</b> ('+
       (up2?"+":"")+Number(u.return_pct).toFixed(2)+'%) · 최대낙폭 <b class="down">'+
       Number(u.worst_mdd_pct).toFixed(1)+'%</b> · '+u.days+'일째'+
-      '<div class="sub" style="margin-top:6px;font-size:12px">'+esc(u.note||"")+'</div>';
+      '<div class="sub" style="margin-top:6px;font-size:12px">'+esc(u.note||"")+'</div>'+
+      /* 섞여 든 줄(2026-09-07) — 이 장부에 한때 본 계좌와 섀도 대조군 두
+         계좌가 함께 썼다. 지난 줄은 고치지 않고 그대로 두고, 왜 그런지는
+         장부에서 그대로 읽는다. 깨끗해지면 이 칸이 저절로 사라진다. */
+      ((u.mixed_rows&&u.mixed_rows.why)?
+        '<div class="sub down" style="margin-top:4px;font-size:12px">⚠️ '+
+        esc(u.mixed_rows.why)+'</div>':'');
   }
   /* --- 사이드바: 돈이 지금 어디 있는가 ---------------------------------
      ⚠️ 사이트가 이걸 안 보여줬다(2026-08-13). 수익률·낙폭·종목표는 있는데
