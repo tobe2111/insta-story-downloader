@@ -148,6 +148,38 @@
         "AI strategies in the audition (it passed both rounds). It is simply " +
         "held — no buying, no selling",
       "하락도 그대로 겪습니다": "and it takes the drawdowns as they come",
+      /* ── 롱·숏이 각각 얼마를 벌었나 (2026-09-07) ─────────────────────
+         사장님 질문에서 나온 화면이다. 개수만 있던 자리에 금액을 넣었다. */
+      "롱과 숏이 각각 얼마를 벌었나": "What each direction actually earned",
+      "개수가 아니라 금액입니다": "Amounts, not position counts",
+      "아직 방향별로 기록한 회차가 없습니다.":
+        "No round has been recorded by direction yet.",
+      "비어 있는 것과 0인 것은 다릅니다 — 그래서 0이라고 적지 않습니다.":
+        "Empty is not the same as zero — so we do not write zero here.",
+      "오를 때 건 쪽(롱)": "Betting on rises (long)",
+      "내릴 때 건 쪽(숏)": "Betting on falls (short)",
+      "수수료 빼기 전": "Before fees",
+      "수수료": "Fees",
+      "자금조달": "Funding",
+      "최종": "Net",
+      "수수료와 자금조달을 빼기 전, 전략 자체가 낸 성적입니다":
+        "What the strategy itself made, before fees and funding",
+      "오를 때 건 쪽이 내고 내릴 때 건 쪽이 받습니다":
+        "Longs pay it; shorts receive it",
+      "단위는 USDT입니다. 자금조달은 오를 때 건 쪽이 내고 내릴 때 건 쪽이 받으므로, 부호가 방향마다 반대인 것이 정상입니다.":
+        "Amounts are in USDT. Funding is paid by the long side and received " +
+        "by the short side, so opposite signs across the two rows are normal.",
+      "지금 들고 있는 자리(오를 때 · 내릴 때):":
+        "Positions held right now (rises · falls):",
+      "개수와 금액을 같이 놓는 이유는, 한쪽이 작을 때 그게 적게 걸어서인지 걸어서 잃어서인지를 읽는 분이 구별할 수 있어야 하기 때문입니다.":
+        "Counts sit next to amounts so that when one side is small you can " +
+        "tell whether it was rarely bet on, or bet on and lost.",
+      "⚠️ 마크 가격이 없던 때라 체결가로 재구성한 회차:":
+        "⚠️ Rounds reconstructed from fill prices, because no marks were stored:",
+      "어느 방향에도 못 가른 몫:": "Could not be attributed to either side:",
+      "재구성한 회차는 그날 사고팔지 않은 종목의 값을 몰라서 생깁니다. 앞으로 쌓이는 회차에서는 이 값이 0으로 갑니다.":
+        "It comes from reconstructed rounds, where the price of anything not " +
+        "traded that day is unknown. For rounds recorded from now on it goes to zero.",
       "내림에 거는 것이 도움이 되나": "Does betting on falls help?",
       "사람이 정하지 않습니다 · 밤 심사가 판정합니다":
         "Not set by hand · the nightly review decides",

@@ -8384,6 +8384,29 @@ MUTATIONS = [
      '        return f"{head} — " + " — ".join(_WHY_BUY_HOLD_CLAUSES)',
      '        return f"{head} — " + "".join(_WHY_BUY_HOLD_CLAUSES)',
      'tests/test_the_site_reads_in_english_too.py'),
+    # ── 2026-09-07 · 선물의 방향별 성적이 조용히 거짓말하지 않는다 ────────
+    #    셋 다 "숫자가 멀쩡해 보이는" 종류의 고장이다 — 화면에는 표가 그대로
+    #    뜨는데 그 안의 값만 틀린다.
+    ('시세를 못 받은 종목을 0으로 세고 넘어간다(조용한 실패가 무동작처럼 보인다)',
+     'quant/live/futures_challenger.py',
+     '            out["unpriced"].append(sym)',
+     '            pass',
+     'tests/test_the_futures_ledger_says_what_each_direction_earned.py'),
+    ('뒤집는 주문의 수수료를 통째로 새 방향에 단다(숏이 부풀고 롱이 공짜로 보인다)',
+     'quant/live/futures_challenger.py',
+     '        out["long" if cur_qty > 0 else "short"] += fee * closed / abs(qty)',
+     '        out["short" if cur_qty > 0 else "long"] += fee * closed / abs(qty)',
+     'tests/test_the_futures_ledger_says_what_each_direction_earned.py'),
+    ('회차에 마크 가격을 안 남긴다(방향별 성적을 영영 못 되살린다)',
+     'quant/live/futures_challenger.py',
+     '           "prices": {k: round(float(v), 10) for k, v in prices.items()},',
+     '           "prices": {},',
+     'tests/test_the_futures_ledger_says_what_each_direction_earned.py'),
+    ('자금조달의 부호를 방향마다 같게 만든다(숏이 부당하게 불리해진다)',
+     'quant/live/futures_challenger.py',
+     '        amt = q * float(px) * float(rate_per_8h) * n_periods',
+     '        amt = abs(q) * float(px) * float(rate_per_8h) * n_periods',
+     'tests/test_the_futures_ledger_says_what_each_direction_earned.py'),
     # ── 2026-09-06 · 반려한 주식-채권 캘린더 신호가 조용히 링에 안 돌아온다 ──
     #    ⑬은 6호와 겉이 거의 같다(같은 달력·같은 월말 창). 다른 것은 부호를
     #    정하는 변수 하나뿐이고, 바로 그 하나가 데이터에서 반대로 나왔다.
