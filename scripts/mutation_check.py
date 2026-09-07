@@ -8816,6 +8816,24 @@ MUTATIONS = [
      "            if (_thin := thin_features(df)):\n                opt_thin[key] = _thin",
      "            if False:\n                opt_thin[key] = {}",
      "tests/test_the_meter_counts_content_not_names.py"),
+    # ── 그 계측기가 화면까지 가는가 (2026-09-07, 감사 105의 네 번째 얼굴) ──
+    # 같은 날 아침에 계측기를 고쳐 놓고 **화면에는 안 붙였다.** 장부와 경보에만
+    # 있는 계측기는 고장나도 아무 빨간불이 안 뜬다 — 감사 105의 정의 그 자체다.
+    ("얇은 재료 표시가 깨끗한 날에도 켜진다(항상 켜진 경고등)",
+     "docs/index.html",
+     "  if(thin&&thin.features&&Object.keys(thin.features).length){",
+     "  if(thin&&thin.features){",
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
+    ("화면이 이름만 말하고 채움률을 안 말한다(3.9%와 49%가 같아 보인다)",
+     "docs/index.html",
+     '      return c+" "+(thin.features[c]*100).toFixed(1)+"%"; }).join(" · ");',
+     '      return c; }).join(" · ");',
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
+    ("가장 빈약한 종목 칸을 아무도 안 읽는다(매일 적고 아무 일도 안 한다)",
+     "docs/index.html",
+     "      const tn=fh.thinnest||null;",
+     "      const tn=null;",
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
     # ── 장중 트랙도 비용 기준을 싣는다 (2026-09-07) ────────────────
     # 실측: docs/intraday.json · docs/intraday_us.json 둘 다 cost_basis 없음.
     # 돈은 물리고 있었는데 요율이 공개 자료에 없어, 계약 검사가 손으로 적은
