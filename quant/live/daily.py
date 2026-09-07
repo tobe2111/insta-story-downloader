@@ -1859,6 +1859,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
+    opt_thin: dict = {}             # key → 거의 비어 있던 재료(채움률)
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
     earnings_guards: dict = {}      # key → 발표일 — 실적 가드 발동 흔적
     earnings_asked: list = []       # 가드를 물어본 종목 — 아래 건강 기록용
@@ -1935,6 +1936,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 개수를 함께 남기지 않으면 아무도 모른다)
             from quant.strategies.ml import optional_features_from_df
             opt_present[key] = optional_features_from_df(df)
+            # ⚠️ 이름이 붙은 것과 내용이 있는 것은 다르다(2026-09-07 실측):
+            #    `x_oi_chg5`가 800봉 중 31봉(3.9%)만 채워진 채 '사용됨'으로
+            #    적히고 있었다. 학습은 `fillna(0.0)`이라 나머지 769봉에
+            #    "미결제약정이 안 변했다"는 구체적 거짓 주장을 한다.
+            from quant.strategies.ml import thin_features
+            if (_thin := thin_features(df)):
+                opt_thin[key] = _thin
             # 왜 안 붙었는지 — 부착 함수들이 df.attrs에 남긴 사유를 걷는다.
             # 계측기는 "이 다섯이 빠졌다"까지만 말했고 **왜**는 실행 로그에만
             # 있다가 며칠 뒤 사라졌다. 원인을 좁히려면 사유가 장부에 있어야 한다.
@@ -2635,7 +2643,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #    경고가 정상일 때도 켜져 있었다 — 항상 켜진 경고등은 꺼진 것과 같다.
     feat_health = None
     if opt_present:
-        from quant.strategies.ml import (OPTIONAL_FEATURES,
+        from quant.strategies.ml import (OPTIONAL_FEATURES, THIN_FILL,
                                          applicable_optional_features)
 
         def _applicable(key: str) -> list[str]:
@@ -2665,6 +2673,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 코인만 있는 날 x_frgn5(한국 수급)를 '전 종목 누락'이라 부르면
             # 상시 오경보가 된다. 세 시장이 다 있는 지금은 결과가 같다.
             "missing_everywhere": [c for c in can if c not in set(union)],
+            # 거의 비어 있는 재료 — 깨끗한 날에는 이 칸이 아예 없다.
+            # 이름이 아니라 **채움률**을 세므로, 열은 살아 있는데 소스가
+            # 최근 며칠치만 주는 상태를 처음으로 드러낸다.
+            **({"thin": {"floor": THIN_FILL,
+                         "features": {c: min(v.get(c, 1.0)
+                                             for v in opt_thin.values()
+                                             if c in v)
+                                      for c in sorted(
+                                          {c for v in opt_thin.values()
+                                           for c in v})},
+                         "symbols": len(opt_thin)}}
+               if opt_thin else {}),
             "thinnest": {"key": worst_key,
                          "n": len(opt_present[worst_key]),
                          "applicable": len(_applicable(worst_key)),

@@ -150,6 +150,53 @@ def optional_features_from_df(df) -> list[str]:
     return [c for c in OPTIONAL_FEATURES if c in set(out)]
 
 
+#: 이 비율보다 적게 채워진 재료는 "붙었다"고 말하면 안 된다.
+#: 근거는 실측이다(2026-09-07 스냅샷 · 코인 5종목 × 800봉): 건강한 재료는
+#: 99.4~100%인데 ``oi``는 **3.9%**(31행) · ``x_kimchi``는 **25.0%**(200행)다.
+#: 50%는 그 둘을 잡고 나머지 다섯을 안 잡는 자리다 — 최적화한 값이 아니라
+#: "명백히 비어 있다"의 문턱이다.
+THIN_FILL = 0.5
+
+#: 파생 피처가 어느 원본 열에서 나오는가. ``_features()``와 같은 규칙이며,
+#: 여기 적힌 것 말고는 ``x_``로 시작하는 열이 그대로 통과한다.
+#: ⚠️ 손으로 적은 표가 실제와 어긋나 계측기가 유령을 세던 사고가 이미 두 번
+#:    있었다(감사 105·106). 검사가 이 표를 ``_features()``와 대조한다.
+DERIVED_FROM = {"x_funding": "funding", "x_funding_chg": "funding",
+                "x_oi_chg5": "oi"}
+
+
+def optional_feature_fill(df) -> dict[str, float]:
+    """붙을 재료가 **얼마나 채워져 있는가** — 이름이 아니라 내용을 센다.
+
+    ``optional_features_from_df``는 "열이 있는가"만 본다. 그래서 800봉 중
+    31봉만 채워진 열도 "붙었다"로 보고했고, 학습은 ``fillna(0.0)``이라
+    나머지 769봉에 대해 **"미결제약정이 안 변했다"**는 구체적 거짓 주장을
+    한다. 못 받은 것과 0은 다른 사건인데 화면에서 똑같이 조용했다.
+
+    ⚠️ 이 함수는 **재지 않는다면 몰랐을 사실을 드러낼 뿐이고, 신호를 바꾸지
+       않는다.** 얇은 재료를 뺄지 말지는 오디션의 ``top_features`` 축이
+       정한다 — 사람이 손으로 뺄 자리가 아니다.
+    """
+    out: dict[str, float] = {}
+    if df is None or len(df) == 0:
+        return out
+    for name in optional_features_from_df(df):
+        src = DERIVED_FROM.get(name, name)
+        try:
+            out[name] = round(float(df[src].notna().mean()), 4)
+        except Exception:  # noqa: BLE001 — 계측기가 배치를 죽이면 안 된다
+            continue
+    return out
+
+
+def thin_features(df, floor: float = THIN_FILL) -> dict[str, float]:
+    """거의 비어 있는 재료만 — 깨끗한 날에는 **빈 dict**다.
+
+    매일 켜져 있는 표시는 표시가 아니므로, 문턱을 넘긴 것만 돌려준다.
+    """
+    return {k: v for k, v in optional_feature_fill(df).items() if v < floor}
+
+
 def feature_health(feats, market: str | None = None,
                    symbol: str | None = None) -> dict:
     """오늘 실제로 만들어진 피처의 건강 상태 — (총계, 필수, 선택, 누락).

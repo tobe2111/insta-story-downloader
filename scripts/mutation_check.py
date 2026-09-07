@@ -8776,6 +8776,38 @@ MUTATIONS = [
      "    if not bad:\n        return None\n    return {\"rows\": len(bad), \"dates\": bad}",
      "    return None",
      "tests/test_the_shadow_ledgers_hold_one_account.py"),
+    # ── 계측기는 이름이 아니라 내용을 센다 (2026-09-07) ─────────────
+    # 실측: `x_oi_chg5`가 800봉 중 31봉(3.9%)만 채워진 채 '사용됨'으로 적혔다.
+    ("파생 재료를 원본 열 대신 자기 이름으로 잰다(df에 없어 아무것도 못 잰다)",
+     "quant/strategies/ml.py",
+     "        src = DERIVED_FROM.get(name, name)",
+     "        src = name",
+     "tests/test_the_meter_counts_content_not_names.py"),
+    ("얇은 재료를 문턱 없이 전부 얇다고 한다(매일 켜진 경보 = 꺼진 경보)",
+     "quant/strategies/ml.py",
+     "    return {k: v for k, v in optional_feature_fill(df).items() if v < floor}",
+     "    return dict(optional_feature_fill(df))",
+     "tests/test_the_meter_counts_content_not_names.py"),
+    # ⚠️ 이 변이는 한 번 잘못 짰다. `if False:`로 바꾸면 열도 행도 없는
+    #    프레임에서는 루프가 안 돌아 결과가 같다 — **나쁜 변이지 검사 구멍이
+    #    아니다.** 함정은 "열은 다 있는데 행이 0"인 날(데이터를 못 받은 날)이고,
+    #    그때 notna().mean()이 NaN을 준다. 그 NaN이 장부에 실리면 경보가
+    #    "문턱 미만"으로 읽어 못 받은 날마다 거짓 경보를 낸다.
+    ("봉이 없는 날 채움률을 지어낸다(NaN이 '거의 비었다'로 읽힌다)",
+     "quant/strategies/ml.py",
+     "    if df is None or len(df) == 0:\n        return out",
+     "    if df is None:\n        return out",
+     "tests/test_the_meter_counts_content_not_names.py"),
+    ("얇은 재료 경보가 채움률을 안 말한다(얼마나 비었는지를 못 읽는다)",
+     "quant/live/flag_watch.py",
+     '        worst = ", ".join(f"{c} {v * 100:.1f}%" for c, v in sorted(names.items()))',
+     '        worst = ", ".join(sorted(names))',
+     "tests/test_the_meter_counts_content_not_names.py"),
+    ("배치가 채움률을 안 잰다(장치만 있고 전선이 없다)",
+     "quant/live/daily.py",
+     "            if (_thin := thin_features(df)):\n                opt_thin[key] = _thin",
+     "            if False:\n                opt_thin[key] = {}",
+     "tests/test_the_meter_counts_content_not_names.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

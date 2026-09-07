@@ -191,6 +191,21 @@ def _features_used(df) -> list[str]:
         return []
 
 
+def _features_thin(df) -> dict:
+    """그날 밤 이 종목에서 **거의 비어 있던** 재료 (2026-09-07).
+
+    ``_features_used``와 짝을 이룬다. 앞의 것은 "이름이 붙었나"이고 이것은
+    "내용이 있나"다 — 둘이 갈리는 순간이 계측기가 후하게 말하는 순간이다
+    (실측: ``x_oi_chg5``가 800봉 중 31봉만 채워진 채 '사용됨'으로 적혔다).
+    깨끗하면 빈 dict이고, 호출부가 그때는 칸을 안 만든다.
+    """
+    try:
+        from quant.strategies.ml import thin_features
+        return thin_features(df)
+    except Exception:  # noqa: BLE001 — 기록 장치가 재학습을 죽이면 안 된다
+        return {}
+
+
 def _key(market: str, symbol: str) -> str:
     return f"{market}:{symbol}"
 
@@ -2152,6 +2167,7 @@ def run_retrain(market: str, symbol: str, *, timeframe: str = "1d",
         #    시계는 그대로** — 90일 뒤에 "그 표본은 섞여 있었다"를 알게 된다.
         #    그래서 그날 밤 **실제로 붙은 선택 피처**를 함께 남긴다.
         "features_used": _features_used(df),
+        **({"features_thin": _thin} if (_thin := _features_thin(df)) else {}),
         # 의회 구성 — "챔피언 교체" 대신 "구성 변화"의 서사이자 감사 흔적
         "parliament": [{"strategy": m["strategy"], "weight": m["weight"]}
                        for m in entry.get("parliament", [])],
