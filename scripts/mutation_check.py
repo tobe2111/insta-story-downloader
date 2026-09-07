@@ -8798,6 +8798,14 @@ MUTATIONS = [
      "    if df is None or len(df) == 0:\n        return out",
      "    if df is None:\n        return out",
      "tests/test_the_meter_counts_content_not_names.py"),
+    # ⚠️ 이 경보는 처음에 **죽은 배선**이었다(2026-09-07 같은 날 잡음):
+    #    status 최상위의 feature_health를 읽었는데 그 자리는 채워지지 않는다.
+    #    배치는 건강 블록을 본 계좌 장부의 그날 줄 안에 넣는다.
+    ("얇은 재료 경보가 재료가 없는 자리를 읽는다(검사에서만 울리고 실제로는 침묵)",
+     "quant/live/flag_watch.py",
+     '        _fh = (_hist[-1].get("feature_health") if _hist else None) or {}',
+     '        _fh = _p.get("feature_health") or {}',
+     "tests/test_the_meter_counts_content_not_names.py"),
     ("얇은 재료 경보가 채움률을 안 말한다(얼마나 비었는지를 못 읽는다)",
      "quant/live/flag_watch.py",
      '        worst = ", ".join(f"{c} {v * 100:.1f}%" for c, v in sorted(names.items()))',

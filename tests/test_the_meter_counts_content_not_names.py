@@ -141,12 +141,37 @@ def test_the_floor_can_be_overridden_without_editing_the_module():
 
 
 # ── 경보 ──────────────────────────────────────────────────────────────
+#
+# ⚠️ **경보 검사는 배치가 실제로 만드는 모양으로 먹인다.** 처음에는
+#    `{"feature_health": {...}}`라는 **있지도 않은 모양**을 먹여 초록을
+#    받았다 — 배치는 건강 블록을 본 계좌 장부의 그날 줄 안에 넣는데,
+#    그 사실을 검사가 안 봤다. 그대로 뒀으면 이 경보는 검사에서만 울리고
+#    실제로는 영원히 침묵했을 것이다. 그러니 여기서 모양을 **못 박는다.**
+def _status(features: dict | None) -> dict:
+    """배치가 넘기는 status의 진짜 모양(실측: docs/status.json)."""
+    fh = {"optional_max": 8, "missing_everywhere": []}
+    if features is not None:
+        fh["thin"] = {"floor": 0.5, "features": features}
+    return {"paper": {"portfolio:ALL": {"history": [{"feature_health": fh}]}}}
+
+
+def test_the_alarm_reads_where_the_batch_actually_writes():
+    """이 검사가 죽은 배선을 막는다 — 재료가 없는 자리를 읽으면 못 운다."""
+    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    assert '"feature_health": feat_health or None,' in src, (
+        "배치가 건강 블록을 어디에 넣는지 바뀌었다 — 경보도 함께 봐야 한다")
+    import json as _json
+    real = _json.loads((ROOT / "docs" / "status.json").read_text("utf-8"))
+    assert "feature_health" not in real, (
+        "status 최상위에 건강 블록이 생겼다면 경보를 그리로 옮겨도 된다")
+    hist = real["paper"]["portfolio:ALL"]["history"][-1]
+    assert "feature_health" in hist, (
+        "본 계좌 장부의 그날 줄에 건강 블록이 없다 — 경보가 읽을 자리가 없다")
+
+
 def test_the_alarm_names_the_feature_and_its_fill_rate():
     """이름만 부르면 읽는 쪽이 '얼마나 비었나'를 모른다."""
-    flags = _current_flags({"feature_health": {
-        "thin": {"floor": 0.5,
-                 "features": {"x_oi_chg5": 0.0387, "x_kimchi": 0.25},
-                 "symbols": 5}}})
+    flags = _current_flags(_status({"x_oi_chg5": 0.0387, "x_kimchi": 0.25}))
     hit = [v for k, v in flags.items() if k.startswith("features_thin")]
     assert hit, flags
     assert "x_oi_chg5 3.9%" in hit[0] and "x_kimchi 25.0%" in hit[0], hit[0]
@@ -155,7 +180,7 @@ def test_the_alarm_names_the_feature_and_its_fill_rate():
 
 
 def test_the_alarm_is_silent_when_nothing_is_thin():
-    assert not [k for k in _current_flags({"feature_health": {"union": 8}})
+    assert not [k for k in _current_flags(_status(None))
                 if k.startswith("features_thin")]
     assert not [k for k in _current_flags({}) if k.startswith("features_thin")]
 
@@ -166,10 +191,8 @@ def test_the_alarm_key_is_the_names_so_it_speaks_once():
     소스 깊이는 대개 그 상태로 오래 간다 — 매일 울리면 꺼진 경보와 같다
     (감사 99). `features_missing`과 같은 규약이다.
     """
-    a = _current_flags({"feature_health": {"thin": {
-        "features": {"x_oi_chg5": 0.04}, "symbols": 5}}})
-    b = _current_flags({"feature_health": {"thin": {
-        "features": {"x_oi_chg5": 0.05}, "symbols": 3}}})
+    a = _current_flags(_status({"x_oi_chg5": 0.04}))
+    b = _current_flags(_status({"x_oi_chg5": 0.05}))
     assert set(a) == set(b), "채움률이 조금 달라졌다고 새 경보가 된다"
 
 

@@ -420,8 +420,20 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
     #     학습은 결측을 0으로 채우므로 "못 받았다"가 "안 변했다"가 된다.
     #     ⚠️ 이 깃발은 열쇠가 이름 목록이라 한 번 알리고 조용해진다 —
     #        소스 깊이는 대개 그 상태로 오래 가고, 매일 울리면 꺼진 경보다.
-    thin = ((status.get("feature_health") or {}).get("thin") or {})
-    names = thin.get("features") or {}
+    #     ⚠️ **재료를 ⑥과 같은 자리에서 읽는다.** 처음에는
+    #        `status["feature_health"]`를 읽게 짰는데 **그 자리는 채워지지
+    #        않는다** — 배치는 건강 블록을 본 계좌 장부의 그날 줄 안에 넣는다.
+    #        그대로 뒀으면 이 경보는 검사에서만 울리고 실제로는 영원히
+    #        침묵했을 것이다(오늘 고친 다른 결함들과 똑같은 얼굴이다).
+    names: dict = {}
+    for _key, _p in (status.get("paper") or {}).items():
+        if not _key.startswith("portfolio:"):
+            continue
+        _hist = _p.get("history") or []
+        _fh = (_hist[-1].get("feature_health") if _hist else None) or {}
+        thin = _fh.get("thin") or {}
+        for _c, _v in (thin.get("features") or {}).items():
+            names[_c] = min(_v, names.get(_c, 1.0))
     if names:
         worst = ", ".join(f"{c} {v * 100:.1f}%" for c, v in sorted(names.items()))
         flags["features_thin:" + ",".join(sorted(names))] = (
@@ -429,7 +441,7 @@ def _current_flags(status: dict, today: str | None = None) -> dict[str, str]:
             f"({worst}). 열은 살아 있어 '붙었다'로 세어졌지만 대부분의 봉이 "
             f"비어 있고, 학습은 빈칸을 0으로 채웁니다 — 즉 모델은 그 구간을 "
             f"'값이 0이었다'로 배웁니다. 소스가 최근 며칠치만 주는 것인지 "
-            f"확인이 필요합니다. 종목 {thin.get('symbols')}개.")
+            f"확인이 필요합니다.")
 
     # ⑦ 새벽 배치 부분 실패 — '전 종목 실패'만 예외로 올리던 탓에 20종목 중
     #    19개가 실패한 날도 잡은 초록이었다(2026-08-11 발견). 실패한 종목은
