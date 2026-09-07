@@ -131,3 +131,80 @@ def test_the_live_wiring_survives_thin_data():
     for k, v in out["pairs"].items():
         assert v["state"] in ("표본 부족", "진행 중") or \
             v["state"].startswith("조기 판정"), f"{k}: 알 수 없는 상태 {v}"
+
+
+# ── 짝비교가 두 계좌의 자산을 이어 붙이지 않는다 (2026-09-07) ─────────
+#
+# 그림자 실험 장부에는 한때 본 계좌와 섀도 대조군 **두 계좌**가 함께 썼고,
+# 대조군의 줄은 **더 과거 날짜인데 뒤에 적혔다**. 짝비교가 "하루 여러 회차면
+# 마지막 값"을 쓰므로 그 날짜의 자산이 다른 계좌의 값이 되고, 앞뒤 날과 이어
+# 붙인 일수익은 **지어낸 수익률**이 된다.
+#
+# 실측(2026-09-07): 배분 사다리 짝비교 16개 관측 중 **2개**가 그랬다
+# (최대 8.3bp). 오늘 판정은 안 바뀌지만, 그 줄들은 사전 등록된 판정일
+# (2026-12-17)에도 창 안에 남아 있다 — 판정이 지어낸 수익률 위에서 난다.
+#
+# ⚠️ 같은 날짜의 여러 회차(장중 트랙)는 **정상**이다. 뒤로 간 것만 사고다.
+#    이 구별이 없으면 장중 트랙의 하루 여러 회차가 통째로 날아간다.
+def test_a_row_written_out_of_order_is_not_spliced_into_a_return():
+    from quant.live.sequential import paired_daily_returns
+    good = [{"date": "2026-09-04", "equity": 100.0},
+            {"date": "2026-09-05", "equity": 110.0},
+            {"date": "2026-09-06", "equity": 121.0}]
+    other = [{"date": "2026-09-04", "equity": 100.0},
+             {"date": "2026-09-05", "equity": 100.0},
+             {"date": "2026-09-06", "equity": 100.0}]
+    clean = paired_daily_returns(good, other)
+
+    # 같은 장부에 **다른 계좌의 줄**이 뒤늦게 끼어든다(더 과거 날짜).
+    dirty = good + [{"date": "2026-09-04", "equity": 55.0}]
+    assert paired_daily_returns(dirty, other) == clean, (
+        "뒤로 간 줄이 09-04의 자산을 55로 바꿔, 04→05 수익률이 두 계좌를 "
+        "이어 붙인 값이 됐다")
+
+
+def test_several_rounds_in_one_day_still_keep_the_last_one():
+    """장중 트랙은 하루에 여러 번 돈다 — 그건 사고가 아니다."""
+    from quant.live.sequential import paired_daily_returns
+    a = [{"time": "2026-09-04T09:00:00", "equity": 100.0},
+         {"time": "2026-09-04T15:00:00", "equity": 105.0},   # 같은 날 뒤 회차
+         {"time": "2026-09-05T15:00:00", "equity": 110.0}]
+    b = [{"time": "2026-09-04T15:00:00", "equity": 100.0},
+         {"time": "2026-09-05T15:00:00", "equity": 100.0}]
+    d = paired_daily_returns(a, b)
+    assert len(d) == 1, d
+    # 04의 값이 105(마지막 회차)로 잡혀야 05 수익률이 110/105-1 이다.
+    assert abs(d[0] - (110.0 / 105.0 - 1.0)) < 1e-12, d
+
+
+def test_the_real_ladders_have_no_spliced_returns_left():
+    """실제 장부로 확인 — 되감긴 줄이 남아 있어도 판정 재료는 깨끗하다."""
+    import json
+    import os
+    from quant.live.sequential import paired_daily_returns
+    root = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "state", "alloc_ladder")
+    if not os.path.isdir(root):
+        return
+
+    def hist(m):
+        with open(os.path.join(root, f"{m}.json"), encoding="utf-8") as f:
+            return json.load(f)["history"]
+
+    def drop_backwards(rows):
+        out, hi = [], None
+        for r in rows:
+            d = str(r.get("date"))[:10]
+            if hi is not None and d < hi:
+                continue
+            hi = d if hi is None or d > hi else hi
+            out.append(r)
+        return out
+
+    base = hist("hrp")
+    for alt in ("erc", "equal", "inv_vol"):
+        other = hist(alt)
+        assert (paired_daily_returns(base, other)
+                == paired_daily_returns(drop_backwards(base),
+                                        drop_backwards(other))), (
+            f"hrp-{alt}: 되감긴 줄이 아직 수익률에 섞인다")

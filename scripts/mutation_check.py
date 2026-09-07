@@ -8843,6 +8843,21 @@ MUTATIONS = [
      '    seen = list((last.get("signals") or {}).keys())',
      "    seen = []",
      "tests/test_the_futures_ledger_says_what_each_direction_earned.py"),
+    # ── 짝비교가 두 계좌의 자산을 이어 붙이지 않는다 (2026-09-07) ────
+    # 실측: 배분 사다리 짝비교 16개 관측 중 2개가 지어낸 수익률이었다.
+    ("짝비교가 뒤로 간 줄을 그대로 쓴다(두 계좌의 자산을 이어 붙인다)",
+     "quant/live/sequential.py",
+     '            if high is not None and day < high:\n                continue',
+     "            if False:\n                continue",
+     "tests/test_peeking_every_day_stays_honest.py"),
+    # ⚠️ 이 변이는 한 번 잘못 짰다. `high = day`로 바꾸는 변이는 그 줄에
+    #    닿는 순간 이미 day >= high 라서 **동작이 같다** — 나쁜 변이지 검사
+    #    구멍이 아니었다. 진짜 함정은 부등호다.
+    ("같은 날 여러 회차를 뒤로 간 줄로 오인한다(장중 트랙이 통째로 날아간다)",
+     "quant/live/sequential.py",
+     "            if high is not None and day < high:",
+     "            if high is not None and day <= high:",
+     "tests/test_peeking_every_day_stays_honest.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:
