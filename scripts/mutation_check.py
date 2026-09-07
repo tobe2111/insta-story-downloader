@@ -8384,6 +8384,33 @@ MUTATIONS = [
      '        return f"{head} — " + " — ".join(_WHY_BUY_HOLD_CLAUSES)',
      '        return f"{head} — " + "".join(_WHY_BUY_HOLD_CLAUSES)',
      'tests/test_the_site_reads_in_english_too.py'),
+    # ── 2026-09-07 · 겹친 종목 하나로 그 밤의 패널을 통째로 잃지 않는다 ────
+    ('뒤 회차가 앞 회차의 종목을 그대로 다시 담는다(겹쳐서 그 밤이 통째로 버려진다)',
+     'quant/live/retrain.py',
+     '    deduped = _drop_symbols_seen_tonight(collector, state_dir,',
+     '    deduped = {}; _unused = (collector, state_dir,',
+     'tests/test_the_panel_does_not_throw_away_a_whole_night.py'),
+    ('뺀 종목을 장부에 안 적는다(원래 없었던 것과 구별이 안 된다)',
+     'quant/live/retrain.py',
+     '        rec["deduped"] = deduped',
+     '        pass',
+     'tests/test_the_panel_does_not_throw_away_a_whole_night.py'),
+    ('겹침 방어를 뗀다(같은 종목을 두 번 세어 t가 거짓으로 커진다)',
+     'quant/live/panel_gate.py',
+     '    if daily.get("overlap"):',
+     '    if False:',
+     'tests/test_the_panel_does_not_throw_away_a_whole_night.py'),
+    # ⚠️ 변이는 **실제로 행동을 바꿔야** 한다. 처음에 쓴 변이는 읽기 실패 때
+    #    빈 집합을 넣는 것이었는데, 빈 집합은 아무것도 안 빼므로 원본과
+    #    행동이 같았다 — 검사가 못 잡는 게 당연했다(놓침이 아니라 나쁜 변이다).
+    #    그래서 실패 경로가 **전부 빼도록** 바꾼다.
+    ('장부를 못 읽으면 그 회차 재료를 통째로 버린다(한 번의 읽기 실패가 그 밤을 없앤다)',
+     'quant/live/retrain.py',
+     '    except OSError:\n        return {}',
+     '    except OSError:\n'
+     '        seen = {k: set(collector._by_spec.get(k) or {})\n'
+     '                for k in collector.specs}',
+     'tests/test_the_panel_does_not_throw_away_a_whole_night.py'),
     # ── 2026-09-07 · 배치 장부가 종목을 잃지 않고, 굶는 종목에 불이 켜진다 ──
     ('건강 기록의 종목 목록을 다시 자른다(병합이 되읽으므로 종목이 사라진다)',
      'quant/live/daily.py',

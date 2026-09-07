@@ -2399,6 +2399,46 @@ def panel_nights(state_dir: str = STATE_DIR,
     return out
 
 
+def _drop_symbols_seen_tonight(collector, state_dir: str,
+                               night: str) -> dict:
+    """이 밤의 앞 회차가 이미 담은 종목을 이번 회차 재료에서 뺀다.
+
+    돌려주는 것은 {설정열쇠: [뺀 종목]} — 빈 dict면 겹친 것이 없었다는 뜻이다.
+
+    ⚠️ 못 읽으면 **아무것도 빼지 않는다.** 장부를 못 읽었다고 재료를 버리면
+       한 번의 읽기 실패가 그 밤의 측정을 통째로 없앤다 — 그리고 그때는
+       기존 겹침 방어가 그대로 뒤를 받친다.
+    """
+    seen: dict[str, set] = {}
+    try:
+        path = os.path.join(state_dir, PANEL_FILE)
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if str(row.get("roster_asof") or row.get("asof")) != night:
+                    continue
+                for spec in (row.get("specs") or []):
+                    syms = ((spec.get("daily") or {}).get("symbols")
+                            or spec.get("symbols") or [])
+                    if syms:
+                        seen.setdefault(str(spec.get("spec_key")),
+                                        set()).update(syms)
+    except OSError:
+        return {}
+    out: dict[str, list] = {}
+    for spec_key, syms in seen.items():
+        gone = collector.drop(spec_key, syms)
+        if gone:
+            out[spec_key] = gone
+    return out
+
+
 def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
                  n_symbols_seen: int = 0, roster_asof: str = "") -> dict:
     """그날 모은 패널 재료로 판정하고 장부에 한 줄 남긴다.
@@ -2418,6 +2458,25 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
     ⚠️ 세는 것은 **설정 개수**다. 종목 수가 아니다 — 한 설정을 40종목에
        돌리는 것은 40번의 시도가 아니라 한 번의 시도를 정밀하게 재는 것이다.
     """
+    # ── 이 밤의 앞 회차가 이미 기록한 종목은 **담지 않는다** ─────────────
+    #
+    # ⚠️ 2026-09-07 실측: 그 밤 설정 3개가 **전부** 합쳐지지 못했다. 두 회차가
+    #    같은 코인을 다시 봤기 때문인데(회차 사이에 새 봉이 생겨 멱등 가드가
+    #    '할 일이 남았다'로 본다), 겹친 종목이 하나라도 있으면 합치기가
+    #    **밤 전체를 버린다** — 같은 종목을 두 번 세면 t가 거짓으로 커지므로
+    #    그 방어는 옳지만, 대가로 그 밤의 횡단 폭을 통째로 잃는다.
+    #    설정-밤 18건 중 3건(17%)이 그렇게 사라졌다.
+    #
+    #    그래서 겹치기 전에 뺀다. 앞 회차 기록이 진짜이고, 뒤 회차는 그
+    #    종목을 빼고 자기 몫만 담는다 — 남는 두 조각은 겹치지 않으므로
+    #    합치기가 정확해진다.
+    #
+    # ⚠️ 판정 규칙은 그대로다(문턱·최소 종목 수 불변) — 달라지는 것은 재료를
+    #    모으는 방식뿐이라 `gate_version`을 올리지 않는다. 다만 무엇을 뺐는지
+    #    아래 `deduped`로 장부에 적는다. 조용히 빼면 "그 밤 그 종목이 원래
+    #    없었다"와 구별되지 않는다.
+    deduped = _drop_symbols_seen_tonight(collector, state_dir,
+                                         str(roster_asof or asof))
     verdicts = collector.verdicts(t_threshold=PANEL_T_REF)
     judged = [v for v in verdicts if not v.get("skipped")]
     rec: dict = {
@@ -2478,6 +2537,8 @@ def record_panel(asof: str, collector, state_dir: str = STATE_DIR,
     #    이건 성적이 나쁜 것이 아니라 **측정이 고장 난 것**이라, 숫자를
     #    그대로 두면 나중에 시장 탓으로 잘못 읽힌다. 장부가 스스로 말하게
     #    한다 — 조용한 고장이 이 저장소에서 가장 비싼 실패다.
+    if deduped:
+        rec["deduped"] = deduped
     if len(verdicts) > PANEL_ROSTER_PER_NIGHT:
         rec["roster_split"] = (
             f"한 밤에 명단은 {PANEL_ROSTER_PER_NIGHT}개인데 설정 "
