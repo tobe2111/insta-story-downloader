@@ -3068,6 +3068,12 @@ def run_daily_paper_all(targets=None, **kwargs) -> dict:
             "records": records}
 
 
+# 배치 건강 기록의 종목 목록 상한. **병합이 이 목록을 되읽으므로** 명단보다
+# 넉넉해야 한다(자세한 이유는 아래 주석). 명단이 이 수를 넘으면 기록이
+# `keys_truncated`로 스스로 말한다.
+KEYS_CAP = 500
+
+
 def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                       skipped: list | None = None,
                       stale: dict | None = None,
@@ -3145,14 +3151,36 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
         entry_runs = 1
     failed_map = {k: v for k, v in failed_map.items() if k not in ok_set}
     skip_set -= ok_set | set(failed_map)
+    # ⚠️ **목록을 자르면 안 된다 — 위 병합이 그 목록을 되읽기 때문이다**
+    #    (2026-09-07 재현). 원래 `skipped_keys`는 20개까지만 남겼는데,
+    #    같은 밤 2회차가 `set(prev["skipped_keys"])`로 앞 회차의 결과를
+    #    복원한다. 잘려 나간 종목은 그 순간 **사라지고**, `not_reached`가
+    #    명단에서 빼는 방식으로 구해지므로 그 종목들이 **'한 번도 손대지
+    #    않은 종목'으로 둔갑한다.**
+    #
+    #    실측 재현(명단 40 · 1회차 성공 9 · 건너뜀 31):
+    #        1회차:  건너뜀 31 · 못 돈 종목 0   (목록에는 20개만 담김)
+    #        2회차:  건너뜀 20 · **못 돈 종목 11**  ← 없던 사고가 생겼다
+    #
+    #    2026-09-02에 잡은 UTC 열쇠 사고와 **증상이 똑같다**(못 돈 종목이
+    #    부풀려진다). 그때는 열쇠가 원인이었고 이번엔 목록 자르기가 원인이다.
+    #
+    #    그래서 병합이 읽는 목록은 자르지 않는다. 명단이 수십 종목이라
+    #    파일 크기는 문제가 아니고, 그래도 폭주를 막을 상한은 두되 **걸리면
+    #    걸렸다고 말한다** — 세는 수와 목록 길이가 조용히 어긋나는 것이
+    #    이 사고의 뿌리였다.
     entry = {"date": today, "runs": entry_runs,
              "ok": len(ok_set), "failed": len(failed_map),
              "skipped": len(skip_set),
-             "ok_keys": sorted(ok_set)[:100],
-             "skipped_keys": sorted(skip_set)[:20],
-             "failed_keys": sorted(failed_map)[:20],
+             "ok_keys": sorted(ok_set)[:KEYS_CAP],
+             "skipped_keys": sorted(skip_set)[:KEYS_CAP],
+             "failed_keys": sorted(failed_map)[:KEYS_CAP],
              "errors": {k: str(v)[:200] for k, v in
                         list(failed_map.items())[:5] if v}}
+    if (len(ok_set) > KEYS_CAP or len(skip_set) > KEYS_CAP
+            or len(failed_map) > KEYS_CAP):
+        # 상한이 걸린 밤은 병합이 종목을 잃을 수 있다. 조용히 잃지 않는다.
+        entry["keys_truncated"] = True
     # ⚠️ **못 돈 종목** — 세 칸(ok·failed·skipped)만으로는 장부의 산술이
     #    닫히지 않는다. 밤 배치에는 시간 예산이 있어서 명단 끝까지 못 가고
     #    끊기는데, 그렇게 **한 번도 손대지 않은** 종목은 실패도 건너뜀도
@@ -3178,7 +3206,7 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
         missing = sorted(roster_set - ok_set - set(failed_map) - skip_set)
         entry["roster"] = len(roster_set)
         entry["not_reached"] = len(missing)
-        entry["not_reached_keys"] = missing[:20]
+        entry["not_reached_keys"] = missing[:KEYS_CAP]
     if stale:
         entry["stale"] = {k: int(v) for k, v in sorted(stale.items())[:20]}
         entry["max_stale_days"] = int(max(stale.values()))
@@ -3780,6 +3808,19 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception as exc:  # noqa: BLE001
         log.warning("판정 자동 적용 실패: %s", exc)
         status["adopted"] = {"error": str(exc)[:200]}
+
+    # ── 굶는 종목 — 이어달리기가 한 종목을 계속 뒤로 미루고 있지 않은가 ──
+    #
+    # ⚠️ 한 밤의 '못 돈 종목'으로는 이걸 못 잡는다. 이어달리기는 **설계상**
+    #    한 밤에 명단을 다 못 돌아서 그 값이 거의 매일 0이 아니다. 물어야 할
+    #    것은 "오늘 다 돌았나"가 아니라 "이 종목이 마지막으로 심사받은 게
+    #    언제인가"다(작업 #67이 남긴 숙제).
+    try:
+        from quant.live.retrain import audition_gaps
+        status["audition_gap"] = audition_gaps(state_dir)
+    except Exception as exc:                           # noqa: BLE001
+        # 못 재는 것을 위반으로 세지 않는다 — 다만 못 쟀다고는 적는다.
+        status["audition_gap"] = {"measured": False, "why": str(exc)[:200]}
 
     # 오늘의 시장 브리핑(표시 전용) — 있으면 사이트에도 싣는다
     from quant.live.briefing import load_briefing

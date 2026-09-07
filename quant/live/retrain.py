@@ -1024,6 +1024,101 @@ def nightly_retrain(
 PANEL_ROSTER_PER_NIGHT = 3
 
 
+# 유니버스 종목이 이 밤 수 이상 오디션을 못 받으면 '굶는다'로 본다.
+#
+# ⚠️ 값의 근거는 실측이다(2026-09-07, 장부 35밤 · 유니버스 40종목):
+#    **최악 간격 2밤 · 중앙 1밤**이고, 최근 3밤 안에 40종목이 전부 한 번씩
+#    받았다. 그러니 5밤은 정상 운행의 두 배 남짓이고, 오늘은 **울리지
+#    않는다** — 매일 울리는 경보는 꺼진 경보와 같기 때문이다(감사 99).
+#
+# ⚠️ 이 값을 낮춰 잡고 싶은 유혹이 있는데, 이어달리기는 **설계상** 한 밤에
+#    명단을 다 못 돈다. "예산에 걸린다"와 "종목이 굶는다"는 다른 사건이고,
+#    앞의 것으로 경보를 만들면 매일 울린다.
+AUDITION_STARVE_NIGHTS = 5
+
+
+def audition_gaps(state_dir: str = "state",
+                  starve_nights: int = AUDITION_STARVE_NIGHTS) -> dict:
+    """유니버스 종목별로 **몇 밤째 오디션을 못 받았나**.
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ⚠️ 작업 #67이 남긴 숙제다. 그때 '못 돈 종목' 칸을 만들면서 이렇게 적었다 —
+       *"예산이 더 조여져 한 종목이 계속 뒤로 밀리기 시작하면 그때는 아무
+       빨간불도 안 뜬다."* 칸은 만들었는데 **빨간불은 안 붙였다.**
+
+    ⚠️ 그리고 한 밤의 `not_reached`로는 이 경보를 만들 수 없다. 이어달리기는
+       설계상 한 밤에 명단을 다 못 돌기 때문에 그 값은 거의 매일 0이 아니다 —
+       그걸로 울리면 매일 울린다. 물어야 할 것은 "오늘 밤 다 돌았나"가 아니라
+       **"이 종목이 마지막으로 심사받은 게 언제인가"**다.
+
+    ⚠️ 세는 대상은 **지금 유니버스에 있는 종목만**이다. 장부에는 은퇴한
+       챔피언(META·TSLA — 2026-08-22 시총 회전에서 빠졌다)이 남아 있는데,
+       그것까지 세면 17밤짜리 굶주림이 영원히 잡혀 경보가 꺼진 경보가 된다.
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    """
+    import collections
+    import json as _json
+    import os as _os
+
+    # 명단 — 없으면 잴 수 없다. 못 재는 것을 위반으로 세지 않는다.
+    try:
+        with open(_os.path.join(state_dir, "universe.json"), encoding="utf-8") as f:
+            targets = (_json.load(f) or {}).get("targets") or []
+        roster = {f"{m}:{s}" for m, s in targets}
+    except Exception:                                  # noqa: BLE001
+        return {"measured": False, "why": "명단(universe.json)을 못 읽었습니다"}
+    if not roster:
+        return {"measured": False, "why": "명단이 비어 있습니다"}
+
+    seen: dict[str, set] = collections.defaultdict(set)
+    path = _os.path.join(state_dir, HISTORY_FILE)
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = _json.loads(line)
+                except ValueError:
+                    continue
+                # ⚠️ 밤은 `asof`가 아니다 — 옛 줄에만 `asof`로 되돌아간다.
+                #    (`asof`는 그 종목의 마지막 봉 날짜라 시장마다 다르다.)
+                night = r.get("night") or r.get("asof")
+                if not night:
+                    continue
+                seen[str(night)].add(f"{r.get('market')}:{r.get('symbol')}")
+    except OSError:
+        return {"measured": False, "why": "재학습 장부를 못 읽었습니다"}
+    nights = sorted(seen)
+    if not nights:
+        return {"measured": False, "why": "재학습 장부에 밤 기록이 없습니다"}
+
+    idx = {n: i for i, n in enumerate(nights)}
+    last: dict[str, str] = {}
+    for n in nights:
+        for k in seen[n]:
+            last[k] = n
+    newest = len(nights) - 1
+    gaps = {}
+    for k in sorted(roster):
+        # 장부에 한 번도 없는 종목은 **간격을 지어내지 않는다** — 방금 명단에
+        # 들어온 종목과 오래 굶은 종목은 다른 사건이다.
+        gaps[k] = (newest - idx[last[k]]) if k in last else None
+    measured = {k: v for k, v in gaps.items() if v is not None}
+    starving = {k: v for k, v in measured.items() if v >= int(starve_nights)}
+    return {"measured": True,
+            "nights": len(nights),
+            "latest_night": nights[-1],
+            "roster": len(roster),
+            "threshold": int(starve_nights),
+            "worst": (max(measured.values()) if measured else None),
+            "median": (sorted(measured.values())[len(measured) // 2]
+                       if measured else None),
+            "never_seen": sorted(k for k, v in gaps.items() if v is None),
+            "starving": dict(sorted(starving.items(), key=lambda kv: -kv[1]))}
+
+
 def panel_roster() -> list[dict]:
     """패널에 세울 수 있는 설정 전체 — **모든 종목에서 글자 그대로 같은** 것만.
 
