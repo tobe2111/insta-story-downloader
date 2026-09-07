@@ -8816,6 +8816,24 @@ MUTATIONS = [
      "            if (_thin := thin_features(df)):\n                opt_thin[key] = _thin",
      "            if False:\n                opt_thin[key] = {}",
      "tests/test_the_meter_counts_content_not_names.py"),
+    # ── 그 계측기가 화면까지 가는가 (2026-09-07, 감사 105의 네 번째 얼굴) ──
+    # 같은 날 아침에 계측기를 고쳐 놓고 **화면에는 안 붙였다.** 장부와 경보에만
+    # 있는 계측기는 고장나도 아무 빨간불이 안 뜬다 — 감사 105의 정의 그 자체다.
+    ("얇은 재료 표시가 깨끗한 날에도 켜진다(항상 켜진 경고등)",
+     "docs/index.html",
+     "  if(thin&&thin.features&&Object.keys(thin.features).length){",
+     "  if(thin&&thin.features){",
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
+    ("화면이 이름만 말하고 채움률을 안 말한다(3.9%와 49%가 같아 보인다)",
+     "docs/index.html",
+     '      return c+" "+(thin.features[c]*100).toFixed(1)+"%"; }).join(" · ");',
+     '      return c; }).join(" · ");',
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
+    ("가장 빈약한 종목 칸을 아무도 안 읽는다(매일 적고 아무 일도 안 한다)",
+     "docs/index.html",
+     "      const tn=fh.thinnest||null;",
+     "      const tn=null;",
+     "tests/test_the_feature_meter_reaches_the_screen.py"),
     # ── 장중 트랙도 비용 기준을 싣는다 (2026-09-07) ────────────────
     # 실측: docs/intraday.json · docs/intraday_us.json 둘 다 cost_basis 없음.
     # 돈은 물리고 있었는데 요율이 공개 자료에 없어, 계약 검사가 손으로 적은
@@ -8843,6 +8861,21 @@ MUTATIONS = [
      '    seen = list((last.get("signals") or {}).keys())',
      "    seen = []",
      "tests/test_the_futures_ledger_says_what_each_direction_earned.py"),
+    # ── 짝비교가 두 계좌의 자산을 이어 붙이지 않는다 (2026-09-07) ────
+    # 실측: 배분 사다리 짝비교 16개 관측 중 2개가 지어낸 수익률이었다.
+    ("짝비교가 뒤로 간 줄을 그대로 쓴다(두 계좌의 자산을 이어 붙인다)",
+     "quant/live/sequential.py",
+     '            if high is not None and day < high:\n                continue',
+     "            if False:\n                continue",
+     "tests/test_peeking_every_day_stays_honest.py"),
+    # ⚠️ 이 변이는 한 번 잘못 짰다. `high = day`로 바꾸는 변이는 그 줄에
+    #    닿는 순간 이미 day >= high 라서 **동작이 같다** — 나쁜 변이지 검사
+    #    구멍이 아니었다. 진짜 함정은 부등호다.
+    ("같은 날 여러 회차를 뒤로 간 줄로 오인한다(장중 트랙이 통째로 날아간다)",
+     "quant/live/sequential.py",
+     "            if high is not None and day < high:",
+     "            if high is not None and day <= high:",
+     "tests/test_peeking_every_day_stays_honest.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

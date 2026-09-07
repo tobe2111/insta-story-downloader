@@ -3519,6 +3519,11 @@
       ["^— 엣지 미입증이라 목표 변동성을 연 ([\\d\\.]+)%로 제한 중$",
        "— the edge is unproven, so target volatility is capped at $1% a year"],
       ["^피처 드리프트 (\\d+)종목$", "Feature drift on $1 symbols"],
+      // 자리는 붙어 있는데 내용이 거의 없는 재료(2026-09-07). 이름 목록과
+      // 채움률이 장부에서 오므로 **값을 열쇠에 박으면 안 된다**.
+      ["^거의 비어 있는 보조 지표 (\\d+)개$", "$1 auxiliary indicators that are nearly empty"],
+      ["^— 자리는 붙어 있는데 값이 실제로 들어온 봉이 (\\d+)% 미만입니다\\((.+)\\)\\. 빈 자리는 0으로 채워 학습하므로, 모델은 '못 받았다'를 '안 변했다'로 배웁니다$",
+       "— the slot is attached, but a value actually arrived on fewer than $1% of bars ($2). Blank slots are filled with zero for training, so the model learns \"never arrived\" as \"did not change\""],
       ["^— 최근 분포가 학습 시점과 통계적으로 다릅니다\\(표본 잡음 범위를 넘음\\)\\. 판단 신뢰도에 주의$",
        "— the recent distribution differs statistically from the one at training time (beyond sampling noise). Treat the calls with caution"],
       ["^검증 게이트: 관망 (\\d+)종목$", "Validation gate: standing aside on $1 symbols"],

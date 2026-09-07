@@ -50,12 +50,30 @@ def paired_daily_returns(a: list[dict], b: list[dict],
     이 검정이 노리는 잡음 감소가 통째로 사라진다.
     """
     def _series(rows):
-        out = {}
+        # ⚠️ **쓴 순서와 봉 순서가 갈릴 수 있다**(2026-09-07 실측). 그림자 실험
+        #    장부에는 한때 본 계좌와 섀도 대조군 두 계좌가 함께 썼고, 대조군의
+        #    줄은 **더 과거 날짜인데 뒤에 적혔다**. 그대로 "마지막 값"을 쓰면
+        #    그 날짜의 자산이 **다른 계좌의 값**이 되고, 앞뒤 날과 이어 붙인
+        #    일수익은 두 계좌의 자산을 엮은 **지어낸 수익률**이 된다.
+        #    실측: 배분 사다리 짝비교 16개 관측 중 **2개**가 그랬다(최대 8.3bp).
+        #
+        #    그래서 **뒤로 간 줄은 건너뛴다.** 같은 날짜의 여러 회차(장중
+        #    트랙)는 그대로 마지막 값을 쓴다 — 그건 정상이고, 뒤로 간 것만
+        #    사고다. 이 구별이 없으면 장중 트랙의 하루 여러 회차가 통째로
+        #    날아간다.
+        out, high = {}, None
         for r in rows or []:
             d, v = r.get("date") or r.get("time"), r.get(key)
             if d is None or v is None:
                 continue
-            out[str(d)[:10]] = float(v)          # 하루 여러 회차면 마지막 값
+            day = str(d)[:10]
+            if high is not None and day < high:
+                continue                          # 뒤로 간 줄 — 다른 계좌의 것
+            # 여기 닿았다는 것은 day >= high 라는 뜻이라 그냥 올린다.
+            # ⚠️ 부등호가 `<=`가 되면 **같은 날의 뒤 회차가 통째로 버려진다** —
+            #    장중 트랙은 하루에 수십 번 돈다.
+            high = day
+            out[day] = float(v)                   # 하루 여러 회차면 마지막 값
         return out
 
     sa, sb = _series(a), _series(b)
