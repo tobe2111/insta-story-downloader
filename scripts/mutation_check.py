@@ -8830,6 +8830,19 @@ MUTATIONS = [
      '        "cost_basis_bp": cost_basis_bp(state_dir),',
      "",
      "tests/test_every_return_carries_its_cost_basis.py"),
+    # ── "허락한다"와 "낼 수 있다"는 다른 사건이다 (2026-09-07) ──────
+    # 실측: 관문이 양방향인데 숏 가능 종목이 0/5였고, 화면 머리글은
+    # "오를 때와 내릴 때 모두 겁니다"였다.
+    ("숏 가능 종목 수를 안 센다(화면이 '양방향'만 말하고 0/5를 숨긴다)",
+     "quant/live/futures_challenger.py",
+     '        "shortable": _shortable(last),',
+     "",
+     "tests/test_the_futures_ledger_says_what_each_direction_earned.py"),
+    ("분모를 그 회차가 본 종목이 아니라 롱 전용 수로 센다(못 본 것이 못 하는 것이 된다)",
+     "quant/live/futures_challenger.py",
+     '    seen = list((last.get("signals") or {}).keys())',
+     "    seen = []",
+     "tests/test_the_futures_ledger_says_what_each_direction_earned.py"),
 ]
 
 def _purge_bytecode(path: pathlib.Path) -> None:

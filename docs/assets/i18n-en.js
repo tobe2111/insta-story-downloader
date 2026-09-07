@@ -186,6 +186,11 @@
       "지금은 오를 때와 내릴 때 모두 겁니다.":
         "Right now it bets on both rises and falls.",
       "지금은 오를 때만 삽니다.": "Right now it only buys on rises.",
+      // ⚠️ 관문이 껐을 때와 낼 종목이 없을 때는 **다른 사건**이다
+      //    (2026-09-07 실측: 관문은 양방향인데 숏 가능 종목이 0/5였다).
+      "내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다.":
+        "Betting on falls is allowed, but right now no symbol can do it.",
+      "내림에 걸 수 있는 종목:": "Symbols that can bet on falls:",
       "아직 판정이 없습니다 — 재 보지 않은 것을 위반으로 세지 않기 때문에, 그동안은 실험을 그대로 계속합니다.":
         "No verdict yet — what has not been measured is not counted as a " +
         "violation, so the experiment keeps running in the meantime.",

@@ -1254,6 +1254,25 @@ def _direction_public(st: dict) -> dict:
     return out
 
 
+def _shortable(last: dict) -> dict:
+    """지금 **내림에 걸 수 있는** 종목이 몇 개 중 몇 개인가.
+
+    규칙 전략이 챔피언인 종목은 음수 신호를 구조적으로 못 낸다. 그런 종목은
+    회차 기록의 ``long_only``에 담긴다 — 그런데 목록만 보면 그것이 전체의
+    몇 분의 몇인지 알 수 없다. 실측(2026-09-07): 코인 챔피언 다섯이 전부
+    규칙 전략이 되어 **0/5**인데, 화면 머리글은 "오를 때와 내릴 때 모두
+    겁니다"였다.
+
+    ⚠️ ``signals``의 키가 분모다 — 그 회차가 **실제로 본 종목**이다.
+       상수 목록을 쓰면 시세를 못 받아 건너뛴 날 분모가 부풀어, 못 본 것이
+       "숏을 낼 수 없는 것"으로 둔갑한다.
+    """
+    seen = list((last.get("signals") or {}).keys())
+    lo = [k for k in (last.get("long_only") or []) if not seen or k in seen]
+    of = len(seen) or len(lo)
+    return {"n": max(0, of - len(lo)), "of": of}
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -1326,6 +1345,15 @@ def public_report(st: dict) -> dict:
         "long_positions": longs,
         "short_positions": shorts,
         "long_only_symbols": last.get("long_only") or [],
+        # ⚠️ **목록만으로는 분수를 알 수 없다**(2026-09-07 실측). 화면은
+        #    "롱 전용: BTC, ETH, SOL, BNB, XRP"라고 적었는데, 코인이 다섯
+        #    종목이라는 것을 아는 사람만 그게 **0/5**임을 안다. 그 사이 머리글은
+        #    "오를 때와 내릴 때 모두 겁니다"라고 크게 말하고 있었다.
+        #    숫자로 적으면 둘이 갈릴 수 없다.
+        #    ⚠️ 이건 전략을 바꾸는 게 아니라 **사실을 말하는 것**이다 —
+        #       숏을 낼 수 있느냐는 그 종목 챔피언이 정하고, 챔피언은 오디션이
+        #       정한다(사장님 2026-08-27 방침).
+        "shortable": _shortable(last),
         "stopped": last.get("stopped") or [],
         "skipped": last.get("skipped") or [],
         "rounds": len(rounds),
