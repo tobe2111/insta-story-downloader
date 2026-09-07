@@ -753,7 +753,7 @@ def _deployed(st: dict, equity: float):
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
-    from quant.live.daily import measured_cost_model
+    from quant.live.daily import cost_basis_bp, measured_cost_model
     rounds = st.get("rounds") or []
     lastr = rounds[-1] if rounds else {}
     eq = float(lastr.get("equity") or st.get("start_cash") or START_CASH_USDT)
@@ -769,6 +769,11 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다(2026-08-20).
         "gross_return_pct": gross_return_pct(eq, base, st.get("cost_paid")),
         "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
+        # 비용 기준 — **얼마를 냈나**만 적으면 그 요율이 실측인지 가정인지
+        # 읽는 쪽이 모른다(2026-09-02 사장님 지시: 모든 트랙이 비용 기준
+        # 하나를 쓴다). 이 트랙은 이미 measured_cost_model로 물리고 있었는데
+        # 공개 자료에 요율이 안 실려, 계약 검사도 이 트랙을 안 보고 있었다.
+        "cost_basis_bp": cost_basis_bp(state_dir),
         "trades_total": trades_total,
         "rounds_total": len(rounds),
         "since": (rounds[0].get("time") if rounds else None),

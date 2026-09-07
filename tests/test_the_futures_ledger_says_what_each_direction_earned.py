@@ -298,3 +298,66 @@ def test_the_cumulative_total_survives_the_round_window():
     assert tot["rounds"] == 2
     # 회차 목록이 비어도 누적은 그대로다.
     assert "rounds" not in st
+
+
+# ── "허락한다"와 "낼 수 있다"는 다른 사건이다 (2026-09-07) ─────────────
+#
+# 실측: 방향 관문이 양방향을 허락한 그날, 코인 챔피언 다섯이 **전부** 규칙
+# 전략이라 내림 신호를 낼 수 있는 종목이 **0/5**였다. 그런데 화면 머리글은
+# "지금은 오를 때와 내릴 때 모두 겁니다"라고 크게 말하고 있었고, 롱 전용
+# 목록은 다섯 이름을 나열할 뿐 **분수를 말하지 않았다** — 코인이 다섯이라는
+# 것을 아는 사람만 그게 0/5임을 안다.
+#
+# ⚠️ 이것은 전략을 바꾸는 일이 아니다. 숏을 낼 수 있느냐는 그 종목 챔피언이
+#    정하고 챔피언은 오디션이 정한다(사장님 2026-08-27 방침). 여기서 하는
+#    일은 **그 사실을 숫자로 말하게 하는 것**뿐이다.
+def test_the_report_says_how_many_symbols_can_actually_short():
+    from quant.live.futures_challenger import public_report
+    st = {"start_cash": 100.0, "cash": 100.0, "positions": {}, "curve": [],
+          "rounds": [{"at": "2026-09-07T00:00:00+09:00", "equity": 100.0,
+                      "signals": {"A": 0.1, "B": 0.0, "C": -0.2},
+                      "long_only": ["A", "B"], "trades": []}]}
+    got = public_report(st)["shortable"]
+    assert got == {"n": 1, "of": 3}, got
+
+
+def test_a_track_where_nothing_can_short_says_zero_not_silence():
+    """실측된 그 상태 — 0을 안 적으면 '양방향'만 남는다."""
+    from quant.live.futures_challenger import public_report
+    st = {"start_cash": 100.0, "cash": 100.0, "positions": {}, "curve": [],
+          "rounds": [{"at": "2026-09-07T00:00:00+09:00", "equity": 100.0,
+                      "signals": {k: 0.0 for k in "ABCDE"},
+                      "long_only": list("ABCDE"), "trades": []}]}
+    got = public_report(st)["shortable"]
+    assert got == {"n": 0, "of": 5}, got
+
+
+def test_a_symbol_the_round_never_saw_is_not_counted_as_unshortable():
+    """분모는 **그 회차가 실제로 본 종목**이다.
+
+    상수 목록을 분모로 쓰면 시세를 못 받아 건너뛴 날 분모가 부풀어, 못 본
+    것이 "숏을 낼 수 없는 것"으로 둔갑한다 — 못 잰 것과 못 하는 것은 다르다.
+    """
+    from quant.live.futures_challenger import public_report
+    st = {"start_cash": 100.0, "cash": 100.0, "positions": {}, "curve": [],
+          "rounds": [{"at": "2026-09-07T00:00:00+09:00", "equity": 100.0,
+                      "signals": {"A": 0.1, "B": -0.1},   # C는 건너뛰었다
+                      "long_only": ["A"], "skipped": ["C"], "trades": []}]}
+    assert public_report(st)["shortable"] == {"n": 1, "of": 2}
+
+
+def test_the_screen_separates_gate_off_from_nothing_to_short():
+    """관문이 껐을 때와 낼 종목이 없을 때의 문장이 달라야 한다."""
+    from pathlib import Path
+    html = (Path(__file__).resolve().parent.parent / "docs"
+            / "futures.html").read_text("utf-8")
+    assert "지금은 오를 때만 삽니다." in html, "관문이 껐을 때의 문장이 없다"
+    assert "내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다." in html, (
+        "관문은 열려 있는데 낼 종목이 없는 상태의 문장이 없다 — 그러면 "
+        "화면이 '모두 겁니다'라고 말하게 된다")
+    assert "내림에 걸 수 있는 종목:" in html, "분수를 안 적는다"
+    en = (Path(__file__).resolve().parent.parent / "docs" / "assets"
+          / "i18n-en.js").read_text("utf-8")
+    for k in ("내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다.",
+              "내림에 걸 수 있는 종목:"):
+        assert k in en, f"영어 사전에 없다: {k}"

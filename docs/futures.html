@@ -405,9 +405,22 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
     if(!el) return;
     /* ⚠️ 숫자를 문장 **중간**에 끼우지 않는다 — 영어 사전은 글자 마디
        단위로 찾으므로, 값이 바뀔 때마다 마디가 달라져 번역이 끊긴다. */
+    /* ⚠️ **관문이 허락하는 것과 실제로 낼 수 있는 것은 다르다**(2026-09-07
+       실측). 관문은 양방향을 허락했는데 그날 코인 챔피언 다섯이 전부 규칙
+       전략이라 **0/5**가 내림 신호를 못 냈다. 그런데 머리글은 "오를 때와
+       내릴 때 모두 겁니다"라고 말하고 있었다 — 관문이 껐을 때와 낼 종목이
+       없을 때는 **다른 사건**이라 문장도 달라야 한다.
+       숫자는 태그 안에 가둔다(영어 사전이 마디로 찾는다). */
+    var sh=d.shortable||{}, canShort=(sh.n==null)||Number(sh.n)>0;
     var head=(g.two_sided===false)
       ? '<b class="down">지금은 오를 때만 삽니다.</b>'
-      : '<b>지금은 오를 때와 내릴 때 모두 겁니다.</b>';
+      : (canShort
+         ? '<b>지금은 오를 때와 내릴 때 모두 겁니다.</b>'
+         : '<b class="down">내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다.</b>');
+    var frac=(sh.of==null)?'':
+      '<div class="sub" style="margin-top:4px">'+
+      '내림에 걸 수 있는 종목: <b>'+Number(sh.n||0)+' / '+Number(sh.of||0)+'</b>'+
+      '</div>';
     var why;
     if(g.t_stat==null){
       why='<div style="margin-top:6px">아직 판정이 없습니다 — '+
@@ -431,7 +444,7 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
           : '아직 좋다고도 나쁘다고도 말할 수 없는 자리라 실험을 계속합니다.')+
         '</div>';
     }
-    el.innerHTML=head+why+
+    el.innerHTML=head+frac+why+
       '<div class="sub" style="margin-top:6px">이 비교에는 자금조달비가 '+
       '빠져 있습니다 — 방향마다 부호가 반대라 한쪽으로 물리면 숏이 부당하게 '+
       '불리해집니다. 그래서 이 판정은 숏에 보수적인 쪽입니다.</div>';
