@@ -1056,9 +1056,13 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     # ⚠️ 판정은 이번 회차가 **쓴** 값이지 지금 잰 값이 아니다. 오늘 밤
     #    판정을 오늘 회차에 쓰면 미래를 보는 셈이 되고, 그건 이 저장소가
     #    가장 싫어하는 종류의 조용한 반칙이다(패널 관문과 같은 규약).
+    # ⚠️ **문턱도 함께 싣는다**(2026-09-08). 화면이 "N밤이 지나면 안
+    #    씁니다"를 말하려면 그 N이 자료에 있어야 한다 — 화면에 손으로
+    #    적으면 여기 값을 바꾸는 날 화면만 옛말을 하게 된다.
     rec["direction_gate"] = ({"two_sided": two_sided_ok,
                               "night": direction.get("night"),
                               "age_nights": direction.get("age_nights"),
+                              "max_age_nights": _dg_max_age(),
                               "t_stat": direction.get("t_stat"),
                               "t_threshold": direction.get("t_threshold"),
                               "n_symbols": direction.get("n_symbols"),
@@ -1175,6 +1179,17 @@ def _gross_return_pct(st: dict, eq: float) -> float | None:
         return None
     gross = eq + float(st.get("cost_paid") or 0.0) + float(st.get("funding_paid") or 0.0)
     return round((gross / base - 1.0) * 100, 4)
+
+
+def _dg_max_age() -> int:
+    """방향 관문 판정의 유효 기간(밤). **출처는 관문 모듈 하나다.**
+
+    화면이 "N밤이 지나면 안 씁니다"라고 말하려면 그 N이 공개 자료에 있어야
+    한다. 화면에 손으로 적으면 관문의 값을 바꾸는 날 화면만 옛말을 한다 —
+    이 저장소가 반복해서 잡아 온 '손 명단' 그대로다.
+    """
+    from quant.live.direction_gate import MAX_AGE_NIGHTS
+    return int(MAX_AGE_NIGHTS)
 
 
 def _fee_window(st: dict, days: int = 7) -> dict:
