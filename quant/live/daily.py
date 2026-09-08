@@ -923,6 +923,8 @@ def cost_basis_bp(state_dir: str = STATE_DIR) -> dict:
     out = {}
     for m in ("kr_stock", "us_stock", "crypto"):
         try:
+            # cost-model: 시장 단위 요약 — 여기서 만드는 것이 시장별 표
+            #   그 자체다. 한국의 ETF 줄은 바로 아래에서 따로 적는다.
             out[m] = round(float(measured_cost_model(m, state_dir).total_one_way()) * 1e4, 1)
         except Exception:  # noqa: BLE001
             out[m] = None

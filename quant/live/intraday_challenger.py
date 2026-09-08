@@ -359,6 +359,9 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
 
     st = load_state(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
+    # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+    #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+    #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("crypto", state_dir)
     per_side = cost.total_one_way()   # 편도, 회전율 대비
 
@@ -616,6 +619,9 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
     from quant.utils.jsonio import atomic_write_json
 
     factory = strategy_factory or _champion_factory(state_dir)
+    # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+    #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+    #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("crypto", state_dir)
     per_side = cost.total_one_way()
     out = []
@@ -688,6 +694,9 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "equity": round(eq, 2),
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
             "hold_return_pct": hold_baseline_pct(
+                # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+                #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+                #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("crypto", state_dir).total_one_way()),
             # 비용 전 — 순위가 신호 차이인지 비용 차이인지 가른다.
             "gross_return_pct": gross_return_pct(
@@ -798,6 +807,9 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                          for r in rounds[-CURVE_KEEP:]],
         # 같은 기간 그냥 보유(첫 회차 가격 기준, 균등 분산) — 점수의 기준선.
         "hold_return_pct": hold_baseline_pct(
+                # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+                #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+                #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("crypto", state_dir).total_one_way()),
         # 판정 기준 — 결과가 쌓이기 전에 등록했고 바꾸지 않는다.
         "judgement": PREREGISTERED_JUDGEMENT,

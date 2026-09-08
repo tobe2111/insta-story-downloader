@@ -36,6 +36,8 @@
 """
 from __future__ import annotations
 
+from quant.live import shadow_cost
+
 import json
 import os
 
@@ -50,21 +52,14 @@ FEE = 0.001            # 회전율당 10bp — 두 계좌 공통(상대 비교 �
 
 
 def _turnover_cost(target: dict, prev: dict, state_dir: str) -> float:
-    """회전 × **그 종목 시장의 실측 편도 비용** — 본 계좌와 같은 자.
+    """회전 비용 — 셈은 `shadow_cost` 한 곳에만 있다(2026-09-08).
 
-    2026-09-02 사장님 지시("각 수수료도 고려해서 수익을 생각해야지 — 모든
-    투자 마찬가지"). 예전엔 시장 무관 10bp 고정이라 한국·코인은 싸게,
-    미국은 비싸게 셌다 — 본 계좌와 나란히 놓는 비교가 기울어 있었다.
+    ⚠️ 네 그림자 계좌가 **글자까지 똑같은** 이 함수를 각자 들고 있었고, 넷
+       전부가 종목을 버려(`key.split(":")[0]`) 한국 ETF에 주식 요율을
+       물리고 있었다 — 6종목 × 2.15배. 같은 셈을 여러 벌 두면 고칠 때
+       반드시 하나를 빠뜨린다.
     """
-    try:
-        from quant.live.daily import measured_cost_model
-        def _one_way(key: str) -> float:
-            return float(measured_cost_model(key.split(":")[0], state_dir).total_one_way())
-    except Exception:  # noqa: BLE001 — 비용 조회 실패가 그림자 기록을 막으면 안 된다
-        def _one_way(key: str) -> float:
-            return FEE
-    return sum(abs(float(target.get(k, 0.0)) - float(prev.get(k, 0.0))) * _one_way(k)
-               for k in set(target) | set(prev))
+    return shadow_cost.turnover_cost(target, prev, state_dir, FEE)
 DIR = "diversity_shadow"
 KEEP_DAYS = 400
 
