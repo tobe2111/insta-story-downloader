@@ -85,6 +85,23 @@
       "미국 생활필수품주": "US consumer staples",
       "미국 부동산": "US real estate",
       "원자재 묶음": "Commodity basket",
+      // 2026-09-07 — ⑧⑨를 사전 등록 블록 안으로 옮기면서 번호와 이름이
+      //   갈라졌다(⑦과 같은 모양). 갈라진 조각도 영어가 있어야 한다.
+      "사이징 사다리": "Bet-size ladder",
+      "다양성 가중 그림자": "Diversity-weighted shadow",
+      "2026-09-07 정정 — ⑧⑨가 이 목록 밖에 붙어 있었습니다.":
+        "Correction, 2026-09-07 — items \u2467 and \u2468 sat outside this list.",
+      "뒤에 추가 등록한 두 실험이 이 블록이 아니라 아래 '정직한 한계' 목록 안에 들어가 있어서, 읽는 사람에게는":
+        "The two experiments registered later had ended up inside the \"Honest limits\" list below rather than in this block, so to a reader they",
+      "등록된 실험이 아닌 것처럼": "did not look like registered experiments at all",
+      "보였습니다. 자리를 바로잡았고 조건은 한 글자도 바꾸지 않았습니다. 같은 날 ⑨는":
+        ". We moved them back; not one word of their terms was changed. The same day, \u2468 also turned out to be",
+      "등록 원문 자체가 저장소 등록부에 없다는 것":
+        "missing from the repository registry itself",
+      "도 드러나 함께 옮겨 적었습니다(조건 그대로).":
+        ", so it was transcribed there too \u2014 terms unchanged.",
+      "아홉 실험 모두, 기준 미달의 결과는 같습니다:":
+        "For all nine experiments, falling short of the bar has the same outcome:",
       "일본 주식": "Japanese equities",
       "유럽 주식": "European equities",
       "신흥국 주식": "Emerging-market equities",
@@ -3519,6 +3536,12 @@
       ["^— 엣지 미입증이라 목표 변동성을 연 ([\\d\\.]+)%로 제한 중$",
        "— the edge is unproven, so target volatility is capped at $1% a year"],
       ["^피처 드리프트 (\\d+)종목$", "Feature drift on $1 symbols"],
+      // 낸 금액 옆의 **편도 요율**(2026-09-07 장중 트랙 둘). 이 줄은 장부에
+      //   요율이 실제로 실린 뒤에야 화면에 뜨므로, 붙인 날에는 영어가
+      //   빠진 것이 안 드러났다 — 밤 배치가 값을 채운 다음 날 CI가 잡았다.
+      //   ⚠️ 숫자를 열쇠에 박으면 안 된다(시장마다 6.0·15.0으로 다르고
+      //      실측이 바뀌면 그때 영어가 사라진다).
+      ["^· 편도 ([\\d.]+)bp\\(실측\\)$", "· $1bp one way (measured)"],
       // 자리는 붙어 있는데 내용이 거의 없는 재료(2026-09-07). 이름 목록과
       // 채움률이 장부에서 오므로 **값을 열쇠에 박으면 안 된다**.
       ["^거의 비어 있는 보조 지표 (\\d+)개$", "$1 auxiliary indicators that are nearly empty"],

@@ -634,18 +634,56 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
       ${picks?`<p class="sub" style="font-size:11.5px">상위 비중: ${picks}</p>`:""}`;
   }
 
+  /* 비교 이름은 장부 열쇠(`alloc:hrp-erc`)라 그대로 띄우면 코드가 화면에
+     나온다. 사람 말로 바꾸되 **모르는 열쇠는 그대로** 띄운다 — 새 비교가
+     생겼을 때 이름이 사라지는 것보다 낫다(검사가 빠진 이름을 잡는다). */
+  const SEQ_LABEL={
+    "alloc:hrp-erc":"자본 배분: 현행 vs 위험기여 균등",
+    "alloc:hrp-equal":"자본 배분: 현행 vs 똑같이 나누기",
+    "alloc:hrp-inv_vol":"자본 배분: 현행 vs 덜 흔들리는 쪽에 더",
+    "cadence:1h-15m":"판단 주기: 1시간 vs 15분",
+    "cadence:1h-5m":"판단 주기: 1시간 vs 5분",
+    "cadence:15m-5m":"판단 주기: 15분 vs 5분",
+    "us_cadence:1h-15m":"판단 주기(미국): 1시간 vs 15분",
+    "us_cadence:1h-5m":"판단 주기(미국): 1시간 vs 5분",
+    "limit_shadow:market-limit":"체결 방식(코인): 즉시 사기 vs 값 걸고 기다리기",
+    "us_limit_shadow:market-limit":"체결 방식(미국): 즉시 사기 vs 값 걸고 기다리기",
+    "gen2:main-concentrated":"담는 방식: 신호 난 종목 모두 vs 상위 몇 개만",
+    "sizing:current-half":"베팅 크기: 현행 vs 절반",
+    "sizing:current-kelly":"베팅 크기: 현행 vs 켈리",
+    "sizing:current-allin":"베팅 크기: 현행 vs 전량"};
+
   function seqRows(){
     const q=st.sequential; if(!q||!q.pairs)return "";
+    /* 등록이 **미리 심어 둔 채택 조건**. 이것을 안 실으면 화면의 '우세'가
+       곧 채택으로 읽힌다 — 실제로 2026-09-07에 지정가 비교가 경계를
+       넘었는데 등록된 조건(미체결율 20%)에 걸려 채택 보류다. */
+    const holdCell=h=>{
+      if(!h)return "—";
+      if(h.measured===null)return `<span class="sub">못 잼 — ${esc(h.why||"")}</span>`;
+      const num=h.unfilled_pct!=null?("미체결율 "+h.unfilled_pct+"%")
+        :(h.ratio!=null?("낙폭 현행의 "+h.ratio+"배"):"");
+      return (h.held?'<b class="neg">채택 보류</b> · ':'<span class="pos">조건 충족</span> · ')+esc(num);
+    };
     const rows=Object.entries(q.pairs).map(([k,v])=>{
-      const done=String(v.state||"").indexOf("조기 판정")===0;
       const prog=v.progress!=null?Math.round(v.progress*100)+"%":"—";
-      return `<tr><td style="text-align:left">${esc(k)}</td>
-        <td>${esc(v.state||"")}</td><td>${v.n||0}일</td><td>${prog}</td></tr>`;
+      const nm=SEQ_LABEL[k]||k;
+      const ref=v.reference?' <span class="sub">(참고 — 등록된 판정 아님)</span>':"";
+      const m=v.comparisons>1?` <span class="sub">·${v.comparisons}중 보정</span>`:"";
+      return `<tr><td style="text-align:left">${esc(nm)}${ref}</td>
+        <td>${esc(v.state||"")}${m}</td><td>${v.n||0}일</td><td>${prog}</td>
+        <td style="text-align:left">${holdCell(v.adoption_hold)}</td></tr>`;
     }).join("");
+    /* 재료가 없어 못 잰 실험은 **이름을 말한다.** 조용히 빠지면 "그런
+       비교가 원래 없었다"로 읽힌다 — 2026-09-07까지 실제로 그랬다. */
+    const miss=Object.keys(q.missing||{});
+    const missNote=miss.length?`<p class="sub" style="font-size:11.5px">
+      아직 못 잰 비교: ${esc(miss.join(" · "))} — 장부가 쌓이면 자동으로 들어옵니다</p>`:"";
     return `<p class="sub" style="margin:10px 0 4px;font-size:12.5px">
       <b>조기 판정 진도</b> — ${esc(q.note||"")}</p>
       <div class="tablewrap"><table><tr><th style="text-align:left">비교</th>
-      <th>상태</th><th>표본</th><th>경계까지</th></tr>${rows}</table></div>`;
+      <th title="앞에 적힌 쪽(현행) 기준입니다">판정(현행 기준)</th><th>표본</th><th>경계까지</th>
+      <th style="text-align:left">등록된 채택 조건</th></tr>${rows}</table></div>${missNote}`;
   }
   // 판정 시계 — 구조가 바뀌면 통계의 시계도 0으로 리셋된다는 사실을 명시
   if(st.generation){

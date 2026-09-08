@@ -33,7 +33,11 @@ EXPECTED = {"intraday_1h": ("2026-08-18", 90),
             "us_limit_shadow": ("2026-08-19", 90),
             "gen2_concentration": ("2026-08-19", 120),
             "alloc_ladder": ("2026-08-19", 120),
-            "sizing_ladder": ("2026-08-22", 120)}
+            "sizing_ladder": ("2026-08-22", 120),
+            # 2026-09-07 옮겨 적음 — 공개 페이지에는 2026-08-23부터
+            # 등록돼 있었는데 등록부에만 없었다. 판정일은 사다리들과
+            # 같은 날로 등록해서 라운드 숫자가 아니다(119일).
+            "diversity_shadow": ("2026-08-23", 119)}
 
 REQUIRED = ("name", "question", "start", "judge_on", "statistic",
             "alpha", "correction", "on_fail")
