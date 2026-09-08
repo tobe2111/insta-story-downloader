@@ -130,6 +130,11 @@
 
       // 코인 선물
       "기준 시각 없음": "No reference time",
+      // 2026-09-08 — 위기 재생 표에 맞바꿈의 나쁜 쪽을 올리면서 함께 넣는다.
+      "최악 하루": "Worst single day",
+      "물속에 있던 최장 기간": "Longest stretch under water",
+      "브레이크는 덜 잃는 대신 회복을 늦춥니다 — 물속 기간이 길어지는 것이 그 값입니다. 좋은 쪽만 보여 주지 않습니다.":
+        "The brake loses less but recovers slower — the longer time under water is what that costs. We do not show only the flattering side.",
       // 2026-09-08 — 장부에만 있고 화면에 없던 두 칸을 올리면서 함께 넣는다
       //   (오늘 배운 것: 새로 쓴 화면 글자는 그날 사전에 같이 넣는다).
       "이 판정의 나이(며칠 전 밤 · 이보다 오래되면 안 씁니다):":
