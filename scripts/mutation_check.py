@@ -8834,6 +8834,40 @@ MUTATIONS = [
      "      const tn=fh.thinnest||null;",
      "      const tn=null;",
      "tests/test_the_feature_meter_reaches_the_screen.py"),
+    # ── 조기 판정이 등록대로 도는가 (2026-09-07) ────────────────────
+    # 실측: 등록의 본페로니 보정이 경계에 안 걸려 있었고, applies_to 6개 중
+    # 4개는 한 번도 계산된 적이 없었다. 붙이자마자 하나가 이미 경계를 넘어
+    # 있었다(지정가 그림자) — 그리고 등록이 심어 둔 조건에 걸려 채택 보류다.
+    ("조기 판정이 등록된 보정을 안 걸고 돈다(경계가 거짓 승리 쪽으로 낮아진다)",
+     "quant/live/sequential.py",
+     "            v = verdict(diffs, alpha=alpha0 / m, rho=rho, min_days=min_days)",
+     "            v = verdict(diffs, alpha=alpha0, rho=rho, min_days=min_days)",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
+    ("보정 문구를 못 읽어도 1로 넘어간다(보정을 조용히 버린다)",
+     "quant/live/sequential.py",
+     '    raise ValueError(f"등록의 보정 문구를 못 읽었다: {text!r}")',
+     "    return 1",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
+    ("주기 사다리의 셋째 쌍이 빠진다(보정 값은 치르면서 비교는 없다)",
+     "quant/live/sequential.py",
+     '                | _pair("cadence:15m-5m", m15, m5))',
+     "                )",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
+    ("재료 없는 실험을 조용히 뺀다('그런 비교가 원래 없었다'와 구별 불가)",
+     "quant/live/sequential.py",
+     '            out["missing"][key] = "재료 없음 — 이 실험의 장부를 아직 못 읽었습니다"',
+     "            pass",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
+    ("낙폭 관문이 겹치지 않는 날까지 센다('누가 더 오래 굴렀나' 비교가 된다)",
+     "quant/live/sequential.py",
+     "        if days is not None and day not in days:",
+     "        if False:",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
+    ("화면이 등록된 채택 조건을 안 싣는다('우세'가 곧 채택으로 읽힌다)",
+     "docs/paper.html",
+     '        <td style="text-align:left">${holdCell(v.adoption_hold)}</td></tr>`;',
+     "        </tr>`;",
+     "tests/test_the_early_judgement_runs_as_registered.py"),
     # ── 장중 트랙도 비용 기준을 싣는다 (2026-09-07) ────────────────
     # 실측: docs/intraday.json · docs/intraday_us.json 둘 다 cost_basis 없음.
     # 돈은 물리고 있었는데 요율이 공개 자료에 없어, 계약 검사가 손으로 적은
