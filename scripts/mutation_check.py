@@ -8834,6 +8834,24 @@ MUTATIONS = [
      "      const tn=fh.thinnest||null;",
      "      const tn=null;",
      "tests/test_the_feature_meter_reaches_the_screen.py"),
+    # ── 사고 났을 때만 뜨는 경보도 영어로 (2026-09-08) ────────────
+    # 실측: 경보 32개의 한국어 조각 81개 중 54개가 사전에 없었다. 그 줄은
+    # 사고가 나야 뜨므로 브라우저 검사가 구조적으로 못 본다.
+    ("경보 문구를 태그에서 자르지 않고 지운다(없는 문장을 사전에 요구한다)",
+     "tests/test_the_alarms_read_in_english_too.py",
+     '            for piece in re.split(r"<[^>]+>", a or b):',
+     '            for piece in [re.sub(r"<[^>]+>", "", a or b)]:',
+     "tests/test_the_alarms_read_in_english_too.py"),
+    ("경보 영어 검사가 아무것도 안 센다(조용히 통과한다)",
+     "tests/test_the_alarms_read_in_english_too.py",
+     '    for m in re.finditer(r"flags\\.push\\(", blocks):',
+     '    for m in re.finditer(r"flags\\.never\\(", blocks):',
+     "tests/test_the_alarms_read_in_english_too.py"),
+    ("경보 조각 문턱이 풀려 조사 한 글자까지 사전을 요구한다",
+     "tests/test_the_alarms_read_in_english_too.py",
+     "MIN_HANGUL = 6",
+     "MIN_HANGUL = 400",
+     "tests/test_the_alarms_read_in_english_too.py"),
     # ── 조기 판정이 등록대로 도는가 (2026-09-07) ────────────────────
     # 실측: 등록의 본페로니 보정이 경계에 안 걸려 있었고, applies_to 6개 중
     # 4개는 한 번도 계산된 적이 없었다. 붙이자마자 하나가 이미 경계를 넘어
