@@ -1055,9 +1055,15 @@ def _cmd_validate(args) -> None:
     if args.market != "synthetic":
         try:
             from quant.live.daily import measured_cost_model
-            fee_one_way = float(measured_cost_model(args.market, "state").total_one_way())
-            say(f"💸 비용 기준: {args.market} 편도 {fee_one_way * 1e4:.1f}bp "
-                "(오디션·본 계좌와 같은 실측 모델)")
+            # ⚠️ **종목을 넘긴다.** 시장만 넘기면 `is_etf`가 종목을 몰라
+            #    주식으로 보고(비싼 쪽 = 보수적) 한국 ETF가 6.5bp 대신
+            #    14.0bp를 문다 — 2026-09-08 실측으로 운용 한국 12종목 중
+            #    6종목이 **2.15배**를 물고 있었다. 2026-09-03에 "전부
+            #    종목을 넘겨받는다"고 적어 놓고 이 자리를 빠뜨렸다.
+            fee_one_way = float(measured_cost_model(
+                args.market, "state", symbol=args.symbol).total_one_way())
+            say(f"💸 비용 기준: {args.market}:{args.symbol} 편도 "
+                f"{fee_one_way * 1e4:.1f}bp (오디션·본 계좌와 같은 실측 모델)")
         except Exception as exc:  # noqa: BLE001 — 비용 조회 실패는 기록에 남긴다
             skipped["cost"] = f"비용 모델 조회 실패: {exc}"[:200]
     fee_kw = {"fee": fee_one_way} if fee_one_way is not None else {}

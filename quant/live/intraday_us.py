@@ -404,6 +404,9 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     st = load_state(state_dir)
     syms = universe(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
+    # cost-model: 종목 무관(us_stock) — 이 트랙은 미국주식 한 시장만 돌고,
+    #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+    #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("us_stock", state_dir)
     per_side = cost.total_one_way()
 
@@ -484,6 +487,9 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
         return [{"skipped": "미국장 휴장"}]
     syms = universe(state_dir)
     factory = strategy_factory or _champion_factory(state_dir)
+    # cost-model: 종목 무관(us_stock) — 이 트랙은 미국주식 한 시장만 돌고,
+    #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+    #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("us_stock", state_dir)
     per_side = cost.total_one_way()
     out = []
@@ -533,6 +539,9 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
             "equity": round(eq, 2),
             "return_pct": round((eq / float(st["start_cash"]) - 1) * 100, 4),
             "hold_return_pct": hold_baseline_pct(
+                # cost-model: 종목 무관(us_stock) — 이 트랙은 미국주식 한 시장만 돌고,
+                #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+                #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("us_stock", state_dir).total_one_way()),
             "trades_total": sum(len(r.get("trades") or []) for r in rounds),
             "cost_paid": round(float(st.get("cost_paid") or 0.0), 2),
@@ -638,6 +647,9 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "equity_curve": [[r.get("time"), r.get("equity")]
                          for r in rounds[-CURVE_KEEP:]],
         "hold_return_pct": hold_baseline_pct(
+                # cost-model: 종목 무관(us_stock) — 이 트랙은 미국주식 한 시장만 돌고,
+                #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+                #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("us_stock", state_dir).total_one_way()),
         "judgement": PREREGISTERED_JUDGEMENT,
         "limit_shadow": _shadow_public(st, lastr),

@@ -909,6 +909,9 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         # 지시 "모든 투자 마찬가지"). 트랙마다 다른 비용을 쓰면 트랙 비교가
         # 비용 비교로 오염된다.
         from quant.live.daily import measured_cost_model
+        # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+        #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+        #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
         per_side = float(measured_cost_model("crypto", state_dir).total_one_way())
     st = load_state(state_dir)
     # ── 지나간 회차를 **한 번** 채운다(멱등) ────────────────────────────
@@ -1157,6 +1160,9 @@ def _cost_basis_bp() -> float | None:
     """이 트랙이 무는 편도 비용(bp) — 화면에 비용 기준을 함께 싣는다."""
     try:
         from quant.live.daily import measured_cost_model
+        # cost-model: 종목 무관(crypto) — 이 트랙은 코인 한 시장만 돌고,
+        #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
+        #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
         return round(float(measured_cost_model("crypto").total_one_way()) * 1e4, 1)
     except Exception:  # noqa: BLE001
         return None
