@@ -85,6 +85,39 @@
       "미국 생활필수품주": "US consumer staples",
       "미국 부동산": "US real estate",
       "원자재 묶음": "Commodity basket",
+      // ── 조기 판정 진도표 (2026-09-08, 실기록 화면) ─────────────────
+      // ⚠️ 같은 날 오전에 이 표를 붙이면서 영어를 안 넣었다 — 그날 아침에 배운 바로 그
+      //    병이다(새로 쓴 화면 글자는 그날 사전에 같이 넣는다). 실기록은
+      //    완역 대상이 아니라 충족률 하한으로 관리되는 페이지라 검사가
+      //    강제하지 않았고, 그래서 조용히 지나갈 뻔했다.
+      "자본 배분: 현행 vs 위험기여 균등":
+        "Capital allocation: current vs equal risk contribution",
+      "자본 배분: 현행 vs 똑같이 나누기":
+        "Capital allocation: current vs splitting evenly",
+      "자본 배분: 현행 vs 덜 흔들리는 쪽에 더":
+        "Capital allocation: current vs more to the steadier names",
+      "판단 주기: 1시간 vs 15분": "Decision cadence: 1 hour vs 15 minutes",
+      "판단 주기: 1시간 vs 5분": "Decision cadence: 1 hour vs 5 minutes",
+      "판단 주기: 15분 vs 5분": "Decision cadence: 15 minutes vs 5 minutes",
+      "판단 주기(미국): 1시간 vs 15분":
+        "Decision cadence (US): 1 hour vs 15 minutes",
+      "판단 주기(미국): 1시간 vs 5분":
+        "Decision cadence (US): 1 hour vs 5 minutes",
+      "체결 방식(코인): 즉시 사기 vs 값 걸고 기다리기":
+        "Execution style (crypto): buying at once vs naming a price and waiting",
+      "체결 방식(미국): 즉시 사기 vs 값 걸고 기다리기":
+        "Execution style (US): buying at once vs naming a price and waiting",
+      "담는 방식: 신호 난 종목 모두 vs 상위 몇 개만":
+        "How much to hold: every signalled symbol vs only the top few",
+      "베팅 크기: 현행 vs 절반": "Bet size: current vs half",
+      "베팅 크기: 현행 vs 켈리": "Bet size: current vs Kelly",
+      "베팅 크기: 현행 vs 전량": "Bet size: current vs all-in",
+      "판정(현행 기준)": "Verdict (from the current side)",
+      "앞에 적힌 쪽(현행) 기준입니다": "Read from the side named first (the current one)",
+      "등록된 채택 조건": "Registered adoption condition",
+      "경계까지": "To the boundary",
+      "(참고 — 등록된 판정 아님)": "(for reference — not a registered verdict)",
+      "조건 충족": "condition met",
       // 2026-09-07 — ⑧⑨를 사전 등록 블록 안으로 옮기면서 번호와 이름이
       //   갈라졌다(⑦과 같은 모양). 갈라진 조각도 영어가 있어야 한다.
       "사이징 사다리": "Bet-size ladder",
@@ -3651,6 +3684,14 @@
       // 자리는 붙어 있는데 내용이 거의 없는 재료(2026-09-07). 이름 목록과
       // 채움률이 장부에서 오므로 **값을 열쇠에 박으면 안 된다**.
       ["^거의 비어 있는 보조 지표 (\\d+)개$", "$1 auxiliary indicators that are nearly empty"],
+      // 조기 판정 진도표의 값이 든 자리 (2026-09-08) — 값은 장부에서 오므로
+      // 열쇠에 안 박는다.
+      ["^·(\\d+)중 보정$", "· corrected for $1"],
+      ["^못 잼 — (.+)$", "not measured — $1"],
+      ["^미체결율 ([\\d.]+)%$", "unfilled rate $1%"],
+      ["^낙폭 현행의 ([\\d.]+)배$", "drawdown $1× the current one"],
+      ["^아직 못 잰 비교: (.+) — 장부가 쌓이면 자동으로 들어옵니다$",
+       "Comparisons not measured yet: $1 — they enter automatically once the ledger fills up"],
       ["^— 자리는 붙어 있는데 값이 실제로 들어온 봉이 (\\d+)% 미만입니다\\((.+)\\)\\. 빈 자리는 0으로 채워 학습하므로, 모델은 '못 받았다'를 '안 변했다'로 배웁니다$",
        "— the slot is attached, but a value actually arrived on fewer than $1% of bars ($2). Blank slots are filled with zero for training, so the model learns \"never arrived\" as \"did not change\""],
       ["^— 최근 분포가 학습 시점과 통계적으로 다릅니다\\(표본 잡음 범위를 넘음\\)\\. 판단 신뢰도에 주의$",
