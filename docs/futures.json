@@ -1,26 +1,26 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-09-08T14:58:24+09:00",
+  "updated": "2026-09-08T20:04:59+09:00",
   "start_cash": 10000.0,
-  "equity": 9503.5553,
-  "return_pct": -4.9644,
-  "gross_return_pct": 1.3004,
+  "equity": 9510.0911,
+  "return_pct": -4.8991,
+  "gross_return_pct": 1.367,
   "cost_basis_bp": 15.0,
   "fee_window": {
     "days": 7,
     "rounds": 52,
-    "fees": 60.9196,
-    "gross_pnl": -25.1929,
-    "since": "2026-09-01T14:45:38+09:00"
+    "fees": 60.5654,
+    "gross_pnl": -4.9086,
+    "since": "2026-09-01T19:32:01+09:00"
   },
   "fee_budget": {
     "days": 7,
-    "fees": 60.9196,
-    "equity": 9503.5553,
-    "pct_of_equity": 0.641,
+    "fees": 60.5654,
+    "equity": 9510.0911,
+    "pct_of_equity": 0.6369,
     "limit_pct": 3.0,
     "breached": false,
-    "since": "2026-09-01T14:45:38+09:00"
+    "since": "2026-09-01T19:32:01+09:00"
   },
   "rebalance_bands": {
     "BTC/USDT": 0.15,
@@ -33,6 +33,7 @@
     "two_sided": true,
     "night": "2026-09-08",
     "age_nights": 0,
+    "max_age_nights": 7,
     "t_stat": -0.10958927494302124,
     "t_threshold": 1.35,
     "n_symbols": 10,
@@ -41,7 +42,7 @@
   "direction_pnl": {
     "measured": true,
     "gross": {
-      "long": 116.992747,
+      "long": 123.650695,
       "short": -144.91935
     },
     "fee": {
@@ -49,16 +50,16 @@
       "short": 139.7207
     },
     "funding": {
-      "long": 9.954407,
+      "long": 10.076526,
       "short": 1.125512
     },
     "net": {
-      "long": -361.036831,
+      "long": -354.501002,
       "short": -285.765562
     },
-    "rounds": 229,
+    "rounds": 230,
     "reconstructed_rounds": 222,
-    "note": "229회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
+    "note": "230회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
     "unattributed": 150.3577,
     "open_positions": {
       "long": 1,
@@ -66,14 +67,14 @@
     }
   },
   "cost_paid": 607.796,
-  "funding_paid": 18.686768,
+  "funding_paid": 18.808886,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
     "max_leverage": 1.0,
     "proven": false,
     "drawdown": 0.065,
-    "n": 228,
+    "n": 229,
     "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
   },
   "rule_changes": [
@@ -99,11 +100,11 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 4.988002,
+  "margin_ratio": 4.974051,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 1905.2828,
+  "gross_exposure": 1911.9408,
   "long_positions": 1,
   "short_positions": 0,
   "long_only_symbols": [
@@ -119,7 +120,7 @@
   },
   "stopped": [],
   "skipped": [],
-  "rounds": 229,
+  "rounds": 230,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -1037,6 +1038,10 @@
     {
       "at": "2026-09-08T14:58:24+09:00",
       "equity": 9503.5553
+    },
+    {
+      "at": "2026-09-08T20:04:59+09:00",
+      "equity": 9510.0911
     }
   ],
   "positions": {
@@ -1048,23 +1053,23 @@
       "direction": "long",
       "quantity": 18.4943002001,
       "avg_cost": 103.92,
-      "last_price": 103.02,
+      "last_price": 103.38,
       "currency": "USDT",
-      "value": 1905.2828,
+      "value": 1911.9408,
       "cost": 1921.9277,
-      "pnl": -16.6449,
-      "pnl_pct": -0.8661
+      "pnl": -9.9869,
+      "pnl_pct": -0.5196
     }
   ],
   "holdings_total": {
-    "pnl": -16.6449,
+    "pnl": -9.9869,
     "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 1905.2828,
-    "pct": 20.0481,
-    "cash": 7598.2725,
+    "gross": 1911.9408,
+    "pct": 20.1043,
+    "cash": 7598.1503,
     "unknown": 0
   },
   "recent_trades": [
@@ -1531,9 +1536,9 @@
   ],
   "krw": {
     "rate": 1345.0601,
-    "equity": 12782853.0,
+    "equity": 12791644.0,
     "start_cash": 13450601.0,
-    "pnl": -667748.0,
+    "pnl": -658957.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
