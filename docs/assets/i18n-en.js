@@ -85,6 +85,83 @@
       "미국 생활필수품주": "US consumer staples",
       "미국 부동산": "US real estate",
       "원자재 묶음": "Commodity basket",
+      // ── 완역 선언 페이지의 조건부 문구 (2026-09-08) ──────────────
+      // 아래 조각들은 **비어 있거나 사고가 났을 때만** 화면에 뜬다. 그래서
+      // 그날 화면을 띄워 보는 브라우저 검사가 구조적으로 못 보고, 완역
+      // 대상(DONE)으로 선언한 페이지에서도 한국어로 남아 있었다.
+      // ⚠️ console.error 의 인자는 화면이 아니다 — 여기 넣지 않는다.
+
+      // 미국 단타
+      "아직 기록이 없습니다 — 미국 정규장(한국 시간 밤 10시 30분~새벽 5시, 서머타임 기준)이 열리고 첫 회차가 돌면 여기 숫자가 생깁니다. 장 밖 시간에는 기록 자체가 없는 것이 정상입니다.":
+        "No record yet — numbers appear here once the US regular session (22:30-05:00 Korea time, on a daylight-saving basis) opens and the first round runs. Outside market hours there is no record at all, and that is normal.",
+      "아직 기록이 없습니다 — 장 밖 시간에는 기록이 없는 것이 정상입니다.":
+        "No record yet — outside market hours there is no record, and that is normal.",
+
+      // 코인 단타
+      "아직 기록이 없습니다 — 첫 회차가 돌면 여기 숫자가 생깁니다. 배치는 15분 간격으로":
+        "No record yet — numbers appear here once the first round runs. The batch is",
+      "예약": "scheduled",
+      "돼 있습니다(실제 간격은 실측으로만 말합니다).":
+        "at 15-minute intervals (the actual interval is stated only as measured).",
+      "지금은": "Right now",
+      "지고 있습니다.": "it is losing.",
+      "나쁜 숫자도 그대로 적습니다 — 좋은 숫자만 남기는 편집은 이 제품의 정체성을 무너뜨립니다.":
+        "We write the bad numbers down as they are — keeping only the good ones would destroy this product's identity.",
+      "곡선을 그릴 만큼 기록이 쌓이지 않았습니다.":
+        "Not enough record has accumulated to draw a curve.",
+      "15분·5분 트랙이 아직 첫 회차를 돌지 않았습니다 — 다음 회차부터 쌓입니다.":
+        "The 15-minute and 5-minute tracks have not run a first round yet — they start accumulating from the next round.",
+      "지정가 그림자가 아직 활성화되지 않았습니다 — 다음 회차부터 본 계좌를 복제해 측정을 시작합니다.":
+        "The limit-order shadow is not active yet — from the next round it copies the main account and starts measuring.",
+      "기록을 불러오지 못했습니다 — 빈칸을 \"그런 일이 없었다\"로 읽지 마세요.":
+        "Could not load the record — do not read a blank as \"that never happened\".",
+      "원본": "The source file",
+      "을 직접 확인할 수 있습니다.": "can be checked directly.",
+
+      // 코인 선물
+      "기준 시각 없음": "No reference time",
+      "💀 강제 청산됐습니다.": "💀 Force-liquidated.",
+      "🛑 하드 스톱으로 청산된 숏:": "🛑 Shorts closed by the hard stop:",
+      "— 숏에는 파산이라는 자연 바닥이 없어서 손실 한도를 걸어 둡니다.":
+        "— a short has no natural floor the way bankruptcy is one, so we cap the loss.",
+      "⏭️ 시세를 실데이터로 못 받아 이번 회차에서 뺀 종목:":
+        "⏭️ Symbols dropped this round because no real quote arrived:",
+      "— 가짜 시세로 체결을 만들지 않습니다.":
+        "— we do not manufacture fills from fake quotes.",
+      "곡선을 그리려면 회차가 둘 이상 필요합니다.":
+        "Drawing a curve needs at least two rounds.",
+      "최근 수수료를 아직 재지 못했습니다 — 회차가 쌓이면 여기에 나옵니다.":
+        "Recent fees have not been measured yet — they appear here once rounds accumulate.",
+
+      // 주간 아카이브
+      "아직 주간 집계가 없습니다 — 다음 새벽 배치부터 나타납니다. (지어낸 값을 대신 보여주지 않습니다.)":
+        "No weekly summary yet — it appears from the next dawn batch. (We do not show made-up values instead.)",
+      "집계할 기록이 부족합니다.": "Not enough record to summarize.",
+      "주간 집계를 불러오지 못했습니다 — 빈 화면을 \"기록이 없다\"로 읽지 마세요. 원본은":
+        "Could not load the weekly summary — do not read an empty screen as \"there is no record\". The source is in",
+
+      // 머신러닝
+      "아직 기록이 없습니다 — 배치가 한 번 돌면 여기 숫자가 생깁니다.":
+        "No record yet — numbers appear here once the batch has run once.",
+      "아직 실전 표본이 없습니다.": "No live sample yet.",
+      "실전 적중률이 우연(50%)을 통계적으로 앞섭니다.":
+        "The live hit rate statistically beats chance (50%).",
+      "실전 적중률이 우연보다 통계적으로 낮습니다.":
+        "The live hit rate is statistically below chance.",
+
+      // 오늘의 판단
+      "실력 지표(TWR)": "Skill measure (TWR)",
+      "이 페이지를 다 그리지 못했습니다 — 아래 숫자가 비어 있는 것은 \"오늘은 그런 일이 없었다\"가 아니라":
+        "This page could not be drawn in full — a blank number below does not mean \"nothing happened today\" but",
+      "표시 실패": "a display failure",
+      "입니다. 원본 기록은": ". The original record is in",
+
+      // 기록 검증
+      "이 아직 오디션을 받지 않았습니다. 이 종목들은 비중이":
+        "have not been auditioned yet. Their weight is cut to",
+      "4분의 1": "a quarter",
+      "로 줄어 있고, 밤 배치가 순서대로 심사하면서 하나씩 풀립니다.":
+        ", and the nightly batch releases them one by one as it works through the list.",
       // ── 조기 판정 진도표 (2026-09-08, 실기록 화면) ─────────────────
       // ⚠️ 같은 날 오전에 이 표를 붙이면서 영어를 안 넣었다 — 그날 아침에 배운 바로 그
       //    병이다(새로 쓴 화면 글자는 그날 사전에 같이 넣는다). 실기록은
@@ -3684,6 +3761,22 @@
       // 자리는 붙어 있는데 내용이 거의 없는 재료(2026-09-07). 이름 목록과
       // 채움률이 장부에서 오므로 **값을 열쇠에 박으면 안 된다**.
       ["^거의 비어 있는 보조 지표 (\\d+)개$", "$1 auxiliary indicators that are nearly empty"],
+      // 완역 선언 페이지의 조건부 문구 중 **값이 든 자리** (2026-09-08).
+      // 값은 장부에서 오므로 열쇠에 안 박는다.
+      ["^마지막 회차에서 건너뛴 종목: (.+) — 가짜 시세로 체결을 만들지 않습니다\\.$",
+       "Symbols skipped in the last round: $1 — we do not manufacture fills from fake quotes."],
+      ["^증거금률이 ([\\d.]+)%까지 떨어져 남은 포지션을 전부 덮었습니다\\((.+)\\)\\. 배율을 쓰는 계좌에서 이것은 사고가 아니라 규칙입니다 — 그 뒤 값이 되돌아와도 회복할 것이 없습니다\\.$",
+       "The margin ratio fell to $1% and every remaining position was closed out ($2). On a leveraged account this is the rule, not an accident — even if prices come back afterwards there is nothing left to recover."],
+      ["^지금까지 (\\d+)번 청산됐습니다\\.$", "Force-liquidated $1 time(s) so far."],
+      // ⚠️ '오늘의 판단'의 통합 계좌 머리글·원금 줄에는 **이미 더 좁은 규칙이
+      //    아래에 있다**(`통합 계좌 (오늘 N종목 보유 / 후보 M종목 · 시작 N원)`).
+      //    여기에 넓은 규칙을 얹었더니 그것이 먼저 걸려 "1,000,000원"의 '원'이
+      //    한국어로 남았다 — 브라우저 검사가 그날 잡았다. 규칙은 **앞의 것이
+      //    이긴다.** 넓은 규칙을 위에 두면 아래의 정확한 규칙이 죽는다.
+      ["^지금은 (\\d+)개 계좌 전부가 1석입니다$",
+       "Right now all $1 accounts hold a single seat"],
+      ["^— 즉 이 구조는 아직 잠들어 있고, 계좌는 사실상 단일 전략으로 굴러갑니다\\(상한 (\\d+)석\\)\\. 승격이 쌓여 서로 다른 전략이 들어와야 켜집니다\\.$",
+       "— that is, this structure is still dormant and the account effectively runs on one strategy (cap $1 seats). It switches on only once promotions accumulate and different strategies come in."],
       // 조기 판정 진도표의 값이 든 자리 (2026-09-08) — 값은 장부에서 오므로
       // 열쇠에 안 박는다.
       ["^·(\\d+)중 보정$", "· corrected for $1"],
