@@ -254,19 +254,26 @@ def _max_drawdown_pct(rows: list[dict], days: set | None = None) -> float:
        아니다(2026-09-07 실측: 본 계좌 계열이 0 → −0.53 → −0.28로 오르내린다).
        등록이 말하는 것은 최대낙폭이므로 그 값을 그대로 쓰면 안 된다.
     """
-    peak, worst = None, 0.0
+    from quant.live.ledger_basics import max_drawdown_from_index
+
+    eqs = []
     for r in rows or []:
         day = str(r.get("date") or r.get("time") or "")[:10]
         if days is not None and day not in days:
             continue
         try:
-            eq = float(r.get("equity"))
+            eqs.append(float(r.get("equity")))
         except (TypeError, ValueError):
             continue
-        peak = eq if peak is None else max(peak, eq)
-        if peak > 0:
-            worst = min(worst, (eq / peak - 1.0) * 100.0)
-    return worst
+    if not eqs or eqs[0] <= 0:
+        return 0.0
+    # 공용 헬퍼는 **성장 지수**(1.0에서 출발)를 받는다. 그림자 계좌는 입금이
+    # 없으므로 창 첫 값으로 나누면 그대로 지수가 된다.
+    # ⚠️ 낙폭 식을 손으로 다시 쓰면 안 된다 — 감사 197이 그 계산을 한 곳으로
+    #    모은 이유이고, 검사가 직접 잡는다. 실제로 여기서 한 번 잡혔다
+    #    (2026-09-08 CI). 검사는 **주석의 예시 문구까지** 잡으므로 그 식을
+    #    글자로 적어 두지도 않는다.
+    return max_drawdown_from_index([e / eqs[0] for e in eqs]) * 100.0
 
 
 def _mdd_hold(rule: str, cand: list[dict], base: list[dict]) -> dict:
