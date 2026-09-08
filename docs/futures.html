@@ -389,6 +389,22 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
         '입니다. 목표 비중과 지금 비중의 차이가 이보다 작으면 굳이 '+
         '거래하지 않습니다(수수료만 내는 거래를 줄입니다).</div>';
     }
+    /* ⚠️ **7일 창의 속살을 보여 준다**(2026-09-08). `fee_window`(회차 수 ·
+       수수료 · 수수료 빼기 전 손익)는 매일 계산되고 정확성 검사까지
+       있는데 **아무 화면에도 안 나왔다** — 만들어 놓고 눈금을 안 단
+       계측기였다(감사 105와 같은 얼굴).
+       ⚠️ 비율로 적지 않는다. 총이득이 0이나 음수인 주에는 비율이 뜻을
+       잃어서 한도를 자산 대비로 바꾼 것이 2026-09-02의 결론이다. */
+    var w=d.fee_window||{}, winTxt="";
+    if(w.fees!=null&&w.gross_pnl!=null){
+      winTxt='<div class="sub" style="margin-top:6px">'+
+        '같은 창의 속살(회차 · 수수료 · 수수료 빼기 전 손익): <b>'+
+        Number(w.rounds||0)+' · '+Number(w.fees).toFixed(1)+' · '+
+        Number(w.gross_pnl).toFixed(1)+'</b>'+
+        '<div style="margin-top:3px">한도는 이 둘의 비율이 아니라 자산 대비로 '+
+        '잽니다 — 수수료 빼기 전 손익이 0이거나 음수인 주에는 비율이 뜻을 '+
+        '잃기 때문입니다.</div></div>';
+    }
     el.innerHTML='최근 '+b.days+'일 수수료 <b class="'+(b.breached?"down":"")+'">'+
       pct.toFixed(2)+'%</b> <span class="sub">(자산 대비 · 한도 '+
       lim.toFixed(0)+'%)</span>'+
@@ -397,7 +413,7 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
         '정리하는 거래는 그대로 합니다 — 위험을 줄이는 길을 막으면 '+
         '안전장치가 그 자체로 위험이 됩니다.':
         '한도 안입니다. 이 장치는 수수료가 폭주할 때만 작동합니다.')+'</div>'+
-      bandTxt;
+      winTxt+bandTxt;
   })();
   /* ── 방향(내림에 거는 것)을 지금 쓰고 있나, 그 근거는 무엇인가 ── */
   (function(){
@@ -439,6 +455,15 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
         '<div class="sub" style="margin-top:4px">'+
         '잰 범위(종목 수 · 날짜 수): <b>'+Number(g.n_symbols||0)+' · '+
         Number(g.n_dates||0)+'</b></div>'+
+        /* ⚠️ **판정의 나이를 말한다**(2026-09-08). 이 판정은 며칠 지나면
+           효력을 잃는데(그 사이 챔피언이 바뀌면 '다른 규칙에 대한 판정'이
+           된다), 장부에는 그 나이가 매일 적히면서 화면에는 없었다 —
+           읽는 사람은 오래된 판정과 어젯밤 판정을 구별할 수 없었다.
+           문턱은 자료에서 온다(화면에 손으로 적으면 곧 옛말이 된다). */
+        (g.age_nights==null?'':
+          '<div class="sub" style="margin-top:4px">'+
+          '이 판정의 나이(며칠 전 밤 · 이보다 오래되면 안 씁니다): <b>'+
+          Number(g.age_nights)+' / '+Number(g.max_age_nights||0)+'</b></div>')+
         '<div style="margin-top:6px">'+(g.two_sided===false
           ? '내림에 거는 쪽이 뚜렷하게 나빠서 잠시 껐습니다.'
           : '아직 좋다고도 나쁘다고도 말할 수 없는 자리라 실험을 계속합니다.')+

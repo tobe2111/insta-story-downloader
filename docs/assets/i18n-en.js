@@ -130,6 +130,14 @@
 
       // 코인 선물
       "기준 시각 없음": "No reference time",
+      // 2026-09-08 — 장부에만 있고 화면에 없던 두 칸을 올리면서 함께 넣는다
+      //   (오늘 배운 것: 새로 쓴 화면 글자는 그날 사전에 같이 넣는다).
+      "이 판정의 나이(며칠 전 밤 · 이보다 오래되면 안 씁니다):":
+        "Age of this verdict (nights ago · older than this is not used):",
+      "같은 창의 속살(회차 · 수수료 · 수수료 빼기 전 손익):":
+        "Inside the same window (rounds · fees · P&L before fees):",
+      "한도는 이 둘의 비율이 아니라 자산 대비로 잽니다 — 수수료 빼기 전 손익이 0이거나 음수인 주에는 비율이 뜻을 잃기 때문입니다.":
+        "The limit is measured against assets, not as a ratio of these two — in a week where P&L before fees is zero or negative the ratio loses its meaning.",
       "💀 강제 청산됐습니다.": "💀 Force-liquidated.",
       "🛑 하드 스톱으로 청산된 숏:": "🛑 Shorts closed by the hard stop:",
       "— 숏에는 파산이라는 자연 바닥이 없어서 손실 한도를 걸어 둡니다.":
