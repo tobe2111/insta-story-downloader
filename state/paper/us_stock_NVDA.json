@@ -2,7 +2,7 @@
   "cash": 10040.455970620347,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-09-04 00:00:00",
+  "last_bar": "2026-09-08 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -1001,6 +1001,56 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.434
+    },
+    {
+      "date": "2026-09-08",
+      "price": 225.72999572753906,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10040.46,
+      "return_pct": 0.4,
+      "hit_rate": 0.5492227979274611,
+      "hit_n": 193,
+      "hit_lo": 0.4787446236115389,
+      "hit_hi": 0.6177796883225237,
+      "hit_conclusive": false,
+      "live_hit": 0.4,
+      "live_hit_n": 10,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.6,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(60%)에 못 미쳐 관망 · 🏛 의회 운용: ml 41% + bollinger 33% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 233.110001,
+        "bar": "2026-09-08 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-04 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "05f814109237",
+      "data_sha256": "e28a6bd628b1ba90e364b227ec3f13323331c364bb4eb511d80afcd76ca172d5",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.3084325148864184,
+      "drift_psi": 0.3528,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
@@ -1008,6 +1058,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-09-04 00:00:00"
+    "decided_bar": "2026-09-08 00:00:00"
   }
 }

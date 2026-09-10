@@ -1,8 +1,8 @@
 {
-  "cash": 9317.771803505202,
-  "quantity": 16.76603924380111,
-  "avg_price": 42.649857254905015,
-  "last_bar": "2026-09-04 00:00:00",
+  "cash": 10039.116713373374,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-09-08 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -556,11 +556,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-08",
+      "price": 43.45000076293945,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10039.12,
+      "return_pct": 0.39,
+      "hit_rate": 0.5681818181818182,
+      "hit_n": 88,
+      "hit_lo": 0.46398482983322936,
+      "hit_hi": 0.6666749147705233,
+      "hit_conclusive": false,
+      "live_hit": 0.625,
+      "live_hit_n": 8,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "rf",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 랜덤포레스트 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 42% + ml 32% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 43.049999,
+        "bar": "2026-09-08 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-04 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "05f814109237",
+      "data_sha256": "57b7061cc2d5bef693f12ace16ffe06055876146fc3aa21b4d4d252dcd28d101",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.0|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.42274640265542707,
+      "drift_psi": 0.1917,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.5862
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-09-04 00:00:00"
+    "decided_bar": "2026-09-08 00:00:00"
   },
   "market": "us_stock",
   "symbol": "XLU",
