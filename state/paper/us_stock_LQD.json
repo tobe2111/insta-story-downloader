@@ -1,8 +1,8 @@
 {
-  "cash": 2706.74436902137,
-  "quantity": 69.04738158352994,
+  "cash": 9813.692397559786,
+  "quantity": 1.5913497024017431,
   "avg_price": 105.57422142120264,
-  "last_bar": "2026-09-08 00:00:00",
+  "last_bar": "2026-09-09 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -609,11 +609,63 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.5862
+    },
+    {
+      "date": "2026-09-09",
+      "price": 105.30999755859375,
+      "weight": 0.0,
+      "held_weight": 0.0168,
+      "fractional_lot": false,
+      "equity": 9981.28,
+      "return_pct": -0.19,
+      "hit_rate": 0.3793103448275862,
+      "hit_n": 29,
+      "hit_lo": 0.22687795730867344,
+      "hit_hi": 0.5599777379071503,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 4,
+      "live_hit_flat": 1,
+      "hit_flat": 4,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 46% + ml 29% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 105.419998,
+        "bar": "2026-09-09 00:00:00",
+        "weight": 0.0168,
+        "decided_bar": "2026-09-08 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "6f3da78b2033",
+      "data_sha256": "a1761711aec7ca3ded374df430782de83e5756cf072306c745a511112280d892",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.47814574312214675,
+      "drift_psi": 0.234,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.5761
     }
   ],
   "pending": {
-    "weight": 0.0168,
-    "decided_bar": "2026-09-08 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-09-09 00:00:00"
   },
   "market": "us_stock",
   "symbol": "LQD",

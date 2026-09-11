@@ -1,8 +1,8 @@
 {
-  "cash": 9989.334712975196,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-09-09 00:00:00",
+  "cash": 8524.898244053033,
+  "quantity": 0.008448232952907891,
+  "avg_price": 173100.0,
+  "last_bar": "2026-09-10 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -1088,11 +1088,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.6389
+    },
+    {
+      "date": "2026-09-10",
+      "price": 173400.0,
+      "weight": 0.2258,
+      "held_weight": 0.1466,
+      "fractional_lot": true,
+      "equity": 9989.82,
+      "return_pct": -0.1,
+      "hit_rate": 0.5460526315789473,
+      "hit_n": 304,
+      "hit_lo": 0.4898573423627719,
+      "hit_hi": 0.6010985258499713,
+      "hit_conclusive": false,
+      "live_hit": 0.4375,
+      "live_hit_n": 16,
+      "live_hit_flat": 1,
+      "hit_flat": 6,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +23% — 그라디언트부스팅 모델이 내일 상승확률을 약 95%로 추정(기준 55% 초과) · 사이징: 신호 원비중 39% → 변동성 타깃 조절 후 23% · 참고: 전 종목 합산으로 모델이 95%±10%p라 말한 43번의 실제 상승 비율 60% (95% 신뢰구간 46%~74% · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 4번으로 축적 중) · 🏛 의회 운용: ml 45% + bollinger 30% + cross_rank 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 173100.0,
+        "bar": "2026-09-10 00:00:00",
+        "weight": 0.1466,
+        "decided_bar": "2026-09-09 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "6f3da78b2033",
+      "data_sha256": "ca871d9503fbf5877a53325a9cbe7b9efae77b284283731d40e4dbf3fa378db3",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.9463018129041546,
+      "drift_psi": 0.3376,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1466,
-    "decided_bar": "2026-09-09 00:00:00"
+    "weight": 0.2258,
+    "decided_bar": "2026-09-10 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "105560.KS",
