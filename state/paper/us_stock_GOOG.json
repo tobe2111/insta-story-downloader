@@ -1,8 +1,8 @@
 {
-  "cash": 9991.35172640016,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-09-09 00:00:00",
+  "cash": 9243.998617265428,
+  "quantity": 2.2905575224240584,
+  "avg_price": 326.0799865722656,
+  "last_bar": "2026-09-10 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -805,11 +805,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4179
+    },
+    {
+      "date": "2026-09-10",
+      "price": 330.3900146484375,
+      "weight": 0.1058,
+      "held_weight": 0.0757,
+      "fractional_lot": false,
+      "equity": 10000.78,
+      "return_pct": 0.01,
+      "hit_rate": 0.5276752767527675,
+      "hit_n": 271,
+      "hit_lo": 0.46826454880426766,
+      "hit_hi": 0.5863123420303076,
+      "hit_conclusive": false,
+      "live_hit": 0.3333333333333333,
+      "live_hit_n": 9,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +11% — 로지스틱회귀 모델이 내일 상승확률을 약 75%로 추정(기준 55% 초과) · 사이징: 신호 원비중 17% → 변동성 타깃 조절 후 11% · 참고: 전 종목 합산으로 모델이 75%±10%p라 말한 102번의 실제 상승 비율 47% (95% 신뢰구간 38%~57% · 보합 5일 포함 · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 2번으로 축적 중) · 🏛 의회 운용: ml 39% + ma_cross 37% + ml 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 326.079987,
+        "bar": "2026-09-10 00:00:00",
+        "weight": 0.0748,
+        "decided_bar": "2026-09-09 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "69d4bc86bec7",
+      "data_sha256": "eae9c4965dab01a2f94e9d6a5db264f523872e0d6c68c32e0b478c22c1582a30",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7464173188831453,
+      "drift_psi": 0.1828,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4082
     }
   ],
   "pending": {
-    "weight": 0.0748,
-    "decided_bar": "2026-09-09 00:00:00"
+    "weight": 0.1058,
+    "decided_bar": "2026-09-10 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOG",
