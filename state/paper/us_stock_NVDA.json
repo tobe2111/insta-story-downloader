@@ -2,7 +2,7 @@
   "cash": 9023.357780796507,
   "quantity": 4.609297158991145,
   "avg_price": 220.52999877929688,
-  "last_bar": "2026-09-11 00:00:00",
+  "last_bar": "2026-09-14 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -1202,13 +1202,64 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-14",
+      "price": 210.9600067138672,
+      "weight": 0.1635,
+      "held_weight": 0.0973,
+      "fractional_lot": false,
+      "equity": 9995.74,
+      "return_pct": -0.04,
+      "hit_rate": 0.5513513513513514,
+      "hit_n": 185,
+      "hit_lo": 0.4793617231655522,
+      "hit_hi": 0.6212517009952259,
+      "hit_conclusive": false,
+      "live_hit": 0.3333333333333333,
+      "live_hit_n": 12,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +16% — 그라디언트부스팅 모델이 내일 상승확률을 약 95%로 추정(기준 55% 초과) · 사이징: 신호 원비중 32% → 변동성 타깃 조절 후 16% · 참고: 전 종목 합산으로 모델이 95%±10%p라 말한 46번의 실제 상승 비율 57% (95% 신뢰구간 42%~70% · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 36% + ml 34% + bollinger 29% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 211.240005,
+        "bar": "2026-09-14 00:00:00",
+        "weight": 0.0825,
+        "decided_bar": "2026-09-11 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "e1a0984dcebe",
+      "data_sha256": "acd448f7a35201433a452be44d326c3052549435757a0991ed0bd048a3ba94a8",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.9482202506923747,
+      "drift_psi": 0.3433,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "NVDA",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0825,
-    "decided_bar": "2026-09-11 00:00:00"
+    "weight": 0.1635,
+    "decided_bar": "2026-09-14 00:00:00"
   }
 }
