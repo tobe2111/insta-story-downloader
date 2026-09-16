@@ -1,6 +1,6 @@
 {
  "kind": "simulation",
- "generated": "2026-09-15",
+ "generated": "2026-09-16",
  "replay": {
   "kind": "simulation",
   "period": {
@@ -11,7 +11,7 @@
   "n_symbols": 42,
   "target_vol": 0.12,
   "raw": {
-   "final_multiple": 3.2952,
+   "final_multiple": 3.3032,
    "ann_vol": 0.2205,
    "mdd": -0.3088,
    "worst_day": -0.0946,
@@ -19,14 +19,14 @@
    "longest_underwater_days": 211
   },
   "braked": {
-   "final_multiple": 2.4424,
+   "final_multiple": 2.443,
    "ann_vol": 0.1658,
    "mdd": -0.1967,
    "worst_day": -0.0828,
    "worst_20d": -0.17,
    "longest_underwater_days": 235
   },
-  "mean_exposure": 0.6461,
+  "mean_exposure": 0.6463,
   "kill_switch_episodes": [
    {
     "from": "2024-08-06",
@@ -64,20 +64,20 @@
  "stress": {
   "kind": "simulation",
   "inputs": {
-   "equity": 1017021.83,
+   "equity": 1016872.44,
    "principal": 1000000.0,
-   "gross_weight": 0.445,
+   "gross_weight": 0.4281,
    "fx_share": 1.0,
-   "worst_single_weight": 0.3674
+   "worst_single_weight": 0.356
   },
   "scenarios": [
    {
     "scenario": "gap_-10",
     "desc": "하룻밤 갭 -10% (전 종목 동반 하락, 상관 1)",
     "days": 1,
-    "equity_after": 971764.36,
-    "loss_pct": -4.45,
-    "drawdown_pct": -4.98,
+    "equity_after": 973340.13,
+    "loss_pct": -4.28,
+    "drawdown_pct": -4.83,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -85,9 +85,9 @@
     "scenario": "gap_-20",
     "desc": "하룻밤 갭 -20% (2020-03 규모)",
     "days": 1,
-    "equity_after": 926506.89,
-    "loss_pct": -8.9,
-    "drawdown_pct": -9.4,
+    "equity_after": 929807.82,
+    "loss_pct": -8.56,
+    "drawdown_pct": -9.08,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -95,9 +95,9 @@
     "scenario": "gap_-30",
     "desc": "하룻밤 갭 -30% (역대급 단일일)",
     "days": 1,
-    "equity_after": 881249.42,
-    "loss_pct": -13.35,
-    "drawdown_pct": -13.83,
+    "equity_after": 886275.51,
+    "loss_pct": -12.84,
+    "drawdown_pct": -13.34,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -105,9 +105,9 @@
     "scenario": "cascade_5x-8",
     "desc": "닷새 연속 -8% (2022 루나·FTX형 연쇄 붕괴)",
     "days": 5,
-    "equity_after": 848430.52,
-    "loss_pct": -16.58,
-    "drawdown_pct": -17.04,
+    "equity_after": 854268.83,
+    "loss_pct": -15.99,
+    "drawdown_pct": -16.47,
     "kill_switch_after": 0.5,
     "engaged_on_day": 5
    },
@@ -115,18 +115,18 @@
     "scenario": "slow_bleed_20x-2",
     "desc": "20일 연속 -2% (완만한 침식형 약세)",
     "days": 20,
-    "equity_after": 858165.4,
-    "loss_pct": -15.62,
-    "drawdown_pct": -16.09,
+    "equity_after": 859901.93,
+    "loss_pct": -15.44,
+    "drawdown_pct": -15.92,
     "kill_switch_after": 0.5,
-    "engaged_on_day": 18
+    "engaged_on_day": 19
    },
    {
     "scenario": "krw_+15",
     "desc": "원/달러 +15% — 외화 자산(100%)만 영향",
     "days": 1,
-    "equity_after": 1084908.04,
-    "loss_pct": 6.68,
+    "equity_after": 1082170.9,
+    "loss_pct": 6.42,
     "drawdown_pct": 0.0,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
@@ -135,19 +135,19 @@
     "scenario": "krw_-15",
     "desc": "원/달러 -15% — 외화 자산(100%)만 영향",
     "days": 1,
-    "equity_after": 949135.62,
-    "loss_pct": -6.67,
-    "drawdown_pct": -7.19,
+    "equity_after": 951573.98,
+    "loss_pct": -6.42,
+    "drawdown_pct": -6.95,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
    {
     "scenario": "single_-50",
-    "desc": "최대 비중 종목(36.7%) 하루 -50%",
+    "desc": "최대 비중 종목(35.6%) 하루 -50%",
     "days": 1,
-    "equity_after": 830194.92,
-    "loss_pct": -18.37,
-    "drawdown_pct": -18.82,
+    "equity_after": 835869.15,
+    "loss_pct": -17.8,
+    "drawdown_pct": -18.27,
     "kill_switch_after": 0.5,
     "engaged_on_day": null
    },
@@ -155,9 +155,9 @@
     "scenario": "stale_5d_-20",
     "desc": "시세가 5일 멈춘 사이 시장 -20% — 장부는 그동안 낙폭 0을 보고한다",
     "days": 5,
-    "equity_after": 926506.89,
-    "loss_pct": -8.9,
-    "drawdown_pct": -9.4,
+    "equity_after": 929807.82,
+    "loss_pct": -8.56,
+    "drawdown_pct": -9.08,
     "kill_switch_after": null,
     "engaged_on_day": null,
     "blind": true
@@ -165,7 +165,7 @@
   ],
   "worst": {
    "scenario": "single_-50",
-   "drawdown_pct": -18.82
+   "drawdown_pct": -18.27
   },
   "honest_limits": [
    "시나리오는 가정 — 실제 위기는 여기 없는 모양으로 온다. 하한 점검이지 보증이 아님",
