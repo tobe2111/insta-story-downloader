@@ -2,7 +2,7 @@
   "cash": 5088.465867685945,
   "quantity": 80.8481530232511,
   "avg_price": 63.6321497059956,
-  "last_bar": "2026-09-14 00:00:00",
+  "last_bar": "2026-09-15 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -796,11 +796,61 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4444
+    },
+    {
+      "date": "2026-09-15",
+      "price": 65.93000030517578,
+      "weight": 0.7714,
+      "held_weight": 0.5116,
+      "fractional_lot": false,
+      "equity": 10418.78,
+      "return_pct": 4.19,
+      "hit_rate": 0.5608856088560885,
+      "hit_n": 271,
+      "hit_lo": 0.501355067033431,
+      "hit_hi": 0.6187140928026345,
+      "hit_conclusive": true,
+      "live_hit": 0.5714285714285714,
+      "live_hit_n": 14,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +77% — 그라디언트부스팅 모델이 내일 상승확률을 약 98%로 추정(기준 55% 초과) · 사이징: 신호 원비중 81% → 변동성 타깃 조절 후 77% · 참고: 전 종목 합산으로 모델이 98%±10%p라 말한 28번의 실제 상승 비율 57% (95% 신뢰구간 39%~73% · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 3번으로 축적 중) · 🏛 의회 운용: ml 41% + supertrend 39% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 64.879997,
+        "bar": "2026-09-15 00:00:00",
+        "weight": 0.5301,
+        "decided_bar": "2026-09-14 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "13514358c72d",
+      "data_sha256": "e63a2e08aec8594092525fa43e4ffc961007baa43c172c3d1d5bbdf0d52755db",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.983707621079485,
+      "drift_psi": 0.2142,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.5301,
-    "decided_bar": "2026-09-14 00:00:00"
+    "weight": 0.7714,
+    "decided_bar": "2026-09-15 00:00:00"
   },
   "market": "us_stock",
   "symbol": "XLE",
