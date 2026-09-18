@@ -2,7 +2,7 @@
   "cash": 9985.906722118507,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-09-15 00:00:00",
+  "last_bar": "2026-09-16 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -1269,6 +1269,58 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-16",
+      "price": 704.719970703125,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9985.91,
+      "return_pct": -0.14,
+      "hit_rate": 0.5707964601769911,
+      "hit_n": 226,
+      "hit_lo": 0.5056119360718394,
+      "hit_hi": 0.6336143832715693,
+      "hit_conclusive": true,
+      "live_hit": 0.3333333333333333,
+      "live_hit_n": 6,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.6,
+        "train_window": 250,
+        "retrain_every": 20,
+        "pool": "peers",
+        "sizing": "binary"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀·풀링(전 종목 합산 학습) 모델의 상승확률이 기준(60%)에 못 미쳐 관망 · 🏛 의회 운용: ml 41% + turtle 41% + ml 18% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 708.0,
+        "bar": "2026-09-16 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-15 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "8e567fbcc8b0",
+      "data_sha256": "836c3fa509ee0f7f47f604147d901146cca05e150e61c266dbff780ac5a73148",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.504106010843308,
+      "drift_psi": 0.2323,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
@@ -1276,6 +1328,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-09-15 00:00:00"
+    "decided_bar": "2026-09-16 00:00:00"
   }
 }

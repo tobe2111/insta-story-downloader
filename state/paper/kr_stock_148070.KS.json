@@ -2,7 +2,7 @@
   "cash": 9919.579609227541,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-09-16 00:00:00",
+  "last_bar": "2026-09-17 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -916,11 +916,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-17",
+      "price": 103255.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9919.58,
+      "return_pct": -0.8,
+      "hit_rate": 0.6060606060606061,
+      "hit_n": 33,
+      "hit_lo": 0.4368314280651038,
+      "hit_hi": 0.7531711776849179,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 8,
+      "live_hit_flat": 1,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 38% + ml 38% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 103030.0,
+        "bar": "2026-09-17 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-16 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "8e567fbcc8b0",
+      "data_sha256": "501bead8d5d7f922af49e020096dcd11cb5baa89f30a4514fb86ffa041c0e3d1",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5180657100091467,
+      "drift_psi": 0.0856,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-09-16 00:00:00"
+    "decided_bar": "2026-09-17 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "148070.KS",

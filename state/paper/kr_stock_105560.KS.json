@@ -2,7 +2,7 @@
   "cash": 7748.677748267461,
   "quantity": 0.012982269374983948,
   "avg_price": 173180.94994903615,
-  "last_bar": "2026-09-16 00:00:00",
+  "last_bar": "2026-09-17 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -1331,11 +1331,58 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-17",
+      "price": 179200.0,
+      "weight": 0.0,
+      "held_weight": 0.2309,
+      "fractional_lot": true,
+      "equity": 10075.1,
+      "return_pct": 0.75,
+      "hit_rate": 0.5629139072847682,
+      "hit_n": 151,
+      "hit_lo": 0.48320762813937906,
+      "hit_hi": 0.6394984146811549,
+      "hit_conclusive": false,
+      "live_hit": 0.5238095238095238,
+      "live_hit_n": 21,
+      "live_hit_flat": 1,
+      "hit_flat": 3,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "관망 (현금) — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 50% + ml 31% + ml 19% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 177300.0,
+        "bar": "2026-09-17 00:00:00",
+        "weight": 0.2485,
+        "decided_bar": "2026-09-16 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "8e567fbcc8b0",
+      "data_sha256": "0cd558337be77bcabde5c57606e7028562dacc68c7d5d3c43a9f4ea832df4d64",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.3288,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.2485,
-    "decided_bar": "2026-09-16 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-09-17 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "105560.KS",
