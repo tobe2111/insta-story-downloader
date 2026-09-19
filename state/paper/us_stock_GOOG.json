@@ -1,8 +1,8 @@
 {
-  "cash": 10020.283494584835,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-09-16 00:00:00",
+  "cash": 9009.236889981225,
+  "quantity": 2.92881258086774,
+  "avg_price": 345.0,
+  "last_bar": "2026-09-17 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -1048,11 +1048,59 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-17",
+      "price": 343.67999267578125,
+      "weight": 0.1031,
+      "held_weight": 0.1005,
+      "fractional_lot": false,
+      "equity": 10015.81,
+      "return_pct": 0.16,
+      "hit_rate": 0.5214521452145214,
+      "hit_n": 303,
+      "hit_lo": 0.4652884497665767,
+      "hit_hi": 0.5770786868928593,
+      "hit_conclusive": false,
+      "live_hit": 0.38461538461538464,
+      "live_hit_n": 13,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "fast": 20,
+        "slow": 60
+      },
+      "reason": "매수 +10% — 이동평균 교차: 20일선이 60일선 아래 (하락/횡보 추세 판단) · 🏛 의회 운용: ma_cross 39% + ml 37% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 345.0,
+        "bar": "2026-09-17 00:00:00",
+        "weight": 0.1009,
+        "decided_bar": "2026-09-16 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "ccb5dc485634",
+      "data_sha256": "e3684c6a31bb5c4d374ded6e3e34b29aa99ebc8818647fada1e6ecf543056618",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1586,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1009,
-    "decided_bar": "2026-09-16 00:00:00"
+    "weight": 0.1031,
+    "decided_bar": "2026-09-17 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOG",

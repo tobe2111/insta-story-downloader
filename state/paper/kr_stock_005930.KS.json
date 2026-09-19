@@ -2,7 +2,7 @@
   "cash": 9617.096507468046,
   "quantity": 0.0014149183157792494,
   "avg_price": 265455.1663499552,
-  "last_bar": "2026-09-17 00:00:00",
+  "last_bar": "2026-09-18 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -1409,13 +1409,60 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-18",
+      "price": 261000.0,
+      "weight": 0.031,
+      "held_weight": 0.037,
+      "fractional_lot": true,
+      "equity": 9986.39,
+      "return_pct": -0.14,
+      "hit_rate": 0.5641025641025641,
+      "hit_n": 273,
+      "hit_lo": 0.5047929910984469,
+      "hit_hi": 0.6216330951544863,
+      "hit_conclusive": true,
+      "live_hit": 0.3888888888888889,
+      "live_hit_n": 18,
+      "live_hit_flat": 2,
+      "hit_flat": 6,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "관망 (현금) — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 42% + ml 34% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 261000.0,
+        "bar": "2026-09-18 00:00:00",
+        "weight": 0.0388,
+        "decided_bar": "2026-09-17 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "ccb5dc485634",
+      "data_sha256": "f96d83a7f9eaf5975ead8c8e440b3689e71387cae6483bd44cf9191787714a47",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.7589,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0388,
-    "decided_bar": "2026-09-17 00:00:00"
+    "weight": 0.031,
+    "decided_bar": "2026-09-18 00:00:00"
   }
 }
