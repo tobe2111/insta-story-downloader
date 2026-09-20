@@ -1,7 +1,7 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 5046.0049038249945,
+  "cash": 5045.836958662693,
   "positions": {
     "SOL/USDT": 18.708822194378723,
     "ETH/USDT": 0.7251398497500884,
@@ -15,7 +15,7 @@
     "XRP/USDT": 1.3827
   },
   "cost_paid": 687.9377786877487,
-  "funding_paid": 33.631479834953225,
+  "funding_paid": 33.79942499725431,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -27282,6 +27282,106 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-09-20T23:52:49+09:00",
+      "equity": 9223.0722,
+      "cash": 5045.837,
+      "prices": {
+        "BTC/USDT": 80566.5,
+        "ETH/USDT": 2580.9,
+        "SOL/USDT": 108.23,
+        "BNB/USDT": 752.0,
+        "XRP/USDT": 1.3776
+      },
+      "gross_exposure": 7377.7127,
+      "funding": 0.167945,
+      "cost_paid": 687.9378,
+      "funding_paid": 33.799425,
+      "signals": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": -1.0
+      },
+      "positions": {
+        "SOL/USDT": 18.7088221944,
+        "ETH/USDT": 0.7251398498,
+        "BTC/USDT": 0.0233484725,
+        "XRP/USDT": -1161.613488033
+      },
+      "margin_ratio": 1.250126,
+      "trades": [],
+      "skipped": [],
+      "long_only": [
+        "BTC/USDT",
+        "ETH/USDT",
+        "SOL/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "direction_gate": {
+        "two_sided": true,
+        "night": "2026-09-20",
+        "age_nights": 0,
+        "max_age_nights": 7,
+        "t_stat": 0.386809463702579,
+        "t_threshold": 1.35,
+        "n_symbols": 6,
+        "n_dates": 120
+      },
+      "direction_pnl": {
+        "gross": {
+          "long": 16.126389,
+          "short": -1.393936
+        },
+        "fee": {
+          "long": 0.0,
+          "short": 0.0
+        },
+        "funding": {
+          "long": 0.232283,
+          "short": -0.064337
+        },
+        "net": {
+          "long": 15.894106,
+          "short": -1.329599
+        },
+        "positions": {
+          "long": 3,
+          "short": 1
+        }
+      },
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.1243,
+        "why": "낙폭 12.4% — 기준 10%를 넘어 1배로 내렸습니다. 회복될 때까지 크게 걸지 않습니다"
+      },
+      "fee_budget": {
+        "days": 7,
+        "fees": 39.818,
+        "equity": 9208.5077,
+        "pct_of_equity": 0.4324,
+        "limit_pct": 3.0,
+        "breached": false,
+        "since": "2026-09-13T19:09:52+09:00"
+      },
+      "rebalance_bands": {
+        "BTC/USDT": 0.15,
+        "ETH/USDT": 0.15,
+        "SOL/USDT": 0.15,
+        "BNB/USDT": 0.15,
+        "XRP/USDT": 0.15
+      },
+      "conviction_scale": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
@@ -28536,34 +28636,38 @@
     {
       "at": "2026-09-20T20:39:50+09:00",
       "equity": 9208.5077
+    },
+    {
+      "at": "2026-09-20T23:52:49+09:00",
+      "equity": 9223.0722
     }
   ],
   "last_prices": {
-    "BTC/USDT": 80320.0,
-    "ETH/USDT": 2571.5,
-    "SOL/USDT": 108.04,
-    "BNB/USDT": 748.9,
-    "XRP/USDT": 1.3764
+    "BTC/USDT": 80566.5,
+    "ETH/USDT": 2580.9,
+    "SOL/USDT": 108.23,
+    "BNB/USDT": 752.0,
+    "XRP/USDT": 1.3776
   },
   "liquidations": 0,
   "direction_totals": {
     "gross": {
-      "long": -30.498186,
-      "short": -197.389481
+      "long": -14.371797,
+      "short": -198.783417
     },
     "fee": {
       "long": 534.801984,
       "short": 153.135699
     },
     "funding": {
-      "long": 25.280575,
-      "short": 0.744062
+      "long": 25.512858,
+      "short": 0.679725
     },
     "net": {
-      "long": -590.580745,
-      "short": -351.269242
+      "long": -574.686639,
+      "short": -352.598841
     },
-    "rounds": 313,
+    "rounds": 314,
     "reconstructed_rounds": 222
   }
 }
