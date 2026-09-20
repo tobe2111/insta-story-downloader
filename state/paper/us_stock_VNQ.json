@@ -1,8 +1,8 @@
 {
-  "cash": 5995.98917727172,
-  "quantity": 41.36336113329557,
-  "avg_price": 94.29000091552734,
-  "last_bar": "2026-09-17 00:00:00",
+  "cash": 3991.968313551397,
+  "quantity": 62.8666807096492,
+  "avg_price": 93.89664707458768,
+  "last_bar": "2026-09-18 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -972,11 +972,63 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.5435
+    },
+    {
+      "date": "2026-09-18",
+      "price": 92.91000366210938,
+      "weight": 0.3392,
+      "held_weight": 0.594,
+      "fractional_lot": false,
+      "equity": 9832.91,
+      "return_pct": -1.67,
+      "hit_rate": 0.5106382978723404,
+      "hit_n": 235,
+      "hit_lo": 0.4470693648356917,
+      "hit_hi": 0.5738650117553209,
+      "hit_conclusive": false,
+      "live_hit": 0.25,
+      "live_hit_n": 12,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +34% — 그라디언트부스팅 모델이 내일 상승확률을 약 72%로 추정(기준 55% 초과) · 사이징: 신호 원비중 21% → 변동성 타깃 조절 후 34% · 참고: 전 종목 합산으로 모델이 72%±10%p라 말한 139번의 실제 상승 비율 45% (95% 신뢰구간 37%~53% · 보합 6일 포함 · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 6번으로 축적 중) · 🏛 의회 운용: ml 57% + ml 23% + dual_thrust 21% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 93.139999,
+        "bar": "2026-09-18 00:00:00",
+        "weight": 0.5949,
+        "decided_bar": "2026-09-17 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "4adaf7e3195f",
+      "data_sha256": "7ae19642d70b53f5f56b61a07031b1ede3d09e12b23db229abfcd540614c8c30",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.7165302807092583,
+      "drift_psi": 0.1767,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4754
     }
   ],
   "pending": {
-    "weight": 0.5949,
-    "decided_bar": "2026-09-17 00:00:00"
+    "weight": 0.3392,
+    "decided_bar": "2026-09-18 00:00:00"
   },
   "market": "us_stock",
   "symbol": "VNQ",
