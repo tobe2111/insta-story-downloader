@@ -1,26 +1,26 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-09-21T09:12:53+09:00",
+  "updated": "2026-09-21T14:01:19+09:00",
   "start_cash": 10000.0,
-  "equity": 9278.4226,
-  "return_pct": -7.2158,
-  "gross_return_pct": 0.1089,
+  "equity": 9280.9868,
+  "return_pct": -7.1901,
+  "gross_return_pct": 0.2212,
   "cost_basis_bp": 15.0,
   "fee_window": {
     "days": 7,
     "rounds": 47,
-    "fees": 44.7158,
-    "gross_pnl": 203.1769,
-    "since": "2026-09-14T08:39:39+09:00"
+    "fees": 53.1405,
+    "gross_pnl": 215.902,
+    "since": "2026-09-14T10:42:18+09:00"
   },
   "fee_budget": {
     "days": 7,
-    "fees": 44.7158,
-    "equity": 9278.4226,
-    "pct_of_equity": 0.4819,
+    "fees": 53.1405,
+    "equity": 9280.9868,
+    "pct_of_equity": 0.5726,
     "limit_pct": 3.0,
     "breached": false,
-    "since": "2026-09-14T08:39:39+09:00"
+    "since": "2026-09-14T10:42:18+09:00"
   },
   "rebalance_bands": {
     "BTC/USDT": 0.15,
@@ -31,43 +31,43 @@
   },
   "direction_gate": {
     "two_sided": true,
-    "night": "2026-09-20",
-    "age_nights": 1,
+    "night": "2026-09-21",
+    "age_nights": 0,
     "max_age_nights": 7,
-    "t_stat": 0.386809463702579,
+    "t_stat": -0.04338040355846581,
     "t_threshold": 1.35,
-    "n_symbols": 6,
+    "n_symbols": 5,
     "n_dates": 120
   },
   "direction_pnl": {
     "measured": true,
     "gross": {
-      "long": 96.288791,
+      "long": 107.517346,
       "short": -243.358766
     },
     "fee": {
-      "long": 538.606004,
+      "long": 547.030786,
       "short": 159.660361
     },
     "funding": {
-      "long": 26.053662,
+      "long": 26.293201,
       "short": 0.545091
     },
     "net": {
-      "long": -468.370875,
+      "long": -465.806641,
       "short": -403.564218
     },
-    "rounds": 318,
+    "rounds": 319,
     "reconstructed_rounds": 222,
-    "note": "318회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
+    "note": "319회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
     "unattributed": 150.3577,
     "open_positions": {
-      "long": 2,
+      "long": 3,
       "short": 0
     }
   },
-  "cost_paid": 698.2665,
-  "funding_paid": 34.205595,
+  "cost_paid": 706.6912,
+  "funding_paid": 34.445134,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
@@ -99,12 +99,12 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 2.33414,
+  "margin_ratio": 1.599751,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 3975.0923,
-  "long_positions": 2,
+  "gross_exposure": 5801.52,
+  "long_positions": 3,
   "short_positions": 0,
   "long_only_symbols": [
     "BTC/USDT",
@@ -118,7 +118,7 @@
   },
   "stopped": [],
   "skipped": [],
-  "rounds": 318,
+  "rounds": 319,
   "observed_gap_minutes": null,
   "curve": [
     {
@@ -1392,84 +1392,67 @@
     {
       "at": "2026-09-21T09:12:53+09:00",
       "equity": 9278.4226
+    },
+    {
+      "at": "2026-09-21T14:01:19+09:00",
+      "equity": 9280.9868
     }
   ],
   "positions": {
     "SOL/USDT": 18.7088221944,
-    "BTC/USDT": 0.0233484725
+    "ETH/USDT": 0.6974422004,
+    "BNB/USDT": 2.4010470749
   },
   "holdings": [
     {
-      "symbol": "BTC/USDT",
+      "symbol": "BNB/USDT",
       "direction": "long",
-      "quantity": 0.0233484725,
-      "avg_cost": 78216.0,
-      "last_price": 81179.6,
+      "quantity": 2.4010470749,
+      "avg_cost": 773.8,
+      "last_price": 773.8,
       "currency": "USDT",
-      "value": 1895.4197,
-      "cost": 1826.2241,
-      "pnl": 69.1955,
-      "pnl_pct": 3.789
+      "value": 1857.9302,
+      "cost": 1857.9302,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "ETH/USDT",
+      "direction": "long",
+      "quantity": 0.6974422004,
+      "avg_cost": 2663.92,
+      "last_price": 2663.92,
+      "currency": "USDT",
+      "value": 1857.9302,
+      "cost": 1857.9302,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "SOL/USDT",
       "direction": "long",
       "quantity": 18.7088221944,
       "avg_cost": 99.69,
-      "last_price": 111.16,
+      "last_price": 111.48,
       "currency": "USDT",
-      "value": 2079.6727,
+      "value": 2085.6595,
       "cost": 1865.0825,
-      "pnl": 214.5902,
-      "pnl_pct": 11.5057
+      "pnl": 220.577,
+      "pnl_pct": 11.8267
     }
   ],
   "holdings_total": {
-    "pnl": 283.7857,
-    "counted": 2,
+    "pnl": 220.577,
+    "counted": 3,
     "unknown": 0
   },
   "deployed": {
-    "gross": 3975.0924,
-    "pct": 42.8423,
-    "cash": 5303.3302,
+    "gross": 5801.5199,
+    "pct": 62.5097,
+    "cash": 3479.4669,
     "unknown": 0
   },
   "recent_trades": [
-    {
-      "symbol": "XRP/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 3867.25,
-      "price": 1.4243,
-      "cost": 5.8009,
-      "signal": 1.0,
-      "realized_pnl": -22.0001,
-      "avg_cost": 1.4124,
-      "at": "2026-09-06T13:30:35+09:00"
-    },
-    {
-      "symbol": "ETH/USDT",
-      "side": "buy",
-      "direction": "롱",
-      "notional": 1918.13,
-      "price": 2496.81,
-      "cost": 2.8772,
-      "signal": 1.0,
-      "at": "2026-09-06T17:51:28+09:00"
-    },
-    {
-      "symbol": "XRP/USDT",
-      "side": "sell",
-      "direction": "청산",
-      "notional": -1920.39,
-      "price": 1.4184,
-      "cost": 2.8806,
-      "signal": 0.0,
-      "realized_pnl": -10.8687,
-      "avg_cost": 1.4243,
-      "at": "2026-09-07T10:04:38+09:00"
-    },
     {
       "symbol": "BNB/USDT",
       "side": "sell",
@@ -2027,6 +2010,50 @@
       "realized_pnl": -8.3965,
       "avg_cost": 1.4039,
       "at": "2026-09-21T09:12:53+09:00"
+    },
+    {
+      "symbol": "BTC/USDT",
+      "side": "sell",
+      "direction": "청산",
+      "notional": -1900.66,
+      "price": 81404.1,
+      "cost": 2.851,
+      "signal": 0.0,
+      "fee_by_direction": {
+        "long": 2.850992,
+        "short": 0.0
+      },
+      "realized_pnl": 71.5863,
+      "avg_cost": 78216.0,
+      "at": "2026-09-21T14:01:19+09:00"
+    },
+    {
+      "symbol": "ETH/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 1857.93,
+      "price": 2663.92,
+      "cost": 2.7869,
+      "signal": 1.0,
+      "fee_by_direction": {
+        "long": 2.786895,
+        "short": 0.0
+      },
+      "at": "2026-09-21T14:01:19+09:00"
+    },
+    {
+      "symbol": "BNB/USDT",
+      "side": "buy",
+      "direction": "롱",
+      "notional": 1857.93,
+      "price": 773.8,
+      "cost": 2.7869,
+      "signal": 1.0,
+      "fee_by_direction": {
+        "long": 2.786895,
+        "short": 0.0
+      },
+      "at": "2026-09-21T14:01:19+09:00"
     }
   ],
   "limits": [
@@ -2039,9 +2066,9 @@
   ],
   "krw": {
     "rate": 1379.53,
-    "equity": 12799863.0,
+    "equity": 12803400.0,
     "start_cash": 13795300.0,
-    "pnl": -995438.0,
+    "pnl": -991900.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
