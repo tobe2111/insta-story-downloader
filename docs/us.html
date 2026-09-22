@@ -122,6 +122,12 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 </table>
 <div class="sub" id="tr-note" style="margin-top:8px"></div></div>
 
+<!-- 저명 투자자 겹쳐 담기(13F) — 2026-09-22 사장님 지시. 매매 신호가 아니라
+     '확신 오버레이'의 재료다. 화면은 intraday_us.json의 cluster_13f만 읽고
+     자기 계산을 하지 않는다. 세 한계(지연·롱만·후행)를 caveat로 함께 싣는다. -->
+<h2>저명 투자자가 겹쳐 담은 종목 <span class="tag">13F 공시 · 참고용</span></h2>
+<div class="card" id="cluster13f"><span class="sub">불러오는 중…</span></div>
+
 <h2>정직한 한계 <span class="tag">숨기지 않습니다</span></h2>
 <div class="card"><ul id="limits">
   <!-- 규칙이 바뀐 날은 장부가 말하고 여기 맨 위에 끼워 넣는다(감사 310).
@@ -242,6 +248,35 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
     if(items){const ul=document.getElementById("limits");
               ul.innerHTML=items+ul.innerHTML;}
   }
+  /* 저명 투자자 겹쳐 담기(13F) — 참고용. 겹친 종목이 없으면 그렇게 말한다
+     (지어내지 않는다). 개수·투자자 이름·기준일·세 한계를 함께 보여준다. */
+  (function(){
+    var box=document.getElementById("cluster13f"); if(!box)return;
+    var c=u.cluster_13f||{}, names=c.names||[];
+    if(!names.length){
+      box.innerHTML='<span class="sub">이번 분기 공시에서 우리 미국 종목을 '+
+        '여러 저명 투자자가 겹쳐 담은 것은 아직 없습니다 — 참고할 겹치기가 '+
+        '없으면 오버레이도 없습니다(신호 그대로).</span>';
+      return;
+    }
+    var rows=names.map(function(n){
+      return '<tr><td><b>'+esc(n.symbol)+'</b></td>'+
+        '<td>'+esc(String(n.count))+'</td>'+
+        '<td class="sub">'+esc((n.filers||[]).join(", "))+'</td>'+
+        '<td class="sub">'+esc(n.as_of||"—")+'</td></tr>';
+    }).join("");
+    box.innerHTML='<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr><th style="text-align:left">종목</th>'+
+      '<th style="text-align:left">겹친 수</th>'+
+      '<th style="text-align:left">누가</th>'+
+      '<th style="text-align:left">언제 기준</th></tr></thead><tbody>'+
+      rows+'</tbody></table>'+
+      '<div class="sub" style="margin-top:10px">'+esc(c.caveat||"")+'</div>'+
+      '<div class="sub" style="margin-top:4px">이 목록은 '+
+        '<b>매수 신호가 아닙니다.</b> 모델이 이미 사겠다고 한 종목이 여기에도 '+
+        '있으면 그 확신을 조금(최대 15%) 키울 뿐이고, 모델이 관망이면 아무리 '+
+        '겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.</div>';
+  })();
   /* 최근 체결 + 굴리는 비중 — 코인·선물과 같은 렌더러를 쓴다. */
   if(window.QuantTrades){
     QuantTrades.render(document.getElementById("tr").querySelector("tbody"),
