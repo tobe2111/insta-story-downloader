@@ -1307,7 +1307,13 @@ def public_report(st: dict) -> dict:
             longs += 1
         elif float(q) < 0:
             shorts += 1
-    trades = [{**t, "at": r.get("at")}
+    # ⚠️ fee_by_direction은 방향별 손익(direction_pnl)을 만드는 **내부 중간값**
+    #    이라 공개 recent_trades에는 싣지 않는다 — 방향별 수수료는 화면이
+    #    direction_pnl로 이미 읽는다. 여기 그대로 두면 아무도 안 읽는 칸이 되고,
+    #    그건 감사 105가 금지한 '눈금 없는 계측기'다. 상태 장부에는 그대로 남아
+    #    fee_split이 쓴다(공개본만 뺀다).
+    trades = [{**{k: v for k, v in (t or {}).items() if k != "fee_by_direction"},
+               "at": r.get("at")}
               for r in rounds for t in (r.get("trades") or [])][-40:]
     return {
         "kind": KIND,
