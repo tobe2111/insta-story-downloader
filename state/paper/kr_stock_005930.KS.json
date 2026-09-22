@@ -2,7 +2,7 @@
   "cash": 9617.096507468046,
   "quantity": 0.0014149183157792494,
   "avg_price": 265455.1663499552,
-  "last_bar": "2026-09-18 00:00:00",
+  "last_bar": "2026-09-21 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -1456,13 +1456,60 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-21",
+      "price": 274000.0,
+      "weight": 0.1456,
+      "held_weight": 0.0388,
+      "fractional_lot": true,
+      "equity": 10004.78,
+      "return_pct": 0.05,
+      "hit_rate": 0.5615942028985508,
+      "hit_n": 276,
+      "hit_lo": 0.502605936070019,
+      "hit_hi": 0.6188913681192081,
+      "hit_conclusive": true,
+      "live_hit": 0.42105263157894735,
+      "live_hit_n": 19,
+      "live_hit_flat": 2,
+      "hit_flat": 5,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "매수 +15% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 42% + ml 34% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 264000.0,
+        "bar": "2026-09-21 00:00:00",
+        "weight": 0.031,
+        "decided_bar": "2026-09-18 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "04da2964f45a",
+      "data_sha256": "dca3d1b04bda8e681a21c04d4a450a37027037dbcf78745bf4813a6a03377ff5",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.7702,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.031,
-    "decided_bar": "2026-09-18 00:00:00"
+    "weight": 0.1456,
+    "decided_bar": "2026-09-21 00:00:00"
   }
 }
