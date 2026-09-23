@@ -1403,8 +1403,6 @@
       "의석(비중)": "seat (a share of the weight)",
       "을 주고, 최대 3석까지 나눠 갖게 하는 구조입니다. 비중은 홀드아웃 성과에 따라 서서히만 이동하고, 서로 너무 비슷한(수익 상관 과다) 전략은 한 자리만 남깁니다.":
         ", up to three seats shared between them. Weights move only slowly, following hold-out performance, and strategies too similar to each other (returns too correlated) are collapsed into one seat.",
-      "지금 42개 계좌 중": "Right now, of 42 accounts,",
-      "42개가 2석 이상": "42 hold two seats or more",
       "돈의 분산은 다른 이야기": "spreading the money is another story",
       "무작위 벤치마크": "Random benchmark",
       "— 매일 무작위 매매 전략 1,000개를 같은 조건으로 돌려 우리 성과가 그 분포에서 상위 몇 %인지 표시합니다. 동전 던지기보다 정말 나은지 매일 검증받는 셈입니다.":
@@ -3606,6 +3604,11 @@
       // 레버리지 낙폭 킬스위치 사유(선물 화면) — 낙폭·기준 수치는 매일 다르다.
       // 엔진이 " — "로 절을 끊으므로 두 절을 각각 옮긴다.
       ["^낙폭 ([\\d\\.]+)%$", "Drawdown $1%"],
+      // 의회 의석 현황(trust.html) — 계좌 수·의석 수는 매일 바뀐다. 예전에
+      // 숫자를 박은 사전 항목("지금 42개 계좌 중"·"42개가 2석 이상")이 데이터가
+      // 41로 바뀌자 어긋났다 — 날짜·숫자가 든 문장은 규칙으로 옮긴다.
+      ["^지금 (\\d+)개 계좌 중$", "Right now, of $1 accounts,"],
+      ["^(\\d+)개가 2석 이상$", "$1 hold two seats or more"],
       ["^기준 (\\d+)%를 넘어 1배로 내렸습니다\\. 회복될 때까지 크게 걸지 않습니다$",
        "past the $1% line, cut back to 1x. We won't size up until it recovers"],
       // 판단 근거(매일 새로 만들어진다) — 피처 이름과 상태 이름은
