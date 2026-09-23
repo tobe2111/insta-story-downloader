@@ -465,6 +465,23 @@
       "(최대 3배). 예측이 자신 없는 날은":
         "(3x maximum). On days the prediction is not confident it stays at",
 
+      // ── 저명 투자자 겹쳐 담기(13F) — 2026-09-22 ─────────────
+      "저명 투자자가 겹쳐 담은 종목": "Stocks famous investors overlap on",
+      "13F 공시 · 참고용": "13F filings · reference only",
+      "이번 분기 공시에서 우리 미국 종목을 여러 저명 투자자가 겹쳐 담은 것은 아직 없습니다":
+        "No US stock of ours is held in overlap by several famous investors in this quarter's filings yet",
+      "참고할 겹치기가 없으면 오버레이도 없습니다(신호 그대로).":
+        "with no overlap to lean on, there is no overlay either (the signal is left as is).",
+      "겹친 수": "Overlap",
+      "누가": "Who",
+      "언제 기준": "As of",
+      "기준": "as of",
+      "매수 신호가 아닙니다.": "is not a buy signal.",
+      "이 목록은": "This list",
+      "모델이 이미 사겠다고 한 종목이 여기에도 있으면 그 확신을 조금(최대 15%) 키울 뿐이고, 모델이 관망이면 아무리 겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.":
+        "If a stock the model already wants to buy also appears here, it only raises that conviction a little (up to 15%); if the model is standing pat, no amount of overlap makes it buy. It applies to the experimental track only.",
+      "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.":
+        "A 13F filing arrives up to 45 days after quarter-end and lists only long US-equity positions — by the time we see it the purchase can be up to 4.5 months old, so it is not a famous investor saying 'buy now' but a reference that they 'held it last quarter'.",
       // ── 미국주식 단타 ──────────────────────────────────────
       "미국주식 단타 실험": "US stocks intraday experiment",
       "시뮬레이션 · 가상 자금(USD)": "Simulation · play money (USD)",
@@ -1386,8 +1403,6 @@
       "의석(비중)": "seat (a share of the weight)",
       "을 주고, 최대 3석까지 나눠 갖게 하는 구조입니다. 비중은 홀드아웃 성과에 따라 서서히만 이동하고, 서로 너무 비슷한(수익 상관 과다) 전략은 한 자리만 남깁니다.":
         ", up to three seats shared between them. Weights move only slowly, following hold-out performance, and strategies too similar to each other (returns too correlated) are collapsed into one seat.",
-      "지금 42개 계좌 중": "Right now, of 42 accounts,",
-      "42개가 2석 이상": "42 hold two seats or more",
       "돈의 분산은 다른 이야기": "spreading the money is another story",
       "무작위 벤치마크": "Random benchmark",
       "— 매일 무작위 매매 전략 1,000개를 같은 조건으로 돌려 우리 성과가 그 분포에서 상위 몇 %인지 표시합니다. 동전 던지기보다 정말 나은지 매일 검증받는 셈입니다.":
@@ -3589,6 +3604,11 @@
       // 레버리지 낙폭 킬스위치 사유(선물 화면) — 낙폭·기준 수치는 매일 다르다.
       // 엔진이 " — "로 절을 끊으므로 두 절을 각각 옮긴다.
       ["^낙폭 ([\\d\\.]+)%$", "Drawdown $1%"],
+      // 의회 의석 현황(trust.html) — 계좌 수·의석 수는 매일 바뀐다. 예전에
+      // 숫자를 박은 사전 항목("지금 42개 계좌 중"·"42개가 2석 이상")이 데이터가
+      // 41로 바뀌자 어긋났다 — 날짜·숫자가 든 문장은 규칙으로 옮긴다.
+      ["^지금 (\\d+)개 계좌 중$", "Right now, of $1 accounts,"],
+      ["^(\\d+)개가 2석 이상$", "$1 hold two seats or more"],
       ["^기준 (\\d+)%를 넘어 1배로 내렸습니다\\. 회복될 때까지 크게 걸지 않습니다$",
        "past the $1% line, cut back to 1x. We won't size up until it recovers"],
       // 판단 근거(매일 새로 만들어진다) — 피처 이름과 상태 이름은

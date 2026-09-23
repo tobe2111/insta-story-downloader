@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 from quant.live.conviction import RULE_CHANGE as CONVICTION_RULE_CHANGE
+from quant.live.thirteenf_overlay import RULE as OVERLAY_13F_RULE
 
 import json
 import os
@@ -305,12 +306,14 @@ def _now_dt(now_iso: str):
 
 
 def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
-                   data: dict | None, factory) -> tuple[dict, dict, dict, dict]:
+                   data: dict | None, factory,
+                   cluster: dict | None = None) -> tuple[dict, dict, dict, dict]:
     """종목별 (가격, 신호, 판단 봉 시각, 건너뜀 사유) — 닫힌 봉만 쓴다."""
     import time
 
     from quant.live.intraday_challenger import confirmed_bars
     from quant.live.conviction import recalibrate, scale_of, spec_of
+    from quant.live.thirteenf_overlay import apply_overlay, overlay_scale
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
     bar_times: dict[str, str] = {}
@@ -319,6 +322,10 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
     # 종목별로 실제 적용된 확신도 배수 — 1.0이면 재보정이 안 걸린 것이다
     # (규칙 전략이거나, 장치가 꺼졌거나). 둘을 구별하려면 기록이 있어야 한다.
     scales: dict[str, float] = {}
+    # 종목별 13F 겹쳐 담기 오버레이 배수 — 1.0이면 안 걸린 것이다(겹치기 없음
+    # 또는 참고 데이터 전무). 재보정과 마찬가지로 기록에 남겨 조용히 꺼지지
+    # 않게 한다.
+    overlays: dict[str, float] = {}
     deadline = time.monotonic() + FETCH_BUDGET_SEC
     for sym in syms:
         # 시간 예산 — 안전장치와 한 작업에 살고 있으므로, 느린 날에는
@@ -358,7 +365,11 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
         # 꺼지면 장부의 이 숫자가 1.0으로 돌아가 그 사실이 드러난다.
         scales[sym] = scale_of(strat)
         signals[sym] = recalibrate(sig, spec_of(strat))   # 숏·레버리지 없음
-    return prices, signals, bar_times, skipped, dfs, scales
+        # 13F 겹쳐 담기 오버레이 (2026-09-22) — **양수 신호만** 키운다.
+        # 관망(0)·팔자(음수)는 겹쳐 담기로 뒤집히지 않는다(단독 트리거 아님).
+        overlays[sym] = overlay_scale(sym, cluster)
+        signals[sym] = apply_overlay(signals[sym], sym, cluster)
+    return prices, signals, bar_times, skipped, dfs, scales, overlays
 
 
 def _advance_account(st: dict, syms: list[str], prices: dict, signals: dict,
@@ -384,9 +395,30 @@ def _advance_account(st: dict, syms: list[str], prices: dict, signals: dict,
     return mark_equity(st, prices), trades
 
 
+def _round_cluster(state_dir: str, data: dict | None, now_iso: str,
+                   injected) -> dict:
+    """이 회차에 쓸 13F 겹쳐 담기 스냅샷. 실패·주입실행은 빈 스냅샷.
+
+    · injected가 주어지면 그대로(검사에서 주입).
+    · data가 주입된 실행(검사)은 네트워크로 나가지 않는다 — {}.
+    · 실전(data=None)에서만 EDGAR를 새로고침하며, 어떤 실패도 {}로 흡수한다.
+    """
+    if injected is not None:
+        return injected
+    if data is not None:
+        return {}
+    try:
+        from quant.data.thirteenf import refresh
+        return refresh(state_dir, now=now_iso)
+    except Exception as exc:  # noqa: BLE001 — 참고 데이터가 회차를 못 죽인다
+        log.info("13F 새로고침 실패(무해): %s", exc)
+        return {}
+
+
 def run_us_round(now_iso: str, *, state_dir: str = "state",
                  docs_dir: str = "docs", data: dict | None = None,
-                 strategy_factory=None, holidays: dict | None = None) -> dict:
+                 strategy_factory=None, holidays: dict | None = None,
+                 cluster: dict | None = None) -> dict:
     """미국장 한 회차. 장 밖이면 판단도 기록도 하지 않는다.
 
     data/strategy_factory 주입은 검사용이다 — 실전 기본값은 실데이터와
@@ -413,8 +445,10 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     # 새 봉이 닫혔을 수 없으면 시세를 아예 부르지 않는다(요청 절약).
     if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):
         return {"skipped": "새 봉 없음 — 시세 요청 생략", "time": str(now_iso)}
-    prices, signals, bar_times, skipped, dfs, scales = _judge_symbols(
-        syms, now_iso, TIMEFRAME, data, factory)
+    snapshot_13f = _round_cluster(state_dir, data, now_iso, cluster)
+    prices, signals, bar_times, skipped, dfs, scales, overlays = _judge_symbols(
+        syms, now_iso, TIMEFRAME, data, factory,
+        (snapshot_13f or {}).get("cluster"))
     if not prices:
         return {"skipped": "판단 재료 없음(실데이터 전무)", "time": str(now_iso)}
     # ② 같은 봉 멱등 — 새 정보가 없으면 회차를 쓰지 않는다(소음 금지).
@@ -451,6 +485,13 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     if any(v != 1.0 for v in (scales or {}).values()):
         rec["conviction_scale"] = {k: round(float(v), 4)
                                    for k, v in scales.items()}
+    # 13F 오버레이가 실제로 걸린 종목만 기록 — 전부 1.0이면 옛 회차와 같은 모양.
+    if any(v != 1.0 for v in (overlays or {}).values()):
+        rec["overlay_13f"] = {k: round(float(v), 4)
+                              for k, v in overlays.items() if v != 1.0}
+    # 겹쳐 담기 스냅샷을 장부에 남긴다 — 화면은 이것만 읽고 자기 계산은 안 한다.
+    if (snapshot_13f or {}).get("cluster"):
+        st["cluster_13f"] = snapshot_13f
     st["rounds"] = (st.get("rounds") or [])[-(ROUNDS_KEEP - 1):] + [rec]
 
     os.makedirs(_dir(state_dir), exist_ok=True)
@@ -460,7 +501,8 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     try:
         run_us_ladder(now_iso, state_dir=state_dir,
                       data=None if data is None else data,
-                      strategy_factory=strategy_factory, holidays=holidays)
+                      strategy_factory=strategy_factory, holidays=holidays,
+                      cluster=snapshot_13f)
     except Exception as exc:  # noqa: BLE001
         log.warning("미국 주기 사다리 실패(본 실험 무관): %s", exc)
 
@@ -477,7 +519,8 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
 
 def run_us_ladder(now_iso: str, *, state_dir: str = "state",
                   data: dict | None = None, strategy_factory=None,
-                  holidays: dict | None = None) -> list[dict]:
+                  holidays: dict | None = None,
+                  cluster: dict | None = None) -> list[dict]:
     """15분·5분 트랙 — 본 트랙과 같은 규칙, 봉 주기만 다르다."""
     from quant.live.daily import measured_cost_model
     from quant.live.market_hours import is_market_open
@@ -492,6 +535,9 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
     #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("us_stock", state_dir)
     per_side = cost.total_one_way()
+    # 본 트랙과 **같은** 겹쳐 담기 스냅샷을 쓴다 — 사다리만 다른 참고를 쓰면
+    # 트랙 간 비교가 오버레이 차이로 오염된다.
+    snap = _round_cluster(state_dir, data, now_iso, cluster)
     out = []
     for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
@@ -500,10 +546,10 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
             continue
         # 주입 데이터 모드에서는 절대 실데이터로 넘어가지 않는다 — 검사가
         # 몰래 네트워크를 만지는 순간 검사 자체가 재현 불가능해진다.
-        prices, signals, bar_times, _sk, _dfs, _sc = _judge_symbols(
+        prices, signals, bar_times, _sk, _dfs, _sc, _ov = _judge_symbols(
             syms, now_iso, tf,
             (((data or {}).get(tf) or {}) if data is not None else None),
-            factory)
+            factory, (snap or {}).get("cluster"))
         if not prices:
             out.append({"timeframe": tf, "skipped": "닫힌 봉/데이터 없음"})
             continue
@@ -594,6 +640,12 @@ def _deployed(st: dict, equity: float):
     return deployed(_holdings(st), equity)
 
 
+def _cluster_public(st: dict) -> dict:
+    """장부의 13F 스냅샷을 공개 모양으로. 없으면 빈 목록(지어내지 않는다)."""
+    from quant.live.thirteenf_overlay import cluster_public
+    return cluster_public(st.get("cluster_13f") or {})
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -637,7 +689,10 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 쓰면 같은 날 세 페이지가 서로 다른 셈법으로 손익을 말하게 된다.
         # 규칙이 바뀐 날 — 안 적으면 곡선의 한 지점부터 성격이 달라지는데
         # 보는 사람은 이유를 모른다. 그건 조용한 골대 이동이다.
-        "rule_changes": [CONVICTION_RULE_CHANGE],
+        "rule_changes": [CONVICTION_RULE_CHANGE, OVERLAY_13F_RULE],
+        # 저명 투자자 겹쳐 담기 — 참고용. 화면은 이 블록만 읽는다(자기 계산 금지).
+        # 세 한계(최대 4.5개월 지연·롱만·후행)는 caveat에 함께 실린다.
+        "cluster_13f": _cluster_public(st),
         "holdings": _holdings(st),
         "holdings_total": _holdings_total(st),
         # 자산의 몇 %를 굴리고 있나 (2026-08-23 사장님 지적).
