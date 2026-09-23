@@ -3,61 +3,80 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9939.2,
-  "return_pct": -0.608,
-  "gross_return_pct": -0.1668,
-  "cost_paid": 44.12,
+  "equity": 9901.19,
+  "return_pct": -0.9881,
+  "gross_return_pct": -0.5278,
+  "cost_paid": 46.03,
   "cost_basis_bp": {
     "kr_stock": 14.0,
     "us_stock": 6.0,
     "crypto": 15.0,
     "kr_stock_etf": 6.5
   },
-  "trades_total": 311,
-  "rounds_total": 65,
+  "trades_total": 320,
+  "rounds_total": 66,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-09-23T02:14:51+09:00",
+  "last_time": "2026-09-24T01:46:45+09:00",
   "observed_gap_minutes": 4405.033333333334,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
     "GOOGL": 0.07542316,
     "GOOG": 1.25424151,
-    "SPY": 0.56036142,
-    "SLV": 7.27948898,
     "DBC": 13.23999547,
     "EWJ": 4.40030201,
-    "AMZN": 1.69931059
+    "QQQ": 0.58172496,
+    "XLE": 1.30129416,
+    "XLU": 2.58838994,
+    "VNQ": 4.68417685,
+    "EEM": 6.34496793,
+    "MSFT": 0.86362197
   },
   "rule_changes": [
     {
       "on": "2026-08-23",
       "what": "확신도 눈금의 끝을 상승확률 1.00에서 0.70으로 당겼습니다 — 같은 예측에도 더 큰 금액이 나갑니다.",
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
+    },
+    {
+      "on": "2026-09-23",
+      "what": "여러 저명 투자자(13F 공시)가 겹쳐 담은 미국 종목에 한해, 이미 모델이 사겠다고 한 신호를 키웁니다. **얼마나 키울지(최대 +100%)는 기계가 과거 13F 기록의 실제 성적으로 정합니다** — 증거가 없으면 중립(+15%)에 머뭅니다.",
+      "why": "겹쳐 담기(cluster)는 약하게나마 문서화된 신호입니다. 세기를 사람이 손으로 크게 잡지 않는 이유는, 매매 로직은 기계가 증거로 개선한다는 방침 때문이고 무엇보다 13F가 도움이 되는지 아직 확인되지 않았기 때문입니다. 매수를 새로 만들지는 않습니다 — 모델이 관망(0)이면 아무리 겹쳐도, 세기가 아무리 커도 그대로 관망입니다. 실험 트랙에만 걸고, 본 계좌에는 걸지 않습니다.",
+      "caveat": "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다."
     }
   ],
+  "cluster_13f": {
+    "names": [],
+    "fetched_on": null,
+    "filers_total": null,
+    "filers_seen": null,
+    "caveat": "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.",
+    "strength": 0.15,
+    "strength_pct": 15,
+    "strength_why": "아직 튜닝 전 — 중립(0.15)."
+  },
   "holdings": [
-    {
-      "symbol": "AMZN",
-      "direction": "long",
-      "quantity": 1.6993105868,
-      "avg_cost": 254.3500061,
-      "last_price": 254.3500061,
-      "currency": "USD",
-      "value": 432.2197,
-      "cost": 432.2197,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
-    },
     {
       "symbol": "DBC",
       "direction": "long",
       "quantity": 13.2399954686,
       "avg_cost": 32.64500046,
-      "last_price": 32.64500046,
+      "last_price": 32.78499985,
       "currency": "USD",
-      "value": 432.2197,
+      "value": 434.0732,
       "cost": 432.2197,
+      "pnl": 1.8536,
+      "pnl_pct": 0.4289
+    },
+    {
+      "symbol": "EEM",
+      "direction": "long",
+      "quantity": 6.3449679285,
+      "avg_cost": 67.86000061,
+      "last_price": 67.86000061,
+      "currency": "USD",
+      "value": 430.5695,
+      "cost": 430.5695,
       "pnl": 0.0,
       "pnl_pct": 0.0
     },
@@ -66,71 +85,107 @@
       "direction": "long",
       "quantity": 4.4003020091,
       "avg_cost": 98.22499847,
-      "last_price": 98.22499847,
+      "last_price": 97.29000092,
       "currency": "USD",
-      "value": 432.2197,
+      "value": 428.1054,
       "cost": 432.2197,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "pnl": -4.1143,
+      "pnl_pct": -0.9519
     },
     {
       "symbol": "GOOG",
       "direction": "long",
       "quantity": 1.2542415136,
       "avg_cost": 344.57000732,
-      "last_price": 347.63000488,
+      "last_price": 335.66500854,
       "currency": "USD",
-      "value": 436.012,
+      "value": 421.005,
       "cost": 432.174,
-      "pnl": 3.838,
-      "pnl_pct": 0.8881
+      "pnl": -11.169,
+      "pnl_pct": -2.5844
     },
     {
       "symbol": "GOOGL",
       "direction": "long",
       "quantity": 0.0754231557,
       "avg_cost": 339.19443295,
-      "last_price": 352.07501221,
+      "last_price": 338.95999146,
       "currency": "USD",
-      "value": 26.5546,
+      "value": 25.5654,
       "cost": 25.5831,
-      "pnl": 0.9715,
-      "pnl_pct": 3.7974
+      "pnl": -0.0177,
+      "pnl_pct": -0.0691
     },
     {
-      "symbol": "SLV",
+      "symbol": "MSFT",
       "direction": "long",
-      "quantity": 7.2794889791,
-      "avg_cost": 59.375,
-      "last_price": 59.375,
+      "quantity": 0.8636219682,
+      "avg_cost": 498.5625,
+      "last_price": 498.5625,
       "currency": "USD",
-      "value": 432.2197,
-      "cost": 432.2197,
+      "value": 430.5695,
+      "cost": 430.5695,
       "pnl": 0.0,
       "pnl_pct": 0.0
     },
     {
-      "symbol": "SPY",
+      "symbol": "QQQ",
       "direction": "long",
-      "quantity": 0.5603614221,
-      "avg_cost": 771.82000732,
-      "last_price": 772.91998291,
+      "quantity": 0.5817249556,
+      "avg_cost": 740.15997314,
+      "last_price": 740.15997314,
       "currency": "USD",
-      "value": 433.1145,
-      "cost": 432.4982,
-      "pnl": 0.6164,
-      "pnl_pct": 0.1425
+      "value": 430.5695,
+      "cost": 430.5695,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "VNQ",
+      "direction": "long",
+      "quantity": 4.6841768503,
+      "avg_cost": 91.91999817,
+      "last_price": 91.91999817,
+      "currency": "USD",
+      "value": 430.5695,
+      "cost": 430.5695,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "XLE",
+      "direction": "long",
+      "quantity": 1.3012941649,
+      "avg_cost": 62.86000061,
+      "last_price": 62.86000061,
+      "currency": "USD",
+      "value": 81.7994,
+      "cost": 81.7994,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
+    {
+      "symbol": "XLU",
+      "direction": "long",
+      "quantity": 2.5883899352,
+      "avg_cost": 39.92499924,
+      "last_price": 39.92499924,
+      "currency": "USD",
+      "value": 103.3415,
+      "cost": 103.3415,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     }
   ],
   "holdings_total": {
-    "pnl": 5.4259,
-    "counted": 7,
+    "pnl": -13.4474,
+    "counted": 10,
     "unknown": 0
   },
   "deployed": {
-    "gross": 2624.5599,
-    "pct": 26.4061,
-    "cash": 7314.6401,
+    "gross": 3216.1679,
+    "pct": 32.4826,
+    "cash": 6685.0221,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -395,9 +450,13 @@
     [
       "2026-09-23T02:14:51+09:00",
       9939.2
+    ],
+    [
+      "2026-09-24T01:46:45+09:00",
+      9901.19
     ]
   ],
-  "hold_return_pct": 2.9236,
+  "hold_return_pct": 1.2503,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -412,122 +471,27 @@
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "equity": 9975.47,
-    "return_pct_since": -0.2429,
-    "cost_paid": 7.01,
-    "filled_total": 300,
+    "equity": 9938.95,
+    "return_pct_since": -0.6081,
+    "cost_paid": 7.32,
+    "filled_total": 308,
     "unfilled_total": 1,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9923.38,
-      "return_pct": -0.7662,
-      "hold_return_pct": 2.2117,
-      "trades_total": 401,
-      "cost_paid": 68.65,
-      "rounds_total": 65,
+      "equity": 9904.12,
+      "return_pct": -0.9588,
+      "hold_return_pct": 1.5046,
+      "trades_total": 409,
+      "cost_paid": 70.18,
+      "rounds_total": 66,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-09-16T04:04:37+09:00",
-      "symbol": "XLE",
-      "side": "buy",
-      "notional": 431.12,
-      "price": 65.83999633789062,
-      "cost": 0.2587,
-      "signal": 1.0
-    },
-    {
-      "time": "2026-09-16T04:04:37+09:00",
-      "symbol": "XLU",
-      "side": "buy",
-      "notional": 98.68,
-      "price": 41.48500061035156,
-      "cost": 0.0592,
-      "signal": 0.2289
-    },
-    {
-      "time": "2026-09-16T04:04:37+09:00",
-      "symbol": "VNQ",
-      "side": "sell",
-      "notional": -222.7,
-      "price": 94.06999969482422,
-      "cost": 0.1336,
-      "signal": 0.4846,
-      "realized_pnl": -0.1547,
-      "avg_cost": 94.078887
-    },
-    {
-      "time": "2026-09-16T23:30:29+09:00",
-      "symbol": "XLU",
-      "side": "sell",
-      "notional": -98.39,
-      "price": 41.365699768066406,
-      "cost": 0.059,
-      "signal": 0.0,
-      "realized_pnl": -0.3428,
-      "avg_cost": 41.485001
-    },
-    {
-      "time": "2026-09-16T23:30:29+09:00",
-      "symbol": "VNQ",
-      "side": "sell",
-      "notional": -209.43,
-      "price": 94.30999755859375,
-      "cost": 0.1257,
-      "signal": 0.0,
-      "realized_pnl": 0.3876,
-      "avg_cost": 94.078887
-    },
-    {
-      "time": "2026-09-16T23:30:29+09:00",
-      "symbol": "EEM",
-      "side": "sell",
-      "notional": -417.56,
-      "price": 66.29000091552734,
-      "cost": 0.2505,
-      "signal": 0.0,
-      "realized_pnl": -14.9587,
-      "avg_cost": 68.625
-    },
-    {
-      "time": "2026-09-16T23:30:29+09:00",
-      "symbol": "AAPL",
-      "side": "sell",
-      "notional": -430.59,
-      "price": 333.2655944824219,
-      "cost": 0.2584,
-      "signal": 0.0,
-      "realized_pnl": -1.8403,
-      "avg_cost": 334.48999
-    },
-    {
-      "time": "2026-09-17T03:23:29+09:00",
-      "symbol": "DBC",
-      "side": "sell",
-      "notional": -426.13,
-      "price": 33.310001373291016,
-      "cost": 0.2557,
-      "signal": 0.0,
-      "realized_pnl": -5.2449,
-      "avg_cost": 33.700001
-    },
-    {
-      "time": "2026-09-17T03:23:29+09:00",
-      "symbol": "EWJ",
-      "side": "sell",
-      "notional": -432.89,
-      "price": 98.0342025756836,
-      "cost": 0.2597,
-      "signal": 0.0,
-      "realized_pnl": -0.2853,
-      "avg_cost": 98.040001
-    },
     {
       "time": "2026-09-17T03:23:29+09:00",
       "symbol": "EEM",
@@ -832,6 +796,93 @@
       "price": 254.35000610351562,
       "cost": 0.2593,
       "signal": 1.0
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "SPY",
+      "side": "sell",
+      "notional": -430.59,
+      "price": 768.4199829101562,
+      "cost": 0.2584,
+      "signal": 0.0,
+      "realized_pnl": -2.1636,
+      "avg_cost": 771.820007
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "QQQ",
+      "side": "buy",
+      "notional": 430.57,
+      "price": 740.1599731445312,
+      "cost": 0.2583,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "SLV",
+      "side": "sell",
+      "notional": -424.9,
+      "price": 58.369998931884766,
+      "cost": 0.2549,
+      "signal": 0.0,
+      "realized_pnl": -7.5708,
+      "avg_cost": 59.375
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "XLE",
+      "side": "buy",
+      "notional": 81.8,
+      "price": 62.86000061035156,
+      "cost": 0.0491,
+      "signal": 0.19
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "XLU",
+      "side": "buy",
+      "notional": 103.34,
+      "price": 39.92499923706055,
+      "cost": 0.062,
+      "signal": 0.24
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "VNQ",
+      "side": "buy",
+      "notional": 430.57,
+      "price": 91.91999816894531,
+      "cost": 0.2583,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "EEM",
+      "side": "buy",
+      "notional": 430.57,
+      "price": 67.86000061035156,
+      "cost": 0.2583,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "MSFT",
+      "side": "buy",
+      "notional": 430.57,
+      "price": 498.5625,
+      "cost": 0.2583,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-09-24T01:46:45+09:00",
+      "symbol": "AMZN",
+      "side": "sell",
+      "notional": -424.22,
+      "price": 249.63999938964844,
+      "cost": 0.2545,
+      "signal": 0.0,
+      "realized_pnl": -8.2583,
+      "avg_cost": 254.350006
     }
   ],
   "honest_limits": [
@@ -845,9 +896,9 @@
   "rule": "본 계좌 미국 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1373.6801,
-    "equity": 13653281.0,
+    "equity": 13601067.0,
     "start_cash": 13736801.0,
-    "pnl": -83520.0,
+    "pnl": -135733.0,
     "assumed_peg": false,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USD이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USD 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
