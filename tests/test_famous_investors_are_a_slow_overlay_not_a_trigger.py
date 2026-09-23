@@ -276,7 +276,7 @@ def test_the_public_report_carries_the_cluster_and_its_caveat(tmp_path):
     assert "45일" in block["caveat"] and "롱" in block["caveat"]
     # 규칙 변경 목록에 오버레이 규칙이 실린다
     ons = [r.get("on") for r in out["rule_changes"]]
-    assert OV.ADOPTED_ON in ons
+    assert OV.RULE["on"] in ons          # 세기를 기계가 정하도록 바꾼 날(TUNED_ON)
 
 
 def test_an_injected_data_run_never_touches_the_network(tmp_path):

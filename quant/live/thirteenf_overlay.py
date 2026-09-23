@@ -27,12 +27,31 @@ from __future__ import annotations
 # 이만큼(명) 겹치면 최대 보너스. 저명 투자자 셋이 같은 종목을 들면 '겹쳤다'.
 CLUSTER_FULL = 3
 
-# 최대 보너스 — 양수 신호를 최대 15%까지만 키운다. 참고 데이터에 판돈을
-# 크게 걸지 않는다: 15%는 '조금 더 확신'이지 '두 배로 베팅'이 아니다.
-MAX_BONUS = 0.15
+# 증거가 없을 때의 기본 세기 — 양수 신호를 15%까지만 키운다. 이건 사람이
+# 정한 '중립' 값이지 최적값이 아니다: 13F가 실제로 도움이 되는지 아직 아무도
+# 재지 못했기 때문이다(과거 13F 시계열이 있어야 잰다).
+NEUTRAL_BONUS = 0.15
+MAX_BONUS = NEUTRAL_BONUS          # 옛 이름 — 기본값으로만 남긴다(호환)
+
+# 사장님 지시(2026-09-23): *"13F의 영향을 상당히 크게 비중을 두는게 좋을듯."*
+# 그런데 매매 로직의 세기를 사람이 손으로 크게 잡는 것은 2026-08-27 방침
+# ("투자 로직은 기계가 개선한다")에 어긋나고, 무엇보다 **근거가 없다.**
+# 그래서 상한만 크게 열고(최대 +100%), 그 안에서 **얼마를 쓸지는 기계가
+# 증거로 정한다**(choose_strength). 증거가 없으면 중립(0.15)에 머문다 —
+# 낡은 참고 데이터에 믿음만으로 크게 걸지 않는다.
+BONUS_CEILING = 1.0
+STRENGTH_CHOICES = [0.0, 0.15, 0.30, 0.50, 1.0]
+
+# 세기를 올리려면 넘어야 하는 관문 — 패널 관문과 같은 자를 빌린다.
+# ⚠️ 관측 단위는 **날짜(분기 제출)**다(quant.live.thirteenf_tune.measure_edge).
+#    13F는 분기 1회라 날짜가 귀하다 — 여덟 분기(약 2년)는 있어야 '재 봤다'고
+#    한다. 종목 수로 이 수를 대신하지 않는다(패널 관문과 같은 규칙).
+MIN_EDGE_OBS = 8         # 이보다 관측(날짜)이 적으면 '아직 모른다' → 중립
+EDGE_T_GATE = 1.35       # 패널 관문 문턱(PANEL_T_REF)과 같은 값
 
 # 이 오버레이가 켜진 날.
 ADOPTED_ON = "2026-09-22"
+TUNED_ON = "2026-09-23"            # 세기를 기계가 정하도록 바꾼 날
 
 STALENESS_NOTE = (
     "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — "
@@ -41,14 +60,61 @@ STALENESS_NOTE = (
 )
 
 RULE = {
-    "on": ADOPTED_ON,
+    "on": TUNED_ON,
     "what": "여러 저명 투자자(13F 공시)가 겹쳐 담은 미국 종목에 한해, 이미 "
-            "모델이 사겠다고 한 신호를 최대 15%까지만 키웁니다.",
-    "why": "겹쳐 담기(cluster)는 약하게나마 문서화된 신호입니다. 다만 매수를 "
-           "새로 만들지는 않습니다 — 모델이 관망(0)이면 아무리 겹쳐도 그대로 "
-           "관망입니다. 실험 트랙에만 걸고, 본 계좌에는 걸지 않습니다.",
+            "모델이 사겠다고 한 신호를 키웁니다. **얼마나 키울지(최대 +100%)는 "
+            "기계가 과거 13F 기록의 실제 성적으로 정합니다** — 증거가 없으면 "
+            "중립(+15%)에 머뭅니다.",
+    "why": "겹쳐 담기(cluster)는 약하게나마 문서화된 신호입니다. 세기를 사람이 "
+           "손으로 크게 잡지 않는 이유는, 매매 로직은 기계가 증거로 개선한다는 "
+           "방침 때문이고 무엇보다 13F가 도움이 되는지 아직 확인되지 않았기 "
+           "때문입니다. 매수를 새로 만들지는 않습니다 — 모델이 관망(0)이면 "
+           "아무리 겹쳐도, 세기가 아무리 커도 그대로 관망입니다. 실험 트랙에만 "
+           "걸고, 본 계좌에는 걸지 않습니다.",
     "caveat": STALENESS_NOTE,
 }
+
+
+def choose_strength(edge: dict | None) -> dict:
+    """겹쳐 담기의 **측정된 성적**으로 오버레이 세기를 정한다(사람이 아니라).
+
+    edge = {"mean_diff", "t", "n"} — 과거 13F 기록에서 '겹쳐 담긴 종목이 그 뒤
+    실제로 더 올랐나'를 point-in-time으로 잰 값(quant.live.thirteenf_tune).
+
+    규칙(패널 관문과 같은 정신):
+      · 관측이 적으면(n < MIN_EDGE_OBS) → **중립**. 못 잰 것을 큰 확신으로
+        읽지 않는다.
+      · 앞선 증거가 없으면(mean_diff ≤ 0 또는 t < 관문) → **중립**.
+      · 유의하게 앞설 때만 t에 비례해 상한 쪽으로 올린다. 자기기만이 아니라
+        측정이 세기를 정한다.
+
+    돌려주는 것은 {"bonus", "why", "n", "t", "mean_diff"}.
+    """
+    n = int((edge or {}).get("n") or 0)
+    try:
+        t = float((edge or {}).get("t"))
+        md = float((edge or {}).get("mean_diff"))
+    except (TypeError, ValueError):
+        t = md = 0.0
+    if n < MIN_EDGE_OBS:
+        return {"bonus": NEUTRAL_BONUS, "n": n, "t": t, "mean_diff": md,
+                "why": f"관측 {n} < {MIN_EDGE_OBS} — 아직 모른다. 중립 유지."}
+    if not (md > 0.0) or t < EDGE_T_GATE:
+        return {"bonus": NEUTRAL_BONUS, "n": n, "t": round(t, 3),
+                "mean_diff": md,
+                "why": (f"앞선다는 증거가 약하다(t={t:.2f} < {EDGE_T_GATE} 또는 "
+                        "차이≤0) — 중립 유지.")}
+    # 유의: t가 문턱을 넘은 만큼 상한 쪽으로. 문턱에서 0.15, t≥3에서 상한.
+    frac = min(1.0, (t - EDGE_T_GATE) / (3.0 - EDGE_T_GATE)) if t < 3.0 else 1.0
+    target = NEUTRAL_BONUS + frac * (BONUS_CEILING - NEUTRAL_BONUS)
+    # STRENGTH_CHOICES 중 target 이하의 가장 큰 값(계단식 — 미세 조정으로
+    # 과최적화되지 않게).
+    pick = max([c for c in STRENGTH_CHOICES if c <= target + 1e-9]
+               or [NEUTRAL_BONUS])
+    pick = max(pick, NEUTRAL_BONUS)
+    return {"bonus": pick, "n": n, "t": round(t, 3), "mean_diff": md,
+            "why": (f"과거 겹쳐 담긴 종목이 유의하게 앞섰다(t={t:.2f} ≥ "
+                    f"{EDGE_T_GATE} · 관측 {n}) — 세기를 {pick:.2f}로 올린다.")}
 
 
 def overlay_scale(sym: str, cluster: dict | None,

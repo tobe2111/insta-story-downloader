@@ -1470,6 +1470,19 @@ def _cmd_krw_attach(args) -> None:
         say(f"  {name}: {what}")
 
 
+def _cmd_thirteenf_tune(args) -> None:
+    """13F 오버레이 세기를 과거 기록의 앞선 성적으로 정한다(사람이 아니라).
+
+    ⚠️ EDGAR·일봉이 있어야 잰다. 못 받으면 중립(0.15)으로 떨어진다 — 낡은
+       참고에 믿음만으로 크게 걸지 않는다(사장님 2026-08-27 방침).
+    """
+    from quant.live.thirteenf_tune import run_tune
+    out = run_tune(args.state)
+    ev = out.get("evidence") or {}
+    print(f"13F 오버레이 세기 = {out['strength']:.2f} "
+          f"(이력 {out.get('history_points', 0)}점 · {ev.get('why', '')})")
+
+
 def _cmd_ml_report(args) -> None:
     """머신러닝 성적표를 다시 센다.
 
@@ -1906,6 +1919,12 @@ def build_parser() -> argparse.ArgumentParser:
     pl = sub.add_parser("pipeline", help="백테스트+리포트+몬테카를로 통합 실행")
     pl.add_argument("--config", default=None)
     pl.set_defaults(func=_cmd_pipeline)
+
+    tf13 = sub.add_parser(
+        "thirteenf-tune",
+        help="13F 오버레이 세기를 과거 기록의 앞선 성적으로 정한다(기계가)")
+    tf13.add_argument("--state", default="state")
+    tf13.set_defaults(func=_cmd_thirteenf_tune)
 
     return p
 

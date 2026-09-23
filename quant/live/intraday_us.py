@@ -307,13 +307,21 @@ def _now_dt(now_iso: str):
 
 def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
                    data: dict | None, factory,
-                   cluster: dict | None = None) -> tuple[dict, dict, dict, dict]:
-    """종목별 (가격, 신호, 판단 봉 시각, 건너뜀 사유) — 닫힌 봉만 쓴다."""
+                   cluster: dict | None = None,
+                   bonus: float | None = None) -> tuple[dict, dict, dict, dict]:
+    """종목별 (가격, 신호, 판단 봉 시각, 건너뜀 사유) — 닫힌 봉만 쓴다.
+
+    bonus는 13F 오버레이 세기 — 기계가 정한 값(thirteenf_tune)이 넘어온다.
+    None이면 오버레이 모듈의 중립 기본값을 쓴다.
+    """
     import time
 
     from quant.live.intraday_challenger import confirmed_bars
     from quant.live.conviction import recalibrate, scale_of, spec_of
-    from quant.live.thirteenf_overlay import apply_overlay, overlay_scale
+    from quant.live.thirteenf_overlay import (NEUTRAL_BONUS, apply_overlay,
+                                              overlay_scale)
+    if bonus is None:
+        bonus = NEUTRAL_BONUS
     prices: dict[str, float] = {}
     signals: dict[str, float | None] = {}
     bar_times: dict[str, str] = {}
@@ -367,8 +375,8 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
         signals[sym] = recalibrate(sig, spec_of(strat))   # 숏·레버리지 없음
         # 13F 겹쳐 담기 오버레이 (2026-09-22) — **양수 신호만** 키운다.
         # 관망(0)·팔자(음수)는 겹쳐 담기로 뒤집히지 않는다(단독 트리거 아님).
-        overlays[sym] = overlay_scale(sym, cluster)
-        signals[sym] = apply_overlay(signals[sym], sym, cluster)
+        overlays[sym] = overlay_scale(sym, cluster, max_bonus=bonus)
+        signals[sym] = apply_overlay(signals[sym], sym, cluster, max_bonus=bonus)
     return prices, signals, bar_times, skipped, dfs, scales, overlays
 
 
@@ -446,9 +454,12 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     if data is None and not bar_could_have_closed(st, TIMEFRAME, now_iso):
         return {"skipped": "새 봉 없음 — 시세 요청 생략", "time": str(now_iso)}
     snapshot_13f = _round_cluster(state_dir, data, now_iso, cluster)
+    # 13F 오버레이 세기는 기계가 정한 값을 쓴다(사람이 손으로 안 잡는다).
+    from quant.live.thirteenf_tune import load_strength
+    bonus_13f = load_strength(state_dir)
     prices, signals, bar_times, skipped, dfs, scales, overlays = _judge_symbols(
         syms, now_iso, TIMEFRAME, data, factory,
-        (snapshot_13f or {}).get("cluster"))
+        (snapshot_13f or {}).get("cluster"), bonus_13f)
     if not prices:
         return {"skipped": "판단 재료 없음(실데이터 전무)", "time": str(now_iso)}
     # ② 같은 봉 멱등 — 새 정보가 없으면 회차를 쓰지 않는다(소음 금지).
@@ -535,9 +546,11 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
     #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
     cost = measured_cost_model("us_stock", state_dir)
     per_side = cost.total_one_way()
-    # 본 트랙과 **같은** 겹쳐 담기 스냅샷을 쓴다 — 사다리만 다른 참고를 쓰면
-    # 트랙 간 비교가 오버레이 차이로 오염된다.
+    # 본 트랙과 **같은** 겹쳐 담기 스냅샷·같은 세기를 쓴다 — 사다리만 다른
+    # 참고를 쓰면 트랙 간 비교가 오버레이 차이로 오염된다.
     snap = _round_cluster(state_dir, data, now_iso, cluster)
+    from quant.live.thirteenf_tune import load_strength
+    bonus_13f = load_strength(state_dir)
     out = []
     for tf in ladder_timeframes():
         st = _load_track(state_dir, tf)
@@ -549,7 +562,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
         prices, signals, bar_times, _sk, _dfs, _sc, _ov = _judge_symbols(
             syms, now_iso, tf,
             (((data or {}).get(tf) or {}) if data is not None else None),
-            factory, (snap or {}).get("cluster"))
+            factory, (snap or {}).get("cluster"), bonus_13f)
         if not prices:
             out.append({"timeframe": tf, "skipped": "닫힌 봉/데이터 없음"})
             continue
@@ -640,10 +653,29 @@ def _deployed(st: dict, equity: float):
     return deployed(_holdings(st), equity)
 
 
-def _cluster_public(st: dict) -> dict:
-    """장부의 13F 스냅샷을 공개 모양으로. 없으면 빈 목록(지어내지 않는다)."""
-    from quant.live.thirteenf_overlay import cluster_public
-    return cluster_public(st.get("cluster_13f") or {})
+def _cluster_public(st: dict, state_dir: str = "state") -> dict:
+    """장부의 13F 스냅샷을 공개 모양으로. 없으면 빈 목록(지어내지 않는다).
+
+    기계가 정한 오버레이 세기와 그 근거도 함께 싣는다 — 화면이 "지금 13F를
+    얼마나 크게 반영하고 있나"와 "왜 그 값인가"를 말할 수 있게.
+    """
+    import json as _json
+
+    from quant.live.thirteenf_overlay import NEUTRAL_BONUS, cluster_public
+    from quant.live.thirteenf_tune import STRENGTH_FILE
+    block = cluster_public(st.get("cluster_13f") or {})
+    strength, why = NEUTRAL_BONUS, "아직 튜닝 전 — 중립(0.15)."
+    try:
+        with open(os.path.join(state_dir, STRENGTH_FILE), encoding="utf-8") as f:
+            s = _json.load(f) or {}
+        strength = float(s.get("strength", NEUTRAL_BONUS))
+        why = ((s.get("evidence") or {}).get("why")) or why
+    except (OSError, ValueError, TypeError):
+        pass
+    block["strength"] = strength
+    block["strength_pct"] = round(strength * 100)
+    block["strength_why"] = why
+    return block
 
 
 def write_public_report(st: dict, docs_dir: str = "docs",
@@ -692,7 +724,7 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         "rule_changes": [CONVICTION_RULE_CHANGE, OVERLAY_13F_RULE],
         # 저명 투자자 겹쳐 담기 — 참고용. 화면은 이 블록만 읽는다(자기 계산 금지).
         # 세 한계(최대 4.5개월 지연·롱만·후행)는 caveat에 함께 실린다.
-        "cluster_13f": _cluster_public(st),
+        "cluster_13f": _cluster_public(st, state_dir),
         "holdings": _holdings(st),
         "holdings_total": _holdings_total(st),
         # 자산의 몇 %를 굴리고 있나 (2026-08-23 사장님 지적).
