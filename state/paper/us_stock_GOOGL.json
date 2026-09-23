@@ -1,8 +1,8 @@
 {
-  "cash": 8813.876842979786,
-  "quantity": 3.565973977744071,
-  "avg_price": 347.8927094987685,
-  "last_bar": "2026-09-18 00:00:00",
+  "cash": 10063.499786871238,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-09-21 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -1159,11 +1159,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-21",
+      "price": 354.9700012207031,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10063.5,
+      "return_pct": 0.63,
+      "hit_rate": 0.5369774919614148,
+      "hit_n": 311,
+      "hit_lo": 0.4814450677610719,
+      "hit_hi": 0.5916075402805591,
+      "hit_conclusive": false,
+      "live_hit": 0.5625,
+      "live_hit_n": 16,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 43% + ml 30% + ma_cross 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 350.640015,
+        "bar": "2026-09-21 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-18 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "15b669e43c1f",
+      "data_sha256": "29ae7c277d1afece5a0df89b80fd670888511e9adfd4ddcbd66d135232376836",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.364639329728639,
+      "drift_psi": 0.7862,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-09-18 00:00:00"
+    "decided_bar": "2026-09-21 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOGL",

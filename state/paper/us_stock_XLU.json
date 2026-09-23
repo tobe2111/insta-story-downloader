@@ -2,7 +2,7 @@
   "cash": 8104.058919622398,
   "quantity": 45.96641828949497,
   "avg_price": 41.78278229361886,
-  "last_bar": "2026-09-18 00:00:00",
+  "last_bar": "2026-09-21 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1013,11 +1013,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4754
+    },
+    {
+      "date": "2026-09-21",
+      "price": 40.65999984741211,
+      "weight": 0.3043,
+      "held_weight": 0.1874,
+      "fractional_lot": false,
+      "equity": 9973.05,
+      "return_pct": -0.27,
+      "hit_rate": 0.5392156862745098,
+      "hit_n": 102,
+      "hit_lo": 0.4428178811663944,
+      "hit_hi": 0.6327667660800568,
+      "hit_conclusive": false,
+      "live_hit": 0.46153846153846156,
+      "live_hit_n": 13,
+      "live_hit_flat": 1,
+      "hit_flat": 3,
+      "champion": {
+        "model": "rf",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +30% — 랜덤포레스트 모델이 내일 상승확률을 약 66%로 추정(기준 55% 초과) · 사이징: 신호 원비중 22% → 변동성 타깃 조절 후 30% · 참고: 전 종목 합산으로 모델이 66%±10%p라 말한 161번의 실제 상승 비율 41% (95% 신뢰구간 34%~49% · 보합 5일 포함 · 봉이 빠진 35번은 제외 · 이 종목 단독 표본은 7번으로 축적 중) · 🏛 의회 운용: ml 41% + ml 36% + ml 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 40.77,
+        "bar": "2026-09-21 00:00:00",
+        "weight": 0.2198,
+        "decided_bar": "2026-09-18 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "15b669e43c1f",
+      "data_sha256": "6a3702cc7226b8c18aaede93eca190fc5974e6bdcaa0281fdd0bc481c3fb8528",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6633336698447898,
+      "drift_psi": 0.1648,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.407
     }
   ],
   "pending": {
-    "weight": 0.2198,
-    "decided_bar": "2026-09-18 00:00:00"
+    "weight": 0.3043,
+    "decided_bar": "2026-09-21 00:00:00"
   },
   "market": "us_stock",
   "symbol": "XLU",
