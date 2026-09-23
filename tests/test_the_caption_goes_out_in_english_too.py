@@ -60,10 +60,16 @@ def _ledger_figures(x: dict) -> list:
     if vh:
         out += [f"{vh['hold']:,.0f}", f"{abs(vh['diff']):,.0f}",
                 f"{vh['diff_pct']:+.2f}%"]
-    if x.get("invested") is not None:
-        out.append(f"{x['invested'] * 100:.0f}%")
-    if x.get("gross") is not None:
-        out.append(f"{x['gross'] * 100:.0f}%")
+    inv = x.get("invested")
+    if inv is not None:
+        out.append(f"{inv * 100:.0f}%")
+    # ⚠️ 캡션은 목표(gross)를 **실제 투자 비율과 2%p 넘게 벌어질 때만** 따로
+    #    쓴다(감사 238: 가까우면 "투자 중 X%"로 합쳐 쓴다). 그래서 여기서도
+    #    그때만 목표%를 필수 값으로 요구한다 — 늘 요구하면 둘이 가까운 날
+    #    캡션이 정직하게 생략한 값을 "빠졌다"고 헛울린다.
+    g = x.get("gross")
+    if g is not None and (inv is None or abs(g - inv) > 0.02):
+        out.append(f"{g * 100:.0f}%")
     if isinstance(x.get("n_held"), int):
         out.append(str(x["n_held"]))
     return out
