@@ -478,8 +478,11 @@
       "기준": "as of",
       "매수 신호가 아닙니다.": "is not a buy signal.",
       "이 목록은": "This list",
-      "모델이 이미 사겠다고 한 종목이 여기에도 있으면 그 확신을 조금(최대 15%) 키울 뿐이고, 모델이 관망이면 아무리 겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.":
-        "If a stock the model already wants to buy also appears here, it only raises that conviction a little (up to 15%); if the model is standing pat, no amount of overlap makes it buy. It applies to the experimental track only.",
+      "모델이 이미 사겠다고 한 종목이 여기에도 있으면 그 확신을 정해진 만큼 키울 뿐이고, 모델이 관망이면 아무리 겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.":
+        "If a stock the model already wants to buy also appears here, it only raises that conviction by a set amount; if the model is standing pat, no amount of overlap makes it buy. It applies to the experimental track only.",
+      "지금 세기": "Current weight",
+      "세기는 과거 13F 기록의 실제 앞선 성적으로 기계가 정합니다.":
+        "The machine sets the weight from how cluster-held stocks actually fared in past 13F records.",
       "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.":
         "A 13F filing arrives up to 45 days after quarter-end and lists only long US-equity positions — by the time we see it the purchase can be up to 4.5 months old, so it is not a famous investor saying 'buy now' but a reference that they 'held it last quarter'.",
       // ── 미국주식 단타 ──────────────────────────────────────

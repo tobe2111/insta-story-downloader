@@ -207,6 +207,145 @@ def latest_holdings(cik: str, fetch=_urllib_fetch) -> tuple[str | None, list]:
     return report, []
 
 
+def _holdings_for_accession(cik10: str, acc: str, fetch) -> list:
+    """한 제출(accession)의 정보표 보유 목록. 실패는 빈 목록."""
+    folder = _ARCHIVE.format(cik=str(int(cik10)), acc=str(acc).replace("-", ""))
+    try:
+        listing = json.loads(fetch(folder + "/index.json"))
+    except Exception as exc:  # noqa: BLE001
+        log.info("13F 폴더 조회 실패 acc=%s: %s", acc, exc)
+        return []
+    items = ((listing or {}).get("directory") or {}).get("item") or []
+    for it in items:
+        fname = str(it.get("name") or "")
+        if fname.lower().endswith(".xml") and "primary_doc" not in fname.lower():
+            try:
+                rows = parse_information_table(fetch(folder + "/" + fname))
+            except Exception as exc:  # noqa: BLE001
+                log.info("13F 정보표 조회 실패 acc=%s: %s", acc, exc)
+                continue
+            if rows:
+                return rows
+    return []
+
+
+def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> list:
+    """한 제출자의 **지난 13F-HR 제출들** — 최신부터 max_filings개.
+
+    각 항목: {"filed": 제출일(공개된 날), "report": 보고 기준일, "holdings": [...]}.
+    ⚠️ point-in-time의 핵심은 **filed(제출일)**다 — 그 날에야 세상이 이 보유를
+       알 수 있었다. 백테스트가 report(기준일)로 앞당겨 보면 미래를 훔쳐본다.
+    """
+    cik10 = str(cik).zfill(10)
+    try:
+        subs = json.loads(fetch(_SUBMISSIONS.format(cik=cik10)))
+    except Exception as exc:  # noqa: BLE001
+        log.info("13F 제출 이력 조회 실패 cik=%s: %s", cik, exc)
+        return []
+    recent = (((subs or {}).get("filings") or {}).get("recent")) or {}
+    forms = recent.get("form") or []
+    accns = recent.get("accessionNumber") or []
+    reports = recent.get("reportDate") or []
+    fileds = recent.get("filingDate") or []
+    out: list = []
+    for i, form in enumerate(forms):
+        if not str(form).startswith("13F-HR"):
+            continue
+        rows = _holdings_for_accession(cik10, accns[i], fetch)
+        if not rows:
+            continue
+        out.append({"filed": (fileds[i] if i < len(fileds) else None),
+                    "report": (reports[i] if i < len(reports) else None),
+                    "holdings": rows})
+        if len(out) >= max_filings:
+            break
+    return out
+
+
+def build_cluster_history(filings_by_cik: dict) -> list:
+    """{cik: [filings_history 항목...]} → point-in-time 겹쳐 담기 시계열.
+
+    반환: [{"as_of": 제출일, "cluster": {심볼: {count, filers}}}] — 제출일 오름차순.
+    각 시점의 cluster는 **그 날까지 공개된 각 제출자의 가장 최근 보유**로 만든다.
+    """
+    # (제출일, cik, 매칭된 심볼 집합) 이벤트를 모아 시간순으로 재생한다.
+    events: list[tuple] = []
+    for cik, filings in (filings_by_cik or {}).items():
+        for f in (filings or []):
+            filed = f.get("filed")
+            if not filed:
+                continue
+            syms = set()
+            for h in (f.get("holdings") or []):
+                s = _match_symbol(h)
+                if s:
+                    syms.add(s)
+            events.append((str(filed), str(cik).zfill(10), syms))
+    events.sort(key=lambda e: e[0])
+    latest_by_cik: dict[str, set] = {}
+    history: list = []
+    for filed, cik, syms in events:
+        latest_by_cik[cik] = syms          # 이 제출자의 최신 보유로 갱신
+        counts: dict[str, dict] = {}
+        for c, held in latest_by_cik.items():
+            name = FILERS.get(c, FILERS.get(str(int(c)), c))
+            for s in held:
+                slot = counts.setdefault(s, {"count": 0, "filers": []})
+                slot["count"] += 1
+                slot["filers"].append(name)
+        # 같은 날 여러 제출이면 마지막 것만 남긴다(같은 as_of 하나).
+        if history and history[-1]["as_of"] == filed:
+            history[-1]["cluster"] = counts
+        else:
+            history.append({"as_of": filed, "cluster": counts})
+    return history
+
+
+def cluster_asof(history: list, date: str) -> dict:
+    """그 날짜에 **공개돼 있던** 가장 최근 겹쳐 담기(point-in-time). 없으면 {}."""
+    d = str(date)[:10]
+    got: dict = {}
+    for row in (history or []):
+        if str(row.get("as_of"))[:10] <= d:
+            got = row.get("cluster") or {}
+        else:
+            break                          # history는 오름차순이다
+    return got
+
+
+def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
+                    filers: dict | None = None, max_filings: int = 12) -> list:
+    """point-in-time 이력을 EDGAR에서 받아 state/thirteenf_history.json에 캐시.
+
+    실패·전무는 빈 이력이다(오버레이 튜너가 '재료 없음 → 중립'으로 흡수).
+    """
+    use = filers if filers is not None else FILERS
+    by_cik: dict = {}
+    for cik in use:
+        hist = filings_history(cik, fetch=fetch, max_filings=max_filings)
+        if hist:
+            by_cik[cik] = hist
+    history = build_cluster_history(by_cik)
+    try:
+        os.makedirs(state_dir, exist_ok=True)
+        from quant.utils.jsonio import atomic_write_json
+        atomic_write_json(os.path.join(state_dir, "thirteenf_history.json"),
+                          {"history": history, "filers_total": len(use)})
+    except Exception as exc:  # noqa: BLE001
+        log.info("13F 이력 캐시 저장 실패(무해): %s", exc)
+    return history
+
+
+def load_history(state_dir: str = "state") -> list:
+    """캐시된 point-in-time 이력. 없으면 빈 목록."""
+    try:
+        with open(os.path.join(state_dir, "thirteenf_history.json"),
+                  encoding="utf-8") as f:
+            return (json.load(f) or {}).get("history") or []
+    except (OSError, ValueError):
+        return []
+
+
 def cluster_from_filings(filings: dict) -> dict:
     """{cik: (기준일, [보유...])} → {심볼: {count, filers, as_of, ...}}.
 

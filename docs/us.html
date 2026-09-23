@@ -274,8 +274,14 @@ fetch("intraday_us.json").then(r=>r.ok?r.json():null).then(u=>{
       '<div class="sub" style="margin-top:10px">'+esc(c.caveat||"")+'</div>'+
       '<div class="sub" style="margin-top:4px">이 목록은 '+
         '<b>매수 신호가 아닙니다.</b> 모델이 이미 사겠다고 한 종목이 여기에도 '+
-        '있으면 그 확신을 조금(최대 15%) 키울 뿐이고, 모델이 관망이면 아무리 '+
-        '겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.</div>';
+        '있으면 그 확신을 정해진 만큼 키울 뿐이고, 모델이 관망이면 아무리 '+
+        '겹쳐도 사지 않습니다. 실험 트랙에만 적용됩니다.</div>'+
+      /* 세기는 사람이 아니라 **기계가** 정한다(과거 13F 앞선 성적 → 세기).
+         숫자만 화면에 흘려보내고 판단 근거(why)는 장부(JSON)에만 남긴다 —
+         매일 바뀌는 한국어 산문을 화면에 박으면 영어판이 깨진다. */
+      '<div class="sub" style="margin-top:4px">지금 세기 <b>+'+
+        esc(String(c.strength_pct==null?15:c.strength_pct))+'%</b></div>'+
+      '<div class="sub" style="margin-top:2px">세기는 과거 13F 기록의 실제 앞선 성적으로 기계가 정합니다.</div>';
   })();
   /* 최근 체결 + 굴리는 비중 — 코인·선물과 같은 렌더러를 쓴다. */
   if(window.QuantTrades){

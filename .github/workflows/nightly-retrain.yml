@@ -85,6 +85,14 @@ jobs:
         run: |
           python -m quant retrain --all --limit 800 | tee retrain-all.txt
 
+      # 13F 오버레이 세기를 과거 13F 기록의 앞선 성적으로 정한다(기계가, 사람이
+      # 아니라 — 2026-08-27 방침). EDGAR·일봉을 못 받으면 중립(0.15)으로
+      # 떨어진다. 실패해도 재학습을 막지 않는다(state/에 세기 파일만 남긴다).
+      - name: 13F 오버레이 세기 튜닝
+        continue-on-error: true
+        run: |
+          python -m quant thirteenf-tune | tee thirteenf-tune.txt || true
+
       - name: 결과 요약 (Actions Summary)
         if: always()
         run: |
