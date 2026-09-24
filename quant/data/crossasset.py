@@ -175,6 +175,38 @@ def _fred_t10y2y() -> pd.Series | None:
     return _fred("T10Y2Y")
 
 
+def _guru13f_series(symbol: str, state_dir: str = "state") -> pd.Series | None:
+    """저명 투자자 겹쳐 담기(13F) point-in-time 시계열 — 제출일별 '몇 명이 든 종목인가'.
+
+    ⚠️ **인덱스는 제출일(공개된 날)이다.** _align이 전진충전하므로, 어떤 봉도
+       그 날까지 공개된 겹쳐 담기만 본다 — 보고 기준일로 앞당겨 미래를 훔쳐보지
+       않는다(quant.data.thirteenf.build_cluster_history가 제출일로 재생한다).
+
+    이력이 없거나(state/thirteenf_history.json 부재 — 아직 안 쌓임) 이 종목이
+    한 번도 안 담겼으면 None이다. None이면 x_guru13f 컬럼 자체가 안 붙고, ML은
+    없는 재료를 지어내지 않는다(있을 때만 기계가 쓸지 정한다).
+    """
+    try:
+        from quant.data.thirteenf import load_history
+        hist = load_history(state_dir)
+    except Exception:  # noqa: BLE001 — 참고 재료 하나가 피처 조립을 못 죽인다
+        return None
+    if not hist:
+        return None
+    dates, vals = [], []
+    for row in hist:
+        as_of = row.get("as_of")
+        if not as_of:
+            continue
+        info = (row.get("cluster") or {}).get(symbol)
+        cnt = int(info.get("count") or 0) if isinstance(info, dict) else 0
+        dates.append(pd.Timestamp(str(as_of)[:10]))
+        vals.append(float(cnt))
+    if not dates or not any(v > 0 for v in vals):
+        return None                         # 한 번도 안 담긴 종목 — 재료 없음
+    return pd.Series(vals, index=pd.DatetimeIndex(dates)).sort_index()
+
+
 def _align(feature: pd.Series, index: pd.Index) -> pd.Series:
     """날짜 정규화 + 전진충전 정렬 — 미래 값이 과거 봉에 붙을 수 없다."""
     target = pd.DatetimeIndex(index).normalize()
@@ -217,6 +249,14 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             if hy is not None:
                 out["x_hy_spread"] = _align(hy, out.index)
         elif market == "us_stock":
+            # 저명 투자자 겹쳐 담기(13F) — 종목 선택 재료(2026-09-24 사장님 지시:
+            # "투자 잘하는 사람들의 데이터로 종목 선택 정확도를 높인다"). 미국
+            # 종목에만 붙는다(13F는 미국 상장주식 공시). 있을 때만 붙고, 쓸지는
+            # 기계가 정한다(top_features 가지치기) — 사람이 "이 종목 사라"고 박지
+            # 않는다. point-in-time이라 미래 참조 없음(_guru13f_series 머리말).
+            guru = _guru13f_series(symbol)
+            if guru is not None:
+                out["x_guru13f"] = _align(guru, out.index)
             t10 = _fred_t10y2y()
             if t10 is not None:
                 out["x_t10y2y"] = _align(t10, out.index)

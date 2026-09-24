@@ -6184,6 +6184,23 @@ MUTATIONS = [
      "    return p1 / p0 - 1.0",
      "    return p0 / p1 - 1.0",
      "tests/test_the_machine_sets_the_13f_weight.py"),
+
+    # ── 13F를 종목 선택 ML 피처로 (2026-09-24 감사 330) ─────────────
+    ("겹쳐 담기 이력을 보고 기준일로 재생한다 — 미래를 훔쳐본다(x_guru13f 룩어헤드)",
+     "quant/data/thirteenf.py",
+     '            filed = f.get("filed")',
+     '            filed = f.get("report")',
+     "tests/test_the_machine_sets_the_13f_weight.py"),
+    ("13F 피처 부착을 뒤집는다 — 이력이 있어도 안 붙는다(종목 선택 재료 유실)",
+     "quant/data/crossasset.py",
+     "            if guru is not None:",
+     "            if guru is None:",
+     "tests/test_the_guru_signal_is_a_point_in_time_feature.py"),
+    ("한 번도 안 담긴 종목에 0짜리 피처를 붙인다 — '재료 없음'을 지어낸 0으로 덮는다",
+     "quant/data/crossasset.py",
+     "    if not dates or not any(v > 0 for v in vals):",
+     "    if False:",
+     "tests/test_the_guru_signal_is_a_point_in_time_feature.py"),
     # ── 실적 가드가 아무것도 모른다 (2026-08-19 감사 289) ────────────
     ("발표일 조회가 왜 실패했는지를 안 남긴다 — '못 받았다'가 '없다'로 굳는다",
      "quant/data/earnings.py",

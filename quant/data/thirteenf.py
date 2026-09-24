@@ -51,13 +51,21 @@ REFRESH_DAYS = 20
 # 문자열을 쓴다. 값이 무엇이든 접근 실패는 아래에서 빈 결과로 떨어진다.
 _DEFAULT_UA = "quant-research (set EDGAR_UA env for contact)"
 
-# 겹쳐 담기를 셀 저명 투자자들. CIK는 EDGAR의 제출자 식별자다. 이 목록은
-# 편집 가능하며, **닿지 않는 CIK는 그냥 0을 보탠다**(빈 결과) — 목록이 틀려도
-# 엉뚱한 종목에 가점이 가는 일은 구조상 없다(아래 매칭 참조).
+# 겹쳐 담기를 셀 저명 투자자들. CIK는 EDGAR의 제출자 식별자다.
+#
+# ⚠️ **새 이름을 넣기 전에 data.sec.gov에서 CIK를 확인할 것.** 틀린 CIK는
+#    대개 조용히 빈 결과지만(무해), 드물게 **다른 제출자로 오인**될 수 있다 —
+#    그러면 화면에 엉뚱한 이름이 뜬다. 아래는 널리 공개된 값이지만, 이
+#    컨테이너는 EDGAR가 막혀 코드에서 검증하지 못했다. 운영자가 확장·검증한다.
+#    닿지 않는 CIK는 그냥 0을 보탠다(빈 결과) — 목록이 틀려도 엉뚱한 '종목'에
+#    가점이 가는 일은 구조상 없다(아래 _match_symbol 참조).
 FILERS = {
     "0001067983": "Berkshire Hathaway (Buffett)",
     "0001649339": "Scion Asset Mgmt (Burry)",
     "0001336528": "Pershing Square (Ackman)",
+    "0001350694": "Bridgewater Associates (Dalio)",
+    "0001037389": "Renaissance Technologies",
+    "0001061768": "Baupost Group (Klarman)",
 }
 
 # 우리 미국 유니버스의 개별 종목 ↔ 13F가 쓰는 식별자(발행사명·CUSIP).

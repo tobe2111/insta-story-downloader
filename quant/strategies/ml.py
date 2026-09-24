@@ -73,7 +73,20 @@ OPTIONAL_FEATURES = [
     "x_t10y2y", "x_t10yie_chg5", "x_hy_spread",    # FRED 거시
     "x_fng", "x_kimchi",                   # 심리·김치프리미엄
     "x_frgn5", "x_inst5",                  # KRX 수급(한국주식만)
+    "x_guru13f",                           # 저명 투자자 겹쳐 담기(미국주식만)
 ]
+
+# 계측기가 '분모'로 세지도, '유령'으로 경보하지도 않는 선택 피처 — 모델은
+# 쓸 수 있지만 건강 미터는 무시한다.
+#
+# ⚠️ 왜 x_guru13f를 여기 두나(2026-09-24). 이 재료는 과거 13F 이력이 쌓여야
+#    붙고(EDGAR·야간 축적), 미국 종목에만 해당한다. MARKET 분모에 넣으면
+#    이력이 쌓이기 전까지 미국 종목이 늘 '결손'으로 잡혀 경고등이 항상 켜진다
+#    (감사 106이 경고한 바로 그 안티패턴). 반대로 분모 밖에 두기만 하면, 이력이
+#    쌓인 뒤에는 '표에 없는데 붙었다'(unexpected)로 잡힌다. 그래서 **양쪽 다
+#    빼는** 제3의 자리를 둔다: 모델은 붙을 때 쓰고, 미터는 관여하지 않는다.
+#    쓸지 말지는 여전히 top_features 가지치기가 정한다(사람이 아니라 기계가).
+UNMETERED_OPTIONAL: set[str] = {"x_guru13f"}
 
 # 고장난 계측기가 남긴 기록의 지문 — 이 이름이 missing 목록에 있으면 그
 # 기록은 2026-08-12 교정 **이전**의 것이다(사이트가 옛 0/11을 오늘의
@@ -218,7 +231,8 @@ def feature_health(feats, market: str | None = None,
     # 이 시장에 붙을 수 없는데도 들어와 있는 컬럼 — 표가 실제와 어긋났다는
     # 신호다. 조용히 무시하면 감사 106(유령 이름)이 반대 방향으로 재발한다.
     unexpected = [c for c in OPTIONAL_FEATURES
-                  if c in cols and c not in set(expected)]
+                  if c in cols and c not in set(expected)
+                  and c not in UNMETERED_OPTIONAL]
     return {
         "total": len(cols),
         "required": len(FEATURE_NAMES) - len(missing_req),
