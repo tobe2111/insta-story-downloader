@@ -2,7 +2,7 @@
   "cash": 7852.411080380837,
   "quantity": 80.1197645820446,
   "avg_price": 28.23269521031837,
-  "last_bar": "2026-09-24 00:00:00",
+  "last_bar": "2026-09-25 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1151,11 +1151,58 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-25",
+      "price": 28.6200008392334,
+      "weight": 0.246,
+      "held_weight": 0.226,
+      "fractional_lot": false,
+      "equity": 10145.44,
+      "return_pct": 1.45,
+      "hit_rate": 0.5825242718446602,
+      "hit_n": 206,
+      "hit_lo": 0.5142722589591918,
+      "hit_hi": 0.6477547175793018,
+      "hit_conclusive": true,
+      "live_hit": 0.6666666666666666,
+      "live_hit_n": 21,
+      "live_hit_flat": 1,
+      "hit_flat": 12,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "매수 +25% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 37% + ml 36% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 28.620001,
+        "bar": "2026-09-25 00:00:00",
+        "weight": 0.1995,
+        "decided_bar": "2026-09-24 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "aebff0c30fbd",
+      "data_sha256": "dede80de7d9c67b7c00fe1c0e3fad96b062d22784bb2d50736ce4cad190aab1f",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1867,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1995,
-    "decided_bar": "2026-09-24 00:00:00"
+    "weight": 0.246,
+    "decided_bar": "2026-09-25 00:00:00"
   },
   "market": "us_stock",
   "symbol": "UUP",
