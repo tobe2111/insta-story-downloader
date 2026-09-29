@@ -2,7 +2,7 @@
   "cash": 9973.0361484313,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-09-25 00:00:00",
+  "last_bar": "2026-09-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1266,11 +1266,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4133
+    },
+    {
+      "date": "2026-09-28",
+      "price": 54.95000076293945,
+      "weight": 0.095,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9973.04,
+      "return_pct": -0.27,
+      "hit_rate": 0.6153846153846154,
+      "hit_n": 39,
+      "hit_lo": 0.45898781310078474,
+      "hit_hi": 0.7510883745299295,
+      "hit_conclusive": false,
+      "live_hit": 0.5625,
+      "live_hit_n": 16,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 65%로 추정(기준 55% 초과) · 판단 재료: 장단기 금리차(경기 신호) +0.36 / 20일 모멘텀 -8.4% / VIX 기간구조(공포의 급성도) 0.88(보통(콘탱고)) · 사이징: 신호 원비중 22% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 65%±10%p라 말한 202번의 실제 상승 비율 44% (95% 신뢰구간 37%~50% · 보합 6일 포함 · 봉이 빠진 46번은 제외 · 이 종목 단독 표본은 1번으로 축적 중)",
+      "fill": {
+        "price": 55.32,
+        "bar": "2026-09-28 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-09-25 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "480303379fdd",
+      "data_sha256": "db1d103b613c8196b6e36180e0e762c8e100d3bccb2b854c36d8d8a0c131702c",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6471788887200332,
+      "drift_psi": 0.209,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.398
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-09-25 00:00:00"
+    "weight": 0.095,
+    "decided_bar": "2026-09-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "SLV",

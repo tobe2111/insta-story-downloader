@@ -2,7 +2,7 @@
   "cash": 9579.745816562683,
   "quantity": 4.767911002504842,
   "avg_price": 81.4800033569336,
-  "last_bar": "2026-09-25 00:00:00",
+  "last_bar": "2026-09-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1278,11 +1278,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-28",
+      "price": 78.62000274658203,
+      "weight": 0.2834,
+      "held_weight": 0.0377,
+      "fractional_lot": false,
+      "equity": 9954.6,
+      "return_pct": -0.45,
+      "hit_rate": 0.5063291139240507,
+      "hit_n": 79,
+      "hit_lo": 0.3983720753430729,
+      "hit_hi": 0.6136991545704006,
+      "hit_conclusive": false,
+      "live_hit": 0.2857142857142857,
+      "live_hit_n": 7,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "pool": "universe"
+      },
+      "reason": "매수 +28% — 그라디언트부스팅·풀링(전 종목 합산 학습) 모델이 내일 상승확률을 약 63%로 추정(기준 55% 초과) · 사이징: 신호 원비중 15% → 변동성 타깃 조절 후 28% · 참고: 전 종목 합산으로 모델이 63%±10%p라 말한 231번의 실제 상승 비율 46% (95% 신뢰구간 40%~53% · 보합 6일 포함 · 봉이 빠진 46번은 제외 · 이 종목 단독 표본은 7번으로 축적 중) · 🏛 의회 운용: ml 37% + ml 34% + ml 30% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 78.650002,
+        "bar": "2026-09-28 00:00:00",
+        "weight": 0.0558,
+        "decided_bar": "2026-09-25 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "480303379fdd",
+      "data_sha256": "39c4802bab60197fd041cbc0214c30ae5ea92b328cd0508906c95435cf44e636",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.625506257207537,
+      "drift_psi": 0.1105,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.398
     }
   ],
   "pending": {
-    "weight": 0.0558,
-    "decided_bar": "2026-09-25 00:00:00"
+    "weight": 0.2834,
+    "decided_bar": "2026-09-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "TLT",
