@@ -3,29 +3,32 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9875.59,
-  "return_pct": -1.2441,
-  "gross_return_pct": -0.6987,
-  "cost_paid": 54.54,
+  "equity": 9860.05,
+  "return_pct": -1.3995,
+  "gross_return_pct": -0.8447,
+  "cost_paid": 55.48,
   "cost_basis_bp": {
     "kr_stock": 14.0,
     "us_stock": 6.0,
     "crypto": 15.0,
     "kr_stock_etf": 6.5
   },
-  "trades_total": 364,
-  "rounds_total": 74,
+  "trades_total": 369,
+  "rounds_total": 75,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-10-01T00:14:39+09:00",
+  "last_time": "2026-10-02T01:36:59+09:00",
   "observed_gap_minutes": 4405.033333333334,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
     "EEM": 6.33162087,
-    "SLV": 5.44598753,
     "DBC": 13.18467039,
     "VNQ": 4.7660901,
-    "MSFT": 0.82815784
+    "MSFT": 0.82815784,
+    "XLU": 4.94192864,
+    "NVDA": 1.86109716,
+    "AAPL": 0.67995286,
+    "GOOGL": 1.26408256
   },
   "rule_changes": [
     {
@@ -41,86 +44,194 @@
     }
   ],
   "cluster_13f": {
-    "names": [],
-    "fetched_on": null,
-    "filers_total": null,
-    "filers_seen": null,
+    "names": [
+      {
+        "symbol": "GOOGL",
+        "count": 5,
+        "filers": [
+          "Berkshire Hathaway (Buffett)",
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies",
+          "Baupost Group (Klarman)"
+        ],
+        "as_of": "2026-03-31"
+      },
+      {
+        "symbol": "AMZN",
+        "count": 4,
+        "filers": [
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies",
+          "Baupost Group (Klarman)"
+        ],
+        "as_of": "2026-03-31"
+      },
+      {
+        "symbol": "AAPL",
+        "count": 3,
+        "filers": [
+          "Berkshire Hathaway (Buffett)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies"
+        ],
+        "as_of": "2026-06-30"
+      },
+      {
+        "symbol": "META",
+        "count": 3,
+        "filers": [
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies"
+        ],
+        "as_of": "2026-03-31"
+      },
+      {
+        "symbol": "MSFT",
+        "count": 3,
+        "filers": [
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies"
+        ],
+        "as_of": "2026-03-31"
+      },
+      {
+        "symbol": "NVDA",
+        "count": 3,
+        "filers": [
+          "Scion Asset Mgmt (Burry)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies"
+        ],
+        "as_of": "2025-09-30"
+      },
+      {
+        "symbol": "TSLA",
+        "count": 1,
+        "filers": [
+          "Renaissance Technologies"
+        ],
+        "as_of": "2026-06-30"
+      }
+    ],
+    "fetched_on": "2026-10-02",
+    "filers_total": 6,
+    "filers_seen": 6,
     "caveat": "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.",
     "strength": 0.15,
     "strength_pct": 15,
-    "strength_why": "아직 튜닝 전 — 중립(0.15)."
+    "strength_why": "관측 0 < 8 — 아직 모른다. 중립 유지."
   },
   "holdings": [
+    {
+      "symbol": "AAPL",
+      "direction": "long",
+      "quantity": 0.6799528597,
+      "avg_cost": 328.46340942,
+      "last_price": 328.46340942,
+      "currency": "USD",
+      "value": 223.3396,
+      "cost": 223.3396,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
     {
       "symbol": "DBC",
       "direction": "long",
       "quantity": 13.1846703927,
       "avg_cost": 32.56999969,
-      "last_price": 32.56999969,
+      "last_price": 32.45000076,
       "currency": "USD",
-      "value": 429.4247,
+      "value": 427.8426,
       "cost": 429.4247,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "pnl": -1.5821,
+      "pnl_pct": -0.3684
     },
     {
       "symbol": "EEM",
       "direction": "long",
       "quantity": 6.3316208742,
       "avg_cost": 67.90000153,
-      "last_price": 66.98999786,
+      "last_price": 66.41999817,
       "currency": "USD",
-      "value": 424.1553,
+      "value": 420.5462,
       "cost": 429.9171,
-      "pnl": -5.7618,
-      "pnl_pct": -1.3402
+      "pnl": -9.3708,
+      "pnl_pct": -2.1797
+    },
+    {
+      "symbol": "GOOGL",
+      "direction": "long",
+      "quantity": 1.2640825629,
+      "avg_cost": 339.17001343,
+      "last_price": 339.17001343,
+      "currency": "USD",
+      "value": 428.7389,
+      "cost": 428.7389,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "MSFT",
       "direction": "long",
       "quantity": 0.8281578431,
       "avg_cost": 518.5300293,
-      "last_price": 518.5300293,
+      "last_price": 514.03997803,
       "currency": "USD",
-      "value": 429.4247,
+      "value": 425.7062,
       "cost": 429.4247,
-      "pnl": 0.0,
-      "pnl_pct": 0.0
+      "pnl": -3.7185,
+      "pnl_pct": -0.8659
     },
     {
-      "symbol": "SLV",
+      "symbol": "NVDA",
       "direction": "long",
-      "quantity": 5.4459875286,
-      "avg_cost": 55.10625044,
-      "last_price": 54.81999969,
+      "quantity": 1.8610971636,
+      "avg_cost": 230.36889648,
+      "last_price": 230.36889648,
       "currency": "USD",
-      "value": 298.549,
-      "cost": 300.108,
-      "pnl": -1.5589,
-      "pnl_pct": -0.5195
+      "value": 428.7389,
+      "cost": 428.7389,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "VNQ",
       "direction": "long",
       "quantity": 4.7660900992,
       "avg_cost": 90.09999847,
-      "last_price": 90.09999847,
+      "last_price": 88.94000244,
       "currency": "USD",
-      "value": 429.4247,
+      "value": 423.8961,
       "cost": 429.4247,
+      "pnl": -5.5286,
+      "pnl_pct": -1.2875
+    },
+    {
+      "symbol": "XLU",
+      "direction": "long",
+      "quantity": 4.9419286439,
+      "avg_cost": 39.55500031,
+      "last_price": 39.55500031,
+      "currency": "USD",
+      "value": 195.478,
+      "cost": 195.478,
       "pnl": 0.0,
       "pnl_pct": 0.0
     }
   ],
   "holdings_total": {
-    "pnl": -7.3207,
-    "counted": 5,
+    "pnl": -20.2,
+    "counted": 8,
     "unknown": 0
   },
   "deployed": {
-    "gross": 2010.9784,
-    "pct": 20.3631,
-    "cash": 7864.6116,
+    "gross": 2974.2865,
+    "pct": 30.165,
+    "cash": 6885.7635,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -421,9 +532,13 @@
     [
       "2026-10-01T00:14:39+09:00",
       9875.59
+    ],
+    [
+      "2026-10-02T01:36:59+09:00",
+      9860.05
     ]
   ],
-  "hold_return_pct": 3.0228,
+  "hold_return_pct": 1.3943,
   "judgement": {
     "registered_on": "2026-08-19",
     "min_days": 90,
@@ -438,78 +553,27 @@
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "equity": 9920.25,
-    "return_pct_since": -0.7951,
-    "cost_paid": 8.87,
-    "filled_total": 355,
+    "equity": 9905.39,
+    "return_pct_since": -0.9437,
+    "cost_paid": 9.07,
+    "filled_total": 361,
     "unfilled_total": 1,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9867.34,
-      "return_pct": -1.3266,
-      "hold_return_pct": 2.1038,
-      "trades_total": 467,
-      "cost_paid": 82.71,
-      "rounds_total": 74,
+      "equity": 9858.84,
+      "return_pct": -1.4116,
+      "hold_return_pct": 1.4758,
+      "trades_total": 473,
+      "cost_paid": 83.88,
+      "rounds_total": 75,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-09-24T04:53:05+09:00",
-      "symbol": "AAPL",
-      "side": "buy",
-      "notional": 430.45,
-      "price": 336.3299865722656,
-      "cost": 0.2583,
-      "signal": 1.0
-    },
-    {
-      "time": "2026-09-25T00:29:31+09:00",
-      "symbol": "QQQ",
-      "side": "sell",
-      "notional": -429.25,
-      "price": 737.8900146484375,
-      "cost": 0.2575,
-      "signal": 0.0,
-      "realized_pnl": -1.578,
-      "avg_cost": 740.159973
-    },
-    {
-      "time": "2026-09-25T00:29:31+09:00",
-      "symbol": "TLT",
-      "side": "sell",
-      "notional": -231.16,
-      "price": 80.2699966430664,
-      "cost": 0.1387,
-      "signal": 0.0674,
-      "realized_pnl": -0.5255,
-      "avg_cost": 80.404297
-    },
-    {
-      "time": "2026-09-25T00:29:31+09:00",
-      "symbol": "XLE",
-      "side": "buy",
-      "notional": 117.23,
-      "price": 63.18000030517578,
-      "cost": 0.0703,
-      "signal": 1.0
-    },
-    {
-      "time": "2026-09-25T00:29:31+09:00",
-      "symbol": "AAPL",
-      "side": "sell",
-      "notional": -330.29,
-      "price": 337.43499755859375,
-      "cost": 0.1982,
-      "signal": 0.2364,
-      "realized_pnl": 0.8834,
-      "avg_cost": 336.329987
-    },
     {
       "time": "2026-09-25T00:29:31+09:00",
       "symbol": "MSFT",
@@ -862,6 +926,53 @@
       "price": 518.530029296875,
       "cost": 0.2577,
       "signal": 1.0
+    },
+    {
+      "time": "2026-10-02T01:36:59+09:00",
+      "symbol": "SLV",
+      "side": "sell",
+      "notional": -298.39,
+      "price": 54.79050064086914,
+      "cost": 0.179,
+      "signal": 0.0,
+      "realized_pnl": -1.8986,
+      "avg_cost": 55.10625
+    },
+    {
+      "time": "2026-10-02T01:36:59+09:00",
+      "symbol": "XLU",
+      "side": "buy",
+      "notional": 195.48,
+      "price": 39.55500030517578,
+      "cost": 0.1173,
+      "signal": 0.4559
+    },
+    {
+      "time": "2026-10-02T01:36:59+09:00",
+      "symbol": "NVDA",
+      "side": "buy",
+      "notional": 428.74,
+      "price": 230.368896484375,
+      "cost": 0.2572,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-10-02T01:36:59+09:00",
+      "symbol": "AAPL",
+      "side": "buy",
+      "notional": 223.34,
+      "price": 328.4634094238281,
+      "cost": 0.134,
+      "signal": 0.5209
+    },
+    {
+      "time": "2026-10-02T01:36:59+09:00",
+      "symbol": "GOOGL",
+      "side": "buy",
+      "notional": 428.74,
+      "price": 339.1700134277344,
+      "cost": 0.2572,
+      "signal": 1.0
     }
   ],
   "honest_limits": [
@@ -875,9 +986,9 @@
   "rule": "본 계좌 미국 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1350.5,
-    "equity": 13336984.0,
+    "equity": 13315998.0,
     "start_cash": 13505000.0,
-    "pnl": -168016.0,
+    "pnl": -189002.0,
     "assumed_peg": false,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USD이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USD 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
