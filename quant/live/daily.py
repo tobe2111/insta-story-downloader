@@ -3651,6 +3651,23 @@ def write_docs_status(state_dir: str = STATE_DIR,
     except Exception:  # noqa: BLE001
         status["diversification"] = None
 
+    # 시장 민감도(감사 331, 2026-10-01 사장님 질문 "시황만 따라가는 것
+    # 아니냐") — 계좌마다 지수에 얼마나 따라 움직였나와, 그 몫을 뺀 성적.
+    # 표시 전용이다(매매 판단은 이 값을 읽지 않는다). 실패는 None.
+    try:
+        from quant.reporting.market_beta import market_beta_public
+        status["market_beta"] = market_beta_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["market_beta"] = None
+
+    # 저명 투자자 13F(감사 331, 사장님: "홈페이지 각 페이지들에 보여야 해")
+    # — 모든 페이지가 이 한 칸을 읽는다. 수집 상태도 함께 싣는다.
+    try:
+        from quant.reporting.guru13f import guru13f_public
+        status["guru13f"] = guru13f_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["guru13f"] = None
+
     # 배분 사다리(2026-08-19) — 같은 신호에 배분 방법만 바꾼 가상 계좌들.
     # 상대 비교 전용 실험이라 본 계좌 판정에는 쓰지 않고, 주의 문구가
     # 요약(note)에 함께 실린다. 실패는 None — 실험이 기록을 막으면 안 된다.

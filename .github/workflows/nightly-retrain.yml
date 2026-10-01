@@ -90,6 +90,11 @@ jobs:
       # 떨어진다. 실패해도 재학습을 막지 않는다(state/에 세기 파일만 남긴다).
       - name: 13F 오버레이 세기 튜닝
         continue-on-error: true
+        # SEC 공정접근 정책은 요청자 연락처가 담긴 User-Agent를 요구한다.
+        # 저장소 변수(Settings → Variables) EDGAR_UA에 "이름 연락처메일"을
+        # 넣으면 그것을 쓴다. 비어 있으면 중립 문자열로 돈다(감사 331).
+        env:
+          EDGAR_UA: ${{ vars.EDGAR_UA }}
         run: |
           python -m quant thirteenf-tune | tee thirteenf-tune.txt || true
 

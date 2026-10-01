@@ -465,6 +465,92 @@
       "(최대 3배). 예측이 자신 없는 날은":
         "(3x maximum). On days the prediction is not confident it stays at",
 
+      // ── 13F 전 페이지 카드 · 시장 민감도 — 2026-10-01(감사 331) ───
+      "저명 투자자 13F — 큰손들이 공시한 미국주식 보유":
+        "Famous-investor 13F — the US stock holdings big investors disclose",
+      "13F는 1억 달러 넘게 굴리는 기관이 분기마다 미국 증권거래위원회(SEC)에 내는 보유 목록입니다. 우리는 그중 여러 명이 같은 종목을 함께 들고 있는지(겹쳐 담기)만 봅니다.":
+        "A 13F is the holdings list that institutions managing over $100 million file with the US Securities and Exchange Commission (SEC) every quarter. We look only at whether several of them hold the same stock at once (overlap).",
+      "아직 수집 기록이 없습니다 — 밤 배치가 처음 받아 오면 여기에 채워집니다.":
+        "No collection on record yet — this fills in once the nightly batch first fetches it.",
+      "마지막 수집이 실패했습니다":
+        "The last collection failed",
+      "받지 못한 것을 '아무도 안 샀다'로 그리지 않습니다.":
+        "We don't draw data we failed to get as 'nobody bought'.",
+      "마지막 수집":
+        "Last collected",
+      "투자자":
+        "Investors",
+      "오늘은 일부를 못 받아 이전 기록을 유지합니다":
+        "Part of today's fetch failed, so the previous record is kept",
+      "우리 미국 종목 중 겹쳐 담긴 종목":
+        "Our US stocks that famous investors overlap on",
+      "지금 우리 미국 종목을 들고 있는 저명 투자자는 없습니다.":
+        "None of the famous investors currently hold any of our US stocks.",
+      "마지막 공시일":
+        "Last filed",
+      "기준 분기말":
+        "Quarter-end covered",
+      "우리 종목 중 보유":
+        "Holds (of ours)",
+      "이 정보를 어디에 어떻게 쓰나":
+        "Where and how this is used",
+      "미국주식 ML 모델":
+        "US stock ML models",
+      "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
+        "It goes in as one input (the number of overlapping investors). Whether to keep or drop it is decided by the nightly audition on results — no person decides 'it must be used'.",
+      "미국주식 장중 실험":
+        "US stock intraday experiment",
+      "모델이 이미 사겠다고 한 종목만 비중을 키운다. 관망을 매수로 바꾸지 않는다. 키우는 폭은 기계가 과거 기록으로 정한다.":
+        "It only raises the weight of stocks the model already wants to buy. It never turns standing pat into a buy. How much to raise it is set by the machine from past records.",
+      "장중 실험이 지금 13F로 키우는 최대 폭":
+        "Maximum boost the intraday experiment currently gives via 13F",
+      "시장 따라가기 vs 자기 실력 — 지수를 빼고 보면":
+        "Following the market vs. its own skill — with the index taken out",
+      "계좌의 하루 수익을 지수의 하루 수익에 견줘 둘로 나눕니다. 지수를 따라 움직인 몫(민감도)과, 그 몫을 빼고 남은 몫(자동매매가 스스로 더하거나 잃은 것)입니다.":
+        "Each account's daily return is compared with the index's daily return and split in two: the part that moved with the index (sensitivity), and what's left after removing it (what the automated trading added or lost on its own).",
+      "계좌":
+        "Account",
+      "견준 지수":
+        "Index compared",
+      "따라 움직인 정도":
+        "How much it follows",
+      "상관":
+        "Correlation",
+      "시장을 뺀 하루 평균":
+        "Daily average, market removed",
+      "반대로 움직임":
+        "Moves opposite",
+      "거의 안 따라감":
+        "Barely follows",
+      "일부 따라감":
+        "Partly follows",
+      "지수만큼 따라감":
+        "Follows about as much as the index",
+      "지수보다 크게 움직임":
+        "Moves more than the index",
+      "우연과 구별 안 됨":
+        "Not distinguishable from luck",
+      "시장을 이김 — 우연과 구별됨":
+        "Beats the market — distinguishable from luck",
+      "시장에 짐 — 우연과 구별됨":
+        "Trails the market — distinguishable from luck",
+      "민감도 1은 지수를 그대로 산 것과 같고, 0은 지수와 무관하다는 뜻입니다. 0.1이면 지수가 1% 움직일 때 평균 0.1% 움직였습니다.":
+        "A sensitivity of 1 is the same as buying the index outright; 0 means unrelated to the index. At 0.1, the account moved 0.1% on average when the index moved 1%.",
+      "시장을 뺀 하루 평균이 플러스여도 t가 2보다 작으면 운으로 설명됩니다 — 그래서 판정은 '우연과 구별 안 됨'입니다.":
+        "Even if the daily average with the market removed is positive, a t below 2 can be explained by luck — so the verdict is 'not distinguishable from luck'.",
+      "비용(수수료·세금)을 뺀 장부 자산으로 쟀습니다. 매매 판단은 이 숫자를 읽지 않습니다 — 보여 주기만 합니다.":
+        "Measured on ledger equity after costs (fees and taxes). Trading decisions do not read this number — it is shown only.",
+      "본 계좌":
+        "Main account",
+      "미국주식 장중":
+        "US stock intraday",
+      "코인 장중":
+        "Crypto intraday",
+      "나스닥100(QQQ)":
+        "Nasdaq-100 (QQQ)",
+      "코스피200(KODEX 200)":
+        "KOSPI 200 (KODEX 200)",
+
       // ── 저명 투자자 겹쳐 담기(13F) — 2026-09-22 ─────────────
       "저명 투자자가 겹쳐 담은 종목": "Stocks famous investors overlap on",
       "13F 공시 · 참고용": "13F filings · reference only",
@@ -4165,6 +4251,14 @@
       ["^([^·—]+) ([−+\\-][\\d\\.]+)%$", "$*1 $2%"],
       ["^참고\\(장부 (\\d{4}-\\d{2}-\\d{2}) 그대로\\): 후보$",
        "For reference (straight from the ledger, $1): candidate"],
+      // 13F 오버레이 세기의 근거(thirteenf_overlay.choose_strength) — 감사 331
+      ["^관측 (\\d+) < (\\d+) — 아직 모른다\\. 중립 유지\\.$",
+       "$1 observations < $2 — not known yet. Staying neutral."],
+      ["^앞선다는 증거가 약하다\\(t=([−\\-]?[\\d\\.]+) < ([\\d\\.]+) 또는 차이≤0\\) — 중립 유지\\.$",
+       "Weak evidence of outperformance (t=$1 < $2 or difference ≤ 0) — staying neutral."],
+      ["^과거 겹쳐 담긴 종목이 유의하게 앞섰다\\(t=([\\d\\.]+) ≥ ([\\d\\.]+) · 관측 (\\d+)\\) — 세기를 ([\\d\\.]+)로 올린다\\.$",
+       "Past cluster-held stocks significantly outperformed (t=$1 ≥ $2 · $3 observations) — raising the weight to $4."],
+      ["^아직 튜닝 전 — 중립\\(([\\d\\.]+)\\)\\.$", "Not tuned yet — neutral ($1)."],
     ],
   };
 })(window);
