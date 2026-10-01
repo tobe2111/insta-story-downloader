@@ -2,7 +2,7 @@
   "cash": 9644.87972239007,
   "quantity": 2.8373984668761185,
   "avg_price": 81.50752202881253,
-  "last_bar": "2026-09-28 00:00:00",
+  "last_bar": "2026-09-29 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1275,11 +1275,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-09-29",
+      "price": 81.8499984741211,
+      "weight": 0.1263,
+      "held_weight": 0.0235,
+      "fractional_lot": false,
+      "equity": 9877.12,
+      "return_pct": -1.23,
+      "hit_rate": 0.4909090909090909,
+      "hit_n": 55,
+      "hit_lo": 0.36376560487101584,
+      "hit_hi": 0.6192396159251554,
+      "hit_conclusive": false,
+      "live_hit": 0.55,
+      "live_hit_n": 20,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "vote",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "isotonic"
+      },
+      "reason": "매수 +13% — 앙상블 모델이 내일 상승확률을 약 53%로 추정(기준 55% 초과) · 사이징: 신호 원비중 8% → 변동성 타깃 조절 후 13% · 참고: 전 종목 합산으로 모델이 53%±10%p라 말한 315번의 실제 상승 비율 51% (95% 신뢰구간 46%~57% · 보합 3일 포함 · 봉이 빠진 46번은 제외 · 이 종목 단독 표본은 17번으로 축적 중) · 🏛 의회 운용: ml 42% + ml 33% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 81.589996,
+        "bar": "2026-09-29 00:00:00",
+        "weight": 0.026,
+        "decided_bar": "2026-09-28 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "ec71ba7c92ad",
+      "data_sha256": "e894d111a4ecd8dfe4bb0d1376395b169e2fdcff2ba3b9a87176c246c409849a",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5297098495110094,
+      "drift_psi": 0.1916,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.026,
-    "decided_bar": "2026-09-28 00:00:00"
+    "weight": 0.1263,
+    "decided_bar": "2026-09-29 00:00:00"
   },
   "market": "us_stock",
   "symbol": "XLP",
