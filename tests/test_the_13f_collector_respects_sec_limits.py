@@ -260,3 +260,21 @@ def test_the_intraday_runner_commits_the_13f_cache_on_its_own_line():
 def test_the_nightly_tune_passes_the_contact_user_agent():
     y = (ROOT / ".github" / "workflows" / "nightly-retrain.yml").read_text("utf-8")
     assert "EDGAR_UA: ${{ vars.EDGAR_UA }}" in y
+
+
+def test_the_request_names_a_contact_even_when_the_repo_variable_is_empty(monkeypatch):
+    """저장소 변수가 비면 워크플로는 빈 문자열을 넘긴다 — 그때도 연락처가 실린다."""
+    clk = _Clock()
+    monkeypatch.setattr(TF, "_last_call", [0.0])
+    monkeypatch.setenv("EDGAR_UA", "")
+    seen = {}
+
+    def opener(req, timeout=0):
+        seen["ua"] = req.get_header("User-agent")
+        return _Resp(b"{}")
+
+    TF._urllib_fetch("https://x", sleep=clk.sleep, clock=clk.now, opener=opener)
+    assert "@" in seen["ua"] and seen["ua"] == TF._DEFAULT_UA
+    monkeypatch.setenv("EDGAR_UA", "Other Co ops@example.com")
+    TF._urllib_fetch("https://x", sleep=clk.sleep, clock=clk.now, opener=opener)
+    assert seen["ua"] == "Other Co ops@example.com"

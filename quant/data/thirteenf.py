@@ -47,10 +47,12 @@ CACHE_FILE = "thirteenf.json"
 # 조회를 아낀다(제출 자체가 분기당 한 번뿐이다).
 REFRESH_DAYS = 20
 
-# EDGAR 공정접근 정책은 요청자를 밝히는 User-Agent를 요구한다. **개인 이메일을
-# 박지 않는다** — 운영자가 환경변수로 자기 연락처를 넣게 하고, 없으면 중립
-# 문자열을 쓴다. 값이 무엇이든 접근 실패는 아래에서 빈 결과로 떨어진다.
-_DEFAULT_UA = "quant-research (set EDGAR_UA env for contact)"
+# EDGAR 공정접근 정책은 요청자를 밝히는 User-Agent("이름 연락처")를 요구한다.
+# 연락처는 사장님이 직접 지정한 **회사 업무 주소**다(2026-10-01: "jiwon@ur-team.com
+# 으로 남겨줘"). 공개 저장소라 이 주소는 공개된다 — 그 점을 알고 정한 값이다.
+# 다른 주소로 바꾸려면 환경변수 EDGAR_UA가 이 값보다 우선한다.
+# 값이 무엇이든 접근 실패는 아래에서 세어 장부에 적는다(감사 331).
+_DEFAULT_UA = "UR-TEAM quant-research jiwon@ur-team.com"
 
 # 겹쳐 담기를 셀 저명 투자자들. CIK는 EDGAR의 제출자 식별자다.
 #
