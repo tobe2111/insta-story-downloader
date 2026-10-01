@@ -91,8 +91,8 @@ jobs:
       - name: 13F 오버레이 세기 튜닝
         continue-on-error: true
         # SEC 공정접근 정책은 요청자 연락처가 담긴 User-Agent를 요구한다.
-        # 저장소 변수(Settings → Variables) EDGAR_UA에 "이름 연락처메일"을
-        # 넣으면 그것을 쓴다. 비어 있으면 중립 문자열로 돈다(감사 331).
+        # 기본 연락처는 코드에 있다(사장님 지정 회사 주소). 저장소 변수
+        # (Settings → Variables) EDGAR_UA를 채우면 그것이 우선한다(감사 331).
         env:
           EDGAR_UA: ${{ vars.EDGAR_UA }}
         run: |
