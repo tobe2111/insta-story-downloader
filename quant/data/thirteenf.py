@@ -35,6 +35,7 @@ import datetime as _dt
 import json
 import os
 import re
+import time
 
 from quant.utils.logging import get_logger
 
@@ -158,15 +159,62 @@ def _match_symbol(holding: dict) -> str | None:
     return None
 
 
-def _urllib_fetch(url: str, timeout: float = 12.0) -> str:
-    """기본 조회기 — 표준 라이브러리만 쓴다(새 의존성 없음)."""
+# ⚠️ **EDGAR 공정접근 — 초당 10회 이하**(2026-10-01, 감사 331 실측).
+#    야간 배치 로그에 `HTTP Error 429: Too Many Requests`가 **수백 줄** 찍혀
+#    있었다. 조회기가 쉼 없이 두드려(초당 수십 회) SEC가 막았고, 막힌 뒤에도
+#    제출을 1999년까지 거슬러 하나씩 두드렸다. 그래서 이력이 **0점**이었고,
+#    홈페이지의 13F 칸은 출시 이후 한 번도 채워진 적이 없었다 — 그리고 어디에도
+#    빨간불이 없었다(실패를 전부 '빈 결과'로 흡수하도록 짰기 때문이다).
+#    간격은 여유를 둔 초당 약 6.7회다.
+MIN_INTERVAL_S = 0.15
+# 막혔다는 응답(429)과 일시 불가(503)만 다시 시도한다. 404 같은 '없음'을
+# 되풀이하면 예산만 쓴다.
+RETRY_STATUSES = (429, 503)
+MAX_ATTEMPTS = 3
+RETRY_CAP_S = 10.0
+MAX_CONSECUTIVE_FAILURES = 3
+_last_call = [0.0]
+
+
+def _retry_delay(retry_after, attempt: int) -> float:
+    """다시 두드리기 전에 쉴 초. SEC가 Retry-After를 주면 그것을 따른다."""
+    try:
+        sec = float(retry_after)
+    except (TypeError, ValueError):
+        sec = float(2 ** (attempt + 1))        # 2초 · 4초
+    return max(0.0, min(sec, RETRY_CAP_S))
+
+
+def _urllib_fetch(url: str, timeout: float = 12.0, *, sleep=time.sleep,
+                  clock=time.monotonic, opener=None) -> str:
+    """기본 조회기 — 표준 라이브러리만 쓴다(새 의존성 없음).
+
+    요청 사이 간격을 지키고(MIN_INTERVAL_S), 429·503이면 물러났다가 다시
+    시도한다(최대 MAX_ATTEMPTS번). 그래도 막히면 예외를 그대로 올린다 —
+    부르는 쪽이 그 실패를 **세어서** 장부에 적는다(아래 refresh_history).
+    """
+    import urllib.error
     import urllib.request
 
+    open_url = opener or urllib.request.urlopen
     ua = os.environ.get("EDGAR_UA") or _DEFAULT_UA
-    req = urllib.request.Request(url, headers={"User-Agent": ua,
-                                               "Accept-Encoding": "identity"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-        return resp.read().decode("utf-8", "replace")
+    for attempt in range(MAX_ATTEMPTS):
+        wait = MIN_INTERVAL_S - (clock() - _last_call[0])
+        if wait > 0:
+            sleep(wait)
+        _last_call[0] = clock()
+        req = urllib.request.Request(url, headers={"User-Agent": ua,
+                                                   "Accept-Encoding": "identity"})
+        try:
+            with open_url(req, timeout=timeout) as resp:  # noqa: S310
+                return resp.read().decode("utf-8", "replace")
+        except urllib.error.HTTPError as exc:
+            if exc.code not in RETRY_STATUSES or attempt == MAX_ATTEMPTS - 1:
+                raise
+            hdrs = getattr(exc, "headers", None)
+            sleep(_retry_delay(hdrs.get("Retry-After") if hdrs else None,
+                               attempt))
+    raise RuntimeError("unreachable")  # pragma: no cover
 
 
 def latest_holdings(cik: str, fetch=_urllib_fetch) -> tuple[str | None, list]:
@@ -256,12 +304,28 @@ def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> lis
     reports = recent.get("reportDate") or []
     fileds = recent.get("filingDate") or []
     out: list = []
+    tried = 0
+    fails = 0
     for i, form in enumerate(forms):
         if not str(form).startswith("13F-HR"):
             continue
+        # ⚠️ **두드리는 횟수에 상한을 건다**(감사 331). 예전에는 성공한 제출만
+        #    세어서, 막힌 날에는 성공이 영영 0이라 제출 목록을 1999년까지 전부
+        #    두드렸다(제출자 하나에 수십 번) — 그 자체가 차단을 더 길게 만든다.
+        if tried >= max_filings + 2:
+            break
+        tried += 1
         rows = _holdings_for_accession(cik10, accns[i], fetch)
         if not rows:
+            fails += 1
+            # 연달아 실패하면 이 제출자는 오늘 접는다. 막힌 서버를 계속
+            # 두드리는 것은 다음 제출자까지 막히게 할 뿐이다.
+            if fails >= MAX_CONSECUTIVE_FAILURES:
+                log.warning("13F 제출자 cik=%s — 연속 %d회 실패, 오늘은 접는다",
+                            cik, fails)
+                break
             continue
+        fails = 0
         out.append({"filed": (fileds[i] if i < len(fileds) else None),
                     "report": (reports[i] if i < len(reports) else None),
                     "holdings": rows})
@@ -321,33 +385,125 @@ def cluster_asof(history: list, date: str) -> dict:
     return got
 
 
+HISTORY_FILE = "thirteenf_history.json"
+
+
+def _filer_summary(cik: str, filings: list) -> dict:
+    """제출자 한 명의 공개 요약 — 화면이 "누가 언제 무엇을"을 말하게.
+
+    가장 최근 제출(제출일 기준)의 보유 중 **우리 유니버스 종목**만 싣는다.
+    """
+    name = FILERS.get(str(cik).zfill(10), str(cik))
+    if not filings:
+        return {"cik": str(cik).zfill(10), "name": name, "filings": 0,
+                "filed": None, "report": None, "holds": []}
+    latest = max(filings, key=lambda f: str(f.get("filed") or ""))
+    holds = sorted({s for h in (latest.get("holdings") or [])
+                    for s in [_match_symbol(h)] if s})
+    return {"cik": str(cik).zfill(10), "name": name, "filings": len(filings),
+            "filed": latest.get("filed"), "report": latest.get("report"),
+            "holds": holds}
+
+
+def _read_json(path: str) -> dict:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except (OSError, ValueError):
+        return {}
+
+
 def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
-                    filers: dict | None = None, max_filings: int = 12) -> list:
+                    filers: dict | None = None, max_filings: int = 12,
+                    today: str | None = None) -> list:
     """point-in-time 이력을 EDGAR에서 받아 state/thirteenf_history.json에 캐시.
 
-    실패·전무는 빈 이력이다(오버레이 튜너가 '재료 없음 → 중립'으로 흡수).
+    같은 조회로 **오늘의 겹쳐 담기 스냅샷**(state/thirteenf.json)도 쓴다 —
+    장중 회차가 EDGAR를 다시 두드리지 않게(감사 331: 장중 러너는 그 캐시를
+    커밋하지 않아, 15분마다 처음부터 두드리며 차단을 연장하고 있었다).
+
+    ⚠️ **못 받은 날은 어제 것을 지우지 않는다.** 조회 오류가 있었고 새로 본
+       제출자가 저장된 것보다 적으면, 저장된 이력을 그대로 두고 조회 결과만
+       `fetch`에 적는다. 막힌 하룻밤이 쌓아 둔 이력을 빈 목록으로 덮으면,
+       "못 쟀다"가 "아무도 안 샀다"로 둔갑한다.
     """
     use = filers if filers is not None else FILERS
+    report = {"requests": 0, "errors": 0, "last_error": None}
+
+    def counted(url):
+        report["requests"] += 1
+        try:
+            return fetch(url)
+        except Exception as exc:  # noqa: BLE001 — 세고 그대로 올린다
+            report["errors"] += 1
+            report["last_error"] = str(exc)[:160]
+            raise
+
     by_cik: dict = {}
     for cik in use:
-        hist = filings_history(cik, fetch=fetch, max_filings=max_filings)
+        hist = filings_history(cik, fetch=counted, max_filings=max_filings)
         if hist:
             by_cik[cik] = hist
-    history = build_cluster_history(by_cik)
+    day = str(today or _dt.date.today().isoformat())[:10]
+    hist_path = os.path.join(state_dir, HISTORY_FILE)
+    prev = _read_json(hist_path)
+    prev_seen = int(((prev.get("fetch") or {}).get("filers_seen")) or 0)
+    if not prev_seen and prev.get("history"):
+        prev_seen = len(use)               # 옛 모양(조회 기록 없음)은 온전하다고 본다
+    clean = report["errors"] == 0
+    keep_old = (not clean) and len(by_cik) < prev_seen
+    history = (prev.get("history") or []) if keep_old else build_cluster_history(by_cik)
+    fetch_info = {
+        "on": day,
+        "ok": clean,
+        "kept_previous": keep_old,
+        "filers_total": len(use),
+        "filers_seen": (prev_seen if keep_old else len(by_cik)),
+        "seen_today": len(by_cik),
+        **report,
+    }
+    filers_out = (prev.get("filers") or []) if keep_old else [
+        _filer_summary(c, by_cik.get(c) or []) for c in use]
     try:
         os.makedirs(state_dir, exist_ok=True)
         from quant.utils.jsonio import atomic_write_json
-        atomic_write_json(os.path.join(state_dir, "thirteenf_history.json"),
-                          {"history": history, "filers_total": len(use)})
+        atomic_write_json(hist_path, {"history": history,
+                                      "filers_total": len(use),
+                                      "filers": filers_out,
+                                      "fetch": fetch_info})
+        if not keep_old and by_cik:
+            latest = {}
+            for cik, fl in by_cik.items():
+                seen = [f for f in fl if str(f.get("filed") or "") <= day]
+                if seen:
+                    top = max(seen, key=lambda f: str(f.get("filed") or ""))
+                    latest[cik] = (top.get("report"), top.get("holdings") or [])
+            atomic_write_json(_cache_path(state_dir), {
+                "cluster": cluster_from_filings(latest),
+                "fetched_on": day,
+                "filers_total": len(use),
+                "filers_seen": len(latest),
+            })
     except Exception as exc:  # noqa: BLE001
         log.info("13F 이력 캐시 저장 실패(무해): %s", exc)
+    if report["errors"]:
+        log.warning("13F 조회 %d건 중 %d건 실패 (마지막: %s)%s",
+                    report["requests"], report["errors"], report["last_error"],
+                    " — 저장된 이력을 유지" if keep_old else "")
     return history
+
+
+def load_fetch_report(state_dir: str = "state") -> dict:
+    """마지막 EDGAR 조회의 결과(요청·실패 수, 본 제출자 수)와 제출자 요약."""
+    d = _read_json(os.path.join(state_dir, HISTORY_FILE))
+    return {"fetch": d.get("fetch") or {}, "filers": d.get("filers") or [],
+            "points": len(d.get("history") or [])}
 
 
 def load_history(state_dir: str = "state") -> list:
     """캐시된 point-in-time 이력. 없으면 빈 목록."""
     try:
-        with open(os.path.join(state_dir, "thirteenf_history.json"),
+        with open(os.path.join(state_dir, HISTORY_FILE),
                   encoding="utf-8") as f:
             return (json.load(f) or {}).get("history") or []
     except (OSError, ValueError):
