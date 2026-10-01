@@ -1249,7 +1249,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 637,
+    "trials_total": 690,
     "parliament": [
       {
         "strategy": "ml",
@@ -1259,8 +1259,8 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.414,
-        "alt_weight": 0.6666
+        "weight": 0.3878,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
@@ -1272,7 +1272,7 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.3635,
+        "weight": 0.3594,
         "alt_weight": 0.1667
       },
       {
@@ -1285,11 +1285,11 @@
           "label": "cost",
           "label_cost": 0.003
         },
-        "weight": 0.2225,
-        "alt_weight": 0.1667
+        "weight": 0.2528,
+        "alt_weight": 0.6666
       }
     ],
-    "last_run_asof": "2026-09-18"
+    "last_run_asof": "2026-09-29"
   },
   "us_stock:XLP": {
     "strategy": "ml",
@@ -1301,7 +1301,7 @@
       "calibrate": "isotonic"
     },
     "promotions": 0,
-    "trials_total": 689,
+    "trials_total": 742,
     "parliament": [
       {
         "strategy": "ml",
@@ -1312,21 +1312,8 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.3741,
-        "alt_weight": 0.4667
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic",
-          "label": "triple"
-        },
-        "weight": 0.3671,
-        "alt_weight": 0.3667
+        "weight": 0.4187,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
@@ -1337,11 +1324,25 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2587,
-        "alt_weight": 0.1667
+        "weight": 0.3253,
+        "alt_weight": 0.2667
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "calibrate": "isotonic",
+          "label": "cost",
+          "label_cost": 0.0012
+        },
+        "weight": 0.2561,
+        "alt_weight": 0.5666
       }
     ],
-    "last_run_asof": "2026-09-18"
+    "last_run_asof": "2026-09-29"
   },
   "us_stock:VNQ": {
     "strategy": "ml",
