@@ -2,7 +2,7 @@
   "cash": 9111.174398276584,
   "quantity": 0.008762339859846563,
   "avg_price": 112189.6070190067,
-  "last_bar": "2026-09-30 00:00:00",
+  "last_bar": "2026-10-01 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -1694,13 +1694,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-01",
+      "price": 111520.0,
+      "weight": 0.0466,
+      "held_weight": 0.0969,
+      "fractional_lot": true,
+      "equity": 10088.35,
+      "return_pct": 0.88,
+      "hit_rate": 0.6435643564356436,
+      "hit_n": 303,
+      "hit_lo": 0.5881466077214613,
+      "hit_hi": 0.6953873068455335,
+      "hit_conclusive": true,
+      "live_hit": 0.5333333333333333,
+      "live_hit_n": 30,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "window": 55,
+        "exit_window": 20
+      },
+      "reason": "관망 (현금) — 채널 돌파: 최근 돌파 후 추세 추종 중 · 🏛 의회 운용: breakout 39% + ml 36% + ml 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 108715.0,
+        "bar": "2026-10-01 00:00:00",
+        "weight": 0.0796,
+        "decided_bar": "2026-09-30 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "2226773c1cc6",
+      "data_sha256": "3143b8874c348cbd6065dfd358ba881aa81a5ce66f861e04efd8939b52eb7fcf",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.242,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "069500.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0796,
-    "decided_bar": "2026-09-30 00:00:00"
+    "weight": 0.0466,
+    "decided_bar": "2026-10-01 00:00:00"
   }
 }
