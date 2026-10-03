@@ -1,8 +1,8 @@
 {
-  "cash": 6.049735474649651,
-  "quantity": 0.05442604500619198,
+  "cash": 1113.5423514523695,
+  "quantity": 0.04841393111047192,
   "avg_price": 183659.75490905624,
-  "last_bar": "2026-10-01 00:00:00",
+  "last_bar": "2026-10-02 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1321,11 +1321,58 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-02",
+      "price": 183055.0,
+      "weight": 1.0,
+      "held_weight": 0.8884,
+      "fractional_lot": true,
+      "equity": 9975.95,
+      "return_pct": -0.24,
+      "hit_rate": 0.5747126436781609,
+      "hit_n": 261,
+      "hit_lo": 0.5140762098005346,
+      "hit_hi": 0.6331816228058232,
+      "hit_conclusive": true,
+      "live_hit": 0.46153846153846156,
+      "live_hit_n": 13,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "매수 +100% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 54% + ibs 26% + ml 21% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 184330.0,
+        "bar": "2026-10-02 00:00:00",
+        "weight": 0.889,
+        "decided_bar": "2026-10-01 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "90d68514479a",
+      "data_sha256": "c6194bf51edb9626464cbae4f990f09e27a48b07aa2522adc28992fad9208b8e",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.3242,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.889,
-    "decided_bar": "2026-10-01 00:00:00"
+    "weight": 1.0,
+    "decided_bar": "2026-10-02 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "133690.KS",
