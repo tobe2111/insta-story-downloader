@@ -56,12 +56,17 @@ _DEFAULT_UA = "UR-TEAM quant-research jiwon@ur-team.com"
 
 # 겹쳐 담기를 셀 저명 투자자들. CIK는 EDGAR의 제출자 식별자다.
 #
-# ⚠️ **새 이름을 넣기 전에 data.sec.gov에서 CIK를 확인할 것.** 틀린 CIK는
-#    대개 조용히 빈 결과지만(무해), 드물게 **다른 제출자로 오인**될 수 있다 —
-#    그러면 화면에 엉뚱한 이름이 뜬다. 아래는 널리 공개된 값이지만, 이
-#    컨테이너는 EDGAR가 막혀 코드에서 검증하지 못했다. 운영자가 확장·검증한다.
-#    닿지 않는 CIK는 그냥 0을 보탠다(빈 결과) — 목록이 틀려도 엉뚱한 '종목'에
-#    가점이 가는 일은 구조상 없다(아래 _match_symbol 참조).
+# ⚠️ **CIK는 이름으로 검증한다**(감사 333). 예전 주석은 "운영자가 확장·검증
+#    한다"였지만 이 컨테이너는 EDGAR가 막혀 CIK를 눈으로 확인할 수 없다. 그래서
+#    확인을 **코드에** 맡긴다: 조회한 제출 목록의 공식 이름(`name`)에
+#    `FILER_VERIFY`의 낱말이 없으면 그 제출자는 **통째로 빼고** 조회 기록의
+#    `unverified`에 이름을 남긴다. 틀린 CIK가 다른 회사를 가리켜도 그 회사의
+#    보유가 '저명 투자자'로 섞이는 일은 구조상 없다.
+#
+# 사장님 지시(2026-10-06): *"13F 최대한 모든 데이터를 적용시키는 것이 중요"*
+# — 6명에서 넓혔다. 기준은 **'종목을 고르는' 투자자**다(지수를 사는 큰손은
+# 겹쳐 담기에 아무 정보를 더하지 않는다). 확인이 안 되는 이름은 위 장치가
+# 저절로 걸러 낸다.
 FILERS = {
     "0001067983": "Berkshire Hathaway (Buffett)",
     "0001649339": "Scion Asset Mgmt (Burry)",
@@ -69,20 +74,71 @@ FILERS = {
     "0001350694": "Bridgewater Associates (Dalio)",
     "0001037389": "Renaissance Technologies",
     "0001061768": "Baupost Group (Klarman)",
+    "0001656456": "Appaloosa (Tepper)",
+    "0001536411": "Duquesne Family Office (Druckenmiller)",
+    "0001040273": "Third Point (Loeb)",
+    "0001079114": "Greenlight Capital (Einhorn)",
+    "0001167483": "Tiger Global Management",
+    "0001061165": "Lone Pine Capital",
+    "0001103804": "Viking Global Investors",
+    "0001135730": "Coatue Management",
+    "0001029160": "Soros Fund Management",
+    "0000921669": "Icahn Enterprises (Icahn)",
+    "0001709323": "Himalaya Capital (Li Lu)",
+    "0001112520": "Akre Capital Management",
+    "0001418814": "ValueAct Capital",
+    "0001569205": "Fundsmith (Terry Smith)",
 }
+
+# 제출 목록의 공식 이름(대문자)에 **반드시 들어 있어야 하는 낱말**.
+FILER_VERIFY = {
+    "0001067983": "BERKSHIRE HATHAWAY",
+    "0001649339": "SCION ASSET",
+    "0001336528": "PERSHING SQUARE",
+    "0001350694": "BRIDGEWATER",
+    "0001037389": "RENAISSANCE TECHNOLOGIES",
+    "0001061768": "BAUPOST",
+    "0001656456": "APPALOOSA",
+    "0001536411": "DUQUESNE",
+    "0001040273": "THIRD POINT",
+    "0001079114": "GREENLIGHT",
+    "0001167483": "TIGER GLOBAL",
+    "0001061165": "LONE PINE",
+    "0001103804": "VIKING GLOBAL",
+    "0001135730": "COATUE",
+    "0001029160": "SOROS",
+    "0000921669": "ICAHN",
+    "0001709323": "HIMALAYA",
+    "0001112520": "AKRE",
+    "0001418814": "VALUEACT",
+    "0001569205": "FUNDSMITH",
+}
+
+# 마지막 공시가 이보다 오래되면 그 투자자의 보유는 **세지 않는다**(감사 333).
+# 13F는 분기마다 45일 안에 내야 하므로 정상 제출자의 간격은 길어야 ~135일이다.
+# 200일이면 한 분기를 건너뛴 것까지 봐준다. 실측(2026-10-04): Scion의 마지막
+# 공시는 2025-11-03 — 거의 1년 전 보유가 '지금 들고 있다'로 세어지고 있었다.
+STALE_DAYS = 200
+
+# 보유량이 이만큼 넘게 변하면 '늘렸다/줄였다'로 센다(그 아래는 반올림 잡음).
+FLOW_MIN_CHANGE = 0.05
 
 # 우리 미국 유니버스의 개별 종목 ↔ 13F가 쓰는 식별자(발행사명·CUSIP).
 #   · 지수 ETF(SPY·QQQ·TLT·IEF)는 일부러 뺐다 — 저명 '종목 선택자'의 확신은
 #     개별 기업 이야기지, 지수를 들고 있는 것은 선택 신호가 아니다.
-#   · 발행사명은 사람이 눈으로 검증하기 쉽다(CUSIP보다). 매칭은 이름 OR CUSIP
-#     이고, **어느 쪽도 안 맞으면 가점 없음**(안전). CUSIP이 조금 틀려도
-#     이름으로 잡히거나, 최악이라도 '가점 없음'이지 엉뚱한 종목에 붙지 않는다.
+#   · 매칭은 **CUSIP을 먼저**, 안 맞으면 발행사명으로 본다. 어느 쪽도 안
+#     맞으면 가점 없음(안전) — 엉뚱한 종목에 붙지 않는다.
+#   · ⚠️ 알파벳은 주식이 둘이다(A주 GOOGL · C주 GOOG). 예전엔 둘 다 GOOGL로
+#     셌고, 유니버스에 있는 GOOG에는 **아무 재료도** 안 갔다(감사 333). 이름이
+#     같으므로 이름으로 볼 때는 주식 종류(`titleOfClass`)로 가른다.
 SYMBOL_ISSUERS = {
     "AAPL":  {"names": ["APPLE"],                      "cusips": ["037833100"]},
     "NVDA":  {"names": ["NVIDIA"],                     "cusips": ["67066G104"]},
     "MSFT":  {"names": ["MICROSOFT"],                  "cusips": ["594918104"]},
-    "GOOGL": {"names": ["ALPHABET"],                   "cusips": ["02079K305",
-                                                                  "02079K107"]},
+    "GOOGL": {"names": ["ALPHABET"],                   "cusips": ["02079K305"],
+              "share_class": "A"},
+    "GOOG":  {"names": ["ALPHABET"],                   "cusips": ["02079K107"],
+              "share_class": "C"},
     "AMZN":  {"names": ["AMAZON"],                     "cusips": ["023135106"]},
     "META":  {"names": ["META PLATFORMS", "FACEBOOK"], "cusips": ["30303M102"]},
     "TSLA":  {"names": ["TESLA"],                      "cusips": ["88160R101"]},
@@ -123,7 +179,8 @@ def parse_information_table(xml_text: str) -> list[dict]:
     for node in root.iter():
         if local(node.tag) != "infoTable":
             continue
-        row: dict = {"issuer": "", "cusip": "", "value": None, "shares": None}
+        row: dict = {"issuer": "", "cusip": "", "value": None, "shares": None,
+                     "put_call": "", "title": ""}
         for child in node.iter():
             name = local(child.tag)
             text = (child.text or "").strip()
@@ -136,6 +193,10 @@ def parse_information_table(xml_text: str) -> list[dict]:
                     row["value"] = float(text)
                 except ValueError:
                     pass
+            elif name == "putCall":
+                row["put_call"] = text.upper()
+            elif name == "titleOfClass":
+                row["title"] = text
             elif name == "sshPrnamt" and text:
                 try:
                     row["shares"] = float(text)
@@ -146,19 +207,94 @@ def parse_information_table(xml_text: str) -> list[dict]:
     return out
 
 
+def _share_class(title: str) -> str | None:
+    """'CAP STK CL A' · 'CLASS C' 같은 주식 종류 표기에서 A/C를 읽는다."""
+    t = " " + _norm_name(title) + " "
+    for c in ("A", "C"):
+        if f" CL {c} " in t or f" CLASS {c} " in t:
+            return c
+    return None
+
+
+def is_option(holding: dict) -> bool:
+    """옵션 포지션인가 — 풋·콜은 **주식 보유가 아니다**(감사 333).
+
+    13F의 `putCall` 칸이 비어 있지 않으면 그 줄은 기초자산의 명목가로 찍힌
+    옵션이다. 유명한 '풋 베팅'(하락에 거는 것)이 매수처럼 세어지면 정반대의
+    신호가 된다 — 이 모듈 첫머리가 경고해 두고도 코드가 그 칸을 안 읽고 있었다.
+    """
+    return bool(str((holding or {}).get("put_call") or "").strip())
+
+
 def _match_symbol(holding: dict) -> str | None:
-    """이 13F 보유 항목이 우리 유니버스의 어느 종목인가. 안 맞으면 None."""
+    """이 13F 보유 항목이 우리 유니버스의 어느 종목인가. 안 맞으면(또는 옵션이면) None."""
+    if is_option(holding):
+        return None
     iss = _norm_name(holding.get("issuer"))
     cus = _norm_cusip(holding.get("cusip"))
+    if cus:
+        for sym, spec in SYMBOL_ISSUERS.items():
+            if cus in {_norm_cusip(c) for c in spec.get("cusips", [])}:
+                return sym
+    klass = _share_class(holding.get("title") or "")
     for sym, spec in SYMBOL_ISSUERS.items():
-        if cus and cus in {_norm_cusip(c) for c in spec.get("cusips", [])}:
-            return sym
+        want_class = spec.get("share_class")
+        if want_class and klass and klass != want_class:
+            continue
+        if want_class == "C" and klass is None:
+            continue                 # 종류를 모르면 A주(GOOGL)로 본다
         for want in spec.get("names", []):
             w = _norm_name(want)
             # 발행사명은 접두 일치로 본다: "APPLE INC" 는 "APPLE" 로 시작한다.
-            if w and (iss == w or iss.startswith(w + " ") or iss == w):
+            if w and (iss == w or iss.startswith(w + " ")):
                 return sym
     return None
+
+
+def stock_shares(holdings: list) -> dict:
+    """{심볼: 주식 수 합} — 옵션 줄은 빼고, 한 종목이 여러 줄이면 더한다."""
+    out: dict = {}
+    for h in holdings or []:
+        sym = _match_symbol(h)
+        if sym is None:
+            continue
+        try:
+            n = float(h.get("shares") or 0.0)
+        except (TypeError, ValueError):
+            n = 0.0
+        out[sym] = out.get(sym, 0.0) + max(0.0, n)
+    return out
+
+
+def flows(prev: dict | None, cur: dict) -> dict:
+    """직전 공시 대비 {심볼: +1(새로 사거나 늘림) | -1(줄이거나 다 팖)}.
+
+    직전 공시가 없으면(첫 공시) 흐름을 모른다 — 빈 dict. '새로 산 것'으로
+    세면 첫 공시의 모든 보유가 매수로 둔갑한다.
+    """
+    if prev is None:
+        return {}
+    # 들고 있느냐는 **목록에 있느냐**로 본다 — 주식 수 칸이 빈 공시도 있다.
+    # 수량 비교는 양쪽 수량을 다 알 때만 한다.
+    out: dict = {}
+    for sym in set(prev) | set(cur):
+        if sym not in prev:
+            out[sym] = 1                             # 새로 샀다
+        elif sym not in cur:
+            out[sym] = -1                            # 다 팔았다
+        else:
+            a, b = float(prev[sym]), float(cur[sym])
+            if a > 0 and b > 0 and abs(b - a) / a > FLOW_MIN_CHANGE:
+                out[sym] = 1 if b > a else -1
+    return out
+
+
+def _days_between(a: str, b: str) -> int:
+    try:
+        return (_dt.date.fromisoformat(str(b)[:10])
+                - _dt.date.fromisoformat(str(a)[:10])).days
+    except ValueError:
+        return 0
 
 
 # ⚠️ **EDGAR 공정접근 — 초당 10회 이하**(2026-10-01, 감사 331 실측).
@@ -231,13 +367,16 @@ def latest_holdings(cik: str, fetch=_urllib_fetch) -> tuple[str | None, list]:
     except Exception as exc:  # noqa: BLE001
         log.info("13F 제출 목록 조회 실패 cik=%s: %s", cik, exc)
         return None, []
+    if not verify_filer(cik, subs):
+        log.warning("13F 제출자 cik=%s — 공식 이름 확인 실패, 뺀다", cik)
+        return None, []
     recent = (((subs or {}).get("filings") or {}).get("recent")) or {}
     forms = recent.get("form") or []
     accns = recent.get("accessionNumber") or []
     reports = recent.get("reportDate") or []
     idx = None
     for i, form in enumerate(forms):
-        if str(form).startswith("13F-HR"):     # 13F-HR / 13F-HR/A 둘 다
+        if str(form).strip() == "13F-HR":      # 원 공시만(정정은 부분 공시일 수 있다)
             idx = i
             break
     if idx is None:
@@ -287,7 +426,21 @@ def _holdings_for_accession(cik10: str, acc: str, fetch) -> list:
     return []
 
 
-def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> list:
+def verify_filer(cik: str, subs: dict) -> bool:
+    """조회한 제출 목록이 **그 투자자의 것인가** — 공식 이름에 확인 낱말이 있나.
+
+    확인 낱말이 등록되지 않은 CIK(검사·주입)는 통과시킨다 — 이 장치는 우리가
+    적은 목록의 오기를 잡는 것이지, 낯선 입력을 막는 것이 아니다.
+    """
+    want = FILER_VERIFY.get(str(cik).zfill(10))
+    if not want:
+        return True
+    got = _norm_name((subs or {}).get("name") or "")
+    return _norm_name(want) in got
+
+
+def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12,
+                    report: dict | None = None) -> list:
     """한 제출자의 **지난 13F-HR 제출들** — 최신부터 max_filings개.
 
     각 항목: {"filed": 제출일(공개된 날), "report": 보고 기준일, "holdings": [...]}.
@@ -300,6 +453,15 @@ def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> lis
     except Exception as exc:  # noqa: BLE001
         log.info("13F 제출 이력 조회 실패 cik=%s: %s", cik, exc)
         return []
+    if not verify_filer(cik, subs):
+        got = str((subs or {}).get("name") or "?")[:80]
+        log.warning("13F 제출자 cik=%s — 공식 이름 '%s'에 확인 낱말 '%s'가 없다. "
+                    "CIK가 틀렸다고 보고 뺀다.", cik, got,
+                    FILER_VERIFY.get(str(cik).zfill(10)))
+        if report is not None:
+            report.setdefault("unverified", []).append(
+                {"cik": cik10, "expected": FILERS.get(cik10, cik10), "got": got})
+        return []
     recent = (((subs or {}).get("filings") or {}).get("recent")) or {}
     forms = recent.get("form") or []
     accns = recent.get("accessionNumber") or []
@@ -309,7 +471,10 @@ def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> lis
     tried = 0
     fails = 0
     for i, form in enumerate(forms):
-        if not str(form).startswith("13F-HR"):
+        # 정정 공시(13F-HR/A)는 뺀다(감사 333) — 상당수가 '추가 보유분'만 담은
+        # 부분 공시라, 그것을 그 분기의 보유 전체로 읽으면 나머지 보유가 모두
+        # '다 팔았다'로 둔갑한다. 원 공시만 쓴다.
+        if str(form).strip() != "13F-HR":
             continue
         # ⚠️ **두드리는 횟수에 상한을 건다**(감사 331). 예전에는 성공한 제출만
         #    세어서, 막힌 날에는 성공이 영영 0이라 제출 목록을 1999년까지 전부
@@ -336,43 +501,81 @@ def filings_history(cik: str, fetch=_urllib_fetch, max_filings: int = 12) -> lis
     return out
 
 
-def build_cluster_history(filings_by_cik: dict) -> list:
+def build_cluster_history(filings_by_cik: dict, until: str | None = None) -> list:
     """{cik: [filings_history 항목...]} → point-in-time 겹쳐 담기 시계열.
 
-    반환: [{"as_of": 제출일, "cluster": {심볼: {count, filers}}}] — 제출일 오름차순.
-    각 시점의 cluster는 **그 날까지 공개된 각 제출자의 가장 최근 보유**로 만든다.
+    반환: [{"as_of": 날짜, "cluster": {심볼: {count, filers}},
+            "flow": {심볼: {buy, sell}}}] — 날짜 오름차순.
+
+    각 시점은 **그 날까지 공개된 각 제출자의 가장 최근 보유**로 만든다. 감사
+    333에서 세 가지를 더했다:
+      · 옵션 줄은 보유가 아니다(`stock_shares`가 뺀다).
+      · 마지막 공시가 `STALE_DAYS`보다 오래된 제출자는 **세지 않는다** — 그
+        만료일에도 줄을 만든다(안 만들면 다음 공시 때까지 옛 보유가 남는다).
+      · flow = 각 제출자의 최신 공시가 **직전 공시보다** 늘렸나(buy)·줄였나(sell).
+    until: 이 날짜 뒤의 만료 줄은 만들지 않는다(아직 오지 않은 날).
     """
-    # (제출일, cik, 매칭된 심볼 집합) 이벤트를 모아 시간순으로 재생한다.
-    events: list[tuple] = []
+    from datetime import timedelta
+
+    if until is None:                  # 아직 오지 않은 날의 만료는 만들지 않는다
+        until = _dt.date.today().isoformat()
+    events: list[tuple] = []           # (날짜, 순서, cik, 보유 dict | None)
     for cik, filings in (filings_by_cik or {}).items():
-        for f in (filings or []):
-            filed = f.get("filed")
-            if not filed:
-                continue
-            syms = set()
-            for h in (f.get("holdings") or []):
-                s = _match_symbol(h)
-                if s:
-                    syms.add(s)
-            events.append((str(filed), str(cik).zfill(10), syms))
-    events.sort(key=lambda e: e[0])
-    latest_by_cik: dict[str, set] = {}
+        c10 = str(cik).zfill(10)
+        dated = sorted((f for f in (filings or []) if f.get("filed")),
+                       key=lambda f: str(f["filed"]))
+        for i, f in enumerate(dated):
+            filed = str(f["filed"])[:10]
+            events.append((filed, 0, c10, stock_shares(f.get("holdings"))))
+            nxt = str(dated[i + 1]["filed"])[:10] if i + 1 < len(dated) else None
+            expire = (_dt.date.fromisoformat(filed)
+                      + timedelta(days=STALE_DAYS)).isoformat()
+            if (nxt is None or nxt > expire) and (until is None or expire <= until):
+                events.append((expire, 1, c10, None))      # 만료 표시
+    events.sort(key=lambda e: (e[0], e[1]))
+    latest: dict[str, dict] = {}        # cik → 최신 보유(주식 수)
+    flow_by: dict[str, dict] = {}       # cik → 최신 공시의 흐름
+    alive: dict[str, bool] = {}
     history: list = []
-    for filed, cik, syms in events:
-        latest_by_cik[cik] = syms          # 이 제출자의 최신 보유로 갱신
+    for day, kind, cik, shares in events:
+        if kind == 1:
+            alive[cik] = False
+        else:
+            flow_by[cik] = flows(latest.get(cik), shares)
+            latest[cik] = shares
+            alive[cik] = True
         counts: dict[str, dict] = {}
-        for c, held in latest_by_cik.items():
+        flow: dict[str, dict] = {}
+        for c, held in latest.items():
+            if not alive.get(c):
+                continue
             name = FILERS.get(c, FILERS.get(str(int(c)), c))
-            for s in held:
-                slot = counts.setdefault(s, {"count": 0, "filers": []})
+            for sym in held:
+                slot = counts.setdefault(sym, {"count": 0, "filers": []})
                 slot["count"] += 1
                 slot["filers"].append(name)
-        # 같은 날 여러 제출이면 마지막 것만 남긴다(같은 as_of 하나).
-        if history and history[-1]["as_of"] == filed:
-            history[-1]["cluster"] = counts
+            for sym, d in (flow_by.get(c) or {}).items():
+                slot = flow.setdefault(sym, {"buy": 0, "sell": 0})
+                slot["buy" if d > 0 else "sell"] += 1
+        row = {"as_of": day, "cluster": counts, "flow": flow}
+        # 같은 날 여러 사건이면 마지막 것만 남긴다(같은 as_of 하나).
+        if history and history[-1]["as_of"] == day:
+            history[-1] = row
         else:
-            history.append({"as_of": filed, "cluster": counts})
+            history.append(row)
     return history
+
+
+def cluster_asof_row(history: list, date: str) -> dict:
+    """그 날짜에 공개돼 있던 가장 최근 줄 전체(cluster·flow). 없으면 {}."""
+    d = str(date)[:10]
+    got: dict = {}
+    for row in (history or []):
+        if str(row.get("as_of"))[:10] <= d:
+            got = row
+        else:
+            break
+    return got
 
 
 def cluster_asof(history: list, date: str) -> dict:
@@ -390,21 +593,31 @@ def cluster_asof(history: list, date: str) -> dict:
 HISTORY_FILE = "thirteenf_history.json"
 
 
-def _filer_summary(cik: str, filings: list) -> dict:
+def _filer_summary(cik: str, filings: list, today: str | None = None) -> dict:
     """제출자 한 명의 공개 요약 — 화면이 "누가 언제 무엇을"을 말하게.
 
-    가장 최근 제출(제출일 기준)의 보유 중 **우리 유니버스 종목**만 싣는다.
+    가장 최근 제출(제출일 기준)의 보유 중 **우리 유니버스 종목**만 싣고,
+    직전 제출 대비 늘린 종목·줄인 종목, 뺀 옵션 줄 수, 공시가 멈췄는지를 함께.
     """
     name = FILERS.get(str(cik).zfill(10), str(cik))
     if not filings:
         return {"cik": str(cik).zfill(10), "name": name, "filings": 0,
-                "filed": None, "report": None, "holds": []}
-    latest = max(filings, key=lambda f: str(f.get("filed") or ""))
-    holds = sorted({s for h in (latest.get("holdings") or [])
-                    for s in [_match_symbol(h)] if s})
+                "filed": None, "report": None, "holds": [], "bought": [],
+                "sold": [], "options_excluded": 0, "stale": False}
+    dated = sorted(filings, key=lambda f: str(f.get("filed") or ""))
+    latest = dated[-1]
+    cur = stock_shares(latest.get("holdings"))
+    prev = stock_shares(dated[-2].get("holdings")) if len(dated) > 1 else None
+    fl = flows(prev, cur)
+    opts = sum(1 for h in (latest.get("holdings") or []) if is_option(h))
+    stale = bool(today and latest.get("filed")
+                 and _days_between(latest["filed"], today) > STALE_DAYS)
     return {"cik": str(cik).zfill(10), "name": name, "filings": len(filings),
             "filed": latest.get("filed"), "report": latest.get("report"),
-            "holds": holds}
+            "holds": sorted(cur),
+            "bought": sorted(k for k, d in fl.items() if d > 0),
+            "sold": sorted(k for k, d in fl.items() if d < 0),
+            "options_excluded": opts, "stale": stale}
 
 
 def _read_json(path: str) -> dict:
@@ -430,7 +643,7 @@ def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
        "못 쟀다"가 "아무도 안 샀다"로 둔갑한다.
     """
     use = filers if filers is not None else FILERS
-    report = {"requests": 0, "errors": 0, "last_error": None}
+    report = {"requests": 0, "errors": 0, "last_error": None, "unverified": []}
 
     def counted(url):
         report["requests"] += 1
@@ -443,7 +656,8 @@ def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
 
     by_cik: dict = {}
     for cik in use:
-        hist = filings_history(cik, fetch=counted, max_filings=max_filings)
+        hist = filings_history(cik, fetch=counted, max_filings=max_filings,
+                               report=report)
         if hist:
             by_cik[cik] = hist
     day = str(today or _dt.date.today().isoformat())[:10]
@@ -454,7 +668,8 @@ def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
         prev_seen = len(use)               # 옛 모양(조회 기록 없음)은 온전하다고 본다
     clean = report["errors"] == 0
     keep_old = (not clean) and len(by_cik) < prev_seen
-    history = (prev.get("history") or []) if keep_old else build_cluster_history(by_cik)
+    history = ((prev.get("history") or []) if keep_old
+               else build_cluster_history(by_cik, until=day))
     fetch_info = {
         "on": day,
         "ok": clean,
@@ -465,7 +680,7 @@ def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
         **report,
     }
     filers_out = (prev.get("filers") or []) if keep_old else [
-        _filer_summary(c, by_cik.get(c) or []) for c in use]
+        _filer_summary(c, by_cik.get(c) or [], today=day) for c in use]
     try:
         os.makedirs(state_dir, exist_ok=True)
         from quant.utils.jsonio import atomic_write_json
@@ -476,12 +691,21 @@ def refresh_history(state_dir: str = "state", *, fetch=_urllib_fetch,
         if not keep_old and by_cik:
             latest = {}
             for cik, fl in by_cik.items():
-                seen = [f for f in fl if str(f.get("filed") or "") <= day]
-                if seen:
-                    top = max(seen, key=lambda f: str(f.get("filed") or ""))
-                    latest[cik] = (top.get("report"), top.get("holdings") or [])
+                seen = sorted((f for f in fl if str(f.get("filed") or "") <= day),
+                              key=lambda f: str(f.get("filed") or ""))
+                # 공시가 멈춘 투자자는 오늘의 겹쳐 담기에서 뺀다(STALE_DAYS).
+                if seen and _days_between(seen[-1]["filed"], day) <= STALE_DAYS:
+                    latest[cik] = (seen[-1].get("report"),
+                                   seen[-1].get("holdings") or [])
+            cluster = cluster_from_filings(latest)
+            today_flow = (cluster_asof_row(history, day) or {}).get("flow") or {}
+            for sym, slot in cluster.items():
+                fl = today_flow.get(sym) or {}
+                slot["buy"] = int(fl.get("buy") or 0)
+                slot["sell"] = int(fl.get("sell") or 0)
             atomic_write_json(_cache_path(state_dir), {
-                "cluster": cluster_from_filings(latest),
+                "cluster": cluster,
+                "flow": today_flow,
                 "fetched_on": day,
                 "filers_total": len(use),
                 "filers_seen": len(latest),

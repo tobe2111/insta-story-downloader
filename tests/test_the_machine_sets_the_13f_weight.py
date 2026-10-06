@@ -168,7 +168,7 @@ def test_refresh_history_builds_a_point_in_time_series_from_edgar(tmp_path):
 
     def fetch(url, timeout=12.0):
         if "submissions" in url:
-            return json.dumps({"filings": {"recent": {
+            return json.dumps({"name": "BERKSHIRE HATHAWAY INC", "filings": {"recent": {
                 "form": ["13F-HR"] * len(filings),
                 "accessionNumber": [a for a, _, _ in filings],
                 "filingDate": [f for _, f, _ in filings],

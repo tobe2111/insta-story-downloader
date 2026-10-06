@@ -122,7 +122,7 @@ def test_a_persistent_429_gives_up_after_the_attempt_budget(monkeypatch):
 
 # ── ③ 막힌 제출자는 접는다 ───────────────────────────────────────
 def _submissions(n):
-    return json.dumps({"filings": {"recent": {
+    return json.dumps({"name": "BERKSHIRE HATHAWAY INC", "filings": {"recent": {
         "form": ["13F-HR"] * n,
         "accessionNumber": [f"0000000000-{i:02d}-000001" for i in range(n)],
         "filingDate": [f"20{25 - i // 4:02d}-0{1 + i % 4}-15" for i in range(n)],
@@ -165,7 +165,7 @@ def test_attempts_are_capped_even_when_some_succeed():
 # ── ④ 막힌 밤은 이력을 지우지 않는다 ─────────────────────────────
 def _good_fetch(url, timeout=12.0):
     if "submissions" in url:
-        return json.dumps({"filings": {"recent": {
+        return json.dumps({"name": "BERKSHIRE HATHAWAY INC", "filings": {"recent": {
             "form": ["13F-HR", "13F-HR"],
             "accessionNumber": ["0001-26-000002", "0001-26-000001"],
             "filingDate": ["2026-08-14", "2026-05-15"],
@@ -210,7 +210,7 @@ def test_a_clean_pull_always_replaces(tmp_path):
                        today="2026-09-30")
 
     def clean_empty(url, timeout=12.0):        # 오류 없이 제출이 하나도 없다
-        return json.dumps({"filings": {"recent": {"form": []}}})
+        return json.dumps({"name": "BERKSHIRE HATHAWAY INC", "filings": {"recent": {"form": []}}})
 
     out = TF.refresh_history(str(tmp_path), fetch=clean_empty, filers=FILERS,
                              today="2026-10-01")

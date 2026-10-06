@@ -574,8 +574,28 @@
         "Where and how this is used",
       "미국주식 ML 모델":
         "US stock ML models",
+      "입력 재료 둘로 들어간다 — 겹친 투자자 수, 그리고 직전 분기 대비 새로 담거나 늘린 투자자 수에서 줄이거나 판 투자자 수를 뺀 값. 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
+        "It goes in as two inputs — the number of overlapping investors, and the number who newly bought or added since the previous quarter minus the number who trimmed or sold. Whether to keep or drop them is decided by the nightly audition on results — no person decides 'it must be used'.",
+      // 옛 문구 — 밤 배치가 status.json을 새 문구로 다시 쓰기 전까지 화면에 남는다
       "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
         "It goes in as one input (the number of overlapping investors). Whether to keep or drop it is decided by the nightly audition on results — no person decides 'it must be used'.",
+      // ── 13F 흐름·검증 — 2026-10-06(감사 333) ───
+      "▲ 직전 분기보다 새로 담거나 늘린 투자자 수 · ▼ 줄이거나 판 투자자 수":
+        "▲ investors who newly bought or added since the previous quarter · ▼ investors who trimmed or sold",
+      "직전 분기에 들고 있다가 이번 공시에서 모두 판 종목":
+        "Held last quarter, fully sold in the latest filings",
+      "새로 담거나 늘림":
+        "Bought / added",
+      "줄이거나 판 종목":
+        "Trimmed / sold",
+      "(공시 멈춤 — 집계 제외)":
+        "(filings stopped — excluded from counts)",
+      "옵션(풋·콜) 줄은 보유로 세지 않았습니다":
+        "Option (put/call) rows were not counted as holdings",
+      "줄 — 풋옵션은 하락에 거는 것이라 '들고 있다'와 반대입니다.":
+        "rows — a put is a bet on a fall, the opposite of 'holding'.",
+      "SEC에 등록된 이름이 맞지 않아 뺀 투자자 번호":
+        "Investor IDs dropped because the SEC-registered name did not match",
       "미국주식 장중 실험":
         "US stock intraday experiment",
       "모델이 이미 사겠다고 한 종목만 비중을 키운다. 관망을 매수로 바꾸지 않는다. 키우는 폭은 기계가 과거 기록으로 정한다.":

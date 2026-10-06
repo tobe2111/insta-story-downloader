@@ -22,7 +22,9 @@
     "font-size:14px;line-height:1.6}" +
     ".g13 h2{font-size:16px;margin:0 0 6px}" +
     ".g13 .sub{color:var(--muted,#777);font-size:12.5px}" +
-    ".g13 .warn{color:var(--down,#c0392b)}" +
+    // ⚠️ 이름이 `g13-`로 시작한다 — 페이지마다 `.warn`이 상자 모양으로 따로
+    //    정의돼 있어, 같은 이름을 쓰면 칩 안의 ▼가 노란 상자가 된다.
+    ".g13 .g13-warn{color:var(--down,#c0392b)}.g13 .g13-up{color:var(--up,#16a34a)}" +
     ".g13 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}" +
     ".g13 .chip{border:1px solid var(--line,#ddd);border-radius:999px;padding:2px 10px;" +
     "font-size:13px}" +
@@ -55,10 +57,10 @@
     var f = g.fetch || {};
     var pts = Number(g.history_points) || 0;
     if (!f.on) {
-      return line("sub warn", ["아직 수집 기록이 없습니다 — 밤 배치가 처음 받아 오면 여기에 채워집니다."]);
+      return line("sub g13-warn", ["아직 수집 기록이 없습니다 — 밤 배치가 처음 받아 오면 여기에 채워집니다."]);
     }
     if (pts === 0) {
-      return line("sub warn", ["마지막 수집이 실패했습니다", " · ", {b: f.on},
+      return line("sub g13-warn", ["마지막 수집이 실패했습니다", " · ", {b: f.on},
         " · ", f.last_error || "", " — ",
         "받지 못한 것을 '아무도 안 샀다'로 그리지 않습니다."]);
     }
@@ -86,11 +88,20 @@
         c.appendChild(document.createTextNode(" "));
         var tot = (g.fetch && g.fetch.filers_total) || g.filers_total || "";
         c.appendChild(el("span", null, String(r.count) + (tot ? "/" + tot : "")));
+        // 직전 분기 대비 흐름 — 담은 사람 ▲ · 줄이거나 판 사람 ▼ (감사 333)
+        if (Number(r.buy) > 0) c.appendChild(el("span", "g13-up", " ▲" + r.buy));
+        if (Number(r.sell) > 0) c.appendChild(el("span", "g13-warn", " ▼" + r.sell));
         chips.appendChild(c);
       });
       card.appendChild(chips);
+      card.appendChild(line("sub", ["▲ 직전 분기보다 새로 담거나 늘린 투자자 수 · ▼ 줄이거나 판 투자자 수"]));
     } else if ((Number(g.history_points) || 0) > 0) {
       card.appendChild(line("sub", ["지금 우리 미국 종목을 들고 있는 저명 투자자는 없습니다."]));
+    }
+
+    var exited = g.exited || [];
+    if (exited.length) {
+      card.appendChild(line("sub", ["직전 분기에 들고 있다가 이번 공시에서 모두 판 종목", " ", {b: exited.join(", ")}]));
     }
 
     var filers = g.filers || [];
@@ -98,20 +109,38 @@
       var tw = el("div", "tw");
       var t = el("table");
       var hr = el("tr");
-      ["투자자", "마지막 공시일", "기준 분기말", "우리 종목 중 보유"].forEach(function (h) {
+      ["투자자", "마지막 공시일", "기준 분기말", "우리 종목 중 보유", "새로 담거나 늘림", "줄이거나 판 종목"].forEach(function (h) {
         hr.appendChild(el("th", null, h));
       });
       t.appendChild(hr);
       filers.forEach(function (r) {
         var tr = el("tr");
-        tr.appendChild(el("td", null, r.name));
+        var nm = el("td", null, r.name);
+        if (r.stale) {
+          // 공시가 멈춘 투자자 — 묵은 보유를 지금 든 것처럼 세지 않는다.
+          nm.appendChild(document.createTextNode(" "));
+          nm.appendChild(el("span", "sub g13-warn", "(공시 멈춤 — 집계 제외)"));
+        }
+        tr.appendChild(nm);
         tr.appendChild(el("td", null, r.filed || "—"));
         tr.appendChild(el("td", null, r.report || "—"));
         tr.appendChild(el("td", null, (r.holds && r.holds.length) ? r.holds.join(", ") : "—"));
+        tr.appendChild(el("td", null, (r.bought && r.bought.length) ? r.bought.join(", ") : "—"));
+        tr.appendChild(el("td", null, (r.sold && r.sold.length) ? r.sold.join(", ") : "—"));
         t.appendChild(tr);
       });
       tw.appendChild(t);
       card.appendChild(tw);
+      var opts = filers.reduce(function (a, r) { return a + (Number(r.options_excluded) || 0); }, 0);
+      if (opts > 0) {
+        card.appendChild(line("sub", ["옵션(풋·콜) 줄은 보유로 세지 않았습니다", " ",
+          {b: String(opts)}, " ", "줄 — 풋옵션은 하락에 거는 것이라 '들고 있다'와 반대입니다."]));
+      }
+    }
+    var unv = (g.fetch && g.fetch.unverified) || [];
+    if (unv.length) {
+      card.appendChild(line("sub g13-warn", ["SEC에 등록된 이름이 맞지 않아 뺀 투자자 번호", " ",
+        {b: unv.map(function (u) { return u.cik || u; }).join(", ")}]));
     }
 
     var d = el("details");

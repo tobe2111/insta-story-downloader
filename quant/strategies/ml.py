@@ -74,6 +74,7 @@ OPTIONAL_FEATURES = [
     "x_fng", "x_kimchi",                   # 심리·김치프리미엄
     "x_frgn5", "x_inst5",                  # KRX 수급(한국주식만)
     "x_guru13f",                           # 저명 투자자 겹쳐 담기(미국주식만)
+    "x_guru13f_flow",                      # 저명 투자자 순매수(늘린 수 − 줄인 수)
 ]
 
 # 계측기가 '분모'로 세지도, '유령'으로 경보하지도 않는 선택 피처 — 모델은
@@ -86,7 +87,7 @@ OPTIONAL_FEATURES = [
 #    쌓인 뒤에는 '표에 없는데 붙었다'(unexpected)로 잡힌다. 그래서 **양쪽 다
 #    빼는** 제3의 자리를 둔다: 모델은 붙을 때 쓰고, 미터는 관여하지 않는다.
 #    쓸지 말지는 여전히 top_features 가지치기가 정한다(사람이 아니라 기계가).
-UNMETERED_OPTIONAL: set[str] = {"x_guru13f"}
+UNMETERED_OPTIONAL: set[str] = {"x_guru13f", "x_guru13f_flow"}
 
 # 고장난 계측기가 남긴 기록의 지문 — 이 이름이 missing 목록에 있으면 그
 # 기록은 2026-08-12 교정 **이전**의 것이다(사이트가 옛 0/11을 오늘의

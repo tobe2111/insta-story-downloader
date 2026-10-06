@@ -175,7 +175,8 @@ def _fred_t10y2y() -> pd.Series | None:
     return _fred("T10Y2Y")
 
 
-def _guru13f_series(symbol: str, state_dir: str = "state") -> pd.Series | None:
+def _guru13f_series(symbol: str, state_dir: str = "state",
+                    kind: str = "count") -> pd.Series | None:
     """저명 투자자 겹쳐 담기(13F) point-in-time 시계열 — 제출일별 '몇 명이 든 종목인가'.
 
     ⚠️ **인덱스는 제출일(공개된 날)이다.** _align이 전진충전하므로, 어떤 봉도
@@ -198,11 +199,20 @@ def _guru13f_series(symbol: str, state_dir: str = "state") -> pd.Series | None:
         as_of = row.get("as_of")
         if not as_of:
             continue
-        info = (row.get("cluster") or {}).get(symbol)
-        cnt = int(info.get("count") or 0) if isinstance(info, dict) else 0
+        if kind == "flow":
+            # 순매수 = 그 종목을 늘린 투자자 수 − 줄인 투자자 수(감사 333).
+            # 옛 줄(흐름 칸 없음)은 0이 아니라 **모름**이다 — 그런 이력이면
+            # 아래에서 열 자체를 안 붙인다(못 받은 것과 0은 다른 사건).
+            if "flow" not in row:
+                return None
+            f = (row.get("flow") or {}).get(symbol) or {}
+            v = float(int(f.get("buy") or 0) - int(f.get("sell") or 0))
+        else:
+            info = (row.get("cluster") or {}).get(symbol)
+            v = float(int(info.get("count") or 0) if isinstance(info, dict) else 0)
         dates.append(pd.Timestamp(str(as_of)[:10]))
-        vals.append(float(cnt))
-    if not dates or not any(v > 0 for v in vals):
+        vals.append(v)
+    if not dates or not any(v != 0 for v in vals):
         return None                         # 한 번도 안 담긴 종목 — 재료 없음
     return pd.Series(vals, index=pd.DatetimeIndex(dates)).sort_index()
 
@@ -257,6 +267,12 @@ def attach_cross_asset(df: pd.DataFrame, market: str, symbol: str,
             guru = _guru13f_series(symbol)
             if guru is not None:
                 out["x_guru13f"] = _align(guru, out.index)
+                # 순매수 흐름(감사 333) — '몇 명이 들고 있나'에 '그들이 이번
+                # 분기에 늘렸나 줄였나'를 더한다. 같은 제출일 기준이라 미래 참조
+                # 없음. 쓸지는 여전히 기계(top_features)가 정한다.
+                flow = _guru13f_series(symbol, kind="flow")
+                if flow is not None:
+                    out["x_guru13f_flow"] = _align(flow, out.index)
             t10 = _fred_t10y2y()
             if t10 is not None:
                 out["x_t10y2y"] = _align(t10, out.index)
