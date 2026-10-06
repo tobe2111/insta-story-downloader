@@ -187,11 +187,16 @@ def _attach_everything(monkeypatch, market, symbol):
 
 def test_market_table_matches_what_the_attachers_actually_build(monkeypatch):
     """표에 적힌 이름 = 모든 소스가 살아 있을 때 실제로 만들어지는 피처."""
-    from quant.strategies.ml import applicable_optional_features
+    from quant.strategies.ml import (UNMETERED_OPTIONAL,
+                                     applicable_optional_features)
 
     for market, symbol in _UNIVERSE:
         d = _attach_everything(monkeypatch, market, symbol)
-        actual = {c for c in _features(d).columns if c in OPTIONAL_FEATURES}
+        # 계측기가 일부러 안 세는 재료(x_guru13f — 저장소 13F 캐시에서 오며,
+        # 캐시가 생기기 전에는 '누락' 오탐을 내므로 표에 안 넣었다, 감사 330)는
+        # 비교에서 뺀다. 2026-10-04부터 캐시가 실제로 채워져 이 열이 붙는다.
+        actual = {c for c in _features(d).columns
+                  if c in OPTIONAL_FEATURES and c not in UNMETERED_OPTIONAL}
         table = set(applicable_optional_features(market, symbol))
         assert table == actual, (
             f"{market}:{symbol} 표와 실제가 다르다 — "
