@@ -18,8 +18,9 @@ import os
 # 13F가 이 제품에서 실제로 쓰이는 자리 — 코드와 같은 말을 한다.
 USES = [
     {"where": "미국주식 ML 모델",
-     "how": "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 "
-            "오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다."},
+     "how": "입력 재료 둘로 들어간다 — 겹친 투자자 수, 그리고 직전 분기 대비 "
+            "새로 담거나 늘린 투자자 수에서 줄이거나 판 투자자 수를 뺀 값. 쓸지 "
+            "뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다."},
     {"where": "미국주식 장중 실험",
      "how": "모델이 이미 사겠다고 한 종목만 비중을 키운다. 관망을 매수로 "
             "바꾸지 않는다. 키우는 폭은 기계가 과거 기록으로 정한다."},
@@ -50,8 +51,14 @@ def guru13f_public(state_dir: str = "state") -> dict:
     filers = rep["filers"] or [{"cik": c, "name": n, "filings": 0, "filed": None,
                                 "report": None, "holds": []}
                                for c, n in FILERS.items()]
+    # 모두가 판 종목은 겹쳐 담기 목록에서 사라진다 — 그래도 '팔았다'는 사실은
+    # 남겨야 한다(감사 333: 좋은 소식만 남기는 편집을 하지 않는다).
+    held = {r["symbol"] for r in block.get("names") or []}
+    exited = sorted(sym for sym, fl in ((snap.get("flow") or {}).items())
+                    if sym not in held and int((fl or {}).get("sell") or 0) > 0)
     return {
         **block,
+        "exited": exited,
         "filers": filers,
         "fetch": rep["fetch"],
         "history_points": rep["points"],

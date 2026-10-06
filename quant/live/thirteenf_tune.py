@@ -55,7 +55,8 @@ def _forward_return(bars: list, as_of: str, horizon: int) -> float | None:
 
 
 def measure_edge(history: list, price_lookup, universe: list, *,
-                 horizon: int = HORIZON_DAYS, cluster_min: int = CLUSTER_MIN) -> dict:
+                 horizon: int = HORIZON_DAYS, cluster_min: int = CLUSTER_MIN,
+                 split: str = "rank") -> dict:
     """겹쳐 담긴 종목이 그 뒤 나머지보다 더 올랐나 — {mean_diff, t, n}.
 
     price_lookup(sym) -> [(date, close)] 오름차순 또는 None(시세 없음).
@@ -66,6 +67,14 @@ def measure_edge(history: list, price_lookup, universe: list, *,
        종목 하나하나를 관측으로 세면, 같은 날 같은 시장에 있는 종목들이
        서로 얽혀 t가 거짓으로 커진다. 그리고 분기 제출은 서로 겹치지 않는
        창이라 날짜끼리는 대체로 독립이다. n은 두 그룹이 모두 있는 **날짜 수**다.
+
+    ⚠️ **나누는 선은 그날의 중앙값이다**(split="rank", 감사 333). 예전에는
+       "1명 이상이 든 종목 vs 아무도 안 든 종목"으로 갈랐는데, 우리 유니버스의
+       개별 종목은 대형 기술주라 **거의 언제나 누군가 들고 있다** — 비교할 반대
+       쪽이 비어 그 날은 못 잰다. 실측(2026-10-06): 이력 32점에서 잰 날 **2일**.
+       물어야 할 것은 "들었나"가 아니라 **"더 많이 겹쳤나"**다 — 그래서 그날
+       겹친 수가 중앙값보다 많은 종목과 아닌 종목을 견준다. 모두 같은 수면
+       그날은 잴 것이 없다(건너뛴다). split="threshold"는 옛 규칙(cluster_min).
     """
     prices = {}
     for sym in universe:
@@ -80,7 +89,7 @@ def measure_edge(history: list, price_lookup, universe: list, *,
     for row in (history or []):
         as_of = row.get("as_of")
         cl = row.get("cluster") or {}
-        c_rets, o_rets = [], []
+        pairs = []
         for sym in universe:
             bars = prices.get(sym)
             if not bars:
@@ -89,8 +98,21 @@ def measure_edge(history: list, price_lookup, universe: list, *,
             if r is None:
                 continue
             info = cl.get(sym)
-            held = isinstance(info, dict) and int(info.get("count") or 0) >= cluster_min
-            (c_rets if held else o_rets).append(r)
+            cnt = int(info.get("count") or 0) if isinstance(info, dict) else 0
+            pairs.append((cnt, r))
+        if split == "rank":
+            counts = sorted(c for c, _ in pairs)
+            if not counts:
+                continue
+            mid = len(counts) // 2
+            median = (counts[mid] if len(counts) % 2
+                      else (counts[mid - 1] + counts[mid]) / 2)
+            line = median
+            c_rets = [r for c, r in pairs if c > line]
+            o_rets = [r for c, r in pairs if c <= line]
+        else:
+            c_rets = [r for c, r in pairs if c >= cluster_min]
+            o_rets = [r for c, r in pairs if c < cluster_min]
         if c_rets and o_rets:               # 두 그룹이 모두 있어야 그날 잰다
             per_date.append(sum(c_rets) / len(c_rets) - sum(o_rets) / len(o_rets))
 

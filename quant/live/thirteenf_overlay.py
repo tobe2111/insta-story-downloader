@@ -171,6 +171,10 @@ def cluster_public(snapshot: dict | None) -> dict:
             "count": int(info.get("count") or 0),
             "filers": list(info.get("filers") or []),
             "as_of": info.get("as_of"),
+            # 직전 분기 대비 새로 담거나 늘린 투자자 수 · 줄이거나 판 투자자 수
+            # (감사 333). 옛 스냅샷엔 없다 — 0으로 지어내지 않고 None으로 둔다.
+            "buy": info.get("buy"),
+            "sell": info.get("sell"),
         })
     names.sort(key=lambda r: (-r["count"], r["symbol"]))
     return {

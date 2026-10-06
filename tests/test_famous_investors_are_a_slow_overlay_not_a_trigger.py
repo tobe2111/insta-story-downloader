@@ -169,7 +169,7 @@ def test_the_overlay_keeps_dont_know_as_dont_know():
 def _fake_edgar(info_xml=INFO_XML):
     def fetch(url, timeout=12.0):
         if "submissions" in url:
-            return json.dumps({"filings": {"recent": {
+            return json.dumps({"name": "BERKSHIRE HATHAWAY INC", "filings": {"recent": {
                 "form": ["10-K", "13F-HR"],
                 "accessionNumber": ["0000-00", "0001234567-26-000001"],
                 "reportDate": ["2026-01-01", "2026-06-30"]}}})
