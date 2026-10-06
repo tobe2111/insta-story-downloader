@@ -37,7 +37,9 @@ EXPECTED = {"intraday_1h": ("2026-08-18", 90),
             # 2026-09-07 옮겨 적음 — 공개 페이지에는 2026-08-23부터
             # 등록돼 있었는데 등록부에만 없었다. 판정일은 사다리들과
             # 같은 날로 등록해서 라운드 숫자가 아니다(119일).
-            "diversity_shadow": ("2026-08-23", 119)}
+            "diversity_shadow": ("2026-08-23", 119),
+            # 2026-10-06 사장님 "둘 다 진행" — 넘친 예산 재분배(감사 332).
+            "budget_shadow": ("2026-10-06", 120)}
 
 REQUIRED = ("name", "question", "start", "judge_on", "statistic",
             "alpha", "correction", "on_fail")

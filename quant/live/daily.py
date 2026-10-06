@@ -68,6 +68,90 @@ IMMEDIATE_FILL_MARKETS = {"crypto", "synthetic"}
 FRACTIONAL_MARKETS = {"crypto", "synthetic", "us_stock"}
 
 
+def _final_weight(w: float, *, eff_scale: float, vscale: float,
+                  guard: float = 1.0, valid: float = 1.0,
+                  kcap: float | None = None, slice_: float = 1.0) -> float:
+    """한 종목의 최종 목표 비중 — 본 계좌와 그림자가 **같은 식**을 쓴다.
+
+    신호 × 브레이크(킬스위치·어드민) × 변동성 타깃 × 실적 가드 × 검증 게이트,
+    켈리 상한으로 자르고, 그 종목의 배분 예산을 곱한다. 예전에는 이 식이
+    본 계좌 안의 닫힌 함수에만 있었다 — 그림자가 같은 식을 다시 적으면
+    언젠가 갈라진다(FROZEN_IDEAS ①). 그래서 꺼냈다(감사 332).
+    """
+    eff = w * eff_scale * vscale * guard * valid
+    if kcap is not None:
+        eff = float(np.clip(eff, -kcap, kcap))
+    return eff * slice_
+
+
+def cash_waterfall(*, weights: dict, raw_slices: dict, slices: dict,
+                   eff_scale: float, vscale: float, guard_damp: dict,
+                   valid_damp: dict, kelly_caps: dict, fitted: dict,
+                   n: int, valid_grades: dict | None = None,
+                   deferred: dict | None = None) -> dict:
+    # valid_grades는 받아만 둔다(호출 모양 유지) — 세는 것은 valid_damp다.
+    del valid_grades
+    """현금이 **왜** 이만큼 남았나 — 비중이 줄어드는 단계를 순서대로 잰다.
+
+    사장님 질문(2026-10-01): *"현금은 왜 계속 이 비율로 들고있는거야?"*
+    답은 한 가지가 아니라 단계마다 깎이는 몫의 합이다. 장부에는 단계별
+    재료(alloc·vol_target·validation_gate·lot_infeasible)가 흩어져 있었지만
+    **같은 자로 이어 놓은 숫자**가 없어서, 화면이 그 질문에 답할 수 없었다.
+
+    각 단계는 그 단계까지의 총노출(|비중|의 합)이다:
+      budget_raw  상한 전 배분 예산의 합
+      budget      종목당 상한(3/n)을 넘친 몫을 버린 뒤의 예산 합
+      signal      × 모델 신호 크기
+      risk        × 브레이크 × 변동성 타깃 × 실적 가드 (게이트 전)
+      gated       × 검증 게이트, 켈리 상한 → 본 계좌의 목표
+      applied     정수 주·종목 상한을 맞춘 실제 노출
+    ⚠️ risk는 1을 넘을 수 있다 — 목표 변동성까지 키운 **희망치**이고, 실제
+       계좌는 빚을 못 내므로 뒤 단계에서 깎인다. 넘었다는 사실 자체가 답의
+       일부다(위험 예산은 남는데 다른 장치가 막고 있다).
+    """
+    def tot(d):
+        return round(sum(abs(float(v)) for v in d.values()), 4)
+
+    sig = {k: abs(float(w)) * slices.get(k, 1.0 / n) for k, w in weights.items()}
+    risk = {k: abs(float(w)) * eff_scale * vscale * guard_damp.get(k, 1.0)
+            * slices.get(k, 1.0 / n) for k, w in weights.items()}
+    gated = {k: _final_weight(float(w), eff_scale=eff_scale, vscale=vscale,
+                              guard=guard_damp.get(k, 1.0),
+                              valid=valid_damp.get(k, 1.0),
+                              kcap=kelly_caps.get(k),
+                              slice_=slices.get(k, 1.0 / n))
+             for k, w in weights.items()}
+    applied = tot(fitted)
+    # 게이트는 **실제로 곱한 배수**로 센다 — 등급 이름(통과·경고·미측정·만료·
+    # 심사 전·실패)으로 세면 '미측정'이 통과처럼 보인다(배수는 경고와 같은
+    # 절반인데). 현금에 닿는 것은 이름이 아니라 배수다.
+    scales = [float(valid_damp.get(k, 1.0)) for k in weights]
+    return {
+        "budget_raw": tot({k: raw_slices.get(k, 0.0) for k in weights}),
+        "budget": tot({k: slices.get(k, 0.0) for k in weights}),
+        "signal": tot(sig),
+        "risk": tot(risk),
+        "gated": tot(gated),
+        "applied": applied,
+        "cash": round(max(0.0, 1.0 - sum(float(v) for v in fitted.values())), 4),
+        "gate_counts": {"full": sum(1 for x in scales if x >= 1.0),
+                        "partial": sum(1 for x in scales if 0.0 < x < 1.0),
+                        "zero": sum(1 for x in scales if x <= 0.0)},
+        "deferred_lots": len(deferred or {}),
+        "symbols": len(weights),
+        "cap": round(3.0 / n, 4) if n else None,
+    }
+
+
+def _safe_waterfall(**kw) -> dict | None:
+    """진단이 장부 기록을 막으면 안 된다 — 실패는 None(그날 칸이 빈다)."""
+    try:
+        return cash_waterfall(**kw)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("현금 단계 계산 실패(기록은 계속): %s", exc)
+        return None
+
+
 def _fit_to_budget(targets: dict, prices: dict, equity: float,
                    cap: float = 1.0, conviction: dict | None = None,
                    ) -> tuple[dict, dict]:
@@ -2408,9 +2492,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     budget = sum(slices.get(k, 1.0 / n) for k in weights)
     tilted = {k: slices.get(k, 1.0 / n) * tilt.get(k, 1.0) for k in weights}
     tot = sum(tilted.values())
+    # 상한을 걸기 **전**의 예산 — "넘쳐서 버린 몫"을 재려면 이것이 있어야
+    # 한다(감사 332: 그 몫이 매일 자본의 절반 안팎이었는데 장부에 없었다).
+    raw_slices = dict(slices)
     if budget > 0 and tot > 0:
         cap = 3.0 / n
-        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}
+        raw_slices = {k: v * budget / tot for k, v in tilted.items()}
+        slices = {k: min(v, cap) for k, v in raw_slices.items()}
 
     # 무제약 그림자(2026-08-19, 사장님 지시) — 같은 신호·같은 배분에
     # 안전장치(변동성 타깃·킬스위치·게이트·켈리)만 뗀 가상 계좌.
@@ -2488,12 +2576,33 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         않았다** — 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리
         종목이 매일 그대로 굴러갔다. quant/live/validation_gate.py 참조.
         """
-        eff = (w * eff_scale * vscale * guard_damp.get(key, 1.0)
-               * valid_damp.get(key, 1.0))
-        kcap = kelly_caps.get(key)
-        if kcap is not None:
-            eff = float(np.clip(eff, -kcap, kcap))
-        return eff * slices.get(key, 1.0 / n)
+        return _final_weight(
+            w, eff_scale=eff_scale, vscale=vscale,
+            guard=guard_damp.get(key, 1.0), valid=valid_damp.get(key, 1.0),
+            kcap=kelly_caps.get(key), slice_=slices.get(key, 1.0 / n))
+
+    # 넘친 예산 재분배 그림자(감사 332, 2026-10-06 사장님 "둘 다 진행") —
+    # 같은 신호·같은 안전장치에 **예산 상한 초과분 처리만** 다르게 한 가상
+    # 계좌 둘. 본 계좌 회차에서만 돈다(대조군 신호가 섞이면 안 된다).
+    if use_champions:
+        try:
+            from quant.live.budget_shadow import run_budget_shadow
+
+            def _final_for(key: str, w: float, slice_: float,
+                           vs: float) -> float:
+                return _final_weight(
+                    w, eff_scale=eff_scale, vscale=vs,
+                    guard=guard_damp.get(key, 1.0),
+                    valid=valid_damp.get(key, 1.0),
+                    kcap=kelly_caps.get(key), slice_=slice_)
+
+            run_budget_shadow(bar=bar, weights=weights,
+                              raw_slices=raw_slices, cap=3.0 / n,
+                              rets_map=rets_map, tgt_vol=tgt_vol,
+                              final=_final_for, marks=marks,
+                              state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("예산 재분배 그림자 실패(본 계좌 무관): %s", exc)
 
     # 예산에 맞춰 실현 가능한 비중으로 바꾼다(정수 주 내림 · 못 사면 미룸 ·
     # 남은 예산은 살 수 있는 종목에 재배분) — 2026-08-12 운영자 결정.
@@ -2840,6 +2949,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "alloc": {k: round(v, 4) for k, v in slices.items()},
               "applied": applied or None,
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
+              # 현금이 왜 이만큼 남았나 — 단계별 총노출(감사 332).
+              "cash_waterfall": _safe_waterfall(
+                  weights=weights, raw_slices=raw_slices, slices=slices,
+                  eff_scale=eff_scale, vscale=vscale, guard_damp=guard_damp,
+                  valid_damp=valid_damp, kelly_caps=kelly_caps,
+                  fitted=fitted_w, n=n, valid_grades=valid_grades,
+                  deferred=deferred_lots),
               # 포트폴리오 변동성 타깃의 흔적 — 총노출이 왜 이 크기인지의 답.
               # proven=False면 게이트가 검증 목표를 상한으로 잠근 상태다.
               "vol_target": {
@@ -3659,6 +3775,13 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["market_beta"] = market_beta_public(state_dir)
     except Exception:  # noqa: BLE001
         status["market_beta"] = None
+
+    # 현금이 남는 이유 · 넘친 예산 재분배 그림자(감사 332). 실패는 None.
+    try:
+        from quant.live.budget_shadow import budget_shadow_public
+        status["budget_shadow"] = budget_shadow_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["budget_shadow"] = None
 
     # 저명 투자자 13F(감사 331, 사장님: "홈페이지 각 페이지들에 보여야 해")
     # — 모든 페이지가 이 한 칸을 읽는다. 수집 상태도 함께 싣는다.

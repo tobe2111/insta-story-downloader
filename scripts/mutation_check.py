@@ -143,9 +143,9 @@ MUTATIONS = [
     ("한 종목 과집중 상한(3/n)을 푼다",
      "quant/live/daily.py",
      "        cap = 3.0 / n\n"
-     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "        raw_slices = {k: v * budget / tot for k, v in tilted.items()}",
      "        cap = 1e9\n"
-     "        slices = {k: min(v * budget / tot, cap) for k, v in tilted.items()}",
+     "        raw_slices = {k: v * budget / tot for k, v in tilted.items()}",
      "tests/test_risk_limits_are_wired_to_the_batch.py"),
 
     # ── 위험 한도(돈이 실제로 움직이는 경로) ──
@@ -4037,8 +4037,8 @@ MUTATIONS = [
 
     ("켈리 상한 clip을 지운다(무효화)",
      "quant/live/daily.py",
-     "        kcap = kelly_caps.get(key)\n        if kcap is not None:\n            eff = float(np.clip(eff, -kcap, kcap))",
-     "        kcap = kelly_caps.get(key)\n        if kcap is not None:\n            pass",
+     "    if kcap is not None:\n        eff = float(np.clip(eff, -kcap, kcap))",
+     "    if kcap is not None:\n        pass",
      "tests/test_guards_actually_bind.py"),
 
     ("데이터 무결성 게이트를 끈다",
@@ -4194,8 +4194,8 @@ MUTATIONS = [
 
     ("검증 게이트를 최종 비중에서 뗀다(경보만 울리던 시절로 복귀)",
      "quant/live/daily.py",
-     "               * valid_damp.get(key, 1.0))",
-     "               * 1.0)",
+     "            guard=guard_damp.get(key, 1.0), valid=valid_damp.get(key, 1.0),",
+     "            guard=guard_damp.get(key, 1.0), valid=1.0,",
      "tests/test_the_validation_gate_actually_gates.py"),
 
     ("만료를 실패보다 먼저 본다(오래된 '버릴 것'이 오히려 덜 깎인다)",
@@ -6238,6 +6238,27 @@ MUTATIONS = [
      "    for stamp, eq in sorted(points, key=lambda p: _instant(p[0])):",
      "    for stamp, eq in sorted(points, key=lambda p: str(p[0])):",
      "tests/test_following_the_market_is_measured_not_claimed.py"),
+    # ── 현금이 남는 이유 · 넘친 예산 재분배 그림자 (2026-10-06 감사 332) ──
+    ("재분배가 상한을 무시한다 — 다시 나눈 예산이 한 종목에 몰린다",
+     "quant/live/budget_shadow.py",
+     "        over = [k for k, v in free.items() if v * scale >= cap - 1e-15]",
+     "        over = []",
+     "tests/test_the_cash_left_over_is_explained.py"),
+    ("재분배가 배분 방식이 0을 준 종목에도 나눠 준다 — 배분 판단을 뒤집는다",
+     "quant/live/budget_shadow.py",
+     "    free = {k: v for k, v in pos.items() if v > 0}",
+     "    free = {k: (v or 1e-3) for k, v in pos.items()}",
+     "tests/test_the_cash_left_over_is_explained.py"),
+    ("그림자의 1봉 지연을 없앤다 — 오늘 목표로 오늘 수익을 번다(미래 참조)",
+     "quant/live/budget_shadow.py",
+     "        pw = a.get(\"prev_weights\") or {}",
+     "        pw = {}",
+     "tests/test_the_cash_left_over_is_explained.py"),
+    ("현금 단계표가 게이트를 배수가 아니라 개수로 센다 — '미측정'이 통과로 보인다",
+     "quant/live/daily.py",
+     "        \"gate_counts\": {\"full\": sum(1 for x in scales if x >= 1.0),",
+     "        \"gate_counts\": {\"full\": len(scales),",
+     "tests/test_the_cash_left_over_is_explained.py"),
     # ── 실적 가드가 아무것도 모른다 (2026-08-19 감사 289) ────────────
     ("발표일 조회가 왜 실패했는지를 안 남긴다 — '못 받았다'가 '없다'로 굳는다",
      "quant/data/earnings.py",

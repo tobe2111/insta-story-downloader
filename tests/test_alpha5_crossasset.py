@@ -110,7 +110,14 @@ def test_fetch_failure_leaves_df_unchanged():
         raise RuntimeError("네트워크 죽음")
     df = _df()
     out = attach_cross_asset(df, "us_stock", "AAPL", fetch=fetch)
-    assert list(out.columns) == list(df.columns)
+    # 13F 겹쳐 담기(x_guru13f)는 **네트워크가 아니라 저장소의 13F 캐시**에서
+    # 온다(감사 330). 2026-10-04 밤부터 그 캐시가 실제로 채워져(감사 331 수집
+    # 복구) 이 열이 붙기 시작했다 — 조회 실패와 무관한 열이다. 이 검사가
+    # 지키는 것은 "조회가 죽으면 조회로 만드는 열은 안 붙는다"이다.
+    from quant.strategies.ml import UNMETERED_OPTIONAL
+    extra = set(out.columns) - set(df.columns)
+    assert extra <= UNMETERED_OPTIONAL, sorted(extra)
+    assert list(out.columns)[:len(df.columns)] == list(df.columns)
 
 
 # ── ④ ML 통합 — x_ 자동 포함 + 펀딩 변화 ───────────────────────

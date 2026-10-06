@@ -109,18 +109,21 @@ def test_guard_is_wired_after_the_scaler():
     src = (root / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
     assert "guard_damp[key] = ef" in src
 
+    # 식은 2026-10-06(감사 332)부터 `_final_weight` 한 곳에 있다(본 계좌와
+    # 넘친 예산 그림자가 같은 식을 쓴다). ① 본 계좌가 가드를 그 식에 넘기는가
     body = src[src.index("def _target_w("):]
-    body = body[:body.index("\n    # 예산에 맞춰")]
-    # 설명(docstring)이 아니라 식 자체를 본다 — 주석에 이름이 있다고 곱해지는
-    # 것은 아니다.
-    expr = next(ln for ln in body.splitlines() if "eff = " in ln and "*" in ln)
-    tail = body[body.index(expr):]
-    tail = tail[:tail.index("kcap")]
-    for token in ("w", "eff_scale", "vscale", "guard_damp.get(key, 1.0)"):
-        assert token in tail, f"{token}가 최종 비중 계산에서 빠졌다:\n{tail}"
-    assert tail.index("vscale") < tail.index("guard_damp"), (
+    body = body[:body.index("\n    # 넘친 예산")]
+    assert "_final_weight(" in body and "guard=guard_damp.get(key, 1.0)" in body, (
+        "본 계좌의 목표가 실적 가드를 최종 식에 넘기지 않는다\n" + body)
+    # ② 그 식이 가드를 스케일러 **뒤에** 곱하는가 — 설명이 아니라 식 자체를 본다
+    fn = src[src.index("def _final_weight("):]
+    fn = fn[:fn.index("\ndef ")]
+    expr = next(ln for ln in fn.splitlines() if "eff = " in ln and "*" in ln)
+    for token in ("w", "eff_scale", "vscale", "guard"):
+        assert token in expr, f"{token}가 최종 비중 계산에서 빠졌다:\n{expr}"
+    assert expr.index("vscale") < expr.index("guard"), (
         "실적 가드가 변동성 스케일러보다 앞에 걸렸다 — 스케일러가 되돌려 키운다\n"
-        + tail)
+        + expr)
 
 
 def test_per_symbol_path_actually_halves_the_recorded_weight(monkeypatch,
