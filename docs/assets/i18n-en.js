@@ -465,6 +465,84 @@
       "(최대 3배). 예측이 자신 없는 날은":
         "(3x maximum). On days the prediction is not confident it stays at",
 
+      // ── 현금이 남는 이유 · 넘친 예산 재분배 그림자 — 2026-10-06(감사 332) ───
+      "넘친 예산 재분배 그림자":
+        "Overflow-budget redistribution shadow",
+      "(2026-10-06 등록) — 본 계좌는 한 종목이 받을 수 있는 배분 예산에 상한을 두고,":
+        "(registered 2026-10-06) — the main account caps the allocation budget a single symbol can receive, and",
+      "넘친 몫을 버립니다":
+        "discards whatever overflows",
+      ". 그 몫이 매일 자본의 절반 안팎이었습니다. 같은 신호·같은 안전장치에":
+        ". That share has been around half of capital every day. With the same signals and the same safeguards, two virtual accounts that differ",
+      "넘친 몫의 처리만":
+        "only in how the overflow is handled",
+      "다른 가상 계좌 둘(버림 vs 상한에 안 걸린 종목에 다시 나눔)을 나란히 굴립니다. 판정일":
+        "(discard vs. redistribute to symbols below the cap) run side by side. Verdict date",
+      "(시작 + 120일) · 단일 비교(짝지어 비교) · 재분배가 이겨도":
+        "(start + 120 days) · single comparison (paired) · even if redistribution wins,",
+      "최대낙폭이 버림 쪽의 1.5배를 넘으면 채택 보류":
+        "adoption is withheld if its max drawdown exceeds 1.5× the discard account's",
+      ". 이겨도 본 계좌 적용은 자동이 아닙니다.":
+        ". Even a win is not applied to the main account automatically.",
+      "열 실험 모두(2026-10-06 ⑩ 추가로 아홉에서 열이 됐습니다), 기준 미달의 결과는 같습니다:":
+        "For all ten experiments (nine became ten when ⑩ was added on 2026-10-06), falling short of the bar has the same outcome:",
+      "종목별 배분 예산(상한 전)":
+        "Allocation budget per symbol (before the cap)",
+      "종목당 상한을 넘친 몫을 버린 뒤":
+        "After discarding what overflows the per-symbol cap",
+      "모델 신호 크기를 곱하면":
+        "Times the model's signal size",
+      "목표 변동성까지 키우면(브레이크·실적 가드 포함)":
+        "Scaled up to the volatility target (incl. brakes and earnings guard)",
+      "검증 관문·켈리 상한을 지나면":
+        "After the validation gate and Kelly cap",
+      "1주 단위·종목 상한을 맞춘 실제 투자":
+        "Actually invested, after whole shares and per-symbol caps",
+      "버림(지금 규칙)":
+        "Discard (current rule)",
+      "다시 나눔":
+        "Redistribute",
+      "현금이 왜 이만큼 남았나 — 투자 비중이 줄어드는 단계":
+        "Why this much cash — the steps that shrink the invested share",
+      "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다.":
+        "Each row is the invested share (of equity) left after that step.",
+      "투자 비중":
+        "Invested share",
+      "현금으로 남은 몫":
+        "Left as cash",
+      "검증 관문":
+        "Validation gate",
+      "비중 줄임":
+        "weight reduced",
+      "그대로":
+        "unchanged",
+      "비중 0으로":
+        "weight set to 0",
+      "1주 값이 배정 예산보다 비싸 오늘 못 산 종목":
+        "Symbols not bought today because one share costs more than their budget",
+      "목표 변동성 단계가 100%를 넘을 수 있습니다 — 위험 예산은 남는데 다른 장치(검증 관문·종목 상한)가 막고 있다는 뜻이고, 계좌는 빚을 내지 않으므로 실제로는 100%를 넘지 않습니다.":
+        "The volatility-target step can exceed 100% — it means risk budget is left over but other safeguards (the validation gate, per-symbol caps) are holding it back; the account never borrows, so the actual figure never exceeds 100%.",
+      "검증 관문은 과최적화 검사를 통과하지 못한 규칙에 작게 거는 안전장치입니다 — 실력이 입증되면 저절로 풀립니다.":
+        "The validation gate is a safeguard that bets small on rules that haven't passed the overfitting checks — it lifts by itself once skill is proven.",
+      "넘친 예산을 버리지 않고 다시 나누면? — 가상 계좌 둘":
+        "What if the overflowing budget were redistributed instead of discarded? — two virtual accounts",
+      "이 비교는 등록일(2026-10-06) 밤 배치부터 기록됩니다.":
+        "This comparison is recorded starting with the nightly batch on its registration date (2026-10-06).",
+      "평균 배분 예산":
+        "Avg. allocation budget",
+      "평균 투자 비중":
+        "Avg. invested share",
+      "다시 나눔 − 버림, 하루 평균":
+        "Redistribute − discard, daily average",
+      "같은 신호·같은 안전장치에 넘친 예산의 처리만 다른 가상 계좌 둘입니다. 판정 전의 차이는 운일 수 있습니다 — 판정은 등록된 날에 등록된 기준으로만 합니다.":
+        "Two virtual accounts with the same signals and the same safeguards, differing only in what happens to the overflowing budget. Differences before the verdict may be luck — the verdict is made only on the registered date by the registered criteria.",
+      "단계":
+        "Step",
+      "관측":
+        "observations",
+      "판정일":
+        "Verdict date",
+
       // ── 13F 전 페이지 카드 · 시장 민감도 — 2026-10-01(감사 331) ───
       "저명 투자자 13F — 큰손들이 공시한 미국주식 보유":
         "Famous-investor 13F — the US stock holdings big investors disclose",

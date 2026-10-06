@@ -66,7 +66,14 @@ def test_every_public_payload_names_its_cost_basis(tmp_path):
                                   marks={k: 1.0}, n_total=1, state_dir=str(tmp_path))
     diversity_shadow.run_diversity_shadow(bar="2026-09-01", pairs={k: (1.0, 1.0)},
                                           marks={k: 1.0}, state_dir=str(tmp_path))
-    for name, pub in (("gen2", gen2.gen2_public), ("unshackled", unshackled.unshackled_public),
+    from quant.live import budget_shadow
+    budget_shadow.run_budget_shadow(
+        bar="2026-09-01", weights={k: 1.0}, raw_slices={k: 1.0}, cap=1.0,
+        rets_map={k: pd.Series([0.001] * 60)}, tgt_vol=0.1,
+        final=lambda key, w, s, vs: w * s, marks={k: 1.0},
+        state_dir=str(tmp_path))
+    for name, pub in (("budget_shadow", budget_shadow.budget_shadow_public),
+                      ("gen2", gen2.gen2_public), ("unshackled", unshackled.unshackled_public),
                       ("alloc_ladder", alloc_ladder.ladder_public),
                       ("diversity", diversity_shadow.diversity_public)):
         d = pub(str(tmp_path))

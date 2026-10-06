@@ -193,15 +193,22 @@ def test_the_damping_reaches_the_final_target_weight():
         "검증 게이트가 최종 비중 계산에 곱해지지 않는다 — 계산만 하고 버린다")
     # 설명(docstring)이 아니라 **식 자체**를 본다. 주석에 이름이 있다고
     # 곱해지는 것은 아니다.
+    # 식은 2026-10-06(감사 332)부터 `_final_weight` 한 곳에 있다 — 본 계좌와
+    # 넘친 예산 그림자가 같은 식을 쓰게 하려고 꺼냈다. 그래서 두 가지를 본다:
+    # ① 본 계좌의 목표(_target_w)가 게이트를 그 식에 **넘기는가**
     body = src[src.index("def _target_w("):]
     body = body[:body.index("\n    # 예산에 맞춰")]
-    expr = next(ln for ln in body.splitlines() if "eff = " in ln and "*" in ln)
-    tail = body[body.index(expr):]
-    tail = tail[:tail.index("kcap")]
-    assert "vscale" in tail and "valid_damp" in tail, tail
-    assert tail.index("vscale") < tail.index("valid_damp"), (
+    call = body[:body.index("\n    # 넘친 예산")]
+    assert "_final_weight(" in call and "valid=valid_damp.get(key, 1.0)" in call, (
+        "본 계좌의 목표가 게이트를 최종 식에 넘기지 않는다\n" + call)
+    # ② 그 식이 게이트를 변동성 타깃 **뒤에** 곱하는가
+    fn = src[src.index("def _final_weight("):]
+    fn = fn[:fn.index("\ndef ")]
+    expr = next(ln for ln in fn.splitlines() if "eff = " in ln and "*" in ln)
+    assert "vscale" in expr and "valid" in expr, expr
+    assert expr.index("vscale") < expr.index("valid"), (
         "검증 감쇠가 변동성 타깃보다 앞에 걸렸다 — 스케일러가 되돌려 키운다\n"
-        + tail)
+        + expr)
 
 
 def test_the_gate_is_built_for_every_traded_symbol():
