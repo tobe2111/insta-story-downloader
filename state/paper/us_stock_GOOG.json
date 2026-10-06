@@ -2,7 +2,7 @@
   "cash": 8452.614951944717,
   "quantity": 4.625063657038069,
   "avg_price": 339.23810239847114,
-  "last_bar": "2026-10-02 00:00:00",
+  "last_bar": "2026-10-05 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -1576,11 +1576,59 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-05",
+      "price": 343.8299865722656,
+      "weight": 0.089,
+      "held_weight": 0.1583,
+      "fractional_lot": false,
+      "equity": 10042.85,
+      "return_pct": 0.43,
+      "hit_rate": 0.5220994475138122,
+      "hit_n": 362,
+      "hit_lo": 0.47068042314560643,
+      "hit_hi": 0.5730543516859053,
+      "hit_conclusive": false,
+      "live_hit": 0.42105263157894735,
+      "live_hit_n": 19,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "fast": 20,
+        "slow": 60
+      },
+      "reason": "매수 +9% — 이동평균 교차: 20일선이 60일선 아래 (하락/횡보 추세 판단) · 🏛 의회 운용: ma_cross 41% + ml 34% + bollinger 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 339.209991,
+        "bar": "2026-10-05 00:00:00",
+        "weight": 0.1125,
+        "decided_bar": "2026-10-02 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "9cc17c1b5408",
+      "data_sha256": "c24ab90fb4b6ed2d904d88b83e215d6f0addb095a7aac5c8b526a2e2476b7555",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1042,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1125,
-    "decided_bar": "2026-10-02 00:00:00"
+    "weight": 0.089,
+    "decided_bar": "2026-10-05 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOG",

@@ -1,8 +1,8 @@
 {
-  "cash": 4292.240147668489,
-  "quantity": 60.79601924904907,
-  "avg_price": 89.73820714982621,
-  "last_bar": "2026-10-02 00:00:00",
+  "cash": 9730.219124224706,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-10-05 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1437,11 +1437,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-05",
+      "price": 89.1500015258789,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9730.22,
+      "return_pct": -2.7,
+      "hit_rate": 0.5389221556886228,
+      "hit_n": 167,
+      "hit_lo": 0.4632921246441509,
+      "hit_hi": 0.6128017541301055,
+      "hit_conclusive": false,
+      "live_hit": 0.25,
+      "live_hit_n": 20,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 50% + ml 28% + expiry_week 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 89.5,
+        "bar": "2026-10-05 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-02 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "9cc17c1b5408",
+      "data_sha256": "ec050925faafb1aa1f09c7c4ddb58b1fb0f27f46b9c9512332dccc39a9cbc44a",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.42852844227920117,
+      "drift_psi": 0.3789,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-10-02 00:00:00"
+    "decided_bar": "2026-10-05 00:00:00"
   },
   "market": "us_stock",
   "symbol": "VNQ",
