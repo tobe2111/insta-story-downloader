@@ -1,8 +1,8 @@
 {
-  "cash": 9771.130145122683,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-10-02 00:00:00",
+  "cash": 8094.404212219631,
+  "quantity": 0.4096911415655746,
+  "avg_price": 4090.0,
+  "last_bar": "2026-10-06 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1395,11 +1395,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.3981
+    },
+    {
+      "date": "2026-10-06",
+      "price": 4135.0,
+      "weight": 0.0,
+      "held_weight": 0.1731,
+      "fractional_lot": true,
+      "equity": 9788.48,
+      "return_pct": -2.12,
+      "hit_rate": 0.6078431372549019,
+      "hit_n": 51,
+      "hit_lo": 0.4708491122516505,
+      "hit_hi": 0.7297285514197229,
+      "hit_conclusive": false,
+      "live_hit": 0.18181818181818182,
+      "live_hit_n": 11,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "isotonic"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 39% + ml 34% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 4090.0,
+        "bar": "2026-10-06 00:00:00",
+        "weight": 0.1716,
+        "decided_bar": "2026-10-02 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "7a33749f606c",
+      "data_sha256": "e7cf30b5e723f4eb57e62a2cd5206b2a1a0957167f24c58da38e377e0fd8c823",
+      "env": "py3.12.15|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.45711500974658864,
+      "drift_psi": 0.258,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1716,
-    "decided_bar": "2026-10-02 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-06 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "228790.KS",
