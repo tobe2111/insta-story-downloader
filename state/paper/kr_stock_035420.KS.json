@@ -2,7 +2,7 @@
   "cash": 9229.820741801557,
   "quantity": 0.003954468169077723,
   "avg_price": 192800.0,
-  "last_bar": "2026-10-06 00:00:00",
+  "last_bar": "2026-10-07 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -1879,11 +1879,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-07",
+      "price": 189000.0,
+      "weight": 0.0,
+      "held_weight": 0.0749,
+      "fractional_lot": true,
+      "equity": 9977.22,
+      "return_pct": -0.23,
+      "hit_rate": 0.4957983193277311,
+      "hit_n": 119,
+      "hit_lo": 0.4075121652496596,
+      "hit_hi": 0.5843472699905197,
+      "hit_conclusive": false,
+      "live_hit": 0.36363636363636365,
+      "live_hit_n": 22,
+      "live_hit_flat": 0,
+      "hit_flat": 3,
+      "champion": {
+        "rsi_period": 2,
+        "entry": 10.0,
+        "exit_ma": 5,
+        "trend_window": 200
+      },
+      "reason": "관망 (현금) — connors_rsi2 전략 신호에 따름 · 🏛 의회 운용: connors_rsi2 43% + ml 31% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 191300.0,
+        "bar": "2026-10-07 00:00:00",
+        "weight": 0.046,
+        "decided_bar": "2026-10-06 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "b028759c212d",
+      "data_sha256": "36d0094471f018c6f2d4440351c8a33ca0bd337fd1ed7b1d6728261c770af314",
+      "env": "py3.12.14|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1874,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.046,
-    "decided_bar": "2026-10-06 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-07 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "035420.KS",
