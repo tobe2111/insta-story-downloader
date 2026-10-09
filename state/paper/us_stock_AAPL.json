@@ -2,7 +2,7 @@
   "cash": 8571.147047879524,
   "quantity": 4.106542124867273,
   "avg_price": 336.3539352902131,
-  "last_bar": "2026-10-07 00:00:00",
+  "last_bar": "2026-10-08 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -2061,11 +2061,64 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4174
+    },
+    {
+      "date": "2026-10-08",
+      "price": 340.4200134277344,
+      "weight": 0.1012,
+      "held_weight": 0.1402,
+      "fractional_lot": false,
+      "equity": 9969.1,
+      "return_pct": -0.31,
+      "hit_rate": 0.5740740740740741,
+      "hit_n": 108,
+      "hit_lo": 0.4798501364705287,
+      "hit_hi": 0.6632093333510761,
+      "hit_conclusive": false,
+      "live_hit": 0.5384615384615384,
+      "live_hit_n": 26,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "isotonic",
+        "label": "triple"
+      },
+      "reason": "매수 +10% — 그라디언트부스팅 모델이 내일 상승확률을 약 68%로 추정(기준 55% 초과) · 참고: 전 종목 합산으로 모델이 68%±10%p라 말한 208번의 실제 상승 비율 45% (95% 신뢰구간 38%~52% · 보합 6일 포함 · 봉이 빠진 69번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 38% + ml 36% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 336.820007,
+        "bar": "2026-10-08 00:00:00",
+        "weight": 0.1115,
+        "decided_bar": "2026-10-07 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "3ab674dfe5a9",
+      "data_sha256": "d78fc36372809e88ab2105250941c9d710212ef8d6479d2977c1af180488727b",
+      "env": "py3.12.15|np2.5.3|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.6826267056530214,
+      "drift_psi": 0.2352,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4322
     }
   ],
   "pending": {
-    "weight": 0.1115,
-    "decided_bar": "2026-10-07 00:00:00"
+    "weight": 0.1012,
+    "decided_bar": "2026-10-08 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",
