@@ -7,6 +7,7 @@
     TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   (텔레그램 봇)
     SLACK_WEBHOOK_URL                       (슬랙 Incoming Webhook)
     DISCORD_WEBHOOK_URL                     (디스코드 채널 웹훅)
+    ALERT_GITHUB_TOKEN, GITHUB_REPOSITORY   (깃허브 이슈 '경보함' — 감사 336)
 설정된 채널만 자동으로 활성화되며, 콘솔 알림은 항상 켜져 있다.
 모든 전송 오류는 삼켜서(swallow) 알림 실패가 매매를 멈추지 않게 한다.
 다만 **삼키되 숨기지는 않는다** — send()는 성공 여부를 bool로 돌려준다.
@@ -103,6 +104,56 @@ class DiscordNotifier(Notifier):
             return False
 
 
+class GitHubIssueNotifier(Notifier):
+    """깃허브 이슈 **'경보함'** 하나에 댓글로 쌓는다 (감사 336).
+
+    왜 또 하나의 채널인가 — 2026-10-04~09, dead man's switch가 **매일**
+    디스코드로 "재학습 커밋이 없다"고 울렸는데 아무도 안 읽었다(감사 334
+    정정). 경보가 문밖으로 나가는 것과 **사람이 읽는 것**은 다른 사건이다.
+    깃허브는 저장소 주인에게 이슈·멘션을 **이메일로** 보낸다 — 사장님이
+    이미 매일 보는 곳이다. 토큰은 워크플로가 매번 새로 받는 것
+    (`github.token`)이라 사람이 붙일 비밀이 없다.
+
+    열려 있는 경보함이 있으면 댓글을 달고, 없으면 새로 연다(주인 멘션 포함).
+    사장님이 읽고 이슈를 닫으면 다음 경보가 새 경보함을 연다 — **닫는 것이
+    곧 '읽었다'는 표시**다.
+    """
+
+    TITLE = "🚨 자동매매 경보함"
+
+    def __init__(self, token: str, repo: str, owner: str | None = None):
+        self.token = token
+        self.repo = repo
+        self.owner = owner or repo.split("/")[0]
+
+    def _h(self) -> dict:
+        return {"Authorization": f"Bearer {self.token}",
+                "Accept": "application/vnd.github+json",
+                "content-type": "application/json"}
+
+    def send(self, message: str, level: str = "info") -> bool:
+        from quant.utils.http import get_json
+        api = f"https://api.github.com/repos/{self.repo}"
+        body = f"@{self.owner} {message}"[:60000]
+        try:
+            found = get_json(f"{api}/issues?state=open&per_page=50", self._h())
+            num = next((i.get("number") for i in (found or [])
+                        if isinstance(i, dict) and i.get("title") == self.TITLE
+                        and "pull_request" not in i), None)
+            if num:
+                post_json(f"{api}/issues/{num}/comments", self._h(), {"body": body})
+            else:
+                post_json(f"{api}/issues", self._h(),
+                          {"title": self.TITLE,
+                           "body": "자동매매 시스템이 사람에게 알려야 할 일이 생기면 "
+                                   "여기에 쌓입니다. 읽고 처리했으면 이 이슈를 "
+                                   "닫아 주세요 — 다음 경보가 새로 엽니다.\n\n" + body})
+            return True
+        except Exception as exc:  # noqa: BLE001
+            log.warning("깃허브 경보함 실패: %s", _redact(exc))
+            return False
+
+
 class DeferredNotifier(Notifier):
     """보내지 않고 **대기열에 쌓는다** — 커밋이 끝난 뒤에 나간다 (감사 287).
 
@@ -193,6 +244,13 @@ def get_notifier() -> Notifier:
     if discord:
         channels.append(DiscordNotifier(discord))
         log.info("디스코드 알림 활성화")
+
+    gh_token = os.getenv("ALERT_GITHUB_TOKEN")
+    gh_repo = os.getenv("GITHUB_REPOSITORY")
+    if gh_token and gh_repo:
+        channels.append(GitHubIssueNotifier(gh_token, gh_repo,
+                                            os.getenv("GITHUB_REPOSITORY_OWNER")))
+        log.info("깃허브 경보함 활성화")
 
     # 미루는 밤이면 **바깥으로 나가는 채널을 대기열로 바꾼다**(감사 287).
     # 콘솔은 그대로 둔다 — 배치 로그에는 그대로 찍혀야 무슨 일이 있었는지

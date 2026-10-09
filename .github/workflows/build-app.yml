@@ -28,6 +28,7 @@ on:
 
 permissions:
   contents: write   # Release 생성/자산 업로드에 필요
+  issues: write    # 경보함 이슈(감사 336)
 
 jobs:
   build:
@@ -320,6 +321,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      issues: write
     # build 잡과 같은 규칙 — 파이썬을 쓰는 잡에는 잡 단위로 UTF-8을 건다.
     # (계약 검사가 이 누락을 바로 잡아냈다 — 규칙이 사람 기억에만 있으면
     #  새 잡을 만들 때 또 빠진다는 것을 방금 내가 증명한 셈이다.)
@@ -369,9 +371,21 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           MSG="🚨 [Quant] 릴리스 ${{ steps.ver.outputs.version }} 자산 누락 — draft로 보류했습니다. 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$ALERT_GITHUB_TOKEN" ]; then
+            # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
+            # 2026-10-04~09에 매일 울렸지만 아무도 안 읽었다.
+            export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+            N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+            if [ -n "$N" ]; then
+              gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            fi
+          fi
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             curl -s -H "Content-Type: application/json" \
               -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true

@@ -30,6 +30,7 @@ concurrency:
 
 permissions:
   contents: write
+  issues: write    # 경보함 이슈(감사 336)
 
 jobs:
   guard:
@@ -52,6 +53,7 @@ jobs:
         # 배치가 죽었을 때를 위한 것이라, 배치의 알림 채널과 독립이어야 한다.
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m quant guard --state-dir state

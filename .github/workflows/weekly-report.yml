@@ -21,6 +21,7 @@ on:
 # 장부를 읽어 알림만 보낸다 — 쓰기 권한이 필요 없다.
 permissions:
   contents: read
+  issues: write    # 경보함 이슈(감사 336)
 
 jobs:
   weekly:
@@ -52,6 +53,7 @@ jobs:
       - name: 주간 건강 보고서 발송
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -76,6 +78,7 @@ jobs:
         continue-on-error: true      # 이 관찰값 실패가 주간 보고를 막지 않는다
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -101,8 +104,20 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
         run: |
           MSG="🚨 [Quant] 주간 보고서 실패 ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$ALERT_GITHUB_TOKEN" ]; then
+            # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
+            # 2026-10-04~09에 매일 울렸지만 아무도 안 읽었다.
+            export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+            N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+            if [ -n "$N" ]; then
+              gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            fi
+          fi
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             curl -s -H "Content-Type: application/json" \
               -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true

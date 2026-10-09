@@ -73,6 +73,37 @@ ASSET_CLASS = {
 }
 CLASSES = ("crypto", "equity", "rates", "real", "fx")
 
+# ── 넓은 ETF 목록(감사 336 ③) — **규칙으로 정한** 거래 후보 ───────────────
+#
+# 지금 40종목은 사람이 하나씩 고른 것이라 생존 편향이 있다(오늘 살아 있고
+# 잘 나간 종목). 여기는 반대로 "자산군마다 가장 크고 오래된 상장지수펀드"라는
+# 규칙으로 고른다 — 미국 상장, 2012년 이전 상장, 하루 거래대금이 큰 것.
+# 그래서 개별 회사가 아니라 **시장 전체의 조각**이고, 망한 회사가 빠지는
+# 문제가 거의 없다. 자산군은 위험 예산의 단위다.
+BROAD_ETFS = {
+    # 미국 주식(지수·업종)
+    "SPY": "equity", "QQQ": "equity", "IWM": "equity", "MDY": "equity",
+    "XLK": "equity", "XLF": "equity", "XLE": "equity", "XLV": "equity",
+    "XLI": "equity", "XLP": "equity", "XLU": "equity", "XLY": "equity",
+    "XLB": "equity", "VNQ": "equity", "IBB": "equity", "SMH": "equity",
+    # 해외 주식
+    "EFA": "equity", "EEM": "equity", "EWJ": "equity", "VGK": "equity",
+    "EWZ": "equity", "FXI": "equity", "EWY": "equity", "EWT": "equity",
+    "EWA": "equity", "EWC": "equity", "EWG": "equity", "EWU": "equity",
+    "INDA": "equity",
+    # 채권(국채·물가채·회사채·신흥국)
+    "SHY": "rates", "IEF": "rates", "TLT": "rates", "TIP": "rates",
+    "LQD": "rates", "HYG": "rates", "EMB": "rates", "BWX": "rates",
+    "MUB": "rates",
+    # 실물(귀금속·원자재)
+    "GLD": "real", "SLV": "real", "DBC": "real", "USO": "real",
+    "UNG": "real", "DBA": "real", "DBB": "real",
+    # 통화
+    "UUP": "fx", "FXE": "fx", "FXY": "fx", "FXF": "fx", "FXA": "fx",
+}
+for _t, _c in BROAD_ETFS.items():
+    ASSET_CLASS.setdefault(f"us_stock:{_t}", _c)
+
 
 def asset_class(key: str) -> str:
     if key in ASSET_CLASS:
@@ -340,3 +371,88 @@ FUTURES_VARIANTS = {
 
 def variant_config(name: str | None) -> TrendConfig:
     return TrendConfig(**({**VARIANTS, **FUTURES_VARIANTS}.get(name or "", {})))
+
+
+# ── 두 번째 수익원: 종목 간 상대 강세(횡단면 모멘텀) — 감사 336 ─────────
+#
+# 추세추종은 "이 자산이 오르고 있나"(시계열)를 본다. 이것은 "같은 날 여럿 중
+# 누가 더 센가"(횡단면)를 본다. 두 효과는 문헌에서 따로 측정되고(Jegadeesh·
+# Titman 1993; Asness·Moskowitz·Pedersen 2013 "Value and Momentum Everywhere"),
+# 서로 완전히 겹치지 않는다 — 섞으면 횡보장 손실을 일부 덜어 준다.
+#
+# 규칙(문헌 관례값): 12개월 수익에서 최근 1개월을 뺀 값(최근 1개월은 되돌림이
+# 있어 뺀다)으로 줄 세워 **상위 ¼**만, 그중 **절대 수익도 양수**인 것만(이중
+# 모멘텀 — 다 같이 빠지는 장에서 '덜 빠진 것'을 사지 않는다) 역변동성으로 담는다.
+# 월 1회. 롱/현금만.
+XS_LOOKBACK = 252
+XS_SKIP = 21
+XS_TOP = 0.25
+
+
+def xsmom_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.DataFrame:
+    cfg = cfg or TrendConfig()
+    rets = closes.pct_change(fill_method=None)
+    mom = closes.shift(XS_SKIP) / closes.shift(XS_LOOKBACK) - 1.0
+    vol = rets.ewm(halflife=cfg.vol_halflife, min_periods=cfg.vol_halflife
+                   ).std() * np.sqrt(PERIODS)
+    out = pd.DataFrame(0.0, index=closes.index, columns=closes.columns)
+    for i, day in enumerate(closes.index):
+        m = mom.loc[day].dropna()
+        v = vol.loc[day]
+        m = m[v.reindex(m.index).notna() & (v.reindex(m.index) > 0)]
+        if len(m) < 4:
+            continue
+        k = max(1, int(round(len(m) * XS_TOP)))
+        pick = m.sort_values(ascending=False).iloc[:k]
+        pick = pick[pick > 0]                         # 이중 모멘텀
+        if pick.empty:
+            continue
+        w = (1.0 / v[pick.index])
+        w = w / w.sum()
+        win = rets.iloc[max(0, i - cfg.cov_window + 1): i + 1][list(w.index)]
+        cov = win.cov() * PERIODS
+        if cov.isna().values.any():
+            cov = pd.DataFrame(np.diag(v[w.index] ** 2), index=w.index,
+                               columns=w.index)
+        ex = float(np.sqrt(max(w.values @ cov.values @ w.values, 0.0)))
+        if ex > 0:
+            w = w * (cfg.target_vol / ex)
+        w = w.clip(upper=cfg.asset_cap)
+        if w.sum() > cfg.max_gross:
+            w = w * (cfg.max_gross / w.sum())
+        out.loc[day, w.index] = w.values
+    return out
+
+
+def blend_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None,
+                  share: float = 0.5) -> pd.DataFrame:
+    """추세(시계열)와 상대 강세(횡단면)를 **위험 기준 반반**으로 섞는다.
+
+    두 소매(sleeve)는 각자 목표 변동성으로 만든 뒤 반씩 더한다 — 둘의 상관이
+    1보다 낮으면 섞은 쪽 변동성이 목표보다 작아지므로, 그만큼 다시 키우되
+    빚은 안 낸다(총노출 ≤ max_gross).
+    """
+    cfg = cfg or TrendConfig()
+    a = target_weights(closes, cfg)
+    b = xsmom_weights(closes, cfg)
+    w = a * (1 - share) + b * share
+    rets = closes.pct_change(fill_method=None)
+    out = w.copy()
+    for i, day in enumerate(closes.index):
+        row = w.loc[day]
+        row = row[row != 0]
+        if row.empty:
+            continue
+        win = rets.iloc[max(0, i - cfg.cov_window + 1): i + 1][list(row.index)]
+        cov = win.cov() * PERIODS
+        if cov.isna().values.any():
+            continue
+        ex = float(np.sqrt(max(row.values @ cov.values @ row.values, 0.0)))
+        if ex <= 0:
+            continue
+        r = (row * (cfg.target_vol / ex)).clip(upper=cfg.asset_cap)
+        if r.sum() > cfg.max_gross:
+            r = r * (cfg.max_gross / r.sum())
+        out.loc[day] = 0.0
+        out.loc[day, r.index] = r.values
+    return out
