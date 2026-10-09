@@ -31,6 +31,7 @@ on:
 # 저장소를 읽기만 한다 — 이 잡은 아무것도 커밋하지 않는다.
 permissions:
   contents: read
+  issues: write    # 경보함 이슈(감사 336)
 
 jobs:
   sweep:
@@ -110,6 +111,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
         run: |
           # ⚠️ 2026-08-22 감사 301 — 예전엔 이 자리에 **한 문장**만 있었다:
           #    "안전장치 중 일부가 지금 아무도 안 지키고 있다."
@@ -127,6 +129,17 @@ jobs:
           MSG=$(printf '🚨 [Quant] 변이 전수 실패 (%s)\n%s\n로그: %s' \
                        "$(date -u +%F)" "$DETAIL" "$RUN_URL")
           export MSG
+          if [ -n "$ALERT_GITHUB_TOKEN" ]; then
+            # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
+            # 2026-10-04~09에 매일 울렸지만 아무도 안 읽었다.
+            export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+            N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+            if [ -n "$N" ]; then
+              gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            fi
+          fi
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             # ⚠️ 본문에 줄바꿈·따옴표가 들어가므로 JSON은 **손으로 짜지
             #    않는다.** 예전 한 줄짜리 메시지에서는 문제가 없었지만, 여러

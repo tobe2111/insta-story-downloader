@@ -34,6 +34,7 @@ on:
 
 permissions:
   contents: read
+  issues: write    # 경보함 이슈(감사 336)
 
 jobs:
   check:
@@ -99,11 +100,23 @@ jobs:
         if: failure() || cancelled()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MISSING: ${{ steps.probe.outputs.missing }}
         run: |
           MSG="🚨 [Quant] dead man's switch — 지난 24시간 내 [${MISSING:-확인 불가}] 기록 커밋 없음. 새벽 배치가 실행되지 않았거나 푸시에 실패했습니다. 확인: https://github.com/${{ github.repository }}/actions"
+          if [ -n "$ALERT_GITHUB_TOKEN" ]; then
+            # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
+            # 2026-10-04~09에 매일 울렸지만 아무도 안 읽었다.
+            export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+            N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+            if [ -n "$N" ]; then
+              gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            fi
+          fi
           if [ -n "$DISCORD_WEBHOOK_URL" ]; then
             curl -s -H "Content-Type: application/json" \
               -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true

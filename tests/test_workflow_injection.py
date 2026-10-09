@@ -107,7 +107,12 @@ def test_read_only_workflows_stay_read_only():
     import yaml
     for name in ("ci.yml", "report.yml", "weekly-report.yml", "deadman.yml"):
         d = yaml.safe_load((WF / name).read_text("utf-8"))
-        assert d["permissions"] == {"contents": "read"}, name
+        # 감사 336: 경보함(깃허브 이슈)에 쓸 권한만 예외로 허용한다 —
+        # 저장소 내용은 여전히 읽기 전용이다.
+        perms = dict(d["permissions"])
+        if perms.get("issues") == "write":
+            perms.pop("issues")
+        assert perms == {"contents": "read"}, name
 
 
 def test_no_workflow_prints_a_secret():
