@@ -6280,6 +6280,17 @@ MUTATIONS = [
      "        parts.append((r > 0).astype(float).where(r.notna()))",
      "        parts.append(np.sign(r).where(r.notna()))",
      "tests/test_the_trend_core_engine.py"),
+    # ── 경보가 사람이 읽는 곳에 닿는다 (2026-10-09 감사 336) ───────────
+    ("경보함 실패를 '보냈다'로 적는다 — 그 경보는 다시 오지 않는다",
+     "quant/live/notifications.py",
+     '            log.warning("깃허브 경보함 실패: %s", _redact(exc))\n            return False',
+     '            log.warning("깃허브 경보함 실패: %s", _redact(exc))\n            return True',
+     "tests/test_the_alarm_reaches_a_reader.py"),
+    ("열린 경보함이 있어도 매번 새 이슈를 연다",
+     "quant/live/notifications.py",
+     "            if num:",
+     "            if False:",
+     "tests/test_the_alarm_reaches_a_reader.py"),
     # ── 무거운 종목 하나가 밤을 죽이지 못한다 (2026-10-09 감사 334) ──────
     ("후보 사이의 시간 관문을 뺀다 — 무거운 종목 하나가 잡 한도를 넘겨 밤을 통째로 잃는다",
      "quant/live/retrain.py",
