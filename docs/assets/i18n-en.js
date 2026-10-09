@@ -586,6 +586,10 @@
         "From 2026-10-10 the main account runs on a trend-following core (a rule that looks at each asset's recent trend, holds only what is rising and steps into cash on what is falling). So the three experiments that use the main account as their yardstick (intraday 1-hour bars · US intraday · gen-2 concentration) have their yardstick change midway. Their verdict dates, statistics and thresholds stay as they are; at verdict time we publish the main-account period split into before and after the engine change — we will not pick one side and call it a win.",
       "오늘 비중은 추세 코어가 정했습니다 — 아래 단계표는 이전 체계(챔피언)의 계산으로, 참고용입니다.":
         "Today's weights were set by the trend core — the step table below is the previous (champion) system's calculation, for reference only.",
+      "지금은 추세추종 엔진으로 오를 때만 삽니다(내림 추세는 현금).":
+        "Right now the trend-following engine only buys on the way up (downtrends go to cash).",
+      "2026-10-10부터 이 계좌는 추세추종 엔진이 비중을 정합니다. 장기 검증(2014~2026)에서 내림에 거는 것(숏)을 함께 쓴 쪽이 더 나빴기 때문에 숏은 쓰지 않습니다.":
+        "From 2026-10-10 the trend-following engine sets this account's weights. In the long-history test (2014–2026) the version that also bet on falls (shorts) did worse, so shorts are not used.",
       // ── 13F 흐름·검증 — 2026-10-06(감사 333) ───
       "▲ 직전 분기보다 새로 담거나 늘린 투자자 수 · ▼ 줄이거나 판 투자자 수":
         "▲ investors who newly bought or added since the previous quarter · ▼ investors who trimmed or sold",

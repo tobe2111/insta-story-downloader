@@ -124,3 +124,52 @@ def test_the_live_engine_follows_the_last_friday_like_the_backtest(tmp_path):
     rec = _run(tmp_path, {"engine": "trend_core", "variant": "risk12"})
     day = pd.Timestamp(rec["engine"]["target_day"])
     assert day.weekday() == 4, "검증은 금요일 종가 목표로 매매했다 — 실계좌도 같아야 한다"
+
+
+# ── 선물 트랙 배선(감사 335 ②) ─────────────────────────────────────
+def test_futures_core_targets_are_equity_fractions_not_confidence_leverage():
+    from quant.live import futures_challenger as F
+    st = {"cash": 10_000.0, "positions": {}, "avg_cost": {}}
+    trades = F.execute_targets(st, {"BTC/USDT": 0.9}, {"BTC/USDT": 50_000.0},
+                               10_000.0, 0.0015, ["BTC/USDT"], max_gross=3.0,
+                               target_fracs={"BTC/USDT": 0.30})
+    assert trades and abs(trades[0]["notional"] - 3_000.0) < 1e-6
+
+
+def test_futures_core_follows_the_switch(tmp_path, monkeypatch):
+    from quant.live import futures_challenger as F
+    import quant.data as D
+    assert F._futures_core(str(tmp_path), ["BTC/USDT"], {"BTC/USDT": 1.0}) is None
+
+    class _P:
+        def get_ohlcv(self, sym, tf, limit=0):
+            s = _prices(n=400, drift=0.003, seed=4)
+            return pd.DataFrame({"close": s})
+    monkeypatch.setattr(D, "get_provider", lambda m: _P())
+    (tmp_path / "engine.json").write_text(
+        json.dumps({"futures_variant": "fut_long20"}), "utf-8")
+    core = F._futures_core(str(tmp_path), ["BTC/USDT"], {"BTC/USDT": 1.0})
+    assert core and core["variant"] == "fut_long20"
+    assert core["weights"]["BTC/USDT"] > 0
+    assert pd.Timestamp(core["target_day"]).weekday() == 4
+
+
+def test_the_live_switch_points_at_the_validated_variants():
+    import pathlib
+    eng = json.loads(pathlib.Path("state/engine.json").read_text("utf-8"))
+    assert eng["engine"] == "trend_core" and eng["variant"] in T.VARIANTS
+    assert eng["futures_variant"] in T.FUTURES_VARIANTS
+    assert not T.variant_config(eng["futures_variant"]).allow_short, \
+        "검증에서 양방향은 판정 구간 샤프 ≤ 0이었다"
+
+
+def test_a_midweek_day_uses_last_fridays_target(tmp_path):
+    """수요일에 돌아도 목표는 지난 금요일 것 — 검증과 같은 주 1회 매매."""
+    from quant.live.daily import _core_targets
+    (tmp_path / "engine.json").write_text(
+        json.dumps({"engine": "trend_core", "variant": "risk12"}), "utf-8")
+    s = _prices(n=600, drift=0.002, start="2024-01-01")
+    s = s[s.index <= "2025-08-13"]               # 2025-08-13은 수요일
+    assert s.index[-1].weekday() == 2
+    core = _core_targets(str(tmp_path), {"us_stock:SPY": s}, {"us_stock:SPY": 1.0})
+    assert core["target_day"] == "2025-08-08" and core["asof"] == "2025-08-13"

@@ -433,11 +433,16 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
        없을 때는 **다른 사건**이라 문장도 달라야 한다.
        숫자는 태그 안에 가둔다(영어 사전이 마디로 찾는다). */
     var sh=d.shortable||{}, canShort=(sh.n==null)||Number(sh.n)>0;
-    var head=(g.two_sided===false)
+    var head=d.engine
+      ? '<b class="down">지금은 추세추종 엔진으로 오를 때만 삽니다(내림 추세는 현금).</b>'
+      : (g.two_sided===false)
       ? '<b class="down">지금은 오를 때만 삽니다.</b>'
       : (canShort
          ? '<b>지금은 오를 때와 내릴 때 모두 겁니다.</b>'
          : '<b class="down">내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다.</b>');
+    if(d.engine){
+      head+='<div class="sub" style="margin-top:4px">2026-10-10부터 이 계좌는 추세추종 엔진이 비중을 정합니다. 장기 검증(2014~2026)에서 내림에 거는 것(숏)을 함께 쓴 쪽이 더 나빴기 때문에 숏은 쓰지 않습니다.</div>';
+    }
     var frac=(sh.of==null)?'':
       '<div class="sub" style="margin-top:4px">'+
       '내림에 걸 수 있는 종목: <b>'+Number(sh.n||0)+' / '+Number(sh.of||0)+'</b>'+
