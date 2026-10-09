@@ -4010,7 +4010,7 @@ MUTATIONS = [
 
     ("체결 기록에서 배분 슬라이스를 다시 빼먹는다(주문≠장부)",
      "quant/live/daily.py",
-     '"weight": round(float(pend["weight"]) * sl, 4),',
+     '"weight": round(want_w, 4),',
      '"weight": round(float(pend["weight"]), 4),',
      "tests/test_fill_records_match_the_orders.py"),
 
