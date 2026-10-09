@@ -681,6 +681,35 @@ def _audition_kwargs_from_record(rec: dict) -> dict:
 SELECT_SCREEN_T = 1.0
 
 
+# ── 종목 **안**의 시간 관문 (2026-10-09 감사 334) ────────────────────────
+#
+# ⚠️ 이어달리기의 예산은 **종목 사이에서만** 검사했다. 그런데 한 종목이 혼자
+#    잡 한도를 넘으면 잡이 통째로 취소되고, 그날 돈 종목의 기록도 **다음 밤의
+#    시작 지점(커서)도** 저장되지 않는다. 그러면 다음 밤은 같은 순서로 같은
+#    종목에서 또 죽는다 — 끝나지 않는 고리다.
+#
+#    실측: 2026-10-05부터 10회 연속 취소(5밤). XLP 챔피언이 앙상블('vote' +
+#    등위 보정)이라 후보 하나에 28~55초, 53개면 약 35분 — 명단 16분째에 그
+#    종목에 닿으면 45분 한도를 넘는다. 그동안 오디션 0회, 13F 조회 0회였고,
+#    경보는 `failure()`에만 걸려 있어 '취소'에는 **울리지 않았다.**
+#
+#    그래서 후보를 하나 돌기 전마다 한 번 더 본다. 넘었으면 그 종목은 **아무
+#    것도 쓰지 않고** 멈추고(반쪽 오디션으로 승격을 결정하지 않는다), 배치는
+#    지금까지 돈 것을 저장한 뒤 내일 그 종목부터 시작한다.
+HARD_MARGIN_SEC = 540              # 예산 뒤 여유 — 잡 45분 − 예산 30분 − 커밋 몫
+_HARD_DEADLINE: list = [None]       # time.monotonic() 기준 · None이면 검사 안 함
+
+
+class BudgetCut(Exception):
+    """종목을 도는 도중 시간 관문에 걸렸다 — 실패가 아니라 '오늘은 못 돈 것'."""
+
+
+def _check_hard_deadline() -> None:
+    import time as _time
+    if _HARD_DEADLINE[0] is not None and _time.monotonic() > _HARD_DEADLINE[0]:
+        raise BudgetCut("종목 도중 시간 관문")
+
+
 def effective_select_t(select_t: float, confirm_t: float,
                        clamp_screen: bool = True) -> float:
     """**실제로 적용되는** 선발 문턱 — 계산하는 곳은 여기 하나뿐이다.
@@ -847,6 +876,7 @@ def nightly_retrain(
         if (full_spec["strategy"] == champion_spec["strategy"]
                 and full_spec["params"] == champion_spec.get("params", {})):
             continue                            # 챔피언 자신과의 대결은 무의미
+        _check_hard_deadline()                  # 아래 try 밖 — 삼켜지면 안 된다
         try:
             cc = ChampionChallenger(
                 build(champion_spec), build(full_spec),
@@ -2739,7 +2769,13 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
 
     ok, promoted, failed, skipped = [], [], {}, []
     deadline = (_time.monotonic() + budget) if budget else None
+    # 종목 안의 관문(감사 334) — 잡 한도(45분)보다 앞서, 커밋·경보가 돌 몫을 남긴다.
+    # 기본: 예산 + 9분(1800초 예산이면 단계 시작 39분째). 잡은 45분에 죽는다.
+    hard = float(os.environ.get("QUANT_RETRAIN_HARD_SEC") or 0) or (
+        (budget + HARD_MARGIN_SEC) if budget else None)
+    _HARD_DEADLINE[0] = (_time.monotonic() + hard) if hard else None
     not_reached: list[str] = []
+    budget_cut: dict = {}
     # 패널 재료 수집기 — 종목을 도는 동안 **설정별로** 초과수익 계열을 쌓는다.
     # ⚠️ 이어달리기 때문에 하룻밤에 전 종목을 못 돈다(시간 예산). 그래서
     #    패널에 서는 종목 수는 그날 실제로 돈 종목 수이고, 장부에 그 숫자를
@@ -2793,6 +2829,25 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             elif out.get("direction_probe_skipped"):
                 direction_long_only.append(key)
             panel_asof = max(panel_asof, str(out.get("asof") or ""))
+        except BudgetCut:
+            # ⚠️ 첫 종목이 잘렸다면 그 종목은 **빈 밤 전체로도** 못 돈다 —
+            #    그대로 맨 앞에 두면 매일 같은 자리에서 잘려 나머지가 영영
+            #    굶는다. 그때만 맨 뒤로 보내고 경보 재료를 남긴다.
+            rest = [_key(m, s) for m, s in targets[idx + 1:]]
+            if idx == 0:
+                not_reached = rest + [key]
+                budget_cut = {"key": key, "too_heavy": True}
+            else:
+                not_reached = [key] + rest
+                budget_cut = {"key": key, "too_heavy": False}
+            log.warning("시간 관문 — %s 도중 멈춤(%s). 지금까지 돈 %d종목을 "
+                        "저장하고 내일 이어서 돈다.", key,
+                        "빈 밤 전체로도 못 도는 종목 — 맨 뒤로" if idx == 0
+                        else "내일 맨 앞", len(ok) + len(skipped))
+            print(f"⏳ {key}: 시간 관문에 걸려 도중에 멈췄습니다 — 기록하지 않고 "
+                  + ("맨 뒤로 보냅니다(빈 밤 전체로도 못 돕니다)" if idx == 0
+                     else "내일 먼저 돕니다"))
+            break
         except Exception as exc:  # noqa: BLE001
             failed[key] = str(exc)
             log.warning("재학습 실패 %s: %s", key, exc)
@@ -2804,7 +2859,8 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             atomic_write_json(cursor_path, {
                 "next_key": not_reached[0] if not_reached else None,
                 "not_reached": not_reached,
-                "budget_sec": budget})
+                "budget_sec": budget,
+                **({"budget_cut": budget_cut} if budget_cut else {})})
         except Exception:  # noqa: BLE001 — 커서 실패가 재학습을 못 죽인다
             log.warning("재학습 커서 저장 실패")
     # 패널 관문 — 그 밤의 판정을 장부에 남긴다. **승격에는 이미 걸려 있다**
@@ -2866,9 +2922,11 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     #    예산에 걸려 끊긴 종목은 실패도 건너뜀도 아니라, 명단이 없으면
     #    세 칸 어디에도 안 들어가고 밤이 깨끗하게 끝난 것처럼 보인다
     #    (실측 2026-09-01: 명단 40 · 심사 24 · 실패 0 · 건너뜀 0).
+    _HARD_DEADLINE[0] = None
     _write_run_health(state_dir, "retrain", ok, failed, skipped=skipped,
                       stale=stale_targets(skipped, state_dir),
-                      roster=[_key(m, s) for m, s in targets])
+                      roster=[_key(m, s) for m, s in targets],
+                      budget_cut=budget_cut or None)
     # ⚠️ 건너뜀은 실패가 아니다 — 예비(재시도) 크론은 정상적으로 전 종목을
     #    건너뛴다. `not ok`만 보면 그 실행이 매번 잡을 빨갛게 만든다.
     # ⚠️ **못 돈 것도 실패가 아니다**(2026-09-01, 위 기록을 붙이다 드러났다).
@@ -2878,4 +2936,5 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     if targets and not ok and not skipped and not not_reached:
         raise RuntimeError(f"전 종목 재학습 실패: {failed}")
     return {"ok": ok, "failed": failed, "skipped": skipped,
-            "promoted": promoted, "panel": panel_rec}
+            "promoted": promoted, "panel": panel_rec,
+            "budget_cut": budget_cut or None}

@@ -3230,7 +3230,8 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
                       skipped: list | None = None,
                       stale: dict | None = None,
                       stale_unit: str = "일",
-                      roster: list | None = None) -> None:
+                      roster: list | None = None,
+                      budget_cut: dict | None = None) -> None:
     """새벽 배치의 부분 실패를 장부에 남긴다(사이트·경보가 읽는 재료).
 
     '전부 실패'만 예외로 올리면 절반이 마비된 날이 성공으로 보인다. 실패한
@@ -3365,6 +3366,12 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
         # 배치마다 세는 단위가 다르다 — 재학습은 달력 일수, 페이퍼는 거래일
         # (감사 243). 단위를 안 적으면 화면이 둘을 같은 말로 읽는다.
         entry["stale_unit"] = stale_unit
+    if budget_cut:
+        # 종목 도중 시간 관문(감사 334) — 어느 종목에서 멈췄나, 그리고 그 종목이
+        # 빈 밤 전체로도 못 도는가(too_heavy). 앞의 것은 내일 이어 돌면 되고,
+        # 뒤의 것은 사람이 볼 일이다 — 그 종목은 오디션을 영영 못 받는다.
+        entry["budget_cut"] = {"key": str(budget_cut.get("key")),
+                               "too_heavy": bool(budget_cut.get("too_heavy"))}
     cur[kind] = entry
     atomic_write_json(path, cur)
 
