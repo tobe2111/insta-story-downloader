@@ -293,3 +293,16 @@ def align_business_days(frames: dict) -> pd.DataFrame:
         full = s.reindex(s.index.union(bdays)).ffill()
         out[k] = full.reindex(bdays).where(bdays >= s.index.min())
     return pd.DataFrame(out)
+
+
+# 검증에서 잰 후보들 — 이름으로 부른다(장부·엔진 스위치가 같은 이름을 쓴다).
+VARIANTS = {
+    "risk12": dict(sizing="risk", target_vol=0.12),
+    "risk20": dict(sizing="risk", target_vol=0.20),
+    "notional30": dict(sizing="notional", vol_ref=0.30),
+    "notional50": dict(sizing="notional", vol_ref=0.50),
+}
+
+
+def variant_config(name: str | None) -> TrendConfig:
+    return TrendConfig(**VARIANTS.get(name or "", {}))

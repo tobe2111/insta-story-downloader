@@ -152,6 +152,48 @@ def _safe_waterfall(**kw) -> dict | None:
         return None
 
 
+ENGINE_FILE = "engine.json"
+
+
+def _core_engine(state_dir: str) -> dict | None:
+    """state/engine.json — {"engine": "trend_core", "variant": ...}. 없으면 None."""
+    try:
+        with open(os.path.join(state_dir, ENGINE_FILE), encoding="utf-8") as f:
+            cfg = json.load(f) or {}
+    except (OSError, ValueError):
+        return None
+    return cfg if cfg.get("engine") == "trend_core" else None
+
+
+def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | None:
+    """추세 코어의 오늘 목표 비중. 엔진이 꺼져 있거나 계산이 실패하면 None.
+
+    ⚠️ 실패하면 **챔피언 체계로 돌아간다**(None) — 엔진 오류가 계좌를 전부
+       현금으로 만드는 일은 없게. 그 사실은 로그와 장부(`engine`이 비는 것)로
+       드러난다.
+    """
+    eng = _core_engine(state_dir)
+    if not eng:
+        return None
+    try:
+        from quant.portfolio import trend_core as T
+        cfg = T.variant_config(eng.get("variant"))
+        closes = T.align_business_days(
+            {k: v for k, v in closes_map.items() if k in weights})
+        if closes.empty:
+            return None
+        tgt = T.target_weights(closes, cfg)
+        today = tgt.iloc[-1].fillna(0.0)
+        w = {k: round(float(today.get(k, 0.0)), 6) for k in weights}
+        return {"name": "trend_core", "variant": eng.get("variant"),
+                "asof": str(closes.index[-1].date()),
+                "gross": round(sum(w.values()), 4),
+                "asset_cap": cfg.asset_cap, "weights": w}
+    except Exception as exc:  # noqa: BLE001
+        log.error("추세 코어 계산 실패 — 오늘은 챔피언 체계로 돈다: %s", exc)
+        return None
+
+
 def _fit_to_budget(targets: dict, prices: dict, equity: float,
                    cap: float = 1.0, conviction: dict | None = None,
                    ) -> tuple[dict, dict]:
@@ -1944,6 +1986,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
+    closes_map: dict = {}           # key → 완성 봉 종가 전체 — 추세 코어 재료(감사 335)
     opt_present: dict = {}          # key → 오늘 붙은 선택 피처 목록(건강 기록용)
     opt_thin: dict = {}             # key → 거의 비어 있던 재료(채움률)
     source_fails: dict = {}         # key → {소스: 실패 사유} — '왜 안 붙었나'의 답
@@ -2141,6 +2184,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 공분산도 완성 봉으로 — 진행 중인 봉의 '부분 하루' 수익률이
             # 섞이면 위험 추정이 실제보다 작아진다(같은 이유로 비중이 커진다).
             rets_map[key] = df_sig["close"].pct_change().iloc[-90:]
+            closes_map[key] = df_sig["close"]
             # 체결·평가는 지금 가격(진행 중 봉의 종가 = 현재가)으로 한다.
             #
             # ⚠️ **원화로 환산해서** 담는다(감사 212). 예전에는 달러 표시
@@ -2560,6 +2604,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
              f"{ex_ante * 100:.2f}%" if ex_ante else "추정불가",
              vscale, eff_scale, vol_why)
 
+    # 엔진 스위치(감사 335) — 켜져 있으면 목표 비중을 **추세 코어**가 정한다.
+    # 킬스위치·어드민 배수(eff_scale)는 그대로 곱한다: 낙폭 브레이크는 엔진과
+    # 무관한 안전장치다. 변동성 타깃·검증 게이트·켈리는 걸지 않는다 — 코어가
+    # 자기 변동성 관리를 갖고 있고, 그 위에 또 깎으면 2026-10 실측처럼
+    # 아무것도 안 사는 계좌가 된다.
+    core = _core_targets(state_dir, closes_map, weights) if use_champions else None
+
     def _target_w(key: str, w: float) -> float:
         """그 종목의 최종 목표 비중(부호 포함).
 
@@ -2576,6 +2627,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         않았다** — 문서는 "통과한 전략만 씁니다"라고 말하는 동안 PBO 0.78짜리
         종목이 매일 그대로 굴러갔다. quant/live/validation_gate.py 참조.
         """
+        if core is not None:
+            return float(core["weights"].get(key, 0.0)) * eff_scale
         return _final_weight(
             w, eff_scale=eff_scale, vscale=vscale,
             guard=guard_damp.get(key, 1.0), valid=valid_damp.get(key, 1.0),
@@ -2617,8 +2670,11 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     #  판단되는 최우선 선택을 하는 거지.").
     fitted_w, deferred_lots = _fit_to_budget(
         {k: _target_w(k, w) for k, w in weights.items()},
-        prices, equity, cap=3.0 / n,
-        conviction={k: abs(float(w)) for k, w in weights.items()})
+        prices, equity,
+        cap=(max(3.0 / n, core["asset_cap"]) if core is not None else 3.0 / n),
+        conviction=({k: float(core["weights"].get(k, 0.0)) for k in weights}
+                    if core is not None
+                    else {k: abs(float(w)) for k, w in weights.items()}))
     if deferred_lots:
         log.info("1주 미만이라 오늘 미룬 종목 %d개: %s",
                  len(deferred_lots), ", ".join(sorted(deferred_lots)))
@@ -2949,6 +3005,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "alloc": {k: round(v, 4) for k, v in slices.items()},
               "applied": applied or None,
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
+              # 어느 엔진이 오늘 목표를 정했나(감사 335). None = 챔피언 체계.
+              "engine": ({k: v for k, v in core.items() if k != "weights"}
+                         if core is not None else None),
               # 현금이 왜 이만큼 남았나 — 단계별 총노출(감사 332).
               "cash_waterfall": _safe_waterfall(
                   weights=weights, raw_slices=raw_slices, slices=slices,
