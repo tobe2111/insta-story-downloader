@@ -78,6 +78,10 @@
       var w = row.cash_waterfall;
       card.appendChild(line("sub", ["기준일", " ", {b: row.date}, " · ",
         "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다."]));
+      if (row.engine) {
+        // 엔진 전환(감사 335) — 이 표는 챔피언 체계의 계산이라 오늘 주문과 다르다.
+        card.appendChild(line("sub", ["오늘 비중은 추세 코어가 정했습니다 — 아래 단계표는 이전 체계(챔피언)의 계산으로, 참고용입니다."]));
+      }
       var tw = el("div", "tw");
       var t = el("table");
       var hr = el("tr");

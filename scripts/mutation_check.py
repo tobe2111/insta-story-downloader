@@ -4010,7 +4010,7 @@ MUTATIONS = [
 
     ("체결 기록에서 배분 슬라이스를 다시 빼먹는다(주문≠장부)",
      "quant/live/daily.py",
-     '"weight": round(float(pend["weight"]) * sl, 4),',
+     '"weight": round(want_w, 4),',
      '"weight": round(float(pend["weight"]), 4),',
      "tests/test_fill_records_match_the_orders.py"),
 
@@ -4400,8 +4400,8 @@ MUTATIONS = [
 
     ("주식 대기 주문의 시가 체결을 종가 체결로 바꾼다",
      "quant/live/daily.py",
-     '            key, float(pend["weight"]) * sl, fopen, eq_now,',
-     '            key, float(pend["weight"]) * sl, prices.get(key, fopen), eq_now,',
+     '            key, want_w, fopen, eq_now,',
+     '            key, want_w, prices.get(key, fopen), eq_now,',
      "tests/test_intrabar_next_open.py"),
 
     ("레짐 필터가 판단 근거를 안 남기게 한다(설명이 재계산으로 되돌아감)",
@@ -6259,6 +6259,27 @@ MUTATIONS = [
      "        \"gate_counts\": {\"full\": sum(1 for x in scales if x >= 1.0),",
      "        \"gate_counts\": {\"full\": len(scales),",
      "tests/test_the_cash_left_over_is_explained.py"),
+    # ── 추세 코어 · 근본 점검 (2026-10-09 감사 335) ───────────────────
+    ("국내주식 다음 시가 체결을 정수 주로 안 맞춘다 — 소수 주(살 수 없는 매매)가 장부에 적힌다",
+     "quant/live/daily.py",
+     '    if key.split(":")[0] in FRACTIONAL_MARKETS or equity <= 0 or not price:',
+     "    if True:",
+     "tests/test_the_trend_core_engine.py"),
+    ("실계좌가 검증의 금요일 목표 대신 매일 목표를 따른다 — 검증보다 자주 사고판다",
+     "quant/live/daily.py",
+     "            day = fridays[-1] if len(fridays) else idx[-1]",
+     "            day = idx[-1]",
+     "tests/test_the_trend_core_engine.py"),
+    ("선물 추세 코어 목표를 확신도 배율로 덮어쓴다",
+     "quant/live/futures_challenger.py",
+     "            target = equity * float(target_fracs.get(sym, 0.0))",
+     "            pass",
+     "tests/test_the_trend_core_engine.py"),
+    ("현물 본 계좌가 내림 추세에 숏을 잡는다(현금이어야 한다)",
+     "quant/portfolio/trend_core.py",
+     "        parts.append((r > 0).astype(float).where(r.notna()))",
+     "        parts.append(np.sign(r).where(r.notna()))",
+     "tests/test_the_trend_core_engine.py"),
     # ── 무거운 종목 하나가 밤을 죽이지 못한다 (2026-10-09 감사 334) ──────
     ("후보 사이의 시간 관문을 뺀다 — 무거운 종목 하나가 잡 한도를 넘겨 밤을 통째로 잃는다",
      "quant/live/retrain.py",

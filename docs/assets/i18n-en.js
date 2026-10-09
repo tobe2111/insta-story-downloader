@@ -579,6 +579,17 @@
       // 옛 문구 — 밤 배치가 status.json을 새 문구로 다시 쓰기 전까지 화면에 남는다
       "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
         "It goes in as one input (the number of overlapping investors). Whether to keep or drop it is decided by the nightly audition on results — no person decides 'it must be used'.",
+      // ── 엔진 전환 — 2026-10-09(감사 335) ───
+      "2026-10-09 정정 — 본 계좌의 엔진이 바뀝니다.":
+        "2026-10-09 correction — the main account's engine changes.",
+      "2026-10-10부터 본 계좌는 추세추종 코어(여러 자산의 최근 추세를 보고 오르는 것만 담고 내리는 것은 현금으로 피하는 규칙)로 운용됩니다. 그래서 본 계좌를 비교 기준으로 쓰는 실험 셋(장중 1시간봉 · 미국 장중 · 2세대 집중)은 기준이 중간에 바뀝니다. 판정일·통계·문턱은 그대로 두고, 판정 때 본 계좌 구간을 엔진 전과 후로 나눠 함께 공개합니다 — 어느 한 구간만 골라 이겼다고 말하지 않습니다.":
+        "From 2026-10-10 the main account runs on a trend-following core (a rule that looks at each asset's recent trend, holds only what is rising and steps into cash on what is falling). So the three experiments that use the main account as their yardstick (intraday 1-hour bars · US intraday · gen-2 concentration) have their yardstick change midway. Their verdict dates, statistics and thresholds stay as they are; at verdict time we publish the main-account period split into before and after the engine change — we will not pick one side and call it a win.",
+      "오늘 비중은 추세 코어가 정했습니다 — 아래 단계표는 이전 체계(챔피언)의 계산으로, 참고용입니다.":
+        "Today's weights were set by the trend core — the step table below is the previous (champion) system's calculation, for reference only.",
+      "지금은 추세추종 엔진으로 오를 때만 삽니다(내림 추세는 현금).":
+        "Right now the trend-following engine only buys on the way up (downtrends go to cash).",
+      "2026-10-10부터 이 계좌는 추세추종 엔진이 비중을 정합니다. 장기 검증(2014~2026)에서 내림에 거는 것(숏)을 함께 쓴 쪽이 더 나빴기 때문에 숏은 쓰지 않습니다.":
+        "From 2026-10-10 the trend-following engine sets this account's weights. In the long-history test (2014–2026) the version that also bet on falls (shorts) did worse, so shorts are not used.",
       // ── 13F 흐름·검증 — 2026-10-06(감사 333) ───
       "▲ 직전 분기보다 새로 담거나 늘린 투자자 수 · ▼ 줄이거나 판 투자자 수":
         "▲ investors who newly bought or added since the previous quarter · ▼ investors who trimmed or sold",
