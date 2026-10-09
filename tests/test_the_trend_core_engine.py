@@ -106,3 +106,21 @@ def test_a_broken_engine_falls_back_instead_of_going_to_cash(tmp_path, monkeypat
                         lambda *a, **k: (_ for _ in ()).throw(ValueError("boom")))
     rec = _run(tmp_path, {"engine": "trend_core", "variant": "risk12"})
     assert rec.get("engine") is None
+
+
+# ── 감사 335 점검: 국내주식 다음 시가 체결이 소수 주가 되던 결함 ──────
+def test_a_next_open_korean_fill_is_whole_shares():
+    from quant.live.daily import _whole_lot_weight
+    eq, px = 1_000_000.0, 168_400.0
+    w = _whole_lot_weight("kr_stock:105560.KS", 0.1255, eq, px)
+    assert abs(w * eq / px - round(w * eq / px)) < 1e-9 and round(w * eq / px) == 0
+    w = _whole_lot_weight("kr_stock:105560.KS", 0.40, eq, px)
+    assert round(w * eq / px, 9) == 2.0
+    # 소수점 매매가 되는 시장은 그대로
+    assert _whole_lot_weight("us_stock:SPY", 0.1234, eq, 900_000.0) == 0.1234
+
+
+def test_the_live_engine_follows_the_last_friday_like_the_backtest(tmp_path):
+    rec = _run(tmp_path, {"engine": "trend_core", "variant": "risk12"})
+    day = pd.Timestamp(rec["engine"]["target_day"])
+    assert day.weekday() == 4, "검증은 금요일 종가 목표로 매매했다 — 실계좌도 같아야 한다"

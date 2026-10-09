@@ -152,6 +152,14 @@ def _safe_waterfall(**kw) -> dict | None:
         return None
 
 
+def _whole_lot_weight(key: str, weight: float, equity: float, price) -> float:
+    """정수 주 시장이면 **체결가 기준 정수 주**가 되는 비중으로 내림한다."""
+    if key.split(":")[0] in FRACTIONAL_MARKETS or equity <= 0 or not price:
+        return weight
+    lots = math.floor(abs(weight) * equity / float(price) + 1e-9)
+    return math.copysign(lots * float(price) / equity, weight) if lots else 0.0
+
+
 ENGINE_FILE = "engine.json"
 
 
@@ -183,10 +191,26 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
         if closes.empty:
             return None
         tgt = T.target_weights(closes, cfg)
-        today = tgt.iloc[-1].fillna(0.0)
+        # ⚠️ **검증과 같은 주기로** 고친다 — 검증은 금요일 종가 목표로 주 1회
+        #    매매했다(회전·비용이 그 가정 위에서 나왔다). 매일 그날 목표를
+        #    따르면 같은 엔진이 검증보다 자주 사고팔아 비용이 검증과 갈린다.
+        #    그래서 **가장 최근 금요일**의 목표를 쓴다(월 단위면 그 달 마지막
+        #    영업일 대신 가장 최근 달의 마지막 영업일).
+        idx = tgt.index
+        if cfg.rebalance == "D":
+            day = idx[-1]
+        elif cfg.rebalance == "M":
+            # 끝난 달의 마지막 영업일(이번 달은 아직 안 끝났다)
+            prev = idx[(idx.year * 12 + idx.month) < (idx[-1].year * 12 + idx[-1].month)]
+            day = prev[-1] if len(prev) else idx[-1]
+        else:
+            fridays = idx[idx.weekday == 4]
+            day = fridays[-1] if len(fridays) else idx[-1]
+        today = tgt.loc[day].fillna(0.0)
         w = {k: round(float(today.get(k, 0.0)), 6) for k in weights}
         return {"name": "trend_core", "variant": eng.get("variant"),
                 "asof": str(closes.index[-1].date()),
+                "target_day": str(day.date()),
                 "gross": round(sum(w.values()), 4),
                 "asset_cap": cfg.asset_cap, "weights": w}
     except Exception as exc:  # noqa: BLE001
@@ -2408,8 +2432,15 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         broker.fee = _fill_cost(*key.split(":", 1))
         eq_now = broker.equity({**marks, key: fopen})
         sl = float(pend.get("slice") or (1.0 / n))   # 결정 당시의 ERC 슬라이스
+        want_w = float(pend["weight"]) * sl
+        # ⚠️ **정수 주는 체결가로 다시 맞춘다**(감사 335 점검). 결정 때는
+        #    `_fit_to_budget`가 그날 가격으로 정수 주를 맞추지만, 체결은 **다음
+        #    시가**라 같은 비중 × 다른 가격 = 소수 주가 됐다(실측: 국내주식
+        #    체결 17건 전부 소수 — KB금융 0.745주, KODEX 골드 1.0049주).
+        #    국내 시장은 소수 주를 안 판다. 장부에 없는 매매가 적히던 것이다.
+        want_w = _whole_lot_weight(key, want_w, eq_now, fopen)
         order = broker.target_weight(
-            key, float(pend["weight"]) * sl, fopen, eq_now,
+            key, want_w, fopen, eq_now,
             rebalance_band_rel=_champion_band_rel(key, state_dir))
         if order is None:
             pending.pop(key, None)

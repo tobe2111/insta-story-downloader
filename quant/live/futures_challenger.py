@@ -506,7 +506,9 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
                     per_side: float, universe: list[str] | None = None,
                     max_gross: float = MAX_GROSS_EXPOSURE,
                     bands: dict | None = None,
-                    allow_growth: bool = True) -> list:
+                    allow_growth: bool = True,
+                    target_fracs: dict | None = None,
+                    core_band: float = 0.0) -> list:
     """목표 방향·비중 → 체결. 롱과 숏을 **같은 한 곳**에서 처리한다.
 
     ⚠️ 장중 트랙의 `_execute_targets`를 빌려 오지 않고 여기 따로 둔 이유:
@@ -556,9 +558,16 @@ def execute_targets(st: dict, signals: dict, prices: dict, equity: float,
         # 확신이 없는 날은 1배 그대로다 — 모르는 날에 크게 태우는 것이
         # 이 트랙이 할 수 있는 가장 나쁜 일이다.
         target = slice_budget * float(sig) * leverage_for(sig, max_gross)
+        if target_fracs is not None:
+            # 추세 코어(감사 335 ②) — 목표는 **자산 대비 비중**으로 온다
+            # (배율·방향·크기를 엔진이 이미 정했다). 확신도 배율을 또 곱하지 않는다.
+            target = equity * float(target_fracs.get(sym, 0.0))
         delta = target - cur_notional
         if abs(delta) < max(MIN_TRADE_USDT, MIN_TRADE_FRAC * equity):
             continue
+        if target_fracs is not None and target != 0 and equity > 0 \
+                and abs(delta) / equity < core_band:
+            continue                    # 검증과 같은 무거래 밴드(청산은 예외)
         # 리밸런스 밴드 — 비중 차가 밴드 미만이면 거래하지 않는다.
         #
         # ⚠️ **청산(목표 0)은 밴드와 무관하게 항상 실행한다.** 백테스트
@@ -1020,10 +1029,13 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         log.warning("💸 선물 수수료 예산 초과 — 최근 %d일 %.2f%% > %.2f%% · "
                     "노출 확대를 막는다(축소는 허용)",
                     budget["days"], budget["pct_of_equity"], budget["limit_pct"])
+    core = _futures_core(state_dir, universe, prices)
     trades = execute_targets(st, signals, prices, equity, per_side, universe,
                              max_gross=float(lev_cap["max_leverage"]),
                              bands=bands,
-                             allow_growth=not budget.get("breached"))
+                             allow_growth=not budget.get("breached"),
+                             target_fracs=(core or {}).get("weights"),
+                             core_band=float((core or {}).get("band") or 0.0))
     equity = mark_equity(st, prices) if prices else float(st["cash"])
     # 마지막으로 본 시세를 남긴다 — 종목별 손익을 그리려면 '지금 값'이
     # 있어야 한다. 이번 회차에 못 받은 종목은 **이전 값을 지우지 않는다**
@@ -1085,6 +1097,11 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
     # ⚠️ 넘지 **않은** 회차에도 남긴다. 넘은 회차만 남기면 "예산이 없던 때"와
     #    "예산 안이던 때"가 장부에서 똑같이 보인다.
     rec["fee_budget"] = budget
+    # 어느 엔진이 목표를 정했나(감사 335 ②). None = 챔피언 확신도 방식.
+    rec["engine"] = ({k: v for k, v in core.items() if k != "weights"}
+                     | {"weights": {k: round(float(v), 4)
+                                    for k, v in core["weights"].items()}}
+                     if core else None)
     rec["rebalance_bands"] = {k: round(float(v), 6) for k, v in bands.items()}
     # 실제로 적용된 확신도 배수 — 조용히 꺼지면 여기가 1.0으로 돌아온다.
     if any(v != 1.0 for v in (scales or {}).values()):
@@ -1095,6 +1112,52 @@ def run_futures_round(now_iso: str, *, state_dir: str = "state",
         {"at": now_iso, "equity": round(equity, 4)}]
     save_state(st, state_dir)
     return rec
+
+
+def _futures_core(state_dir: str, universe: list, prices: dict) -> dict | None:
+    """선물 트랙의 추세 코어 목표(자산 대비 비중, 부호 포함). 꺼져 있거나 실패면 None.
+
+    state/engine.json의 ``futures_variant``가 켜는 스위치다(본 계좌와 같은 파일).
+    ⚠️ 시세는 **일봉**으로 따로 받는다 — 회차 시세(짧은 봉)로 12개월 추세를
+       재면 봉 수가 모자라 신호가 비거나, 다른 것을 재게 된다. 검증과 같이
+       **가장 최근 금요일 종가**의 목표를 쓴다.
+    ⚠️ 실패하면 기존 방식으로 돌아간다(None) — 엔진 오류가 포지션을 다 닫는
+       일은 없게. 그 사실은 회차 기록의 ``engine``이 비는 것으로 드러난다.
+    """
+    import json as _json
+    try:
+        with open(os.path.join(state_dir, "engine.json"), encoding="utf-8") as f:
+            variant = (_json.load(f) or {}).get("futures_variant")
+    except (OSError, ValueError):
+        return None
+    if not variant:
+        return None
+    try:
+        from quant.data import get_provider
+        from quant.portfolio import trend_core as T
+        cfg = T.variant_config(variant)
+        frames = {}
+        for sym in universe:
+            if sym not in prices:
+                continue                       # 이번 회차 시세가 없으면 손대지 않는다
+            df = get_provider("crypto").get_ohlcv(sym, "1d", limit=420)
+            if df is None or df.empty or df.attrs.get("synthetic_fallback"):
+                continue
+            frames[sym] = df["close"]
+        if not frames:
+            return None
+        closes = T.align_business_days(frames)
+        tgt = T.target_weights(closes, cfg)
+        fridays = tgt.index[tgt.index.weekday == 4]
+        day = fridays[-1] if len(fridays) else tgt.index[-1]
+        w = {k: float(v) for k, v in tgt.loc[day].fillna(0.0).items()}
+        return {"name": "trend_core", "variant": variant,
+                "target_day": str(day.date()), "band": cfg.band,
+                "gross": round(sum(abs(v) for v in w.values()), 4),
+                "weights": w}
+    except Exception as exc:  # noqa: BLE001
+        log.error("선물 추세 코어 실패 — 이번 회차는 기존 방식: %s", exc)
+        return None
 
 
 def _hours_since(rounds: list, now_iso: str) -> float:
