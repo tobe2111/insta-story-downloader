@@ -80,6 +80,16 @@ def asset_class(key: str) -> str:
     return "crypto" if key.startswith("crypto:") else "equity"
 
 
+def trend_sign(close: pd.Series, lookbacks=LOOKBACKS) -> pd.Series:
+    """여러 기간 수익 **부호의 평균**(−1~1) — 양방향 트랙용. 그날 종가까지만."""
+    parts = []
+    for lb in lookbacks:
+        r = close / close.shift(lb) - 1.0
+        parts.append(np.sign(r).where(r.notna()))
+    s = pd.concat(parts, axis=1)
+    return s.mean(axis=1).where(s.notna().all(axis=1))
+
+
 def trend_score(close: pd.Series, lookbacks=LOOKBACKS) -> pd.Series:
     """각 날짜에서 여러 기간 수익 중 **양수인 비율**(0~1). 그날 종가까지만 본다."""
     parts = []
@@ -109,6 +119,12 @@ class TrendConfig:
     #              vol_ref/σ 만큼 줄인다(코인을 통째로 담지 않는다). 키우지는 않는다.
     sizing: str = "risk"
     vol_ref: float = 0.20
+    # 선물 트랙(감사 335 ②) — 내림 추세에 **숏**을 잡는다. 신호는 여러 기간
+    # 수익 부호의 평균(−1~1). 현물 본 계좌는 False(내림 = 현금).
+    allow_short: bool = False
+    # 보유 비용 — 선물 자금조달(펀딩)을 **롱·숏 모두** 연율로 물린다(보수적:
+    # 실제로는 방향마다 부호가 반대라 한쪽은 받는다). 현물은 0.
+    carry_annual: float = 0.0
 
 
 def target_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.DataFrame:
@@ -118,7 +134,9 @@ def target_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.D
     """
     cfg = cfg or TrendConfig()
     rets = closes.pct_change(fill_method=None)
-    score = pd.DataFrame({k: trend_score(closes[k], cfg.lookbacks)
+    score = pd.DataFrame({k: (trend_sign(closes[k], cfg.lookbacks)
+                              if cfg.allow_short
+                              else trend_score(closes[k], cfg.lookbacks))
                           for k in closes.columns})
     vol = rets.ewm(halflife=cfg.vol_halflife, min_periods=cfg.vol_halflife
                    ).std() * np.sqrt(PERIODS)
@@ -145,10 +163,10 @@ def target_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.D
                 else:
                     raw[k] = per * score.at[day, k] / vol.at[day, k]
         w = pd.Series(raw)
-        if (w <= 0).all():
+        if (w == 0).all():
             continue
         if cfg.sizing == "notional":
-            out.loc[day, w.index] = w.clip(upper=cfg.asset_cap).values
+            out.loc[day, w.index] = w.clip(-cfg.asset_cap, cfg.asset_cap).values
             continue
         # 사전 변동성 — 최근 cov_window일 공분산. 표본이 모자라면 대각 근사.
         win = rets.iloc[max(0, i - cfg.cov_window + 1): i + 1][list(w.index)]
@@ -160,8 +178,8 @@ def target_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.D
         if ex_ante <= 0:
             continue
         w = w * (cfg.target_vol / ex_ante)
-        w = w.clip(upper=cfg.asset_cap)
-        gross = float(w.sum())
+        w = w.clip(-cfg.asset_cap, cfg.asset_cap)
+        gross = float(w.abs().sum())
         if gross > cfg.max_gross:
             w = w * (cfg.max_gross / gross)
         out.loc[day, w.index] = w.values
@@ -214,6 +232,8 @@ def simulate(closes: pd.DataFrame, one_way_cost: dict,
         # ① 오늘 수익은 어제 끝의 보유가 번다(보유는 가격 따라 표류한다)
         r_vec = rets.loc[day]
         port_r = float((held * r_vec).sum())
+        # 선물 보유 비용(펀딩) — 영업일당 연율/252를 총노출에 물린다.
+        port_r -= float(held.abs().sum()) * cfg.carry_annual / PERIODS
         eq *= (1.0 + port_r)
         grown = held * (1.0 + r_vec)
         denom = 1.0 + port_r
@@ -303,6 +323,20 @@ VARIANTS = {
     "notional50": dict(sizing="notional", vol_ref=0.50),
 }
 
+# 선물 트랙 후보(감사 335 ②) — 코인 5종목 · 레버리지 상한 3배(트랙의 기존 한도)
+# · 한 종목 상한 1배 · 펀딩 연 11%를 롱·숏 모두에 물린다(0.01%/8시간, 보수적).
+FUTURES_CARRY = 0.1095
+FUTURES_VARIANTS = {
+    "fut_long20": dict(target_vol=0.20, max_gross=3.0, asset_cap=1.0,
+                       carry_annual=FUTURES_CARRY),
+    "fut_long40": dict(target_vol=0.40, max_gross=3.0, asset_cap=1.0,
+                       carry_annual=FUTURES_CARRY),
+    "fut_ls20": dict(target_vol=0.20, max_gross=3.0, asset_cap=1.0,
+                     allow_short=True, carry_annual=FUTURES_CARRY),
+    "fut_ls40": dict(target_vol=0.40, max_gross=3.0, asset_cap=1.0,
+                     allow_short=True, carry_annual=FUTURES_CARRY),
+}
+
 
 def variant_config(name: str | None) -> TrendConfig:
-    return TrendConfig(**VARIANTS.get(name or "", {}))
+    return TrendConfig(**({**VARIANTS, **FUTURES_VARIANTS}.get(name or "", {})))

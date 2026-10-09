@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - "scripts/trend_core_research.py"
+      - "scripts/trend_futures_research.py"
       - "quant/portfolio/trend_core.py"
       - ".github/workflows/research-trend.yml"
   workflow_dispatch:
@@ -30,5 +31,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-extra.txt
+      - name: Futures (crypto) trend research
+        run: python scripts/trend_futures_research.py
       - name: Long-history trend research
         run: python scripts/trend_core_research.py
