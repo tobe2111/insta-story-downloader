@@ -2474,7 +2474,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         # 요청 수량이 아니라 **실제로 체결된 수량**을 적는다. 부분 체결이
         # 통째로 체결된 것처럼 남으면 금액도 그만큼 부풀려진다.
         fills.append({"key": key, "price": round(fopen, 6), "bar": fbar,
-                      "weight": round(float(pend["weight"]) * sl, 4),
+                      "weight": round(want_w, 4),
                       "side": order.side,
                       "quantity": round(_filled, 10),
                       "amount": round(_filled * float(fopen), 2),
