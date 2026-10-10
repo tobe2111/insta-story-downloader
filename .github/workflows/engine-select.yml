@@ -1,0 +1,97 @@
+name: Engine select (weekly)
+
+# 엔진 자동 선택(감사 341) — 사장님(2026-10-10): "어떤 엔진을 선택할 지는
+# 수익률에 따라서 머신러닝이 결정하는거지". 매주 토요일 01:10 UTC(미국 금요일
+# 장 마감 뒤)에 40종목 장기 시세로 후보 여섯을 재고, 사전 등록 규칙
+# (quant/portfolio/engine_select.py)으로 다음 주 엔진을 정한다.
+# 매일 배치는 400봉만 받아 3년 창·2016년 이후 검증을 할 수 없어 여기서 돈다.
+# 결과(state/engine_select.json)는 **main에서만** 커밋한다 — 브랜치 실행은
+# 로그로만 읽는다.
+on:
+  schedule:
+    - cron: "10 1 * * 6"
+  push:
+    paths:
+      - "quant/portfolio/engine_select.py"
+      - "scripts/engine_select_run.py"
+      - ".github/workflows/engine-select.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write    # 경보함 이슈(감사 336)
+
+concurrency:
+  group: engine-select
+  cancel-in-progress: false
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-extra.txt
+      - name: 엔진 후보 재기 · 고르기
+        run: python scripts/engine_select_run.py | tee engine-select.txt
+      - name: 선택 결과 커밋 (state/engine_select.json)
+        if: success() && github.ref == 'refs/heads/main'
+        run: |
+          if [ -n "$(git status --porcelain state/engine_select.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/engine_select.json
+            git commit -m "주간 엔진 선택: $(date -u +%F) [skip actions]"
+            for i in 1 2 3 4; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                exit 0
+              fi
+              echo "push 경합 — ${i}번째 재시도"; sleep $((i * 5))
+            done
+            echo "::error::4회 재시도에도 push 실패"; exit 1
+          else
+            echo "선택 결과 변화 없음 — 커밋 생략"
+          fi
+      - name: 실패 경보 (디스코드/텔레그램)
+        # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.
+        # 파이썬 의존성 없이 curl만 사용(의존성 설치 전에 죽어도 동작).
+        # 시간 한도로 취소된 잡도 알린다(감사 334) — `failure()`만 걸면 취소에는
+        # 울리지 않아, 재학습이 5밤 연속 시간 초과로 죽는 동안 경보가 0번이었다.
+        if: failure() || cancelled()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          MSG="🚨 [Quant] '${{ github.workflow }}' ${{ job.status == 'cancelled' && '취소(시간 초과?)' || '실패' }} ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          if [ -n "$ALERT_GITHUB_TOKEN" ]; then
+            # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
+            # 2026-10-04~09에 매일 울렸지만 아무도 안 읽었다.
+            export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+            N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+            if [ -n "$N" ]; then
+              gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            else
+              gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+            fi
+          fi
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -s -H "Content-Type: application/json" \
+              -d "{\"content\":\"$MSG\"}" "$DISCORD_WEBHOOK_URL" || true
+          fi
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+              -d chat_id="$TELEGRAM_CHAT_ID" --data-urlencode text="$MSG" || true
+          fi
+          echo "경보 전송 시도 완료 (설정된 채널 없으면 무시)"

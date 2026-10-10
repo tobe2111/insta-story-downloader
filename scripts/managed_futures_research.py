@@ -85,6 +85,9 @@ TRIAL_LEDGER = {
     "audit335_futures": ["fut_long20", "fut_long40", "fut_ls20", "fut_ls40"],
     "audit336": ["A", "B", "C", "D", "A@20"],
     "audit337": ["M1", "M2", "M3", "M4", "M5"],
+    "audit339": ["K1", "K2", "K3"],
+    # 감사 341 — 40종목 위 새 후보 둘(상대 강세·섞음)과 선택 규칙 자체.
+    "audit341": ["xs12", "blend12", "selector"],
 }
 N_TRIALS = sum(len(v) for v in TRIAL_LEDGER.values())
 
