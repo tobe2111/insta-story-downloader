@@ -914,8 +914,8 @@ MUTATIONS = [
 
     ("0주가 된 이유(목표 금액 vs 1주 값)를 안 남긴다",
      "quant/live/daily_live.py",
-     "                if order.status == \"skipped\":",
-     "                if False:",
+     "            if order.status == \"skipped\":",
+     "            if False:",
      "tests/test_live_reports_what_it_actually_bought.py"),
 
     # 감사 137 — 실계좌에서 1주도 못 사는 보유를 장부가 인정하는가.
@@ -1774,8 +1774,8 @@ MUTATIONS = [
 
     ("장부에서 실제 체결 수량 칸을 뺀다(접수만으로 '샀다'가 된다)",
      "quant/live/daily_live.py",
-     '                if order.status not in ("skipped",) and filled <= 0:',
-     "                if False:",
+     '            if order.status not in ("skipped",) and filled <= 0:',
+     "            if False:",
      "tests/test_live_orders_are_hardened.py"),
 
     ("국내주식 주문 규격 선언을 지운다(1주 미만이 그대로 브로커까지 내려감)",
@@ -1859,8 +1859,8 @@ MUTATIONS = [
 
     ("주문 단위 감사 로그 기록을 뺀다(증권사 체결 내역과 대사할 기록이 사라짐)",
      "quant/live/daily_live.py",
-     "                record_order(",
-     "                _ = lambda *a, **k: None; _(",
+     "            record_order(",
+     "            _ = lambda *a, **k: None; _(",
      "tests/test_live_orders_are_hardened.py"),
 
     # 감사 151 — 같은 규칙이 경로마다 달랐다(자동학습 루프).
@@ -6280,6 +6280,17 @@ MUTATIONS = [
      "        parts.append((r > 0).astype(float).where(r.notna()))",
      "        parts.append(np.sign(r).where(r.notna()))",
      "tests/test_the_trend_core_engine.py"),
+    # ── 실거래가 페이퍼와 같은 엔진을 따른다 (2026-10-10 감사 340) ───────
+    ("엔진이 켜져도 실거래가 옛 챔피언 신호로 산다 — 화면과 다른 전략이 실제 돈으로 돈다",
+     "quant/live/daily_live.py",
+     "            if core is not None:\n                # 엔진 목표",
+     "            if False:\n                # 엔진 목표",
+     "tests/test_real_money_follows_the_same_engine.py"),
+    ("실거래가 못 사는 엔진 몫(미국·코인)을 장부에 안 적는다",
+     "quant/live/daily_live.py",
+     '    core["uncovered"] = round(sum(v for k, v in w.items()',
+     '    core["uncovered"] = 0.0 * round(sum(v for k, v in w.items()',
+     "tests/test_real_money_follows_the_same_engine.py"),
     # ── 환전 비용·세금 (2026-10-10 감사 339) ──────────────────────────
     ("미국 종목끼리 갈아탄 몫까지 환전한다 — 회전이 많은 날 환전 비용이 부푼다",
      "quant/live/tax_kr.py",
