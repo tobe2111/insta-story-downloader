@@ -1,0 +1,183 @@
+{
+ "registered_on": "2026-10-10",
+ "asof": "2026-10-09",
+ "data_end": "2026-10-09",
+ "active": "xs12",
+ "active_label": "상대 강세",
+ "previous": "risk12",
+ "switched": true,
+ "since_switch": "2026-10-09",
+ "decision": {
+  "asof": "2026-10-09",
+  "incumbent": "risk12",
+  "choice": "xs12",
+  "table": {
+   "risk12": {
+    "cagr": 10.96,
+    "mdd": -5.21
+   },
+   "risk20": {
+    "cagr": 13.11,
+    "mdd": -6.75
+   },
+   "notional30": {
+    "cagr": 7.27,
+    "mdd": -3.78
+   },
+   "notional50": {
+    "cagr": 9.87,
+    "mdd": -5.25
+   },
+   "xs12": {
+    "cagr": 26.84,
+    "mdd": -16.63
+   },
+   "blend12": {
+    "cagr": 20.87,
+    "mdd": -11.8
+   }
+  },
+  "t": 2.06,
+  "reason": "switch",
+  "best": "xs12"
+ },
+ "gate": {
+  "pass": true,
+  "start": "2016-01-01",
+  "selector": {
+   "cagr": 15.14,
+   "vol": 13.46,
+   "sharpe": 1.12,
+   "mdd": -25.83,
+   "calmar": 0.59,
+   "years": 11.2
+  },
+  "baseline": {
+   "cagr": 6.87,
+   "vol": 5.47,
+   "sharpe": 1.24,
+   "mdd": -14.61,
+   "calmar": 0.47,
+   "years": 11.2
+  },
+  "baseline_name": "risk12",
+  "switches": 1
+ },
+ "candidates": {
+  "risk12": {
+   "label": "위험 균등 · 변동성 12%",
+   "window": {
+    "cagr": 10.96,
+    "mdd": -5.21
+   },
+   "judge": {
+    "cagr": 6.87,
+    "vol": 5.47,
+    "sharpe": 1.24,
+    "mdd": -14.61,
+    "calmar": 0.47,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.82
+  },
+  "risk20": {
+   "label": "위험 균등 · 변동성 20%",
+   "window": {
+    "cagr": 13.11,
+    "mdd": -6.75
+   },
+   "judge": {
+    "cagr": 7.34,
+    "vol": 6.68,
+    "sharpe": 1.09,
+    "mdd": -19.9,
+    "calmar": 0.37,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.764
+  },
+  "notional30": {
+   "label": "금액 균등 · 상한 변동성 30%",
+   "window": {
+    "cagr": 7.27,
+    "mdd": -3.78
+   },
+   "judge": {
+    "cagr": 4.23,
+    "vol": 3.96,
+    "sharpe": 1.07,
+    "mdd": -5.63,
+    "calmar": 0.75,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.586
+  },
+  "notional50": {
+   "label": "금액 균등 · 상한 변동성 50%",
+   "window": {
+    "cagr": 9.87,
+    "mdd": -5.25
+   },
+   "judge": {
+    "cagr": 6.07,
+    "vol": 6.15,
+    "sharpe": 0.99,
+    "mdd": -9.59,
+    "calmar": 0.63,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.607
+  },
+  "xs12": {
+   "label": "상대 강세",
+   "window": {
+    "cagr": 26.84,
+    "mdd": -16.63
+   },
+   "judge": {
+    "cagr": 15.04,
+    "vol": 13.46,
+    "sharpe": 1.11,
+    "mdd": -25.83,
+    "calmar": 0.58,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.67
+  },
+  "blend12": {
+   "label": "추세 + 상대 강세",
+   "window": {
+    "cagr": 20.87,
+    "mdd": -11.8
+   },
+   "judge": {
+    "cagr": 11.55,
+    "vol": 10.0,
+    "sharpe": 1.14,
+    "mdd": -18.51,
+    "calmar": 0.62,
+    "years": 11.2
+   },
+   "cost_pct_yr": 1.131
+  }
+ },
+ "switches_recent": [
+  {
+   "date": "2016-01-04",
+   "from": "risk12",
+   "to": "xs12",
+   "cost_pct": 0.126
+  }
+ ],
+ "rule": {
+  "window_days": 756,
+  "min_hold_days": 63,
+  "t_switch": 1.35,
+  "mdd_floor_pct": -40.0,
+  "objective": "cagr_net"
+ },
+ "cost_basis": {
+  "fx_spread": 0.0025,
+  "one_way": "measured_cost_model"
+ }
+}
