@@ -3462,6 +3462,9 @@ def _write_run_health(state_dir: str, kind: str, ok: list, failed: dict,
         # 뒤의 것은 사람이 볼 일이다 — 그 종목은 오디션을 영영 못 받는다.
         entry["budget_cut"] = {"key": str(budget_cut.get("key")),
                                "too_heavy": bool(budget_cut.get("too_heavy"))}
+        if budget_cut.get("died"):
+            # 관문이 아니라 잡 한도가 죽인 것(감사 338) — 다음 회차가 흔적으로 안다.
+            entry["budget_cut"]["died"] = True
     cur[kind] = entry
     atomic_write_json(path, cur)
 
