@@ -2756,14 +2756,33 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
     state_dir = kwargs.get("state_dir", STATE_DIR)
     cursor_path = os.path.join(state_dir, "retrain_cursor.json")
     start = 0
+    died_heavy: dict = {}
     if budget:
         try:
             with open(cursor_path, encoding="utf-8") as f:
-                last_key = json.load(f).get("next_key")
+                cur = json.load(f)
+            last_key = cur.get("next_key")
             keys = [_key(m, s) for m, s in targets]
             if last_key in keys:
                 start = keys.index(last_key)
-        except (OSError, ValueError, KeyError):
+            # ⚠️ **앞 회차가 종목 도중에 죽었다**(감사 338). 시간 관문은 후보
+            #    사이에서만 보므로, 마지막 단계 하나가 길면 잡 한도(45분)가
+            #    먼저 죽인다 — 그러면 아래 끝머리의 커서 저장도 안 돈다.
+            #    2026-10-10 실측: 1회차가 XLP 앞에서 정상으로 멈췄고, 2회차가
+            #    XLP를 **맨 앞에서** 시작해 39분째 관문 직전 후보 뒤 6분을 더
+            #    쓰다 잘렸다. 표시가 없으면 다음 회차도 XLP부터 — 감사 334의
+            #    교착이 그대로 돌아온다. 그래서 종목을 열기 **전에** '지금 도는
+            #    중'을 적어 두고, 여기서 그 흔적을 읽는다.
+            dead = cur.get("in_progress")
+            if dead in keys and cur.get("in_progress_first"):
+                # 빈 밤 전체로도 못 돈 종목 — 맨 뒤로 보내고 경보 재료를 남긴다.
+                start = (keys.index(dead) + 1) % len(keys)
+                died_heavy = {"key": dead, "too_heavy": True, "died": True}
+                log.warning("앞 회차가 %s를 맨 앞에서 열고 잡 한도에 죽었다 — "
+                            "맨 뒤로 보낸다", dead)
+            elif dead in keys:
+                start = keys.index(dead)    # 빈 밤에 다시 — 이번엔 맨 앞에서
+        except (OSError, ValueError, KeyError, TypeError):
             start = 0
         targets = targets[start:] + targets[:start]     # 이어달리기 순서
 
@@ -2808,6 +2827,18 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
         if deadline is not None and _time.monotonic() > deadline:
             not_reached = [_key(m, s) for m, s in targets[idx:]]
             break
+        if budget:
+            # 종목을 열기 **전에** 흔적을 남긴다 — 잡이 이 종목 도중에 죽으면
+            # 끝머리의 커서 저장은 안 돈다. 다음 회차가 이 줄을 읽는다(위).
+            try:
+                from quant.utils.jsonio import atomic_write_json
+                atomic_write_json(cursor_path, {
+                    "next_key": key, "in_progress": key,
+                    "in_progress_first": idx == 0,
+                    "not_reached": [_key(m, s) for m, s in targets[idx:]],
+                    "budget_sec": budget})
+            except Exception:  # noqa: BLE001 — 흔적 실패가 재학습을 못 죽인다
+                log.warning("재학습 흔적 저장 실패")
         try:
             out = run_retrain(market, symbol, panel_asof=roster_asof,
                               **kwargs)
@@ -2852,6 +2883,8 @@ def run_retrain_all(targets=None, **kwargs) -> dict:
             failed[key] = str(exc)
             log.warning("재학습 실패 %s: %s", key, exc)
             print(f"⚠️ {key}: 재학습 실패 — {exc}")
+    if died_heavy and not budget_cut.get("too_heavy"):
+        budget_cut = died_heavy
     if budget:
         # 다음 밤이 이어받을 지점 — 못 돈 첫 종목(다 돌았으면 처음으로).
         try:

@@ -147,3 +147,49 @@ def test_a_symbol_too_heavy_for_a_whole_night_raises_an_alarm():
     # 도중에 멈췄을 뿐인 밤은 정상 경로라 울리지 않는다
     st["run_health"]["retrain"]["budget_cut"]["too_heavy"] = False
     assert not any(k.startswith("retrain_too_heavy:") for k in _current_flags(st))
+
+
+# ── ⑤ 잡 한도가 종목 도중에 죽여도 다음 회차가 안다 (감사 338) ─────────
+class _Killed(BaseException):
+    """GitHub가 잡을 취소하는 것 — 파이썬의 어떤 except도 못 잡는다."""
+
+
+def _killed_run(monkeypatch, tmp_path, victim):
+    seen = []
+
+    def fake(market, symbol, **kw):
+        key = f"{market}:{symbol}"
+        seen.append(key)
+        if key == victim:
+            raise _Killed()
+        return {"skipped": False, "asof": "2026-10-10", "panel_diffs": {}}
+
+    monkeypatch.setattr(R, "run_retrain", fake)
+    monkeypatch.setenv("QUANT_RETRAIN_BUDGET_SEC", "1800")
+    try:
+        R.run_retrain_all(targets=TARGETS, state_dir=str(tmp_path))
+    except _Killed:
+        pass
+    R._HARD_DEADLINE[0] = None
+    return seen
+
+
+def test_a_job_killed_mid_symbol_leaves_a_trace(monkeypatch, tmp_path):
+    """2026-10-10 실측: XLP 도중 잡 한도에 죽었고 커서가 안 남았다."""
+    _killed_run(monkeypatch, tmp_path, "us_stock:DBC")
+    cur = json.loads((tmp_path / "retrain_cursor.json").read_text("utf-8"))
+    assert cur["in_progress"] == "us_stock:DBC"
+    assert cur["in_progress_first"] is False
+    assert cur["next_key"] == "us_stock:DBC"
+
+
+def test_a_symbol_that_killed_the_job_from_the_front_goes_to_the_back(
+        monkeypatch, tmp_path):
+    first = TARGETS[0][0] + ":" + TARGETS[0][1]
+    _killed_run(monkeypatch, tmp_path, first)        # 맨 앞에서 죽는다
+    out, cur, health, seen = _run(monkeypatch, tmp_path, "__none__")
+    assert seen[0] != first and seen[-1] == first, (
+        "맨 앞에서 잡을 죽인 종목이 다시 맨 앞에 선다 — 감사 334의 교착")
+    assert health["budget_cut"] == {"key": first, "too_heavy": True,
+                                    "died": True}
+    assert "in_progress" not in cur, "다 돈 밤의 커서에 흔적이 남았다"

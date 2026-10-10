@@ -13,6 +13,14 @@ on:
     - cron: "45 22 * * *"   # 예비 재시도 — 본 실행이 성공했으면 멱등 가드가 건너뜀
   workflow_dispatch:
 
+# 본 실행과 예비 실행이 **겹치지 않고 줄을 선다**(감사 338). GitHub가 예약
+# 실행을 몇 시간씩 늦게 띄우면 둘이 동시에 돈다 — 2026-10-10 일일 기록은 두
+# 회차가 6분 간격으로 같은 장부를 계산했고, 뒤의 것이 충돌로 실패했다. 줄을
+# 세우면 뒤 회차는 앞 회차의 커밋을 보고 멱등 가드가 건너뛴다.
+concurrency:
+  group: nightly-retrain
+  cancel-in-progress: false
+
 permissions:
   contents: write   # state/ 결정 기록을 main에 커밋하기 위함
   issues: write    # 경보함 이슈(감사 336)

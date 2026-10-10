@@ -6280,6 +6280,17 @@ MUTATIONS = [
      "        parts.append((r > 0).astype(float).where(r.notna()))",
      "        parts.append(np.sign(r).where(r.notna()))",
      "tests/test_the_trend_core_engine.py"),
+    # ── 잡 한도가 종목 도중에 죽여도 다음 회차가 안다 (2026-10-10 감사 338) ──
+    ("맨 앞에서 잡을 죽인 종목을 다시 맨 앞에 세운다 — 감사 334의 교착이 돌아온다",
+     "quant/live/retrain.py",
+     "                start = (keys.index(dead) + 1) % len(keys)",
+     "                start = keys.index(dead)",
+     "tests/test_one_heavy_symbol_cannot_kill_the_night.py"),
+    ("종목을 열기 전에 흔적을 안 남긴다 — 잡이 죽으면 어디서 죽었는지 모른다",
+     "quant/live/retrain.py",
+     '                    "next_key": key, "in_progress": key,',
+     '                    "next_key": key,',
+     "tests/test_one_heavy_symbol_cannot_kill_the_night.py"),
     # ── 매니지드 퓨처스 검증 (2026-10-10 감사 337) ─────────────────────
     ("파산한 자산 곡선의 연수익을 복소수로 낸다 — 검증 스크립트가 통째로 죽는다",
      "quant/portfolio/trend_core.py",
