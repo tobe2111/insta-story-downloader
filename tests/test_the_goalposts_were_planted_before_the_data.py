@@ -39,7 +39,9 @@ EXPECTED = {"intraday_1h": ("2026-08-18", 90),
             # 같은 날로 등록해서 라운드 숫자가 아니다(119일).
             "diversity_shadow": ("2026-08-23", 119),
             # 2026-10-06 사장님 "둘 다 진행" — 넘친 예산 재분배(감사 332).
-            "budget_shadow": ("2026-10-06", 120)}
+            "budget_shadow": ("2026-10-06", 120),
+            # 2026-10-10 사장님 "다 해줘" — 새 엔진의 실계좌 기대치(감사 337).
+            "trend_core_live": ("2026-10-10", 182)}
 
 REQUIRED = ("name", "question", "start", "judge_on", "statistic",
             "alpha", "correction", "on_fail")

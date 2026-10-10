@@ -442,6 +442,13 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
          : '<b class="down">내릴 때도 걸 수 있지만, 지금은 그럴 수 있는 종목이 없습니다.</b>');
     if(d.engine){
       head+='<div class="sub" style="margin-top:4px">2026-10-10부터 이 계좌는 추세추종 엔진이 비중을 정합니다. 장기 검증(2014~2026)에서 내림에 거는 것(숏)을 함께 쓴 쪽이 더 나빴기 때문에 숏은 쓰지 않습니다.</div>';
+      /* 엔진이 실제로 낸 목표(감사 337 — 죽은 칸 검사가 잡았다: 싣기만 하고
+         안 읽던 칸). 숫자·이름은 태그 안에 가둔다. */
+      var ew=d.engine.weights||{}, parts=Object.keys(ew).map(function(k){
+        return '<b>'+esc(k)+' '+(Number(ew[k])*100).toFixed(1)+'%</b>';});
+      head+='<div class="sub" style="margin-top:4px">엔진 설정 <b>'+esc(String(d.engine.variant||'—'))+
+        '</b> · 목표를 정한 날 <b>'+esc(String(d.engine.target_day||'—'))+'</b>'+
+        (parts.length?' · 목표 비중: '+parts.join(' · '):'')+'</div>';
     }
     var frac=(sh.of==null)?'':
       '<div class="sub" style="margin-top:4px">'+

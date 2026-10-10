@@ -313,10 +313,16 @@ def stats(equity: pd.Series, periods: int = PERIODS) -> dict:
         return {}
     r = equity.pct_change().dropna()
     years = len(r) / periods
-    cagr = float(equity.iloc[-1] / equity.iloc[0]) ** (1 / years) - 1 if years > 0 else 0.0
+    ratio = float(equity.iloc[-1] / equity.iloc[0])
+    # 자산이 0 이하로 떨어진 곡선(파산 — 연속 선물의 롤 갭 같은 자료 사고에서
+    # 나온다, 감사 337)은 음수의 거듭제곱이 복소수가 된다. 전액 손실로 적는다.
+    if ratio <= 0 or float(equity.min()) <= 0:
+        cagr = -1.0
+    else:
+        cagr = ratio ** (1 / years) - 1 if years > 0 else 0.0
     vol = float(r.std() * np.sqrt(periods))
     sharpe = float(r.mean() / r.std() * np.sqrt(periods)) if r.std() > 0 else 0.0
-    dd = float((equity / equity.cummax() - 1).min())
+    dd = max(-1.0, float((equity / equity.cummax() - 1).min()))
     return {"cagr": round(cagr * 100, 2), "vol": round(vol * 100, 2),
             "sharpe": round(sharpe, 2), "mdd": round(dd * 100, 2),
             "calmar": round(cagr / abs(dd), 2) if dd < 0 else None,
@@ -424,18 +430,20 @@ def xsmom_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None) -> pd.Da
     return out
 
 
-def blend_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None,
-                  share: float = 0.5) -> pd.DataFrame:
-    """추세(시계열)와 상대 강세(횡단면)를 **위험 기준 반반**으로 섞는다.
+def combine_sleeves(closes: pd.DataFrame, sleeves: list,
+                    cfg: TrendConfig | None = None, shares: list | None = None
+                    ) -> pd.DataFrame:
+    """여러 소매(sleeve)의 목표 비중을 **위험 기준으로** 섞는다 (감사 337).
 
-    두 소매(sleeve)는 각자 목표 변동성으로 만든 뒤 반씩 더한다 — 둘의 상관이
-    1보다 낮으면 섞은 쪽 변동성이 목표보다 작아지므로, 그만큼 다시 키우되
-    빚은 안 낸다(총노출 ≤ max_gross).
+    각 소매는 이미 자기 목표 변동성으로 만들어져 있다. 몫대로 더한 뒤, 서로
+    덜 겹치는 만큼 줄어든 변동성을 목표로 다시 키운다 — 총노출은 max_gross,
+    한 종목은 ±asset_cap까지(숏 허용 소매가 섞일 수 있어 절댓값으로 잰다).
     """
     cfg = cfg or TrendConfig()
-    a = target_weights(closes, cfg)
-    b = xsmom_weights(closes, cfg)
-    w = a * (1 - share) + b * share
+    n = len(sleeves)
+    shares = shares or [1.0 / n] * n
+    w = sum(sl.reindex(index=closes.index, columns=closes.columns).fillna(0.0) * sh
+            for sl, sh in zip(sleeves, shares))
     rets = closes.pct_change(fill_method=None)
     out = w.copy()
     for i, day in enumerate(closes.index):
@@ -450,9 +458,24 @@ def blend_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None,
         ex = float(np.sqrt(max(row.values @ cov.values @ row.values, 0.0)))
         if ex <= 0:
             continue
-        r = (row * (cfg.target_vol / ex)).clip(upper=cfg.asset_cap)
-        if r.sum() > cfg.max_gross:
-            r = r * (cfg.max_gross / r.sum())
+        r = (row * (cfg.target_vol / ex)).clip(-cfg.asset_cap, cfg.asset_cap)
+        g = float(r.abs().sum())
+        if g > cfg.max_gross:
+            r = r * (cfg.max_gross / g)
         out.loc[day] = 0.0
         out.loc[day, r.index] = r.values
     return out
+
+
+def blend_weights(closes: pd.DataFrame, cfg: TrendConfig | None = None,
+                  share: float = 0.5) -> pd.DataFrame:
+    """추세(시계열)와 상대 강세(횡단면)를 **위험 기준 반반**으로 섞는다.
+
+    두 소매(sleeve)는 각자 목표 변동성으로 만든 뒤 반씩 더한다 — 둘의 상관이
+    1보다 낮으면 섞은 쪽 변동성이 목표보다 작아지므로, 그만큼 다시 키우되
+    빚은 안 낸다(총노출 ≤ max_gross).
+    """
+    cfg = cfg or TrendConfig()
+    return combine_sleeves(closes, [target_weights(closes, cfg),
+                                    xsmom_weights(closes, cfg)],
+                           cfg, [1 - share, share])

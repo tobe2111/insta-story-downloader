@@ -6280,6 +6280,12 @@ MUTATIONS = [
      "        parts.append((r > 0).astype(float).where(r.notna()))",
      "        parts.append(np.sign(r).where(r.notna()))",
      "tests/test_the_trend_core_engine.py"),
+    # ── 매니지드 퓨처스 검증 (2026-10-10 감사 337) ─────────────────────
+    ("파산한 자산 곡선의 연수익을 복소수로 낸다 — 검증 스크립트가 통째로 죽는다",
+     "quant/portfolio/trend_core.py",
+     "    if ratio <= 0 or float(equity.min()) <= 0:",
+     "    if False:",
+     "tests/test_the_trend_core_engine.py"),
     # ── 경보가 사람이 읽는 곳에 닿는다 (2026-10-09 감사 336) ───────────
     ("경보함 실패를 '보냈다'로 적는다 — 그 경보는 다시 오지 않는다",
      "quant/live/notifications.py",
