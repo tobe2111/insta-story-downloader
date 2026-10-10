@@ -531,7 +531,8 @@ def live_advisories(state_dir: str = STATE_DIR) -> list[str]:
     out.append(f"환전: 장부는 편도 {sp * 100:.2f}%로 셉니다"
                + (" — 우대율을 모를 때의 보수적 기본값입니다. 쓰실 증권사의 실제 "
                   "우대율(예: 95% 우대 → 0.05%)을 engine.json의 fx_spread에 "
-                  "넣으세요. 검증상 0.25% → 0.05%면 연 약 0.4%p가 돌아옵니다."
+                  "넣으세요. 검증상 이 기본값에서 우대 95%로 바꾸면 연 약 "
+                  "0.4%p가 돌아옵니다."
                   if sp == FX_SPREAD_DEFAULT else "."))
     out.append("세금: 국내 상장 해외·금·채권 ETF는 차익에 15.4%가 붙습니다. "
                "ISA 계좌에 담으면 비과세 한도 안에서 이 세금이 없어집니다 "
