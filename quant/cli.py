@@ -409,6 +409,10 @@ def _cmd_live_check(args) -> None:
         say("  ❌ 점검 항목이 하나도 없습니다 — 진단이 돌지 않았습니다"
               f"(브로커 이름 확인: {args.broker!r})")
         ok_all = False
+    from quant.live.daily_live import live_advisories
+    say("\n📌 전환 전에 정할 것(권고 — 통과·실패와 무관)")
+    for line in live_advisories():
+        say(f"  · {line}")
     if ok_all:
         say("\n✅ 준비 완료 — live-daily로 모의투자 리허설을 시작할 수 "
               "있습니다.")

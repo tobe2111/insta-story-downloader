@@ -186,6 +186,50 @@ def _validation_damping(targets, state_dir: str) -> dict:
     return out
 
 
+def _live_core(state_dir: str, frames: dict) -> dict | None:
+    """실거래도 **페이퍼와 같은 엔진 목표**를 쓴다 (감사 340).
+
+    ⚠️ 2026-10-10까지 이 경로는 엔진이 바뀐 것을 몰랐다. 페이퍼 계좌는
+       2026-10-10부터 추세 코어(다자산 추세)로 비중을 정하는데, 실거래
+       집행기는 여전히 **옛 체계(종목별 챔피언 신호)**를 불렀다. 실거래를
+       켜는 날 화면·장부와 **다른 전략**이 실제 돈으로 돌았을 것이다.
+
+    추세 코어의 비중은 **포트폴리오 전체**(국내·미국·코인 40종목)를 보고
+    정해지므로 국내 종목만으로는 다시 계산할 수 없다 — 같은 명단의 종가를
+    모두 받아 같은 함수(`_core_targets`)를 부른다. 이 계좌가 살 수 있는
+    것은 국내 몫뿐이고, 나머지(미국·코인)는 **현금으로 남긴다**. 그 크기를
+    `uncovered`로 적는다 — 국내 몫을 키워 채우면 검증하지 않은 다른
+    전략이 된다.
+    """
+    from quant.live.daily import _core_engine, _core_targets
+    if not _core_engine(state_dir):
+        return None
+    from quant.data import get_provider
+    from quant.universe import active_targets
+    closes = {}
+    for market, symbol in active_targets(state_dir):
+        key = f"{market}:{symbol}"
+        df = frames.get(symbol) if market == "kr_stock" else None
+        if df is None:
+            try:
+                df = get_provider(market).get_ohlcv(symbol, "1d", limit=400)
+                if df.empty or df.attrs.get("synthetic_fallback"):
+                    continue
+            except Exception as exc:  # noqa: BLE001 — 한 종목이 엔진을 못 죽인다
+                log.warning("실거래 엔진 종가 %s 실패: %s", key, exc)
+                continue
+        closes[key] = df["close"]
+    core = _core_targets(state_dir, closes, dict.fromkeys(closes, 1.0))
+    if core is None:
+        return None
+    w = core["weights"]
+    core["covered"] = round(sum(v for k, v in w.items()
+                                if k.startswith("kr_stock:")), 4)
+    core["uncovered"] = round(sum(v for k, v in w.items()
+                                  if not k.startswith("kr_stock:")), 4)
+    return core
+
+
 def run_daily_live(targets=None, *, paper: bool = True,
                    state_dir: str = STATE_DIR, broker=None,
                    broker_name: str | None = None,
@@ -202,6 +246,13 @@ def run_daily_live(targets=None, *, paper: bool = True,
     from quant.markets import AUTO_TARGETS
     from quant.utils.settings import load_settings
 
+    if targets is None:
+        # 엔진이 켜져 있으면 **엔진이 보는 명단**의 국내 몫을 산다(감사 340).
+        # 옛 상수 목록(AUTO_TARGETS)은 엔진의 명단과 다르다.
+        from quant.live.daily import _core_engine
+        if _core_engine(state_dir):
+            from quant.universe import active_targets
+            targets = active_targets(state_dir)
     targets = [t for t in (targets or AUTO_TARGETS) if t[0] == "kr_stock"]
     if not targets:
         return {"skipped": "kr_stock 대상 없음"}
@@ -261,16 +312,79 @@ def run_daily_live(targets=None, *, paper: bool = True,
     #    규칙은 여기 다시 적지 않는다. 한 곳에서 가져와 곱하기만 한다.
     risk_scale, drawdown = _kill_switch_for_live(state_dir, account_equity)
     valid_damp = _validation_damping(targets, state_dir)
+    core = _live_core(state_dir, frames)
     eff_exposure = exposure * risk_scale
     if risk_scale < 1.0:
         log.warning("🛡 킬스위치(실거래): 낙폭 %.1f%% → 노출 %.0f%%로 제한",
                     drawdown * 100, risk_scale * 100)
+
+    def _record(order, symbol, w_slice, equity, price):
+        """주문 한 건을 요약·감사 로그에 남긴다 — 두 경로(엔진·챔피언)가 같이 쓴다."""
+        if order is not None:
+            # ⚠️ qty는 '내려고 한 수량', filled는 '실제로 채워진 수량'이다
+            #    (감사 148). 둘을 한 칸에 담으면 접수-미체결이 체결로
+            #    읽힌다 — 감사 138이 0주 잘림에 대해 고쳤던 것과 같은 병이
+            #    접수 단계에 그대로 남아 있었다.
+            filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)
+            orders.append({"symbol": symbol, "side": order.side,
+                           "qty": order.quantity, "filled": filled,
+                           "price": order.price,
+                           "status": order.status,
+                           "order_id": order.order_id})
+            if order.status not in ("skipped",) and filled <= 0:
+                unfilled.append({"symbol": symbol, "side": order.side,
+                                 "qty": order.quantity,
+                                 "status": order.status})
+            # 주문 단위 감사 로그(감사 150). `journal.record_order`는
+            # 모듈 설명에 "두 가지를 한다"고 적혀 있는 그 첫 번째인데
+            # **운영 코드에서 부르는 곳이 한 곳도 없었다** — 검사에서만
+            # 불렸다. 아래 kr.json은 하루 한 줄 요약이고 400일치만
+            # 남기지만, 이쪽은 append-only라 증권사 체결 내역과
+            # order_id로 대사할 수 있는 유일한 기록이다.
+            record_order(
+                os.path.join(state_dir, "live", "orders.jsonl"),
+                {"symbol": symbol, "side": order.side,
+                 "quantity": order.quantity, "filled": filled,
+                 "price": order.price, "status": order.status,
+                 "order_id": order.order_id},
+                {"ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+                 "mode": "paper" if paper else "real",
+                 "broker": type(broker).__name__,
+                 "weight": round(w_slice, 6), "equity": round(equity, 2)})
+            # ⚠️ 국내주식은 정수 주만 산다. 목표 금액이 1주 값에 못 미치면
+            #    브로커가 int(quantity)=0으로 잘라 status='skipped'를
+            #    돌려준다 — **한 주도 안 샀는데 orders에는 한 줄이 남는다.**
+            #    예전에는 아래 요약이 그걸 "주문 N건"으로 세어, 실제로는
+            #    아무것도 안 산 날에도 주문이 나간 것처럼 보고했다(감사 138).
+            #    왜 0주가 됐는지(목표 금액 vs 1주 값)까지 남겨야 운영자가
+            #    '유니버스를 바꿔야 하는 상황'임을 알 수 있다.
+            if order.status == "skipped":
+                want = w_slice * equity
+                zero_qty.append({"symbol": symbol,
+                                 "budget": round(want, 2),
+                                 "price": round(price, 2),
+                                 "shares": round(want / price, 6)
+                                 if price > 0 else None})
 
     for market, symbol in targets:
         try:
             df = frames.get(symbol)
             if df is None:
                 continue                    # 위에서 이미 skipped에 담았다
+            code = symbol.split(".")[0]            # KIS PDNO = 6자리 코드
+            price = float(df["close"].iloc[-1])
+            if core is not None:
+                # 엔진 목표(계좌 전체 대비) × 킬스위치·어드민 배수 — 페이퍼의
+                # `_target_w`와 같은 식이다. 계좌 전체 자산을 기준으로 산다.
+                weight = max(0.0, min(1.0, float(
+                    core["weights"].get(f"{market}:{symbol}", 0.0))))
+                weight *= eff_exposure
+                decisions[symbol] = round(weight, 4)
+                order = broker.target_weight(
+                    code, weight, price, account_equity,
+                    rebalance_band_rel=_rebalance_band_rel(market, state_dir))
+                _record(order, symbol, weight, account_equity, price)
+                continue
             from quant.data.krx import attach_krx_flows
             df = attach_krx_flows(df, symbol)
             from quant.data.crossasset import attach_cross_asset
@@ -293,8 +407,6 @@ def run_daily_live(targets=None, *, paper: bool = True,
             weight *= valid_damp.get(f"{market}:{symbol}", 1.0)
             decisions[symbol] = round(weight, 4)
 
-            code = symbol.split(".")[0]            # KIS PDNO = 6자리 코드
-            price = float(df["close"].iloc[-1])
             pos = broker.get_position(code)
             equity = broker.get_cash() + pos.quantity * price
             # 종목 예산 = 총자산의 균등 1/n 슬라이스.
@@ -307,51 +419,7 @@ def run_daily_live(targets=None, *, paper: bool = True,
             order = broker.target_weight(
                 code, weight / n, price, equity,
                 rebalance_band_rel=_rebalance_band_rel(market, state_dir))
-            if order is not None:
-                # ⚠️ qty는 '내려고 한 수량', filled는 '실제로 채워진 수량'이다
-                #    (감사 148). 둘을 한 칸에 담으면 접수-미체결이 체결로
-                #    읽힌다 — 감사 138이 0주 잘림에 대해 고쳤던 것과 같은 병이
-                #    접수 단계에 그대로 남아 있었다.
-                filled = float(getattr(order, "filled_quantity", 0.0) or 0.0)
-                orders.append({"symbol": symbol, "side": order.side,
-                               "qty": order.quantity, "filled": filled,
-                               "price": order.price,
-                               "status": order.status,
-                               "order_id": order.order_id})
-                if order.status not in ("skipped",) and filled <= 0:
-                    unfilled.append({"symbol": symbol, "side": order.side,
-                                     "qty": order.quantity,
-                                     "status": order.status})
-                # 주문 단위 감사 로그(감사 150). `journal.record_order`는
-                # 모듈 설명에 "두 가지를 한다"고 적혀 있는 그 첫 번째인데
-                # **운영 코드에서 부르는 곳이 한 곳도 없었다** — 검사에서만
-                # 불렸다. 아래 kr.json은 하루 한 줄 요약이고 400일치만
-                # 남기지만, 이쪽은 append-only라 증권사 체결 내역과
-                # order_id로 대사할 수 있는 유일한 기록이다.
-                record_order(
-                    os.path.join(state_dir, "live", "orders.jsonl"),
-                    {"symbol": symbol, "side": order.side,
-                     "quantity": order.quantity, "filled": filled,
-                     "price": order.price, "status": order.status,
-                     "order_id": order.order_id},
-                    {"ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-                     "mode": "paper" if paper else "real",
-                     "broker": type(broker).__name__,
-                     "weight": round(weight / n, 6), "equity": round(equity, 2)})
-                # ⚠️ 국내주식은 정수 주만 산다. 목표 금액이 1주 값에 못 미치면
-                #    브로커가 int(quantity)=0으로 잘라 status='skipped'를
-                #    돌려준다 — **한 주도 안 샀는데 orders에는 한 줄이 남는다.**
-                #    예전에는 아래 요약이 그걸 "주문 N건"으로 세어, 실제로는
-                #    아무것도 안 산 날에도 주문이 나간 것처럼 보고했다(감사 138).
-                #    왜 0주가 됐는지(목표 금액 vs 1주 값)까지 남겨야 운영자가
-                #    '유니버스를 바꿔야 하는 상황'임을 알 수 있다.
-                if order.status == "skipped":
-                    want = weight / n * equity
-                    zero_qty.append({"symbol": symbol,
-                                     "budget": round(want, 2),
-                                     "price": round(price, 2),
-                                     "shares": round(want / price, 6)
-                                     if price > 0 else None})
+            _record(order, symbol, weight / n, equity, price)
         except Exception as exc:  # noqa: BLE001 — 한 종목 실패가 나머지를 막으면 안 된다
             skipped.append(symbol)
             log.warning("실거래 %s 스킵: %s", symbol, exc)
@@ -377,7 +445,14 @@ def run_daily_live(targets=None, *, paper: bool = True,
                "risk_scale": risk_scale,
                "drawdown_pct": round(drawdown * 100, 2),
                "validation_gate": {k: v for k, v in valid_damp.items()
-                                   if v < 1.0} or None}
+                                   if v < 1.0} or None,
+               # 무엇이 비중을 정했나(감사 340). 엔진이면 이 계좌가 따라가는
+               # 몫(covered)과 못 사서 현금으로 남는 몫(uncovered)을 함께 적는다.
+               "engine": ({"name": core["name"], "variant": core.get("variant"),
+                           "target_day": core.get("target_day"),
+                           "covered": core["covered"],
+                           "uncovered": core["uncovered"]}
+                          if core is not None else None)}
     try:
         import json
         from quant.utils.jsonio import atomic_write_json
@@ -430,3 +505,37 @@ def check_readiness(paper: bool = True,
     except Exception as exc:  # noqa: BLE001
         out.append((f"{label} 연결", False, str(exc)))
     return out
+
+
+def live_advisories(state_dir: str = STATE_DIR) -> list[str]:
+    """실계좌 전환 전에 사람이 정할 것 — 통과/실패가 아니라 **알아야 할 사실**(감사 340).
+
+    점검표(`check_readiness`)는 '주문이 나갈 수 있는가'를 본다. 이것은 '나가면
+    무엇이 달라지는가'다 — 둘을 섞으면 권고가 실패로 읽혀 전환을 막거나,
+    실패가 권고로 읽혀 지나간다.
+    """
+    import json
+    out: list[str] = []
+    try:
+        with open(os.path.join(state_dir, "engine.json"), encoding="utf-8") as f:
+            eng = json.load(f) or {}
+    except (OSError, ValueError):
+        eng = {}
+    if eng.get("engine") == "trend_core":
+        out.append("엔진: 실거래 집행기는 페이퍼와 같은 추세 코어 목표를 따릅니다. "
+                   "다만 이 집행기는 **국내 종목만** 살 수 있어, 엔진 목표 중 "
+                   "미국·코인 몫은 현금으로 남습니다(장부 engine.uncovered). "
+                   "미국 계좌·코인 계좌 집행기는 별도입니다.")
+    from quant.live.tax_kr import FX_SPREAD_DEFAULT, fx_spread
+    sp = fx_spread(state_dir)
+    out.append(f"환전: 장부는 편도 {sp * 100:.2f}%로 셉니다"
+               + (" — 우대율을 모를 때의 보수적 기본값입니다. 쓰실 증권사의 실제 "
+                  "우대율(예: 95% 우대 → 0.05%)을 engine.json의 fx_spread에 "
+                  "넣으세요. 검증상 이 기본값에서 우대 95%로 바꾸면 연 약 "
+                  "0.4%p가 돌아옵니다."
+                  if sp == FX_SPREAD_DEFAULT else "."))
+    out.append("세금: 국내 상장 해외·금·채권 ETF는 차익에 15.4%가 붙습니다. "
+               "ISA 계좌에 담으면 비과세 한도 안에서 이 세금이 없어집니다 "
+               "(해외 주식 직접 보유는 연 250만원까지 공제).")
+    return out
+
