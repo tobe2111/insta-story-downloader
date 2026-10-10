@@ -313,10 +313,16 @@ def stats(equity: pd.Series, periods: int = PERIODS) -> dict:
         return {}
     r = equity.pct_change().dropna()
     years = len(r) / periods
-    cagr = float(equity.iloc[-1] / equity.iloc[0]) ** (1 / years) - 1 if years > 0 else 0.0
+    ratio = float(equity.iloc[-1] / equity.iloc[0])
+    # 자산이 0 이하로 떨어진 곡선(파산 — 연속 선물의 롤 갭 같은 자료 사고에서
+    # 나온다, 감사 337)은 음수의 거듭제곱이 복소수가 된다. 전액 손실로 적는다.
+    if ratio <= 0 or float(equity.min()) <= 0:
+        cagr = -1.0
+    else:
+        cagr = ratio ** (1 / years) - 1 if years > 0 else 0.0
     vol = float(r.std() * np.sqrt(periods))
     sharpe = float(r.mean() / r.std() * np.sqrt(periods)) if r.std() > 0 else 0.0
-    dd = float((equity / equity.cummax() - 1).min())
+    dd = max(-1.0, float((equity / equity.cummax() - 1).min()))
     return {"cagr": round(cagr * 100, 2), "vol": round(vol * 100, 2),
             "sharpe": round(sharpe, 2), "mdd": round(dd * 100, 2),
             "calmar": round(cagr / abs(dd), 2) if dd < 0 else None,

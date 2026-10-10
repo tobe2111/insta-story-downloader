@@ -173,3 +173,15 @@ def test_a_midweek_day_uses_last_fridays_target(tmp_path):
     assert s.index[-1].weekday() == 2
     core = _core_targets(str(tmp_path), {"us_stock:SPY": s}, {"us_stock:SPY": 1.0})
     assert core["target_day"] == "2025-08-08" and core["asof"] == "2025-08-13"
+
+
+def test_stats_survive_a_curve_that_goes_bankrupt():
+    """연속 선물의 롤 갭이 자산을 0 아래로 보내자 연수익이 복소수가 되어
+    검증 스크립트가 통째로 죽었다(감사 337). 파산은 전액 손실로 적는다."""
+    import pandas as pd
+    from quant.portfolio import trend_core as T
+    # 끝이 음수인 곡선 — 실제 사고 모양(롤 갭으로 0 아래에서 끝남).
+    eq = pd.Series([1.0 + 0.001 * i for i in range(300)] + [0.5, -0.3],
+                   index=pd.bdate_range("2020-01-01", periods=302))
+    s = T.stats(eq)
+    assert s["cagr"] == -100.0 and s["mdd"] == -100.0
