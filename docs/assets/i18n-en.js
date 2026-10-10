@@ -601,6 +601,11 @@
         "Right now the trend-following engine only buys on the way up (downtrends go to cash).",
       "2026-10-10부터 이 계좌는 추세추종 엔진이 비중을 정합니다. 장기 검증(2014~2026)에서 내림에 거는 것(숏)을 함께 쓴 쪽이 더 나빴기 때문에 숏은 쓰지 않습니다.":
         "From 2026-10-10 the trend-following engine sets this account's weights. In the long-history test (2014–2026) the version that also bet on falls (shorts) did worse, so shorts are not used.",
+      "엔진 설정": "Engine setting",
+      "목표를 정한 날": "Target set on",
+      "목표 비중:": "Target weights:",
+      "· 목표를 정한 날": "· Target set on",
+      "· 목표 비중:": "· Target weights:",
       // ── 13F 흐름·검증 — 2026-10-06(감사 333) ───
       "▲ 직전 분기보다 새로 담거나 늘린 투자자 수 · ▼ 줄이거나 판 투자자 수":
         "▲ investors who newly bought or added since the previous quarter · ▼ investors who trimmed or sold",
