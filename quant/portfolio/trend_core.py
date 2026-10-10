@@ -241,13 +241,17 @@ class TrendResult:
 
 
 def simulate(closes: pd.DataFrame, one_way_cost: dict,
-             cfg: TrendConfig | None = None, targets: pd.DataFrame | None = None
-             ) -> TrendResult:
+             cfg: TrendConfig | None = None, targets: pd.DataFrame | None = None,
+             fx_keys=None, fx_cost: float = 0.0) -> TrendResult:
     """목표 비중 → 체결(다음 영업일) → 비용 차감 → 자산 곡선.
 
     one_way_cost: {열 이름: 편도 비용률}. 없는 열은 0.002(보수적).
     ⚠️ 룩어헤드 방지: t일 종가로 정한 목표는 t+1일 종가에 체결되고, 그 날
        수익(t→t+1)은 **옛 보유**가 번다. 새 보유는 t+1→t+2부터 번다.
+
+    fx_keys·fx_cost(감사 339): 원화 계좌가 달러 자산을 살 때의 환전 비용.
+    그날 fx_keys 쪽 **순매수·순매도**에만 물린다(달러 자산끼리 갈아탄 몫은
+    달러 안에서 끝난다) — 실계좌 장부(`tax_kr.fx_charge`)와 같은 셈이다.
     """
     cfg = cfg or TrendConfig()
     tgt = targets if targets is not None else target_weights(closes, cfg)
@@ -281,9 +285,13 @@ def simulate(closes: pd.DataFrame, one_way_cost: dict,
                     new[k] = 0.0                       # 청산은 항상
                 elif abs(t - cur) >= cfg.band:
                     new[k] = t
-            delta = (new - held).abs()
+            signed = new - held
+            delta = signed.abs()
             turnover = float(delta.sum())
             cost = float((delta * cost_rate).sum())
+            if fx_keys and fx_cost:
+                fx_cols = [k for k in closes.columns if k in fx_keys]
+                cost += abs(float(signed[fx_cols].sum())) * fx_cost
             eq *= (1.0 - cost)
             held = new
             pending = None

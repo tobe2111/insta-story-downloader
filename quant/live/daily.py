@@ -2829,6 +2829,19 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     if skipped_cool:
         log.info("쿨다운으로 재조정 보류 %d건: %s",
                  len(skipped_cool), ", ".join(skipped_cool))
+    # ── 환전 비용 · 실현 손익(세금 재료) — 감사 339 ──────────────────
+    # 원화 계좌가 달러 자산을 사고팔면 그날 **순매수·순매도**만큼 환전한다.
+    # 미국 종목끼리 갈아탄 몫은 달러 안에서 끝나므로 물리지 않는다.
+    from quant.live import tax_kr
+    fx_spread = tax_kr.fx_spread(state_dir)
+    fx_amount, fx_cost = tax_kr.fx_charge(fills, fx_spread)
+    if fx_cost > 0:
+        broker._cash -= fx_cost
+        broker.fee_paid += fx_cost        # 오늘 낸 비용(cost)에 함께 잡힌다
+    year = str(bar)[:4]
+    ryear = (st.setdefault("realized_by_year", {})).setdefault(year, {})
+    for sym, gain in getattr(broker, "realized", []):
+        ryear[sym] = round(float(ryear.get(sym, 0.0)) + float(gain), 2)
     equity = broker.equity(marks)
 
     # 피처 건강 집계 — 종목마다 적용 가능한 선택 피처가 다르므로(코인만
@@ -2996,6 +3009,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # "수수료로 얼마 냈나"에 답할 수 없었다(사장님 질문 2026-08-19).
               "cost": cost_today,
               "cost_paid": st["cost_paid"],
+              # 환전(감사 339) — 그날 원↔달러로 바뀐 순금액과 편도 스프레드.
+              # 비용은 위 cost에 이미 들어 있다.
+              "fx": {"amount": round(fx_amount, 2), "cost": round(fx_cost, 2),
+                     "spread": fx_spread},
+              # 세금 추정(감사 339) — 자산에서 빼지 않는다(다음 해 5월 납부).
+              "tax_estimate": tax_kr.estimate(ryear, year),
               # '그냥 보유' 기준선이 물어야 할 진입 비용률(편도 한 번).
               "bench_cost_rate": bench_cost_rate,
               "return_pct": round((equity / principal - 1) * 100, 2),
