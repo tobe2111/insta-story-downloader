@@ -513,6 +513,62 @@
         "Discard (current rule)",
       "다시 나눔":
         "Redistribute",
+      "지금 엔진은 누가 골랐나 — 수익률로 기계가 고릅니다":
+        "Who picked today's engine — the machine picks it by return",
+      "지금 엔진":
+        "Current engine",
+      "고른 날":
+        "Picked on",
+      "최근 3년 수익률이 지금 엔진보다 우연이라 보기 어려울 만큼 높아 갈아탔습니다.":
+        "Its last-3-year return beat the current engine by more than chance would explain, so the engine was switched.",
+      "최근 3년 수익률이 후보 중 가장 높아 그대로 둡니다.":
+        "It has the highest last-3-year return among the candidates, so it stays.",
+      "더 높은 후보가 있지만 차이가 우연과 구별되지 않아 그대로 둡니다.":
+        "A candidate scored higher, but the gap is indistinguishable from chance, so the engine stays.",
+      "더 나은 후보가 있지만 갈아탄 지 3개월이 안 돼 그대로 둡니다.":
+        "A better candidate exists, but less than 3 months have passed since the last switch, so the engine stays.",
+      "고르는 규칙을 2016년부터 돌려 보니 기준 엔진을 그대로 둔 것보다 못해서, 기준 엔진을 씁니다.":
+        "Run from 2016 on, the picking rule did worse than simply keeping the baseline engine, so the baseline engine is used.",
+      "3년치 자료가 있는 후보가 없어 그대로 둡니다.":
+        "No candidate has 3 years of data yet, so the engine stays.",
+      "지금 엔진의 3년치 자료가 없어 그대로 둡니다.":
+        "The current engine lacks 3 years of data, so it stays.",
+      "최근 3년 연수익":
+        "Last 3 years, annual return",
+      "최근 3년 최대낙폭":
+        "Last 3 years, max drawdown",
+      "2016년 이후 연수익":
+        "Since 2016, annual return",
+      "2016년 이후 최대낙폭":
+        "Since 2016, max drawdown",
+      "고르는 규칙 자체의 검증(2016년 이후)":
+        "Test of the picking rule itself (since 2016)",
+      "규칙대로 갈아탔다면 연수익":
+        "Annual return had it switched by the rule",
+      "기준 엔진 그대로":
+        "Baseline engine kept",
+      "통과 — 규칙이 엔진을 정합니다":
+        "Passed — the rule picks the engine",
+      "미달 — 기준 엔진을 씁니다":
+        "Not passed — the baseline engine is used",
+      "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.":
+        "Every Friday close, each candidate's last-3-year annual return after fees and currency conversion is measured. The engine switches only when the top candidate leads the current one by more than chance would explain, and stays put for 3 months after a switch.",
+      "최근 3년 최대낙폭이 −40%보다 나쁜 후보는 고르지 않습니다.":
+        "A candidate whose last-3-year max drawdown is worse than −40% is never picked.",
+      "숫자는 같은 코드·같은 비용으로 돌린 과거 시뮬레이션입니다. 앞으로의 수익을 약속하지 않습니다.":
+        "The figures are a historical simulation with the same code and the same costs. They do not promise future returns.",
+      "위험 균등 · 변동성 12%":
+        "Equal risk · 12% volatility",
+      "위험 균등 · 변동성 20%":
+        "Equal risk · 20% volatility",
+      "금액 균등 · 상한 변동성 30%":
+        "Equal amount · volatility cap 30%",
+      "금액 균등 · 상한 변동성 50%":
+        "Equal amount · volatility cap 50%",
+      "상대 강세":
+        "Relative strength",
+      "추세 + 상대 강세":
+        "Trend + relative strength",
       "현금이 왜 이만큼 남았나 — 투자 비중이 줄어드는 단계":
         "Why this much cash — the steps that shrink the invested share",
       "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다.":

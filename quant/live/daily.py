@@ -184,13 +184,21 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
     if not eng:
         return None
     try:
+        from quant.portfolio import engine_select as E
         from quant.portfolio import trend_core as T
-        cfg = T.variant_config(eng.get("variant"))
         closes = T.align_business_days(
             {k: v for k, v in closes_map.items() if k in weights})
         if closes.empty:
             return None
-        tgt = T.target_weights(closes, cfg)
+        # 어느 엔진인가 — 주간 선택기(감사 341)가 관문을 통과했고 선택이
+        # 낡지 않았으면 그 후보, 아니면 engine.json에 적힌 것. 사람이 고르지
+        # 않는다(사장님 2026-10-10: "수익률에 따라서 머신러닝이 결정").
+        sel_state = E.load_state(state_dir)
+        picked = E.active_choice(sel_state, closes.index[-1])
+        name = picked or eng.get("variant") or E.BASELINE
+        if name not in E.CANDIDATES:
+            name = E.BASELINE
+        tgt, cfg = E.candidate_targets(closes, name)
         # ⚠️ **검증과 같은 주기로** 고친다 — 검증은 금요일 종가 목표로 주 1회
         #    매매했다(회전·비용이 그 가정 위에서 나왔다). 매일 그날 목표를
         #    따르면 같은 엔진이 검증보다 자주 사고팔아 비용이 검증과 갈린다.
@@ -208,7 +216,8 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
             day = fridays[-1] if len(fridays) else idx[-1]
         today = tgt.loc[day].fillna(0.0)
         w = {k: round(float(today.get(k, 0.0)), 6) for k in weights}
-        return {"name": "trend_core", "variant": eng.get("variant"),
+        return {"name": "trend_core", "variant": name,
+                "selected_by": "engine_select" if picked else "engine.json",
                 "asof": str(closes.index[-1].date()),
                 "target_day": str(day.date()),
                 "gross": round(sum(w.values()), 4),
@@ -3901,6 +3910,13 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["budget_shadow"] = budget_shadow_public(state_dir)
     except Exception:  # noqa: BLE001
         status["budget_shadow"] = None
+
+    # 엔진 자동 선택(감사 341) — 지금 엔진을 누가·왜 골랐나. 실패는 None.
+    try:
+        from quant.portfolio.engine_select import public as engine_select_public
+        status["engine_select"] = engine_select_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["engine_select"] = None
 
     # 저명 투자자 13F(감사 331, 사장님: "홈페이지 각 페이지들에 보여야 해")
     # — 모든 페이지가 이 한 칸을 읽는다. 수집 상태도 함께 싣는다.
