@@ -18,6 +18,7 @@
     "margin:14px 0;background:var(--bg2,transparent);color:var(--fg,inherit);" +
     "font-size:14px;line-height:1.6}" +
     ".es h2{font-size:16px;margin:0 0 6px}" +
+    ".es h3{font-size:14px;margin:12px 0 4px}" +
     ".es .sub{color:var(--muted,#777);font-size:12.5px}" +
     ".es .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}" +
     ".es table{border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}" +
@@ -48,7 +49,8 @@
     "min_hold": "더 나은 후보가 있지만 갈아탄 지 3개월이 안 돼 그대로 둡니다.",
     "gate_failed": "고르는 규칙을 2016년부터 돌려 보니 기준 엔진을 그대로 둔 것보다 못해서, 기준 엔진을 씁니다.",
     "no_full_window": "3년치 자료가 있는 후보가 없어 그대로 둡니다.",
-    "incumbent_unmeasured": "지금 엔진의 3년치 자료가 없어 그대로 둡니다."
+    "incumbent_unmeasured": "지금 엔진의 3년치 자료가 없어 그대로 둡니다.",
+    "not_robust": "40종목에서는 더 나은 후보가 있지만, 규칙으로 고른 넓은 ETF 목록에서는 앞서지 못해 그대로 둡니다."
   };
 
   function render(box, es) {
@@ -107,6 +109,62 @@
     gl.appendChild(el("b", null, g.pass ? "통과 — 규칙이 엔진을 정합니다" : "미달 — 기준 엔진을 씁니다"));
     card.appendChild(gl);
 
+    // 생존 편향 점검(감사 342) — 같은 규칙을 규칙으로 고른 넓은 ETF 목록에서.
+    var wd = g.wide;
+    var wl = el("div", "sub");
+    if (wd) {
+      var ws = wd.selector || {}, wb = wd.baseline || {};
+      wl.appendChild(el("span", null, "같은 규칙을 규칙으로 고른 넓은 ETF 목록에서"));
+      wl.appendChild(document.createTextNode(" — "));
+      wl.appendChild(el("span", null, "연수익"));
+      wl.appendChild(document.createTextNode(" "));
+      wl.appendChild(el("b", null, pct(ws.cagr)));
+      wl.appendChild(document.createTextNode(" · "));
+      wl.appendChild(el("span", null, "기준 엔진 그대로"));
+      wl.appendChild(document.createTextNode(" "));
+      wl.appendChild(el("b", null, pct(wb.cagr)));
+      wl.appendChild(document.createTextNode(" · "));
+      wl.appendChild(el("b", null, wd.pass ? "넓은 목록에서도 이김" : "넓은 목록에서는 못 이김"));
+    } else {
+      wl.appendChild(el("span", null, "넓은 ETF 목록 점검은 아직 못 쟀습니다 — 사람이 고른 40종목에서만 잰 결과입니다."));
+    }
+    card.appendChild(wl);
+
+    // 후보 그림자 계좌(감사 342) — 같은 후보를 실제 배치 시세로 굴린 장부.
+    var sh = root.__engineShadow;
+    if (sh && sh.arms && Object.keys(sh.arms).length) {
+      card.appendChild(el("h3", null, "후보마다 실제 시세로 굴린 가상 계좌"));
+      var sl = el("div", "sub");
+      sl.appendChild(el("span", null, "시작"));
+      sl.appendChild(document.createTextNode(" "));
+      sl.appendChild(el("b", null, sh.since || "—"));
+      sl.appendChild(document.createTextNode(" · "));
+      sl.appendChild(el("span", null, "기록한 날"));
+      sl.appendChild(document.createTextNode(" "));
+      sl.appendChild(el("b", null, String(sh.days == null ? "—" : sh.days)));
+      card.appendChild(sl);
+      var tw2 = el("div", "tw");
+      var t2 = el("table");
+      var h2 = el("tr");
+      ["후보", "누적 수익", "최대낙폭", "낸 비용", "평균 투자 비중"].forEach(function (h) {
+        h2.appendChild(el("th", null, h));
+      });
+      t2.appendChild(h2);
+      Object.keys(sh.arms).forEach(function (k) {
+        var a = sh.arms[k];
+        var tr = el("tr", k === es.active ? "on" : null);
+        tr.appendChild(el("td", null, a.label || k));
+        tr.appendChild(el("td", "n", pct(a.return_pct)));
+        tr.appendChild(el("td", "n", pct(a.worst_mdd_pct)));
+        tr.appendChild(el("td", "n", pct(a.cost_pct)));
+        tr.appendChild(el("td", "n", pct(a.avg_gross == null ? null : a.avg_gross * 100)));
+        t2.appendChild(tr);
+      });
+      tw2.appendChild(t2);
+      card.appendChild(tw2);
+      card.appendChild(el("div", "sub", "고르는 데는 쓰지 않습니다 — 과거 시뮬레이션이 지금 실제와 맞는지 보는 계측기입니다. 정수 주는 맞추지 않아 본 계좌보다 약간 매끄럽습니다."));
+    }
+
     var ul = el("ul", "sub");
     [
       "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.",
@@ -129,6 +187,7 @@
     fetch("status.json").then(function (r) { return r.ok ? r.json() : null; })
       .then(function (s) {
         var es = s && s.engine_select;
+        root.__engineShadow = s && s.engine_shadow;
         Array.prototype.forEach.call(boxes, function (b) { if (es) render(b, es); });
       })
       .catch(function () {});

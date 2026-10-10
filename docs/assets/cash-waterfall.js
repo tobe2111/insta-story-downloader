@@ -81,6 +81,13 @@
       if (row.engine) {
         // 엔진 전환(감사 335) — 이 표는 챔피언 체계의 계산이라 오늘 주문과 다르다.
         card.appendChild(line("sub", ["오늘 비중은 추세 코어가 정했습니다 — 아래 단계표는 이전 체계(챔피언)의 계산으로, 참고용입니다."]));
+        var pdrop = row.engine.pending_dropped;
+        if (pdrop) {
+          // 엔진이 바뀐 날(감사 342) — 옛 엔진의 대기 주문을 체결하지 않고 버렸다.
+          card.appendChild(line("sub", ["엔진이 바뀌어 옛 엔진이 정한 대기 주문을 버렸습니다", " — ",
+            {b: String(pdrop.orders)}, "건", " · ",
+            "같은 날 새 엔진이 되돌릴 주문을 체결하면 수수료만 두 번 냅니다."]));
+        }
       }
       var tw = el("div", "tw");
       var t = el("table");

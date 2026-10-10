@@ -34,12 +34,9 @@ def _load(path):
         return None
 
 
-def main():
-    print("40종목 장기 시세 —")
-    closes = T.align_business_days(fetch_all(_universe()))
+def _run_all(closes, fx):
     cost = one_way_costs(closes.columns)
     fx_keys = {c for c in closes.columns if c.startswith("us_stock:")}
-    fx = fx_spread(STATE_DIR)
     results = {}
     for name in E.CANDIDATES:
         tgt, cfg = E.candidate_targets(closes, name)
@@ -47,7 +44,27 @@ def main():
                                    fx_keys=fx_keys, fx_cost=fx)
         print(f"  · {name} 끝")
     meta = E.meta_backtest(results, cost, fx_keys=fx_keys, fx_cost=fx)
-    g = E.gate(meta, results)
+    return results, meta
+
+
+def main():
+    print("40종목 장기 시세 —")
+    cur = fetch_all(_universe())
+    closes = T.align_business_days(cur)
+    fx = fx_spread(STATE_DIR)
+    results, meta = _run_all(closes, fx)
+    # 생존 편향 점검(감사 342) — 규칙으로 고른 넓은 ETF 목록에서도 같은 규칙을
+    # 돌린다. 자료를 못 받으면 None(못 쟀다)이고 막지 않는다.
+    wide = None
+    try:
+        from scripts.multi_sleeve_research import fetch_broad
+        print("넓은 ETF 목록(생존 편향 점검) —")
+        wide_closes = T.align_business_days({**fetch_broad(), **cur})
+        w_results, w_meta = _run_all(wide_closes, fx)
+        wide = {"results": w_results, "meta": w_meta}
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ✗ 넓은 목록 실패 — 점검 못 함: {exc}")
+    g = E.gate(meta, results, wide=wide)
 
     prev = _load(OUT) or {}
     eng = _load(os.path.join(STATE_DIR, "engine.json")) or {}
@@ -62,6 +79,10 @@ def main():
         held = int(((rets.index > pd.Timestamp(prev["since_switch"]))
                     & (rets.index <= day)).sum())
     dec = E.choose(rets, day, incumbent, held_days=held)
+    w_rets = (pd.DataFrame({n: r.equity.pct_change()
+                            for n, r in wide["results"].items()})
+              if wide else None)
+    dec = E.confirm_wide(dec, w_rets, day)
     if g["pass"]:
         active = dec["choice"]
     else:
@@ -76,7 +97,9 @@ def main():
         cands[n] = {"label": E.LABELS[n],
                     "window": dec["table"].get(n),
                     "judge": T.stats(r.equity[E.JUDGE_START:]),
-                    "cost_pct_yr": round(float(r.cost.sum()) / yrs * 100, 3)}
+                    "cost_pct_yr": round(float(r.cost.sum()) / yrs * 100, 3),
+                    "wide_judge": (T.stats(wide["results"][n].equity[E.JUDGE_START:])
+                                   if wide else None)}
     out = {"registered_on": E.REGISTERED_ON,
            "asof": str(day.date()),
            "data_end": str(closes.index[-1].date()),
@@ -91,7 +114,7 @@ def main():
                     "objective": "cagr_net"},
            "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"}}
 
-    print(f"\n=== 감사 341 — 엔진 자동 선택 ({out['asof']}) ===")
+    print(f"\n=== 감사 341·342 — 엔진 자동 선택 ({out['asof']}) ===")
     print(f"{'후보':12s} {'3년 연수익%':>10s} {'3년 낙폭%':>9s} {'2016~ 연수익%':>12s} "
           f"{'샤프':>5s} {'낙폭%':>7s}")
     for n, c in cands.items():
@@ -101,6 +124,16 @@ def main():
     ms = g["selector"] or {}
     print(f"선택기(2016~) 연수익 {ms.get('cagr')}% · 샤프 {ms.get('sharpe')} · "
           f"낙폭 {ms.get('mdd')}% · 갈아탐 {g['switches']}회")
+    if g.get("wide"):
+        wm, wb = g["wide"]["selector"] or {}, g["wide"]["baseline"] or {}
+        print(f"넓은 목록(2016~) 선택기 연수익 {wm.get('cagr')}% · 낙폭 {wm.get('mdd')}% "
+              f"vs 기준 {wb.get('cagr')}% → {'통과' if g['wide']['pass'] else '미달'}")
+        for n, c in cands.items():
+            j = c["wide_judge"] or {}
+            print(f"  넓은 {n:12s} 연수익 {j.get('cagr')}% · 샤프 {j.get('sharpe')} · "
+                  f"낙폭 {j.get('mdd')}%")
+    else:
+        print("넓은 목록 점검: 못 쟀다(자료 없음)")
     print(f"→ 관문 {'통과' if g['pass'] else '미달 — 기준선 유지'} · "
           f"지금 엔진 {incumbent} → {active} ({dec['reason']}, t={dec['t']})")
     with open(OUT, "w", encoding="utf-8") as f:

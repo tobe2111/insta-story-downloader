@@ -173,6 +173,40 @@ def _core_engine(state_dir: str) -> dict | None:
     return cfg if cfg.get("engine") == "trend_core" else None
 
 
+def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
+    """오늘 목표를 정할 엔진의 이름과 누가 골랐나. 엔진이 꺼져 있으면 None.
+
+    주간 선택기(감사 341)가 관문을 통과했고 선택이 낡지 않았으면 그 후보,
+    아니면 engine.json에 적힌 것 — 사람이 고르지 않는다(사장님 2026-10-10).
+    대기 주문 폐기(감사 342)와 목표 계산이 **같은 답**을 쓰게 하는 한 자리다.
+    """
+    eng = _core_engine(state_dir)
+    if not eng:
+        return None
+    from quant.portfolio import engine_select as E
+    picked = E.active_choice(E.load_state(state_dir), asof)
+    name = picked or eng.get("variant") or E.BASELINE
+    if name not in E.CANDIDATES:
+        name = E.BASELINE
+    return name, ("engine_select" if picked else "engine.json")
+
+
+def _pending_engine(st: dict) -> str | None:
+    """대기 주문을 정한 엔진의 이름(감사 342). 모르면 None — 그때는 안 버린다.
+
+    `pending_engine` 칸이 생기기 전의 주문은 마지막 기록이 적은 엔진으로
+    추정한다(그 기록이 그 주문을 낸 회차다). 엔진 칸이 비어 있었으면 챔피언
+    체계(`champions`)가 낸 주문이다.
+    """
+    was = st.get("pending_engine")
+    if was is not None:
+        return was
+    last = (st.get("history") or [{}])[-1] or {}
+    if "engine" not in last:
+        return None
+    return (last.get("engine") or {}).get("variant") or "champions"
+
+
 def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | None:
     """추세 코어의 오늘 목표 비중. 엔진이 꺼져 있거나 계산이 실패하면 None.
 
@@ -190,34 +224,18 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
             {k: v for k, v in closes_map.items() if k in weights})
         if closes.empty:
             return None
-        # 어느 엔진인가 — 주간 선택기(감사 341)가 관문을 통과했고 선택이
-        # 낡지 않았으면 그 후보, 아니면 engine.json에 적힌 것. 사람이 고르지
-        # 않는다(사장님 2026-10-10: "수익률에 따라서 머신러닝이 결정").
-        sel_state = E.load_state(state_dir)
-        picked = E.active_choice(sel_state, closes.index[-1])
-        name = picked or eng.get("variant") or E.BASELINE
-        if name not in E.CANDIDATES:
-            name = E.BASELINE
+        name, selected_by = _engine_name(state_dir, closes.index[-1])
         tgt, cfg = E.candidate_targets(closes, name)
         # ⚠️ **검증과 같은 주기로** 고친다 — 검증은 금요일 종가 목표로 주 1회
         #    매매했다(회전·비용이 그 가정 위에서 나왔다). 매일 그날 목표를
         #    따르면 같은 엔진이 검증보다 자주 사고팔아 비용이 검증과 갈린다.
         #    그래서 **가장 최근 금요일**의 목표를 쓴다(월 단위면 그 달 마지막
         #    영업일 대신 가장 최근 달의 마지막 영업일).
-        idx = tgt.index
-        if cfg.rebalance == "D":
-            day = idx[-1]
-        elif cfg.rebalance == "M":
-            # 끝난 달의 마지막 영업일(이번 달은 아직 안 끝났다)
-            prev = idx[(idx.year * 12 + idx.month) < (idx[-1].year * 12 + idx[-1].month)]
-            day = prev[-1] if len(prev) else idx[-1]
-        else:
-            fridays = idx[idx.weekday == 4]
-            day = fridays[-1] if len(fridays) else idx[-1]
+        day = E.target_day(tgt.index, cfg.rebalance)
         today = tgt.loc[day].fillna(0.0)
         w = {k: round(float(today.get(k, 0.0)), 6) for k in weights}
         return {"name": "trend_core", "variant": name,
-                "selected_by": "engine_select" if picked else "engine.json",
+                "selected_by": selected_by,
                 "asof": str(closes.index[-1].date()),
                 "target_day": str(day.date()),
                 "gross": round(sum(w.values()), 4),
@@ -2389,6 +2407,22 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                     len(pending))
         pending = {}
 
+    # 엔진이 바뀐 날의 대기 주문(감사 342) — 어제 **옛 엔진**이 정한 주문을
+    # 오늘 시가에 체결하면, 같은 날 새 엔진이 그 대부분을 되돌리는 주문을 낸다.
+    # 사고팔기만 하고 수수료·환전 비용을 두 번 문다. 그래서 엔진이 바뀌었으면
+    # 옛 주문을 버린다(일시정지와 같은 처리 — 새 엔진이 오늘 새로 정한다).
+    # ⚠️ 본 계좌 회차에서만 본다 — 섀도 대조군은 엔진과 무관하게 돈다.
+    pending_dropped = None
+    if use_champions and pending:
+        now_eng = _engine_name(state_dir, bar)
+        now_name = now_eng[0] if now_eng else "champions"
+        was = _pending_engine(st)
+        if was is not None and was != now_name:
+            log.warning("엔진이 바뀌었다(%s → %s) — 옛 엔진의 대기 주문 %d건 폐기",
+                        was, now_name, len(pending))
+            pending_dropped = {"from": was, "to": now_name, "orders": len(pending)}
+            pending = {}
+
     # ① 대기 주문 체결 — 주식은 결정 다음 세션의 '시가'에서만 체결(개장 갭 감수).
     #    평가 마크는 현재 종가 근사(스킵 종목은 평단가) — 체결가만 시가를 쓴다.
     fills = []
@@ -2674,6 +2708,18 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             guard=guard_damp.get(key, 1.0), valid=valid_damp.get(key, 1.0),
             kcap=kelly_caps.get(key), slice_=slices.get(key, 1.0 / n))
 
+    # 엔진 후보 그림자(감사 342) — 선택기가 고르는 후보 여섯을 실제 배치의
+    # 시세로 나란히 굴린다. 본 계좌 회차에서만, 실패해도 본 계좌 무관.
+    if use_champions and _core_engine(state_dir):
+        try:
+            from quant.live.engine_shadow import run_engine_shadow
+            run_engine_shadow(bar=bar, closes_map=closes_map, weights=weights,
+                              marks=marks,
+                              active=core["variant"] if core is not None else None,
+                              state_dir=state_dir)
+        except Exception as exc:  # noqa: BLE001 — 실험이 본 계좌를 볼모로 못 잡게
+            log.warning("엔진 후보 그림자 실패(본 계좌 무관): %s", exc)
+
     # 넘친 예산 재분배 그림자(감사 332, 2026-10-06 사장님 "둘 다 진행") —
     # 같은 신호·같은 안전장치에 **예산 상한 초과분 처리만** 다르게 한 가상
     # 계좌 둘. 본 계좌 회차에서만 돈다(대조군 신호가 섞이면 안 된다).
@@ -2811,6 +2857,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                  len(skipped_dust), f"{MIN_ORDER_KRW:,.0f}",
                  ", ".join(skipped_dust))
     st["pending"] = pending
+    # 이 주문을 정한 엔진 — 내일 엔진이 바뀌었으면 버린다(감사 342).
+    st["pending_engine"] = (core["variant"] if core is not None else "champions")
     # 코인 즉시 체결 내역 — "오늘 얼마에 사고팔았나"를 사이트가 보여줄 재료.
     # 주식 시가 체결(fills 위쪽)과 함께 그날 기록에 남는다.
     for o in getattr(broker, "order_log", [])[n_orders_before:]:
@@ -3065,7 +3113,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "applied": applied or None,
               "alloc_method": alloc_method,   # hrp | erc | equal — 폴백 흔적
               # 어느 엔진이 오늘 목표를 정했나(감사 335). None = 챔피언 체계.
-              "engine": ({k: v for k, v in core.items() if k != "weights"}
+              "engine": ({**{k: v for k, v in core.items() if k != "weights"},
+                          **({"pending_dropped": pending_dropped}
+                             if pending_dropped else {})}
                          if core is not None else None),
               # 현금이 왜 이만큼 남았나 — 단계별 총노출(감사 332).
               "cash_waterfall": _safe_waterfall(
@@ -3917,6 +3967,12 @@ def write_docs_status(state_dir: str = STATE_DIR,
         status["engine_select"] = engine_select_public(state_dir)
     except Exception:  # noqa: BLE001
         status["engine_select"] = None
+
+    try:
+        from quant.live.engine_shadow import engine_shadow_public
+        status["engine_shadow"] = engine_shadow_public(state_dir)
+    except Exception:  # noqa: BLE001
+        status["engine_shadow"] = None
 
     # 저명 투자자 13F(감사 331, 사장님: "홈페이지 각 페이지들에 보여야 해")
     # — 모든 페이지가 이 한 칸을 읽는다. 수집 상태도 함께 싣는다.
