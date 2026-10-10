@@ -57,6 +57,10 @@ class PaperBroker(Broker):
         self.fee = fee
         # 이 계좌가 지금까지 낸 수수료·슬리피지 누적(체결 통화 기준).
         self.fee_paid = 0.0
+        # 롱을 줄일 때 실현한 손익 [(종목, 원)] — 세금 추정의 재료(감사 339).
+        # 매도 수수료는 빼고(필요경비), 매수 수수료는 평단에 안 들어 있어
+        # 빠진다 — 이득을 조금 크게 잡는 쪽(보수적)이다.
+        self.realized: list = []
         # 신규·추가 **공매도**에 필요한 증거금 비율(|숏 노출| 대비).
         # 0(기본) = 공매도 금지 — 매도는 **보유 수량까지만** 체결된다.
         #
@@ -190,6 +194,10 @@ class PaperBroker(Broker):
         # 주문이 체결처럼 남아 있다).
         # 돈을 실제로 빼는 자리에서 세면 되짚을 일이 없다.
         self.fee_paid += fee
+        if side == "sell" and old_qty > 0 and quantity > 0:
+            closed = min(quantity, old_qty)
+            self.realized.append(
+                (symbol, (price - old_avg) * closed - fee * closed / quantity))
 
         new_qty = old_qty + signed
         if abs(new_qty) < _DUST:          # 부동소수 먼지 제거 → 완전 청산으로 스냅

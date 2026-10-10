@@ -978,6 +978,20 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
                    ?' · 이 기록일에 '+won(Number(pfLast.cost)):'')+
                '</div></div>'
             :'')+
+          /* 세금 추정·환전(감사 339) — 위 자산은 **세전**이다. 세금은 다음 해
+             5월에 내므로 자산에서 빼지 않고 여기 따로 적는다. 환전 비용은
+             이미 위 '이미 낸 비용'에 들어 있고, 여기서는 요율만 밝힌다. */
+          (pfLast.tax_estimate
+            ?'<div><div class="gk">올해 세금 추정</div>'+
+               '<div class="gsub">'+won(Number(pfLast.tax_estimate.total||0))+'</div>'+
+               '<div class="gk" style="font-weight:400">'+
+                 '<span>자산에서 안 뺀 값(다음 해 5월 납부)</span>'+
+                 ' · <span>해외 실현 손익</span> <b>'+won(Number((pfLast.tax_estimate.realized||{}).foreign||0))+'</b>'+
+                 ' · <span>250만원까지 공제</span>'+
+                 (pfLast.fx&&pfLast.fx.spread!=null
+                   ?' · <span>환전 편도</span> <b>'+(Number(pfLast.fx.spread)*100).toFixed(2)+'%</b>':'')+
+               '</div></div>'
+            :'')+
         '</div>'+
         /* 기준일 — 오늘이 아니면 **크게** 말한다. 작게 적으면 아무도 안 읽고,
            그러면 이틀 전 숫자를 오늘로 읽는다. */
