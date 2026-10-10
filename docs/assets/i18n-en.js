@@ -569,6 +569,34 @@
         "Relative strength",
       "추세 + 상대 강세":
         "Trend + relative strength",
+      "40종목에서는 더 나은 후보가 있지만, 규칙으로 고른 넓은 ETF 목록에서는 앞서지 못해 그대로 둡니다.":
+        "A better candidate exists among the 40 symbols, but it does not lead on the rule-chosen broad ETF list, so the engine stays.",
+      "같은 규칙을 규칙으로 고른 넓은 ETF 목록에서":
+        "The same rule on the rule-chosen broad ETF list",
+      "연수익":
+        "Annual return",
+      "넓은 목록에서도 이김":
+        "Also wins on the broad list",
+      "넓은 목록에서는 못 이김":
+        "Does not win on the broad list",
+      "넓은 ETF 목록 점검은 아직 못 쟀습니다 — 사람이 고른 40종목에서만 잰 결과입니다.":
+        "The broad-ETF-list check has not been measured yet — these results come only from the 40 hand-picked symbols.",
+      "후보마다 실제 시세로 굴린 가상 계좌":
+        "Virtual accounts run on real prices, one per candidate",
+      "시작":
+        "Started",
+      "기록한 날":
+        "Days recorded",
+      "누적 수익":
+        "Cumulative return",
+      "고르는 데는 쓰지 않습니다 — 과거 시뮬레이션이 지금 실제와 맞는지 보는 계측기입니다. 정수 주는 맞추지 않아 본 계좌보다 약간 매끄럽습니다.":
+        "Not used for picking — it is a gauge of whether the historical simulation matches reality now. It does not round to whole shares, so it is slightly smoother than the main account.",
+      "엔진이 바뀌어 옛 엔진이 정한 대기 주문을 버렸습니다":
+        "The engine changed, so the pending orders set by the old engine were discarded",
+      "건":
+        " orders",
+      "같은 날 새 엔진이 되돌릴 주문을 체결하면 수수료만 두 번 냅니다.":
+        "Filling orders the new engine would reverse the same day only pays fees twice.",
       "현금이 왜 이만큼 남았나 — 투자 비중이 줄어드는 단계":
         "Why this much cash — the steps that shrink the invested share",
       "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다.":

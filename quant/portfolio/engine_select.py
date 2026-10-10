@@ -112,6 +112,22 @@ def candidate_targets(closes: pd.DataFrame, name: str
     return T.target_weights(closes, cfg), cfg
 
 
+def target_day(idx: pd.DatetimeIndex, rebalance: str):
+    """검증과 같은 주기의 '목표를 정한 날' — 실계좌·그림자가 같은 답을 쓴다.
+
+    검증은 금요일 종가 목표로 주 1회 매매했다(회전·비용이 그 가정 위에서
+    나왔다). 매일 그날 목표를 따르면 같은 엔진이 검증보다 자주 사고팔아
+    비용이 검증과 갈린다. 월 단위면 **끝난 달**의 마지막 영업일이다.
+    """
+    if rebalance == "D":
+        return idx[-1]
+    if rebalance == "M":
+        prev = idx[(idx.year * 12 + idx.month) < (idx[-1].year * 12 + idx[-1].month)]
+        return prev[-1] if len(prev) else idx[-1]
+    fridays = idx[idx.weekday == 4]
+    return fridays[-1] if len(fridays) else idx[-1]
+
+
 def _cagr(r: pd.Series) -> float:
     r = r.dropna()
     if len(r) < 2:
@@ -223,15 +239,55 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
 
 
 def gate(meta: dict, results: dict, start: str = JUDGE_START,
-         baseline: str = BASELINE) -> dict:
+         baseline: str = BASELINE, wide: dict | None = None) -> dict:
     """선택기가 실계좌 엔진을 정할 자격 — 판정 구간 연수익이 기준선보다 높고
-    최대낙폭이 병적 문턱 안일 때만."""
+    최대낙폭이 병적 문턱 안일 때만.
+
+    wide(감사 342): 같은 규칙을 **규칙으로 고른 넓은 ETF 목록**에서 돌린 결과
+    `{"meta": …, "results": …}`. 주면 그쪽에서도 이겨야 통과다 — 사람이 오늘
+    고른 40종목(지나고 보니 오른 종목)에서만 이기는 규칙은 생존 편향의 산물일
+    수 있다. 넓은 목록 자료를 못 받았으면(None) 이 조건은 **못 쟀다**로 적고
+    막지 않는다.
+    """
     base = T.stats(results[baseline].equity[start:])
     m = meta["stats"]
     ok = bool(m and base and m["cagr"] > base["cagr"]
               and m["mdd"] / 100 >= MDD_FLOOR)
-    return {"pass": ok, "start": start, "selector": m, "baseline": base,
-            "baseline_name": baseline, "switches": len(meta["switches"])}
+    out = {"pass": ok, "start": start, "selector": m, "baseline": base,
+           "baseline_name": baseline, "switches": len(meta["switches"])}
+    if wide is not None:
+        wb = T.stats(wide["results"][baseline].equity[start:])
+        wm = wide["meta"]["stats"]
+        wok = bool(wm and wb and wm["cagr"] > wb["cagr"]
+                   and wm["mdd"] / 100 >= MDD_FLOOR)
+        out["wide"] = {"pass": wok, "selector": wm, "baseline": wb,
+                       "switches": len(wide["meta"]["switches"])}
+        out["pass"] = ok and wok
+    else:
+        out["wide"] = None
+    return out
+
+
+def confirm_wide(dec: dict, wide_returns: pd.DataFrame | None, upto) -> dict:
+    """갈아타기 결정을 넓은 ETF 목록에서도 확인한다(감사 342).
+
+    40종목에서 앞선 후보가 넓은 목록의 같은 후보로도 지금 엔진을 앞서야
+    갈아탄다(최근 3년 연수익). 아니면 그대로 두고 이유를 `not_robust`로
+    남긴다. 넓은 목록 자료가 없으면 확인을 **못 했다**고 적고 막지 않는다.
+    """
+    if dec.get("reason") != "switch":
+        return dec
+    if wide_returns is None or wide_returns.empty:
+        dec["wide"] = None
+        return dec
+    w = choose(wide_returns, upto, dec["incumbent"])["table"]
+    best, inc = dec["choice"], dec["incumbent"]
+    dec["wide"] = {best: w.get(best), inc: w.get(inc)}
+    b, i = (w.get(best) or {}).get("cagr"), (w.get(inc) or {}).get("cagr")
+    if b is None or i is None or b <= i:
+        dec["choice"] = inc
+        dec["reason"] = "not_robust"
+    return dec
 
 
 def active_choice(state: dict | None, today) -> str | None:
@@ -272,7 +328,7 @@ def public(state_dir: str) -> dict | None:
             "reason": dec.get("reason"), "t": dec.get("t"), "best": dec.get("best"),
             "gate": {"pass": g.get("pass"), "selector": g.get("selector"),
                      "baseline": g.get("baseline"), "switches": g.get("switches"),
-                     "start": g.get("start")},
+                     "start": g.get("start"), "wide": g.get("wide")},
             "candidates": {n: {"label": c.get("label"), "window": c.get("window"),
                                "judge": c.get("judge")}
                            for n, c in (st.get("candidates") or {}).items()},
