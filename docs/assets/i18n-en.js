@@ -484,8 +484,19 @@
         "adoption is withheld if its max drawdown exceeds 1.5× the discard account's",
       ". 이겨도 본 계좌 적용은 자동이 아닙니다.":
         ". Even a win is not applied to the main account automatically.",
-      "열 실험 모두(2026-10-06 ⑩ 추가로 아홉에서 열이 됐습니다), 기준 미달의 결과는 같습니다:":
-        "For all ten experiments (nine became ten when ⑩ was added on 2026-10-06), falling short of the bar has the same outcome:",
+      "열한 실험 모두(2026-10-06 ⑩ 추가로 아홉에서 열이, 2026-10-10 ⑪ 추가로 열하나가 됐습니다), 기준 미달의 결과는 같습니다:":
+        "For all eleven experiments (nine became ten when ⑩ was added on 2026-10-06, and eleven when ⑪ was added on 2026-10-10), falling short of the bar has the same outcome:",
+      // ── 본 계좌 추세 코어의 실계좌 기대치 — 2026-10-10(감사 337) ───
+      "본 계좌 추세 코어의 실계좌 기대치":
+        "Live expectation for the main account's trend core",
+      "(2026-10-10 등록) — 2026-10-10에 바꾼 엔진이 실제로 돌 때 검증에서 본 실력에 닿는지를 판정일":
+        "(registered 2026-10-10) — whether the engine switched in on 2026-10-10 reaches, live, the skill seen in validation is judged on",
+      "(시작 + 182일)에 봅니다. 기대치는 검증 샤프 1.33이 아니라":
+        "(start + 182 days). The expectation is not the validation Sharpe of 1.33 but",
+      "생존 편향을 뺀 0.62":
+        "0.62, with survivorship bias removed",
+      "를 기준으로 삼습니다: 샤프 0.5 이상이면 부합, 0~0.5면 하한 미달, 0 미만이거나 최대낙폭이 −15%보다 나쁘면 실패. 같은 구간 60/40 보유를 기준선으로 함께 적습니다. 6개월은 실력을 증명하기엔 짧습니다 — 이 등록의 목적은 나쁜 결과를 보고 기준을 옮기지 못하게 골대를 먼저 박는 것입니다.":
+        ": Sharpe 0.5 or above meets it, 0–0.5 falls short of the floor, and below 0 or a max drawdown worse than −15% is a failure. A 60/40 hold over the same period is listed as the baseline. Six months is too short to prove skill — the point of registering is to plant the goalposts first so a bad result cannot move them.",
       "종목별 배분 예산(상한 전)":
         "Allocation budget per symbol (before the cap)",
       "종목당 상한을 넘친 몫을 버린 뒤":

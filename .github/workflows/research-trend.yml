@@ -8,6 +8,7 @@ on:
       - "scripts/trend_core_research.py"
       - "scripts/trend_futures_research.py"
       - "scripts/multi_sleeve_research.py"
+      - "scripts/managed_futures_research.py"
       - "quant/portfolio/trend_core.py"
       - ".github/workflows/research-trend.yml"
   workflow_dispatch:
@@ -18,7 +19,7 @@ permissions:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -32,6 +33,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt -r requirements-extra.txt
+      - name: Managed futures, carry, combo (audit 337)
+        run: python scripts/managed_futures_research.py
       - name: Second return source, broad ETFs, KRW (audit 336)
         run: python scripts/multi_sleeve_research.py
       - name: Futures (crypto) trend research
