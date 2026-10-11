@@ -34,42 +34,59 @@ def _load(path):
         return None
 
 
-def _run_all(closes, fx):
+def _run_all(closes, fx, core_keys=None, names=None):
+    """후보마다 시뮬레이션 + 선택 규칙 재생.
+
+    core_keys: 40종목 열. 주면 40종목 후보는 그 열만, 넓은 목록 후보는 전부를
+    본다(실계좌와 같은 규칙). None이면 모든 후보가 받은 열 전부를 본다
+    (생존 편향 점검용 — 같은 규칙을 넓은 목록에서 돌린 쌍둥이).
+    """
     cost = one_way_costs(closes.columns)
     fx_keys = {c for c in closes.columns if c.startswith("us_stock:")}
     results = {}
-    for name in E.CANDIDATES:
-        tgt, cfg = E.candidate_targets(closes, name)
+    for name in (names or E.CANDIDATES):
+        tgt, cfg = E.candidate_targets(closes, name, core_keys=core_keys)
         results[name] = T.simulate(closes, cost, cfg, targets=tgt,
                                    fx_keys=fx_keys, fx_cost=fx)
         print(f"  · {name} 끝")
+    # 상위 둘 섞기(감사 343 ③) — 위 후보들의 결과로 만든다(월 1회 짝 재선정).
+    top2, pair = E.build_top2(results, cost, fx_keys=fx_keys, fx_cost=fx)
+    results[E.TOP2] = top2
+    print(f"  · {E.TOP2} 끝 — 지금 짝 {pair}")
     meta = E.meta_backtest(results, cost, fx_keys=fx_keys, fx_cost=fx)
-    return results, meta
+    return results, meta, pair
 
 
 def main():
     print("40종목 장기 시세 —")
     cur = fetch_all(_universe())
-    closes = T.align_business_days(cur)
+    core_keys = set(cur)
     fx = fx_spread(STATE_DIR)
-    results, meta = _run_all(closes, fx)
-    # 생존 편향 점검(감사 342) — 규칙으로 고른 넓은 ETF 목록에서도 같은 규칙을
-    # 돌린다. 자료를 못 받으면 None(못 쟀다)이고 막지 않는다.
-    wide = None
+    # 넓은 ETF 목록(감사 342·343) — 넓은 목록 후보의 재료이자 생존 편향
+    # 점검의 재료다. 못 받으면 넓은 목록 후보는 **못 쟀다**로 빠지고(40종목
+    # 위에서 돌리면 이름만 다른 같은 후보가 된다), 점검도 못 쟀다로 적는다.
+    broad = {}
     try:
         from scripts.multi_sleeve_research import fetch_broad
-        print("넓은 ETF 목록(생존 편향 점검) —")
-        wide_closes = T.align_business_days({**fetch_broad(), **cur})
-        w_results, w_meta = _run_all(wide_closes, fx)
-        wide = {"results": w_results, "meta": w_meta}
+        print("넓은 ETF 목록 —")
+        broad = fetch_broad()
     except Exception as exc:  # noqa: BLE001
-        print(f"  ✗ 넓은 목록 실패 — 점검 못 함: {exc}")
+        print(f"  ✗ 넓은 목록 실패 — 넓은 목록 후보·점검 못 함: {exc}")
+    closes = T.align_business_days({**broad, **cur})
+    names = [n for n in E.CANDIDATES
+             if broad or E.universe_of(n) == "core"]
+    results, meta, top2_pair = _run_all(closes, fx, core_keys=core_keys, names=names)
+    wide = None
+    if broad:
+        print("생존 편향 점검(모든 후보를 넓은 목록에서) —")
+        w_results, w_meta, _ = _run_all(closes, fx, core_keys=None, names=names)
+        wide = {"results": w_results, "meta": w_meta}
     g = E.gate(meta, results, wide=wide)
 
     prev = _load(OUT) or {}
     eng = _load(os.path.join(STATE_DIR, "engine.json")) or {}
     incumbent = prev.get("active") or eng.get("variant") or E.BASELINE
-    if incumbent not in E.CANDIDATES:
+    if incumbent not in E.ALL_NAMES:
         incumbent = E.BASELINE
     rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
     fridays = rets.index[rets.index.weekday == 4]
@@ -104,6 +121,7 @@ def main():
            "asof": str(day.date()),
            "data_end": str(closes.index[-1].date()),
            "active": active, "active_label": E.LABELS[active],
+           "top2_pair": top2_pair,
            "previous": incumbent, "switched": switched,
            "since_switch": since_switch,
            "decision": dec, "gate": g,

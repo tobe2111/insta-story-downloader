@@ -597,6 +597,18 @@
         " orders",
       "같은 날 새 엔진이 되돌릴 주문을 체결하면 수수료만 두 번 냅니다.":
         "Filling orders the new engine would reverse the same day only pays fees twice.",
+      "상대 강세 · 넓은 목록":
+        "Relative strength · broad list",
+      "추세 + 상대 강세 · 넓은 목록":
+        "Trend + relative strength · broad list",
+      "상대 강세 · 하락장 방어":
+        "Relative strength · downturn guard",
+      "상대 강세 · 하락장 방어 · 넓은 목록":
+        "Relative strength · downturn guard · broad list",
+      "최근 상위 둘 섞기":
+        "Top two recent, half each",
+      "지금 반씩 담는 두 엔진":
+        "The two engines held half each",
       "현금이 왜 이만큼 남았나 — 투자 비중이 줄어드는 단계":
         "Why this much cash — the steps that shrink the invested share",
       "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다.":

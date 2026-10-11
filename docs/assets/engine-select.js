@@ -68,6 +68,18 @@
     card.appendChild(head);
     var why = REASONS[es.reason];
     if (why) card.appendChild(el("div", "sub", why));
+    // 상위 둘 섞기(감사 343 ③) — 지금 반씩 담는 두 후보.
+    var pr = es.top2_pair;
+    if (es.active === "top2" && pr && pr.length === 2) {
+      var cs0 = es.candidates || {};
+      var pl = el("div", "sub");
+      pl.appendChild(el("span", null, "지금 반씩 담는 두 엔진"));
+      pl.appendChild(document.createTextNode(" — "));
+      pl.appendChild(el("b", null, (cs0[pr[0]] || {}).label || pr[0]));
+      pl.appendChild(document.createTextNode(" · "));
+      pl.appendChild(el("b", null, (cs0[pr[1]] || {}).label || pr[1]));
+      card.appendChild(pl);
+    }
 
     var tw = el("div", "tw");
     var t = el("table");
