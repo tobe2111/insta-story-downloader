@@ -135,3 +135,22 @@ def test_the_workflow_does_not_force():
     assert line, "워크플로에서 social-content 호출을 찾지 못했다"
     assert not any("--force" in l for l in line), (
         "야간 배치가 --force로 돌면 과거 게시물이 매일 조용히 덮어써진다")
+
+
+def test_a_day_with_nothing_new_is_a_quiet_skip_not_a_red_job():
+    """감사 347 — 엔진 교체 뒤 주말에는 장부에 새 날짜가 없다.
+
+    그날 기록이 되돌림으로 다시 계산돼 숫자가 달라졌을 뿐인데 잡이 매일
+    빨갛게 죽었다(10/10·10/11). 공개 글은 그대로 두고(덮어쓰지 않는다),
+    CLI는 종료 코드 3으로 '올릴 새 글 없음'을 알리고, 워크플로는 촬영·게시를
+    건너뛰며, dead man's switch는 마지막 장부 날짜의 폴더가 있으면 누락으로
+    세지 않는다.
+    """
+    cli = (ROOT / "quant" / "cli.py").read_text(encoding="utf-8")
+    body = cli.split("def _cmd_social_content")[1][:1400]
+    assert "SystemExit(3)" in body
+    wf = (ROOT / ".github" / "workflows" / "social-post.yml").read_text("utf-8")
+    assert '"$RC" = "3"' in wf
+    assert wf.count("if: steps.content.outputs.dir != ''") == 4
+    dm = (ROOT / ".github" / "workflows" / "deadman.yml").read_text("utf-8")
+    assert 'docs/social/$LAST/meta.json' in dm

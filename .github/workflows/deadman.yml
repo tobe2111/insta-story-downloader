@@ -69,7 +69,12 @@ jobs:
             MISSING="$MISSING 매일페이퍼"
           fi
           if ! grep -q "SNS 게시 콘텐츠" <<< "$LOG"; then
-            MISSING="$MISSING SNS콘텐츠"
+            # 장부에 새 날짜가 없는 날(엔진 교체 뒤 주말 — 감사 347)에는 올릴
+            # 글이 없다. 마지막 장부 날짜의 게시 폴더가 이미 있으면 누락이 아니다.
+            LAST=$(python3 -c "import json;h=json.load(open('docs/status.json'))['paper']['portfolio:ALL']['history'];print(h[-1]['date'])" 2>/dev/null || true)
+            if [ -z "$LAST" ] || [ ! -f "docs/social/$LAST/meta.json" ]; then
+              MISSING="$MISSING SNS콘텐츠"
+            fi
           fi
           # 사이트 반영 신선도 — 커밋은 됐는데 배포가 죽은 경우를 잡는다.
           # 배포된 status.json의 updated가 최근 2일 안이어야 정상.
