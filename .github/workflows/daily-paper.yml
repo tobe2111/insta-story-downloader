@@ -34,6 +34,7 @@ concurrency:
 
 permissions:
   contents: write   # state/·docs/status.json 커밋용
+  actions: write    # 죽은 장중 감시 사슬을 되살린다(감사 351)
   issues: write    # 경보함 이슈(감사 336)
 
 # ⚠️ 알림은 **저장이 끝난 뒤에** 나간다(감사 283). 이 값이 켜져 있으면
@@ -195,6 +196,14 @@ jobs:
           else
             echo "HEARTBEAT_URL 미설정 — 건너뜀"
           fi
+
+      # 감시 사슬(감사 348)이 끊겼으면 되살린다 — 감시는 이 잡을 깨우고,
+      # 이 잡은 감시를 깨운다(감사 351). 실패해도 이 잡을 안 죽인다.
+      - name: 장중 감시 사슬 되살리기
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/dispatch_overdue.py --guard-only || true
 
       - name: 실패 경보 (디스코드/텔레그램)
         # 잡이 어느 단계에서 죽어도 폰으로 알린다 — 조용한 고장이 가장 위험하다.

@@ -125,6 +125,17 @@ jobs:
       # ⚠️ 사슬이 둘로 불어나지 않게 — 이미 대기·진행 중인 다른 회차가 있으면
       #    부르지 않는다(크론이 띄운 회차와 사슬이 겹치는 경우).
       # ⚠️ main에서만 — 다른 가지에서 시험으로 돌린 회차가 사슬을 만들면 안 된다.
+      # ── 밀린 예약 잡을 대신 띄운다 (감사 351) ─────────────────────────
+      # GitHub 크론이 2.5~4시간씩 늦어(일일 기록·재학습·SNS) 감사 350의 주말
+      # 장부 사고가 났다. 이 회차가 12분마다 돌므로 늦음의 상한을 ~15분으로
+      # 묶는다. 크론은 워크플로 파일에서 읽는다(손 명단 금지). 실패해도 이
+      # 잡을 죽이지 않는다.
+      - name: 밀린 예약 잡 띄우기
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/dispatch_overdue.py || true
+
       - name: 다음 회차 예약 (사슬)
         if: always() && github.ref == 'refs/heads/main'
         env:
