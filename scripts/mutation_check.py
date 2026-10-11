@@ -3566,8 +3566,8 @@ MUTATIONS = [
 
     ("매도 선집행을 끈다(판 돈이 같은 사이클 매수에 안 쓰인다)",
      "quant/live/daily.py",
-     "    for key in sorted(weights, key=_sell_first):",
-     "    for key in weights:",
+     "    for key in sorted(trade_keys, key=_sell_first):",
+     "    for key in trade_keys:",
      "tests/test_the_budget_buys_the_best_idea_first.py"),
 
     ("잔고 필드 검사 자체를 끈다(네 브로커가 한꺼번에 '0'을 답하게 된다)",

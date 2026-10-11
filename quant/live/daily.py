@@ -2290,29 +2290,30 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             for key in wide_extra_keys(f"{m}:{s_}" for m, s_ in targets):
                 market, symbol = key.split(":", 1)
                 try:
-                    df = get_provider(market).get_ohlcv(symbol, timeframe,
-                                                        limit=lookback)
-                    if df.empty or (require_real_data
-                                    and df.attrs.get("synthetic_fallback")):
+                    dfx = get_provider(market).get_ohlcv(symbol, timeframe,
+                                                         limit=lookback)
+                    if dfx.empty or (require_real_data
+                                     and dfx.attrs.get("synthetic_fallback")):
                         raise RuntimeError("실데이터 없음")
                     from quant.data.quality import is_severe, scan_ohlcv
-                    q = scan_ohlcv(df)
-                    if is_severe(q):
+                    qx = scan_ohlcv(dfx)
+                    if is_severe(qx):
                         raise RuntimeError(
-                            f"데이터 무결성 위반 {({k: v for k, v in q.items() if v})}")
-                    df_sig = _signal_frame(market, df, timeframe)
-                    closes_map[key] = df_sig["close"]
+                            f"데이터 무결성 위반 {({k: v for k, v in qx.items() if v})}")
+                    # 완성 봉만(코인 미완성 봉 규약과 같은 함수)
+                    closes_map[key] = _signal_frame(market, dfx, timeframe)["close"]
                     prices[key] = _to_krw_or_die(
-                        market, float(df["close"].iloc[-1]), fx_rate)
+                        market, float(dfx["close"].iloc[-1]), fx_rate)
                     st["base_prices"].setdefault(key, prices[key])
-                    last_bars[key] = str(df.index[-1])
-                    sources[key] = str(df.attrs.get("source") or "?")
-                    pend = pending.get(key)
-                    if pend and pend.get("decided_bar"):
-                        fbar, fopen = _first_bar_after(df, pend["decided_bar"])
+                    last_bars[key] = str(dfx.index[-1])
+                    sources[key] = str(dfx.attrs.get("source") or "?")
+                    xpend = pending.get(key)
+                    if xpend and xpend.get("decided_bar"):
+                        xbar, xopen = _first_bar_after(dfx, xpend["decided_bar"])
+                        # 체결가도 원화로 — 위 40종목 루프와 같은 함수(감사 254)
                         opens_after[key] = (
-                            (fbar, _to_krw_or_die(market, fopen, fx_rate))
-                            if fopen is not None else (None, None))
+                            (xbar, _to_krw_or_die(market, xopen, fx_rate))
+                            if xopen is not None else (None, None))
                     extra_keys.append(key)
                 except Exception as exc:  # noqa: BLE001 — 그 종목만 빠진다
                     # 운용 명단의 결손 경보(skipped)와 섞지 않는다 — 40종목
