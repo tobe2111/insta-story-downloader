@@ -57,6 +57,65 @@ def _run_all(closes, fx, core_keys=None, names=None):
     return results, meta, pair
 
 
+def _run_futures(cur, prev):
+    """선물 트랙의 후보 넷(감사 344 ②) — 코인만, 실측 편도 + 펀딩."""
+    frames = {k: v for k, v in cur.items() if k.startswith("crypto:")}
+    if not frames:
+        print("  ✗ 코인 시세 없음 — 선물 선택 못 함")
+        return None
+    closes = T.align_business_days(frames)
+    cost = one_way_costs(closes.columns)
+    results = {}
+    for name in E.FUT_CANDIDATES:
+        tgt, cfg = E.fut_targets(closes, name)
+        results[name] = T.simulate(closes, cost, cfg, targets=tgt)
+        print(f"  · {name} 끝")
+    meta = E.meta_backtest(results, cost, start=E.FUT_JUDGE_START,
+                           baseline=E.FUT_BASELINE)
+    g = E.gate(meta, results, start=E.FUT_JUDGE_START, baseline=E.FUT_BASELINE)
+    pf = (prev or {}).get("futures") or {}
+    incumbent = pf.get("active") if pf.get("active") in E.FUT_CANDIDATES else E.FUT_BASELINE
+    rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
+    fridays = rets.index[rets.index.weekday == 4]
+    day = fridays[-1] if len(fridays) else rets.index[-1]
+    held = None
+    if pf.get("since_switch"):
+        held = int(((rets.index > pd.Timestamp(pf["since_switch"]))
+                    & (rets.index <= day)).sum())
+    dec = E.choose(rets, day, incumbent, held_days=held)
+    if g["pass"]:
+        active = dec["choice"]
+    else:
+        active = E.FUT_BASELINE
+        dec["reason"] = "gate_failed"
+    switched = active != incumbent
+    cands = {}
+    for n, r in results.items():
+        yrs = len(r.equity) / T.PERIODS
+        cands[n] = {"label": E.FUT_LABELS[n], "window": dec["table"].get(n),
+                    "judge": T.stats(r.equity[E.FUT_JUDGE_START:]),
+                    "cost_pct_yr": round(float(r.cost.sum()) / yrs * 100, 3)}
+    out = {"asof": str(day.date()), "active": active,
+           "active_label": E.FUT_LABELS[active], "previous": incumbent,
+           "switched": switched,
+           "since_switch": str(day.date()) if switched else pf.get("since_switch"),
+           "decision": dec, "gate": g, "candidates": cands,
+           "rule": {"judge_start": E.FUT_JUDGE_START,
+                    "funding_annual": T.FUTURES_CARRY,
+                    "t_switch": E.switch_threshold(len(results))}}
+    print("\n=== 감사 344 — 선물 엔진 선택 ===")
+    for n, c in cands.items():
+        w, j = c["window"] or {}, c["judge"] or {}
+        print(f"{n:12s} 3년 {w.get('cagr')}% · 낙폭 {w.get('mdd')}% | 2022~ 연 "
+              f"{j.get('cagr')}% · 샤프 {j.get('sharpe')} · 낙폭 {j.get('mdd')}% · "
+              f"비용 {c['cost_pct_yr']}%/년")
+    ms = g["selector"] or {}
+    print(f"선택기(2022~) 연 {ms.get('cagr')}% · 낙폭 {ms.get('mdd')}% vs 기준 "
+          f"{(g['baseline'] or {}).get('cagr')}% → {'통과' if g['pass'] else '미달'} · "
+          f"{incumbent} → {active} ({dec['reason']}, t={dec['t']})")
+    return out
+
+
 def main():
     print("40종목 장기 시세 —")
     cur = fetch_all(_universe())
@@ -131,7 +190,8 @@ def main():
                     "t_switch": E.switch_threshold(len(results)),
                     "n_candidates": len(results), "mdd_floor_pct": E.MDD_FLOOR * 100,
                     "objective": "cagr_net"},
-           "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"}}
+           "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"},
+           "futures": _run_futures(cur, prev)}
 
     print(f"\n=== 감사 341·342 — 엔진 자동 선택 ({out['asof']}) ===")
     print(f"{'후보':12s} {'3년 연수익%':>10s} {'3년 낙폭%':>9s} {'2016~ 연수익%':>12s} "

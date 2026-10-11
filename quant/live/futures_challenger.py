@@ -1134,8 +1134,8 @@ def _futures_core(state_dir: str, universe: list, prices: dict) -> dict | None:
         return None
     try:
         from quant.data import get_provider
+        from quant.portfolio import engine_select as E
         from quant.portfolio import trend_core as T
-        cfg = T.variant_config(variant)
         frames = {}
         for sym in universe:
             if sym not in prices:
@@ -1147,12 +1147,16 @@ def _futures_core(state_dir: str, universe: list, prices: dict) -> dict | None:
         if not frames:
             return None
         closes = T.align_business_days(frames)
-        tgt = T.target_weights(closes, cfg)
-        fridays = tgt.index[tgt.index.weekday == 4]
-        day = fridays[-1] if len(fridays) else tgt.index[-1]
-        w = {k: float(v) for k, v in tgt.loc[day].fillna(0.0).items()}
-        return {"name": "trend_core", "variant": variant,
-                "target_day": str(day.date()), "band": cfg.band,
+        # 어느 후보인가(감사 344) — 주간 선택기가 관문을 통과했고 선택이 낡지
+        # 않았으면 그 후보, 아니면 engine.json의 futures_variant. 사람이 고르지
+        # 않는다. 후보가 '현금'이면 목표가 전부 0이다(청산).
+        picked = E.fut_active_choice(E.load_state(state_dir), closes.index[-1])
+        name = picked or (variant if variant in E.FUT_CANDIDATES else E.FUT_BASELINE)
+        t = E.fut_targets_today(closes, name)
+        w = t["weights"]
+        return {"name": "trend_core", "variant": name,
+                "selected_by": "engine_select" if picked else "engine.json",
+                "target_day": t["target_day"], "band": t["band"],
                 "gross": round(sum(abs(v) for v in w.values()), 4),
                 "weights": w}
     except Exception as exc:  # noqa: BLE001

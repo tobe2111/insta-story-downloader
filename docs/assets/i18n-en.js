@@ -609,6 +609,34 @@
         "Top two recent, half each",
       "지금 반씩 담는 두 엔진":
         "The two engines held half each",
+      "지금은 아무것도 사지 않습니다 — 기계가 현금을 골랐습니다.":
+        "Holding nothing right now — the machine picked cash.",
+      "지금은 코인을 균등하게 그냥 들고 있습니다.":
+        "Simply holding the coins in equal amounts right now.",
+      "엔진은 매주 기계가 수수료·펀딩을 뺀 수익률로 고릅니다(후보: 추세 둘 · 코인 그냥 보유 · 현금).":
+        "The machine picks the engine every week by return after fees and funding (candidates: two trend engines · simply holding coins · cash).",
+      "엔진은 설정 파일에 적힌 것입니다 — 주간 선택이 아직 없거나 낡았습니다.":
+        "The engine is the one in the settings file — there is no weekly pick yet, or it is stale.",
+      "그냥 보유 · 40종목 균등":
+        "Simply hold · 40 symbols equal",
+      "그냥 보유 · 넓은 목록 균등":
+        "Simply hold · broad list equal",
+      "그냥 보유 · 주식 60 채권 40":
+        "Simply hold · 60 stocks / 40 bonds",
+      "선물 계좌 엔진":
+        "Futures account engine",
+      "추세 · 변동성 20%":
+        "Trend · 20% volatility",
+      "추세 · 변동성 40%":
+        "Trend · 40% volatility",
+      "코인 그냥 보유(균등)":
+        "Simply hold coins (equal)",
+      "현금(안 한다)":
+        "Cash (do nothing)",
+      "2022년 이후 연수익":
+        "Since 2022, annual return",
+      "2022년 이후 최대낙폭":
+        "Since 2022, max drawdown",
       "현금이 왜 이만큼 남았나 — 투자 비중이 줄어드는 단계":
         "Why this much cash — the steps that shrink the invested share",
       "각 줄은 그 단계까지 남은 투자 비중(자산 대비)입니다.":

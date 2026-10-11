@@ -177,6 +177,38 @@
       card.appendChild(el("div", "sub", "고르는 데는 쓰지 않습니다 — 과거 시뮬레이션이 지금 실제와 맞는지 보는 계측기입니다. 정수 주는 맞추지 않아 본 계좌보다 약간 매끄럽습니다."));
     }
 
+    // 선물 계좌도 기계가 고른다(감사 344).
+    var fu = es.futures;
+    if (fu && fu.candidates) {
+      card.appendChild(el("h3", null, "선물 계좌 엔진"));
+      var fh = el("div");
+      fh.appendChild(el("span", null, "지금 엔진"));
+      fh.appendChild(document.createTextNode(" "));
+      fh.appendChild(el("b", null, fu.active_label || fu.active || "—"));
+      card.appendChild(fh);
+      var fwhy = REASONS[(fu.decision || {}).reason];
+      if (fwhy) card.appendChild(el("div", "sub", fwhy));
+      var tw3 = el("div", "tw");
+      var t3 = el("table");
+      var h3 = el("tr");
+      ["후보", "최근 3년 연수익", "최근 3년 최대낙폭", "2022년 이후 연수익", "2022년 이후 최대낙폭"].forEach(function (h) {
+        h3.appendChild(el("th", null, h));
+      });
+      t3.appendChild(h3);
+      Object.keys(fu.candidates).forEach(function (k) {
+        var c = fu.candidates[k], w = c.window || {}, j = c.judge || {};
+        var tr = el("tr", k === fu.active ? "on" : null);
+        tr.appendChild(el("td", null, c.label || k));
+        tr.appendChild(el("td", "n", pct(w.cagr)));
+        tr.appendChild(el("td", "n", pct(w.mdd)));
+        tr.appendChild(el("td", "n", pct(j.cagr)));
+        tr.appendChild(el("td", "n", pct(j.mdd)));
+        t3.appendChild(tr);
+      });
+      tw3.appendChild(t3);
+      card.appendChild(tw3);
+    }
+
     var ul = el("ul", "sub");
     [
       "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.",

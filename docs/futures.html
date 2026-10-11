@@ -433,8 +433,15 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
        없을 때는 **다른 사건**이라 문장도 달라야 한다.
        숫자는 태그 안에 가둔다(영어 사전이 마디로 찾는다). */
     var sh=d.shortable||{}, canShort=(sh.n==null)||Number(sh.n)>0;
+    /* 감사 344 — 엔진도 기계가 고른다. 고른 후보가 '그냥 보유'나 '현금'이면
+       추세추종이라고 말하면 안 된다. */
+    var ev=d.engine?String(d.engine.variant||''):'';
     var head=d.engine
-      ? '<b class="down">지금은 추세추종 엔진으로 오를 때만 삽니다(내림 추세는 현금).</b>'
+      ? (ev==='fut_cash'
+         ? '<b class="down">지금은 아무것도 사지 않습니다 — 기계가 현금을 골랐습니다.</b>'
+         : ev==='fut_hold'
+         ? '<b>지금은 코인을 균등하게 그냥 들고 있습니다.</b>'
+         : '<b class="down">지금은 추세추종 엔진으로 오를 때만 삽니다(내림 추세는 현금).</b>')
       : (g.two_sided===false)
       ? '<b class="down">지금은 오를 때만 삽니다.</b>'
       : (canShort
@@ -446,6 +453,9 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
          안 읽던 칸). 숫자·이름은 태그 안에 가둔다. */
       var ew=d.engine.weights||{}, parts=Object.keys(ew).map(function(k){
         return '<b>'+esc(k)+' '+(Number(ew[k])*100).toFixed(1)+'%</b>';});
+      head+='<div class="sub" style="margin-top:4px">'+(d.engine.selected_by==='engine_select'
+        ? '엔진은 매주 기계가 수수료·펀딩을 뺀 수익률로 고릅니다(후보: 추세 둘 · 코인 그냥 보유 · 현금).'
+        : '엔진은 설정 파일에 적힌 것입니다 — 주간 선택이 아직 없거나 낡았습니다.')+'</div>';
       head+='<div class="sub" style="margin-top:4px">엔진 설정 <b>'+esc(String(d.engine.variant||'—'))+
         '</b> · 목표를 정한 날 <b>'+esc(String(d.engine.target_day||'—'))+'</b>'+
         (parts.length?' · 목표 비중: '+parts.join(' · '):'')+'</div>';

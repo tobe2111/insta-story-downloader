@@ -92,6 +92,17 @@ CANDIDATES = {
                "universe": "wide"},
 }
 
+# ── 감사 344 ① — **그냥 보유**. 사고팔기를 거의 안 하는 후보가 링에 없으면,
+# 능동 엔진이 수수료를 내고도 보유를 못 이기는 동안 기계는 그 사실을 고를
+# 수 없다(실측: 코인 단타가 비용 전 +5.9%를 벌고 비용 6.1%로 −0.2%, 같은 기간
+# 코인 보유 +33.7%). 월 1회 밴드 2%로 다시 맞춘다 — 회전이 거의 없다.
+CANDIDATES.update({
+    "hold40": {"kind": "hold", "variant": "risk12"},
+    "holdw": {"kind": "hold", "variant": "risk12", "universe": "wide"},
+    "6040": {"kind": "fixed", "variant": "risk12",
+             "weights": {"us_stock:SPY": 0.6, "us_stock:IEF": 0.4}},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -110,6 +121,9 @@ LABELS = {
     "xs12f": "상대 강세 · 하락장 방어",
     "xs12fw": "상대 강세 · 하락장 방어 · 넓은 목록",
     TOP2: "최근 상위 둘 섞기",
+    "hold40": "그냥 보유 · 40종목 균등",
+    "holdw": "그냥 보유 · 넓은 목록 균등",
+    "6040": "그냥 보유 · 주식 60 채권 40",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
@@ -130,9 +144,28 @@ def wide_extra_keys(core_keys) -> list:
 def candidate_config(name: str) -> T.TrendConfig:
     spec = CANDIDATES[name]
     cfg = T.variant_config(spec["variant"])
-    if spec["kind"] == "xs":
+    if spec["kind"] in ("xs", "hold", "fixed"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": "M"})
     return cfg
+
+
+def hold_weights(closes: pd.DataFrame) -> pd.DataFrame:
+    """그냥 보유 — 그날 시세가 있는 자산에 **같은 금액**. 빚은 안 낸다."""
+    have = closes.notna().astype(float)
+    n = have.sum(axis=1).replace(0, np.nan)
+    return have.div(n, axis=0).fillna(0.0)
+
+
+def fixed_weights(closes: pd.DataFrame, weights: dict) -> pd.DataFrame:
+    """고정 비중(60/40 등). 한쪽이 아직 상장 전이면 있는 쪽끼리 다시 나눈다."""
+    cols = [k for k in weights if k in closes.columns]
+    out = pd.DataFrame(0.0, index=closes.index, columns=closes.columns)
+    if not cols:
+        return out
+    have = closes[cols].notna().astype(float) * pd.Series(weights)[cols]
+    tot = have.sum(axis=1).replace(0, np.nan)
+    out[cols] = have.div(tot, axis=0).fillna(0.0)
+    return out
 
 
 def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
@@ -150,7 +183,11 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
         keep = set(core_keys)
         cols = [c for c in cols if c in keep]
     sub = closes[cols]
-    if spec["kind"] == "xs":
+    if spec["kind"] == "hold":
+        tgt = hold_weights(sub)
+    elif spec["kind"] == "fixed":
+        tgt = fixed_weights(sub, spec["weights"])
+    elif spec["kind"] == "xs":
         tgt = T.xsmom_weights(sub, cfg)
     elif spec["kind"] == "blend":
         tgt = T.blend_weights(sub, cfg)
@@ -519,4 +556,75 @@ def public(state_dir: str) -> dict | None:
                                "judge": c.get("judge")}
                            for n, c in (st.get("candidates") or {}).items()},
             "rule": st.get("rule"), "stale_days": STALE_DAYS,
+            "futures": st.get("futures"),
             "cost_basis": st.get("cost_basis")}
+
+
+# ── 감사 344 ② — 선물 트랙도 **기계가** 고른다 ─────────────────────────
+#
+# 감사 335에서 선물 엔진(fut_long20)은 사람이 정했다. 본 계좌와 같은 규칙으로
+# 후보 넷을 매주 잰다 — 추세 둘, **코인 그냥 보유**, **현금**. 현금은 수익 0이라
+# 다른 후보가 전부 잃을 때만 뽑힌다(그때는 안 하는 것이 최선이다).
+#
+# 비용: 코인 실측 편도 + 펀딩 연 11%를 **롱 보유 전부**에 물린다(보유 후보도
+# 선물로 들고 있으면 펀딩을 낸다 — 감사 335 ②와 같은 자). 판정 구간은 감사
+# 335 ②와 같이 2022년부터.
+FUT_CANDIDATES = {
+    "fut_long20": {"kind": "trend", "variant": "fut_long20"},
+    "fut_long40": {"kind": "trend", "variant": "fut_long40"},
+    "fut_hold": {"kind": "hold"},
+    "fut_cash": {"kind": "cash"},
+}
+FUT_LABELS = {
+    "fut_long20": "추세 · 변동성 20%",
+    "fut_long40": "추세 · 변동성 40%",
+    "fut_hold": "코인 그냥 보유(균등)",
+    "fut_cash": "현금(안 한다)",
+}
+FUT_BASELINE = "fut_long20"
+FUT_JUDGE_START = "2022-01-01"
+
+
+def fut_config(name: str) -> T.TrendConfig:
+    spec = FUT_CANDIDATES[name]
+    if spec["kind"] == "trend":
+        return T.variant_config(spec["variant"])
+    if spec["kind"] == "hold":
+        return T.TrendConfig(rebalance="M", max_gross=1.0, asset_cap=1.0,
+                             carry_annual=T.FUTURES_CARRY)
+    return T.TrendConfig(rebalance="M")
+
+
+def fut_targets(closes: pd.DataFrame, name: str) -> tuple:
+    spec = FUT_CANDIDATES[name]
+    cfg = fut_config(name)
+    if spec["kind"] == "trend":
+        return T.target_weights(closes, cfg), cfg
+    if spec["kind"] == "hold":
+        return hold_weights(closes), cfg
+    return pd.DataFrame(0.0, index=closes.index, columns=closes.columns), cfg
+
+
+def fut_targets_today(closes: pd.DataFrame, name: str) -> dict:
+    tgt, cfg = fut_targets(closes, name)
+    day = target_day(tgt.index, cfg.rebalance)
+    row = tgt.loc[day].fillna(0.0)
+    return {"weights": {k: float(row.get(k, 0.0)) for k in closes.columns},
+            "target_day": str(day.date()), "band": cfg.band}
+
+
+def fut_active_choice(state: dict | None, today) -> str | None:
+    """선물 트랙이 지금 쓸 후보. 관문 통과·낡지 않음일 때만, 아니면 None."""
+    f = (state or {}).get("futures") or {}
+    if not (f.get("gate") or {}).get("pass"):
+        return None
+    name = f.get("active")
+    if name not in FUT_CANDIDATES:
+        return None
+    try:
+        age = (pd.Timestamp(today) - pd.Timestamp(f.get("asof"))).days
+    except (TypeError, ValueError):
+        return None
+    if age < 0 or age > STALE_DAYS:       # 주간 잡이 멈췄으면 옛 선택을 안 쓴다
+        return None
+    return name
