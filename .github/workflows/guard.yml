@@ -31,6 +31,7 @@ concurrency:
 permissions:
   contents: write
   issues: write    # 경보함 이슈(감사 336)
+  actions: write   # 다음 회차를 스스로 부른다(감사 348)
 
 jobs:
   guard:
@@ -42,6 +43,8 @@ jobs:
     #    자체 시간 예산 FETCH_BUDGET_SEC이 있어 먼저 물러난다).
     timeout-minutes: 15
     steps:
+      - name: 시작 시각
+        run: echo "GUARD_T0=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -102,3 +105,32 @@ jobs:
           done
           echo "::error::심장박동을 밀어 넣지 못했습니다 — 다음 회차가 이어서 남깁니다"
           exit 1
+
+      # ── 다음 회차를 스스로 부른다 (감사 348) ─────────────────────────
+      #
+      # ⚠️ 왜 필요한가 — 크론은 "*/5"인데 GitHub가 실제로 띄운 것은 **하루
+      #    4~6번**이었다(10/3~10/11 실측: 간격 3~7시간). 장중 트랙 세 개와
+      #    운용 계좌는 그 회차에만 판단하고, 낙폭 킬스위치도 그때만 본다.
+      #    설계(하루 96번)와 실제가 20배 갈라져 있었는데 빨간불이 없었다 —
+      #    잡은 매번 초록이었으니까.
+      # 처방: 회차가 끝나면 **약 13분 뒤 다음 회차를 직접 띄운다**
+      #    (workflow_dispatch — github.token으로도 새 실행이 생기는 유일한
+      #    이벤트다). 크론은 사슬이 끊겼을 때 되살리는 예비로 남는다.
+      # ⚠️ 사슬이 둘로 불어나지 않게 — 이미 대기·진행 중인 다른 회차가 있으면
+      #    부르지 않는다(크론이 띄운 회차와 사슬이 겹치는 경우).
+      # ⚠️ main에서만 — 다른 가지에서 시험으로 돌린 회차가 사슬을 만들면 안 된다.
+      - name: 다음 회차 예약 (사슬)
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WAIT=$(( 720 - ( $(date +%s) - ${GUARD_T0:-$(date +%s)} ) ))
+          if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
+          OTHERS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/guard.yml/runs?per_page=20" \
+            --jq "[.workflow_runs[] | select((.status==\"queued\" or .status==\"in_progress\" or .status==\"waiting\" or .status==\"pending\") and .id != ${GITHUB_RUN_ID})] | length" || echo 1)
+          if [ "${OTHERS:-1}" != "0" ]; then
+            echo "다른 회차가 이미 줄에 있다(${OTHERS}) — 사슬을 늘리지 않는다"
+            exit 0
+          fi
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/guard.yml/dispatches" -f ref=main \
+            && echo "다음 회차를 띄웠다" || echo "::warning::다음 회차 예약 실패 — 크론이 되살린다"
