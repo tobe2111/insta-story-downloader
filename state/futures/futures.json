@@ -1,7 +1,7 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 4365.79411499012,
+  "cash": 4365.4144118019185,
   "positions": {
     "SOL/USDT": 7.157116767925345,
     "XRP/USDT": 343.46407999822054,
@@ -17,7 +17,7 @@
     "BNB/USDT": 740.7
   },
   "cost_paid": 869.2217143573612,
-  "funding_paid": 58.295090047930096,
+  "funding_paid": 58.67479323613105,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -39359,6 +39359,122 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-10-11T22:14:07+09:00",
+      "equity": 8801.1633,
+      "cash": 4365.4144,
+      "prices": {
+        "BTC/USDT": 83106.7,
+        "ETH/USDT": 2504.96,
+        "SOL/USDT": 109.54,
+        "BNB/USDT": 749.4,
+        "XRP/USDT": 1.3949
+      },
+      "gross_exposure": 4435.7489,
+      "funding": 0.379703,
+      "cost_paid": 869.2217,
+      "funding_paid": 58.674793,
+      "signals": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": -0.1723
+      },
+      "positions": {
+        "SOL/USDT": 7.1571167679,
+        "XRP/USDT": 343.4640799982,
+        "BTC/USDT": 0.0140418139,
+        "ETH/USDT": 0.3323521448,
+        "BNB/USDT": 1.565469261
+      },
+      "margin_ratio": 1.984144,
+      "trades": [],
+      "skipped": [],
+      "long_only": [
+        "BTC/USDT",
+        "ETH/USDT",
+        "SOL/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "direction_gate": {
+        "two_sided": true,
+        "night": "2026-10-11",
+        "age_nights": 0,
+        "max_age_nights": 7,
+        "t_stat": 0.4752262827954148,
+        "t_threshold": 1.35,
+        "n_symbols": 17,
+        "n_dates": 129
+      },
+      "direction_pnl": {
+        "gross": {
+          "long": 6.513752,
+          "short": 0.0
+        },
+        "fee": {
+          "long": 0.0,
+          "short": 0.0
+        },
+        "funding": {
+          "long": 0.379703,
+          "short": 0.0
+        },
+        "net": {
+          "long": 6.134049,
+          "short": 0.0
+        },
+        "positions": {
+          "long": 5,
+          "short": 0
+        }
+      },
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.1351,
+        "why": "낙폭 13.5% — 기준 10%를 넘어 1배로 내렸습니다. 회복될 때까지 크게 걸지 않습니다"
+      },
+      "fee_budget": {
+        "days": 7,
+        "fees": 53.7021,
+        "equity": 8795.0293,
+        "pct_of_equity": 0.6106,
+        "limit_pct": 3.0,
+        "breached": false,
+        "since": "2026-10-04T09:44:03+09:00"
+      },
+      "engine": {
+        "name": "trend_core",
+        "variant": "fut_long20",
+        "selected_by": "engine.json",
+        "target_day": "2026-10-09",
+        "band": 0.02,
+        "gross": 0.5014,
+        "weights": {
+          "BTC/USDT": 0.132,
+          "ETH/USDT": 0.094,
+          "SOL/USDT": 0.0889,
+          "BNB/USDT": 0.1321,
+          "XRP/USDT": 0.0544
+        }
+      },
+      "rebalance_bands": {
+        "BTC/USDT": 0.15,
+        "ETH/USDT": 0.15,
+        "SOL/USDT": 0.15,
+        "BNB/USDT": 0.15,
+        "XRP/USDT": 0.15
+      },
+      "conviction_scale": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
@@ -41053,19 +41169,23 @@
     {
       "at": "2026-10-11T15:23:14+09:00",
       "equity": 8795.0293
+    },
+    {
+      "at": "2026-10-11T22:14:07+09:00",
+      "equity": 8801.1633
     }
   ],
   "last_prices": {
-    "BTC/USDT": 83040.8,
-    "ETH/USDT": 2504.19,
-    "SOL/USDT": 109.37,
-    "BNB/USDT": 747.1,
-    "XRP/USDT": 1.3934
+    "BTC/USDT": 83106.7,
+    "ETH/USDT": 2504.96,
+    "SOL/USDT": 109.54,
+    "BNB/USDT": 749.4,
+    "XRP/USDT": 1.3949
   },
   "liquidations": 0,
   "direction_totals": {
     "gross": {
-      "long": -152.256955,
+      "long": -145.743203,
       "short": -283.161561
     },
     "fee": {
@@ -41073,14 +41193,361 @@
       "short": 214.69763
     },
     "funding": {
-      "long": 53.05393,
+      "long": 53.433633,
       "short": -2.365681
     },
     "net": {
-      "long": -859.834874,
+      "long": -853.700825,
       "short": -495.49351
     },
-    "rounds": 423,
+    "rounds": 424,
     "reconstructed_rounds": 222
+  },
+  "operated": {
+    "since": "2026-08-22",
+    "start_cash": 10000.0,
+    "equity": 8815.1892,
+    "peak": 10040.4053,
+    "mode": "follow",
+    "mode_since": null,
+    "decided_on": "2026-10-11",
+    "decision": {
+      "date": "2026-10-11",
+      "incumbent": "follow",
+      "choice": "follow",
+      "n_days": 49,
+      "t": 1.277,
+      "t_needed": 1.35,
+      "table": {
+        "hold": {
+          "n": 33,
+          "pct": 2.392,
+          "incumbent_pct": -7.273,
+          "t": 1.273
+        },
+        "cash": {
+          "n": 49,
+          "pct": 0.0,
+          "incumbent_pct": -11.976,
+          "t": 1.277
+        },
+        "follow": {
+          "n": 49,
+          "t": null,
+          "incumbent_pct": null,
+          "pct": -11.976
+        }
+      },
+      "hold_pct": 2.392,
+      "trade_pct": null,
+      "best_challenger": "cash",
+      "reason": "keep"
+    },
+    "switches": [],
+    "cost_paid": 0.0,
+    "applied_through": "2026-10-10",
+    "history": [
+      {
+        "date": "2026-08-22",
+        "equity": 10014.5849,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-23",
+        "equity": 10040.4053,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-24",
+        "equity": 9757.6005,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-25",
+        "equity": 9804.0401,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-26",
+        "equity": 9815.1045,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-27",
+        "equity": 9802.3677,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-28",
+        "equity": 9699.2657,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-29",
+        "equity": 9679.5405,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-30",
+        "equity": 9614.2447,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-08-31",
+        "equity": 9599.7062,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-01",
+        "equity": 9556.1769,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-02",
+        "equity": 9540.324,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-03",
+        "equity": 9593.425,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-04",
+        "equity": 9484.8199,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-05",
+        "equity": 9637.5262,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-06",
+        "equity": 9593.9416,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-07",
+        "equity": 9506.5765,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-08",
+        "equity": 9500.5306,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-09",
+        "equity": 9303.2982,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-10",
+        "equity": 9325.4124,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-11",
+        "equity": 9251.3057,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-12",
+        "equity": 9223.3581,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-13",
+        "equity": 9129.3032,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-14",
+        "equity": 9191.1044,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-15",
+        "equity": 8924.6198,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-16",
+        "equity": 8878.6364,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-17",
+        "equity": 8946.0832,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-18",
+        "equity": 9441.3165,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-19",
+        "equity": 9388.1086,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-20",
+        "equity": 9259.1818,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-21",
+        "equity": 9611.5261,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-22",
+        "equity": 9495.4795,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-23",
+        "equity": 9316.3017,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-24",
+        "equity": 9350.55,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-25",
+        "equity": 9392.8168,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-26",
+        "equity": 9396.4886,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-27",
+        "equity": 9420.9803,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-28",
+        "equity": 9344.6164,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-29",
+        "equity": 9193.2012,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-09-30",
+        "equity": 9163.5411,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-01",
+        "equity": 9168.2755,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-02",
+        "equity": 9050.067,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-03",
+        "equity": 9067.7777,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-04",
+        "equity": 9145.3578,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-05",
+        "equity": 9034.0179,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-06",
+        "equity": 8967.8174,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-07",
+        "equity": 8889.554,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-08",
+        "equity": 8806.2302,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-09",
+        "equity": 8768.6384,
+        "mode": "follow",
+        "inherited": true
+      },
+      {
+        "date": "2026-10-10",
+        "equity": 8815.1892,
+        "mode": "follow",
+        "inherited": true
+      }
+    ],
+    "inherited_from_experiment": "2026-10-11"
   }
 }
