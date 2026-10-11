@@ -128,7 +128,8 @@ def main():
            "candidates": cands,
            "switches_recent": meta["switches"][-10:],
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
-                    "t_switch": E.T_SWITCH, "mdd_floor_pct": E.MDD_FLOOR * 100,
+                    "t_switch": E.switch_threshold(len(results)),
+                    "n_candidates": len(results), "mdd_floor_pct": E.MDD_FLOOR * 100,
                     "objective": "cagr_net"},
            "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"}}
 
