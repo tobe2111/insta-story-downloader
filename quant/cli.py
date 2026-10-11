@@ -600,7 +600,9 @@ def _cmd_social_content(args) -> None:
                              force=getattr(args, "force", False))
     except PublishedContentChanged as exc:
         # 과거 공개 글을 조용히 바꾸느니 소리 내어 실패한다(감사 86).
-        raise SystemExit(f"❌ {exc}")
+        # 종료 코드 3 = 새 날짜 없음(감사 347) — 워크플로가 게시를 건너뛴다.
+        print(f"⚠️ {exc}", file=_sys.stderr)
+        raise SystemExit(3)
     removed = prune_old(docs_dir=args.docs_dir, keep=args.keep)
     say(meta["dir"])                    # 워크플로가 이 경로를 받아 캡처한다
     if removed:
