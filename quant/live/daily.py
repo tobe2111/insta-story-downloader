@@ -186,7 +186,7 @@ def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
     from quant.portfolio import engine_select as E
     picked = E.active_choice(E.load_state(state_dir), asof)
     name = picked or eng.get("variant") or E.BASELINE
-    if name not in E.CANDIDATES:
+    if name not in E.ALL_NAMES:
         name = E.BASELINE
     return name, ("engine_select" if picked else "engine.json")
 
@@ -220,26 +220,25 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
     try:
         from quant.portfolio import engine_select as E
         from quant.portfolio import trend_core as T
-        closes = T.align_business_days(
-            {k: v for k, v in closes_map.items() if k in weights})
+        # 40종목 + 엔진 전용 넓은 ETF(감사 343) 전부를 받는다. 40종목 후보는
+        # 그중 40종목 열만 보고(core_keys), 넓은 목록 후보는 전부 본다.
+        closes = T.align_business_days(dict(closes_map))
         if closes.empty:
             return None
         name, selected_by = _engine_name(state_dir, closes.index[-1])
-        tgt, cfg = E.candidate_targets(closes, name)
-        # ⚠️ **검증과 같은 주기로** 고친다 — 검증은 금요일 종가 목표로 주 1회
-        #    매매했다(회전·비용이 그 가정 위에서 나왔다). 매일 그날 목표를
-        #    따르면 같은 엔진이 검증보다 자주 사고팔아 비용이 검증과 갈린다.
-        #    그래서 **가장 최근 금요일**의 목표를 쓴다(월 단위면 그 달 마지막
-        #    영업일 대신 가장 최근 달의 마지막 영업일).
-        day = E.target_day(tgt.index, cfg.rebalance)
-        today = tgt.loc[day].fillna(0.0)
-        w = {k: round(float(today.get(k, 0.0)), 6) for k in weights}
+        # 오늘 따를 목표 — 그림자와 같은 한 함수(검증과 같은 주기, TOP2면
+        # 주간 잡이 적은 짝을 반씩).
+        t = E.targets_today(closes, name, core_keys=set(weights),
+                            state=E.load_state(state_dir))
+        w = {k: round(float(t["weights"].get(k, 0.0)), 6)
+             for k in set(weights) | set(closes.columns)}
         return {"name": "trend_core", "variant": name,
                 "selected_by": selected_by,
                 "asof": str(closes.index[-1].date()),
-                "target_day": str(day.date()),
+                "target_day": t["target_day"],
                 "gross": round(sum(w.values()), 4),
-                "asset_cap": cfg.asset_cap, "weights": w}
+                "asset_cap": t["asset_cap"], "weights": w,
+                **({"pair": t["pair"]} if t.get("pair") else {})}
     except Exception as exc:  # noqa: BLE001
         log.error("추세 코어 계산 실패 — 오늘은 챔피언 체계로 돈다: %s", exc)
         return None
@@ -2276,6 +2275,52 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # 휴장'인지 구분할 수 없고, 구분 못 하면 대응도 못 한다.
             skipped_why[key] = str(exc)[:200]
             log.warning("포트폴리오 %s 스킵: %s", key, exc)
+    # 엔진 전용 넓은 ETF(감사 343 ①) — 규칙으로 고른 ETF를 **종가만** 따로
+    # 받는다. 챔피언 신호·검증·배분(weights·rets_map)에는 안 넣는다: 그 재료는
+    # 사전 등록된 옛 체계 실험들이 쓰고, 거기에 50종목이 끼면 등록과 다른
+    # 비교가 된다. 엔진이 켜져 있거나 이미 들고 있는 것이 있으면 받는다
+    # (엔진이 꺼진 날에도 들고 있는 것은 값을 매기고 청산해야 한다).
+    extra_keys: list = []
+    extra_skipped: dict = {}
+    if use_champions:
+        from quant.portfolio.engine_select import WIDE_KEYS, wide_extra_keys
+        _held = {k for k, p in (st.get("positions") or {}).items()
+                 if abs(float(p.get("quantity", 0.0))) > 0}
+        if _core_engine(state_dir) or (_held & set(WIDE_KEYS)):
+            for key in wide_extra_keys(f"{m}:{s_}" for m, s_ in targets):
+                market, symbol = key.split(":", 1)
+                try:
+                    dfx = get_provider(market).get_ohlcv(symbol, timeframe,
+                                                         limit=lookback)
+                    if dfx.empty or (require_real_data
+                                     and dfx.attrs.get("synthetic_fallback")):
+                        raise RuntimeError("실데이터 없음")
+                    from quant.data.quality import is_severe, scan_ohlcv
+                    qx = scan_ohlcv(dfx)
+                    if is_severe(qx):
+                        raise RuntimeError(
+                            f"데이터 무결성 위반 {({k: v for k, v in qx.items() if v})}")
+                    # 완성 봉만(코인 미완성 봉 규약과 같은 함수)
+                    closes_map[key] = _signal_frame(market, dfx, timeframe)["close"]
+                    prices[key] = _to_krw_or_die(
+                        market, float(dfx["close"].iloc[-1]), fx_rate)
+                    st["base_prices"].setdefault(key, prices[key])
+                    last_bars[key] = str(dfx.index[-1])
+                    sources[key] = str(dfx.attrs.get("source") or "?")
+                    xpend = pending.get(key)
+                    if xpend and xpend.get("decided_bar"):
+                        xbar, xopen = _first_bar_after(dfx, xpend["decided_bar"])
+                        # 체결가도 원화로 — 위 40종목 루프와 같은 함수(감사 254)
+                        opens_after[key] = (
+                            (xbar, _to_krw_or_die(market, xopen, fx_rate))
+                            if xopen is not None else (None, None))
+                    extra_keys.append(key)
+                except Exception as exc:  # noqa: BLE001 — 그 종목만 빠진다
+                    # 운용 명단의 결손 경보(skipped)와 섞지 않는다 — 40종목
+                    # 장애와 엔진 전용 종목 장애는 다른 사건이다.
+                    extra_skipped[key] = str(exc)[:200]
+                    log.warning("엔진 전용 %s 스킵: %s", key, exc)
+
     if not prices:
         raise RuntimeError("포트폴리오: 전 종목 데이터 실패 — 기록하지 않음")
 
@@ -2754,13 +2799,16 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 같은 값으로 자본을 기울인다. 정수 주 예산은 이 순서로 채운다
     # (사장님 2026-08-13: "비율로 따지는 게 아니야. 수익률이 더 높을 것이라
     #  판단되는 최우선 선택을 하는 거지.").
+    # 매매 대상 = 40종목 + 엔진 전용 넓은 ETF(감사 343). 옛 체계의 재료
+    # (weights·slices·n)는 40종목 그대로 — 엔진 밖의 계산을 바꾸지 않는다.
+    trade_keys = list(weights) + [k for k in extra_keys if k not in weights]
     fitted_w, deferred_lots = _fit_to_budget(
-        {k: _target_w(k, w) for k, w in weights.items()},
+        {k: _target_w(k, weights.get(k, 0.0)) for k in trade_keys},
         prices, equity,
         cap=(max(3.0 / n, core["asset_cap"]) if core is not None else 3.0 / n),
-        conviction=({k: float(core["weights"].get(k, 0.0)) for k in weights}
+        conviction=({k: float(core["weights"].get(k, 0.0)) for k in trade_keys}
                     if core is not None
-                    else {k: abs(float(w)) for k, w in weights.items()}))
+                    else {k: abs(float(weights.get(k, 0.0))) for k in trade_keys}))
     if deferred_lots:
         log.info("1주 미만이라 오늘 미룬 종목 %d개: %s",
                  len(deferred_lots), ", ".join(sorted(deferred_lots)))
@@ -2793,7 +2841,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     # 물어야 해서 브로커 호출이 두 배가 된다(레이트리밋).
     held_ws: dict = {}
     held_fail: dict = {}
-    for key in weights:
+    for key in trade_keys:
         if not prices.get(key):
             continue
         try:
@@ -2809,8 +2857,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     def _sell_first(key: str):
         return (abs(fitted_w.get(key, 0.0)) - abs(held_ws.get(key, 0.0)), key)
 
-    for key in sorted(weights, key=_sell_first):
-        w = weights[key]
+    for key in sorted(trade_keys, key=_sell_first):
+        w = weights.get(key, 0.0)
         market = key.split(":")[0]
         sl = slices.get(key, 1.0 / n)
         tw = fitted_w[key]             # 예산까지 반영한 최종 목표 비중
@@ -3115,7 +3163,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               # 어느 엔진이 오늘 목표를 정했나(감사 335). None = 챔피언 체계.
               "engine": ({**{k: v for k, v in core.items() if k != "weights"},
                           **({"pending_dropped": pending_dropped}
-                             if pending_dropped else {})}
+                             if pending_dropped else {}),
+                          # 엔진 전용 넓은 ETF(감사 343) — 받은 수와 못 받은 것
+                          "extra": {"n": len(extra_keys),
+                                    "skipped": extra_skipped or None}}
                          if core is not None else None),
               # 현금이 왜 이만큼 남았나 — 단계별 총노출(감사 332).
               "cash_waterfall": _safe_waterfall(

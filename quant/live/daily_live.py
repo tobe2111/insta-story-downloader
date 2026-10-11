@@ -206,8 +206,13 @@ def _live_core(state_dir: str, frames: dict) -> dict | None:
         return None
     from quant.data import get_provider
     from quant.universe import active_targets
+    from quant.portfolio.engine_select import wide_extra_keys
+    core_list = [f"{m}:{s}" for m, s in active_targets(state_dir)]
+    # 넓은 목록 후보(감사 343)도 페이퍼와 같은 재료로 — 엔진 전용 ETF 종가를
+    # 함께 받는다. 40종목 후보는 그중 40종목만 본다(core_keys).
+    names = [tuple(k.split(":", 1)) for k in core_list + wide_extra_keys(core_list)]
     closes = {}
-    for market, symbol in active_targets(state_dir):
+    for market, symbol in names:
         key = f"{market}:{symbol}"
         df = frames.get(symbol) if market == "kr_stock" else None
         if df is None:
@@ -219,7 +224,8 @@ def _live_core(state_dir: str, frames: dict) -> dict | None:
                 log.warning("실거래 엔진 종가 %s 실패: %s", key, exc)
                 continue
         closes[key] = df["close"]
-    core = _core_targets(state_dir, closes, dict.fromkeys(closes, 1.0))
+    core = _core_targets(state_dir, closes,
+                         dict.fromkeys([k for k in core_list if k in closes], 1.0))
     if core is None:
         return None
     w = core["weights"]

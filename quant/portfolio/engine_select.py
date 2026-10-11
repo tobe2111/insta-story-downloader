@@ -79,7 +79,34 @@ CANDIDATES = {
     "notional50": {"kind": "trend", "variant": "notional50"},
     "xs12": {"kind": "xs", "variant": "risk12"},
     "blend12": {"kind": "blend", "variant": "risk12"},
+    # ── 감사 343 ① — 규칙으로 고른 넓은 ETF 목록(40종목 + BROAD_ETFS)에서
+    # 매매하는 후보. 사람이 고른 40종목의 생존 편향이 없는 쪽이다. 매일
+    # 배치가 그 ETF들의 종가를 엔진 전용으로 따로 받는다(`wide_extra_keys`).
+    "xs12w": {"kind": "xs", "variant": "risk12", "universe": "wide"},
+    "blend12w": {"kind": "blend", "variant": "risk12", "universe": "wide"},
+    # ── 감사 343 ② — 하락장 방어: 상대 강세에 **시장 추세 필터**를 건다.
+    # 시장(SPY)의 21·63·126·252일 수익 중 양수인 비율(0~1)만큼만 담는다 —
+    # 시장이 내림 추세면 현금 쪽으로 물러난다. 문턱을 고르지 않는다(비율 그대로).
+    "xs12f": {"kind": "xs", "variant": "risk12", "filter": "market"},
+    "xs12fw": {"kind": "xs", "variant": "risk12", "filter": "market",
+               "universe": "wide"},
 }
+
+# ── 감사 344 ① — **그냥 보유**. 사고팔기를 거의 안 하는 후보가 링에 없으면,
+# 능동 엔진이 수수료를 내고도 보유를 못 이기는 동안 기계는 그 사실을 고를
+# 수 없다(실측: 코인 단타가 비용 전 +5.9%를 벌고 비용 6.1%로 −0.2%, 같은 기간
+# 코인 보유 +33.7%). 월 1회 밴드 2%로 다시 맞춘다 — 회전이 거의 없다.
+CANDIDATES.update({
+    "hold40": {"kind": "hold", "variant": "risk12"},
+    "holdw": {"kind": "hold", "variant": "risk12", "universe": "wide"},
+    "6040": {"kind": "fixed", "variant": "risk12",
+             "weights": {"us_stock:SPY": 0.6, "us_stock:IEF": 0.4}},
+})
+
+#: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
+#: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
+TOP2 = "top2"
+MARKET_KEY = "us_stock:SPY"
 
 # 사람이 읽을 이름 — 화면이 그대로 쓴다.
 LABELS = {
@@ -89,27 +116,125 @@ LABELS = {
     "notional50": "금액 균등 · 상한 변동성 50%",
     "xs12": "상대 강세",
     "blend12": "추세 + 상대 강세",
+    "xs12w": "상대 강세 · 넓은 목록",
+    "blend12w": "추세 + 상대 강세 · 넓은 목록",
+    "xs12f": "상대 강세 · 하락장 방어",
+    "xs12fw": "상대 강세 · 하락장 방어 · 넓은 목록",
+    TOP2: "최근 상위 둘 섞기",
+    "hold40": "그냥 보유 · 40종목 균등",
+    "holdw": "그냥 보유 · 넓은 목록 균등",
+    "6040": "그냥 보유 · 주식 60 채권 40",
 }
+
+#: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
+#: 40종목 쪽 시세를 쓴다(같은 열).
+WIDE_KEYS = tuple(f"us_stock:{t}" for t in T.BROAD_ETFS)
+
+
+def universe_of(name: str) -> str:
+    return CANDIDATES.get(name, {}).get("universe", "core")
+
+
+def wide_extra_keys(core_keys) -> list:
+    """넓은 목록 중 40종목(core_keys)에 없는 것 — 매일 배치가 따로 받는다."""
+    core = set(core_keys or ())
+    return [k for k in WIDE_KEYS if k not in core]
 
 
 def candidate_config(name: str) -> T.TrendConfig:
     spec = CANDIDATES[name]
     cfg = T.variant_config(spec["variant"])
-    if spec["kind"] == "xs":
+    if spec["kind"] in ("xs", "hold", "fixed"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": "M"})
     return cfg
 
 
-def candidate_targets(closes: pd.DataFrame, name: str
+def hold_weights(closes: pd.DataFrame) -> pd.DataFrame:
+    """그냥 보유 — 그날 시세가 있는 자산에 **같은 금액**. 빚은 안 낸다."""
+    have = closes.notna().astype(float)
+    n = have.sum(axis=1).replace(0, np.nan)
+    return have.div(n, axis=0).fillna(0.0)
+
+
+def fixed_weights(closes: pd.DataFrame, weights: dict) -> pd.DataFrame:
+    """고정 비중(60/40 등). 한쪽이 아직 상장 전이면 있는 쪽끼리 다시 나눈다."""
+    cols = [k for k in weights if k in closes.columns]
+    out = pd.DataFrame(0.0, index=closes.index, columns=closes.columns)
+    if not cols:
+        return out
+    have = closes[cols].notna().astype(float) * pd.Series(weights)[cols]
+    tot = have.sum(axis=1).replace(0, np.nan)
+    out[cols] = have.div(tot, axis=0).fillna(0.0)
+    return out
+
+
+def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
                       ) -> tuple[pd.DataFrame, T.TrendConfig]:
-    """후보의 목표 비중(날짜 × 자산)과 그 설정. 그날 종가까지만 본다."""
+    """후보의 목표 비중(날짜 × 자산)과 그 설정. 그날 종가까지만 본다.
+
+    core_keys(감사 343): 40종목의 열 이름. 주면 40종목 후보는 그 열만 보고,
+    넓은 목록 후보는 전부 본다. 안 주면 받은 열 전부를 본다(연구·검사용).
+    결과는 언제나 closes의 열 전체로 맞춘다(안 보는 열은 0).
+    """
     spec = CANDIDATES[name]
     cfg = candidate_config(name)
-    if spec["kind"] == "xs":
-        return T.xsmom_weights(closes, cfg), cfg
-    if spec["kind"] == "blend":
-        return T.blend_weights(closes, cfg), cfg
-    return T.target_weights(closes, cfg), cfg
+    cols = list(closes.columns)
+    if core_keys is not None and universe_of(name) == "core":
+        keep = set(core_keys)
+        cols = [c for c in cols if c in keep]
+    sub = closes[cols]
+    if spec["kind"] == "hold":
+        tgt = hold_weights(sub)
+    elif spec["kind"] == "fixed":
+        tgt = fixed_weights(sub, spec["weights"])
+    elif spec["kind"] == "xs":
+        tgt = T.xsmom_weights(sub, cfg)
+    elif spec["kind"] == "blend":
+        tgt = T.blend_weights(sub, cfg)
+    else:
+        tgt = T.target_weights(sub, cfg)
+    if spec.get("filter") == "market":
+        tgt = tgt.mul(market_filter(closes), axis=0)
+    return tgt.reindex(columns=closes.columns, fill_value=0.0), cfg
+
+
+ALL_NAMES = tuple(CANDIDATES) + (TOP2,)
+
+
+def targets_today(closes: pd.DataFrame, name: str, core_keys=None,
+                  state: dict | None = None) -> dict:
+    """그 엔진이 **오늘 따를** 목표 — 실계좌·그림자가 같은 답을 쓰는 한 자리.
+
+    검증과 같은 주기(`target_day`)의 목표 줄을 고른다. TOP2면 주간 잡이 적은
+    짝(`state["top2_pair"]`)의 목표를 반씩 더한다(각자 자기 주기).
+    """
+    if name == TOP2:
+        pair = list((state or {}).get("top2_pair") or [])
+        if len(pair) != 2 or any(p not in CANDIDATES for p in pair):
+            raise ValueError("상위 둘 짝이 정해지지 않았다")
+        a, b = (targets_today(closes, p, core_keys) for p in pair)
+        cols = set(a["weights"]) | set(b["weights"])
+        return {"weights": {k: 0.5 * a["weights"].get(k, 0.0)
+                            + 0.5 * b["weights"].get(k, 0.0) for k in cols},
+                "target_day": max(a["target_day"], b["target_day"]),
+                "asset_cap": max(a["asset_cap"], b["asset_cap"]),
+                "pair": pair}
+    tgt, cfg = candidate_targets(closes, name, core_keys=core_keys)
+    day = target_day(tgt.index, cfg.rebalance)
+    row = tgt.loc[day].fillna(0.0)
+    return {"weights": {k: float(row.get(k, 0.0)) for k in closes.columns},
+            "target_day": str(day.date()), "asset_cap": cfg.asset_cap}
+
+
+def market_filter(closes: pd.DataFrame) -> pd.Series:
+    """시장 추세 필터(감사 343 ②) — SPY 여러 기간 수익 중 양수인 비율(0~1).
+
+    그날 종가까지만 본다. SPY가 없거나 아직 계산이 안 되는 날은 1(필터 없음) —
+    못 잰 것을 '내림'으로 세지 않는다.
+    """
+    if MARKET_KEY not in closes.columns:
+        return pd.Series(1.0, index=closes.index)
+    return T.trend_score(closes[MARKET_KEY]).fillna(1.0)
 
 
 def target_day(idx: pd.DatetimeIndex, rebalance: str):
@@ -141,6 +266,25 @@ def _cagr(r: pd.Series) -> float:
 def _mdd(r: pd.Series) -> float:
     eq = (1.0 + r.fillna(0.0)).cumprod()
     return float((eq / eq.cummax() - 1.0).min()) if len(eq) else 0.0
+
+
+BASE_CANDIDATES = 6     # T_SWITCH를 정한 날(감사 341)의 후보 수
+
+
+def switch_threshold(n_candidates: int) -> float:
+    """후보가 늘면 갈아타기 문턱도 오른다(감사 343) — 본페로니.
+
+    감사 341의 문턱 1.35는 후보 6개(비교 5번)에서 정했다. 그때의 **전체 거짓
+    갈아타기 예산**(5 × 한쪽 꼬리 확률)을 그대로 두고 비교 수로 나눈다 —
+    후보를 많이 뽑을수록 '우연히 1등'이 쉬워지는 만큼 문턱이 저절로 오른다.
+    6개 이하면 1.35 그대로다(내려가지 않는다).
+    """
+    from statistics import NormalDist
+    nd = NormalDist()
+    k0 = BASE_CANDIDATES - 1
+    k = max(k0, int(n_candidates) - 1)
+    family = k0 * (1.0 - nd.cdf(T_SWITCH))
+    return round(max(T_SWITCH, nd.inv_cdf(1.0 - family / k)), 3)
 
 
 def choose(returns: pd.DataFrame, upto, incumbent: str,
@@ -177,7 +321,8 @@ def choose(returns: pd.DataFrame, upto, incumbent: str,
     sd = float(d.std())
     t = float(d.mean() / sd * np.sqrt(len(d))) if sd > 0 else 0.0
     out["t"] = round(t, 2)
-    if t < T_SWITCH:
+    out["t_needed"] = switch_threshold(returns.shape[1])
+    if t < out["t_needed"]:
         out["reason"] = "not_significant"
         return out
     if held_days is not None and held_days < MIN_HOLD:
@@ -186,6 +331,81 @@ def choose(returns: pd.DataFrame, upto, incumbent: str,
     out["choice"] = best
     out["reason"] = "switch"
     return out
+
+
+def _repick_days(idx: pd.DatetimeIndex) -> set:
+    """상위 둘을 다시 고르는 날 — **매달 마지막 금요일**(월 1회).
+
+    매주 다시 고르면 순위가 조금만 바뀌어도 반쪽을 갈아타며 수수료를 낸다.
+    """
+    fr = idx[idx.weekday == 4]
+    if not len(fr):
+        return set()
+    s = pd.Series(fr, index=fr)
+    last = s.groupby([fr.year, fr.month]).transform("max")
+    return set(fr[fr == pd.DatetimeIndex(last.values)])
+
+
+def top2_pick(returns: pd.DataFrame, upto) -> list | None:
+    """최근 3년 연수익 상위 둘(낙폭 병적 문턱 안). 둘이 안 되면 None."""
+    win = returns.loc[:upto].tail(WINDOW)
+    ok = {}
+    for n in returns.columns:
+        r = win[n]
+        if len(r) < WINDOW or not bool(r.notna().all()):
+            continue
+        if _mdd(r) >= MDD_FLOOR:
+            ok[n] = _cagr(r)
+    if len(ok) < 2:
+        return None
+    return sorted(ok, key=lambda n: ok[n], reverse=True)[:2]
+
+
+def build_top2(results: dict, cost_rate: dict, fx_keys=(),
+               fx_cost: float = 0.0) -> tuple:
+    """상위 둘 섞기 후보의 자산 곡선(감사 343 ③) — 다른 후보 결과로 만든다.
+
+    매달 마지막 금요일 종가로 짝을 정하고 다음 영업일부터 두 후보의 수익을
+    반씩 받는다. 짝이 바뀐 날은 두 혼합 보유의 차이만큼 수수료를 뺀다.
+    반환: (TrendResult, 지금 짝)
+    """
+    rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
+    idx = rets.index
+    repick = _repick_days(idx)
+    cols = sorted(set().union(*(r.weights.columns for r in results.values())))
+
+    def mix(pair, day):
+        if not pair:
+            return pd.Series(0.0, index=cols)
+        a, b = (results[p].weights.loc[day].reindex(cols).fillna(0.0) for p in pair)
+        return 0.5 * a + 0.5 * b
+
+    pair, pending = None, None
+    eq, eqs, ws, cs = 1.0, [], [], []
+    for day in idx:
+        r = (float(np.nanmean([rets.at[day, p] for p in pair]))
+             if pair else 0.0)
+        r = 0.0 if np.isnan(r) else r
+        c = 0.0
+        if pending is not None and pending != pair:
+            c = switch_cost(mix(pair, day), mix(pending, day), cost_rate,
+                            fx_keys, fx_cost)
+            r = (r + 1.0) * (1.0 - c) - 1.0          # 짝을 바꾼 날의 비용
+            pair = pending
+        pending = None
+        eq *= (1.0 + r)
+        eqs.append(eq)
+        cs.append(c)
+        ws.append(mix(pair, day))
+        if day in repick:
+            pending = top2_pick(rets, day)
+    equity = pd.Series(eqs, index=idx)
+    res = T.TrendResult(equity=equity, returns=equity.pct_change(),
+                        weights=pd.DataFrame(ws, index=idx),
+                        turnover=pd.Series(0.0, index=idx),
+                        cost=pd.Series(cs, index=idx),
+                        gross=pd.Series(0.0, index=idx))
+    return res, (pending or pair)
 
 
 def switch_cost(w_old: pd.Series, w_new: pd.Series, cost_rate: dict,
@@ -298,7 +518,9 @@ def active_choice(state: dict | None, today) -> str | None:
     if not state or not (state.get("gate") or {}).get("pass"):
         return None
     name = state.get("active")
-    if name not in CANDIDATES:
+    if name not in ALL_NAMES:
+        return None
+    if name == TOP2 and len(state.get("top2_pair") or []) != 2:
         return None
     try:
         age = (pd.Timestamp(today) - pd.Timestamp(state.get("asof"))).days
@@ -325,6 +547,7 @@ def public(state_dir: str) -> dict | None:
     return {"asof": st.get("asof"), "active": st.get("active"),
             "active_label": st.get("active_label"),
             "previous": st.get("previous"), "switched": st.get("switched"),
+            "top2_pair": st.get("top2_pair"), "t_needed": dec.get("t_needed"),
             "reason": dec.get("reason"), "t": dec.get("t"), "best": dec.get("best"),
             "gate": {"pass": g.get("pass"), "selector": g.get("selector"),
                      "baseline": g.get("baseline"), "switches": g.get("switches"),
@@ -333,4 +556,75 @@ def public(state_dir: str) -> dict | None:
                                "judge": c.get("judge")}
                            for n, c in (st.get("candidates") or {}).items()},
             "rule": st.get("rule"), "stale_days": STALE_DAYS,
+            "futures": st.get("futures"),
             "cost_basis": st.get("cost_basis")}
+
+
+# ── 감사 344 ② — 선물 트랙도 **기계가** 고른다 ─────────────────────────
+#
+# 감사 335에서 선물 엔진(fut_long20)은 사람이 정했다. 본 계좌와 같은 규칙으로
+# 후보 넷을 매주 잰다 — 추세 둘, **코인 그냥 보유**, **현금**. 현금은 수익 0이라
+# 다른 후보가 전부 잃을 때만 뽑힌다(그때는 안 하는 것이 최선이다).
+#
+# 비용: 코인 실측 편도 + 펀딩 연 11%를 **롱 보유 전부**에 물린다(보유 후보도
+# 선물로 들고 있으면 펀딩을 낸다 — 감사 335 ②와 같은 자). 판정 구간은 감사
+# 335 ②와 같이 2022년부터.
+FUT_CANDIDATES = {
+    "fut_long20": {"kind": "trend", "variant": "fut_long20"},
+    "fut_long40": {"kind": "trend", "variant": "fut_long40"},
+    "fut_hold": {"kind": "hold"},
+    "fut_cash": {"kind": "cash"},
+}
+FUT_LABELS = {
+    "fut_long20": "추세 · 변동성 20%",
+    "fut_long40": "추세 · 변동성 40%",
+    "fut_hold": "코인 그냥 보유(균등)",
+    "fut_cash": "현금(안 한다)",
+}
+FUT_BASELINE = "fut_long20"
+FUT_JUDGE_START = "2022-01-01"
+
+
+def fut_config(name: str) -> T.TrendConfig:
+    spec = FUT_CANDIDATES[name]
+    if spec["kind"] == "trend":
+        return T.variant_config(spec["variant"])
+    if spec["kind"] == "hold":
+        return T.TrendConfig(rebalance="M", max_gross=1.0, asset_cap=1.0,
+                             carry_annual=T.FUTURES_CARRY)
+    return T.TrendConfig(rebalance="M")
+
+
+def fut_targets(closes: pd.DataFrame, name: str) -> tuple:
+    spec = FUT_CANDIDATES[name]
+    cfg = fut_config(name)
+    if spec["kind"] == "trend":
+        return T.target_weights(closes, cfg), cfg
+    if spec["kind"] == "hold":
+        return hold_weights(closes), cfg
+    return pd.DataFrame(0.0, index=closes.index, columns=closes.columns), cfg
+
+
+def fut_targets_today(closes: pd.DataFrame, name: str) -> dict:
+    tgt, cfg = fut_targets(closes, name)
+    day = target_day(tgt.index, cfg.rebalance)
+    row = tgt.loc[day].fillna(0.0)
+    return {"weights": {k: float(row.get(k, 0.0)) for k in closes.columns},
+            "target_day": str(day.date()), "band": cfg.band}
+
+
+def fut_active_choice(state: dict | None, today) -> str | None:
+    """선물 트랙이 지금 쓸 후보. 관문 통과·낡지 않음일 때만, 아니면 None."""
+    f = (state or {}).get("futures") or {}
+    if not (f.get("gate") or {}).get("pass"):
+        return None
+    name = f.get("active")
+    if name not in FUT_CANDIDATES:
+        return None
+    try:
+        age = (pd.Timestamp(today) - pd.Timestamp(f.get("asof"))).days
+    except (TypeError, ValueError):
+        return None
+    if age < 0 or age > STALE_DAYS:       # 주간 잡이 멈췄으면 옛 선택을 안 쓴다
+        return None
+    return name

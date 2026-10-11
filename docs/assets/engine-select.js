@@ -68,6 +68,18 @@
     card.appendChild(head);
     var why = REASONS[es.reason];
     if (why) card.appendChild(el("div", "sub", why));
+    // 상위 둘 섞기(감사 343 ③) — 지금 반씩 담는 두 후보.
+    var pr = es.top2_pair;
+    if (es.active === "top2" && pr && pr.length === 2) {
+      var cs0 = es.candidates || {};
+      var pl = el("div", "sub");
+      pl.appendChild(el("span", null, "지금 반씩 담는 두 엔진"));
+      pl.appendChild(document.createTextNode(" — "));
+      pl.appendChild(el("b", null, (cs0[pr[0]] || {}).label || pr[0]));
+      pl.appendChild(document.createTextNode(" · "));
+      pl.appendChild(el("b", null, (cs0[pr[1]] || {}).label || pr[1]));
+      card.appendChild(pl);
+    }
 
     var tw = el("div", "tw");
     var t = el("table");
@@ -163,6 +175,38 @@
       tw2.appendChild(t2);
       card.appendChild(tw2);
       card.appendChild(el("div", "sub", "고르는 데는 쓰지 않습니다 — 과거 시뮬레이션이 지금 실제와 맞는지 보는 계측기입니다. 정수 주는 맞추지 않아 본 계좌보다 약간 매끄럽습니다."));
+    }
+
+    // 선물 계좌도 기계가 고른다(감사 344).
+    var fu = es.futures;
+    if (fu && fu.candidates) {
+      card.appendChild(el("h3", null, "선물 계좌 엔진"));
+      var fh = el("div");
+      fh.appendChild(el("span", null, "지금 엔진"));
+      fh.appendChild(document.createTextNode(" "));
+      fh.appendChild(el("b", null, fu.active_label || fu.active || "—"));
+      card.appendChild(fh);
+      var fwhy = REASONS[(fu.decision || {}).reason];
+      if (fwhy) card.appendChild(el("div", "sub", fwhy));
+      var tw3 = el("div", "tw");
+      var t3 = el("table");
+      var h3 = el("tr");
+      ["후보", "최근 3년 연수익", "최근 3년 최대낙폭", "2022년 이후 연수익", "2022년 이후 최대낙폭"].forEach(function (h) {
+        h3.appendChild(el("th", null, h));
+      });
+      t3.appendChild(h3);
+      Object.keys(fu.candidates).forEach(function (k) {
+        var c = fu.candidates[k], w = c.window || {}, j = c.judge || {};
+        var tr = el("tr", k === fu.active ? "on" : null);
+        tr.appendChild(el("td", null, c.label || k));
+        tr.appendChild(el("td", "n", pct(w.cagr)));
+        tr.appendChild(el("td", "n", pct(w.mdd)));
+        tr.appendChild(el("td", "n", pct(j.cagr)));
+        tr.appendChild(el("td", "n", pct(j.mdd)));
+        t3.appendChild(tr);
+      });
+      tw3.appendChild(t3);
+      card.appendChild(tw3);
     }
 
     var ul = el("ul", "sub");

@@ -93,14 +93,17 @@ def run_engine_shadow(*, bar: str, closes_map: dict, weights: dict,
         log.error("엔진 후보 그림자: 판정일이 과거로 갔다 — 기록 %s → 지금 %s. "
                   "쓰지 않는다.", st["history"][-1].get("date"), bar)
         return None
-    closes = T.align_business_days(
-        {k: v for k, v in closes_map.items() if k in weights})
+    # 40종목 + 엔진 전용 넓은 ETF(감사 343). 40종목 후보는 40종목만 본다.
+    closes = T.align_business_days(dict(closes_map))
     if closes.empty:
         return None
     spread = fx_spread(state_dir)
     pm = st.get("prev_marks") or {}
     rec = {"date": bar, "active": active, "arms": {}}
-    for name in E.CANDIDATES:
+    sel = E.load_state(state_dir)
+    for name in E.ALL_NAMES:
+        if name == E.TOP2 and len((sel or {}).get("top2_pair") or []) != 2:
+            continue                  # 짝이 아직 없으면 이 후보는 오늘 못 굴린다
         a = st["arms"].setdefault(name, {"equity": START, "peak": START,
                                          "held": {}})
         held = {k: float(v) for k, v in (a.get("held") or {}).items()}
@@ -114,11 +117,8 @@ def run_engine_shadow(*, bar: str, closes_map: dict, weights: dict,
         if 1.0 + port > 0:
             held = {k: w * (1.0 + rets[k]) / (1.0 + port) for k, w in held.items()}
         # ② 오늘의 목표(검증과 같은 주기) → 밴드 → 비용
-        tgt, cfg = E.candidate_targets(closes, name)
-        day = E.target_day(tgt.index, cfg.rebalance)
-        row = tgt.loc[day].fillna(0.0)
-        target = {k: float(row.get(k, 0.0)) for k in weights
-                  if abs(float(row.get(k, 0.0))) > 0}
+        t = E.targets_today(closes, name, core_keys=set(weights), state=sel)
+        target = {k: v for k, v in t["weights"].items() if abs(v) > 0}
         new = rebalance(held, target)
         cost = (shadow_cost.turnover_cost(new, held, state_dir)
                 + fx_cost(held, new, spread))
@@ -151,7 +151,7 @@ def engine_shadow_public(state_dir: str = "state") -> dict | None:
         return None
     last = clock.latest_row(st["history"])
     arms = {}
-    for name in E.CANDIDATES:
+    for name in E.ALL_NAMES:
         rows = [r["arms"][name] for r in st["history"]
                 if name in (r.get("arms") or {})]
         cur = (last.get("arms") or {}).get(name) or {}

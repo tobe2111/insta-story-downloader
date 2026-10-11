@@ -50,8 +50,9 @@ def test_the_live_and_shadow_target_day_are_one_rule():
     assert E.target_day(idx, "W-FRI") == pd.Timestamp("2026-10-09")
     assert E.target_day(idx, "M") == pd.Timestamp("2026-09-30")
     assert E.target_day(idx, "D") == idx[-1]
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
-    assert "day = E.target_day(tgt.index, cfg.rebalance)" in src
+    for f in ("daily.py", "engine_shadow.py"):
+        src = (ROOT / "quant" / "live" / f).read_text("utf-8")
+        assert "E.targets_today(closes, name" in src, f"{f}가 목표를 따로 계산한다"
 
 
 # ── ② 생존 편향 점검 — 넓은 ETF 목록에서도 이겨야 ───────────────────
