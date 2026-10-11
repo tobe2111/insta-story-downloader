@@ -193,3 +193,14 @@ def test_a_symbol_that_killed_the_job_from_the_front_goes_to_the_back(
     assert health["budget_cut"] == {"key": first, "too_heavy": True,
                                     "died": True}
     assert "in_progress" not in cur, "다 돈 밤의 커서에 흔적이 남았다"
+
+
+def test_a_cancelled_night_still_commits_its_trace():
+    """감사 352 — '지금 도는 중' 흔적(감사 338)은 state/에 적히지만, 커밋 단계가
+    취소에 건너뛰면 그 흔적이 러너와 함께 사라진다(10/11 2회차 실측)."""
+    import yaml
+    doc = yaml.safe_load((Path(__file__).resolve().parent.parent / ".github" /
+                          "workflows" / "nightly-retrain.yml").read_text("utf-8"))
+    steps = [s for j in doc["jobs"].values() for s in j["steps"]]
+    commit = next(s for s in steps if "state/" in str(s.get("name", "")) and "커밋" in str(s.get("name", "")))
+    assert "cancelled()" in str(commit.get("if", "")), "잡이 잘리면 흔적을 커밋하지 않는다"

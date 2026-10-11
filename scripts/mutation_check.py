@@ -9595,7 +9595,11 @@ _skipped_in: dict = {}          # 검사 파일별 '기준선에서 건너뛴 �
 # 조각 실행(감사 348) — `MUTATION_SHARD=i/n`이면 i번째 조각(번호 % n == i)만 돈다.
 # 항목이 1,495건으로 늘어 전수 한 벌이 러너 한도(3시간)를 넘었다(10/10 취소).
 # 야간 잡이 조각을 나란히 돌린다 — 넷이 모이면 전부다.
-_SHARD = os.environ.get("MUTATION_SHARD", "")
+# ⚠️ 부분 실행(FILTER)에는 조각을 걸지 않는다(감사 352). 조각 잡 안에서 검사가
+#    이 스크립트를 부분 실행으로 부르면 환경변수를 물려받아, 부분 실행이 다시
+#    1/4로 잘리고 요약 첫 줄이 '부분 실행' 대신 조각 번호가 됐다(10/11 CI 실측 —
+#    네 조각 모두 같은 검사가 '원본에서 실패'로 찍혔다).
+_SHARD = "" if FILTER else os.environ.get("MUTATION_SHARD", "")
 _SH_I, _SH_N = ((int(_SHARD.split("/")[0]), int(_SHARD.split("/")[1]))
                 if "/" in _SHARD else (0, 1))
 if _SH_N > 1:

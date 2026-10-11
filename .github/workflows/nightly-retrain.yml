@@ -119,6 +119,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 결정 기록 커밋 (state/)
+        # ⚠️ 잡 한도에 잘려도(취소) 커밋한다(감사 352). 감사 338의 '지금 도는
+        #    중' 흔적은 state/에 적히는데, 이 단계가 취소에 건너뛰어져 그 흔적이
+        #    러너와 함께 사라졌다(10/11 2회차 실측) — 그러면 다음 회차가 같은
+        #    자리에서 또 죽는다. 기록은 종목마다 끝난 것만 쓰이고, 아래 장부
+        #    관문이 말이 안 되는 기록을 막는다. 실패(예외)에는 커밋하지 않는다.
+        if: success() || cancelled()
         run: |
           if git diff --quiet -- state/ && [ -z "$(git status --porcelain state/)" ]; then
             echo "state/ 변경 없음 — 커밋 생략"; exit 0
