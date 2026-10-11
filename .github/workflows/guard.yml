@@ -23,6 +23,12 @@ on:
                                 # 간격 하한. 공개 저장소라 Actions 무료이고,
                                 # 실제 간격은 심장박동·회차 시각이 말한다.
   workflow_dispatch:
+  # 머지 때마다 사슬을 되살린다(감사 350). 사슬(감사 348)은 크론 한 번이
+  # 시작해야 도는데, 그 크론이 3~7시간씩 안 뜬다 — 10/11 머지 뒤 2시간 넘게
+  # 한 회차도 없었다. 감시 자신의 커밋은 github.token이라 이 이벤트를 다시
+  # 부르지 않는다(되먹임 없음). 겹치면 아래 concurrency가 줄 세운다.
+  push:
+    branches: [main]
 
 concurrency:
   group: intraday-guard
