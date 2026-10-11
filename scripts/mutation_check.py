@@ -9465,16 +9465,28 @@ def run(test):
     return _run_verbose(test)[0]
 
 
+RC_TIMEOUT = 124      # `timeout(1)`과 같은 번호 — 시간 초과는 따로 센다
+
+
 def _run_verbose(test) -> tuple[int, str]:
-    """`run()`과 같되 출력까지 준다 — 기준선에서 '몇 개가 건너뛰었나'를 본다."""
+    """`run()`과 같되 출력까지 준다 — 기준선에서 '몇 개가 건너뛰었나'를 본다.
+
+    ⚠️ 시간 초과를 예외로 두지 않는다(2026-10-11 감사 349). 조각 넷 중 셋이
+       느린 검사 파일의 기준선에서 `TimeoutExpired`로 **요약 없이 죽었다** —
+       그 조각의 수백 건이 '못 잡음'도 '잡음'도 아닌 채 사라졌다. 이제 시간
+       초과는 종료코드 `RC_TIMEOUT`이다: 기준선이면 '원본에서 시간 초과'로
+       세고, 변이 뒤면 검사가 멈춘 것이므로 잡은 것으로 센다(rc != 0).
+    """
     if str(test).endswith(".mjs"):
-        r = subprocess.run([_node(), test],
-                           capture_output=True, text=True, timeout=900)
-        return r.returncode, (r.stdout or "") + (r.stderr or "")
-    # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
-    r = subprocess.run([sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"],
-                       capture_output=True, text=True, timeout=900, env=env)
+        cmd, env = [_node(), test], None
+    else:
+        # 하위 프로세스가 새 .pyc를 굽지 않게 한다(오염 재발 방지).
+        cmd = [sys.executable, "-m", "pytest", test, "-q", "--no-header", "-x"]
+        env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=900, env=env)
+    except subprocess.TimeoutExpired:
+        return RC_TIMEOUT, "시간 초과(900초)"
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
@@ -9600,6 +9612,7 @@ for _idx, (desc, path, old, new, test) in enumerate(MUTATIONS):
         else:
             _rc, _out = _run_verbose(test)
             _baseline[test] = ("" if _rc == BASELINE_OK
+                               else "원본 코드에서 시간 초과" if _rc == RC_TIMEOUT
                                else "원본 코드에서 이미 실패")
             _skipped_in[test] = _skip_count(_out)
     if _baseline[test]:

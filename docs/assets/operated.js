@@ -64,7 +64,7 @@
         var wrap = el("div", null, "tw");
         var t = el("table");
         var hr = el("tr");
-        ["후보 방식", "최근 비교 기간 수익", "지금 방식보다 앞선 정도(t)", "비교한 날 수"].forEach(function (h) {
+        ["후보 방식", "최근 비교 기간 수익", "같은 날들의 지금 방식 수익", "지금 방식보다 앞선 정도(t)", "비교한 날 수"].forEach(function (h) {
           hr.appendChild(el("th", h));
         });
         t.appendChild(hr);
@@ -78,6 +78,7 @@
           }
           tr.appendChild(nm);
           tr.appendChild(el("td", pct(r.pct)));
+          tr.appendChild(el("td", pct(r.incumbent_pct)));
           tr.appendChild(el("td", r.t == null ? "—" : String(r.t)));
           tr.appendChild(el("td", r.n == null ? "—" : String(r.n)));
           t.appendChild(tr);
@@ -89,8 +90,26 @@
         line(box, "최근 비교 기간 · 그냥 보유", pct(dec.hold_pct));
         line(box, "비교한 날 수", String(dec.n_days == null ? "—" : dec.n_days));
       }
-      line(box, "갈아타는 문턱(t)", dec.t_needed == null ? "—" : String(dec.t_needed));
+      var rule = op.rule || {};
+      var bar = dec.t_needed != null ? dec.t_needed : rule.t_switch;
+      line(box, "갈아타는 문턱(t)", bar == null ? "—" : String(bar));
+      if (dec.best_challenger) line(box, "가장 앞선 후보", labels[dec.best_challenger] || dec.best_challenger);
+      if (dec.choice) line(box, "오늘 판정", labels[dec.choice] || dec.choice);
+      if (rule.window_days != null) line(box, "비교 기간(최근 날 수)", String(rule.window_days));
+      if (rule.min_hold_days != null) line(box, "갈아탄 뒤 최소 유지(일)", String(rule.min_hold_days));
       if (REASON[dec.reason]) box.appendChild(el("div", REASON[dec.reason], "sub"));
+    }
+    var sw = op.switches || [];
+    if (sw.length) {
+      box.appendChild(el("div", "갈아탄 기록", "sub"));
+      sw.slice(-5).forEach(function (s) {
+        var d = el("div");
+        d.appendChild(el("span", String(s.on || "—")));
+        d.appendChild(document.createTextNode(" "));
+        d.appendChild(el("b", (labels[s.from] || s.from || "—") + " → " + (labels[s.to] || s.to || "—")));
+        if (s.t != null) d.appendChild(document.createTextNode(" (t " + s.t + ")"));
+        box.appendChild(d);
+      });
     }
     box.appendChild(el("div", "과거에 나았던 쪽이 앞으로도 낫다는 보장은 없습니다. 그래서 문턱과 최소 유지 기간을 둡니다.", "sub"));
   }

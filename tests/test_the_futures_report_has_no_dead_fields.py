@@ -48,6 +48,13 @@ def _data_names(d: dict) -> set[str]:
         v = d.get(block)
         if isinstance(v, dict):
             out |= set(v)
+    # 운용 계좌의 방식 이름(follow·hold·cash)도 자료다 — 화면은 표를 돌면서
+    # 읽는다(감사 346). 목록은 자료에서 뽑는다.
+    op = d.get("operated") or {}
+    for v in ((op.get("decision") or {}).get("table"),
+              (op.get("rule") or {}).get("modes")):
+        if isinstance(v, dict):
+            out |= set(v)
     return out
 
 

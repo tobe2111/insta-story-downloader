@@ -643,6 +643,18 @@
         "← current",
       "갈아타는 문턱(t)":
         "Switching bar (t)",
+      "같은 날들의 지금 방식 수익":
+        "Current mode's return over the same days",
+      "가장 앞선 후보":
+        "Leading candidate",
+      "오늘 판정":
+        "Today's verdict",
+      "비교 기간(최근 날 수)":
+        "Comparison window (recent days)",
+      "갈아탄 뒤 최소 유지(일)":
+        "Minimum hold after a switch (days)",
+      "갈아탄 기록":
+        "Switch history",
       "기준일(하루 한 번, 그날 종가로 갱신)":
         "As of (updated once a day at that day's close)",
       "지금 방식으로 바꾼 날":
