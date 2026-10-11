@@ -1874,7 +1874,8 @@ NEW_DAY_MIN_ELAPSED = 0.10          # = UTC 02:24 이전 봉은 하루를 열지
 
 
 def judgement_day(last_bars: dict, partial_bars: dict,
-                  min_elapsed: float = NEW_DAY_MIN_ELAPSED) -> str:
+                  min_elapsed: float = NEW_DAY_MIN_ELAPSED,
+                  prev_bars: dict | None = None) -> str:
     """이 배치가 판단한 날짜 — **갓 시작한 봉은 하루를 열지 않는다**.
 
     포트폴리오 멱등 가드의 열쇠다. 예전에는 그냥 `max(봉 날짜)`였는데,
@@ -1899,11 +1900,25 @@ def judgement_day(last_bars: dict, partial_bars: dict,
     한 종목도 문턱을 못 넘는 극단(전 종목이 자정 직후 코인)에서는 원래대로
     최대 날짜를 쓴다 — 판단을 멈추느니 기록을 남기고 `bar_partial`로
     드러낸다.
+
+    ⚠️ **갓 시작한 봉을 버리면 그 앞의 완성 봉은 살린다** (2026-10-11 감사 350).
+       크론은 22:15 UTC인데 GitHub가 매일 2.5~4시간 늦게 띄운다(실측 10/2~
+       10/11: 00:39~02:24 UTC). 그 시각 코인 봉은 완성도 4~8%라 위 문턱에
+       걸리고, 예전에는 그 종목이 **통째로** 후보에서 빠졌다 — 바로 앞의
+       완성된 봉(어제 하루 전체)까지 함께. 그래서 주말에는 주식의 금요일
+       봉만 남아 토·일이 **한 번도 열리지 않았다**(10/10·10/11 실측). 본
+       계좌가 코인을 들고 있어도 주말 장부가 끊겼고, 주말 움직임은 금요일
+       기록의 되돌림에 섞여 들어갔다. 이제 진행 중인 봉 대신 직전 봉
+       (`prev_bars`)이 하루의 이름 후보가 된다 — 갓 시작한 봉은 여전히
+       하루를 열지 못한다(감사 232 그대로).
     """
     if not last_bars:
         raise ValueError("판단할 봉이 없다")
+    prev_bars = prev_bars or {}
     formed = [str(b)[:10] for k, b in last_bars.items()
               if float(partial_bars.get(k, 1.0)) >= min_elapsed]
+    formed += [str(prev_bars[k])[:10] for k in last_bars
+               if float(partial_bars.get(k, 1.0)) < min_elapsed and k in prev_bars]
     return max(formed) if formed else max(str(b)[:10] for b in last_bars.values())
 
 
@@ -2049,6 +2064,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     data_quality: dict = {}         # key → 품질 스캔 결과(갭·스파이크 등)
     sources: dict = {}              # key → 그 종목 시세를 받은 소스(감사 135)
     partial_bars: dict = {}         # key → 결정 봉 완성도(1.0 미만이면 진행 중)
+    prev_bars: dict = {}            # key → 직전(완성) 봉 날짜 — judgement_day가 쓴다
     bars_short: dict = {}           # key → 요청보다 적게 받은 봉 수(감사 266)
     guard_damp: dict = {}           # key → 이벤트 감쇠 계수(실적 가드 등)
     kelly_caps: dict = {}           # key → 최종 비중 상한(부분 켈리)
@@ -2251,6 +2267,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             prices[key] = px_krw
             st["base_prices"].setdefault(key, prices[key])
             last_bars[key] = str(df.index[-1])
+            if len(df) > 1:
+                prev_bars[key] = str(df.index[-2])
             bs = bar_status(market, df.index[-1], timeframe)
             if bs:
                 partial_bars[key] = bs["elapsed"]
@@ -2351,7 +2369,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             "마감보다 이르면 그 시장만 한 세션 뒤처집니다(겨울 서머타임 해제 "
             "시 미국장은 06:00 KST에 닫습니다)", bar_age)
 
-    bar = judgement_day(last_bars, partial_bars)
+    bar = judgement_day(last_bars, partial_bars, prev_bars=prev_bars)
     # ⚠️ **시간이 거꾸로 가면 멈춘다** (2026-08-16 실전 사고, 감사 262).
     #    멱등 가드는 `==`만 봤다. 그래서 판정일이 **이전 기록보다 과거**로
     #    떨어지면 그대로 통과해 이미 있는 날짜 뒤에 한 줄을 더 붙였다.

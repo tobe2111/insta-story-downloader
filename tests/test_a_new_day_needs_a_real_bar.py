@@ -246,3 +246,35 @@ def test_the_same_account_does_open_a_normal_day(monkeypatch, tmp_path):
     assert not out.get("skipped"), "정상 배치까지 막아 버렸다"
     assert st["last_bar"] == today
     assert st["history"], "그날 기록이 남지 않았다"
+
+
+def test_a_late_cron_still_opens_the_weekend():
+    """감사 350 — 크론이 2.5~4시간 늦게 뜨면 코인 봉은 늘 갓 시작한 상태다.
+
+    일요일 01:00 UTC(실측 10/11): 코인은 일요일 봉이 4% 형성, 토요일 봉은
+    완성됐다. 주식은 금요일에 멈춰 있다. 하루의 이름은 **토요일**이어야
+    한다 — 예전에는 코인이 통째로 빠져 금요일이 나왔고, 주말이 장부에서
+    사라졌다.
+    """
+    last_bars = {k: "2026-10-11 00:00:00" for k in CRYPTO}        # 일(진행 중)
+    last_bars.update({k: "2026-10-09 00:00:00" for k in STOCKS})  # 금
+    prev = {k: "2026-10-10 00:00:00" for k in CRYPTO}             # 토(완성)
+    partial = {k: 0.04 for k in CRYPTO}
+    assert judgement_day(last_bars, partial, prev_bars=prev) == "2026-10-10"
+    # 대조군 — 직전 봉을 안 넘기면 예전 동작(금요일) 그대로다.
+    assert judgement_day(last_bars, partial) == "2026-10-09"
+
+
+def test_the_previous_bar_never_opens_a_day_ahead_of_itself():
+    """직전 봉은 '진행 중인 봉 대신'이지 그보다 앞서지 않는다 — 감사 232의
+    자정 장면은 직전 봉을 넘겨도 08-13이다."""
+    last_bars, partial = _midnight_scene()
+    prev = {k: "2026-08-13 00:00:00" for k in CRYPTO}
+    assert judgement_day(last_bars, partial, prev_bars=prev) == "2026-08-13"
+
+
+def test_the_batch_passes_the_previous_bars():
+    """배선 — 배치가 직전 봉을 실제로 넘기는가(넘기지 않으면 위 계약은 죽은 코드)."""
+    src = Path(dl.__file__).read_text(encoding="utf-8")
+    assert "judgement_day(last_bars, partial_bars, prev_bars=prev_bars)" in src
+    assert "prev_bars[key] = str(df.index[-2])" in src
