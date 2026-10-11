@@ -431,6 +431,9 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
                    strategy_factory=strategy_factory)
     except Exception as exc:  # noqa: BLE001
         log.warning("주기 사다리 실패(본 실험 무관): %s", exc)
+    # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른다. 실험은 그대로.
+    operated_round(st, now_iso, prices, signals, per_side, dfs,
+                   data, UNIVERSE, _fetch_real)
     last = dict(st.get("last_prices") or {})
     last.update(prices)
     st["last_prices"] = last
@@ -463,6 +466,34 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     log.info("🏃 장중 도전자 — 자산 %.2f USDT · 체결 %d건 · 건너뜀 %d종목",
              equity_after, len(trades), len(skipped))
     return verdict
+
+
+def operated_round(st: dict, now_iso: str, prices: dict, signals: dict,
+                   per_side: float, dfs: dict, data, universe: list[str],
+                   fetch) -> dict | None:
+    """운용 계좌 한 회차(감사 345) — 코인·미국 트랙이 **같은 함수**를 쓴다.
+
+    일봉은 하루 한 번(정할 때)만 받는다. 주입 실행(검사)은 네트워크로 안
+    나가고 받은 장중봉을 일봉으로 묶는다. 실패해도 실험 계좌를 막지 않는다.
+    """
+    from quant.live import intraday_mode as M
+    try:
+        daily = {}
+        if M.needs_decision(st, now_iso):
+            if data is not None:
+                daily = dict(dfs)
+            else:
+                for sym in universe:
+                    try:
+                        daily[sym] = fetch(sym, timeframe="1d")
+                    except Exception:  # noqa: BLE001 — 한 종목 실패는 그 종목만 뺀다
+                        daily[sym] = None
+        return M.step(st, today=M.utc_day(now_iso), now_iso=now_iso,
+                      prices=prices, signals=signals, per_side=per_side,
+                      universe=universe, daily_closes=daily)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("운용 계좌 실패(실험 무관): %s", exc)
+        return None
 
 
 def _elapsed_days(rounds: list[dict]) -> float | None:
@@ -709,6 +740,11 @@ def ladder_public(state_dir: str = "state") -> list[dict]:
     return out
 
 
+def _operated_public(st: dict) -> dict | None:
+    from quant.live.intraday_mode import public
+    return public(st)
+
+
 def _shadow_public(st: dict, lastr: dict) -> dict | None:
     """지정가 그림자의 공개 요약 — 본 실험과 나란히 읽히는 비교 숫자."""
     sh = st.get("limit_shadow")
@@ -818,6 +854,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 체결 방식의 효과다. 지정가는 슬리피지를 아끼는 대신 못 사는
         # 위험(미체결)을 진다 — 어느 쪽이 이기는지는 곡선이 답한다.
         "limit_shadow": _shadow_public(st, lastr),
+        # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른 계좌.
+        "operated": _operated_public(st),
         # 주기 사다리 — 트랙이 많을수록 우연한 승자 확률도 커진다는 사실을
         # 숫자와 함께 싣는다(다중검정 정직성 — 오디션과 같은 원칙).
         "ladder": ladder_public(state_dir),

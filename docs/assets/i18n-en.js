@@ -617,6 +617,44 @@
         "The machine picks the engine every week by return after fees and funding (candidates: two trend engines · simply holding coins · cash).",
       "엔진은 설정 파일에 적힌 것입니다 — 주간 선택이 아직 없거나 낡았습니다.":
         "The engine is the one in the settings file — there is no weekly pick yet, or it is stale.",
+      "운용 계좌":
+        "Operated account",
+      "단타냐 그냥 보유냐 — 기계가 고릅니다":
+        "Day trading or simply holding — the machine picks",
+      "단타(1시간봉 신호대로 사고팔기)":
+        "Day trading (buy and sell on the 1-hour signals)",
+      "그냥 보유(종목마다 같은 금액)":
+        "Simply hold (equal amount per symbol)",
+      "최근 성적 차이가 문턱을 넘어 갈아탔습니다.":
+        "The recent performance gap cleared the bar, so it switched.",
+      "차이가 문턱 아래라 지금 방식을 유지합니다.":
+        "The gap is below the bar, so it keeps the current mode.",
+      "갈아탄 지 얼마 안 돼 그대로 둡니다(최소 유지 기간).":
+        "It switched recently, so it stays put (minimum holding period).",
+      "비교할 날이 아직 모자라 지금 방식을 유지합니다.":
+        "Not enough days to compare yet, so it keeps the current mode.",
+      "운용 계좌가 아직 첫 회차를 돌지 않았습니다.":
+        "The operated account has not run its first round yet.",
+      "실험 계좌와 별개인 계좌입니다. 같은 시드·같은 종목·같은 비용으로, 단타와 그냥 보유 중 수수료 뺀 성적이 나은 쪽을 기계가 매일 고릅니다.":
+        "This is a separate account from the experiment. With the same seed, symbols and costs, the machine picks every day whichever of day trading or simply holding has done better after fees.",
+      "지금 방식":
+        "Current mode",
+      "운용 계좌 수익률(수수료 뺀 뒤)":
+        "Operated account return (after fees)",
+      "최대 낙폭":
+        "Max drawdown",
+      "최근 비교 기간 · 단타":
+        "Recent comparison window · day trading",
+      "최근 비교 기간 · 그냥 보유":
+        "Recent comparison window · simply hold",
+      "비교한 날 수":
+        "Days compared",
+      "차이의 t · 갈아타는 문턱":
+        "t of the gap · switching bar",
+      "과거에 나았던 쪽이 앞으로도 낫다는 보장은 없습니다. 그래서 문턱과 최소 유지 기간을 둡니다.":
+        "There is no guarantee that whichever did better in the past will keep doing better. That is why there is a bar and a minimum holding period.",
+      "운용 계좌를 불러오지 못했습니다.":
+        "Could not load the operated account.",
       "그냥 보유 · 40종목 균등":
         "Simply hold · 40 symbols equal",
       "그냥 보유 · 넓은 목록 균등":

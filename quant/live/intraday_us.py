@@ -469,6 +469,10 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
 
     equity_after, trades = _advance_account(st, syms, prices, signals,
                                             per_side)
+    # 운용 계좌(감사 345) — 코인 트랙과 같은 함수. 실패해도 실험은 그대로.
+    from quant.live.intraday_challenger import operated_round
+    operated_round(st, now_iso, prices, signals, per_side, dfs, data, syms,
+                   _fetch_real)
     # 지정가 그림자 — 같은 신호, 다른 체결(코인 트랙과 **같은 함수**).
     # 주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다.
     # 실패해도 본 실험을 막지 않는다 — 부르는 쪽이 예외를 삼킨다.
@@ -678,6 +682,11 @@ def _cluster_public(st: dict, state_dir: str = "state") -> dict:
     return block
 
 
+def _operated_public(st: dict) -> dict | None:
+    from quant.live.intraday_mode import public
+    return public(st)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -738,6 +747,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                 #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
                 #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("us_stock", state_dir).total_one_way()),
+        # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른 계좌.
+        "operated": _operated_public(st),
         "judgement": PREREGISTERED_JUDGEMENT,
         "limit_shadow": _shadow_public(st, lastr),
         "ladder": ladder_public(state_dir),
