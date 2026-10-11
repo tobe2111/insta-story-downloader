@@ -9575,7 +9575,17 @@ _broken_files: set = set()      # 경보에 실을 '고장 난 검사'
 _missed_descs: list = []        # 경보에 실을 '진짜 무방비'
 _baseline: dict = {}
 _skipped_in: dict = {}          # 검사 파일별 '기준선에서 건너뛴 항목 수'
-for desc, path, old, new, test in MUTATIONS:
+# 조각 실행(감사 348) — `MUTATION_SHARD=i/n`이면 i번째 조각(번호 % n == i)만 돈다.
+# 항목이 1,495건으로 늘어 전수 한 벌이 러너 한도(3시간)를 넘었다(10/10 취소).
+# 야간 잡이 조각을 나란히 돌린다 — 넷이 모이면 전부다.
+_SHARD = os.environ.get("MUTATION_SHARD", "")
+_SH_I, _SH_N = ((int(_SHARD.split("/")[0]), int(_SHARD.split("/")[1]))
+                if "/" in _SHARD else (0, 1))
+if _SH_N > 1:
+    print(f"🧩 조각 {_SH_I}/{_SH_N} — 전체의 1/{_SH_N}만 돈다\n")
+for _idx, (desc, path, old, new, test) in enumerate(MUTATIONS):
+    if _idx % _SH_N != _SH_I:
+        continue
     if FILTER and FILTER not in desc and FILTER not in test:
         continue
     p = pathlib.Path(path)
@@ -9639,6 +9649,8 @@ try:
     #    파일을 안 쓰는 것이 아니라 **부분이라고 적는 것**으로 지킨다.
     _lines = ([] if not FILTER else
               [f"⚠️ 부분 실행 '{FILTER}' — 전체 결과가 아니다", ""])
+    if _SH_N > 1:
+        _lines = [f"🧩 조각 {_SH_I}/{_SH_N}"] + _lines
     _lines += [_summary, ""]
     if broken:
         _lines.append(f"💥 검사 자체 고장 {broken}건 "

@@ -36,6 +36,13 @@ permissions:
 jobs:
   sweep:
     runs-on: ubuntu-latest
+    # 조각 넷을 나란히(감사 348) — 항목이 1,495건이 되자 한 벌이 3시간 한도를
+    # 넘겨 10/10에 취소됐다. 끊긴 전수는 "안 본 항목"과 "지켜지는 항목"을
+    # 구별하지 못한다. 한 조각이 죽어도 나머지는 끝까지 돈다(fail-fast 끔).
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     # 실측 기준(로컬) 항목당 10~40초 × 121건. 러너는 더 느리므로 넉넉히.
     # 매달림 방어(감사 77) — 무제한이면 몇 시간을 태우고 로그도 안 남는다.
     #
@@ -89,13 +96,15 @@ jobs:
       #    변조된 채로 남을 수 있으므로, 러너를 버리는 이 잡에서만 돌린다
       #    (아무것도 커밋하지 않는 이유이기도 하다).
       - name: 변이 전수 (놓침·건너뜀·검사 고장이 하나라도 있으면 실패)
+        env:
+          MUTATION_SHARD: ${{ matrix.shard }}/4
         run: python3 scripts/mutation_check.py | tee mutation.txt
 
       - name: 결과 보존
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mutation-${{ github.run_id }}
+          name: mutation-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             mutation.txt
             mutation_summary.txt
@@ -126,8 +135,8 @@ jobs:
             DETAIL="(요약 없음 — 전수가 시작도 못 하고 죽었다. 설치 단계부터 볼 것)"
           fi
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          MSG=$(printf '🚨 [Quant] 변이 전수 실패 (%s)\n%s\n로그: %s' \
-                       "$(date -u +%F)" "$DETAIL" "$RUN_URL")
+          MSG=$(printf '🚨 [Quant] 변이 전수 실패 (%s · 조각 %s/4)\n%s\n로그: %s' \
+                       "$(date -u +%F)" "${{ matrix.shard }}" "$DETAIL" "$RUN_URL")
           export MSG
           if [ -n "$ALERT_GITHUB_TOKEN" ]; then
             # 깃허브 경보함(감사 336) — 저장소 주인에게 이메일로 간다. 디스코드는
