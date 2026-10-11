@@ -1361,6 +1361,11 @@ def _shortable(last: dict) -> dict:
     return {"n": max(0, of - len(lo)), "of": of}
 
 
+def _operated_public(st: dict) -> dict | None:
+    from quant.live.futures_mode import public
+    return public(st)
+
+
 def public_report(st: dict) -> dict:
     """사이트가 읽을 재료. **한계도 함께 싣는다** — 숫자만 실으면 거짓말이다."""
     rounds = st.get("rounds") or []
@@ -1466,6 +1471,8 @@ def public_report(st: dict) -> dict:
         "deployed": _deployed(st, eq),
         "recent_trades": trades,
         "limits": list(HONEST_LIMITS),
+        # 운용 계좌(감사 346) — 엔진 그대로 / 코인 보유 / 현금 중 기계가 고른 계좌.
+        "operated": _operated_public(st),
     }
 
 

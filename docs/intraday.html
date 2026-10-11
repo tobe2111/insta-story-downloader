@@ -69,6 +69,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <script src="assets/holdings.js"></script>
 <script src="assets/track-live.js"></script>
 <script src="assets/trades.js"></script>
+<script src="assets/operated.js" defer></script>
 
 <h1>코인 단타 실험 <span class="tag">시뮬레이션 · 가상 자금(USDT)</span></h1>
 <p class="sub"><b>코인을 더 자주 사고팔면 정말 더 버는가</b> — 믿음이 아니라
@@ -83,6 +84,11 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <div class="card" id="sum">불러오는 중…</div>
 <!-- 원화 환산(참고) — 계좌 단위는 USDT다. -->
 <div class="card sub" id="krw">불러오는 중…</div>
+
+<h2>운용 계좌 <span class="tag">단타냐 그냥 보유냐 — 기계가 고릅니다</span></h2>
+<!-- 감사 345: 실험 계좌는 사전 등록대로 두고, 옆 계좌가 수수료 뺀 성적으로
+     방식을 고른다. 숫자는 장부의 operated 칸에서만 읽는다. -->
+<div class="card" data-operated="intraday.json">불러오는 중…</div>
 
 <h2>판정 기준 <span class="tag">사전 등록 — 결과를 보기 전에 정했습니다</span></h2>
 <!-- 기준을 결과보다 먼저 등록하는 이유: 나중에 정하면 좋은 구간만 골라

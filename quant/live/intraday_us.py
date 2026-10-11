@@ -517,6 +517,15 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
     except Exception as exc:  # noqa: BLE001
         log.warning("미국 주기 사다리 실패(본 실험 무관): %s", exc)
 
+    # 운용 계좌(감사 345·346) — 코인 트랙과 같은 함수. 사다리가 돈 **뒤에**
+    # 불러야 15분·5분 트랙의 오늘 비중을 따라갈 수 있다. 실패해도 실험은 그대로.
+    from quant.live.intraday_challenger import _ladder_tracks, operated_round
+    operated_round(st, now_iso, prices, signals, per_side, dfs, data, syms,
+                   _fetch_real,
+                   tracks=_ladder_tracks(state_dir, ladder_timeframes(),
+                                         _load_track))
+    atomic_write_json(_path(state_dir), st)
+
     write_public_report(st, docs_dir=docs_dir, state_dir=state_dir)
     verdict = {"time": str(now_iso), "equity": round(equity_after, 2),
                "trades": len(trades), "skipped": len(skipped),
@@ -678,6 +687,11 @@ def _cluster_public(st: dict, state_dir: str = "state") -> dict:
     return block
 
 
+def _operated_public(st: dict) -> dict | None:
+    from quant.live.intraday_mode import public
+    return public(st)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -738,6 +752,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                 #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
                 #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("us_stock", state_dir).total_one_way()),
+        # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른 계좌.
+        "operated": _operated_public(st),
         "judgement": PREREGISTERED_JUDGEMENT,
         "limit_shadow": _shadow_public(st, lastr),
         "ladder": ladder_public(state_dir),
