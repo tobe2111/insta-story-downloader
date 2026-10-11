@@ -433,7 +433,9 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
         log.warning("주기 사다리 실패(본 실험 무관): %s", exc)
     # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른다. 실험은 그대로.
     operated_round(st, now_iso, prices, signals, per_side, dfs,
-                   data, UNIVERSE, _fetch_real)
+                   data, UNIVERSE, _fetch_real,
+                   tracks=_ladder_tracks(state_dir, LADDER_TIMEFRAMES,
+                                         _load_track))
     last = dict(st.get("last_prices") or {})
     last.update(prices)
     st["last_prices"] = last
@@ -468,9 +470,23 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     return verdict
 
 
+def _ladder_tracks(state_dir: str, timeframes, loader) -> dict:
+    """운용 계좌의 후보가 되는 사다리 트랙들 — 기록이 있는 것만."""
+    from quant.live.intraday_mode import track_mode
+    out = {}
+    for tf in timeframes:
+        try:
+            tr = loader(state_dir, tf)
+        except Exception:  # noqa: BLE001
+            continue
+        if tr.get("rounds"):
+            out[track_mode(tf)] = tr
+    return out
+
+
 def operated_round(st: dict, now_iso: str, prices: dict, signals: dict,
                    per_side: float, dfs: dict, data, universe: list[str],
-                   fetch) -> dict | None:
+                   fetch, tracks: dict | None = None) -> dict | None:
     """운용 계좌 한 회차(감사 345) — 코인·미국 트랙이 **같은 함수**를 쓴다.
 
     일봉은 하루 한 번(정할 때)만 받는다. 주입 실행(검사)은 네트워크로 안
@@ -490,7 +506,7 @@ def operated_round(st: dict, now_iso: str, prices: dict, signals: dict,
                         daily[sym] = None
         return M.step(st, today=M.utc_day(now_iso), now_iso=now_iso,
                       prices=prices, signals=signals, per_side=per_side,
-                      universe=universe, daily_closes=daily)
+                      universe=universe, daily_closes=daily, tracks=tracks)
     except Exception as exc:  # noqa: BLE001
         log.warning("운용 계좌 실패(실험 무관): %s", exc)
         return None
@@ -700,6 +716,9 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
         st["risk_scale"] = scale
         trades = _execute_targets(st, signals, prices, equity, scale, per_side)
         equity_after = mark_equity(st, prices)
+        # 마지막으로 본 가격 — 운용 계좌가 이 트랙을 따라갈 때 그 값으로 산다
+        # (감사 346). 미국 사다리는 처음부터 남기고 있었다.
+        st["last_prices"] = {**(st.get("last_prices") or {}), **prices}
         rec = {"time": str(now_iso), "equity": round(equity_after, 2),
                "bar_times": bar_times, "trades": trades}
         st["rounds"] = (st.get("rounds") or [])[-(LADDER_ROUNDS_KEEP - 1):] + [rec]

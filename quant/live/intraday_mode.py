@@ -37,8 +37,10 @@ from __future__ import annotations
 
 import math
 
-MODES = ("trade", "hold")
+MODES = ("trade", "trade_15m", "trade_5m", "hold")
 LABELS = {"trade": "단타(1시간봉 신호대로 사고팔기)",
+          "trade_15m": "단타(15분봉 신호대로 사고팔기)",
+          "trade_5m": "단타(5분봉 신호대로 사고팔기)",
           "hold": "그냥 보유(종목마다 같은 금액)"}
 DEFAULT_MODE = "trade"           # 지금까지 하던 것 — 바꾸려면 기계가 이겨야 한다
 WINDOW_DAYS = 90
@@ -48,10 +50,16 @@ HOLD_BAND = 0.05                 # 보유 모드: 종목 비중이 목표에서 
 HISTORY_KEEP = 400
 
 
-def t_switch() -> float:
-    """엔진 선택기의 문턱을 빌린다(후보 2개 → 1.35). 여기서 따로 정하면 편의다."""
+def t_switch(n_modes: int | None = None) -> float:
+    """엔진 선택기의 문턱을 빌린다(본페로니 — 후보가 늘면 저절로 오른다).
+    여기서 따로 정하면 관문이 아니라 편의다."""
     from quant.portfolio.engine_select import switch_threshold
-    return switch_threshold(len(MODES))
+    return switch_threshold(n_modes or len(MODES))
+
+
+def track_mode(timeframe: str) -> str:
+    """주기 사다리 트랙(15m·5m)을 따라가는 방식의 이름."""
+    return f"trade_{timeframe}"
 
 
 def _utc_dates(times) -> list:
@@ -96,44 +104,78 @@ def hold_daily_returns(daily_closes: dict):
     return pd.DataFrame(cols).mean(axis=1, skipna=True).dropna()
 
 
-def decide(op: dict, trade, hold, today: str) -> dict:
-    """오늘의 운용 방식. 하루 한 번만 정한다(같은 날 다시 부르면 그대로)."""
+def decide(op: dict, series: dict, today: str, *, modes=MODES,
+           default: str = DEFAULT_MODE) -> dict:
+    """오늘의 운용 방식. 하루 한 번만 정한다(같은 날 다시 부르면 그대로).
+
+    series: {방식: 수수료 뺀 일수익}. 재료가 없는 방식은 후보가 아니다.
+    지금 방식(incumbent)과 **짝으로** 견준다 — 도전자마다 지금 방식과 겹치는
+    날만 써서 차이의 t를 내고, 문턱을 넘은 도전자 중 t가 가장 큰 쪽으로 간다.
+    문턱은 실제로 견준 후보 수로 정한다(본페로니, `switch_threshold`).
+    """
     import datetime as dt
 
     import pandas as pd
-    cur = op.get("mode") if op.get("mode") in MODES else DEFAULT_MODE
     if op.get("decided_on") == today and op.get("decision"):
         return op["decision"]
-    both = (hold.rename("hold").to_frame()
-            .join(trade.rename("trade"), how="inner")).dropna()
-    # 오늘은 아직 안 끝난 날이다 — 넣으면 같은 날 다시 재현했을 때 답이 바뀐다.
-    both.index = pd.to_datetime(both.index)
-    both = both[both.index < pd.Timestamp(today)]
-    both = both.iloc[-WINDOW_DAYS:]
-    n = len(both)
-    out = {"date": today, "incumbent": cur, "choice": cur, "n_days": n,
-           "t": None, "t_needed": round(t_switch(), 3),
+    live = {m: s for m, s in (series or {}).items()
+            if s is not None and len(s)}
+    cur = op.get("mode") if op.get("mode") in modes else default
+    t_needed = round(t_switch(max(len(live), 2)), 3)
+    out = {"date": today, "incumbent": cur, "choice": cur, "n_days": 0,
+           "t": None, "t_needed": t_needed, "table": {},
            "hold_pct": None, "trade_pct": None}
-    if n:
-        out["hold_pct"] = round((float((1 + both["hold"]).prod()) - 1) * 100, 3)
-        out["trade_pct"] = round((float((1 + both["trade"]).prod()) - 1) * 100, 3)
-    if n < MIN_DAYS:
+
+    def _clip(frame):
+        frame.index = pd.to_datetime(frame.index)
+        # 오늘은 아직 안 끝난 날 — 넣으면 같은 날 다시 재현했을 때 답이 바뀐다.
+        frame = frame[frame.index < pd.Timestamp(today)]
+        return frame.iloc[-WINDOW_DAYS:]
+
+    base = live.get(cur)
+    if base is None:
+        out["reason"] = "not_enough_days"   # 지금 방식의 기록이 아직 없다
+        return out
+    best, best_t = None, None
+    for m, s in live.items():
+        if m == cur:
+            continue
+        both = _clip(s.rename("c").to_frame().join(base.rename("i"),
+                                                   how="inner").dropna())
+        n = len(both)
+        row = {"n": n,
+               "pct": round((float((1 + both["c"]).prod()) - 1) * 100, 3) if n else None,
+               "incumbent_pct": round((float((1 + both["i"]).prod()) - 1) * 100, 3) if n else None,
+               "t": None}
+        if n >= MIN_DAYS:
+            d = both["c"] - both["i"]
+            sd = float(d.std(ddof=1))
+            t = float(d.mean()) / (sd / math.sqrt(n)) if sd > 0 else 0.0
+            row["t"] = round(t, 3)
+            if best_t is None or t > best_t:
+                best, best_t = m, t
+        out["table"][m] = row
+        out["n_days"] = max(out["n_days"], n)
+    own = _clip(base.rename("i").to_frame())
+    out["table"][cur] = {"n": len(own), "t": None, "incumbent_pct": None,
+                         "pct": round((float((1 + own["i"]).prod()) - 1) * 100, 3)
+                         if len(own) else None}
+    # 화면 호환 — 예전 두 칸(단타·보유)
+    for key, m in (("trade_pct", "trade"), ("hold_pct", "hold")):
+        if m in out["table"]:
+            out[key] = out["table"][m]["pct"]
+    if best is None:
         out["reason"] = "not_enough_days"
         return out
-    d = both["hold"] - both["trade"]
-    sd = float(d.std(ddof=1))
-    t = float(d.mean()) / (sd / math.sqrt(n)) if sd > 0 else 0.0
-    out["t"] = round(t, 3)
-    other = "hold" if cur == "trade" else "trade"
-    edge = t if other == "hold" else -t      # 다른 쪽이 앞서는 정도
+    out["t"], out["best_challenger"] = round(best_t, 3), best
     since = op.get("mode_since")
     if since:
         held = (dt.date.fromisoformat(today) - dt.date.fromisoformat(since)).days
         if held < MIN_HOLD_DAYS:
             out["reason"] = "min_hold"
             return out
-    if edge >= out["t_needed"]:
-        out["choice"] = other
+    if best_t >= t_needed:
+        out["choice"] = best
         out["reason"] = "switch"
     else:
         out["reason"] = "keep"
@@ -200,8 +242,29 @@ def hold_signals(op: dict, prices: dict, equity: float, scale: float,
     return out
 
 
+def follow_signals(track: dict, universe: list[str]) -> tuple[dict, dict]:
+    """주기 사다리 트랙의 **지금 비중**을 그대로 따라가는 신호와 그 트랙의 가격.
+
+    `_execute_targets`는 목표 = 자산/종목수 × 신호 × 배수로 잡으므로, 트랙의
+    비중 w를 신호 w × 종목수로 넘기면(배수 1) 같은 비중이 된다. 트랙이 이미
+    자기 킬스위치를 곱한 결과라 여기서 한 번 더 곱하지 않는다.
+    체결은 **그 트랙이 마지막으로 본 가격**으로 한다 — 1시간봉 가격으로 15분
+    트랙을 따라가면 한 시간 묵은 값으로 산 셈이 된다.
+    """
+    from quant.live.intraday_challenger import mark_equity
+    px = {k: float(v) for k, v in (track.get("last_prices") or {}).items() if v}
+    eq = mark_equity(track, px) if px else 0.0
+    if eq <= 0:
+        return {}, px
+    n = len(universe)
+    pos = track.get("positions") or {}
+    return ({s: (float(pos.get(s, 0.0)) * px[s] / eq * n if s in px else None)
+             for s in universe}, px)
+
+
 def advance(op: dict, *, mode_signals: dict, prices: dict, per_side: float,
-            universe: list[str], now_iso: str) -> dict:
+            universe: list[str], now_iso: str,
+            tracks: dict | None = None) -> dict:
     """운용 계좌 한 회차 — 실험 계좌와 **같은 체결 함수·같은 킬스위치**."""
     from quant.live.daily import _kill_switch_scale
     from quant.live.intraday_challenger import _execute_targets, mark_equity
@@ -213,8 +276,15 @@ def advance(op: dict, *, mode_signals: dict, prices: dict, per_side: float,
     dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
     scale = _kill_switch_scale(float(op.get("risk_scale", 1.0)), dd)
     op["risk_scale"] = scale
-    if op.get("mode") == "hold":
+    mode = op.get("mode")
+    track = (tracks or {}).get(mode)
+    if mode == "hold":
         sig = hold_signals(op, prices, equity, scale, universe)
+    elif mode not in ("trade", None) and track is not None:
+        sig, tpx = follow_signals(track, universe)
+        prices = {**prices, **tpx}
+        equity = mark_equity(op, prices)
+        scale = 1.0       # 트랙 비중에 이미 그 트랙의 브레이크가 들어 있다
     else:
         sig = mode_signals
     trades = _execute_targets(op, sig, prices, equity, scale, per_side,
@@ -243,15 +313,19 @@ def needs_decision(st: dict, now_iso: str) -> bool:
 
 
 def step(st: dict, *, today: str, now_iso: str, prices: dict, signals: dict,
-         per_side: float, universe: list[str], daily_closes: dict) -> dict:
+         per_side: float, universe: list[str], daily_closes: dict,
+         tracks: dict | None = None) -> dict:
     """정하고(하루 한 번) → 굴린다(매 회차). 실험 계좌 `st` 안에 `operated`로 산다."""
     op = st.get("operated")
     if not op:
         op = continue_from(st, today)
         st["operated"] = op
     if op.get("decided_on") != today:
-        dec = decide(op, trade_daily_returns(st.get("rounds") or []),
-                     hold_daily_returns(daily_closes), today)
+        series = {"trade": trade_daily_returns(st.get("rounds") or []),
+                  "hold": hold_daily_returns(daily_closes)}
+        for m, tr in (tracks or {}).items():
+            series[m] = trade_daily_returns(tr.get("rounds") or [])
+        dec = decide(op, series, today)
         if dec["choice"] != op.get("mode"):
             op["switches"] = (op.get("switches") or [])[-49:] + [
                 {"on": today, "from": op.get("mode"), "to": dec["choice"],
@@ -261,7 +335,7 @@ def step(st: dict, *, today: str, now_iso: str, prices: dict, signals: dict,
         op["decision"] = dec
         op["decided_on"] = today
     return advance(op, mode_signals=signals, prices=prices, per_side=per_side,
-                   universe=universe, now_iso=now_iso)
+                   universe=universe, now_iso=now_iso, tracks=tracks)
 
 
 def public(st: dict) -> dict | None:
@@ -290,4 +364,6 @@ def public(st: dict) -> dict | None:
                           for k, v in (op.get("positions") or {}).items()},
             "rule": {"window_days": WINDOW_DAYS, "min_days": MIN_DAYS,
                      "min_hold_days": MIN_HOLD_DAYS, "hold_band": HOLD_BAND,
-                     "t_switch": round(t_switch(), 3)}}
+                     "t_switch": (op.get("decision") or {}).get("t_needed")
+                     or round(t_switch(), 3),
+                     "modes": {m: LABELS[m] for m in MODES}}}

@@ -70,6 +70,7 @@ footer{margin-top:44px;color:var(--dim);font-size:12px}
 <script src="assets/holdings.js"></script>
 <script src="assets/track-live.js"></script>
 <script src="assets/trades.js"></script>
+<script src="assets/operated.js" defer></script>
 
 <h1>코인 선물 <span class="tag">무기한 선물 · 가상 자금(USDT) · 최대 3배</span></h1>
 <p class="sub" style="margin-bottom:10px"><b>무엇으로 하나:</b> 미국주식이나
@@ -107,6 +108,11 @@ ETF가 아니라 <b>코인 무기한 선물</b>입니다(비트코인·이더리
      키우는 거래만 멈춘다(줄이는 거래는 계속한다). 안 넘은 날도 보여야
      "예산이 없던 때"와 "예산 안이던 때"가 화면에서 구별된다. -->
 <div class="card sub" id="feebudget">불러오는 중…</div>
+
+<h2>운용 계좌 <span class="tag">엔진 그대로냐 코인 보유냐 현금이냐 — 기계가 고릅니다</span></h2>
+<!-- 감사 346: 실험 계좌는 그대로 두고, 옆 계좌가 실제 장부의 최근 성적으로
+     방식을 고른다. 숫자는 futures.json의 operated 칸에서만 읽는다. -->
+<div class="card" data-operated="futures.json">불러오는 중…</div>
 
 <h2>내림에 거는 것이 도움이 되나 <span class="tag">사람이 정하지 않습니다 · 밤 심사가 판정합니다</span></h2>
 <!-- 사장님 질문(2026-09-03): "특히 선물은 롱숏 포지션 다 가능한데 더 손해가 커."

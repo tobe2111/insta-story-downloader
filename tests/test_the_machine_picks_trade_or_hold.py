@@ -28,31 +28,31 @@ def test_hold_wins_only_when_it_clears_the_bar():
     trade = _rets(rng.normal(-0.002, 0.01, 40))
     hold = _rets(trade.values + 0.006 + rng.normal(0, 0.002, 40))
     op = M.new_account(10_000, "2026-09-10", "USDT")
-    dec = M.decide(op, trade, hold, "2026-09-10")
+    dec = M.decide(op, {"trade": trade, "hold": hold}, "2026-09-10")
     assert dec["choice"] == "hold" and dec["reason"] == "switch"
-    assert dec["t"] >= dec["t_needed"] == round(M.t_switch(), 3)
+    assert dec["t"] >= dec["t_needed"] == round(M.t_switch(2), 3)
     noisy = _rets(trade.values + rng.normal(0, 0.01, 40))
-    assert M.decide(op, trade, noisy, "2026-09-10")["choice"] == "trade", (
+    assert M.decide(op, {"trade": trade, "hold": noisy}, "2026-09-10")["choice"] == "trade", (
         "우연과 구별 안 되는 차이로 갈아탔다")
 
 
 def test_too_few_days_and_min_hold_keep_the_incumbent():
     trade, hold = _rets([0.0] * 10), _rets([0.05] * 10)
     op = M.new_account(10_000, "2026-08-11", "USDT")
-    assert M.decide(op, trade, hold, "2026-08-11")["reason"] == "not_enough_days"
+    assert M.decide(op, {"trade": trade, "hold": hold}, "2026-08-11")["reason"] == "not_enough_days"
     trade, hold = _rets([0.0, 0.01] * 20), _rets([0.02, 0.03] * 20)
     op.update(mode="hold", mode_since="2026-09-05")
-    dec = M.decide(op, hold, trade, "2026-09-10")
+    dec = M.decide(op, {"trade": hold, "hold": trade}, "2026-09-10")
     assert dec["choice"] == "hold" and dec["reason"] == "min_hold"
 
 
 def test_today_is_not_counted_and_decision_is_once_a_day():
     trade, hold = _rets([0.0, 0.01] * 20), _rets([0.02, 0.03] * 20)
     op = M.new_account(10_000, "2026-08-20", "USDT")
-    dec = M.decide(op, trade, hold, "2026-08-25")
+    dec = M.decide(op, {"trade": trade, "hold": hold}, "2026-08-25")
     assert dec["n_days"] == 24, "아직 안 끝난 날(오늘)과 미래가 창에 들어갔다"
     op.update(decided_on="2026-08-25", decision={"choice": "x"})
-    assert M.decide(op, trade, hold, "2026-08-25") == {"choice": "x"}
+    assert M.decide(op, {"trade": trade, "hold": hold}, "2026-08-25") == {"choice": "x"}
 
 
 def test_trade_returns_sort_mixed_offsets_by_time():
@@ -105,7 +105,7 @@ def test_the_crypto_round_runs_the_operated_account_and_publishes_it(tmp_path):
     out = IC.write_public_report(st, docs_dir=str(tmp_path / "docs"),
                                  state_dir=str(tmp_path / "state"))
     assert out["operated"]["mode"] == "trade"
-    assert out["operated"]["rule"]["t_switch"] == round(M.t_switch(), 3)
+    assert out["operated"]["rule"]["t_switch"] == st["operated"]["decision"]["t_needed"]
 
 
 def test_a_broken_operated_account_does_not_stop_the_experiment(tmp_path, monkeypatch):
@@ -147,3 +147,82 @@ def test_the_operated_account_continues_the_experiment_not_from_zero():
     assert st["positions"]["BTC/USDT"] == 0.1, "복사가 아니라 같은 dict를 공유한다"
     out = M.public({"operated": op})
     assert out["return_pct"] == round((9_981.0 / 10_000.0 - 1) * 100, 4)
+
+
+# ── 감사 346 — 사다리 트랙(15분·5분)도 후보 ─────────────────────────
+
+def test_a_ladder_track_can_win_and_the_bar_rises_with_more_modes():
+    rng = np.random.default_rng(5)
+    trade = _rets(rng.normal(-0.002, 0.01, 40))
+    t15 = _rets(trade.values + 0.006 + rng.normal(0, 0.002, 40))
+    hold = _rets(trade.values + rng.normal(0, 0.01, 40))
+    op = M.new_account(10_000, "2026-09-10", "USDT")
+    dec = M.decide(op, {"trade": trade, "hold": hold, "trade_15m": t15}, "2026-09-10")
+    assert dec["choice"] == "trade_15m" and dec["best_challenger"] == "trade_15m"
+    assert set(dec["table"]) == {"trade", "hold", "trade_15m"}
+    assert M.t_switch(8) > M.t_switch(4), "후보가 늘었는데 문턱이 그대로다"
+
+
+def test_following_a_track_copies_its_weights_at_its_prices():
+    track = {"cash": 5_000.0, "positions": {"A": 50.0},
+             "last_prices": {"A": 100.0, "B": 10.0}}
+    sig, px = M.follow_signals(track, ["A", "B"])
+    assert px == {"A": 100.0, "B": 10.0}
+    assert sig["A"] == 1.0 and sig["B"] == 0.0     # 비중 50% × 종목 2 = 1.0
+    op = M.new_account(10_000, "2026-10-11", "USDT")
+    op["mode"] = "trade_15m"
+    M.advance(op, mode_signals={"A": 0.0, "B": 0.0}, prices={"A": 90.0, "B": 9.0},
+              per_side=0.0, universe=["A", "B"], now_iso="2026-10-11T01:00:00+00:00",
+              tracks={"trade_15m": track})
+    assert abs(op["positions"]["A"] * 100.0 / 10_000 - 0.5) < 1e-9, (
+        "트랙 비중을 따라가지 않았거나 묵은 가격으로 샀다")
+
+
+def test_the_ladder_keeps_its_last_prices_for_followers():
+    src = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
+    assert 'st["last_prices"] = {**(st.get("last_prices") or {}), **prices}' in src
+
+
+# ── 감사 346 — 선물 운용 계좌(엔진 그대로 / 코인 보유 / 현금) ──────────
+
+def _fut_rounds(n=40, drift=-0.004, seed=9):
+    rng = np.random.default_rng(seed)
+    eq, px, out = 10_000.0, 100.0, []
+    for i in range(n):
+        eq *= 1 + drift + rng.normal(0, 0.002)
+        px *= 1 + rng.normal(0.001, 0.01)
+        day = pd.Timestamp("2026-08-23") + pd.Timedelta(days=i)
+        out.append({"at": f"{day.date()}T15:00:00+09:00", "equity": eq,
+                    "gross_exposure": 0.8, "prices": {"BTC/USDT": px, "ETH/USDT": px}})
+    return out
+
+
+def test_futures_account_inherits_the_curve_and_leaves_a_losing_engine():
+    from quant.live import futures_mode as F
+    st = {"start_cash": 10_000.0, "rounds": _fut_rounds()}
+    last_day = pd.Timestamp(st["rounds"][-1]["at"]).tz_convert("UTC").date()
+    today = str(last_day + pd.Timedelta(days=1))
+    F.step(st, now_iso=f"{today}T01:00:00+00:00", per_side=0.001)
+    op = st["operated"]
+    assert op["since"] == "2026-08-23" and op["history"][0]["inherited"]
+    assert op["equity"] < 10_000.0, "이어받은 손실이 사라졌다(0에서 시작했다)"
+    assert op["mode"] in ("cash", "hold"), op["decision"]
+    assert op["switches"] and op["cost_paid"] > 0, "갈아탈 때 비용을 안 뗐다"
+    out = F.public(st)
+    assert out["rule"]["modes"] == F.LABELS and out["as_of"]
+
+
+def test_futures_account_compounds_finished_days_once():
+    from quant.live import futures_mode as F
+    st = {"start_cash": 10_000.0, "rounds": _fut_rounds(n=10)}
+    F.step(st, now_iso="2026-09-02T01:00:00+00:00", per_side=0.0)
+    before = st["operated"]["equity"]
+    F.step(st, now_iso="2026-09-02T05:00:00+00:00", per_side=0.0)
+    assert st["operated"]["equity"] == before, "같은 날 두 번 곱했다"
+
+
+def test_the_futures_page_shows_the_operated_account():
+    html = (ROOT / "docs" / "futures.html").read_text("utf-8")
+    assert 'data-operated="futures.json"' in html and "assets/operated.js" in html
+    cli = (ROOT / "quant" / "cli.py").read_text("utf-8")
+    assert "futures_mode.step(" in cli

@@ -619,6 +619,34 @@
         "The engine is the one in the settings file — there is no weekly pick yet, or it is stale.",
       "단타 실험 계좌에서 이어받은 날":
         "Day it took over from the day-trading experiment account",
+      "단타(15분봉 신호대로 사고팔기)":
+        "Day trading (buy and sell on the 15-minute signals)",
+      "단타(5분봉 신호대로 사고팔기)":
+        "Day trading (buy and sell on the 5-minute signals)",
+      "선물 엔진 그대로 따라가기":
+        "Follow the futures engine as is",
+      "코인 그냥 보유(1배, 펀딩 냄)":
+        "Simply hold coins (1x, paying funding)",
+      "현금(아무것도 안 함)":
+        "Cash (do nothing)",
+      "엔진 그대로냐 코인 보유냐 현금이냐 — 기계가 고릅니다":
+        "Engine as is, holding coins, or cash — the machine picks",
+      "실험 계좌와 별개인 계좌입니다. 같은 시드·같은 종목·같은 비용으로, 후보 방식 중 수수료 뺀 성적이 나은 쪽을 기계가 매일 고릅니다.":
+        "This is a separate account from the experiment. With the same seed, symbols and costs, the machine picks every day whichever candidate mode has done better after fees.",
+      "후보 방식":
+        "Candidate mode",
+      "최근 비교 기간 수익":
+        "Return over the recent comparison window",
+      "지금 방식보다 앞선 정도(t)":
+        "Lead over the current mode (t)",
+      "← 지금":
+        "← current",
+      "갈아타는 문턱(t)":
+        "Switching bar (t)",
+      "기준일(하루 한 번, 그날 종가로 갱신)":
+        "As of (updated once a day at that day's close)",
+      "지금 방식으로 바꾼 날":
+        "Day it switched to the current mode",
       "운용 계좌":
         "Operated account",
       "단타냐 그냥 보유냐 — 기계가 고릅니다":

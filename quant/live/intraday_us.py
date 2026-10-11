@@ -469,10 +469,6 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
 
     equity_after, trades = _advance_account(st, syms, prices, signals,
                                             per_side)
-    # 운용 계좌(감사 345) — 코인 트랙과 같은 함수. 실패해도 실험은 그대로.
-    from quant.live.intraday_challenger import operated_round
-    operated_round(st, now_iso, prices, signals, per_side, dfs, data, syms,
-                   _fetch_real)
     # 지정가 그림자 — 같은 신호, 다른 체결(코인 트랙과 **같은 함수**).
     # 주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다.
     # 실패해도 본 실험을 막지 않는다 — 부르는 쪽이 예외를 삼킨다.
@@ -520,6 +516,15 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
                       cluster=snapshot_13f)
     except Exception as exc:  # noqa: BLE001
         log.warning("미국 주기 사다리 실패(본 실험 무관): %s", exc)
+
+    # 운용 계좌(감사 345·346) — 코인 트랙과 같은 함수. 사다리가 돈 **뒤에**
+    # 불러야 15분·5분 트랙의 오늘 비중을 따라갈 수 있다. 실패해도 실험은 그대로.
+    from quant.live.intraday_challenger import _ladder_tracks, operated_round
+    operated_round(st, now_iso, prices, signals, per_side, dfs, data, syms,
+                   _fetch_real,
+                   tracks=_ladder_tracks(state_dir, ladder_timeframes(),
+                                         _load_track))
+    atomic_write_json(_path(state_dir), st)
 
     write_public_report(st, docs_dir=docs_dir, state_dir=state_dir)
     verdict = {"time": str(now_iso), "equity": round(equity_after, 2),
