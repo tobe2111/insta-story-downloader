@@ -50,6 +50,9 @@
     line(box, "최대 낙폭", pct(op.mdd_pct));
     line(box, "낸 비용", String(op.cost_paid == null ? "—" : op.cost_paid));
     line(box, "시작", String(op.since || "—"));
+    if (op.inherited_from_experiment) {
+      line(box, "단타 실험 계좌에서 이어받은 날", String(op.inherited_from_experiment));
+    }
     var dec = op.decision || {};
     if (dec.date) {
       line(box, "최근 비교 기간 · 단타", pct(dec.trade_pct));

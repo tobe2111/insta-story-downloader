@@ -617,6 +617,8 @@
         "The machine picks the engine every week by return after fees and funding (candidates: two trend engines · simply holding coins · cash).",
       "엔진은 설정 파일에 적힌 것입니다 — 주간 선택이 아직 없거나 낡았습니다.":
         "The engine is the one in the settings file — there is no weekly pick yet, or it is stale.",
+      "단타 실험 계좌에서 이어받은 날":
+        "Day it took over from the day-trading experiment account",
       "운용 계좌":
         "Operated account",
       "단타냐 그냥 보유냐 — 기계가 고릅니다":

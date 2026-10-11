@@ -129,3 +129,21 @@ def test_both_tracks_share_one_function_and_the_pages_show_it():
     i18n = (ROOT / "docs" / "assets" / "i18n-en.js").read_text("utf-8")
     for v in M.LABELS.values():
         assert f'"{v}":' in i18n, v
+
+
+def test_the_operated_account_continues_the_experiment_not_from_zero():
+    st = {"start_cash": 10_000.0, "currency": "USDT", "cash": 2_000.0,
+          "positions": {"BTC/USDT": 0.1}, "avg_cost": {"BTC/USDT": 70_000.0},
+          "cost_paid": 607.0, "peak_equity": 10_700.0,
+          "rounds": [{"time": "2026-08-18T05:00:00+00:00", "equity": 10_000.0},
+                     {"time": "2026-08-18T09:00:00+09:00", "equity": 9_990.0},
+                     {"time": "2026-10-11T05:00:00+00:00", "equity": 9_981.0}]}
+    op = M.continue_from(st, "2026-10-11")
+    assert op["cash"] == 2_000.0 and op["positions"] == {"BTC/USDT": 0.1}
+    assert op["start_cash"] == 10_000.0 and op["since"] == "2026-08-18"
+    assert op["cost_paid"] == 607.0 and op["peak_equity"] == 10_700.0
+    assert [h["equity"] for h in op["history"]] == [10_000.0, 9_981.0]
+    op["positions"]["BTC/USDT"] = 0.0
+    assert st["positions"]["BTC/USDT"] == 0.1, "복사가 아니라 같은 dict를 공유한다"
+    out = M.public({"operated": op})
+    assert out["return_pct"] == round((9_981.0 / 10_000.0 - 1) * 100, 4)

@@ -150,6 +150,40 @@ def new_account(start_cash: float, today: str, currency: str) -> dict:
             "history": []}
 
 
+def continue_from(st: dict, today: str) -> dict:
+    """실험 계좌의 **지금 상태 그대로** 이어받는다(사장님 2026-10-11:
+    "왜 0에서 시작하는거야? 계속 이어서 하면 되잖아").
+
+    현금·보유·평단·낸 비용·고점을 복사하고, 시작 자금과 시작일도 실험 계좌의
+    것을 쓴다 — 그래서 수익률·낙폭이 8/18부터 끊김 없이 이어진다. 지난 곡선은
+    실험 계좌의 하루 마지막 자산으로 채운다(그때는 단타였으므로 mode=trade).
+    ⚠️ 복사이지 공유가 아니다 — 이후 두 계좌는 따로 움직인다.
+    """
+    import copy
+
+    import pandas as pd
+    start = float(st.get("start_cash") or 10_000.0)
+    op = new_account(start, today, str(st.get("currency") or "USDT"))
+    for k in ("cash", "positions", "avg_cost", "cost_paid", "peak_equity",
+              "risk_scale", "last_prices"):
+        if st.get(k) is not None:
+            op[k] = copy.deepcopy(st[k])
+    rounds = [r for r in st.get("rounds") or []
+              if r.get("time") and r.get("equity") is not None]
+    if rounds:
+        ts = pd.to_datetime([r["time"] for r in rounds], utc=True)
+        s = pd.Series(range(len(rounds)), index=ts).sort_index()
+        last_of_day = s.groupby(s.index.date).last()
+        op["since"] = str(s.index[0].date())
+        op["history"] = [
+            {"time": rounds[i]["time"], "equity": float(rounds[i]["equity"]),
+             "mode": "trade", "trades": len(rounds[i].get("trades") or []),
+             "cost": 0.0, "inherited": True}
+            for i in last_of_day.values][-(HISTORY_KEEP - 1):]
+    op["inherited_from_experiment"] = today
+    return op
+
+
 def hold_signals(op: dict, prices: dict, equity: float, scale: float,
                  universe: list[str]) -> dict:
     """보유 모드의 목표 — 종목마다 같은 금액. 밴드 안이면 건드리지 않는다(None)."""
@@ -213,8 +247,7 @@ def step(st: dict, *, today: str, now_iso: str, prices: dict, signals: dict,
     """정하고(하루 한 번) → 굴린다(매 회차). 실험 계좌 `st` 안에 `operated`로 산다."""
     op = st.get("operated")
     if not op:
-        op = new_account(float(st.get("start_cash") or 10_000.0), today,
-                         str(st.get("currency") or "USDT"))
+        op = continue_from(st, today)
         st["operated"] = op
     if op.get("decided_on") != today:
         dec = decide(op, trade_daily_returns(st.get("rounds") or []),
@@ -252,7 +285,7 @@ def public(st: dict) -> dict | None:
             "return_pct": round((eq / base - 1) * 100, 4),
             "cost_paid": round(float(op.get("cost_paid") or 0.0), 2),
             "mdd_pct": round(worst * 100, 2),
-            "trades_total": sum(int(h.get("trades") or 0) for h in hist),
+            "inherited_from_experiment": op.get("inherited_from_experiment"),
             "positions": {k: round(float(v), 8)
                           for k, v in (op.get("positions") or {}).items()},
             "rule": {"window_days": WINDOW_DAYS, "min_days": MIN_DAYS,
