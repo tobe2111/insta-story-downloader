@@ -1,12 +1,14 @@
 {
-  "cash": 8423.910321137564,
+  "cash": 7593.2104570724,
   "start_cash": 10000.0,
   "currency": "USD",
   "positions": {
     "GOOG": 1.2637198217926584,
-    "EEM": 3.457492310449167,
     "NVDA": 1.8884320648116104,
-    "MSFT": 0.8103395172255285
+    "MSFT": 0.8103395172255285,
+    "SLV": 7.435286575985891,
+    "DBC": 12.985793681393497,
+    "GOOGL": 0.6224495600294764
   },
   "rounds": [
     {
@@ -9685,9 +9687,138 @@
         "MSFT": 1.15,
         "AMZN": 1.15
       }
+    },
+    {
+      "time": "2026-10-12T23:40:23+09:00",
+      "equity": 9956.99,
+      "signals": {
+        "SPY": 0.0,
+        "QQQ": 0.0,
+        "GLD": 0.0,
+        "SLV": 0.9368,
+        "TLT": 0.0,
+        "IEF": 0.0,
+        "LQD": 0.0,
+        "TIP": 0.0,
+        "DBC": 1.0,
+        "XLE": 0.0,
+        "XLU": 0.0,
+        "XLP": 0.0,
+        "VNQ": 0.0,
+        "UUP": 0.0,
+        "EWJ": 0.0,
+        "VGK": 0.0,
+        "EEM": 0.0,
+        "NVDA": 1.0,
+        "AAPL": 0.0,
+        "GOOGL": 0.5086,
+        "GOOG": 1.0,
+        "MSFT": 1.0,
+        "AMZN": 0.0
+      },
+      "bar_times": {
+        "SPY": "2026-10-12 13:30:00",
+        "QQQ": "2026-10-12 13:30:00",
+        "GLD": "2026-10-12 13:30:00",
+        "SLV": "2026-10-12 13:30:00",
+        "TLT": "2026-10-12 13:30:00",
+        "IEF": "2026-10-12 13:30:00",
+        "LQD": "2026-10-12 13:30:00",
+        "TIP": "2026-10-12 13:30:00",
+        "DBC": "2026-10-12 13:30:00",
+        "XLE": "2026-10-12 13:30:00",
+        "XLU": "2026-10-12 13:30:00",
+        "XLP": "2026-10-12 13:30:00",
+        "VNQ": "2026-10-12 13:30:00",
+        "UUP": "2026-10-12 13:30:00",
+        "EWJ": "2026-10-12 13:30:00",
+        "VGK": "2026-10-12 13:30:00",
+        "EEM": "2026-10-12 13:30:00",
+        "NVDA": "2026-10-12 13:30:00",
+        "AAPL": "2026-10-12 13:30:00",
+        "GOOGL": "2026-10-12 13:30:00",
+        "GOOG": "2026-10-12 13:30:00",
+        "MSFT": "2026-10-12 13:30:00",
+        "AMZN": "2026-10-12 13:30:00"
+      },
+      "trades": [
+        {
+          "symbol": "SLV",
+          "side": "buy",
+          "notional": 405.59,
+          "price": 54.54999923706055,
+          "cost": 0.2434,
+          "signal": 0.9368
+        },
+        {
+          "symbol": "DBC",
+          "side": "buy",
+          "notional": 432.95,
+          "price": 33.34000015258789,
+          "cost": 0.2598,
+          "signal": 1.0
+        },
+        {
+          "symbol": "EEM",
+          "side": "sell",
+          "notional": -228.82,
+          "price": 66.18000030517578,
+          "cost": 0.1373,
+          "signal": 0.0,
+          "realized_pnl": -4.3381,
+          "avg_cost": 67.394997
+        },
+        {
+          "symbol": "GOOGL",
+          "side": "buy",
+          "notional": 220.2,
+          "price": 353.768310546875,
+          "cost": 0.1321,
+          "signal": 0.5086
+        }
+      ],
+      "limit_shadow": {
+        "equity": 10011.64,
+        "filled": 12,
+        "cancelled": 0,
+        "pending": 4
+      },
+      "conviction_scale": {
+        "SPY": 1.0,
+        "QQQ": 1.0,
+        "GLD": 1.0,
+        "SLV": 3.0,
+        "TLT": 3.0,
+        "IEF": 3.0,
+        "LQD": 3.0,
+        "TIP": 3.0,
+        "DBC": 1.0,
+        "XLE": 3.0,
+        "XLU": 3.0,
+        "XLP": 3.0,
+        "VNQ": 3.0,
+        "UUP": 1.0,
+        "EWJ": 1.0,
+        "VGK": 1.0,
+        "EEM": 3.0,
+        "NVDA": 3.0,
+        "AAPL": 3.0,
+        "GOOGL": 3.0,
+        "GOOG": 1.0,
+        "MSFT": 1.0,
+        "AMZN": 1.0
+      },
+      "overlay_13f": {
+        "NVDA": 1.15,
+        "AAPL": 1.15,
+        "GOOGL": 1.15,
+        "GOOG": 1.15,
+        "MSFT": 1.15,
+        "AMZN": 1.15
+      }
     }
   ],
-  "cost_paid": 65.31670579613623,
+  "cost_paid": 66.08924240320388,
   "first_prices": {
     "SPY": 767.3900146484375,
     "QQQ": 717.5900268554688,
@@ -9701,206 +9832,656 @@
   "peak_equity": 10000.581488767115,
   "risk_scale": 1.0,
   "last_prices": {
-    "SPY": 777.9949951171875,
-    "QQQ": 750.739990234375,
-    "NVDA": 229.46499633789062,
-    "AAPL": 334.6400146484375,
-    "GOOGL": 354.21990966796875,
-    "GOOG": 350.55999755859375,
-    "MSFT": 534.75,
-    "AMZN": 261.2749938964844,
-    "GLD": 384.010009765625,
-    "SLV": 54.88999938964844,
-    "TLT": 77.81500244140625,
-    "IEF": 89.33499908447266,
-    "LQD": 102.34500122070312,
-    "TIP": 104.42990112304688,
-    "DBC": 32.939998626708984,
-    "XLE": 65.45500183105469,
-    "XLU": 41.30500030517578,
-    "XLP": 83.28500366210938,
-    "VNQ": 90.29000091552734,
-    "UUP": 29.049999237060547,
-    "EWJ": 97.58999633789062,
-    "VGK": 85.80999755859375,
-    "EEM": 66.63500213623047
+    "SPY": 777.9299926757812,
+    "QQQ": 746.1400146484375,
+    "NVDA": 225.4105987548828,
+    "AAPL": 341.3599853515625,
+    "GOOGL": 353.768310546875,
+    "GOOG": 350.125,
+    "MSFT": 539.1649780273438,
+    "AMZN": 261.5,
+    "GLD": 381.8450012207031,
+    "SLV": 54.54999923706055,
+    "TLT": 77.88500213623047,
+    "IEF": 89.34500122070312,
+    "LQD": 102.41500091552734,
+    "TIP": 104.42500305175781,
+    "DBC": 33.34000015258789,
+    "XLE": 65.91000366210938,
+    "XLU": 41.56999969482422,
+    "XLP": 83.84500122070312,
+    "VNQ": 90.96499633789062,
+    "UUP": 29.096099853515625,
+    "EWJ": 97.36000061035156,
+    "VGK": 86.03990173339844,
+    "EEM": 66.18000030517578
   },
   "limit_shadow": {
     "since": "2026-08-19T13:52:01+00:00",
     "start_equity": 9999.76,
-    "cash": 5857.471046985926,
+    "cash": 8470.064443337264,
     "positions": {
       "SPY": 7.551058445187664e-09,
       "GOOG": 1.2695180657814231,
       "GLD": 1.2057337659993062e-05,
-      "VNQ": 4.87631151227317,
-      "NVDA": 1.99295813565481e-05,
+      "VNQ": 2.404372044573222e-05,
+      "NVDA": 1.8982179421384295,
       "AAPL": 4.752075972169756e-06,
       "QQQ": 4.981714264329362e-06,
-      "EWJ": 4.378770118577967,
-      "SLV": 8.047862161655699,
+      "EWJ": 4.262564447987671e-05,
       "TIP": 2.0097990741652083e-05,
-      "DBC": 13.333948118475458,
-      "XLE": 6.644000973143009,
-      "XLU": 3.713973410213274,
-      "EEM": 6.436976357422689,
-      "TLT": 1.1905220900690883,
-      "GOOGL": 1.169241825512317,
-      "AMZN": 1.696210444170299
+      "DBC": 7.064699456549306e-06,
+      "XLE": 4.7297571128090965e-05,
+      "EEM": 3.4754697366747442,
+      "TLT": 6.160062444804382e-06,
+      "MSFT": 0.8145488546049555
     },
     "pending": {
       "SLV": {
-        "side": "sell",
-        "limit": 54.88999938964844,
-        "notional": 441.75,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "TLT": {
-        "side": "sell",
-        "limit": 77.81500244140625,
-        "notional": 92.64,
-        "placed_bar": "2026-10-09 15:30:00"
+        "side": "buy",
+        "limit": 54.54999923706055,
+        "notional": 407.79,
+        "placed_bar": "2026-10-12 13:30:00"
       },
       "DBC": {
-        "side": "sell",
-        "limit": 32.939998626708984,
-        "notional": 439.22,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "XLE": {
-        "side": "sell",
-        "limit": 65.45500183105469,
-        "notional": 434.88,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "XLU": {
-        "side": "sell",
-        "limit": 41.30500030517578,
-        "notional": 153.41,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "VNQ": {
-        "side": "sell",
-        "limit": 90.29000091552734,
-        "notional": 440.28,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "EWJ": {
-        "side": "sell",
-        "limit": 97.58999633789062,
-        "notional": 427.32,
-        "placed_bar": "2026-10-09 15:30:00"
+        "side": "buy",
+        "limit": 33.34000015258789,
+        "notional": 435.29,
+        "placed_bar": "2026-10-12 13:30:00"
       },
       "EEM": {
         "side": "sell",
-        "limit": 66.63500213623047,
-        "notional": 197.34,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "NVDA": {
-        "side": "buy",
-        "limit": 229.46499633789062,
-        "notional": 435.57,
-        "placed_bar": "2026-10-09 15:30:00"
+        "limit": 66.18000030517578,
+        "notional": 230.01,
+        "placed_bar": "2026-10-12 13:30:00"
       },
       "GOOGL": {
-        "side": "sell",
-        "limit": 354.21990966796875,
-        "notional": 414.17,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "MSFT": {
         "side": "buy",
-        "limit": 534.75,
-        "notional": 435.58,
-        "placed_bar": "2026-10-09 15:30:00"
-      },
-      "AMZN": {
-        "side": "sell",
-        "limit": 261.2749938964844,
-        "notional": 443.18,
-        "placed_bar": "2026-10-09 15:30:00"
+        "limit": 353.768310546875,
+        "notional": 221.39,
+        "placed_bar": "2026-10-12 13:30:00"
       }
     },
-    "cost_paid": 10.437568066929906,
-    "filled_total": 405,
+    "cost_paid": 10.873100959854334,
+    "filled_total": 417,
     "unfilled_total": 1
   },
   "avg_cost": {
     "GOOG": 340.2099914550781,
-    "EEM": 67.3949966430664,
     "NVDA": 229.46499633789062,
-    "MSFT": 534.75
+    "MSFT": 534.75,
+    "SLV": 54.54999923706055,
+    "DBC": 33.34000015258789,
+    "GOOGL": 353.768310546875
   },
   "cluster_13f": {
     "cluster": {
+      "GOOG": {
+        "count": 8,
+        "filers": [
+          "Berkshire Hathaway (Buffett)",
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies",
+          "Baupost Group (Klarman)",
+          "Appaloosa (Tepper)",
+          "Coatue Management",
+          "Himalaya Capital (Li Lu)"
+        ],
+        "as_of": "2026-03-31",
+        "buy": 4,
+        "sell": 3
+      },
       "GOOGL": {
+        "count": 12,
+        "filers": [
+          "Berkshire Hathaway (Buffett)",
+          "Pershing Square (Ackman)",
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies",
+          "Duquesne Family Office (Druckenmiller)",
+          "Third Point (Loeb)",
+          "Tiger Global Management",
+          "Lone Pine Capital",
+          "Coatue Management",
+          "Soros Fund Management",
+          "Himalaya Capital (Li Lu)",
+          "Fundsmith (Terry Smith)"
+        ],
+        "as_of": "2026-03-31",
+        "buy": 7,
+        "sell": 5
+      },
+      "AAPL": {
         "count": 5,
         "filers": [
           "Berkshire Hathaway (Buffett)",
-          "Pershing Square (Ackman)",
           "Bridgewater Associates (Dalio)",
           "Renaissance Technologies",
-          "Baupost Group (Klarman)"
+          "Soros Fund Management",
+          "Himalaya Capital (Li Lu)"
         ],
-        "as_of": "2026-03-31"
-      },
-      "AAPL": {
-        "count": 3,
-        "filers": [
-          "Berkshire Hathaway (Buffett)",
-          "Bridgewater Associates (Dalio)",
-          "Renaissance Technologies"
-        ],
-        "as_of": "2026-06-30"
-      },
-      "NVDA": {
-        "count": 3,
-        "filers": [
-          "Scion Asset Mgmt (Burry)",
-          "Bridgewater Associates (Dalio)",
-          "Renaissance Technologies"
-        ],
-        "as_of": "2025-09-30"
+        "as_of": "2026-06-30",
+        "buy": 1,
+        "sell": 3
       },
       "AMZN": {
-        "count": 4,
+        "count": 12,
         "filers": [
           "Pershing Square (Ackman)",
           "Bridgewater Associates (Dalio)",
           "Renaissance Technologies",
-          "Baupost Group (Klarman)"
+          "Baupost Group (Klarman)",
+          "Appaloosa (Tepper)",
+          "Duquesne Family Office (Druckenmiller)",
+          "Third Point (Loeb)",
+          "Tiger Global Management",
+          "Viking Global Investors",
+          "Coatue Management",
+          "Soros Fund Management",
+          "ValueAct Capital"
         ],
-        "as_of": "2026-03-31"
+        "as_of": "2026-03-31",
+        "buy": 7,
+        "sell": 3
       },
       "META": {
-        "count": 3,
+        "count": 10,
         "filers": [
           "Pershing Square (Ackman)",
           "Bridgewater Associates (Dalio)",
-          "Renaissance Technologies"
+          "Renaissance Technologies",
+          "Appaloosa (Tepper)",
+          "Tiger Global Management",
+          "Viking Global Investors",
+          "Coatue Management",
+          "Soros Fund Management",
+          "ValueAct Capital",
+          "Fundsmith (Terry Smith)"
         ],
-        "as_of": "2026-03-31"
+        "as_of": "2026-03-31",
+        "buy": 3,
+        "sell": 6
       },
       "MSFT": {
-        "count": 3,
+        "count": 8,
         "filers": [
           "Pershing Square (Ackman)",
           "Bridgewater Associates (Dalio)",
-          "Renaissance Technologies"
+          "Renaissance Technologies",
+          "Tiger Global Management",
+          "Viking Global Investors",
+          "Coatue Management",
+          "Soros Fund Management",
+          "Fundsmith (Terry Smith)"
         ],
-        "as_of": "2026-03-31"
+        "as_of": "2026-03-31",
+        "buy": 2,
+        "sell": 7
+      },
+      "NVDA": {
+        "count": 6,
+        "filers": [
+          "Bridgewater Associates (Dalio)",
+          "Renaissance Technologies",
+          "Appaloosa (Tepper)",
+          "Tiger Global Management",
+          "Coatue Management",
+          "Soros Fund Management"
+        ],
+        "as_of": "2026-06-30",
+        "buy": 1,
+        "sell": 3
       },
       "TSLA": {
-        "count": 1,
+        "count": 4,
         "filers": [
-          "Renaissance Technologies"
+          "Renaissance Technologies",
+          "Viking Global Investors",
+          "Coatue Management",
+          "Soros Fund Management"
         ],
-        "as_of": "2026-06-30"
+        "as_of": "2026-06-30",
+        "buy": 2,
+        "sell": 2
       }
     },
-    "fetched_on": "2026-10-04",
-    "filers_total": 6,
-    "filers_seen": 6
+    "flow": {
+      "AMZN": {
+        "buy": 7,
+        "sell": 3
+      },
+      "GOOGL": {
+        "buy": 7,
+        "sell": 5
+      },
+      "MSFT": {
+        "buy": 2,
+        "sell": 7
+      },
+      "GOOG": {
+        "buy": 4,
+        "sell": 3
+      },
+      "META": {
+        "buy": 3,
+        "sell": 6
+      },
+      "TSLA": {
+        "buy": 2,
+        "sell": 2
+      },
+      "AAPL": {
+        "buy": 1,
+        "sell": 3
+      },
+      "NVDA": {
+        "buy": 1,
+        "sell": 3
+      }
+    },
+    "fetched_on": "2026-10-12",
+    "filers_total": 20,
+    "filers_seen": 18
+  },
+  "operated": {
+    "since": "2026-08-19",
+    "start_cash": 10000.0,
+    "cash": 7593.2104570724,
+    "currency": "USD",
+    "positions": {
+      "GOOG": 1.2637198217926584,
+      "NVDA": 1.8884320648116104,
+      "MSFT": 0.8103395172255285,
+      "SLV": 7.435286575985891,
+      "DBC": 12.985793681393497,
+      "GOOGL": 0.6224495600294764
+    },
+    "avg_cost": {
+      "GOOG": 340.2099914550781,
+      "NVDA": 229.46499633789062,
+      "MSFT": 534.75,
+      "SLV": 54.54999923706055,
+      "DBC": 33.34000015258789,
+      "GOOGL": 353.768310546875
+    },
+    "cost_paid": 66.08924240320388,
+    "peak_equity": 10000.581488767115,
+    "risk_scale": 1.0,
+    "mode": "trade",
+    "mode_since": null,
+    "decided_on": "2026-10-12",
+    "decision": {
+      "date": "2026-10-12",
+      "incumbent": "trade",
+      "choice": "trade",
+      "n_days": 36,
+      "t": -0.054,
+      "t_needed": 1.35,
+      "table": {
+        "hold": {
+          "n": 35,
+          "pct": -0.502,
+          "incumbent_pct": -0.338,
+          "t": -0.054
+        },
+        "trade_15m": {
+          "n": 36,
+          "pct": -1.356,
+          "incumbent_pct": -0.349,
+          "t": -1.287
+        },
+        "trade": {
+          "n": 36,
+          "t": null,
+          "incumbent_pct": null,
+          "pct": -0.349
+        }
+      },
+      "hold_pct": -0.502,
+      "trade_pct": -0.349,
+      "best_challenger": "hold",
+      "reason": "keep"
+    },
+    "switches": [],
+    "history": [
+      {
+        "time": "2026-08-20T04:45:16+09:00",
+        "equity": 9998.91,
+        "mode": "trade",
+        "trades": 1,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-21T04:44:43+09:00",
+        "equity": 9992.42,
+        "mode": "trade",
+        "trades": 1,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-22T04:46:38+09:00",
+        "equity": 9983.35,
+        "mode": "trade",
+        "trades": 0,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-25T04:41:35+09:00",
+        "equity": 9981.56,
+        "mode": "trade",
+        "trades": 2,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-26T04:45:55+09:00",
+        "equity": 9987.82,
+        "mode": "trade",
+        "trades": 7,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-27T04:05:00+09:00",
+        "equity": 9982.07,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-08-29T03:54:31+09:00",
+        "equity": 9974.13,
+        "mode": "trade",
+        "trades": 11,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-01T01:24:16+09:00",
+        "equity": 9965.37,
+        "mode": "trade",
+        "trades": 10,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-02T03:30:17+09:00",
+        "equity": 9948.04,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-03T03:02:56+09:00",
+        "equity": 9967.62,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-04T03:02:12+09:00",
+        "equity": 9977.21,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-05T04:51:53+09:00",
+        "equity": 9962.81,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-08T02:47:16+09:00",
+        "equity": 9961.69,
+        "mode": "trade",
+        "trades": 0,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-09T03:35:50+09:00",
+        "equity": 9957.9,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-10T03:46:23+09:00",
+        "equity": 9941.13,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-11T03:19:29+09:00",
+        "equity": 9927.01,
+        "mode": "trade",
+        "trades": 3,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-12T02:52:10+09:00",
+        "equity": 9943.88,
+        "mode": "trade",
+        "trades": 4,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-15T04:17:12+09:00",
+        "equity": 9939.09,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-16T04:04:37+09:00",
+        "equity": 9914.98,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-17T03:23:29+09:00",
+        "equity": 9912.15,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-18T02:06:43+09:00",
+        "equity": 9920.83,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-19T02:52:13+09:00",
+        "equity": 9926.32,
+        "mode": "trade",
+        "trades": 4,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-22T01:36:15+09:00",
+        "equity": 9946.74,
+        "mode": "trade",
+        "trades": 4,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-23T02:14:51+09:00",
+        "equity": 9939.2,
+        "mode": "trade",
+        "trades": 8,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-24T04:53:05+09:00",
+        "equity": 9899.5,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-25T04:28:29+09:00",
+        "equity": 9888.7,
+        "mode": "trade",
+        "trades": 8,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-26T04:31:42+09:00",
+        "equity": 9887.26,
+        "mode": "trade",
+        "trades": 4,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-29T01:07:04+09:00",
+        "equity": 9870.95,
+        "mode": "trade",
+        "trades": 2,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-09-30T04:30:35+09:00",
+        "equity": 9872.74,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-01T00:14:39+09:00",
+        "equity": 9875.59,
+        "mode": "trade",
+        "trades": 6,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-02T01:36:59+09:00",
+        "equity": 9860.05,
+        "mode": "trade",
+        "trades": 5,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-03T03:38:38+09:00",
+        "equity": 9885.79,
+        "mode": "trade",
+        "trades": 13,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-06T02:35:36+09:00",
+        "equity": 9918.82,
+        "mode": "trade",
+        "trades": 7,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-07T01:52:07+09:00",
+        "equity": 9943.91,
+        "mode": "trade",
+        "trades": 2,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-08T04:56:19+09:00",
+        "equity": 9926.89,
+        "mode": "trade",
+        "trades": 10,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-09T04:11:35+09:00",
+        "equity": 9913.86,
+        "mode": "trade",
+        "trades": 7,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-10T02:10:55+09:00",
+        "equity": 9963.97,
+        "mode": "trade",
+        "trades": 12,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-12T23:40:23+09:00",
+        "equity": 9956.99,
+        "mode": "trade",
+        "trades": 4,
+        "cost": 0.0,
+        "inherited": true
+      },
+      {
+        "time": "2026-10-12T23:40:23+09:00",
+        "equity": 9956.99,
+        "mode": "trade",
+        "trades": 0,
+        "cost": 0
+      }
+    ],
+    "last_prices": {
+      "SPY": 777.9299926757812,
+      "QQQ": 746.1400146484375,
+      "NVDA": 225.4105987548828,
+      "AAPL": 341.3599853515625,
+      "GOOGL": 353.768310546875,
+      "GOOG": 350.125,
+      "MSFT": 539.1649780273438,
+      "AMZN": 261.5,
+      "GLD": 381.8450012207031,
+      "SLV": 54.54999923706055,
+      "TLT": 77.88500213623047,
+      "IEF": 89.34500122070312,
+      "LQD": 102.41500091552734,
+      "TIP": 104.42500305175781,
+      "DBC": 33.34000015258789,
+      "XLE": 65.91000366210938,
+      "XLU": 41.56999969482422,
+      "XLP": 83.84500122070312,
+      "VNQ": 90.96499633789062,
+      "UUP": 29.096099853515625,
+      "EWJ": 97.36000061035156,
+      "VGK": 86.03990173339844,
+      "EEM": 66.18000030517578
+    },
+    "inherited_from_experiment": "2026-10-12"
   }
 }
