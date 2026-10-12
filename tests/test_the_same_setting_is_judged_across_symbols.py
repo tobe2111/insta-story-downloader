@@ -311,3 +311,39 @@ def test_an_explicit_folder_still_means_that_one_night():
     ev = pooled_evidence("state", snapshot=day)
     if ev:
         assert ev["days"] == [os.path.basename(day)]
+
+
+def test_a_market_on_a_thinner_night_is_still_counted(tmp_path):
+    """감사 352 — 위 검사의 합성판. 실데이터에 기대면 데이터가 바뀌는 날 조용히
+    무력해진다(10/11 변이 전수가 그 자리를 '놓침'으로 잡았다 — 그날 스냅샷은
+    '가장 많이 담긴 날'에도 세 시장이 다 있었다).
+
+    종목이 가장 많은 밤에는 주식만, 다른 밤에는 코인만 찍혔다. 하루를 고르면
+    코인이 통째로 빠진다 — 종목마다 가장 최근 스냅샷을 모아야 한다.
+    """
+    import numpy as np
+    import pandas as pd
+
+    idx = pd.date_range("2025-01-01", periods=80, freq="D")
+    rng = np.random.default_rng(0)
+
+    def _csv(path):
+        c = 100 * np.exp(np.cumsum(rng.normal(0.001, 0.02, len(idx))))
+        pd.DataFrame({"open": c, "high": c * 1.01, "low": c * 0.99,
+                      "close": c, "volume": 1e6}, index=idx).to_csv(path)
+
+    root = tmp_path / "snapshots"
+    fat, thin = root / "2026-10-08", root / "2026-10-09"
+    fat.mkdir(parents=True)
+    thin.mkdir()
+    keys = {}
+    for i in range(4):
+        _csv(fat / f"us_stock_S{i}.csv.gz")
+        keys[f"us_stock:S{i}"] = {"strategy": "buy_hold"}
+    for name, sym in (("crypto_BTC_USDT", "BTC/USDT"), ("crypto_ETH_USDT", "ETH/USDT")):
+        _csv(thin / f"{name}.csv.gz")
+        keys[f"crypto:{sym}"] = {"strategy": "buy_hold"}
+    ev = pooled_evidence(str(tmp_path), champions=keys)
+    assert {"crypto", "us_stock"} <= set(ev.get("markets") or {}), (
+        f"시장 하나가 통째로 빠졌다: {sorted(ev.get('markets') or {})}")
+    assert ev["all"]["n"] == 6
