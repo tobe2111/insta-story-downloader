@@ -119,7 +119,8 @@ def run_engine_shadow(*, bar: str, closes_map: dict, weights: dict,
         # ② 오늘의 목표(검증과 같은 주기) → 밴드 → 비용
         t = E.targets_today(closes, name, core_keys=set(weights), state=sel)
         target = {k: v for k, v in t["weights"].items() if abs(v) > 0}
-        new = rebalance(held, target)
+        # 밴드는 그 후보 설정의 것(감사 353) — 보유형은 종목당 목표가 2%보다 작다.
+        new = rebalance(held, target, band=float(t.get("band", BAND)))
         cost = (shadow_cost.turnover_cost(new, held, state_dir)
                 + fx_cost(held, new, spread))
         equity *= (1.0 - cost)

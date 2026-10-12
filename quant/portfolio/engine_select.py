@@ -141,11 +141,21 @@ def wide_extra_keys(core_keys) -> list:
     return [k for k in WIDE_KEYS if k not in core]
 
 
+#: 그냥 보유·고정 비중의 무거래 밴드(감사 353). 추세 엔진의 2%를 그대로 쓰면
+#: 넓은 목록 균등 보유(약 73종목 × 1.4%)는 **처음 진입부터** 밴드에 막혀 영영
+#: 아무것도 안 산다 — 실측(10/11 그림자): `holdw`만 투자 비중 0. 검증 시뮬레이션도
+#: 같은 규칙이라 그 후보는 '현금'으로 평가돼 왔다. 보유형은 종목당 목표가 작으므로
+#: 밴드를 그 크기보다 작게 둔다(월 1회라 회전은 여전히 적다).
+HOLD_BAND = 0.005
+
+
 def candidate_config(name: str) -> T.TrendConfig:
     spec = CANDIDATES[name]
     cfg = T.variant_config(spec["variant"])
     if spec["kind"] in ("xs", "hold", "fixed"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": "M"})
+    if spec["kind"] in ("hold", "fixed"):
+        cfg = T.TrendConfig(**{**cfg.__dict__, "band": HOLD_BAND})
     return cfg
 
 
@@ -218,12 +228,14 @@ def targets_today(closes: pd.DataFrame, name: str, core_keys=None,
                             + 0.5 * b["weights"].get(k, 0.0) for k in cols},
                 "target_day": max(a["target_day"], b["target_day"]),
                 "asset_cap": max(a["asset_cap"], b["asset_cap"]),
+                "band": min(a["band"], b["band"]),
                 "pair": pair}
     tgt, cfg = candidate_targets(closes, name, core_keys=core_keys)
     day = target_day(tgt.index, cfg.rebalance)
     row = tgt.loc[day].fillna(0.0)
     return {"weights": {k: float(row.get(k, 0.0)) for k in closes.columns},
-            "target_day": str(day.date()), "asset_cap": cfg.asset_cap}
+            "target_day": str(day.date()), "asset_cap": cfg.asset_cap,
+            "band": cfg.band}
 
 
 def market_filter(closes: pd.DataFrame) -> pd.Series:
