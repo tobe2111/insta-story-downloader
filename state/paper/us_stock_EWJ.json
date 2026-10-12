@@ -2,7 +2,7 @@
   "cash": 7608.834174519481,
   "quantity": 26.014813743257186,
   "avg_price": 96.47699820795658,
-  "last_bar": "2026-10-09 00:00:00",
+  "last_bar": "2026-10-12 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1607,11 +1607,59 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-12",
+      "price": 97.31999969482422,
+      "weight": 0.25,
+      "held_weight": 0.2497,
+      "fractional_lot": false,
+      "equity": 10140.6,
+      "return_pct": 1.41,
+      "hit_rate": 0.53125,
+      "hit_n": 320,
+      "hit_lo": 0.4765267387929983,
+      "hit_hi": 0.5852318493562697,
+      "hit_conclusive": false,
+      "live_hit": 0.53125,
+      "live_hit_n": 32,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "fast": 20,
+        "slow": 60
+      },
+      "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 44% + ml 29% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 97.82,
+        "bar": "2026-10-12 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-10-09 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "aac17ad22f09",
+      "data_sha256": "cffc69c3025a7112cf34729400c49d6b5e94ad9d1b91a52090c5c72bcf0c083a",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.3177,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-10-09 00:00:00"
+    "decided_bar": "2026-10-12 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EWJ",
