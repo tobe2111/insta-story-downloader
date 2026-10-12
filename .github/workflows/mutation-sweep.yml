@@ -28,6 +28,12 @@ on:
     - cron: "0 16 * * *"
   workflow_dispatch:
 
+# 밀린 잡 대신 띄우기(감사 354)가 띄운 회차와 늦게 도착한 크론 회차가 겹치지
+# 않게 줄을 세운다 — 러너 넷 × 1~3시간이라 동시에 두 벌은 비싸다.
+concurrency:
+  group: mutation-sweep
+  cancel-in-progress: false
+
 # 저장소를 읽기만 한다 — 이 잡은 아무것도 커밋하지 않는다.
 permissions:
   contents: read

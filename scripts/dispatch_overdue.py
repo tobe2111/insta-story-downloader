@@ -29,8 +29,8 @@ GitHub 크론은 정시에 안 돈다. 실측(10/2~10/11, 예약 → 실제 시�
   건너뛴다(이미 하루 두 번 도는 예비 크론과 같은 처지다).
 - 줄에 선 실행이 있으면 부르지 않는다(겹쳐 쌓지 않는다).
 - 어떤 실패도 부른 잡을 죽이지 않는다 — 경고만 남기고 0으로 끝난다.
-- 제외(`SKIP`)는 이유를 적은 것만: 감시 자신(사슬이 따로 돈다) · 변이 전수
-  (러너 넷 × 3시간, 시각이 중요하지 않다).
+- 제외(`SKIP`)는 이유를 적은 것만: 감시 자신(사슬이 따로 돈다). 변이 전수는
+  빼지 않고 유예를 길게 둔다(`GRACE_OVERRIDE_MIN`, 감사 354).
 """
 from __future__ import annotations
 
@@ -47,10 +47,13 @@ WF = ROOT / ".github" / "workflows"
 #: 대신 띄우지 않는 잡 — 이유가 있는 것만 적는다.
 SKIP = {
     "guard.yml": "자기 사슬(감사 348)이 12분마다 다음 회차를 띄운다 — 아래 GUARD_MAX_GAP으로 따로 본다",
-    "mutation-sweep.yml": "러너 넷 × 최대 3시간 — 시각이 중요하지 않고 겹치면 비싸다",
 }
 #: 예약 시각이 지나고 이만큼 기다린 뒤에도 안 떴으면 띄운다.
 GRACE_MIN = 10
+#: 잡마다 다른 유예(분). 변이 전수는 러너 넷 × 1~3시간이라 시각이 중요하지 않고
+#: 겹치면 비싸다 — 처음엔 아예 뺐는데(감사 351), 10/12에 크론이 6시간 넘게 안
+#: 떠 그날 전수가 통째로 빠졌다(감사 354). 빼는 대신 **늦게** 띄운다.
+GRACE_OVERRIDE_MIN = {"mutation-sweep.yml": 240}
 #: 감시 사슬이 이보다 오래 조용하면 되살린다(사슬 주기 12분의 2.5배).
 GUARD_MAX_GAP_MIN = 30
 
@@ -135,7 +138,8 @@ def decide(wf: str, crons: list[str], runs: list[dict], now: dt.datetime) -> str
         if last is None or now - last > dt.timedelta(minutes=GUARD_MAX_GAP_MIN):
             return f"감시가 {GUARD_MAX_GAP_MIN}분 넘게 조용하다(마지막 {last})"
         return None
-    ticks = [t for t in (last_tick(c, now - dt.timedelta(minutes=GRACE_MIN))
+    grace = GRACE_OVERRIDE_MIN.get(wf, GRACE_MIN)
+    ticks = [t for t in (last_tick(c, now - dt.timedelta(minutes=grace))
                          for c in crons) if t]
     if not ticks:
         return None

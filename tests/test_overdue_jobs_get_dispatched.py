@@ -96,3 +96,13 @@ def test_the_dispatcher_is_wired_both_ways():
         hit = [s for s in steps if arg in str(s.get("run", ""))]
         assert hit, f"{wf}가 밀린 잡 확인을 부르지 않는다"
         assert "always()" in str(hit[0].get("if", "")), "앞 단계가 실패해도 돌아야 한다"
+
+
+def test_the_mutation_sweep_is_revived_late_not_never():
+    """감사 354 — 10/12 변이 전수 크론(16:00)이 6시간 넘게 안 떠 그날 전수가 빠졌다.
+    빼지 않고 길게 기다린 뒤 띄운다."""
+    assert "mutation-sweep.yml" not in D.SKIP
+    crons = ["0 16 * * *"]
+    runs = [_run("2026-10-11T19:58:00")]
+    assert D.decide("mutation-sweep.yml", crons, runs, _at("2026-10-12T18:00")) is None, "너무 일찍 띄운다"
+    assert D.decide("mutation-sweep.yml", crons, runs, _at("2026-10-12T22:40")), "6시간이 지나도 안 띄운다"
