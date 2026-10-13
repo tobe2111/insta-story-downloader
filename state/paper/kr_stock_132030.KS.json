@@ -1,8 +1,8 @@
 {
-  "cash": 7315.197977167034,
-  "quantity": 0.10803884568945765,
+  "cash": 8092.439353786252,
+  "quantity": 0.07468777741706957,
   "avg_price": 23576.72470675838,
-  "last_bar": "2026-10-12 00:00:00",
+  "last_bar": "2026-10-13 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1619,11 +1619,59 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-13",
+      "price": 23430.0,
+      "weight": 0.0,
+      "held_weight": 0.1778,
+      "fractional_lot": true,
+      "equity": 9842.37,
+      "return_pct": -1.58,
+      "hit_rate": 0.581081081081081,
+      "hit_n": 222,
+      "hit_lo": 0.5153387448539702,
+      "hit_hi": 0.6440650142408996,
+      "hit_conclusive": true,
+      "live_hit": 0.3793103448275862,
+      "live_hit_n": 29,
+      "live_hit_flat": 0,
+      "hit_flat": 3,
+      "champion": {
+        "lookback": 120,
+        "top_frac": 0.5
+      },
+      "reason": "관망 (현금) — cross_rank 전략 신호에 따름 · 🏛 의회 운용: cross_rank 41% + ml 34% + cross_rank 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 23320.0,
+        "bar": "2026-10-13 00:00:00",
+        "weight": 0.1771,
+        "decided_bar": "2026-10-12 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "2deb1b25362d",
+      "data_sha256": "84cd828e5e91c3a361701623ba030cd7c5cd4ee6bddb2e5b183109cf6ee4d598",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2223,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1771,
-    "decided_bar": "2026-10-12 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-13 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "132030.KS",

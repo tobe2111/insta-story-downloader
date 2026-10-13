@@ -1,8 +1,8 @@
 {
-  "cash": 9980.270355211196,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-10-12 00:00:00",
+  "cash": 9376.46399872092,
+  "quantity": 5.874080309524288,
+  "avg_price": 102.7300033569336,
+  "last_bar": "2026-10-13 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1732,11 +1732,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-13",
+      "price": 102.55000305175781,
+      "weight": 0.065,
+      "held_weight": 0.0604,
+      "fractional_lot": false,
+      "equity": 9978.85,
+      "return_pct": -0.21,
+      "hit_rate": 0.45054945054945056,
+      "hit_n": 91,
+      "hit_lo": 0.3523959894000537,
+      "hit_hi": 0.5527089434564145,
+      "hit_conclusive": false,
+      "live_hit": 0.3333333333333333,
+      "live_hit_n": 6,
+      "live_hit_flat": 1,
+      "hit_flat": 2,
+      "champion": {
+        "model": "vote",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "매수 +6% — 앙상블 모델이 내일 상승확률을 약 49%로 추정(기준 55% 초과) · 사이징: 신호 원비중 2% → 변동성 타깃 조절 후 6% · 참고: 이 종목에서 모델이 49%±10%p라 말한 최근 26번의 실제 상승 비율 35% (95% 신뢰구간 19%~54% · 보합 2일 포함 · 봉이 빠진 2번은 제외) · 🏛 의회 운용: ml 42% + ml 30% + ml 28% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 102.730003,
+        "bar": "2026-10-13 00:00:00",
+        "weight": 0.0605,
+        "decided_bar": "2026-10-12 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "2deb1b25362d",
+      "data_sha256": "57c4aa1c55a0a8f4bc03018087dd335d86f8c03fc3523c4015d05348d9684e80",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4949590474779407,
+      "drift_psi": 0.4206,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0605,
-    "decided_bar": "2026-10-12 00:00:00"
+    "weight": 0.065,
+    "decided_bar": "2026-10-13 00:00:00"
   },
   "market": "us_stock",
   "symbol": "LQD",

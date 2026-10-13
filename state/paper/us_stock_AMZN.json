@@ -1,8 +1,8 @@
 {
-  "cash": 7489.292510222389,
-  "quantity": 9.612401083806585,
-  "avg_price": 255.5443064004763,
-  "last_bar": "2026-10-12 00:00:00",
+  "cash": 9982.646368130716,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-10-13 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -2217,11 +2217,62 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-13",
+      "price": 258.5799865722656,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9982.65,
+      "return_pct": -0.17,
+      "hit_rate": 0.45454545454545453,
+      "hit_n": 99,
+      "hit_lo": 0.3599919588990025,
+      "hit_hi": 0.5524948168804487,
+      "hit_conclusive": false,
+      "live_hit": 0.4117647058823529,
+      "live_hit_n": 34,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "sizing": "binary"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 56% + ml 22% + ml 22% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 259.545013,
+        "bar": "2026-10-13 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-12 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "2deb1b25362d",
+      "data_sha256": "612feac70169ebd2f111d2ee6c3c24bb34acb501eccbac5cd553f1324b0e41f3",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.4553690596078219,
+      "drift_psi": 0.4014,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-10-12 00:00:00"
+    "decided_bar": "2026-10-13 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AMZN",
