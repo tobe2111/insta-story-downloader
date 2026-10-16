@@ -1,55 +1,55 @@
 {
   "kind": "ml-health",
-  "asof": "2026-10-15",
+  "asof": "2026-10-16",
   "champions": {
     "total": 42,
     "by_strategy": {
       "ma_cross": 6,
       "buy_hold": 1,
-      "ml": 22,
+      "ml": 23,
       "bollinger": 5,
       "connors_rsi2": 1,
       "breakout": 1,
-      "cross_rank": 2,
+      "cross_rank": 1,
       "psar": 2,
       "fomc_drift": 1,
-      "turtle": 1
+      "expiry_week": 1
     },
     "rows": [
       {
         "key": "crypto:BNB/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-10-14",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1910
+        "trials": 1963
       },
       {
         "key": "crypto:BTC/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-10-14",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1912
+        "trials": 1965
       },
       {
         "key": "crypto:ETH/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-10-14",
+        "trained_on": "2026-10-15",
         "promotions": 1,
-        "trials": 1904
+        "trials": 1957
       },
       {
         "key": "crypto:SOL/USDT",
         "strategy": "buy_hold",
-        "trained_on": "2026-10-14",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1847
+        "trials": 1896
       },
       {
         "key": "crypto:XRP/USDT",
         "strategy": "ml",
-        "trained_on": "2026-10-14",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1804
+        "trials": 1857
       },
       {
         "key": "kr_stock:000660.KS",
@@ -96,9 +96,9 @@
       {
         "key": "kr_stock:105560.KS",
         "strategy": "bollinger",
-        "trained_on": "2026-10-13",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1246
+        "trials": 1295
       },
       {
         "key": "kr_stock:132030.KS",
@@ -173,9 +173,9 @@
       {
         "key": "us_stock:GLD",
         "strategy": "fomc_drift",
-        "trained_on": "2026-10-13",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1146
+        "trials": 1195
       },
       {
         "key": "us_stock:GOOG",
@@ -194,9 +194,9 @@
       {
         "key": "us_stock:IEF",
         "strategy": "ml",
-        "trained_on": "2026-10-13",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 953
+        "trials": 1006
       },
       {
         "key": "us_stock:LQD",
@@ -228,24 +228,24 @@
       },
       {
         "key": "us_stock:QQQ",
-        "strategy": "turtle",
-        "trained_on": "2026-10-13",
+        "strategy": "ml",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1421
+        "trials": 1474
       },
       {
         "key": "us_stock:SLV",
         "strategy": "ml",
-        "trained_on": "2026-10-13",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1165
+        "trials": 1218
       },
       {
         "key": "us_stock:SPY",
         "strategy": "bollinger",
-        "trained_on": "2026-10-13",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1516
+        "trials": 1565
       },
       {
         "key": "us_stock:TIP",
@@ -256,10 +256,10 @@
       },
       {
         "key": "us_stock:TLT",
-        "strategy": "cross_rank",
-        "trained_on": "2026-10-13",
+        "strategy": "expiry_week",
+        "trained_on": "2026-10-15",
         "promotions": 0,
-        "trials": 1060
+        "trials": 1113
       },
       {
         "key": "us_stock:TSLA",
@@ -315,37 +315,37 @@
   },
   "live": {
     "hits": 555,
-    "n": 1143,
-    "hit_rate": 0.4856,
-    "ci_lo": 0.4567,
-    "ci_hi": 0.5145,
+    "n": 1148,
+    "hit_rate": 0.4834,
+    "ci_lo": 0.4546,
+    "ci_hi": 0.5124,
     "beats_chance": false,
     "worse_than_chance": false,
     "per_symbol": [
       {
         "symbol": "crypto_ETH_USDT",
-        "hit_rate": 0.5714,
-        "n": 63
+        "hit_rate": 0.5625,
+        "n": 64
       },
       {
         "symbol": "crypto_SOL_USDT",
-        "hit_rate": 0.55,
-        "n": 60
+        "hit_rate": 0.541,
+        "n": 61
       },
       {
         "symbol": "crypto_BNB_USDT",
-        "hit_rate": 0.4915,
-        "n": 59
+        "hit_rate": 0.4833,
+        "n": 60
       },
       {
         "symbol": "crypto_BTC_USDT",
-        "hit_rate": 0.5517,
-        "n": 58
+        "hit_rate": 0.5424,
+        "n": 59
       },
       {
         "symbol": "crypto_XRP_USDT",
-        "hit_rate": 0.4651,
-        "n": 43
+        "hit_rate": 0.4545,
+        "n": 44
       },
       {
         "symbol": "kr_stock_069500.KS",
@@ -525,8 +525,8 @@
     ]
   },
   "insample": {
-    "hit_rate": 0.5323,
-    "n": 8110
+    "hit_rate": 0.5325,
+    "n": 8115
   },
   "calibration": {
     "pairs": 1123,
@@ -709,12 +709,12 @@
       {
         "key": "crypto:ETH/USDT",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 76% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        "why": "과최적화 확률(PBO) 75% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
       },
       {
         "key": "crypto:SOL/USDT",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -12.6% (기준: +0% 초과) · 과최적화 확률(PBO) 56% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -12.7% (기준: +0% 초과) · 과최적화 확률(PBO) 56% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "crypto:XRP/USDT",
@@ -724,22 +724,22 @@
       {
         "key": "kr_stock:000660.KS",
         "scale": 0.5,
-        "why": "과최적화 확률(PBO) 60% > 기준 20% · 보정 샤프(DSR) 0.03 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "과최적화 확률(PBO) 63% > 기준 20% · 보정 샤프(DSR) 0.03 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:005380.KS",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 94% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        "why": "과최적화 확률(PBO) 92% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
       },
       {
         "key": "kr_stock:005930.KS",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -5.8% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -4.7% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:035420.KS",
         "scale": 0.5,
-        "why": "과최적화 확률(PBO) 29% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "과최적화 확률(PBO) 35% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:051910.KS",
@@ -749,7 +749,7 @@
       {
         "key": "kr_stock:069500.KS",
         "scale": 0.5,
-        "why": "과최적화 확률(PBO) 38% > 기준 20% · 보정 샤프(DSR) 0.20 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "과최적화 확률(PBO) 40% > 기준 20% · 보정 샤프(DSR) 0.19 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:105560.KS",
@@ -764,7 +764,7 @@
       {
         "key": "kr_stock:133690.KS",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -9.6% (기준: +0% 초과) · 과최적화 확률(PBO) 29% > 기준 20% · 보정 샤프(DSR) 0.05 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -9.1% (기준: +0% 초과) · 과최적화 확률(PBO) 30% > 기준 20% · 보정 샤프(DSR) 0.04 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:148070.KS",
@@ -774,7 +774,7 @@
       {
         "key": "kr_stock:228790.KS",
         "scale": 0.5,
-        "why": "과최적화 확률(PBO) 67% > 기준 20% · 보정 샤프(DSR) 0.01 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "과최적화 확률(PBO) 62% > 기준 20% · 보정 샤프(DSR) 0.01 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "kr_stock:273130.KS",
@@ -784,7 +784,7 @@
       {
         "key": "us_stock:AAPL",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 90% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        "why": "과최적화 확률(PBO) 87% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
       },
       {
         "key": "us_stock:AMZN",
@@ -824,17 +824,17 @@
       {
         "key": "us_stock:IEF",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -15.0% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -15.2% (기준: +0% 초과) · 과최적화 확률(PBO) 21% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:LQD",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -10.6% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -10.7% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:META",
         "scale": 0.5,
-        "why": "검증 기록이 55일 전 것입니다(유통기한 7일) — 오늘의 판정으로 쓸 수 없어 비중을 절반으로 줄입니다."
+        "why": "검증 기록이 56일 전 것입니다(유통기한 7일) — 오늘의 판정으로 쓸 수 없어 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:MSFT",
@@ -864,27 +864,27 @@
       {
         "key": "us_stock:TIP",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -13.7% (기준: +0% 초과) · 과최적화 확률(PBO) 21% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -13.5% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:TLT",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -9.6% (기준: +0% 초과) · 과최적화 확률(PBO) 33% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -9.6% (기준: +0% 초과) · 과최적화 확률(PBO) 37% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:TSLA",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다. (기록이 55일 전 것이지만 판정은 그대로다)"
+        "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다. (기록이 56일 전 것이지만 판정은 그대로다)"
       },
       {
         "key": "us_stock:UUP",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -11.9% (기준: +0% 초과) · 과최적화 확률(PBO) 34% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -11.3% (기준: +0% 초과) · 과최적화 확률(PBO) 29% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:VGK",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -1.4% (기준: +0% 초과) · 과최적화 확률(PBO) 45% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -1.4% (기준: +0% 초과) · 과최적화 확률(PBO) 42% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:VNQ",
@@ -894,7 +894,7 @@
       {
         "key": "us_stock:XLE",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 79% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        "why": "과최적화 확률(PBO) 82% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
       },
       {
         "key": "us_stock:XLP",
@@ -904,7 +904,7 @@
       {
         "key": "us_stock:XLU",
         "scale": 0.5,
-        "why": "CPCV 최악 경로 수익률 -5.9% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        "why": "CPCV 최악 경로 수익률 -5.8% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
       }
     ],
     "halted": 12,
