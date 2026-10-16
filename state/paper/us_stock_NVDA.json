@@ -1,8 +1,8 @@
 {
-  "cash": 6941.717778559192,
-  "quantity": 14.290751055043838,
-  "avg_price": 219.78985483236698,
-  "last_bar": "2026-10-15 00:00:00",
+  "cash": 5197.764732504186,
+  "quantity": 22.338900857975148,
+  "avg_price": 218.6262176710456,
+  "last_bar": "2026-10-16 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -2386,13 +2386,65 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.449
+    },
+    {
+      "date": "2026-10-16",
+      "price": 214.1300048828125,
+      "weight": 0.25,
+      "held_weight": 0.4792,
+      "fractional_lot": false,
+      "equity": 9981.19,
+      "return_pct": -0.19,
+      "hit_rate": 0.5428571428571428,
+      "hit_n": 175,
+      "hit_lo": 0.46891937006133627,
+      "hit_hi": 0.6149537332882198,
+      "hit_conclusive": false,
+      "live_hit": 0.43333333333333335,
+      "live_hit_n": 30,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +25% — 그라디언트부스팅 모델이 내일 상승확률을 약 98%로 추정(기준 55% 초과) · 사이징: 신호 원비중 89% → 변동성 타깃 조절 후 25% · 참고: 전 종목 합산으로 모델이 98%±10%p라 말한 64번의 실제 상승 비율 48% (95% 신뢰구간 37%~60% · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 44% + ml 29% + bollinger 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 216.559998,
+        "bar": "2026-10-16 00:00:00",
+        "weight": 0.4823,
+        "decided_bar": "2026-10-15 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "9c76bddf956b",
+      "data_sha256": "b31ad750418d23edb62cf36d3e131332bcd262c20247435a5b24a8386e05f684",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.9759966781040645,
+      "drift_psi": 0.0299,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4314
     }
   ],
   "market": "us_stock",
   "symbol": "NVDA",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.4823,
-    "decided_bar": "2026-10-15 00:00:00"
+    "weight": 0.25,
+    "decided_bar": "2026-10-16 00:00:00"
   }
 }
