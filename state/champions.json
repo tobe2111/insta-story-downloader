@@ -1072,7 +1072,7 @@
       "calibrate": "sigmoid"
     },
     "promotions": 0,
-    "trials_total": 954,
+    "trials_total": 1007,
     "parliament": [
       {
         "strategy": "ml",
@@ -1083,7 +1083,7 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3952,
+        "weight": 0.4115,
         "alt_weight": 0.1667
       },
       {
@@ -1095,24 +1095,23 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3129,
-        "alt_weight": 0.6666
+        "weight": 0.3471,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
         "params": {
-          "model": "gb",
-          "threshold": 0.55,
+          "model": "logreg",
+          "threshold": 0.6,
           "train_window": 250,
           "retrain_every": 20,
-          "calibrate": "sigmoid",
-          "label": "triple"
+          "calibrate": "sigmoid"
         },
-        "weight": 0.2919,
-        "alt_weight": 0.1667
+        "weight": 0.2414,
+        "alt_weight": 0.6666
       }
     ],
-    "last_run_asof": "2026-10-14"
+    "last_run_asof": "2026-10-15"
   },
   "us_stock:TIP": {
     "strategy": "ml",
