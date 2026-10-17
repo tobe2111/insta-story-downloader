@@ -2,7 +2,7 @@
   "cash": 7436.3860466293945,
   "quantity": 3.2369105223327743,
   "avg_price": 771.3133822811167,
-  "last_bar": "2026-10-15 00:00:00",
+  "last_bar": "2026-10-16 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -2273,6 +2273,53 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-16",
+      "price": 763.25,
+      "weight": 0.25,
+      "held_weight": 0.2494,
+      "fractional_lot": false,
+      "equity": 9906.96,
+      "return_pct": -0.93,
+      "hit_rate": 0.5410764872521246,
+      "hit_n": 353,
+      "hit_lo": 0.4889291377782326,
+      "hit_hi": 0.592339413870454,
+      "hit_conclusive": false,
+      "live_hit": 0.34375,
+      "live_hit_n": 32,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "매수 +25% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 45% + turtle 32% + connors_rsi2 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 773.23999,
+        "bar": "2026-10-16 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-10-15 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "bf03cca895bb",
+      "data_sha256": "277a19700cef567d0d2a17f2bdd91bdae329cc5af6ff10ea14e489d222506a30",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1035,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
@@ -2280,6 +2327,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-10-15 00:00:00"
+    "decided_bar": "2026-10-16 00:00:00"
   }
 }
