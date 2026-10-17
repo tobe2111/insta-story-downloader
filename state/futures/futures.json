@@ -1,7 +1,7 @@
 {
   "kind": "futures-experiment",
   "start_cash": 10000.0,
-  "cash": 4383.071794097063,
+  "cash": 4383.060718862144,
   "positions": {
     "SOL/USDT": 7.157116767925345,
     "XRP/USDT": 343.46407999822054,
@@ -17,7 +17,7 @@
     "BNB/USDT": 740.7
   },
   "cost_paid": 870.1451447744498,
-  "funding_paid": 65.76069355013433,
+  "funding_paid": 65.77176878505287,
   "rounds": [
     {
       "at": "2026-08-23T01:53:38+09:00",
@@ -111646,13 +111646,126 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "at": "2026-10-17T09:11:12+09:00",
+      "equity": 8641.629,
+      "cash": 4383.0607,
+      "prices": {
+        "BTC/USDT": 81615.64,
+        "ETH/USDT": 2423.54,
+        "SOL/USDT": 104.45,
+        "BNB/USDT": 721.58,
+        "XRP/USDT": 1.3115
+      },
+      "gross_exposure": 4258.5683,
+      "funding": 0.011075,
+      "cost_paid": 870.1451,
+      "funding_paid": 65.771769,
+      "signals": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": -1.0
+      },
+      "positions": {
+        "SOL/USDT": 7.1571167679,
+        "XRP/USDT": 343.4640799982,
+        "BTC/USDT": 0.017673853,
+        "ETH/USDT": 0.3323521448,
+        "BNB/USDT": 1.1261714181
+      },
+      "margin_ratio": 2.029233,
+      "trades": [],
+      "skipped": [],
+      "long_only": [
+        "BTC/USDT",
+        "ETH/USDT",
+        "SOL/USDT",
+        "BNB/USDT"
+      ],
+      "stopped": [],
+      "direction_gate": {
+        "two_sided": true,
+        "night": "2026-10-17",
+        "age_nights": 0,
+        "max_age_nights": 7,
+        "t_stat": -0.472282925474668,
+        "t_threshold": 1.35,
+        "n_symbols": 8,
+        "n_dates": 120
+      },
+      "direction_pnl": {
+        "gross": {
+          "long": -4.339406,
+          "short": 0.0
+        },
+        "fee": {
+          "long": 0.0,
+          "short": 0.0
+        },
+        "funding": {
+          "long": 0.011075,
+          "short": 0.0
+        },
+        "net": {
+          "long": -4.350481,
+          "short": 0.0
+        },
+        "positions": {
+          "long": 5,
+          "short": 0
+        }
+      },
+      "leverage_cap": {
+        "max_leverage": 1.0,
+        "proven": false,
+        "drawdown": 0.0281,
+        "n": 499,
+        "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
+      },
+      "fee_budget": {
+        "days": 7,
+        "fees": 0.9234,
+        "equity": 8645.9795,
+        "pct_of_equity": 0.0107,
+        "limit_pct": 3.0,
+        "breached": false,
+        "since": "2026-10-10T06:42:20+09:00"
+      },
+      "engine": {
+        "name": "trend_core",
+        "variant": "fut_long20",
+        "selected_by": "engine.json",
+        "target_day": "2026-10-16",
+        "band": 0.02,
+        "gross": 0.4949,
+        "weights": {
+          "BTC/USDT": 0.1531,
+          "ETH/USDT": 0.0729,
+          "SOL/USDT": 0.1033,
+          "BNB/USDT": 0.1027,
+          "XRP/USDT": 0.0629
+        }
+      },
+      "rebalance_bands": {
+        "BTC/USDT": 0.15,
+        "ETH/USDT": 0.15,
+        "SOL/USDT": 0.15,
+        "BNB/USDT": 0.15,
+        "XRP/USDT": 0.15
+      },
+      "conviction_scale": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
   "curve": [
-    {
-      "at": "2026-10-13T02:07:06+09:00",
-      "equity": 8762.0225
-    },
     {
       "at": "2026-10-13T02:19:26+09:00",
       "equity": 8762.0112
@@ -113648,19 +113761,23 @@
     {
       "at": "2026-10-17T08:58:43+09:00",
       "equity": 8645.9795
+    },
+    {
+      "at": "2026-10-17T09:11:12+09:00",
+      "equity": 8641.629
     }
   ],
   "last_prices": {
-    "BTC/USDT": 81784.3,
-    "ETH/USDT": 2425.4,
-    "SOL/USDT": 104.43,
-    "BNB/USDT": 722.7,
-    "XRP/USDT": 1.3104
+    "BTC/USDT": 81615.64,
+    "ETH/USDT": 2423.54,
+    "SOL/USDT": 104.45,
+    "BNB/USDT": 721.58,
+    "XRP/USDT": 1.3115
   },
   "liquidations": 0,
   "direction_totals": {
     "gross": {
-      "long": -292.917709,
+      "long": -297.257115,
       "short": -283.161561
     },
     "fee": {
@@ -113668,14 +113785,14 @@
       "short": 214.69763
     },
     "funding": {
-      "long": 60.519523,
+      "long": 60.530598,
       "short": -2.365681
     },
     "net": {
-      "long": -1008.884651,
+      "long": -1013.235132,
       "short": -495.49351
     },
-    "rounds": 1044,
+    "rounds": 1045,
     "reconstructed_rounds": 222
   },
   "operated": {
@@ -113685,35 +113802,35 @@
     "peak": 10040.4053,
     "mode": "cash",
     "mode_since": "2026-10-13",
-    "decided_on": "2026-10-16",
+    "decided_on": "2026-10-17",
     "decision": {
-      "date": "2026-10-16",
+      "date": "2026-10-17",
       "incumbent": "cash",
       "choice": "cash",
-      "n_days": 54,
-      "t": 0.029,
+      "n_days": 55,
+      "t": -0.057,
       "t_needed": 1.35,
       "table": {
         "follow": {
-          "n": 54,
-          "pct": -13.185,
+          "n": 55,
+          "pct": -13.666,
           "incumbent_pct": 0.0,
-          "t": -1.393
+          "t": -1.449
         },
         "hold": {
-          "n": 38,
-          "pct": -0.729,
+          "n": 39,
+          "pct": -2.075,
           "incumbent_pct": 0.0,
-          "t": 0.029
+          "t": -0.057
         },
         "cash": {
-          "n": 54,
+          "n": 55,
           "t": null,
           "incumbent_pct": null,
           "pct": 0.0
         }
       },
-      "hold_pct": -0.729,
+      "hold_pct": -2.075,
       "trade_pct": null,
       "best_challenger": "hold",
       "reason": "min_hold"
@@ -113728,7 +113845,7 @@
       }
     ],
     "cost_paid": 56603.76132183643,
-    "applied_through": "2026-10-15",
+    "applied_through": "2026-10-16",
     "history": [
       {
         "date": "2026-08-22",
@@ -114059,6 +114176,12 @@
         "equity": -47883.96,
         "mode": "cash",
         "day_ret": 0.0
+      },
+      {
+        "date": "2026-10-16",
+        "equity": -47883.96,
+        "mode": "cash",
+        "day_ret": -0.0
       }
     ],
     "inherited_from_experiment": "2026-10-11"
