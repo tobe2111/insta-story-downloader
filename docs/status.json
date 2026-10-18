@@ -416,13 +416,13 @@
       "strategy": "psar",
       "params": {},
       "promotions": 0,
-      "trials_total": 1154,
+      "trials_total": 1203,
       "parliament": [
         {
           "strategy": "psar",
           "params": {},
-          "weight": 0.4749,
-          "alt_weight": 0.4417
+          "weight": 0.4497,
+          "alt_weight": 0.1917
         },
         {
           "strategy": "ml",
@@ -433,22 +433,22 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.3354,
-          "alt_weight": 0.3917
+          "weight": 0.3564,
+          "alt_weight": 0.2417
         },
         {
-          "strategy": "ml",
+          "strategy": "connors_rsi2",
           "params": {
-            "model": "gb",
-            "threshold": 0.6,
-            "train_window": 250,
-            "retrain_every": 20
+            "rsi_period": 2,
+            "entry": 10.0,
+            "exit_ma": 5,
+            "trend_window": 200
           },
-          "weight": 0.1897,
-          "alt_weight": 0.1667
+          "weight": 0.1939,
+          "alt_weight": 0.5666
         }
       ],
-      "last_run_asof": "2026-10-15"
+      "last_run_asof": "2026-10-16"
     },
     "us_stock:AAPL": {
       "strategy": "ml",
@@ -515,7 +515,7 @@
         "sizing": "binary"
       },
       "promotions": 0,
-      "trials_total": 1198,
+      "trials_total": 1251,
       "parliament": [
         {
           "strategy": "ml",
@@ -526,7 +526,7 @@
             "retrain_every": 20,
             "sizing": "binary"
           },
-          "weight": 0.5452,
+          "weight": 0.5302,
           "alt_weight": 0.6666
         },
         {
@@ -539,7 +539,7 @@
             "sizing": "binary",
             "pool": "universe"
           },
-          "weight": 0.2345,
+          "weight": 0.2455,
           "alt_weight": 0.1667
         },
         {
@@ -553,11 +553,11 @@
             "label": "triple",
             "meta": true
           },
-          "weight": 0.2202,
+          "weight": 0.2243,
           "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-15"
+      "last_run_asof": "2026-10-16"
     },
     "us_stock:META": {
       "strategy": "ml",
@@ -1066,27 +1066,15 @@
     "us_stock:LQD": {
       "strategy": "ml",
       "params": {
-        "model": "vote",
+        "model": "logreg",
         "threshold": 0.55,
         "train_window": 250,
         "retrain_every": 20,
         "calibrate": "sigmoid"
       },
       "promotions": 0,
-      "trials_total": 1007,
+      "trials_total": 1060,
       "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "vote",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20,
-            "calibrate": "sigmoid"
-          },
-          "weight": 0.4115,
-          "alt_weight": 0.1667
-        },
         {
           "strategy": "ml",
           "params": {
@@ -1096,8 +1084,8 @@
             "retrain_every": 20,
             "calibrate": "sigmoid"
           },
-          "weight": 0.3471,
-          "alt_weight": 0.1667
+          "weight": 0.5557,
+          "alt_weight": 0.25
         },
         {
           "strategy": "ml",
@@ -1108,11 +1096,11 @@
             "retrain_every": 20,
             "calibrate": "sigmoid"
           },
-          "weight": 0.2414,
-          "alt_weight": 0.6666
+          "weight": 0.4443,
+          "alt_weight": 0.75
         }
       ],
-      "last_run_asof": "2026-10-15"
+      "last_run_asof": "2026-10-16"
     },
     "us_stock:TIP": {
       "strategy": "ml",
@@ -1570,7 +1558,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 901,
+      "trials_total": 954,
       "parliament": [
         {
           "strategy": "ml",
@@ -1580,17 +1568,8 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.4225,
-          "alt_weight": 0.6416
-        },
-        {
-          "strategy": "ma_cross",
-          "params": {
-            "fast": 20,
-            "slow": 60
-          },
-          "weight": 0.3087,
-          "alt_weight": 0.1917
+          "weight": 0.4671,
+          "alt_weight": 0.5916
         },
         {
           "strategy": "ml",
@@ -1601,11 +1580,24 @@
             "retrain_every": 20,
             "sample_weight": "decay"
           },
-          "weight": 0.2688,
+          "weight": 0.3029,
           "alt_weight": 0.1667
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "label": "cost",
+            "label_cost": 0.003
+          },
+          "weight": 0.2299,
+          "alt_weight": 0.2417
         }
       ],
-      "last_run_asof": "2026-10-15"
+      "last_run_asof": "2026-10-16"
     },
     "us_stock:GOOG": {
       "strategy": "ma_cross",
@@ -1614,7 +1606,7 @@
         "slow": 60
       },
       "promotions": 0,
-      "trials_total": 848,
+      "trials_total": 901,
       "parliament": [
         {
           "strategy": "ma_cross",
@@ -1622,8 +1614,8 @@
             "fast": 20,
             "slow": 60
           },
-          "weight": 0.4071,
-          "alt_weight": 0.6666
+          "weight": 0.3819,
+          "alt_weight": 0.1667
         },
         {
           "strategy": "ml",
@@ -1633,19 +1625,19 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.3516,
-          "alt_weight": 0.1667
+          "weight": 0.3683,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "bollinger",
           "params": {
             "mode": "reversion"
           },
-          "weight": 0.2413,
+          "weight": 0.2498,
           "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-15"
+      "last_run_asof": "2026-10-16"
     },
     "kr_stock:133690.KS": {
       "strategy": "bollinger",
@@ -1895,9 +1887,9 @@
   "paper": {
     "crypto:BNB/USDT": {
       "start_cash": 10000.0,
-      "equity": 10308.38,
-      "return_pct": 3.08,
-      "mdd_pct": -2.61,
+      "equity": 10299.03,
+      "return_pct": 2.99,
+      "mdd_pct": -2.7,
       "history": [
         {
           "date": "2026-08-05",
@@ -5006,13 +4998,60 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-18",
+          "price": 717.8,
+          "weight": 0.25,
+          "held_weight": 0.2507,
+          "fractional_lot": false,
+          "equity": 10299.03,
+          "return_pct": 2.99,
+          "hit_rate": 0.5147058823529411,
+          "hit_n": 136,
+          "hit_lo": 0.4314647506955499,
+          "hit_hi": 0.5971390410230802,
+          "hit_conclusive": false,
+          "live_hit": 0.46774193548387094,
+          "live_hit_n": 62,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 55% + cross_rank 38% + ml 7% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "b3112463c556",
+          "data_sha256": "e190182d87cbe579c0201d27bd9f3dffe706388b9a573ab2d65071285cf4a19e",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.0968,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0035,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:BTC/USDT": {
       "start_cash": 10000.0,
-      "equity": 10038.38,
-      "return_pct": 0.38,
+      "equity": 10031.19,
+      "return_pct": 0.31,
       "mdd_pct": -2.93,
       "history": [
         {
@@ -8160,14 +8199,61 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-18",
+          "price": 81413.4,
+          "weight": 0.25,
+          "held_weight": 0.262,
+          "fractional_lot": false,
+          "equity": 10031.19,
+          "return_pct": 0.31,
+          "hit_rate": 0.48026315789473684,
+          "hit_n": 304,
+          "hit_lo": 0.42469739915354016,
+          "hit_hi": 0.5363215144695699,
+          "hit_conclusive": false,
+          "live_hit": 0.5409836065573771,
+          "live_hit_n": 61,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 55% + cross_rank 27% + bollinger 18% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "b3112463c556",
+          "data_sha256": "efdf1fe3e4822a7dceee4308a80db9a4d7792ef9bf4702e49f86d6030393a4b5",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.0856,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0033,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:ETH/USDT": {
       "start_cash": 10000.0,
-      "equity": 9979.19,
-      "return_pct": -0.21,
-      "mdd_pct": -2.82,
+      "equity": 9958.96,
+      "return_pct": -0.41,
+      "mdd_pct": -3.01,
       "history": [
         {
           "date": "2026-08-04",
@@ -11280,14 +11366,61 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-18",
+          "price": 2398.87,
+          "weight": 0.25,
+          "held_weight": 0.2496,
+          "fractional_lot": false,
+          "equity": 9958.96,
+          "return_pct": -0.41,
+          "hit_rate": 0.5348837209302325,
+          "hit_n": 215,
+          "hit_lo": 0.4681837246639047,
+          "hit_hi": 0.6003590021302696,
+          "hit_conclusive": false,
+          "live_hit": 0.5606060606060606,
+          "live_hit_n": 66,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 64% + cross_rank 20% + ml 16% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "b3112463c556",
+          "data_sha256": "8ffa03c7367cf1cf86c55a3d1d03dc3cf13a661d3665aafe0f42f7318075eac2",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.1061,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0034,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:SOL/USDT": {
       "start_cash": 10000.0,
-      "equity": 10257.53,
-      "return_pct": 2.58,
-      "mdd_pct": -3.48,
+      "equity": 10230.97,
+      "return_pct": 2.31,
+      "mdd_pct": -3.73,
       "history": [
         {
           "date": "2026-08-04",
@@ -14342,14 +14475,58 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-18",
+          "price": 103.31,
+          "weight": 0.25,
+          "held_weight": 0.2353,
+          "fractional_lot": false,
+          "equity": 10230.97,
+          "return_pct": 2.31,
+          "hit_rate": 0.4723618090452261,
+          "hit_n": 398,
+          "hit_lo": 0.4238124692828319,
+          "hit_hi": 0.5214395902351473,
+          "hit_conclusive": false,
+          "live_hit": 0.5396825396825397,
+          "live_hit_n": 63,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {},
+          "reason": "매수 +25% — 매매 없이 보유: 이 종목은 오디션에서 **아무것도 하지 않는 쪽**이 AI 전략을 이겼습니다(2단계 심사 통과). 매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다 · 🏛 의회 운용: buy_hold 77% + bollinger 12% + rebalance_flow 11% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "b3112463c556",
+          "data_sha256": "882fb5119fcb70ab02eda7627eb9535398f55244f18a8aee1e5506c071180df9",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.048,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0034,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:XRP/USDT": {
       "start_cash": 10000.0,
-      "equity": 10044.76,
-      "return_pct": 0.45,
-      "mdd_pct": -1.4,
+      "equity": 10038.12,
+      "return_pct": 0.38,
+      "mdd_pct": -1.47,
       "history": [
         {
           "date": "2026-08-05",
@@ -17672,6 +17849,57 @@
           "kelly_cap": 0.25,
           "bar_partial": {
             "elapsed": 0.0219,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
+        },
+        {
+          "date": "2026-10-18",
+          "price": 1.2936,
+          "weight": 0.0907,
+          "held_weight": 0.0644,
+          "fractional_lot": false,
+          "equity": 10038.12,
+          "return_pct": 0.38,
+          "hit_rate": 0.46360153256704983,
+          "hit_n": 261,
+          "hit_lo": 0.40406803391355745,
+          "hit_hi": 0.5241909707141144,
+          "hit_conclusive": false,
+          "live_hit": 0.45652173913043476,
+          "live_hit_n": 46,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "label": "triple",
+            "meta": true
+          },
+          "reason": "매수 +9% — 로지스틱회귀 모델이 내일 상승확률을 약 59%로 추정(기준 55% 초과) · 사이징: 신호 원비중 26% → 변동성 타깃 조절 후 9% · 참고: 전 종목 합산으로 모델이 59%±10%p라 말한 356번의 실제 상승 비율 52% (95% 신뢰구간 47%~57% · 보합 6일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 10번으로 축적 중) · 🏛 의회 운용: ml 45% + breakout 30% + bollinger 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "b3112463c556",
+          "data_sha256": "f0254aef7d0c255bce37a3126617a2ee287813282e8c2125ab283594ff10dcf8",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.0893,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0036,
             "timeframe": "1d",
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
@@ -169437,59 +169665,9 @@
       ]
     }
   },
-  "updated": "2026-10-17",
+  "updated": "2026-10-18",
   "swaps": [],
   "retrain_recent": [
-    {
-      "asof": "2026-10-13",
-      "night": "2026-10-14",
-      "key": "us_stock:VNQ",
-      "promoted": false,
-      "n_candidates": 48,
-      "vacuous": false,
-      "inert": 3,
-      "trials_total": 954
-    },
-    {
-      "asof": "2026-10-13",
-      "night": "2026-10-14",
-      "key": "us_stock:UUP",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 936
-    },
-    {
-      "asof": "2026-10-13",
-      "night": "2026-10-14",
-      "key": "us_stock:EWJ",
-      "promoted": false,
-      "n_candidates": 52,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 954
-    },
-    {
-      "asof": "2026-10-13",
-      "night": "2026-10-14",
-      "key": "us_stock:VGK",
-      "promoted": false,
-      "n_candidates": 52,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 954
-    },
-    {
-      "asof": "2026-10-13",
-      "night": "2026-10-14",
-      "key": "us_stock:EEM",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 953
-    },
     {
       "asof": "2026-10-13",
       "night": "2026-10-14",
@@ -170639,6 +170817,56 @@
       "vacuous": false,
       "inert": 3,
       "trials_total": 1058
+    },
+    {
+      "asof": "2026-10-16",
+      "night": "2026-10-18",
+      "key": "us_stock:LQD",
+      "promoted": false,
+      "n_candidates": 49,
+      "vacuous": false,
+      "inert": 3,
+      "trials_total": 1060
+    },
+    {
+      "asof": "2026-10-16",
+      "night": "2026-10-18",
+      "key": "us_stock:GOOGL",
+      "promoted": false,
+      "n_candidates": 52,
+      "vacuous": false,
+      "inert": 0,
+      "trials_total": 954
+    },
+    {
+      "asof": "2026-10-16",
+      "night": "2026-10-18",
+      "key": "us_stock:GOOG",
+      "promoted": false,
+      "n_candidates": 52,
+      "vacuous": false,
+      "inert": 0,
+      "trials_total": 901
+    },
+    {
+      "asof": "2026-10-16",
+      "night": "2026-10-18",
+      "key": "us_stock:MSFT",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1203
+    },
+    {
+      "asof": "2026-10-16",
+      "night": "2026-10-18",
+      "key": "us_stock:AMZN",
+      "promoted": false,
+      "n_candidates": 50,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1251
     }
   ],
   "live_url": null,
@@ -170715,19 +170943,19 @@
         "track": "intraday",
         "label": "코인 장중",
         "calendar": "UTC",
-        "days": 61,
+        "days": 62,
         "vs": [
           {
             "bench": "crypto:BTC/USDT",
             "bench_name": "비트코인",
-            "n": 58,
-            "beta": 0.111,
-            "corr": 0.209,
-            "alpha_bp": -14.01,
-            "t": -0.78,
+            "n": 59,
+            "beta": 0.11,
+            "corr": 0.207,
+            "alpha_bp": -13.32,
+            "t": -0.75,
             "significant": false,
             "from": "2026-08-20",
-            "to": "2026-10-17"
+            "to": "2026-10-18"
           },
           {
             "bench": "us_stock:QQQ",
@@ -170747,12 +170975,12 @@
         "track": "futures",
         "label": "코인 선물",
         "calendar": "UTC",
-        "days": 5,
+        "days": 6,
         "vs": [
           {
             "bench": "crypto:BTC/USDT",
             "bench_name": "비트코인",
-            "n": 4,
+            "n": 5,
             "short": true
           },
           {
@@ -172037,7 +172265,7 @@
     "crypto": {
       "n": 5,
       "effective_n": 1.15,
-      "mean_corr": 0.8329,
+      "mean_corr": 0.8331,
       "pairs": 10
     },
     "kr_stock": {
@@ -172076,10 +172304,10 @@
       "cadence:1h-15m": {
         "state": "진행 중",
         "n": 61,
-        "sum": 0.00509712,
-        "boundary": 0.20145731,
-        "mean_daily_pct": 0.00836,
-        "progress": 0.0253,
+        "sum": 0.00622961,
+        "boundary": 0.20145832,
+        "mean_daily_pct": 0.01021,
+        "progress": 0.0309,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -172088,10 +172316,10 @@
       "cadence:1h-5m": {
         "state": "진행 중",
         "n": 61,
-        "sum": 0.15432386,
-        "boundary": 0.22462701,
-        "mean_daily_pct": 0.25299,
-        "progress": 0.687,
+        "sum": 0.15590799,
+        "boundary": 0.22460423,
+        "mean_daily_pct": 0.25559,
+        "progress": 0.6941,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -172100,10 +172328,10 @@
       "cadence:15m-5m": {
         "state": "진행 중",
         "n": 61,
-        "sum": 0.14922675,
-        "boundary": 0.17356255,
-        "mean_daily_pct": 0.24463,
-        "progress": 0.8598,
+        "sum": 0.14967838,
+        "boundary": 0.17355367,
+        "mean_daily_pct": 0.24537,
+        "progress": 0.8624,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -172112,8 +172340,8 @@
       "limit_shadow:market-limit": {
         "state": "조기 판정: 열세",
         "n": 61,
-        "sum": -0.02147459,
-        "boundary": 0.01220028,
+        "sum": -0.02147299,
+        "boundary": 0.01220064,
         "mean_daily_pct": -0.0352,
         "progress": 1.0,
         "alpha": 0.05,
@@ -172486,13 +172714,13 @@
     "latest_night": "2026-10-18",
     "roster": 40,
     "threshold": 5,
-    "worst": 2,
+    "worst": 1,
     "median": 1,
     "never_seen": [],
     "starving": {}
   },
   "briefing": {
-    "date": "2026-10-17",
+    "date": "2026-10-18",
     "items": [
       {
         "cat": "증시",
@@ -172517,10 +172745,10 @@
       },
       {
         "cat": "증시",
-        "title": "\"AI에 돈 너무 썼나\" 미국 기술주 급락‥다음 주 우리 증시에도? - MBC 뉴스",
-        "source": "MBC 뉴스",
-        "link": "https://news.google.com/rss/articles/CBMieEFVX3lxTE1mS1hmVmcxU0g1cUFqX0lkM2daa3hsNzJkMHk2UjZ3UGx3NTRwclpqRDNQOFpqOEtqR3JlSTZrdzhGRkZOakNVaGk0UkI2U1J0WnV5TjdySzhjakd1dk5LQjFMSFNRQUs0My1qTy1VSGpvU3pvRUN0ZdIBeEFVX3lxTE5pTXFEUTBSWktRU1d0NTJTWUhWSExNaF9OSTRmQUtydDZaVVVBMnh0QThBZmtmTU1CRDEwbjVWZ0VEdURZQjNEMmpRcnRYRW5NTlpIOTdacWo1R1Q0MmVmaks4UnpFb3RzN3E0NEh0b2JOdHQ4dHYzUw?oc=5",
-        "time": "Sat, 17 Oct 2026 11:07:47 GMT"
+        "title": "[주간증시전망] 폭락 딛고 반등 나선 코스피… 美 빅테크, 실적 발표 - 조선비즈 - Chosunbiz",
+        "source": "Chosunbiz",
+        "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxNUEkwd19OaG5zWVA2T0x1cjEyWW4zcFMySmlwTENpSS1HOEo5Um1wN29rRUFUX0NndjBXS0E1b2hEaVhuXzVGbDZVX3UtSW1uVHhIMXNPcG1SYXIzRVJ1NDhzMDR1dFRLc0ZZVmRxOWFTYjM5ZGtvaVkyX2daZjdEMXZWa3hxQUhj0gGcAUFVX3lxTE9vV3R1NGRCaG55OVFBYnlHeHFUMlRrd29jdWhQVFBiTWQ2R3psWS1feFp3TFJiR1ZTWmpfZ0JhZE1xX3hhc2piQ2xORGpVNEpBTFJZQzRZR2I3TlFfTUZWbTFJTFpaVmE4d2FOZndMNk1hUkNmTDZSR0dqdmM4cmdlc1FwNmxGMlBlVGI4cXRTZG1VYTZDbDhOYUNkVQ?oc=5",
+        "time": "Sat, 17 Oct 2026 21:00:00 GMT"
       },
       {
         "cat": "금리·환율",
@@ -172545,10 +172773,10 @@
       },
       {
         "cat": "금리·환율",
-        "title": "이달 환율 2년1개월만에 최저…원/엔 19년만에 가장 낮아 - 연합뉴스 한민족센터",
-        "source": "연합뉴스 한민족센터",
-        "link": "https://news.google.com/rss/articles/CBMidEFVX3lxTE5VWml4S0hJNm5zdVAyLXNMUUlheUZrdUNQQ3plWWZDUUluTENWOUJNdWxoSW44R2YwUWo0ZERDMS1Ubm11TGVkNnkzWXhzbjMwTVQyOVNtRG40c0JvaUt1Z0E3RV8zT0FWemttdWVzNmdOTWJo?oc=5",
-        "time": "Sat, 17 Oct 2026 20:54:00 GMT"
+        "title": "전문가 11명 전원 \"10월 금리 동결\"…9명 \"최종금리 3.5%\" - 머니투데이 - 머니투데이",
+        "source": "머니투데이",
+        "link": "https://news.google.com/rss/articles/CBMia0FVX3lxTFBEb1FENTRSRW5vcDNWclYydTVBQV9HeHB4N3hFV09iRC1za1hjT09NdkxKYlZUQ3NJMl9ZaTZhRlRwT2V0emNjUjlYSlJtODAtV2ZUVWkxb19oQmpwNXNPVW9HRUlBQlJHLUp30gFwQVVfeXFMT1g0M3dWVGJJbG54SnRSZjhiMjFWLUlLcnpiYlpTQjFCd0JDel80TEJtMjhwa0JyRUdVVk5sUWZMX0Q2bXNZRFNxVFkyak1rOE9EbTRDX2sxSWNRaV9mcUlwYWZUaUhGSmRGekdFQzYxeA?oc=5",
+        "time": "Sun, 18 Oct 2026 00:00:00 GMT"
       },
       {
         "cat": "코인",
@@ -172628,18 +172856,18 @@
       },
       {
         "cat": "종목",
-        "title": "“삼성전자 10만원까지 떨어져라”…주가 폭락에 웃는 직원들, 왜? - 주간조선",
-        "source": "주간조선",
-        "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1keGEzX0s5YnQydXQwVVpRbXJvQnZwZVI2cTNudUFPZEh4VlpzNVV5cllBdUExZXJwdDlyM0xnOE14emZQazlMbEdKMENFalJKTzZIZmZrU0Job1RGcGVuazdhekVzSlAyV0HSAW5BVV95cUxOS2pjSTFPdU5uY3pIWXNiRVlwekRYaGxWcW1qMjU4LUYwOHZuOUx6YzhvbUF4LThMcU5qTjNFeFdKRllnZnhjM2x2S19BSmNQTXMtdzNsQVQ5V1dPQkIyTlNpQ2NTVTRET2xMekRMZw?oc=5",
-        "time": "Thu, 15 Oct 2026 16:00:00 GMT",
-        "sym": "kr_stock:005930.KS"
-      },
-      {
-        "cat": "종목",
         "title": "\"돈 삭제\" 개미 비명 터진다...주가 10% 뚝뚝, 삼전닉스 추락의 날 - 머니투데이 - 머니투데이",
         "source": "머니투데이",
         "link": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE1PMWZTcG9oN1VnM0sta1QyckhXOGFLV293YW1vUXpDSElEeXlLdnN4M2tuRTI2QWhaU0RJNDF0TF9XSmtIb2g4SjNQSjBZV2d5OTJjWE80enNRZDRrcHZpRjAxSU9CTUVN0gFuQVVfeXFMTlplcVdwTncwVzBmQ0QyMDlVWlFiOGZBR2M2OElLVVQ5dTRlcDZOb0lMY1FhUlJOc1FKS3hOeTJYUXNIQ1RKYVRCRFp1Q3FUNUhzQ3BvZnFCanZRZmxVV2ZURTNvSTM0T0huTUxWY3c?oc=5",
         "time": "Thu, 15 Oct 2026 05:12:42 GMT",
+        "sym": "kr_stock:005930.KS"
+      },
+      {
+        "cat": "종목",
+        "title": "“삼성전자 10만원까지 떨어져라”…주가 폭락에 웃는 직원들, 왜? - 주간조선",
+        "source": "주간조선",
+        "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTE1keGEzX0s5YnQydXQwVVpRbXJvQnZwZVI2cTNudUFPZEh4VlpzNVV5cllBdUExZXJwdDlyM0xnOE14emZQazlMbEdKMENFalJKTzZIZmZrU0Job1RGcGVuazdhekVzSlAyV0HSAW5BVV95cUxOS2pjSTFPdU5uY3pIWXNiRVlwekRYaGxWcW1qMjU4LUYwOHZuOUx6YzhvbUF4LThMcU5qTjNFeFdKRllnZnhjM2x2S19BSmNQTXMtdzNsQVQ5V1dPQkIyTlNpQ2NTVTRET2xMekRMZw?oc=5",
+        "time": "Thu, 15 Oct 2026 16:00:00 GMT",
         "sym": "kr_stock:005930.KS"
       },
       {
@@ -172700,10 +172928,10 @@
       },
       {
         "cat": "종목",
-        "title": "미국 증시 참혹한 악재 발생...\"미국 중간 선거 갈림길\" [자막뉴스] - YTN",
-        "source": "YTN",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE9QSVRpa3VZZV9HcXJtSndhNzlfejV3bGtPbkU4V3NmUmdnNmxsVjlLQ1pNS1ZBcmVTeHFId0dwazBfeXVra05sSjE3TW5yaU5sbXVSVE9YbDZCQW9sWkE?oc=5",
-        "time": "Wed, 14 Oct 2026 23:22:00 GMT",
+        "title": "미국증시, 다우 315P 상승·나스닥 0.54% 하락…AI 반도체 불안에 SK하이닉스 ADR 4% 급락 - 톱스타뉴스",
+        "source": "톱스타뉴스",
+        "link": "https://news.google.com/rss/articles/CBMickFVX3lxTE1CaVphYm9hVEtTTTFfeDdQc01hOWtMcFphNzB2dGRLWS1oLTB3dmgteXNoWWZBYjhOaFU2aE1sb3FnY3B6UGJrU1BuVFJQLUhQZmNuZFd5NFVUbmVpclpFb3BiU2FGeWJwZGN5WEFHLXdBZw?oc=5",
+        "time": "Fri, 16 Oct 2026 13:43:43 GMT",
         "sym": "us_stock:SPY"
       }
     ],
@@ -172766,7 +172994,7 @@
   "generation": {
     "feature_set": "fs8:+fredmacro/krw1/opt17:b15f",
     "since": "2026-08-13",
-    "days": 65,
+    "days": 66,
     "target_days": 90,
     "versions": [
       {
@@ -172837,10 +173065,10 @@
   "run_health": {
     "retrain": {
       "date": "2026-10-18",
-      "runs": 1,
-      "ok": 13,
+      "runs": 2,
+      "ok": 18,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 22,
       "ok_keys": [
         "crypto:BNB/USDT",
         "crypto:BTC/USDT",
@@ -172849,19 +173077,19 @@
         "crypto:XRP/USDT",
         "kr_stock:051910.KS",
         "kr_stock:105560.KS",
+        "us_stock:AMZN",
         "us_stock:GLD",
+        "us_stock:GOOG",
+        "us_stock:GOOGL",
         "us_stock:IEF",
+        "us_stock:LQD",
+        "us_stock:MSFT",
         "us_stock:QQQ",
         "us_stock:SLV",
         "us_stock:SPY",
         "us_stock:TLT"
       ],
-      "skipped_keys": [],
-      "failed_keys": [],
-      "errors": {},
-      "roster": 40,
-      "not_reached": 27,
-      "not_reached_keys": [
+      "skipped_keys": [
         "kr_stock:000660.KS",
         "kr_stock:005380.KS",
         "kr_stock:005930.KS",
@@ -172873,14 +173101,9 @@
         "kr_stock:228790.KS",
         "kr_stock:273130.KS",
         "us_stock:AAPL",
-        "us_stock:AMZN",
         "us_stock:DBC",
         "us_stock:EEM",
         "us_stock:EWJ",
-        "us_stock:GOOG",
-        "us_stock:GOOGL",
-        "us_stock:LQD",
-        "us_stock:MSFT",
         "us_stock:NVDA",
         "us_stock:TIP",
         "us_stock:UUP",
@@ -172890,26 +173113,27 @@
         "us_stock:XLP",
         "us_stock:XLU"
       ],
-      "budget_cut": {
-        "key": "us_stock:LQD",
-        "too_heavy": false
-      }
+      "failed_keys": [],
+      "errors": {},
+      "roster": 40,
+      "not_reached": 0,
+      "not_reached_keys": []
     },
     "paper": {
       "date": "2026-10-18",
-      "runs": 2,
-      "ok": 1,
+      "runs": 3,
+      "ok": 6,
       "failed": 0,
-      "skipped": 39,
+      "skipped": 34,
       "ok_keys": [
-        "us_stock:SPY"
-      ],
-      "skipped_keys": [
         "crypto:BNB/USDT",
         "crypto:BTC/USDT",
         "crypto:ETH/USDT",
         "crypto:SOL/USDT",
         "crypto:XRP/USDT",
+        "us_stock:SPY"
+      ],
+      "skipped_keys": [
         "kr_stock:000660.KS",
         "kr_stock:005380.KS",
         "kr_stock:005930.KS",
@@ -173012,10 +173236,10 @@
         "n_days": 7
       },
       "2026-10-12": {
-        "return_pct": -0.94,
-        "equity": 10308.38,
+        "return_pct": -1.03,
+        "equity": 10299.03,
         "deposit": null,
-        "n_days": 6
+        "n_days": 7
       }
     },
     "crypto:BTC/USDT": {
@@ -173080,10 +173304,10 @@
         "n_days": 7
       },
       "2026-10-12": {
-        "return_pct": -0.42,
-        "equity": 10038.38,
+        "return_pct": -0.49,
+        "equity": 10031.19,
         "deposit": null,
-        "n_days": 6
+        "n_days": 7
       }
     },
     "crypto:ETH/USDT": {
@@ -173148,10 +173372,10 @@
         "n_days": 7
       },
       "2026-10-12": {
-        "return_pct": -0.67,
-        "equity": 9979.19,
+        "return_pct": -0.87,
+        "equity": 9958.96,
         "deposit": null,
-        "n_days": 6
+        "n_days": 7
       }
     },
     "crypto:SOL/USDT": {
@@ -173216,10 +173440,10 @@
         "n_days": 7
       },
       "2026-10-12": {
-        "return_pct": -1.32,
-        "equity": 10257.53,
+        "return_pct": -1.58,
+        "equity": 10230.97,
         "deposit": null,
-        "n_days": 6
+        "n_days": 7
       }
     },
     "crypto:XRP/USDT": {
@@ -173284,10 +173508,10 @@
         "n_days": 7
       },
       "2026-10-12": {
-        "return_pct": -0.32,
-        "equity": 10044.76,
+        "return_pct": -0.39,
+        "equity": 10038.12,
         "deposit": null,
-        "n_days": 6
+        "n_days": 7
       }
     },
     "kr_stock:000660.KS": {
@@ -175562,7 +175786,6 @@
   "crosssection": {
     "asof": "2026-10-17",
     "days": [
-      "2026-10-15",
       "2026-10-16",
       "2026-10-17"
     ],
@@ -175572,17 +175795,17 @@
       "n": 40,
       "wins": 30,
       "win_rate": 0.75,
-      "sharpe_mean": 0.4235,
-      "sharpe_sd": 0.5695,
-      "t": 4.7036
+      "sharpe_mean": 0.3971,
+      "sharpe_sd": 0.5907,
+      "t": 4.252
     },
     "stocks": {
       "n": 35,
       "wins": 26,
       "win_rate": 0.7429,
-      "sharpe_mean": 0.4019,
-      "sharpe_sd": 0.5866,
-      "t": 4.0533
+      "sharpe_mean": 0.3717,
+      "sharpe_sd": 0.609,
+      "t": 3.6112
     },
     "markets": {
       "crypto": {
@@ -175597,17 +175820,17 @@
         "n": 12,
         "wins": 10,
         "win_rate": 0.8333,
-        "sharpe_mean": 0.6176,
-        "sharpe_sd": 0.7414,
-        "t": 2.8858
+        "sharpe_mean": 0.572,
+        "sharpe_sd": 0.8133,
+        "t": 2.4363
       },
       "us_stock": {
         "n": 23,
         "wins": 16,
         "win_rate": 0.6957,
-        "sharpe_mean": 0.2894,
-        "sharpe_sd": 0.4673,
-        "t": 2.9698
+        "sharpe_mean": 0.2672,
+        "sharpe_sd": 0.4573,
+        "t": 2.8026
       }
     },
     "symbols": [
@@ -175644,20 +175867,20 @@
         "sharpe": 1.1405
       },
       {
-        "key": "us_stock:GOOG",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-15",
-        "total_return": 0.775017,
-        "sharpe": 1.1236
-      },
-      {
         "key": "kr_stock:000660.KS",
         "market": "kr_stock",
         "bars": 800,
         "asof": "2026-10-16",
         "total_return": 0.508872,
         "sharpe": 1.0825
+      },
+      {
+        "key": "us_stock:GOOG",
+        "market": "us_stock",
+        "bars": 800,
+        "asof": "2026-10-16",
+        "total_return": 0.730009,
+        "sharpe": 1.075
       },
       {
         "key": "kr_stock:133690.KS",
@@ -175727,17 +175950,9 @@
         "key": "us_stock:MSFT",
         "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-15",
-        "total_return": 0.329759,
-        "sharpe": 0.653
-      },
-      {
-        "key": "us_stock:AMZN",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-15",
-        "total_return": 0.24279,
-        "sharpe": 0.6233
+        "asof": "2026-10-16",
+        "total_return": 0.306393,
+        "sharpe": 0.6163
       },
       {
         "key": "kr_stock:005380.KS",
@@ -175796,12 +176011,12 @@
         "sharpe": 0.3344
       },
       {
-        "key": "us_stock:GOOGL",
+        "key": "us_stock:AMZN",
         "market": "us_stock",
-        "bars": 799,
-        "asof": "2026-10-15",
-        "total_return": 0.057007,
-        "sharpe": 0.3339
+        "bars": 800,
+        "asof": "2026-10-16",
+        "total_return": 0.103716,
+        "sharpe": 0.3237
       },
       {
         "key": "us_stock:SLV",
@@ -175812,20 +176027,20 @@
         "sharpe": 0.3133
       },
       {
+        "key": "us_stock:GOOGL",
+        "market": "us_stock",
+        "bars": 800,
+        "asof": "2026-10-16",
+        "total_return": 0.048407,
+        "sharpe": 0.288
+      },
+      {
         "key": "crypto:SOL/USDT",
         "market": "crypto",
         "bars": 800,
         "asof": "2026-10-17",
         "total_return": 0.066299,
         "sharpe": 0.2439
-      },
-      {
-        "key": "us_stock:LQD",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-15",
-        "total_return": 0.003178,
-        "sharpe": 0.1734
       },
       {
         "key": "kr_stock:228790.KS",
@@ -175842,6 +176057,14 @@
         "asof": "2026-10-16",
         "total_return": 0.026321,
         "sharpe": 0.1372
+      },
+      {
+        "key": "us_stock:LQD",
+        "market": "us_stock",
+        "bars": 800,
+        "asof": "2026-10-16",
+        "total_return": 0.002698,
+        "sharpe": 0.0952
       },
       {
         "key": "crypto:XRP/USDT",
@@ -175900,14 +176123,6 @@
         "sharpe": -0.246
       },
       {
-        "key": "kr_stock:273130.KS",
-        "market": "kr_stock",
-        "bars": 800,
-        "asof": "2026-10-16",
-        "total_return": -0.011809,
-        "sharpe": -0.2545
-      },
-      {
         "key": "us_stock:TLT",
         "market": "us_stock",
         "bars": 800,
@@ -175922,6 +176137,14 @@
         "asof": "2026-10-16",
         "total_return": -0.003151,
         "sharpe": -0.567
+      },
+      {
+        "key": "kr_stock:273130.KS",
+        "market": "kr_stock",
+        "bars": 800,
+        "asof": "2026-10-16",
+        "total_return": -0.036338,
+        "sharpe": -0.802
       },
       {
         "key": "kr_stock:148070.KS",
@@ -176471,16 +176694,16 @@
     "max_seats": 3,
     "cap": 3,
     "diversified": true,
-    "distinct_specs": 56,
-    "top_spec_share": 0.0956,
-    "weight_gap": 0.2076,
+    "distinct_specs": 55,
+    "top_spec_share": 0.0877,
+    "weight_gap": 0.2118,
     "weight_gap_measured": 40
   },
   "provable": {
     "asof": "2026-10-16",
     "symbols": 42,
     "bars_median": 800,
-    "trials_median": 1133,
+    "trials_median": 1137,
     "dsr_pass": 0.95,
     "dsr_best": 0.1125,
     "dsr_median": 0.0009,
