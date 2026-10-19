@@ -2,7 +2,7 @@
   "cash": 9984.360076078043,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-10-16 00:00:00",
+  "last_bar": "2026-10-19 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1937,11 +1937,62 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.5287
+    },
+    {
+      "date": "2026-10-19",
+      "price": 102.87999725341797,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9984.36,
+      "return_pct": -0.16,
+      "hit_rate": 0.375,
+      "hit_n": 40,
+      "hit_lo": 0.2422277353579172,
+      "hit_hi": 0.529678399454681,
+      "hit_conclusive": false,
+      "live_hit": 0.375,
+      "live_hit_n": 8,
+      "live_hit_flat": 1,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 44% + ml 37% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 103.290001,
+        "bar": "2026-10-19 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-16 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "cafba7d74635",
+      "data_sha256": "45d23ef190f29ad918ee569cbd5f6383201a3a58bfc9345c1f9148968611fd70",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5054709750070369,
+      "drift_psi": 0.4312,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-10-16 00:00:00"
+    "decided_bar": "2026-10-19 00:00:00"
   },
   "market": "us_stock",
   "symbol": "LQD",

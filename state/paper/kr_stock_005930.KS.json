@@ -2,7 +2,7 @@
   "cash": 8738.17345036192,
   "quantity": 0.00350106879090772,
   "avg_price": 266960.9942200641,
-  "last_bar": "2026-10-16 00:00:00",
+  "last_bar": "2026-10-19 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -2161,13 +2161,60 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-19",
+      "price": 218000.0,
+      "weight": 0.0,
+      "held_weight": 0.0803,
+      "fractional_lot": true,
+      "equity": 9501.41,
+      "return_pct": -4.99,
+      "hit_rate": 0.5714285714285714,
+      "hit_n": 301,
+      "hit_lo": 0.5149676253786669,
+      "hit_hi": 0.6260892382514937,
+      "hit_conclusive": true,
+      "live_hit": 0.4375,
+      "live_hit_n": 32,
+      "live_hit_flat": 4,
+      "hit_flat": 9,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "관망 (현금) — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 50% + turn_of_month 26% + expiry_week 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 207000.0,
+        "bar": "2026-10-19 00:00:00",
+        "weight": 0.0835,
+        "decided_bar": "2026-10-16 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "cafba7d74635",
+      "data_sha256": "9b2a6fb76a1bea47af20782ca0c08722444800be936f7fc323cbc86f370eabc5",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1253,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0835,
-    "decided_bar": "2026-10-16 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-19 00:00:00"
   }
 }
