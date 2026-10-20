@@ -1,8 +1,8 @@
 {
-  "cash": 10092.7125108419,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-10-19 00:00:00",
+  "cash": 0.0,
+  "quantity": 0.0905400045701165,
+  "avg_price": 111400.0,
+  "last_bar": "2026-10-20 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -1924,11 +1924,59 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-20",
+      "price": 111605.0,
+      "weight": 1.0,
+      "held_weight": 1.0,
+      "fractional_lot": true,
+      "equity": 10104.72,
+      "return_pct": 1.05,
+      "hit_rate": 0.6153846153846154,
+      "hit_n": 39,
+      "hit_lo": 0.45898781310078474,
+      "hit_hi": 0.7510883745299295,
+      "hit_conclusive": false,
+      "live_hit": 0.5454545454545454,
+      "live_hit_n": 11,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "lookback": 20,
+        "top_frac": 0.3
+      },
+      "reason": "매수 +100% — cross_rank 전략 신호에 따름 · 🏛 의회 운용: cross_rank 38% + ml 34% + ml 28% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 111400.0,
+        "bar": "2026-10-20 00:00:00",
+        "weight": 1.0,
+        "decided_bar": "2026-10-19 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "aeac484f86a1",
+      "data_sha256": "14e916995f05ad5945caefb3a4187d0a997d9b531b8fde1ef7ac30510dfd74d8",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2072,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 1.0,
-    "decided_bar": "2026-10-19 00:00:00"
+    "decided_bar": "2026-10-20 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "273130.KS",
