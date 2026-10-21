@@ -2,7 +2,7 @@
   "cash": 10000.242137175102,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-10-20 00:00:00",
+  "last_bar": "2026-10-21 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2091,11 +2091,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-21",
+      "price": 90.2300033569336,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10000.24,
+      "return_pct": 0.0,
+      "hit_rate": 0.4810810810810811,
+      "hit_n": 185,
+      "hit_lo": 0.4102015764907947,
+      "hit_hi": 0.552730319871024,
+      "hit_conclusive": false,
+      "live_hit": 0.0,
+      "live_hit_n": 4,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "rf",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "cost",
+        "label_cost": 0.003
+      },
+      "reason": "관망 (현금) — 랜덤포레스트 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 34% + ml 33% + ma_cross 32% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 90.370003,
+        "bar": "2026-10-21 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-20 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "64aa8fdff668",
+      "data_sha256": "1846db0d0d786b17e78d8d8b3da670f3d6409f1b9178b1e41e3236e98bfaa532",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.38033010379037274,
+      "drift_psi": 0.3028,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-10-20 00:00:00"
+    "decided_bar": "2026-10-21 00:00:00"
   },
   "market": "us_stock",
   "symbol": "IEF",

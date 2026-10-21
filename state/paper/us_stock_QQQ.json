@@ -1,8 +1,8 @@
 {
-  "cash": 2197.158803744323,
-  "quantity": 10.646228454982984,
+  "cash": 6938.168773824187,
+  "quantity": 4.077791584936669,
   "avg_price": 718.2521668492377,
-  "last_bar": "2026-10-20 00:00:00",
+  "last_bar": "2026-10-21 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -2446,13 +2446,65 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-21",
+      "price": 725.2000122070312,
+      "weight": 0.6227,
+      "held_weight": 0.2988,
+      "fractional_lot": false,
+      "equity": 9895.38,
+      "return_pct": -1.05,
+      "hit_rate": 0.5381165919282511,
+      "hit_n": 223,
+      "hit_lo": 0.4725896250412829,
+      "hit_hi": 0.6023525372428837,
+      "hit_conclusive": false,
+      "live_hit": 0.4444444444444444,
+      "live_hit_n": 27,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.6,
+        "train_window": 250,
+        "retrain_every": 20,
+        "pool": "peers",
+        "sizing": "binary"
+      },
+      "reason": "매수 +62% — 로지스틱회귀·풀링(전 종목 합산 학습) 모델이 내일 상승확률을 약 52%로 추정(기준 60% 초과) · 사이징: 신호 원비중 59% → 변동성 타깃 조절 후 62% · 참고: 전 종목 합산으로 모델이 52%±10%p라 말한 405번의 실제 상승 비율 54% (95% 신뢰구간 49%~59% · 보합 4일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 13번으로 축적 중) · 🏛 의회 운용: ml 41% + bollinger 34% + ibs 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 722.219971,
+        "bar": "2026-10-21 00:00:00",
+        "weight": 0.2979,
+        "decided_bar": "2026-10-20 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "64aa8fdff668",
+      "data_sha256": "75fc6516b8dc58eceaa5c251459ecb74e369f2d78659600f21e3fe42121e2e69",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5245024201552756,
+      "drift_psi": 0.0723,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "QQQ",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.2979,
-    "decided_bar": "2026-10-20 00:00:00"
+    "weight": 0.6227,
+    "decided_bar": "2026-10-21 00:00:00"
   }
 }
