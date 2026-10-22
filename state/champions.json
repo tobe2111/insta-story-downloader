@@ -1061,27 +1061,15 @@
   "us_stock:LQD": {
     "strategy": "ml",
     "params": {
-      "model": "rf",
-      "threshold": 0.55,
+      "model": "gb",
+      "threshold": 0.6,
       "train_window": 250,
       "retrain_every": 20,
       "calibrate": "sigmoid"
     },
     "promotions": 0,
-    "trials_total": 1219,
+    "trials_total": 1272,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "rf",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "sigmoid"
-        },
-        "weight": 0.3734,
-        "alt_weight": 0.1667
-      },
       {
         "strategy": "ml",
         "params": {
@@ -1091,8 +1079,8 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3513,
-        "alt_weight": 0.1667
+        "weight": 0.549,
+        "alt_weight": 0.25
       },
       {
         "strategy": "ml",
@@ -1104,11 +1092,11 @@
           "calibrate": "sigmoid",
           "label": "triple"
         },
-        "weight": 0.2753,
-        "alt_weight": 0.6666
+        "weight": 0.451,
+        "alt_weight": 0.75
       }
     ],
-    "last_run_asof": "2026-10-21"
+    "last_run_asof": "2026-10-22"
   },
   "us_stock:TIP": {
     "strategy": "ml",
