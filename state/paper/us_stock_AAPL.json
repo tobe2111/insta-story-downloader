@@ -1,8 +1,8 @@
 {
-  "cash": 8592.67694782331,
-  "quantity": 4.099334940912672,
-  "avg_price": 339.6080017089844,
-  "last_bar": "2026-10-22 00:00:00",
+  "cash": 10022.937037739775,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-10-23 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -2637,11 +2637,63 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-23",
+      "price": 347.7250061035156,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10022.94,
+      "return_pct": 0.23,
+      "hit_rate": 0.5833333333333334,
+      "hit_n": 96,
+      "hit_lo": 0.48336785466267024,
+      "hit_hi": 0.6768859874231938,
+      "hit_conclusive": false,
+      "live_hit": 0.5625,
+      "live_hit_n": 32,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "isotonic",
+        "label": "triple"
+      },
+      "reason": "관망 (현금) — 그라디언트부스팅 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 42% + ml 31% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 349.109985,
+        "bar": "2026-10-23 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-22 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "6708f220a7ee",
+      "data_sha256": "d213f402e554fa07d5c68ea0d55f793b8f0bf86cfa91ed587b0f743f5565e1da",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5291666666666667,
+      "drift_psi": 0.1873,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-10-22 00:00:00"
+    "decided_bar": "2026-10-23 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AAPL",
