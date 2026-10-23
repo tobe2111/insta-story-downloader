@@ -205,8 +205,8 @@
         "label": "triple"
       },
       "promotions": 0,
-      "last_run_asof": "2026-10-20",
-      "trials_total": 1464,
+      "last_run_asof": "2026-10-21",
+      "trials_total": 1517,
       "parliament": [
         {
           "strategy": "ml",
@@ -217,16 +217,16 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.4127,
-          "alt_weight": 0.3917
+          "weight": 0.4492,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "bollinger",
           "params": {
             "mode": "reversion"
           },
-          "weight": 0.3045,
-          "alt_weight": 0.2167
+          "weight": 0.2883,
+          "alt_weight": 0.1667
         },
         {
           "strategy": "ml",
@@ -236,8 +236,8 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.2828,
-          "alt_weight": 0.3917
+          "weight": 0.2626,
+          "alt_weight": 0.1667
         }
       ]
     },
@@ -248,8 +248,8 @@
         "exit_window": 20
       },
       "promotions": 0,
-      "last_run_asof": "2026-10-21",
-      "trials_total": 1499,
+      "last_run_asof": "2026-10-22",
+      "trials_total": 1552,
       "parliament": [
         {
           "strategy": "breakout",
@@ -257,8 +257,8 @@
             "window": 55,
             "exit_window": 20
           },
-          "weight": 0.5992,
-          "alt_weight": 0.5416
+          "weight": 0.6273,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "ml",
@@ -270,8 +270,8 @@
             "label": "triple",
             "calibrate": "sigmoid"
           },
-          "weight": 0.2379,
-          "alt_weight": 0.2917
+          "weight": 0.2145,
+          "alt_weight": 0.1667
         },
         {
           "strategy": "ml",
@@ -282,7 +282,7 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.1629,
+          "weight": 0.1582,
           "alt_weight": 0.1667
         }
       ]
@@ -416,13 +416,13 @@
       "strategy": "psar",
       "params": {},
       "promotions": 0,
-      "trials_total": 1301,
+      "trials_total": 1350,
       "parliament": [
         {
           "strategy": "psar",
           "params": {},
-          "weight": 0.4049,
-          "alt_weight": 0.1667
+          "weight": 0.4081,
+          "alt_weight": 0.2167
         },
         {
           "strategy": "ml",
@@ -433,8 +433,8 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.3832,
-          "alt_weight": 0.2667
+          "weight": 0.3842,
+          "alt_weight": 0.2417
         },
         {
           "strategy": "connors_rsi2",
@@ -444,11 +444,11 @@
             "exit_ma": 5,
             "trend_window": 200
           },
-          "weight": 0.212,
-          "alt_weight": 0.5666
+          "weight": 0.2077,
+          "alt_weight": 0.5416
         }
       ],
-      "last_run_asof": "2026-10-20"
+      "last_run_asof": "2026-10-21"
     },
     "us_stock:AAPL": {
       "strategy": "ml",
@@ -461,7 +461,7 @@
         "label": "triple"
       },
       "promotions": 0,
-      "trials_total": 1463,
+      "trials_total": 1516,
       "parliament": [
         {
           "strategy": "ml",
@@ -473,8 +473,8 @@
             "calibrate": "isotonic",
             "label": "triple"
           },
-          "weight": 0.4343,
-          "alt_weight": 0.4167
+          "weight": 0.4222,
+          "alt_weight": 0.1667
         },
         {
           "strategy": "ml",
@@ -487,8 +487,8 @@
             "label": "cost",
             "label_cost": 0.0012
           },
-          "weight": 0.2999,
-          "alt_weight": 0.1667
+          "weight": 0.3067,
+          "alt_weight": 0.2167
         },
         {
           "strategy": "ml",
@@ -501,36 +501,24 @@
             "label": "cost",
             "label_cost": 0.003
           },
-          "weight": 0.2658,
-          "alt_weight": 0.4167
+          "weight": 0.2711,
+          "alt_weight": 0.6166
         }
       ],
-      "last_run_asof": "2026-10-20"
+      "last_run_asof": "2026-10-21"
     },
     "us_stock:AMZN": {
       "strategy": "ml",
       "params": {
         "model": "logreg",
-        "threshold": 0.55,
+        "threshold": 0.6,
         "train_window": 250,
         "retrain_every": 20,
         "sizing": "binary"
       },
       "promotions": 0,
-      "trials_total": 1356,
+      "trials_total": 1409,
       "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20,
-            "sizing": "binary"
-          },
-          "weight": 0.4878,
-          "alt_weight": 0.1667
-        },
         {
           "strategy": "ml",
           "params": {
@@ -540,8 +528,8 @@
             "retrain_every": 20,
             "sizing": "binary"
           },
-          "weight": 0.2735,
-          "alt_weight": 0.2417
+          "weight": 0.4274,
+          "alt_weight": 0.6166
         },
         {
           "strategy": "ml",
@@ -553,11 +541,25 @@
             "sizing": "binary",
             "pool": "universe"
           },
-          "weight": 0.2387,
-          "alt_weight": 0.5916
+          "weight": 0.3331,
+          "alt_weight": 0.2167
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "sizing": "binary",
+            "label": "triple",
+            "meta": true
+          },
+          "weight": 0.2395,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-20"
+      "last_run_asof": "2026-10-21"
     },
     "us_stock:META": {
       "strategy": "ml",
@@ -1109,7 +1111,7 @@
         "calibrate": "sigmoid"
       },
       "promotions": 0,
-      "trials_total": 1165,
+      "trials_total": 1218,
       "parliament": [
         {
           "strategy": "ml",
@@ -1120,20 +1122,8 @@
             "retrain_every": 20,
             "calibrate": "sigmoid"
           },
-          "weight": 0.5696,
-          "alt_weight": 0.1667
-        },
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "gb",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20,
-            "calibrate": "sigmoid"
-          },
-          "weight": 0.2314,
-          "alt_weight": 0.1667
+          "weight": 0.5251,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "ma_cross",
@@ -1141,23 +1131,31 @@
             "fast": 20,
             "slow": 60
           },
-          "weight": 0.1989,
-          "alt_weight": 0.6666
+          "weight": 0.2446,
+          "alt_weight": 0.1667
+        },
+        {
+          "strategy": "bollinger",
+          "params": {
+            "mode": "squeeze"
+          },
+          "weight": 0.2303,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:DBC": {
       "strategy": "psar",
       "params": {},
       "promotions": 0,
-      "trials_total": 1115,
+      "trials_total": 1164,
       "parliament": [
         {
           "strategy": "psar",
           "params": {},
-          "weight": 0.4846,
-          "alt_weight": 0.2417
+          "weight": 0.4662,
+          "alt_weight": 0.2667
         },
         {
           "strategy": "connors_rsi2",
@@ -1167,8 +1165,8 @@
             "exit_ma": 5,
             "trend_window": 200
           },
-          "weight": 0.2687,
-          "alt_weight": 0.2667
+          "weight": 0.2711,
+          "alt_weight": 0.2167
         },
         {
           "strategy": "ml",
@@ -1178,11 +1176,11 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.2468,
-          "alt_weight": 0.4917
+          "weight": 0.2627,
+          "alt_weight": 0.5166
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:XLE": {
       "strategy": "breakout",
@@ -1191,7 +1189,7 @@
         "exit_window": 20
       },
       "promotions": 0,
-      "trials_total": 1165,
+      "trials_total": 1218,
       "parliament": [
         {
           "strategy": "breakout",
@@ -1199,17 +1197,8 @@
             "window": 55,
             "exit_window": 20
           },
-          "weight": 0.3866,
-          "alt_weight": 0.3667
-        },
-        {
-          "strategy": "supertrend",
-          "params": {
-            "period": 10,
-            "mult": 3.0
-          },
-          "weight": 0.3128,
-          "alt_weight": 0.1667
+          "weight": 0.3796,
+          "alt_weight": 0.3167
         },
         {
           "strategy": "ml",
@@ -1219,11 +1208,20 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.3007,
-          "alt_weight": 0.4667
+          "weight": 0.3164,
+          "alt_weight": 0.5166
+        },
+        {
+          "strategy": "supertrend",
+          "params": {
+            "period": 10,
+            "mult": 3.0
+          },
+          "weight": 0.3039,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:XLU": {
       "strategy": "ml",
@@ -1236,7 +1234,7 @@
         "meta": true
       },
       "promotions": 0,
-      "trials_total": 1166,
+      "trials_total": 1219,
       "parliament": [
         {
           "strategy": "ml",
@@ -1248,7 +1246,7 @@
             "label": "triple",
             "meta": true
           },
-          "weight": 0.3614,
+          "weight": 0.3567,
           "alt_weight": 0.1667
         },
         {
@@ -1259,8 +1257,8 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.3404,
-          "alt_weight": 0.6666
+          "weight": 0.3338,
+          "alt_weight": 0.1667
         },
         {
           "strategy": "ml",
@@ -1273,11 +1271,11 @@
             "meta": true,
             "calibrate": "isotonic"
           },
-          "weight": 0.2983,
-          "alt_weight": 0.1667
+          "weight": 0.3094,
+          "alt_weight": 0.6666
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:XLP": {
       "strategy": "ml",
@@ -1290,7 +1288,7 @@
         "pool": "universe"
       },
       "promotions": 0,
-      "trials_total": 1112,
+      "trials_total": 1165,
       "parliament": [
         {
           "strategy": "ml",
@@ -1302,21 +1300,8 @@
             "calibrate": "isotonic",
             "pool": "universe"
           },
-          "weight": 0.4078,
+          "weight": 0.4446,
           "alt_weight": 0.1667
-        },
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "gb",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20,
-            "calibrate": "isotonic",
-            "label": "triple"
-          },
-          "weight": 0.3656,
-          "alt_weight": 0.2167
         },
         {
           "strategy": "ml",
@@ -1328,11 +1313,25 @@
             "calibrate": "isotonic",
             "pool": "universe"
           },
-          "weight": 0.2266,
-          "alt_weight": 0.6166
+          "weight": 0.3047,
+          "alt_weight": 0.6666
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "calibrate": "isotonic",
+            "pool": "universe",
+            "sample_weight": "decay"
+          },
+          "weight": 0.2507,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:VNQ": {
       "strategy": "ml",
@@ -1344,7 +1343,7 @@
         "label": "triple"
       },
       "promotions": 0,
-      "trials_total": 1272,
+      "trials_total": 1325,
       "parliament": [
         {
           "strategy": "ml",
@@ -1355,8 +1354,8 @@
             "retrain_every": 20,
             "label": "triple"
           },
-          "weight": 0.405,
-          "alt_weight": 0.1667
+          "weight": 0.4499,
+          "alt_weight": 0.2917
         },
         {
           "strategy": "ml",
@@ -1368,24 +1367,20 @@
             "label": "triple",
             "meta": true
           },
-          "weight": 0.3622,
-          "alt_weight": 0.6666
+          "weight": 0.3565,
+          "alt_weight": 0.5416
         },
         {
-          "strategy": "ml",
+          "strategy": "cross_rank",
           "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20,
-            "label": "triple",
-            "pool": "universe"
+            "lookback": 120,
+            "top_frac": 0.5
           },
-          "weight": 0.2328,
+          "weight": 0.1936,
           "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "us_stock:UUP": {
       "strategy": "bollinger",
@@ -1568,7 +1563,7 @@
         "retrain_every": 20
       },
       "promotions": 0,
-      "trials_total": 1060,
+      "trials_total": 1113,
       "parliament": [
         {
           "strategy": "ml",
@@ -1578,8 +1573,8 @@
             "train_window": 250,
             "retrain_every": 20
           },
-          "weight": 0.61,
-          "alt_weight": 0.4
+          "weight": 0.4959,
+          "alt_weight": 0.2167
         },
         {
           "strategy": "ml",
@@ -1591,42 +1586,8 @@
             "label": "cost",
             "label_cost": 0.003
           },
-          "weight": 0.39,
-          "alt_weight": 0.6
-        }
-      ],
-      "last_run_asof": "2026-10-20"
-    },
-    "us_stock:GOOG": {
-      "strategy": "ml",
-      "params": {
-        "model": "logreg",
-        "threshold": 0.55,
-        "train_window": 250,
-        "retrain_every": 20
-      },
-      "promotions": 0,
-      "trials_total": 1007,
-      "parliament": [
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "logreg",
-            "threshold": 0.55,
-            "train_window": 250,
-            "retrain_every": 20
-          },
-          "weight": 0.4027,
-          "alt_weight": 0.6666
-        },
-        {
-          "strategy": "ma_cross",
-          "params": {
-            "fast": 20,
-            "slow": 60
-          },
-          "weight": 0.3643,
-          "alt_weight": 0.1667
+          "weight": 0.3213,
+          "alt_weight": 0.1917
         },
         {
           "strategy": "ml",
@@ -1637,11 +1598,60 @@
             "retrain_every": 20,
             "calibrate": "isotonic"
           },
-          "weight": 0.2331,
-          "alt_weight": 0.1667
+          "weight": 0.1827,
+          "alt_weight": 0.5916
         }
       ],
-      "last_run_asof": "2026-10-20"
+      "last_run_asof": "2026-10-21"
+    },
+    "us_stock:GOOG": {
+      "strategy": "ml",
+      "params": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "promotions": 0,
+      "trials_total": 1060,
+      "parliament": [
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20
+          },
+          "weight": 0.462,
+          "alt_weight": 0.1917
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "calibrate": "isotonic"
+          },
+          "weight": 0.2939,
+          "alt_weight": 0.6166
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "gb",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "pool": "universe"
+          },
+          "weight": 0.2441,
+          "alt_weight": 0.1917
+        }
+      ],
+      "last_run_asof": "2026-10-21"
     },
     "kr_stock:133690.KS": {
       "strategy": "bollinger",
@@ -1649,15 +1659,15 @@
         "mode": "squeeze"
       },
       "promotions": 0,
-      "trials_total": 1169,
+      "trials_total": 1218,
       "parliament": [
         {
           "strategy": "bollinger",
           "params": {
             "mode": "squeeze"
           },
-          "weight": 0.5719,
-          "alt_weight": 0.5916
+          "weight": 0.5689,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "ibs",
@@ -1665,7 +1675,7 @@
             "entry": 0.2,
             "exit": 0.8
           },
-          "weight": 0.2206,
+          "weight": 0.2195,
           "alt_weight": 0.1667
         },
         {
@@ -1677,11 +1687,11 @@
             "retrain_every": 20,
             "sizing": "binary"
           },
-          "weight": 0.2075,
-          "alt_weight": 0.2417
+          "weight": 0.2116,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "kr_stock:132030.KS": {
       "strategy": "cross_rank",
@@ -1690,7 +1700,7 @@
         "top_frac": 0.5
       },
       "promotions": 0,
-      "trials_total": 1216,
+      "trials_total": 1269,
       "parliament": [
         {
           "strategy": "cross_rank",
@@ -1698,13 +1708,13 @@
             "lookback": 120,
             "top_frac": 0.5
           },
-          "weight": 0.3843,
+          "weight": 0.3696,
           "alt_weight": 0.1667
         },
         {
           "strategy": "ichimoku",
           "params": {},
-          "weight": 0.3503,
+          "weight": 0.3513,
           "alt_weight": 0.6666
         },
         {
@@ -1713,11 +1723,11 @@
             "lookback": 60,
             "top_frac": 0.3
           },
-          "weight": 0.2654,
+          "weight": 0.2792,
           "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "kr_stock:148070.KS": {
       "strategy": "ml",
@@ -1731,7 +1741,7 @@
         "meta": true
       },
       "promotions": 0,
-      "trials_total": 1218,
+      "trials_total": 1271,
       "parliament": [
         {
           "strategy": "ml",
@@ -1744,22 +1754,8 @@
             "label": "triple",
             "meta": true
           },
-          "weight": 0.3857,
-          "alt_weight": 0.3917
-        },
-        {
-          "strategy": "ml",
-          "params": {
-            "model": "gb",
-            "threshold": 0.6,
-            "train_window": 250,
-            "retrain_every": 20,
-            "calibrate": "isotonic",
-            "label": "triple",
-            "meta": true
-          },
-          "weight": 0.333,
-          "alt_weight": 0.1667
+          "weight": 0.4241,
+          "alt_weight": 0.2417
         },
         {
           "strategy": "breakout",
@@ -1767,11 +1763,20 @@
             "window": 55,
             "exit_window": 20
           },
-          "weight": 0.2813,
-          "alt_weight": 0.4417
+          "weight": 0.3386,
+          "alt_weight": 0.5916
+        },
+        {
+          "strategy": "ma_cross",
+          "params": {
+            "fast": 20,
+            "slow": 60
+          },
+          "weight": 0.2373,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "kr_stock:228790.KS": {
       "strategy": "ml",
@@ -1783,7 +1788,7 @@
         "calibrate": "isotonic"
       },
       "promotions": 0,
-      "trials_total": 1210,
+      "trials_total": 1263,
       "parliament": [
         {
           "strategy": "ml",
@@ -1794,8 +1799,8 @@
             "retrain_every": 20,
             "calibrate": "isotonic"
           },
-          "weight": 0.6126,
-          "alt_weight": 0.75
+          "weight": 0.4863,
+          "alt_weight": 0.6666
         },
         {
           "strategy": "ml",
@@ -1808,11 +1813,25 @@
             "label": "cost",
             "label_cost": 0.003
           },
-          "weight": 0.3874,
-          "alt_weight": 0.25
+          "weight": 0.3262,
+          "alt_weight": 0.1667
+        },
+        {
+          "strategy": "ml",
+          "params": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "calibrate": "isotonic",
+            "label": "triple",
+            "meta": true
+          },
+          "weight": 0.1875,
+          "alt_weight": 0.1667
         }
       ],
-      "last_run_asof": "2026-10-21"
+      "last_run_asof": "2026-10-22"
     },
     "kr_stock:273130.KS": {
       "strategy": "cross_rank",
@@ -1848,8 +1867,8 @@
   "paper": {
     "crypto:BNB/USDT": {
       "start_cash": 10000.0,
-      "equity": 10411.25,
-      "return_pct": 4.11,
+      "equity": 10345.79,
+      "return_pct": 3.46,
       "mdd_pct": -2.7,
       "history": [
         {
@@ -5194,13 +5213,60 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-23",
+          "price": 730.8,
+          "weight": 0.25,
+          "held_weight": 0.2541,
+          "fractional_lot": false,
+          "equity": 10345.79,
+          "return_pct": 3.46,
+          "hit_rate": 0.524822695035461,
+          "hit_n": 141,
+          "hit_lo": 0.44283301378980977,
+          "hit_hi": 0.6054956431706215,
+          "hit_conclusive": false,
+          "live_hit": 0.4925373134328358,
+          "live_hit_n": 67,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 54% + cross_rank 39% + ml 7% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "00f660c5ec26",
+          "data_sha256": "6c3c1fd94748b8239b9ee1b1b8f6b5ca5becc2a4490008fc97722d22f10a08ac",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.1036,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0293,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:BTC/USDT": {
       "start_cash": 10000.0,
-      "equity": 10125.26,
-      "return_pct": 1.25,
+      "equity": 10028.99,
+      "return_pct": 0.29,
       "mdd_pct": -2.93,
       "history": [
         {
@@ -8583,6 +8649,53 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-23",
+          "price": 81345.3,
+          "weight": 0.25,
+          "held_weight": 0.2618,
+          "fractional_lot": false,
+          "equity": 10028.99,
+          "return_pct": 0.29,
+          "hit_rate": 0.48220064724919093,
+          "hit_n": 309,
+          "hit_lo": 0.42704700861692446,
+          "hit_hi": 0.537791427192124,
+          "hit_conclusive": false,
+          "live_hit": 0.5454545454545454,
+          "live_hit_n": 66,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 54% + cross_rank 26% + bollinger 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "00f660c5ec26",
+          "data_sha256": "4107b7a8cbea449011b3e784006b185f9471a236c46ad45c59d148558f4aea1d",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.1517,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0291,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
@@ -11938,13 +12051,60 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-23",
+          "price": 2390.73,
+          "weight": 0.0012,
+          "held_weight": 0.0,
+          "fractional_lot": false,
+          "equity": 10014.15,
+          "return_pct": 0.14,
+          "hit_rate": 0.5388127853881278,
+          "hit_n": 219,
+          "hit_lo": 0.472689382473052,
+          "hit_hi": 0.6035979893641633,
+          "hit_conclusive": false,
+          "live_hit": 0.5633802816901409,
+          "live_hit_n": 71,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "fast": 20,
+            "slow": 60
+          },
+          "reason": "관망 (현금) — 이동평균 교차: 20일선이 60일선 아래 (하락/횡보 추세 판단) · 🏛 의회 운용: ma_cross 66% + cross_rank 20% + ml 14% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "00f660c5ec26",
+          "data_sha256": "ceac258a0b45d65d84533d1a27f625604a60b9a15d8088c57764ae6d2ecf6ce9",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.1405,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0292,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:SOL/USDT": {
       "start_cash": 10000.0,
-      "equity": 10326.03,
-      "return_pct": 3.26,
+      "equity": 10242.62,
+      "return_pct": 2.43,
       "mdd_pct": -3.73,
       "history": [
         {
@@ -15220,14 +15380,58 @@
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
           "data_source": "okx"
+        },
+        {
+          "date": "2026-10-23",
+          "price": 103.81,
+          "weight": 0.25,
+          "held_weight": 0.2361,
+          "fractional_lot": false,
+          "equity": 10242.62,
+          "return_pct": 2.43,
+          "hit_rate": 0.4748743718592965,
+          "hit_n": 398,
+          "hit_lo": 0.42628815588270175,
+          "hit_hi": 0.523940989133643,
+          "hit_conclusive": false,
+          "live_hit": 0.5588235294117647,
+          "live_hit_n": 68,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {},
+          "reason": "매수 +25% — 매매 없이 보유: 이 종목은 오디션에서 **아무것도 하지 않는 쪽**이 AI 전략을 이겼습니다(2단계 심사 통과). 매수·매도 없이 계속 들고 갑니다 — 하락도 그대로 겪습니다 · 🏛 의회 운용: buy_hold 78% + bollinger 11% + rebalance_flow 10% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "00f660c5ec26",
+          "data_sha256": "485245fcf02eb8c7c67a55a9d0bc178216a0772633903cf1eec4febfcc19c2e8",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.0611,
+          "drift_grade": "안정",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0292,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
         }
       ]
     },
     "crypto:XRP/USDT": {
       "start_cash": 10000.0,
-      "equity": 10073.21,
-      "return_pct": 0.73,
-      "mdd_pct": -1.47,
+      "equity": 10022.08,
+      "return_pct": 0.22,
+      "mdd_pct": -1.63,
       "history": [
         {
           "date": "2026-08-05",
@@ -18805,6 +19009,57 @@
           "kelly_cap": 0.25,
           "bar_partial": {
             "elapsed": 0.03,
+            "timeframe": "1d",
+            "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
+          },
+          "data_source": "okx"
+        },
+        {
+          "date": "2026-10-23",
+          "price": 1.3106,
+          "weight": 0.118,
+          "held_weight": 0.1216,
+          "fractional_lot": false,
+          "equity": 10022.08,
+          "return_pct": 0.22,
+          "hit_rate": 0.4641509433962264,
+          "hit_n": 265,
+          "hit_lo": 0.4050455748289438,
+          "hit_hi": 0.5242808389403537,
+          "hit_conclusive": false,
+          "live_hit": 0.47058823529411764,
+          "live_hit_n": 51,
+          "live_hit_flat": 0,
+          "hit_flat": 0,
+          "champion": {
+            "model": "logreg",
+            "threshold": 0.55,
+            "train_window": 250,
+            "retrain_every": 20,
+            "label": "triple",
+            "meta": true
+          },
+          "reason": "매수 +12% — 로지스틱회귀 모델이 내일 상승확률을 약 60%로 추정(기준 55% 초과) · 사이징: 신호 원비중 35% → 변동성 타깃 조절 후 12% · 참고: 전 종목 합산으로 모델이 60%±10%p라 말한 354번의 실제 상승 비율 52% (95% 신뢰구간 46%~57% · 보합 6일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 11번으로 축적 중) · 🏛 의회 운용: ml 39% + bollinger 35% + breakout 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+          "fill": null,
+          "fill_cost": 0.0015,
+          "code_sha": "00f660c5ec26",
+          "data_sha256": "c7577306f8f67172851a89ccdbbd6c6fdc52d463bf3846c49fd46fade7f5ce82",
+          "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+          "accounting": "next_open_v2",
+          "prob_up": null,
+          "drift_psi": 0.194,
+          "drift_grade": "주의 (표본 잡음 범위)",
+          "drift_ref": {
+            "p50": 0.1904,
+            "p95": 0.4432,
+            "p99": 0.9437,
+            "n_ref": 250,
+            "n_new": 60
+          },
+          "earnings_guard": null,
+          "kelly_cap": 0.25,
+          "bar_partial": {
+            "elapsed": 0.0293,
             "timeframe": "1d",
             "note": "체결·평가에 쓴 마지막 봉이 아직 만들어지는 중이었다 — 이 봉의 종가·고저는 확정값이 아니다. 신호·피처는 이 봉을 빼고 확정된 봉까지만 봤다(감사 71)."
           },
@@ -186626,179 +186881,9 @@
       ]
     }
   },
-  "updated": "2026-10-22",
+  "updated": "2026-10-23",
   "swaps": [],
   "retrain_recent": [
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:TIP",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1059
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:DBC",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1017
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:XLE",
-      "promoted": false,
-      "n_candidates": 51,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1059
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:XLU",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 3,
-      "trials_total": 1060
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:XLP",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 3,
-      "trials_total": 1007
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:VNQ",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1166
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:UUP",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1132
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:EWJ",
-      "promoted": false,
-      "n_candidates": 52,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 1166
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:VGK",
-      "promoted": false,
-      "n_candidates": 52,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 1166
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:EEM",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1164
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:NVDA",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1411
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "us_stock:AAPL",
-      "promoted": false,
-      "n_candidates": 48,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1411
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "kr_stock:069500.KS",
-      "promoted": false,
-      "n_candidates": 52,
-      "vacuous": false,
-      "inert": 0,
-      "trials_total": 1393
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "kr_stock:133690.KS",
-      "promoted": false,
-      "n_candidates": 47,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1071
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "kr_stock:132030.KS",
-      "promoted": false,
-      "n_candidates": 49,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1111
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "kr_stock:148070.KS",
-      "promoted": false,
-      "n_candidates": 46,
-      "vacuous": false,
-      "inert": 2,
-      "trials_total": 1113
-    },
-    {
-      "asof": "2026-10-19",
-      "night": "2026-10-20",
-      "key": "kr_stock:228790.KS",
-      "promoted": false,
-      "n_candidates": 48,
-      "vacuous": false,
-      "inert": 1,
-      "trials_total": 1105
-    },
     {
       "asof": "2026-10-19",
       "night": "2026-10-20",
@@ -187828,6 +187913,176 @@
       "vacuous": false,
       "inert": 1,
       "trials_total": 1272
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:TIP",
+      "promoted": false,
+      "n_candidates": 49,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 1218
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:DBC",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1164
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:XLE",
+      "promoted": false,
+      "n_candidates": 51,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1218
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:XLU",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 3,
+      "trials_total": 1219
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:XLP",
+      "promoted": false,
+      "n_candidates": 49,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1165
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "us_stock:VNQ",
+      "promoted": false,
+      "n_candidates": 48,
+      "vacuous": false,
+      "inert": 3,
+      "trials_total": 1325
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:NVDA",
+      "promoted": false,
+      "n_candidates": 50,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1517
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:AAPL",
+      "promoted": false,
+      "n_candidates": 49,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1516
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:GOOGL",
+      "promoted": false,
+      "n_candidates": 51,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1113
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:GOOG",
+      "promoted": false,
+      "n_candidates": 52,
+      "vacuous": false,
+      "inert": 0,
+      "trials_total": 1060
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:MSFT",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1350
+    },
+    {
+      "asof": "2026-10-21",
+      "night": "2026-10-23",
+      "key": "us_stock:AMZN",
+      "promoted": false,
+      "n_candidates": 50,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1409
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "kr_stock:069500.KS",
+      "promoted": false,
+      "n_candidates": 52,
+      "vacuous": false,
+      "inert": 0,
+      "trials_total": 1552
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "kr_stock:133690.KS",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1218
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "kr_stock:132030.KS",
+      "promoted": false,
+      "n_candidates": 52,
+      "vacuous": false,
+      "inert": 0,
+      "trials_total": 1269
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "kr_stock:148070.KS",
+      "promoted": false,
+      "n_candidates": 47,
+      "vacuous": false,
+      "inert": 2,
+      "trials_total": 1271
+    },
+    {
+      "asof": "2026-10-22",
+      "night": "2026-10-23",
+      "key": "kr_stock:228790.KS",
+      "promoted": false,
+      "n_candidates": 51,
+      "vacuous": false,
+      "inert": 1,
+      "trials_total": 1263
     }
   ],
   "live_url": null,
@@ -187904,28 +188159,28 @@
         "track": "intraday",
         "label": "코인 장중",
         "calendar": "UTC",
-        "days": 66,
+        "days": 67,
         "vs": [
           {
             "bench": "crypto:BTC/USDT",
             "bench_name": "비트코인",
-            "n": 63,
-            "beta": 0.103,
-            "corr": 0.188,
-            "alpha_bp": -15.39,
-            "t": -0.89,
+            "n": 64,
+            "beta": 0.098,
+            "corr": 0.181,
+            "alpha_bp": -14.37,
+            "t": -0.84,
             "significant": false,
             "from": "2026-08-20",
-            "to": "2026-10-22"
+            "to": "2026-10-23"
           },
           {
             "bench": "us_stock:QQQ",
             "bench_name": "나스닥100(QQQ)",
             "n": 44,
-            "beta": 0.709,
-            "corr": 0.489,
-            "alpha_bp": -13.17,
-            "t": -0.64,
+            "beta": 0.712,
+            "corr": 0.491,
+            "alpha_bp": -13.31,
+            "t": -0.65,
             "significant": false,
             "from": "2026-08-20",
             "to": "2026-10-22"
@@ -187936,12 +188191,12 @@
         "track": "futures",
         "label": "코인 선물",
         "calendar": "UTC",
-        "days": 5,
+        "days": 6,
         "vs": [
           {
             "bench": "crypto:BTC/USDT",
             "bench_name": "비트코인",
-            "n": 4,
+            "n": 5,
             "short": true
           },
           {
@@ -188664,7 +188919,7 @@
         "sell": 2
       }
     ],
-    "fetched_on": "2026-10-22",
+    "fetched_on": "2026-10-23",
     "filers_total": 20,
     "filers_seen": 18,
     "caveat": "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.",
@@ -189073,7 +189328,7 @@
       }
     ],
     "fetch": {
-      "on": "2026-10-22",
+      "on": "2026-10-23",
       "ok": true,
       "kept_previous": false,
       "filers_total": 20,
@@ -189220,13 +189475,13 @@
     "all": {
       "n": 42,
       "effective_n": 9.8,
-      "mean_corr": 0.0801,
+      "mean_corr": 0.0802,
       "pairs": 780
     },
     "crypto": {
       "n": 5,
       "effective_n": 1.15,
-      "mean_corr": 0.8329,
+      "mean_corr": 0.8358,
       "pairs": 10
     },
     "kr_stock": {
@@ -189265,10 +189520,10 @@
       "cadence:1h-15m": {
         "state": "진행 중",
         "n": 66,
-        "sum": 0.01042118,
-        "boundary": 0.21540053,
-        "mean_daily_pct": 0.01579,
-        "progress": 0.0484,
+        "sum": 0.01013386,
+        "boundary": 0.21543828,
+        "mean_daily_pct": 0.01535,
+        "progress": 0.047,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -189277,10 +189532,10 @@
       "cadence:1h-5m": {
         "state": "진행 중",
         "n": 66,
-        "sum": 0.1437974,
-        "boundary": 0.23959252,
-        "mean_daily_pct": 0.21787,
-        "progress": 0.6002,
+        "sum": 0.14471191,
+        "boundary": 0.23942874,
+        "mean_daily_pct": 0.21926,
+        "progress": 0.6044,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -189289,10 +189544,10 @@
       "cadence:15m-5m": {
         "state": "진행 중",
         "n": 66,
-        "sum": 0.13337622,
-        "boundary": 0.18082888,
-        "mean_daily_pct": 0.20209,
-        "progress": 0.7376,
+        "sum": 0.13457805,
+        "boundary": 0.18073187,
+        "mean_daily_pct": 0.20391,
+        "progress": 0.7446,
         "alpha": 0.016666666666666666,
         "rho": 30.0,
         "experiment": "cadence_ladder",
@@ -189301,7 +189556,7 @@
       "limit_shadow:market-limit": {
         "state": "조기 판정: 열세",
         "n": 66,
-        "sum": -0.0229883,
+        "sum": -0.02298836,
         "boundary": 0.01210036,
         "mean_daily_pct": -0.03483,
         "progress": 1.0,
@@ -189675,13 +189930,13 @@
     "latest_night": "2026-10-23",
     "roster": 40,
     "threshold": 5,
-    "worst": 2,
+    "worst": 1,
     "median": 1,
     "never_seen": [],
     "starving": {}
   },
   "briefing": {
-    "date": "2026-10-22",
+    "date": "2026-10-23",
     "items": [
       {
         "cat": "증시",
@@ -189706,24 +189961,17 @@
       },
       {
         "cat": "증시",
-        "title": "고개든 AI 투자 ’회의론’…뉴욕증시서 나스닥 2.6%↓ - 연합뉴스TV",
-        "source": "연합뉴스TV",
-        "link": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE51UHZlUGkzVEZwSDFNaV9ONjNhVkZnR1UzZDZ5Rk9MRk1zX1JxemdKMGxTUHNBVDA1Y2M0dTRLSlp5Sk5QUE90cVdjakpqWkZWMEhXQU5LQ2FWT2M1UHR4NzBuZ1RYQzg?oc=5",
-        "time": "Thu, 22 Oct 2026 20:23:00 GMT"
+        "title": "[단독] 코스피 급락에 '패닉'…개미들 14조 들고 몰려간 곳 - 한국경제",
+        "source": "한국경제",
+        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTFB1WFJ0MDhzWWNSVTVKOVVrMWN4bGFLNEViQWdyYlM4Sm1UWWlPRDA5eHE0UlR0dlZ0SHo3Q2tzNmp1dFNkNEpycktvRWpzeG15V282RkRPZnFqQQ?oc=5",
+        "time": "Fri, 23 Oct 2026 00:26:00 GMT"
       },
       {
         "cat": "금리·환율",
-        "title": "[김학균의 이코노믹스] 40년 저금리 시대의 종언, 금리 대폭 하락 기대 접어야 - 중앙일보",
-        "source": "중앙일보",
-        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1nMFJxZTBlenMzMTh4dUpKZ3IweXZWVTRQLU5tWlo3Rmc4Smx2a2IxUXFyT3FuVkp2d010MFB2ME1NWGtuc3MxdEhwV2xOMktHVS15OFN3?oc=5",
-        "time": "Thu, 22 Oct 2026 15:12:00 GMT"
-      },
-      {
-        "cat": "금리·환율",
-        "title": "기준금리 3% 동결...한은 총재, 재정 정책에 쓴소리 - YTN",
+        "title": "[스타트 경제] 한은, 기준금리 연 3%로 만장일치 동결...11월 인상? - YTN",
         "source": "YTN",
-        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTE1EVWdWY052UVhuM3M0TTl0b1RZOWxXVXFsaW8tZXVydU00OGJ6UWRGNFBSNHduOGNaREJ4TzRrdkpRVlZncDVFREtvWXJwbkp0VjktXzViRTdaLXFvUmc?oc=5",
-        "time": "Thu, 22 Oct 2026 14:02:00 GMT"
+        "link": "https://news.google.com/rss/articles/CBMiXkFVX3lxTFB4dWczYUlhbGF6alpycXF3ZzRyUXdjUXI4MUllTXVFbXVfX0pmYnVLVXlGT1FRWVQxckd2RFRwZlY1WUVzeDd0cGtHZHZqM00xSjNWUTRrN1RDRmFWbGc?oc=5",
+        "time": "Thu, 22 Oct 2026 22:27:00 GMT"
       },
       {
         "cat": "금리·환율",
@@ -189737,7 +189985,14 @@
         "title": "안전자산 찾아서…美 10년물 국채 금리, 한달만에 5% 밑으로 - 연합뉴스",
         "source": "연합뉴스",
         "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5rSVd3R1p3bV9xNV90T2ZGV0Exa0VmRHFJejNzTS1COXpoaHdMSDFPdEtzb3NqSElLRi1oZUM2YjM1U1dvcUxoUGxxUDhXYTZ4LVJxMzdkQmc5cmfSAWBBVV95cUxNSWlxOEdZcjc4UnFKUFNyQWVSSnZVZk5OX3UyUHk5SXNPUVBmamNFQkZHUlg3ZkZQZWliTUV1UlYzU29CcXF2VE5aUV83ckxZVkFsbENpRGoyVm1oZUVqang?oc=5",
-        "time": "Thu, 22 Oct 2026 21:14:56 GMT"
+        "time": "Thu, 22 Oct 2026 23:00:04 GMT"
+      },
+      {
+        "cat": "금리·환율",
+        "title": "[김학균의 이코노믹스] 40년 저금리 시대의 종언, 금리 대폭 하락 기대 접어야 - 중앙일보",
+        "source": "중앙일보",
+        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1nMFJxZTBlenMzMTh4dUpKZ3IweXZWVTRQLU5tWlo3Rmc4Smx2a2IxUXFyT3FuVkp2d010MFB2ME1NWGtuc3MxdEhwV2xOMktHVS15OFN3?oc=5",
+        "time": "Thu, 22 Oct 2026 15:12:00 GMT"
       },
       {
         "cat": "코인",
@@ -189749,10 +190004,10 @@
       },
       {
         "cat": "코인",
-        "title": "美 비트코인·이더리움 ETF서 2주새 2조3000억원 빠져나가 - 매일경제 마켓",
-        "source": "매일경제 마켓",
-        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBjcHVSZ2RBYUNqd0oyTzhsdXMtUkFibGpRM01YbVNWY2p4cktoWkhOR2J0WXZ4YjNpQUk5MnBsMEljS1ZyNGRlX3Ffemdtckt5ZkE?oc=5",
-        "time": "Tue, 20 Oct 2026 08:33:33 GMT"
+        "title": "[코인뉴스] 하루짜리 반등…비트코인·이더리움 ‘뚝’ - 데일리안",
+        "source": "데일리안",
+        "link": "https://news.google.com/rss/articles/CBMiuAJBVV95cUxQUlpQR2RUYUVVSk5UQ19RTEg3V3NXdlR0bzdhOW9CTDJ0SmZjMDE2eER0UXZPSjlDbGY5SzFJY0Y3TWVEbUYwZXZ1MHBMaS1jNWQ2ZGJ4NF94YmF3NHlNaFR3dlBqMDczazFmZlc4WmlsMmx6U0V3QzZWa3BjMWdGclBfbUYyNVVBR2FzNHFNZ01qRm1UUU5Vam80M1NSRU5zNnlNeTgxUEp6ZUFNMXhaVkF2SFl5Y1QydTctNWhBeC1yU3JzRVM4ckQtbGZGNFNKaVZaRWNENzB2R2FyZHdhWmlpc3NDZXJpVWt1MmRvNG9pV3FsWGNJeFZvZV9fM1J5YU1NUGQ0WDlkN2pxWW56WElsNVJwSGFqYkxFR3pmOXk4dzJRNHBfN3hIcTg1S1RzS0x0Nkg4X1I?oc=5",
+        "time": "Fri, 23 Oct 2026 00:13:00 GMT"
       },
       {
         "cat": "코인",
@@ -189763,25 +190018,25 @@
       },
       {
         "cat": "코인",
-        "title": "비트코인·이더리움·리플 동반 하락…ETF 자금 유입에도 매도세 확산, 추가 조정 경고 - 코인리더스",
-        "source": "코인리더스",
-        "link": "https://news.google.com/rss/articles/CBMiSkFVX3lxTE9KWUVhaFBwM3VrTk5kTzhCbk1HRzVhZHVuN0Npd1ZxcWgwT2xocERvV09LTVlNY0VvOGhPdE93RGlCblpvOTNvX213?oc=5",
-        "time": "Thu, 22 Oct 2026 11:44:00 GMT"
+        "title": "美 비트코인·이더리움 ETF서 2주새 2조3000억원 빠져나가 - 매일경제 마켓",
+        "source": "매일경제 마켓",
+        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBjcHVSZ2RBYUNqd0oyTzhsdXMtUkFibGpRM01YbVNWY2p4cktoWkhOR2J0WXZ4YjNpQUk5MnBsMEljS1ZyNGRlX3Ffemdtckt5ZkE?oc=5",
+        "time": "Tue, 20 Oct 2026 08:33:33 GMT"
       },
       {
         "cat": "종목",
-        "title": "[코인 시황] 비트코인 8만2000달러대로 추락…ETF에 10억달러 몰려도 반등 실패 - 뉴스핌",
-        "source": "뉴스핌",
-        "link": "https://news.google.com/rss/articles/CBMiXEFVX3lxTFBoWHpnSG1QV19nZGEyVEdKSXBvMzA4VHN6YUJtSzJKN1hzZmRqQnZQeDVrM1VONmRMNHpjSERKem5sYV9mSFBwc3ViRUtIa243VU1aZ0wxTllzTjRB?oc=5",
-        "time": "Thu, 22 Oct 2026 10:18:00 GMT",
+        "title": "비트코인 1억890만 원대 하락, 미국 AI 투자 수익성 관련 우려에 위험자산 투심 위축 - 비즈니스포스트",
+        "source": "비즈니스포스트",
+        "link": "https://news.google.com/rss/articles/CBMic0FVX3lxTFBBU0I2aHdEbjhaeDJHOGF5WFg1bjN2TzhLZEpJX3RuN0JiaG9MS0VlVHNhbkd0bGJtQ0RJYkd4dTk2VTB4dG9Wb3J5cG9uZHZBd2VxT3BtWUdnN3lsOTNjdGNlbFRtM0tiakdNbGtaV1NaTjQ?oc=5",
+        "time": "Thu, 22 Oct 2026 23:48:30 GMT",
         "sym": "crypto:BTC/USDT"
       },
       {
         "cat": "종목",
-        "title": "Olenox, 비트코인 채굴기 2만 대로 확대 계획 - Investing.com 한국어",
-        "source": "Investing.com 한국어",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE9BMEVjcGQxY3FGSTVYQ3M1TnBfRmZIVkxpcEhIZXdfT1A1QlF6SzVTLXdCQ2VBa2wyV0RvcFQ4ck1rdEVFdUZ5UFZ3bDVzLWxzbWpTOWVjbktaTkF4QXl5dFdDSHgtcGlSZ01Pck1XV0w?oc=5",
-        "time": "Thu, 22 Oct 2026 12:38:00 GMT",
+        "title": "스페이스X+테슬라, 비트코인 '슈퍼메기'로 - 매일경제",
+        "source": "매일경제",
+        "link": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE5UNnJub2E5QXIzOU9GalF6alFQbVJLWjNRSWc0eVVDMkYtVy1jakMwcWprVkFiWTFDWWt1dkJTRXN2NE9TWkQxQmhFekRXRlo2ZEE?oc=5",
+        "time": "Thu, 22 Oct 2026 08:33:11 GMT",
         "sym": "crypto:BTC/USDT"
       },
       {
@@ -189802,10 +190057,10 @@
       },
       {
         "cat": "종목",
-        "title": "솔라나, 알펜글로우 무사 적용에 108.96달러…ETF 유출은 변수 - 코인리더스",
+        "title": "솔라나(SOL), 업그레이드 호재에도 내림세...100달러 사수전 돌입 - 코인리더스",
         "source": "코인리더스",
-        "link": "https://news.google.com/rss/articles/CBMiSkFVX3lxTE1aVnRkcVAwNk1ydk9MRWlxTUZ6VlZIcHg4SWlYYzFQYUlialhOcUpWR0QzcUNVMVZpZ3Bhamt2di1OdGpLRl8ycFln?oc=5",
-        "time": "Thu, 22 Oct 2026 11:57:10 GMT",
+        "link": "https://news.google.com/rss/articles/CBMiSkFVX3lxTFBYRDV3OWhiSE9YSEU2R0VvckxVSF9mVXFqOVZiUU1lOC1OMHZzSHdPWGZlWlc0b1FlZE1wYnMzWHZlT0ZKYW9KRUJR?oc=5",
+        "time": "Thu, 22 Oct 2026 23:30:00 GMT",
         "sym": "crypto:SOL/USDT"
       },
       {
@@ -189844,48 +190099,48 @@
         "cat": "종목",
         "title": "엔비디아 4.4%·램리서치 11.8% 급락… 데이터센터주 ‘휘청’ - IT조선",
         "source": "IT조선",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFA3MnpkcklhUEVKaENWeUJGemROdTVzUHJRaURPZ253Uno0bGhPY01aUURTdGpXODF5bENQV1NKSW9rSTd5ZWRydlIwM0NVRzBaTld4dEVfQnBzckdFeXBSWHlLQWk1cDFzb3NubEZyc1g?oc=5",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFA3MnpkcklhUEVKaENWeUJGemROdTVzUHJRaURPZ253Uno0bGhPY01aUURTdGpXODF5bENQV1NKSW9rSTd5ZWRydlIwM0NVRzBaTld4dEVfQnBzckdFeXBSWHlLQWk1cDFzb3NubEZyc1jSAXRBVV95cUxQTzdhcHJhYTB2LU1RT2cxQzRFSUZFR0RMRmNHS1JfeEtVcElBM2h2M2lHb2dHTFNFYVZtenZYV1dZV1Nrbm5kY1V3VTJHcE84eE5teWMyVzh4RVBFRUdzdm1qaFBWVjFoTmM1SHREcWNfNXp6VA?oc=5",
         "time": "Thu, 22 Oct 2026 21:49:14 GMT",
         "sym": "us_stock:NVDA"
       },
       {
         "cat": "종목",
-        "title": "엔비디아 호재 터졌지만 주가 하락…삼성전기 전망은? - 한국경제",
-        "source": "한국경제",
-        "link": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE1LMm82cURSbGhWbVdYVHByeXBTMU5uVTZ1Y0JBUVZxd2dqSGhManZqUHc0T0pkMUt4T0g3N0lpeGlhUWI4WEQzS091R3gzZUxzSVNRa190V2RLdw?oc=5",
-        "time": "Thu, 22 Oct 2026 07:07:56 GMT",
+        "title": "“주가 20% 급락” “제2엔비디아”…삼전·SK하닉 전망 갈렸다 - 중앙일보",
+        "source": "중앙일보",
+        "link": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1sTDA0R2gzVnFZZkxsX1kyems1WV9WUmJSZHV6X19ZZXlyVTE0NzJWeXhyVmhtb0lSSnhERnRZYkVLT1hhbzJ1QzRjcWxPc3J2cV9KT2NR?oc=5",
+        "time": "Mon, 19 Oct 2026 05:29:03 GMT",
         "sym": "us_stock:NVDA"
       },
       {
         "cat": "종목",
-        "title": "뉴욕증시, 스페이스X 실적에 기술주 강세…나스닥 1.1%↑(종합) - 연합뉴스",
-        "source": "연합뉴스",
-        "link": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE5USDg1ZGJ4endrVEZaeUJBSXZKcThGUXZuYlk1UlpNYjc4Tk9BVjlWQXNoQmtnUWRDVGozWTBjRF9LUWp0bm1aV2hhdkVuTzJ5NE9fZ1BIb2RQVFXSAWBBVV95cUxQYXlVMTVGOHhXWFNuRDJ0aTJKRk9oNTEzbm5PMXpkY1FJT1N4b0lhWWJZYlBJQ2h2MXBJWldxSWdRY1hJbmlYUWVzdlJyRGFlQ0k1VWpIQXR6d3dGYzdFcjU?oc=5",
-        "time": "Wed, 21 Oct 2026 21:14:43 GMT",
+        "title": "뉴욕증시, AI 투자 우려 재부상에 기술주 급락…나스닥 2.6%↓ - 뉴시스",
+        "source": "뉴시스",
+        "link": "https://news.google.com/rss/articles/CBMiYEFVX3lxTE0tYkRBdmNDTGw0REQzQlhjUlF3OWxaYkthQ3REZ1B0ZzU4NXF0Y1cyUm54LTRWV2Q1NGRJQThmaHJzZkFzdUNFYzRIb3BtVXBpRGJCME1TVFlGLVBJTGFSNNIBeEFVX3lxTE1GaFVLbnZ3Ym5wSEpHME03VGcxX2doQVczbS1KZUdqWG9LRmJITTNSS2RnelFUbTRaaGF0OFY4eW9RTFk1aVhhYzdKcnhSSjRFN3MtY2V0X25NMjNZQjEtXzNEaFZ4SGFZb184Z056UE41b2NaRXpudg?oc=5",
+        "time": "Thu, 22 Oct 2026 20:35:23 GMT",
         "sym": "us_stock:QQQ"
       },
       {
         "cat": "종목",
-        "title": "AI 투자비 감당할 수 있나…나스닥 2.6% 급락 - 조선일보",
-        "source": "조선일보",
-        "link": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxOeEtCMnJfN3NwWjZsSU1ucktWZzc4UWtIV2VlYVQ4UnFLUkdBUlQxbFc2bHNVWUszNkNOZ2tKT01naUdyeHBCZDMzR0JqNWR1UlJWa25UT1pDM1RvUE1ta19SdnFCdUZsWmF1dkJfZm1SeGZxaV96UFY2YUlGV0l6akRwajdwd2t5?oc=5",
-        "time": "Thu, 22 Oct 2026 20:56:00 GMT",
+        "title": "나스닥, 6월 이후 최대 하락 기록 후 미국 주식 선물 보합세 - Investing.com 한국어",
+        "source": "Investing.com 한국어",
+        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTFBZNVFrcGRTeTBxXy1pOENDMi0wR21TRlMyVk9nMk9WVnAyWGxmWjZIakNFVG00aTc4STdsMmw3MDloREtST3RKS0VLXzNJYzdCTFVNazhQUGFmSWpXYVhYZjFKaF9LMEFEb1o2cTJWMEg?oc=5",
+        "time": "Fri, 23 Oct 2026 00:23:00 GMT",
         "sym": "us_stock:QQQ"
       },
       {
         "cat": "종목",
-        "title": "[속보] SK하이닉스, 솔리다임 미국 증시 상장 계획 접는다 - 한겨레",
-        "source": "한겨레",
-        "link": "https://news.google.com/rss/articles/CBMiakFVX3lxTFA4cjBiVkdZSHJJVXk5YTM1Ui1wSkJaU1RWNFhnUVh1SC0yUjdIZ3pfRzFFYmMxNTBIY0pFUmlEbnZMLW44aHNmRVQ4YVpyM0lMMUJKdFNhcVAzeFZMMjVDT2JBaUp1XzFxaUE?oc=5",
-        "time": "Thu, 22 Oct 2026 22:39:00 GMT",
+        "title": "SK하이닉스, 손자회사 솔리다임 미국 증시 상장 철회 - 전자신문",
+        "source": "전자신문",
+        "link": "https://news.google.com/rss/articles/CBMiTkFVX3lxTFBudGZqNGQ3VHBHN1hDclp3QkVTRHBkd0pSdzJ0Ql80V1J5YU1BSVAtTnZjR3dCZk0wSlVpUjZzeXNxUDJOc04wenBVcWxZZw?oc=5",
+        "time": "Thu, 22 Oct 2026 22:37:28 GMT",
         "sym": "us_stock:SPY"
       },
       {
         "cat": "종목",
-        "title": "미국증시도 곧 조정에 들어갈 것 코스피는 못 버틸 겁니다 - 연합인포맥스",
-        "source": "연합인포맥스",
-        "link": "https://news.google.com/rss/articles/CBMicEFVX3lxTE90Ni1yaThPQmE4Z29GN3FrZGlpa1RqWDRBYXVtWllnRDlYM0dQMVg5WnFpa0xEZ0cyN2phcjNEX2V5ZUFQOHlVNEI4MUdtcnpNekJaZ3JQTjR1N0ZuY1F5cVczU3hvRGFtOVNxaUxRWUnSAXRBVV95cUxOam4yMmF3dWU5X3FkdjZBNHZVVFFSQk4wdHhnWmk0WmZHRGNqeDcyVTBaOUkxRlBmcGcyX0NCdV9tRF9PZEI1aHk5XzZReHUtM1RHd1Y0NVdmTVZyeTBWZzJiTXRObmtIMVJ0X3VqREsyNF85UQ?oc=5",
-        "time": "Wed, 21 Oct 2026 23:59:16 GMT",
+        "title": "[시황] 미국증시, AI 투자수익성 우려에 기술주 급락·다우 강보합 - 버핏연구소",
+        "source": "버핏연구소",
+        "link": "https://news.google.com/rss/articles/CBMiYkFVX3lxTE5HZm1TRU9zd0dTbFlNaTRkSjBNbEVWT05SWXlEUXcwSE9NY0dLSG14OFhHWUFqc19sRjRsWXk1dlVzYkhvZ3JZRThzekF3OE1ZblRtZVhlWUFRdURBUDlwZlJB?oc=5",
+        "time": "Thu, 22 Oct 2026 23:11:56 GMT",
         "sym": "us_stock:SPY"
       }
     ],
@@ -189946,9 +190201,9 @@
     "source": "FRED(세인트루이스 연준) · 발표 시차 보정"
   },
   "generation": {
-    "feature_set": "fs8:+fredmacro/krw1/opt14:2fa2",
+    "feature_set": "fs8:+fredmacro/krw1/opt17:b15f",
     "since": "2026-08-13",
-    "days": 70,
+    "days": 71,
     "target_days": 90,
     "versions": [
       {
@@ -189964,7 +190219,7 @@
       {
         "on": "2026-10-21",
         "axis": "실측 피처 구성",
-        "what": "확인된 피처 14개"
+        "what": "확인된 피처 17개"
       }
     ],
     "amended": {
@@ -189979,17 +190234,20 @@
     },
     "realized": {
       "since": "2026-10-21",
-      "n": 14,
+      "n": 17,
       "features": [
         "x_btc_ret5",
         "x_fng",
         "x_funding",
         "x_funding_chg",
+        "x_guru13f",
+        "x_guru13f_flow",
         "x_hy_spread",
         "x_kimchi",
         "x_oi_chg5",
         "x_spy_ret5",
         "x_t10y2y",
+        "x_t10yie_chg5",
         "x_tnx_chg5",
         "x_usd_chg5",
         "x_usdkrw_ret5",
@@ -190003,12 +190261,12 @@
           "n": 8
         },
         "kr_stock": {
-          "since": "2026-08-18",
-          "n": 7
-        },
-        "us_stock": {
           "since": "2026-10-21",
           "n": 4
+        },
+        "us_stock": {
+          "since": "2026-10-09",
+          "n": 10
         }
       }
     }
@@ -190016,18 +190274,40 @@
   "run_health": {
     "retrain": {
       "date": "2026-10-23",
-      "runs": 1,
-      "ok": 1,
+      "runs": 3,
+      "ok": 18,
       "failed": 0,
-      "skipped": 0,
+      "skipped": 4,
       "ok_keys": [
-        "us_stock:LQD"
+        "kr_stock:069500.KS",
+        "kr_stock:132030.KS",
+        "kr_stock:133690.KS",
+        "kr_stock:148070.KS",
+        "kr_stock:228790.KS",
+        "us_stock:AAPL",
+        "us_stock:AMZN",
+        "us_stock:DBC",
+        "us_stock:GOOG",
+        "us_stock:GOOGL",
+        "us_stock:LQD",
+        "us_stock:MSFT",
+        "us_stock:NVDA",
+        "us_stock:TIP",
+        "us_stock:VNQ",
+        "us_stock:XLE",
+        "us_stock:XLP",
+        "us_stock:XLU"
       ],
-      "skipped_keys": [],
+      "skipped_keys": [
+        "us_stock:EEM",
+        "us_stock:EWJ",
+        "us_stock:UUP",
+        "us_stock:VGK"
+      ],
       "failed_keys": [],
       "errors": {},
       "roster": 40,
-      "not_reached": 39,
+      "not_reached": 18,
       "not_reached_keys": [
         "crypto:BNB/USDT",
         "crypto:BTC/USDT",
@@ -190039,44 +190319,28 @@
         "kr_stock:005930.KS",
         "kr_stock:035420.KS",
         "kr_stock:051910.KS",
-        "kr_stock:069500.KS",
         "kr_stock:105560.KS",
-        "kr_stock:132030.KS",
-        "kr_stock:133690.KS",
-        "kr_stock:148070.KS",
-        "kr_stock:228790.KS",
         "kr_stock:273130.KS",
-        "us_stock:AAPL",
-        "us_stock:AMZN",
-        "us_stock:DBC",
-        "us_stock:EEM",
-        "us_stock:EWJ",
         "us_stock:GLD",
-        "us_stock:GOOG",
-        "us_stock:GOOGL",
         "us_stock:IEF",
-        "us_stock:MSFT",
-        "us_stock:NVDA",
         "us_stock:QQQ",
         "us_stock:SLV",
         "us_stock:SPY",
-        "us_stock:TIP",
-        "us_stock:TLT",
-        "us_stock:UUP",
-        "us_stock:VGK",
-        "us_stock:VNQ",
-        "us_stock:XLE",
-        "us_stock:XLP",
-        "us_stock:XLU"
+        "us_stock:TLT"
       ]
     },
     "paper": {
       "date": "2026-10-23",
-      "runs": 2,
-      "ok": 35,
+      "runs": 3,
+      "ok": 40,
       "failed": 0,
-      "skipped": 5,
+      "skipped": 0,
       "ok_keys": [
+        "crypto:BNB/USDT",
+        "crypto:BTC/USDT",
+        "crypto:ETH/USDT",
+        "crypto:SOL/USDT",
+        "crypto:XRP/USDT",
         "kr_stock:000660.KS",
         "kr_stock:005380.KS",
         "kr_stock:005930.KS",
@@ -190113,13 +190377,7 @@
         "us_stock:XLP",
         "us_stock:XLU"
       ],
-      "skipped_keys": [
-        "crypto:BNB/USDT",
-        "crypto:BTC/USDT",
-        "crypto:ETH/USDT",
-        "crypto:SOL/USDT",
-        "crypto:XRP/USDT"
-      ],
+      "skipped_keys": [],
       "failed_keys": [],
       "errors": {}
     }
@@ -190193,10 +190451,10 @@
         "n_days": 7
       },
       "2026-10-19": {
-        "return_pct": 1.09,
-        "equity": 10411.25,
+        "return_pct": 0.45,
+        "equity": 10345.79,
         "deposit": null,
-        "n_days": 4
+        "n_days": 5
       }
     },
     "crypto:BTC/USDT": {
@@ -190267,10 +190525,10 @@
         "n_days": 7
       },
       "2026-10-19": {
-        "return_pct": 0.94,
-        "equity": 10125.26,
+        "return_pct": -0.02,
+        "equity": 10028.99,
         "deposit": null,
-        "n_days": 4
+        "n_days": 5
       }
     },
     "crypto:ETH/USDT": {
@@ -190344,7 +190602,7 @@
         "return_pct": 0.55,
         "equity": 10014.15,
         "deposit": null,
-        "n_days": 4
+        "n_days": 5
       }
     },
     "crypto:SOL/USDT": {
@@ -190415,10 +190673,10 @@
         "n_days": 7
       },
       "2026-10-19": {
-        "return_pct": 0.93,
-        "equity": 10326.03,
+        "return_pct": 0.11,
+        "equity": 10242.62,
         "deposit": null,
-        "n_days": 4
+        "n_days": 5
       }
     },
     "crypto:XRP/USDT": {
@@ -190489,10 +190747,10 @@
         "n_days": 7
       },
       "2026-10-19": {
-        "return_pct": 0.35,
-        "equity": 10073.21,
+        "return_pct": -0.16,
+        "equity": 10022.08,
         "deposit": null,
-        "n_days": 4
+        "n_days": 5
       }
     },
     "kr_stock:000660.KS": {
@@ -192989,7 +193247,6 @@
   "crosssection": {
     "asof": "2026-10-22",
     "days": [
-      "2026-10-20",
       "2026-10-21",
       "2026-10-22"
     ],
@@ -192997,19 +193254,19 @@
     "note": "챔피언을 뽑은 것과 같은 데이터에서 잰 값입니다(인샘플). 종목 간 상관이 있어 유효 표본은 종목 수보다 작습니다.",
     "all": {
       "n": 40,
-      "wins": 32,
-      "win_rate": 0.8,
-      "sharpe_mean": 0.4035,
-      "sharpe_sd": 0.595,
-      "t": 4.2889
+      "wins": 31,
+      "win_rate": 0.775,
+      "sharpe_mean": 0.3921,
+      "sharpe_sd": 0.5911,
+      "t": 4.1957
     },
     "stocks": {
       "n": 35,
-      "wins": 27,
-      "win_rate": 0.7714,
-      "sharpe_mean": 0.3632,
-      "sharpe_sd": 0.6146,
-      "t": 3.4962
+      "wins": 26,
+      "win_rate": 0.7429,
+      "sharpe_mean": 0.3502,
+      "sharpe_sd": 0.6094,
+      "t": 3.4002
     },
     "markets": {
       "crypto": {
@@ -193022,19 +193279,19 @@
       },
       "kr_stock": {
         "n": 12,
-        "wins": 10,
-        "win_rate": 0.8333,
-        "sharpe_mean": 0.5318,
-        "sharpe_sd": 0.8858,
-        "t": 2.0799
+        "wins": 9,
+        "win_rate": 0.75,
+        "sharpe_mean": 0.5303,
+        "sharpe_sd": 0.8565,
+        "t": 2.1447
       },
       "us_stock": {
         "n": 23,
         "wins": 17,
         "win_rate": 0.7391,
-        "sharpe_mean": 0.2752,
-        "sharpe_sd": 0.4097,
-        "t": 3.2217
+        "sharpe_mean": 0.2563,
+        "sharpe_sd": 0.4244,
+        "t": 2.8959
       }
     },
     "symbols": [
@@ -193050,8 +193307,8 @@
         "key": "kr_stock:069500.KS",
         "market": "kr_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": 0.714407,
+        "asof": "2026-10-22",
+        "total_return": 0.714406,
         "sharpe": 1.2207
       },
       {
@@ -193074,9 +193331,9 @@
         "key": "kr_stock:133690.KS",
         "market": "kr_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": 0.389537,
-        "sharpe": 1.0745
+        "asof": "2026-10-22",
+        "total_return": 0.395691,
+        "sharpe": 1.0886
       },
       {
         "key": "kr_stock:105560.KS",
@@ -193095,18 +193352,10 @@
         "sharpe": 1.0023
       },
       {
-        "key": "us_stock:NVDA",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
-        "total_return": 0.248751,
-        "sharpe": 0.9207
-      },
-      {
         "key": "kr_stock:132030.KS",
         "market": "kr_stock",
         "bars": 800,
-        "asof": "2026-10-21",
+        "asof": "2026-10-22",
         "total_return": 0.47289,
         "sharpe": 0.9127
       },
@@ -193122,9 +193371,9 @@
         "key": "us_stock:XLE",
         "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": 0.289122,
-        "sharpe": 0.8364
+        "asof": "2026-10-22",
+        "total_return": 0.278681,
+        "sharpe": 0.8105
       },
       {
         "key": "us_stock:SPY",
@@ -193143,6 +193392,14 @@
         "sharpe": 0.7566
       },
       {
+        "key": "us_stock:NVDA",
+        "market": "us_stock",
+        "bars": 799,
+        "asof": "2026-10-21",
+        "total_return": 0.184732,
+        "sharpe": 0.7111
+      },
+      {
         "key": "kr_stock:005380.KS",
         "market": "kr_stock",
         "bars": 799,
@@ -193151,12 +193408,20 @@
         "sharpe": 0.6427
       },
       {
+        "key": "us_stock:GOOGL",
+        "market": "us_stock",
+        "bars": 799,
+        "asof": "2026-10-21",
+        "total_return": 0.111728,
+        "sharpe": 0.6342
+      },
+      {
         "key": "us_stock:MSFT",
         "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
+        "bars": 799,
+        "asof": "2026-10-21",
         "total_return": 0.306394,
-        "sharpe": 0.6163
+        "sharpe": 0.6167
       },
       {
         "key": "crypto:BTC/USDT",
@@ -193175,20 +193440,20 @@
         "sharpe": 0.5039
       },
       {
-        "key": "us_stock:GOOGL",
+        "key": "us_stock:GOOG",
         "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
-        "total_return": 0.088698,
-        "sharpe": 0.5017
+        "bars": 799,
+        "asof": "2026-10-21",
+        "total_return": 0.072156,
+        "sharpe": 0.4289
       },
       {
         "key": "us_stock:DBC",
         "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": 0.144012,
-        "sharpe": 0.4203
+        "asof": "2026-10-22",
+        "total_return": 0.146402,
+        "sharpe": 0.4259
       },
       {
         "key": "crypto:XRP/USDT",
@@ -193197,14 +193462,6 @@
         "asof": "2026-10-22",
         "total_return": 0.061031,
         "sharpe": 0.4118
-      },
-      {
-        "key": "us_stock:AAPL",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
-        "total_return": 0.049195,
-        "sharpe": 0.4019
       },
       {
         "key": "us_stock:EWJ",
@@ -193217,10 +193474,10 @@
       {
         "key": "us_stock:AMZN",
         "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
-        "total_return": 0.110465,
-        "sharpe": 0.3392
+        "bars": 799,
+        "asof": "2026-10-21",
+        "total_return": 0.106951,
+        "sharpe": 0.3761
       },
       {
         "key": "us_stock:UUP",
@@ -193247,14 +193504,6 @@
         "sharpe": 0.3087
       },
       {
-        "key": "us_stock:GOOG",
-        "market": "us_stock",
-        "bars": 800,
-        "asof": "2026-10-20",
-        "total_return": 0.039756,
-        "sharpe": 0.2478
-      },
-      {
         "key": "us_stock:SLV",
         "market": "us_stock",
         "bars": 800,
@@ -193271,12 +193520,12 @@
         "sharpe": 0.1809
       },
       {
-        "key": "us_stock:XLU",
+        "key": "us_stock:AAPL",
         "market": "us_stock",
-        "bars": 800,
+        "bars": 799,
         "asof": "2026-10-21",
-        "total_return": 0.006277,
-        "sharpe": 0.1369
+        "total_return": 0.007632,
+        "sharpe": 0.0772
       },
       {
         "key": "us_stock:IEF",
@@ -193287,12 +193536,20 @@
         "sharpe": 0.0419
       },
       {
-        "key": "kr_stock:228790.KS",
-        "market": "kr_stock",
+        "key": "us_stock:XLP",
+        "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": 0.000604,
-        "sharpe": 0.0247
+        "asof": "2026-10-22",
+        "total_return": 0.000917,
+        "sharpe": 0.0316
+      },
+      {
+        "key": "us_stock:VNQ",
+        "market": "us_stock",
+        "bars": 800,
+        "asof": "2026-10-22",
+        "total_return": -0.032353,
+        "sharpe": -0.108
       },
       {
         "key": "us_stock:EEM",
@@ -193311,20 +193568,20 @@
         "sharpe": -0.1895
       },
       {
-        "key": "us_stock:VNQ",
+        "key": "us_stock:XLU",
         "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": -0.066482,
-        "sharpe": -0.2175
+        "asof": "2026-10-22",
+        "total_return": -0.010167,
+        "sharpe": -0.2151
       },
       {
-        "key": "us_stock:TIP",
-        "market": "us_stock",
+        "key": "kr_stock:228790.KS",
+        "market": "kr_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": -0.00489,
-        "sharpe": -0.3262
+        "asof": "2026-10-22",
+        "total_return": -0.031514,
+        "sharpe": -0.2487
       },
       {
         "key": "us_stock:TLT",
@@ -193335,12 +193592,12 @@
         "sharpe": -0.3445
       },
       {
-        "key": "us_stock:XLP",
+        "key": "us_stock:TIP",
         "market": "us_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": -0.022051,
-        "sharpe": -0.3838
+        "asof": "2026-10-22",
+        "total_return": -0.01154,
+        "sharpe": -0.7312
       },
       {
         "key": "kr_stock:273130.KS",
@@ -193354,9 +193611,9 @@
         "key": "kr_stock:148070.KS",
         "market": "kr_stock",
         "bars": 800,
-        "asof": "2026-10-21",
-        "total_return": -0.067469,
-        "sharpe": -1.5136
+        "asof": "2026-10-22",
+        "total_return": -0.068258,
+        "sharpe": -1.2726
       }
     ]
   },
@@ -193395,8 +193652,8 @@
       "dsr": 5.1831465730511894e-08,
       "pbo": 0.17063492063492064,
       "cost_basis_bp": 15.0,
-      "cpcv_worst_return": -0.10742927283152626,
-      "cpcv_min_sharpe": -1.7127949821399229,
+      "cpcv_worst_return": -0.10742925996567687,
+      "cpcv_min_sharpe": -1.7127947616635106,
       "skipped": null,
       "peak_only": true
     },
@@ -193404,11 +193661,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.0019302577718881553,
+      "dsr": 0.0019300495642502469,
       "pbo": 0.8809523809523809,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.06341572175042298,
-      "cpcv_min_sharpe": -0.3401986867504945,
+      "cpcv_worst_return": -0.06342058295827824,
+      "cpcv_min_sharpe": -0.3402132831991461,
       "skipped": null,
       "peak_only": true
     },
@@ -193431,8 +193688,8 @@
       "dsr": 1.0200658773218407e-06,
       "pbo": 0.38492063492063494,
       "cost_basis_bp": 15.0,
-      "cpcv_worst_return": -0.11720679678333712,
-      "cpcv_min_sharpe": -1.2164081003753522,
+      "cpcv_worst_return": -0.1171477760160089,
+      "cpcv_min_sharpe": -1.2157331236554505,
       "skipped": null,
       "peak_only": false
     },
@@ -193443,8 +193700,8 @@
       "dsr": 7.517414641333708e-05,
       "pbo": 0.047619047619047616,
       "cost_basis_bp": 15.0,
-      "cpcv_worst_return": -0.07635402526513368,
-      "cpcv_min_sharpe": -0.8715545154454066,
+      "cpcv_worst_return": -0.07637873687124885,
+      "cpcv_min_sharpe": -0.8718403463995917,
       "skipped": null,
       "peak_only": true
     },
@@ -193464,11 +193721,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.002769237396683555,
+      "dsr": 0.002768746772155384,
       "pbo": 0.4880952380952381,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.030634073901217418,
-      "cpcv_min_sharpe": -0.09508461384993822,
+      "cpcv_worst_return": -0.030637761359672333,
+      "cpcv_min_sharpe": -0.09510044175076024,
       "skipped": null,
       "peak_only": true
     },
@@ -193476,11 +193733,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.02130911974687799,
+      "dsr": 0.02130974501590871,
       "pbo": 0.6626984126984127,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": 0.030933430798579575,
-      "cpcv_min_sharpe": 0.1667674468420154,
+      "cpcv_worst_return": 0.030933893282707015,
+      "cpcv_min_sharpe": 0.1667693587610504,
       "skipped": null,
       "peak_only": true
     },
@@ -193488,11 +193745,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.00411145783235356,
+      "dsr": 0.004108411579296423,
       "pbo": 0.14285714285714285,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": 0.05940486130199463,
-      "cpcv_min_sharpe": 0.37272378143625934,
+      "cpcv_worst_return": 0.05938284585145159,
+      "cpcv_min_sharpe": 0.3726296304904278,
       "skipped": null,
       "peak_only": false
     },
@@ -193500,11 +193757,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 5.922553972714795e-05,
+      "dsr": 5.925234951192904e-05,
       "pbo": 0.5555555555555556,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.09665843105121219,
-      "cpcv_min_sharpe": -0.6889775150873649,
+      "cpcv_worst_return": -0.09665966546656013,
+      "cpcv_min_sharpe": -0.6889867363640004,
       "skipped": null,
       "peak_only": false
     },
@@ -193546,11 +193803,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.10862704931937195,
-      "pbo": 0.21031746031746032,
+      "dsr": 0.10868248531850394,
+      "pbo": 0.1984126984126984,
       "cost_basis_bp": 6.5,
-      "cpcv_worst_return": 0.06580534204204991,
-      "cpcv_min_sharpe": 0.29745137693966867,
+      "cpcv_worst_return": 0.06407654183571343,
+      "cpcv_min_sharpe": 0.29063696508143255,
       "skipped": null,
       "peak_only": true
     },
@@ -193558,23 +193815,23 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.005420779899164896,
-      "pbo": 0.9087301587301587,
+      "dsr": 0.005420986986803544,
+      "pbo": 0.9285714285714286,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": -0.0017311211860376874,
-      "cpcv_min_sharpe": 0.010692739482374,
+      "cpcv_worst_return": -0.00029509782594683287,
+      "cpcv_min_sharpe": 0.015939965130186053,
       "skipped": null,
-      "peak_only": true
+      "peak_only": false
     },
     "kr_stock:000660.KS": {
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.0033471518010197987,
+      "dsr": 0.0033471615203151672,
       "pbo": 0.46825396825396826,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": 0.0038425148905965045,
-      "cpcv_min_sharpe": 0.050299747305466186,
+      "cpcv_worst_return": 0.003843970385911666,
+      "cpcv_min_sharpe": 0.05031123919888062,
       "skipped": null,
       "peak_only": false
     },
@@ -193582,11 +193839,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 5.863794906030284e-05,
-      "pbo": 0.36507936507936506,
+      "dsr": 5.86375138404982e-05,
+      "pbo": 0.4365079365079365,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": 0.0210912173016804,
-      "cpcv_min_sharpe": 0.2418635413572878,
+      "cpcv_worst_return": 0.014900412665922014,
+      "cpcv_min_sharpe": 0.17461428426622508,
       "skipped": null,
       "peak_only": true
     },
@@ -193594,11 +193851,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.00014702529640381323,
-      "pbo": 0.7420634920634921,
+      "dsr": 0.0001469835238497308,
+      "pbo": 0.7182539682539683,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": -0.07328305573062566,
-      "cpcv_min_sharpe": -0.7795481836066193,
+      "cpcv_worst_return": -0.07343720463782633,
+      "cpcv_min_sharpe": -0.7771912660080308,
       "skipped": null,
       "peak_only": false
     },
@@ -193606,11 +193863,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.002648174985428131,
+      "dsr": 0.002648183817253902,
       "pbo": 0.8611111111111112,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": 0.09365855224254394,
-      "cpcv_min_sharpe": 0.721231640400809,
+      "cpcv_worst_return": 0.0936586331608662,
+      "cpcv_min_sharpe": 0.721232342779327,
       "skipped": null,
       "peak_only": true
     },
@@ -193618,11 +193875,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.007748834475985622,
+      "dsr": 0.00774877014778097,
       "pbo": 0.031746031746031744,
       "cost_basis_bp": 14.0,
-      "cpcv_worst_return": -0.05785864035716182,
-      "cpcv_min_sharpe": -0.37197385493886553,
+      "cpcv_worst_return": -0.06582467044293461,
+      "cpcv_min_sharpe": -0.42765528757873006,
       "skipped": null,
       "peak_only": true
     },
@@ -193645,8 +193902,8 @@
       "dsr": 3.567837249823791e-05,
       "pbo": 0.5317460317460317,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.05887509304114735,
-      "cpcv_min_sharpe": -0.3679008961692207,
+      "cpcv_worst_return": -0.058939799108146285,
+      "cpcv_min_sharpe": -0.3683456182262427,
       "skipped": null,
       "peak_only": true
     },
@@ -193654,11 +193911,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 8.096197863238785e-07,
-      "pbo": 0.7420634920634921,
+      "dsr": 8.084611134995257e-07,
+      "pbo": 0.7341269841269841,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.07186387705116981,
-      "cpcv_min_sharpe": -0.8111158959773208,
+      "cpcv_worst_return": -0.07181161048770812,
+      "cpcv_min_sharpe": -0.8102873934577431,
       "skipped": null,
       "peak_only": false
     },
@@ -193666,11 +193923,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 8.579447041690003e-09,
-      "pbo": 0.007936507936507936,
+      "dsr": 8.431010833920283e-09,
+      "pbo": 0.015873015873015872,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.1417849352398629,
-      "cpcv_min_sharpe": -2.0025057068091585,
+      "cpcv_worst_return": -0.1940239144974154,
+      "cpcv_min_sharpe": -2.494358383327573,
       "skipped": null,
       "peak_only": true
     },
@@ -193678,11 +193935,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 4.2351441960519765e-05,
-      "pbo": 0.18253968253968253,
+      "dsr": 4.005822131109005e-05,
+      "pbo": 0.20634920634920634,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.0409107150334963,
-      "cpcv_min_sharpe": -0.4871967467020234,
+      "cpcv_worst_return": -0.04110125103637552,
+      "cpcv_min_sharpe": -0.4886911076351071,
       "skipped": null,
       "peak_only": false
     },
@@ -193690,11 +193947,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 4.5391468361799525e-13,
-      "pbo": 0.4722222222222222,
+      "dsr": 4.5063952569535104e-13,
+      "pbo": 0.5277777777777778,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.11701765301057054,
-      "cpcv_min_sharpe": -1.855878525088092,
+      "cpcv_worst_return": -0.1153601488645456,
+      "cpcv_min_sharpe": -1.8175810061680011,
       "skipped": null,
       "peak_only": false
     },
@@ -193702,11 +193959,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.001364487122383795,
-      "pbo": 0.5873015873015873,
+      "dsr": 0.0013644845764237412,
+      "pbo": 0.6031746031746031,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": 0.03493216709411695,
-      "cpcv_min_sharpe": 0.2588149412388783,
+      "cpcv_worst_return": 0.04336121184091901,
+      "cpcv_min_sharpe": 0.32791026394640643,
       "skipped": null,
       "peak_only": false
     },
@@ -193714,11 +193971,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.00010742493199628056,
-      "pbo": 0.3611111111111111,
+      "dsr": 0.00010720353413007366,
+      "pbo": 0.373015873015873,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.057789121076470606,
-      "cpcv_min_sharpe": -0.5347559939449578,
+      "cpcv_worst_return": -0.054296300644018136,
+      "cpcv_min_sharpe": -0.5344501853320779,
       "skipped": null,
       "peak_only": false
     },
@@ -193726,11 +193983,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 8.258803086919064e-05,
-      "pbo": 0.07539682539682539,
+      "dsr": 8.258298135888076e-05,
+      "pbo": 0.051587301587301584,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.07363964905431053,
-      "cpcv_min_sharpe": -0.4050573645732945,
+      "cpcv_worst_return": -0.07599146898506082,
+      "cpcv_min_sharpe": -0.4214751329766854,
       "skipped": null,
       "peak_only": true
     },
@@ -193738,11 +193995,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.0001639115479392661,
+      "dsr": 0.00016394293587429498,
       "pbo": 0.876984126984127,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.09800820234603835,
-      "cpcv_min_sharpe": -0.6248545269946105,
+      "cpcv_worst_return": -0.09800413099829808,
+      "cpcv_min_sharpe": -0.6248316756283153,
       "skipped": null,
       "peak_only": false
     },
@@ -193750,23 +194007,23 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 3.494187251473768e-05,
-      "pbo": 0.47619047619047616,
+      "dsr": 3.4977680857029014e-05,
+      "pbo": 0.5277777777777778,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.09111524895212608,
-      "cpcv_min_sharpe": -0.7093056147696517,
+      "cpcv_worst_return": -0.0938203814905979,
+      "cpcv_min_sharpe": -0.6776163448910157,
       "skipped": null,
-      "peak_only": false
+      "peak_only": true
     },
     "us_stock:UUP": {
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 2.006375462715315e-06,
+      "dsr": 2.0063763933597656e-06,
       "pbo": 0.003968253968253968,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.16253170010219997,
-      "cpcv_min_sharpe": -1.985876461576133,
+      "cpcv_worst_return": -0.16253169819223,
+      "cpcv_min_sharpe": -1.9858765017284474,
       "skipped": null,
       "peak_only": true
     },
@@ -193774,11 +194031,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.00460390781828468,
+      "dsr": 0.004603586717797203,
       "pbo": 0.21031746031746032,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.019851346054511998,
-      "cpcv_min_sharpe": -0.1277213109341306,
+      "cpcv_worst_return": -0.019852720446657757,
+      "cpcv_min_sharpe": -0.12773201682429683,
       "skipped": null,
       "peak_only": false
     },
@@ -193786,11 +194043,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.00012295947357016113,
-      "pbo": 0.4166666666666667,
+      "dsr": 0.0001229748412071574,
+      "pbo": 0.4444444444444444,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.08217571677087421,
-      "cpcv_min_sharpe": -0.45013312973733505,
+      "cpcv_worst_return": -0.09079019964560797,
+      "cpcv_min_sharpe": -0.49802317975531707,
       "skipped": null,
       "peak_only": true
     },
@@ -193798,11 +194055,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.05041196195804343,
+      "dsr": 0.050417668097060386,
       "pbo": 0.0873015873015873,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": 0.0631347138024212,
-      "cpcv_min_sharpe": 0.4000187875478915,
+      "cpcv_worst_return": 0.06313883096672823,
+      "cpcv_min_sharpe": 0.40004159967488123,
       "skipped": null,
       "peak_only": true
     },
@@ -193810,11 +194067,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.002826762065301247,
-      "pbo": 0.8492063492063492,
+      "dsr": 0.0028249414148646124,
+      "pbo": 0.8611111111111112,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.06928544283094329,
-      "cpcv_min_sharpe": -0.45166117779395737,
+      "cpcv_worst_return": -0.06930893023852291,
+      "cpcv_min_sharpe": -0.4518392222748841,
       "skipped": null,
       "peak_only": true
     },
@@ -193822,11 +194079,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.0030072666075944277,
+      "dsr": 0.0030042428713358826,
       "pbo": 0.7896825396825397,
       "cost_basis_bp": 6.0,
-      "cpcv_worst_return": -0.05279369035748582,
-      "cpcv_min_sharpe": -0.5361057974105049,
+      "cpcv_worst_return": -0.05280929053279981,
+      "cpcv_min_sharpe": -0.536291802122371,
       "skipped": null,
       "peak_only": false
     },
@@ -193834,11 +194091,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.07764828691048248,
-      "pbo": 0.19444444444444445,
+      "dsr": 0.07762432589599066,
+      "pbo": 0.17063492063492064,
       "cost_basis_bp": 6.5,
-      "cpcv_worst_return": -0.049837289624110936,
-      "cpcv_min_sharpe": -0.22665277697573585,
+      "cpcv_worst_return": -0.057127394286179745,
+      "cpcv_min_sharpe": -0.26310940298993957,
       "skipped": null,
       "peak_only": false
     },
@@ -193870,11 +194127,11 @@
       "strategy": "ml",
       "bars": 800,
       "asof": "2026-10-22",
-      "dsr": 0.0021701692568207864,
-      "pbo": 0.8214285714285714,
+      "dsr": 0.002172337228009802,
+      "pbo": 0.8849206349206349,
       "cost_basis_bp": 6.5,
-      "cpcv_worst_return": 0.02454403874261879,
-      "cpcv_min_sharpe": 0.15715707263885492,
+      "cpcv_worst_return": 0.030962162329315257,
+      "cpcv_min_sharpe": 0.1911507902542441,
       "skipped": null,
       "peak_only": true
     },
@@ -193898,18 +194155,18 @@
     "max_seats": 3,
     "cap": 3,
     "diversified": true,
-    "distinct_specs": 56,
-    "top_spec_share": 0.1032,
-    "weight_gap": 0.2201,
+    "distinct_specs": 55,
+    "top_spec_share": 0.1013,
+    "weight_gap": 0.2236,
     "weight_gap_measured": 40
   },
   "provable": {
     "asof": "2026-10-22",
     "symbols": 42,
     "bars_median": 800,
-    "trials_median": 1311,
+    "trials_median": 1337,
     "dsr_pass": 0.95,
-    "dsr_best": 0.1086,
+    "dsr_best": 0.1087,
     "dsr_median": 0.0008,
     "passing": 0,
     "required_ann_sharpe": 2.82,
@@ -193922,12 +194179,12 @@
       {
         "label": "종목을 묶어 한 모델로(실효 표본 1.78배)",
         "bars": 1424,
-        "required_ann_sharpe": 2.1
+        "required_ann_sharpe": 2.11
       },
       {
         "label": "하루 1회 판단 · 6년",
         "bars": 1600,
-        "required_ann_sharpe": 1.98
+        "required_ann_sharpe": 1.99
       },
       {
         "label": "1시간마다 판단 · 3년",
