@@ -2,7 +2,7 @@
   "cash": 3717.442238911644,
   "quantity": 8.588372047417359,
   "avg_price": 715.8141107134419,
-  "last_bar": "2026-10-23 00:00:00",
+  "last_bar": "2026-10-26 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -2602,13 +2602,61 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-26",
+      "price": 712.2000122070312,
+      "weight": 0.25,
+      "held_weight": 0.622,
+      "fractional_lot": false,
+      "equity": 9834.08,
+      "return_pct": -1.66,
+      "hit_rate": 0.5525525525525525,
+      "hit_n": 333,
+      "hit_lo": 0.4988490256533309,
+      "hit_hi": 0.605057380206278,
+      "hit_conclusive": false,
+      "live_hit": 0.43333333333333335,
+      "live_hit_n": 30,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "entry": 0.2,
+        "exit": 0.8
+      },
+      "reason": "매수 +25% — ibs 전략 신호에 따름 · 🏛 의회 운용: ibs 36% + ml 35% + ma_cross 29% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 707.059998,
+        "bar": "2026-10-26 00:00:00",
+        "weight": 0.5856,
+        "decided_bar": "2026-10-23 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "d447af1e859f",
+      "data_sha256": "f3e92bd28e2c68bad58d9ef09118fbb908414d6232221f584f9761ce8c195ec9",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.0954,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
   "symbol": "QQQ",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.5856,
-    "decided_bar": "2026-10-23 00:00:00"
+    "weight": 0.25,
+    "decided_bar": "2026-10-26 00:00:00"
   }
 }

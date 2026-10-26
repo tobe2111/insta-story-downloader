@@ -2,7 +2,7 @@
   "cash": 0.0,
   "quantity": 0.0905400045701165,
   "avg_price": 111400.0,
-  "last_bar": "2026-10-23 00:00:00",
+  "last_bar": "2026-10-26 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2116,11 +2116,59 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-26",
+      "price": 112195.0,
+      "weight": 1.0,
+      "held_weight": 1.0,
+      "fractional_lot": true,
+      "equity": 10158.14,
+      "return_pct": 1.58,
+      "hit_rate": 0.5370370370370371,
+      "hit_n": 162,
+      "hit_lo": 0.4602842477721484,
+      "hit_hi": 0.6120739542712473,
+      "hit_conclusive": false,
+      "live_hit": 0.6666666666666666,
+      "live_hit_n": 15,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "lookback": 20,
+        "top_frac": 0.3
+      },
+      "reason": "매수 +100% — cross_rank 전략 신호에 따름 · 🏛 의회 운용: cross_rank 43% + ma_cross 34% + ml 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 112045.0,
+        "bar": "2026-10-26 00:00:00",
+        "weight": 1.0,
+        "decided_bar": "2026-10-23 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "d447af1e859f",
+      "data_sha256": "92399e188cf925547e5931ce6241a90db40604705374e806f92715973ca16625",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2745,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 1.0,
-    "decided_bar": "2026-10-23 00:00:00"
+    "decided_bar": "2026-10-26 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "273130.KS",

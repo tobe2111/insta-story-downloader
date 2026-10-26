@@ -1,8 +1,8 @@
 {
-  "cash": 9956.449436207986,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-10-23 00:00:00",
+  "cash": 3077.5385207318886,
+  "quantity": 64.67343223407465,
+  "avg_price": 106.30000305175781,
+  "last_bar": "2026-10-26 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2177,11 +2177,62 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-26",
+      "price": 106.30999755859375,
+      "weight": 0.0,
+      "held_weight": 0.6908,
+      "fractional_lot": false,
+      "equity": 9952.97,
+      "return_pct": -0.47,
+      "hit_rate": 0.527027027027027,
+      "hit_n": 222,
+      "hit_lo": 0.4614495215817752,
+      "hit_hi": 0.5916850647831814,
+      "hit_conclusive": false,
+      "live_hit": 0.4117647058823529,
+      "live_hit_n": 17,
+      "live_hit_flat": 0,
+      "hit_flat": 5,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 45% + ma_cross 29% + ml 26% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 106.300003,
+        "bar": "2026-10-26 00:00:00",
+        "weight": 0.6909,
+        "decided_bar": "2026-10-23 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "d447af1e859f",
+      "data_sha256": "ea855956e44068ff590f29bab29d44d02b8c5a9b06a7612cbf9415c087e0441a",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.3714827624081997,
+      "drift_psi": 0.2116,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.6909,
-    "decided_bar": "2026-10-23 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-26 00:00:00"
   },
   "market": "us_stock",
   "symbol": "TIP",

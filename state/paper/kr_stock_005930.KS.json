@@ -1,8 +1,8 @@
 {
-  "cash": 8920.038309760672,
-  "quantity": 0.0028384720700051274,
-  "avg_price": 206000.0,
-  "last_bar": "2026-10-23 00:00:00",
+  "cash": 9525.203677405041,
+  "quantity": 0.0,
+  "avg_price": 0.0,
+  "last_bar": "2026-10-26 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -2396,13 +2396,60 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-26",
+      "price": 213000.0,
+      "weight": 0.1074,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9525.2,
+      "return_pct": -4.75,
+      "hit_rate": 0.5771812080536913,
+      "hit_n": 298,
+      "hit_lo": 0.5204588760538527,
+      "hit_hi": 0.6319389378988962,
+      "hit_conclusive": true,
+      "live_hit": 0.47058823529411764,
+      "live_hit_n": 34,
+      "live_hit_flat": 4,
+      "hit_flat": 8,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "매수 +11% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 48% + turn_of_month 33% + expiry_week 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 213500.0,
+        "bar": "2026-10-26 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-10-23 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "d447af1e859f",
+      "data_sha256": "75c34db12007b6b3c031f992c1a89aced6ac1042a369638593bde89e67881358",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1038,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-10-23 00:00:00"
+    "weight": 0.1074,
+    "decided_bar": "2026-10-26 00:00:00"
   }
 }
