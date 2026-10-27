@@ -1,45 +1,12 @@
 {
-  "cash": 3756.902206600915,
+  "cash": 5664.677479319328,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "SOL/USDT": 18.531207129809598,
-    "BNB/USDT": 2.544229298019492,
-    "XRP/USDT": 1459.7304871038793
+    "BNB/USDT": 2.544229298019492
   },
   "rounds": [
-    {
-      "time": "2026-09-03T08:15:26+09:00",
-      "equity": 10433.9,
-      "signals": {
-        "BTC/USDT": 0.0,
-        "ETH/USDT": 0.0,
-        "SOL/USDT": 0.0,
-        "BNB/USDT": 0.0,
-        "XRP/USDT": 0.0
-      },
-      "bar_times": {
-        "BTC/USDT": "2026-09-02 22:00:00",
-        "ETH/USDT": "2026-09-02 22:00:00",
-        "SOL/USDT": "2026-09-02 22:00:00",
-        "BNB/USDT": "2026-09-02 22:00:00",
-        "XRP/USDT": "2026-09-02 22:00:00"
-      },
-      "trades": [],
-      "limit_shadow": {
-        "equity": 10543.63,
-        "filled": 0,
-        "cancelled": 0,
-        "pending": 0
-      },
-      "conviction_scale": {
-        "BTC/USDT": 1.0,
-        "ETH/USDT": 1.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 1.0,
-        "XRP/USDT": 3.0
-      }
-    },
     {
       "time": "2026-09-03T10:11:09+09:00",
       "equity": 10433.9,
@@ -63915,15 +63882,51 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-10-27T09:07:40+09:00",
+      "equity": 9425.51,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-10-26 23:00:00",
+        "ETH/USDT": "2026-10-26 23:00:00",
+        "SOL/USDT": "2026-10-26 23:00:00",
+        "BNB/USDT": "2026-10-26 23:00:00",
+        "XRP/USDT": "2026-10-26 23:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "XRP/USDT",
+          "side": "sell",
+          "notional": -1910.64,
+          "price": 1.3089,
+          "cost": 2.866,
+          "signal": 0.0,
+          "realized_pnl": 34.0652,
+          "avg_cost": 1.2836
+        }
+      ],
+      "limit_shadow": {
+        "equity": 9651.01,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 721.3104707303553,
+  "cost_paid": 724.1764325822107,
   "last_prices": {
-    "BTC/USDT": 80008.2,
-    "ETH/USDT": 2314.15,
-    "SOL/USDT": 100.38,
-    "BNB/USDT": 742.24,
-    "XRP/USDT": 1.2919
+    "BTC/USDT": 80146.0,
+    "ETH/USDT": 2324.57,
+    "SOL/USDT": 100.95,
+    "BNB/USDT": 742.9,
+    "XRP/USDT": 1.3089
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -63945,15 +63948,21 @@
       "BNB/USDT": 2.603784077037841,
       "XRP/USDT": 1494.0557806170145
     },
-    "pending": {},
+    "pending": {
+      "XRP/USDT": {
+        "side": "sell",
+        "limit": 1.3089,
+        "notional": 1955.57,
+        "placed_bar": "2026-10-26 23:00:00"
+      }
+    },
     "cost_paid": 476.4336052576662,
     "filled_total": 514,
     "unfilled_total": 421
   },
   "avg_cost": {
     "SOL/USDT": 100.52766195688868,
-    "BNB/USDT": 737.3,
-    "XRP/USDT": 1.2836
+    "BNB/USDT": 737.3
   },
   "operated": {
     "since": "2026-08-18",
@@ -63979,42 +63988,42 @@
     "risk_scale": 1.0,
     "mode": "hold",
     "mode_since": "2026-10-11",
-    "decided_on": "2026-10-26",
+    "decided_on": "2026-10-27",
     "decision": {
-      "date": "2026-10-26",
+      "date": "2026-10-27",
       "incumbent": "hold",
       "choice": "hold",
-      "n_days": 68,
-      "t": -1.133,
+      "n_days": 69,
+      "t": -1.358,
       "t_needed": 1.35,
       "table": {
         "trade": {
-          "n": 62,
-          "pct": -12.194,
-          "incumbent_pct": -1.831,
-          "t": -1.133
+          "n": 54,
+          "pct": -9.992,
+          "incumbent_pct": 1.42,
+          "t": -1.358
         },
         "trade_15m": {
-          "n": 68,
-          "pct": -7.389,
-          "incumbent_pct": 26.44,
-          "t": -2.097
+          "n": 69,
+          "pct": -7.551,
+          "incumbent_pct": 26.661,
+          "t": -2.12
         },
         "trade_5m": {
-          "n": 68,
-          "pct": -18.817,
-          "incumbent_pct": 26.44,
-          "t": -2.705
+          "n": 69,
+          "pct": -19.153,
+          "incumbent_pct": 26.661,
+          "t": -2.74
         },
         "hold": {
           "n": 90,
           "t": null,
           "incumbent_pct": null,
-          "pct": 28.249
+          "pct": 27.837
         }
       },
-      "hold_pct": 28.249,
-      "trade_pct": -12.194,
+      "hold_pct": 27.837,
+      "trade_pct": -9.992,
       "best_challenger": "trade",
       "reason": "keep"
     },
@@ -64027,13 +64036,6 @@
       }
     ],
     "history": [
-      {
-        "time": "2026-10-23T22:14:55+09:00",
-        "equity": 9662.78,
-        "mode": "hold",
-        "trades": 0,
-        "cost": 0
-      },
       {
         "time": "2026-10-23T22:27:10+09:00",
         "equity": 9662.78,
@@ -66826,14 +66828,21 @@
         "mode": "hold",
         "trades": 0,
         "cost": 0
+      },
+      {
+        "time": "2026-10-27T09:07:40+09:00",
+        "equity": 9476.75,
+        "mode": "hold",
+        "trades": 0,
+        "cost": 0
       }
     ],
     "last_prices": {
-      "BTC/USDT": 80008.2,
-      "ETH/USDT": 2314.15,
-      "SOL/USDT": 100.38,
-      "BNB/USDT": 742.24,
-      "XRP/USDT": 1.2919
+      "BTC/USDT": 80146.0,
+      "ETH/USDT": 2324.57,
+      "SOL/USDT": 100.95,
+      "BNB/USDT": 742.9,
+      "XRP/USDT": 1.3089
     },
     "inherited_from_experiment": "2026-10-11"
   }
