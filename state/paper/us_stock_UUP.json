@@ -2,7 +2,7 @@
   "cash": 7611.674700444837,
   "quantity": 87.77197383789158,
   "avg_price": 28.919896464312973,
-  "last_bar": "2026-10-26 00:00:00",
+  "last_bar": "2026-10-27 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2156,11 +2156,64 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-27",
+      "price": 29.1200008392334,
+      "weight": 0.0,
+      "held_weight": 0.2514,
+      "fractional_lot": false,
+      "equity": 10167.59,
+      "return_pct": 1.68,
+      "hit_rate": 0.5669642857142857,
+      "hit_n": 224,
+      "hit_lo": 0.5014855704601743,
+      "hit_hi": 0.6301848532025808,
+      "hit_conclusive": true,
+      "live_hit": 0.65625,
+      "live_hit_n": 32,
+      "live_hit_flat": 1,
+      "hit_flat": 14,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid",
+        "label": "triple",
+        "meta": true
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 39% + bollinger 37% + expiry_week 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 29.09,
+        "bar": "2026-10-27 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-10-26 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "5f488b4c733f",
+      "data_sha256": "83892eae3ffb3367aef1e7d22b8ee72aaac72c26669edc6ecde39fd3725c185b",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5226816283485657,
+      "drift_psi": 0.2241,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.25,
-    "decided_bar": "2026-10-26 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-27 00:00:00"
   },
   "market": "us_stock",
   "symbol": "UUP",
