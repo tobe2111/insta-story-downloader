@@ -1,6 +1,6 @@
 {
  "kind": "simulation",
- "generated": "2026-10-26",
+ "generated": "2026-10-27",
  "replay": {
   "kind": "simulation",
   "period": {
@@ -11,7 +11,7 @@
   "n_symbols": 42,
   "target_vol": 0.12,
   "raw": {
-   "final_multiple": 3.2599,
+   "final_multiple": 3.2657,
    "ann_vol": 0.2179,
    "mdd": -0.3088,
    "worst_day": -0.0946,
@@ -19,7 +19,7 @@
    "longest_underwater_days": 211
   },
   "braked": {
-   "final_multiple": 2.4328,
+   "final_multiple": 2.4335,
    "ann_vol": 0.1632,
    "mdd": -0.1967,
    "worst_day": -0.0828,
@@ -64,20 +64,20 @@
  "stress": {
   "kind": "simulation",
   "inputs": {
-   "equity": 1014202.89,
+   "equity": 1005864.16,
    "principal": 1000000.0,
    "gross_weight": 0.6977,
-   "fx_share": 0.7837,
-   "worst_single_weight": 0.1509
+   "fx_share": 0.7903,
+   "worst_single_weight": 0.1463
   },
   "scenarios": [
    {
     "scenario": "gap_-10",
     "desc": "하룻밤 갭 -10% (전 종목 동반 하락, 상관 1)",
     "days": 1,
-    "equity_after": 943441.95,
+    "equity_after": 935685.02,
     "loss_pct": -6.98,
-    "drawdown_pct": -8.76,
+    "drawdown_pct": -9.51,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -85,9 +85,9 @@
     "scenario": "gap_-20",
     "desc": "하룻밤 갭 -20% (2020-03 규모)",
     "days": 1,
-    "equity_after": 872681.02,
+    "equity_after": 865505.88,
     "loss_pct": -13.95,
-    "drawdown_pct": -15.61,
+    "drawdown_pct": -16.3,
     "kill_switch_after": 0.5,
     "engaged_on_day": 1
    },
@@ -95,9 +95,9 @@
     "scenario": "gap_-30",
     "desc": "하룻밤 갭 -30% (역대급 단일일)",
     "days": 1,
-    "equity_after": 801920.08,
+    "equity_after": 795326.73,
     "loss_pct": -20.93,
-    "drawdown_pct": -22.45,
+    "drawdown_pct": -23.09,
     "kill_switch_after": 0.5,
     "engaged_on_day": 1
    },
@@ -105,9 +105,9 @@
     "scenario": "cascade_5x-8",
     "desc": "닷새 연속 -8% (2022 루나·FTX형 연쇄 붕괴)",
     "days": 5,
-    "equity_after": 806695.24,
+    "equity_after": 800062.62,
     "loss_pct": -20.46,
-    "drawdown_pct": -21.99,
+    "drawdown_pct": -22.63,
     "kill_switch_after": 0.5,
     "engaged_on_day": 3
    },
@@ -115,39 +115,39 @@
     "scenario": "slow_bleed_20x-2",
     "desc": "20일 연속 -2% (완만한 침식형 약세)",
     "days": 20,
-    "equity_after": 815882.36,
-    "loss_pct": -19.55,
-    "drawdown_pct": -21.1,
+    "equity_after": 814899.72,
+    "loss_pct": -18.99,
+    "drawdown_pct": -21.19,
     "kill_switch_after": 0.5,
-    "engaged_on_day": 11
+    "engaged_on_day": 10
    },
    {
     "scenario": "krw_+15",
-    "desc": "원/달러 +15% — 외화 자산(78%)만 영향",
+    "desc": "원/달러 +15% — 외화 자산(79%)만 영향",
     "days": 1,
-    "equity_after": 1097391.1,
-    "loss_pct": 8.2,
+    "equity_after": 1089056.02,
+    "loss_pct": 8.27,
     "drawdown_pct": 0.0,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
    {
     "scenario": "krw_-15",
-    "desc": "원/달러 -15% — 외화 자산(78%)만 영향",
+    "desc": "원/달러 -15% — 외화 자산(79%)만 영향",
     "days": 1,
-    "equity_after": 931014.68,
-    "loss_pct": -8.2,
-    "drawdown_pct": -9.96,
+    "equity_after": 922672.3,
+    "loss_pct": -8.27,
+    "drawdown_pct": -10.77,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
    {
     "scenario": "single_-50",
-    "desc": "최대 비중 종목(15.1%) 하루 -50%",
+    "desc": "최대 비중 종목(14.6%) 하루 -50%",
     "days": 1,
-    "equity_after": 937681.28,
-    "loss_pct": -7.55,
-    "drawdown_pct": -9.32,
+    "equity_after": 932285.2,
+    "loss_pct": -7.32,
+    "drawdown_pct": -9.84,
     "kill_switch_after": 1.0,
     "engaged_on_day": null
    },
@@ -155,9 +155,9 @@
     "scenario": "stale_5d_-20",
     "desc": "시세가 5일 멈춘 사이 시장 -20% — 장부는 그동안 낙폭 0을 보고한다",
     "days": 5,
-    "equity_after": 872681.02,
+    "equity_after": 865505.88,
     "loss_pct": -13.95,
-    "drawdown_pct": -15.61,
+    "drawdown_pct": -16.3,
     "kill_switch_after": null,
     "engaged_on_day": null,
     "blind": true
@@ -165,7 +165,7 @@
   ],
   "worst": {
    "scenario": "gap_-30",
-   "drawdown_pct": -22.45
+   "drawdown_pct": -23.09
   },
   "honest_limits": [
    "시나리오는 가정 — 실제 위기는 여기 없는 모양으로 온다. 하한 점검이지 보증이 아님",
