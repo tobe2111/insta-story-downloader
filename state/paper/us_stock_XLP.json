@@ -1,8 +1,8 @@
 {
-  "cash": 9906.766213458272,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-10-27 00:00:00",
+  "cash": 7133.862350311301,
+  "quantity": 32.0634167382958,
+  "avg_price": 86.43000030517578,
+  "last_bar": "2026-10-28 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2304,11 +2304,63 @@
       "kelly_cap": null,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-28",
+      "price": 86.83999633789062,
+      "weight": 0.0,
+      "held_weight": 0.2807,
+      "fractional_lot": false,
+      "equity": 9918.25,
+      "return_pct": -0.82,
+      "hit_rate": 0.5384615384615384,
+      "hit_n": 208,
+      "hit_lo": 0.47062810909500286,
+      "hit_hi": 0.604900021357184,
+      "hit_conclusive": false,
+      "live_hit": 0.5769230769230769,
+      "live_hit_n": 26,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "isotonic",
+        "pool": "universe"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀·풀링(전 종목 합산 학습) 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 42% + bollinger 30% + ml 28% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 86.43,
+        "bar": "2026-10-28 00:00:00",
+        "weight": 0.2799,
+        "decided_bar": "2026-10-27 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "cc05c10968db",
+      "data_sha256": "1d52115a3d2bf69272e88245241fea731f270691eb8f8eccb4175cbc9e84d351",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5292578425040102,
+      "drift_psi": 0.1369,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": null,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.2799,
-    "decided_bar": "2026-10-27 00:00:00"
+    "weight": 0.0,
+    "decided_bar": "2026-10-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "XLP",

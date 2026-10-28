@@ -2,7 +2,7 @@
   "cash": 8502.19680245174,
   "quantity": 0.004601696700984843,
   "avg_price": 222000.0,
-  "last_bar": "2026-10-27 00:00:00",
+  "last_bar": "2026-10-28 00:00:00",
   "history": [
     {
       "date": "2026-08-03",
@@ -2490,13 +2490,60 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-28",
+      "price": 242000.0,
+      "weight": 0.1008,
+      "held_weight": 0.1158,
+      "fractional_lot": true,
+      "equity": 9615.81,
+      "return_pct": -3.84,
+      "hit_rate": 0.58,
+      "hit_n": 300,
+      "hit_lo": 0.5234821059002049,
+      "hit_hi": 0.6344949453001573,
+      "hit_conclusive": true,
+      "live_hit": 0.4857142857142857,
+      "live_hit_n": 35,
+      "live_hit_flat": 4,
+      "hit_flat": 8,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "매수 +10% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 45% + turn_of_month 35% + expiry_week 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 231000.0,
+        "bar": "2026-10-28 00:00:00",
+        "weight": 0.1058,
+        "decided_bar": "2026-10-27 00:00:00"
+      },
+      "fill_cost": 0.0014,
+      "code_sha": "cc05c10968db",
+      "data_sha256": "540a7c880ea8fe689d77bf3e0574207297b7e20b4f20c76cd552321d1a969764",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.0755,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "kr_stock",
   "symbol": "005930.KS",
   "start_cash": 10000.0,
   "pending": {
-    "weight": 0.1058,
-    "decided_bar": "2026-10-27 00:00:00"
+    "weight": 0.1008,
+    "decided_bar": "2026-10-28 00:00:00"
   }
 }

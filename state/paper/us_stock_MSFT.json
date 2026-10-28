@@ -1,8 +1,8 @@
 {
-  "cash": 7742.5226969791,
-  "quantity": 4.854581767842557,
+  "cash": 9012.908676651095,
+  "quantity": 2.466093510580531,
   "avg_price": 496.4315156426567,
-  "last_bar": "2026-10-27 00:00:00",
+  "last_bar": "2026-10-28 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -2526,11 +2526,66 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-28",
+      "price": 531.010009765625,
+      "weight": 0.2183,
+      "held_weight": 0.1269,
+      "fractional_lot": false,
+      "equity": 10322.43,
+      "return_pct": 3.22,
+      "hit_rate": 0.5481481481481482,
+      "hit_n": 270,
+      "hit_lo": 0.48852296159861625,
+      "hit_hi": 0.6064224374934136,
+      "hit_conclusive": false,
+      "live_hit": 0.574468085106383,
+      "live_hit_n": 47,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "triple"
+      },
+      "reason": "매수 +22% — 그라디언트부스팅 모델이 내일 상승확률을 약 97%로 추정(기준 55% 초과) · 사이징: 신호 원비중 59% → 변동성 타깃 조절 후 22% · 참고: 전 종목 합산으로 모델이 97%±10%p라 말한 85번의 실제 상승 비율 49% (95% 신뢰구간 39%~60% · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 0번으로 축적 중) · 🛡 실적 가드: 발표(2026-10-28) 임박 → 비중 절반 · 🏛 의회 운용: ml 40% + psar 38% + connors_rsi2 21% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 532.197998,
+        "bar": "2026-10-28 00:00:00",
+        "weight": 0.1271,
+        "decided_bar": "2026-10-27 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "cc05c10968db",
+      "data_sha256": "3720cb7fda0626ede3d5c28200a3c03d81e39ff369fd23abc8285e29c7726b7e",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.9719675804511058,
+      "drift_psi": 0.1492,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": {
+        "date": "2026-10-28",
+        "factor": 0.5
+      },
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4688
     }
   ],
   "pending": {
-    "weight": 0.1271,
-    "decided_bar": "2026-10-27 00:00:00"
+    "weight": 0.2183,
+    "decided_bar": "2026-10-28 00:00:00"
   },
   "market": "us_stock",
   "symbol": "MSFT",

@@ -44207,64 +44207,845 @@
       "twr_pct": 0.47,
       "day_pct": 0.0,
       "random_pctile": 100.0
+    },
+    {
+      "date": "2026-10-28",
+      "price": 96.3,
+      "weight": 0.468,
+      "validation_stamp": "2026-10-28/42",
+      "equity": 1002479.79,
+      "cost": 373.18,
+      "cost_paid": 9726.87,
+      "fx": {
+        "amount": 69684.31,
+        "cost": 174.21,
+        "spread": 0.0025
+      },
+      "tax_estimate": {
+        "year": "2026",
+        "realized": {
+          "foreign": 633.98,
+          "kr_etf_taxed": -329.74,
+          "exempt": -137.52,
+          "crypto": 69.11
+        },
+        "foreign_deduction": 2500000,
+        "tax": {
+          "foreign": 0.0,
+          "kr_etf": 0.0,
+          "crypto": 0.0
+        },
+        "total": 0.0,
+        "note": "추정 — 다음 해 5월 납부분. 자산에서 빼지 않고 따로 적는다"
+      },
+      "bench_cost_rate": 0.00084,
+      "return_pct": 0.25,
+      "principal": 1000000.0,
+      "pnl": 2479.79,
+      "hit_rate": null,
+      "fills": [
+        {
+          "key": "us_stock:EEM",
+          "price": 84821.499315,
+          "bar": "2026-10-28 00:00:00",
+          "weight": 0.0,
+          "side": "sell",
+          "quantity": 0.0085758091,
+          "amount": 727.41,
+          "type": "시가"
+        },
+        {
+          "key": "us_stock:QQQ",
+          "price": 971696.639126,
+          "bar": "2026-10-28 00:00:00",
+          "weight": 0.0,
+          "side": "sell",
+          "quantity": 0.0003166989,
+          "amount": 307.74,
+          "type": "시가"
+        },
+        {
+          "key": "us_stock:NVDA",
+          "price": 295056.98392,
+          "bar": "2026-10-28 00:00:00",
+          "weight": 0.0704,
+          "side": "buy",
+          "quantity": 0.2396806831,
+          "amount": 70719.46,
+          "type": "시가"
+        },
+        {
+          "key": "kr_stock:273130.KS",
+          "price": 112185.0,
+          "bar": "2026-10-28 00:00:00",
+          "weight": 0.2236,
+          "side": "buy",
+          "quantity": 1.9987008445,
+          "amount": 224224.25,
+          "type": "시가"
+        },
+        {
+          "key": "crypto:SOL/USDT",
+          "price": 137598.428503,
+          "bar": "2026-10-28 00:00:00",
+          "side": "sell",
+          "quantity": 0.0449666391,
+          "amount": 6187.34,
+          "type": "즉시"
+        },
+        {
+          "key": "crypto:ETH/USDT",
+          "price": 3168776.136652,
+          "bar": "2026-10-28 00:00:00",
+          "side": "sell",
+          "quantity": 0.0001872321,
+          "amount": 593.3,
+          "type": "즉시"
+        }
+      ],
+      "impossible_amounts": null,
+      "pending_next_open": {
+        "us_stock:NVDA": 0.0078,
+        "us_stock:QQQ": 0.0123,
+        "kr_stock:273130.KS": 0.4464
+      },
+      "code_sha": "cc05c10968db",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "fx_usdkrw": 1341.9,
+      "bar_age_days": {
+        "crypto": 0,
+        "us_stock": 0,
+        "kr_stock": 0
+      },
+      "risk_scale": 1.0,
+      "paused": false,
+      "exposure_scale": 1.0,
+      "drawdown_pct": -2.13,
+      "alloc": {
+        "crypto:BTC/USDT": 0.0008,
+        "crypto:ETH/USDT": 0.0004,
+        "crypto:SOL/USDT": 0.0004,
+        "crypto:BNB/USDT": 0.0014,
+        "crypto:XRP/USDT": 0.0003,
+        "us_stock:SPY": 0.0127,
+        "us_stock:QQQ": 0.0028,
+        "us_stock:GLD": 0.0023,
+        "us_stock:SLV": 0.0009,
+        "us_stock:TLT": 0.0065,
+        "us_stock:IEF": 0.0227,
+        "us_stock:LQD": 0.073,
+        "us_stock:TIP": 0.073,
+        "us_stock:DBC": 0.0137,
+        "us_stock:XLE": 0.0087,
+        "us_stock:XLU": 0.0072,
+        "us_stock:XLP": 0.0231,
+        "us_stock:VNQ": 0.0115,
+        "us_stock:UUP": 0.073,
+        "us_stock:EWJ": 0.0039,
+        "us_stock:VGK": 0.0083,
+        "us_stock:EEM": 0.0024,
+        "us_stock:NVDA": 0.0018,
+        "us_stock:AAPL": 0.0105,
+        "us_stock:GOOGL": 0.0017,
+        "us_stock:GOOG": 0.0022,
+        "us_stock:MSFT": 0.001,
+        "us_stock:AMZN": 0.0016,
+        "kr_stock:069500.KS": 0.0001,
+        "kr_stock:133690.KS": 0.0052,
+        "kr_stock:132030.KS": 0.015,
+        "kr_stock:148070.KS": 0.073,
+        "kr_stock:228790.KS": 0.0034,
+        "kr_stock:273130.KS": 0.075,
+        "kr_stock:005930.KS": 0.0001,
+        "kr_stock:000660.KS": 0.0001,
+        "kr_stock:035420.KS": 0.0007,
+        "kr_stock:005380.KS": 0.0008,
+        "kr_stock:051910.KS": 0.0004,
+        "kr_stock:105560.KS": 0.006
+      },
+      "applied": {
+        "crypto:BTC/USDT": 0.0015,
+        "us_stock:QQQ": 0.0123,
+        "us_stock:NVDA": 0.0078,
+        "kr_stock:273130.KS": 0.4464
+      },
+      "alloc_method": "hrp",
+      "engine": null,
+      "cash_waterfall": {
+        "budget_raw": 0.5633,
+        "budget": 0.5471,
+        "signal": 0.0675,
+        "risk": 0.992,
+        "gated": 0.468,
+        "applied": 0.468,
+        "cash": 0.532,
+        "gate_counts": {
+          "full": 0,
+          "partial": 27,
+          "zero": 13
+        },
+        "deferred_lots": 2,
+        "symbols": 40,
+        "cap": 0.075
+      },
+      "vol_target": {
+        "target": 0.12,
+        "ex_ante": 0.00229,
+        "scale": 14.812,
+        "damp": 1.0,
+        "applied": 14.812,
+        "proven": false,
+        "reason": "판정 시계 진행 중 — fs8:+fredmacro/krw1/opt17:b15f 76일차/90일 · 그동안 개선 3회 공개"
+      },
+      "stale_marks": null,
+      "skipped_dust": [
+        "crypto:BNB/USDT",
+        "crypto:XRP/USDT",
+        "kr_stock:000660.KS",
+        "kr_stock:005380.KS",
+        "kr_stock:005930.KS",
+        "kr_stock:035420.KS",
+        "kr_stock:051910.KS",
+        "kr_stock:069500.KS",
+        "kr_stock:105560.KS",
+        "kr_stock:132030.KS",
+        "kr_stock:133690.KS",
+        "kr_stock:148070.KS",
+        "kr_stock:228790.KS",
+        "us_stock:AAPL",
+        "us_stock:AMZN",
+        "us_stock:DBC",
+        "us_stock:EEM",
+        "us_stock:EWJ",
+        "us_stock:GLD",
+        "us_stock:GOOG",
+        "us_stock:GOOGL",
+        "us_stock:IEF",
+        "us_stock:LQD",
+        "us_stock:MSFT",
+        "us_stock:SLV",
+        "us_stock:SPY",
+        "us_stock:TIP",
+        "us_stock:TLT",
+        "us_stock:UUP",
+        "us_stock:VGK",
+        "us_stock:VNQ",
+        "us_stock:XLE",
+        "us_stock:XLP",
+        "us_stock:XLU"
+      ],
+      "skipped_cooldown": [
+        "crypto:BTC/USDT"
+      ],
+      "turnover": {
+        "filled": 6,
+        "universe": 40,
+        "symbols_ratio": 0.15,
+        "traded": 0.2471
+      },
+      "feature_health": {
+        "optional_max": 10,
+        "optional_possible": 19,
+        "union": 17,
+        "optional_applicable": 17,
+        "coverage": 1.0,
+        "missing_everywhere": [
+          "x_frgn5",
+          "x_inst5"
+        ],
+        "thin": {
+          "floor": 0.5,
+          "features": {
+            "x_oi_chg5": 0.075
+          },
+          "symbols": 5
+        },
+        "thinnest": {
+          "key": "kr_stock:000660.KS",
+          "n": 7,
+          "applicable": 9,
+          "coverage": 0.7778
+        },
+        "why_missing": {
+          "krx_flows": {
+            "reason": "RuntimeError: KRX가 2026-02-14~2026-10-28 구간에 빈 표를 줬다 — 다만 KRX_ID·KRX_PW가 설정돼 있지 않다. 요즘 pykrx는 로그인을 요구하므로, 빈 표의 원인이 KRX가 아니라 **우리 설정**일 수 있다(로그에 'KRX 로그인 실패'가 함께 찍혔는지 확인할 것)",
+            "symbols": [
+              "kr_stock:000660.KS",
+              "kr_stock:005380.KS",
+              "kr_stock:005930.KS",
+              "kr_stock:035420.KS",
+              "kr_stock:051910.KS",
+              "kr_stock:069500.KS",
+              "kr_stock:105560.KS",
+              "kr_stock:132030.KS",
+              "kr_stock:133690.KS",
+              "kr_stock:148070.KS",
+              "kr_stock:228790.KS",
+              "kr_stock:273130.KS"
+            ]
+          },
+          "krx_value": {
+            "reason": "RuntimeError: KRX가 2023-04-27~2026-10-28 재무 표를 비워서 줬다 — 다만 KRX_ID·KRX_PW가 설정돼 있지 않다. 요즘 pykrx는 로그인을 요구하므로, 빈 표의 원인이 KRX가 아니라 **우리 설정**일 수 있다(로그에 'KRX 로그인 실패'가 함께 찍혔는지 확인할 것)",
+            "symbols": [
+              "kr_stock:000660.KS",
+              "kr_stock:005380.KS",
+              "kr_stock:005930.KS",
+              "kr_stock:035420.KS",
+              "kr_stock:051910.KS",
+              "kr_stock:069500.KS",
+              "kr_stock:105560.KS",
+              "kr_stock:132030.KS",
+              "kr_stock:133690.KS",
+              "kr_stock:148070.KS",
+              "kr_stock:228790.KS",
+              "kr_stock:273130.KS"
+            ]
+          }
+        }
+      },
+      "earnings_guard": {
+        "us_stock:GOOG": "2026-10-28",
+        "us_stock:MSFT": "2026-10-28"
+      },
+      "earnings_calendar": {
+        "symbols": 10,
+        "checked": 10,
+        "known": 5
+      },
+      "validation_gate": {
+        "crypto:BNB/USDT": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.19047619047619047,
+          "dsr": 0.0001212998871144566,
+          "why": "CPCV 최악 경로 수익률 -3.7% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "crypto:BTC/USDT": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.4880952380952381,
+          "dsr": 2.0184698773517695e-07,
+          "why": "CPCV 최악 경로 수익률 -10.7% (기준: +0% 초과) · 과최적화 확률(PBO) 49% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "crypto:ETH/USDT": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.12301587301587301,
+          "dsr": 0.0022831318861374905,
+          "why": "CPCV 최악 경로 수익률 -13.3% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "crypto:SOL/USDT": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.007936507936507936,
+          "dsr": 6.497735693944406e-08,
+          "why": "CPCV 최악 경로 수익률 -15.5% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "crypto:XRP/USDT": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7738095238095238,
+          "dsr": 0.0006996367053206942,
+          "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "kr_stock:000660.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.15079365079365079,
+          "dsr": 0.0027389706491726673,
+          "why": "보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:005380.KS": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.8888888888888888,
+          "dsr": 9.141903451492794e-05,
+          "why": "과최적화 확률(PBO) 89% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "kr_stock:005930.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.3968253968253968,
+          "dsr": 0.012909284115197317,
+          "why": "CPCV 최악 경로 수익률 -7.7% (기준: +0% 초과) · 과최적화 확률(PBO) 40% > 기준 20% · 보정 샤프(DSR) 0.01 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:035420.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.24206349206349206,
+          "dsr": 0.00014439735951954358,
+          "why": "CPCV 최악 경로 수익률 -3.9% (기준: +0% 초과) · 과최적화 확률(PBO) 24% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:051910.KS": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.876984126984127,
+          "dsr": 0.0014021503082625175,
+          "why": "과최적화 확률(PBO) 88% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "kr_stock:069500.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.18253968253968253,
+          "dsr": 0.34287990256742856,
+          "why": "보정 샤프(DSR) 0.34 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:105560.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.0,
+          "dsr": 0.0037652613384563383,
+          "why": "CPCV 최악 경로 수익률 -5.3% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:132030.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.626984126984127,
+          "dsr": 0.001501733630175639,
+          "why": "CPCV 최악 경로 수익률 -6.7% (기준: +0% 초과) · 과최적화 확률(PBO) 63% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:133690.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.15476190476190477,
+          "dsr": 0.1354856068110632,
+          "why": "보정 샤프(DSR) 0.14 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:148070.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.376984126984127,
+          "dsr": 4.214696203153068e-09,
+          "why": "CPCV 최악 경로 수익률 -17.9% (기준: +0% 초과) · 과최적화 확률(PBO) 38% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "kr_stock:228790.KS": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.9603174603174603,
+          "dsr": 0.0011196740766097335,
+          "why": "과최적화 확률(PBO) 96% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "kr_stock:273130.KS": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.13095238095238096,
+          "dsr": 0.0,
+          "why": "CPCV 최악 경로 수익률 -15.2% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:AAPL": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.9841269841269841,
+          "dsr": 5.976152039144367e-05,
+          "why": "과최적화 확률(PBO) 98% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:AMZN": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.0,
+          "dsr": 0.014328931864075356,
+          "why": "보정 샤프(DSR) 0.01 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:DBC": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.8412698412698413,
+          "dsr": 0.004870046661623217,
+          "why": "과최적화 확률(PBO) 84% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:EEM": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.21031746031746032,
+          "dsr": 0.016552511482626986,
+          "why": "과최적화 확률(PBO) 21% > 기준 20% · 보정 샤프(DSR) 0.02 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:EWJ": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7658730158730159,
+          "dsr": 0.008068713390326387,
+          "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:GLD": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.5674603174603174,
+          "dsr": 0.0006299565015596142,
+          "why": "CPCV 최악 경로 수익률 -5.7% (기준: +0% 초과) · 과최적화 확률(PBO) 57% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:GOOG": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7023809523809523,
+          "dsr": 0.0037777754802379993,
+          "why": "과최적화 확률(PBO) 70% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:GOOGL": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7579365079365079,
+          "dsr": 0.004101026043824396,
+          "why": "과최적화 확률(PBO) 76% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:IEF": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.1746031746031746,
+          "dsr": 7.372996879695393e-09,
+          "why": "CPCV 최악 경로 수익률 -14.9% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:LQD": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.25,
+          "dsr": 1.880157144729111e-05,
+          "why": "CPCV 최악 경로 수익률 -16.2% (기준: +0% 초과) · 과최적화 확률(PBO) 25% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:MSFT": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.8690476190476191,
+          "dsr": 0.004309044112617677,
+          "why": "과최적화 확률(PBO) 87% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:NVDA": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.5515873015873016,
+          "dsr": 0.05408306729937107,
+          "why": "과최적화 확률(PBO) 55% > 기준 20% · 보정 샤프(DSR) 0.05 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:QQQ": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.48412698412698413,
+          "dsr": 0.0021751286595930175,
+          "why": "CPCV 최악 경로 수익률 -3.2% (기준: +0% 초과) · 과최적화 확률(PBO) 48% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:SLV": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.1746031746031746,
+          "dsr": 0.00012033584930554175,
+          "why": "CPCV 최악 경로 수익률 -4.1% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:SPY": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.9047619047619048,
+          "dsr": 0.0021696725843621256,
+          "why": "과최적화 확률(PBO) 90% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:TIP": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7182539682539683,
+          "dsr": 1.554312234475219e-14,
+          "why": "과최적화 확률(PBO) 72% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:TLT": {
+          "grade": "실패",
+          "scale": 0.0,
+          "pbo": 0.7380952380952381,
+          "dsr": 1.7681450079076733e-06,
+          "why": "과최적화 확률(PBO) 74% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다."
+        },
+        "us_stock:UUP": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.623015873015873,
+          "dsr": 4.667248206802199e-07,
+          "why": "CPCV 최악 경로 수익률 -8.8% (기준: +0% 초과) · 과최적화 확률(PBO) 62% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:VGK": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.23412698412698413,
+          "dsr": 5.2361716479765175e-05,
+          "why": "CPCV 최악 경로 수익률 -10.3% (기준: +0% 초과) · 과최적화 확률(PBO) 23% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:VNQ": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.5873015873015873,
+          "dsr": 2.8654199309197104e-05,
+          "why": "CPCV 최악 경로 수익률 -8.9% (기준: +0% 초과) · 과최적화 확률(PBO) 59% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:XLE": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.20634920634920634,
+          "dsr": 0.0005719815725676036,
+          "why": "CPCV 최악 경로 수익률 -4.0% (기준: +0% 초과) · 과최적화 확률(PBO) 21% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:XLP": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.6865079365079365,
+          "dsr": 9.181777588934681e-05,
+          "why": "CPCV 최악 경로 수익률 -7.1% (기준: +0% 초과) · 과최적화 확률(PBO) 69% > 기준 20% · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        },
+        "us_stock:XLU": {
+          "grade": "경고",
+          "scale": 0.5,
+          "pbo": 0.047619047619047616,
+          "dsr": 0.00016102920587407477,
+          "why": "CPCV 최악 경로 수익률 -2.5% (기준: +0% 초과) · 보정 샤프(DSR) 0.00 < 기준 0.95 — 비중을 절반으로 줄입니다."
+        }
+      },
+      "kelly_caps": {
+        "crypto:BTC/USDT": 0.25,
+        "crypto:ETH/USDT": 0.25,
+        "crypto:SOL/USDT": 0.25,
+        "crypto:BNB/USDT": 0.25,
+        "crypto:XRP/USDT": 0.25,
+        "us_stock:SPY": 0.25,
+        "us_stock:QQQ": 0.25,
+        "us_stock:GLD": 0.25,
+        "us_stock:SLV": 0.25,
+        "us_stock:DBC": 0.25,
+        "us_stock:XLE": 0.25,
+        "us_stock:VNQ": 0.25,
+        "us_stock:UUP": 0.25,
+        "us_stock:EWJ": 0.25,
+        "us_stock:EEM": 0.25,
+        "us_stock:NVDA": 0.25,
+        "us_stock:AAPL": 0.25,
+        "us_stock:GOOGL": 0.25,
+        "us_stock:GOOG": 0.25,
+        "us_stock:MSFT": 0.25,
+        "us_stock:AMZN": 0.25,
+        "kr_stock:069500.KS": 0.25,
+        "kr_stock:133690.KS": 0.25,
+        "kr_stock:132030.KS": 0.25,
+        "kr_stock:005930.KS": 0.25,
+        "kr_stock:000660.KS": 0.25,
+        "kr_stock:051910.KS": 0.25,
+        "kr_stock:105560.KS": 0.25
+      },
+      "xsec_tilt": {
+        "crypto:BTC/USDT": 0.85,
+        "crypto:ETH/USDT": 1.0,
+        "crypto:SOL/USDT": 1.0,
+        "crypto:BNB/USDT": 1.0,
+        "crypto:XRP/USDT": 1.0,
+        "us_stock:SPY": 0.8,
+        "us_stock:QQQ": 0.9,
+        "us_stock:GLD": 1.0,
+        "us_stock:SLV": 1.0,
+        "us_stock:TLT": 1.0,
+        "us_stock:IEF": 1.0,
+        "us_stock:LQD": 1.0,
+        "us_stock:TIP": 1.0,
+        "us_stock:DBC": 1.0,
+        "us_stock:XLE": 1.0,
+        "us_stock:XLU": 1.0,
+        "us_stock:XLP": 1.0,
+        "us_stock:VNQ": 1.0,
+        "us_stock:UUP": 1.0,
+        "us_stock:EWJ": 1.0,
+        "us_stock:VGK": 1.0,
+        "us_stock:EEM": 1.0,
+        "us_stock:NVDA": 1.15,
+        "us_stock:AAPL": 1.0,
+        "us_stock:GOOGL": 1.0,
+        "us_stock:GOOG": 1.05,
+        "us_stock:MSFT": 1.2,
+        "us_stock:AMZN": 1.0,
+        "kr_stock:069500.KS": 1.0,
+        "kr_stock:133690.KS": 1.0,
+        "kr_stock:132030.KS": 1.0,
+        "kr_stock:148070.KS": 1.0,
+        "kr_stock:228790.KS": 1.1,
+        "kr_stock:273130.KS": 1.25,
+        "kr_stock:005930.KS": 1.0,
+        "kr_stock:000660.KS": 1.0,
+        "kr_stock:035420.KS": 0.75,
+        "kr_stock:005380.KS": 1.0,
+        "kr_stock:051910.KS": 0.95,
+        "kr_stock:105560.KS": 1.0
+      },
+      "data_quality": {
+        "gaps": 6557,
+        "spikes": 5,
+        "zero_volume": 0
+      },
+      "champion": {
+        "symbols": 40,
+        "skipped": [],
+        "planned": 40,
+        "skipped_why": null
+      },
+      "lot_infeasible": {
+        "kr_stock:133690.KS": {
+          "budget": 1308.01,
+          "price": 176360.0,
+          "pool_left": 20450.98
+        },
+        "kr_stock:035420.KS": {
+          "budget": 42.74,
+          "price": 178000.0,
+          "pool_left": 20450.98
+        }
+      },
+      "lot_priority": {
+        "crypto:BTC/USDT": {
+          "budget": 82.75,
+          "spent": 1472.39,
+          "price": 109150550.56,
+          "gave_way": [
+            "kr_stock:035420.KS",
+            "kr_stock:133690.KS"
+          ]
+        },
+        "us_stock:QQQ": {
+          "budget": 693.06,
+          "spent": 12332.13,
+          "price": 973696.06,
+          "gave_way": [
+            "kr_stock:035420.KS",
+            "kr_stock:133690.KS"
+          ]
+        },
+        "us_stock:NVDA": {
+          "budget": 441.97,
+          "spent": 7864.23,
+          "price": 289018.43,
+          "gave_way": [
+            "kr_stock:035420.KS",
+            "kr_stock:133690.KS"
+          ]
+        }
+      },
+      "net_weight": 0.468,
+      "cash_short": null,
+      "short_refused": null,
+      "fill_refused": null,
+      "data_source": {
+        "crypto:BTC/USDT": "okx",
+        "crypto:ETH/USDT": "okx",
+        "crypto:SOL/USDT": "okx",
+        "crypto:BNB/USDT": "okx",
+        "crypto:XRP/USDT": "okx",
+        "us_stock:SPY": "yfinance",
+        "us_stock:QQQ": "yfinance",
+        "us_stock:GLD": "yfinance",
+        "us_stock:SLV": "yfinance",
+        "us_stock:TLT": "yfinance",
+        "us_stock:IEF": "yfinance",
+        "us_stock:LQD": "yfinance",
+        "us_stock:TIP": "yfinance",
+        "us_stock:DBC": "yfinance",
+        "us_stock:XLE": "yfinance",
+        "us_stock:XLU": "yfinance",
+        "us_stock:XLP": "yfinance",
+        "us_stock:VNQ": "yfinance",
+        "us_stock:UUP": "yfinance",
+        "us_stock:EWJ": "yfinance",
+        "us_stock:VGK": "yfinance",
+        "us_stock:EEM": "yfinance",
+        "us_stock:NVDA": "yfinance",
+        "us_stock:AAPL": "yfinance",
+        "us_stock:GOOGL": "yfinance",
+        "us_stock:GOOG": "yfinance",
+        "us_stock:MSFT": "yfinance",
+        "us_stock:AMZN": "yfinance",
+        "kr_stock:069500.KS": "yfinance",
+        "kr_stock:133690.KS": "yfinance",
+        "kr_stock:132030.KS": "yfinance",
+        "kr_stock:148070.KS": "yfinance",
+        "kr_stock:228790.KS": "yfinance",
+        "kr_stock:273130.KS": "yfinance",
+        "kr_stock:005930.KS": "yfinance",
+        "kr_stock:000660.KS": "yfinance",
+        "kr_stock:035420.KS": "yfinance",
+        "kr_stock:005380.KS": "yfinance",
+        "kr_stock:051910.KS": "yfinance",
+        "kr_stock:105560.KS": "yfinance"
+      },
+      "data_source_fallback": null,
+      "bar_partial": {
+        "crypto:BTC/USDT": 0.9441,
+        "crypto:ETH/USDT": 0.9441,
+        "crypto:SOL/USDT": 0.9442,
+        "crypto:BNB/USDT": 0.9442,
+        "crypto:XRP/USDT": 0.9443
+      },
+      "bars_short": null,
+      "rebalance_band": {
+        "crypto": {
+          "band": 0.15,
+          "source": "가정",
+          "symbol": null,
+          "roundtrip_bp": 30.0,
+          "n": 0,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "kr_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "symbol": null,
+          "roundtrip_bp": 33.4,
+          "n": 371,
+          "min_samples": 10,
+          "clipped": "하한"
+        },
+        "us_stock": {
+          "band": 0.15,
+          "source": "실측",
+          "symbol": null,
+          "roundtrip_bp": 12.0,
+          "n": 750,
+          "min_samples": 10,
+          "clipped": "하한"
+        }
+      },
+      "twr_pct": 0.25,
+      "day_pct": -0.22,
+      "random_pctile": 100.0
     }
   ],
   "_redo_point": {
-    "bar": "2026-10-27",
+    "bar": "2026-10-28",
     "state": {
       "market": "portfolio_shadow",
       "symbol": "SHADOW",
       "currency": "KRW",
       "start_cash": 1000000.0,
-      "cash": 994666.2546111047,
+      "cash": 995226.6463188458,
       "positions": {
-        "us_stock:GLD": {
-          "quantity": 0.001195878821481903,
-          "avg_price": 511169.1032441142,
-          "last_price": 487685.1931070313,
-          "last_price_bar": "2026-10-26"
-        },
         "us_stock:QQQ": {
           "quantity": 0.0003166988938592152,
           "avg_price": 971648.6113870699,
-          "last_price": 944291.7556625977,
-          "last_price_bar": "2026-10-26"
-        },
-        "us_stock:EWJ": {
-          "quantity": 0.004430309303055533,
-          "avg_price": 126942.10449620057,
-          "last_price": 125003.9652418457,
-          "last_price_bar": "2026-10-26"
-        },
-        "crypto:BNB/USDT": {
-          "quantity": 0.0007789182796249224,
-          "avg_price": 972956.6595703126,
-          "last_price": 983312.3880212402,
-          "last_price_bar": "2026-10-26"
+          "last_price": 956514.4952392578,
+          "last_price_bar": "2026-10-27"
         },
         "us_stock:EEM": {
           "quantity": 0.008575809053733048,
           "avg_price": 82258.44632135006,
-          "last_price": 81965.901497229,
-          "last_price_bar": "2026-10-26"
+          "last_price": 82913.39574380033,
+          "last_price_bar": "2026-10-27"
         },
         "crypto:ETH/USDT": {
           "quantity": 0.00018723213557498552,
           "avg_price": 3107148.5312341307,
-          "last_price": 3063114.2812805176,
-          "last_price_bar": "2026-10-26"
+          "last_price": 3115989.362529297,
+          "last_price_bar": "2026-10-27"
         },
         "crypto:BTC/USDT": {
           "quantity": 1.6742835052164606e-05,
           "avg_price": 106580609.84119874,
-          "last_price": 105990715.00233154,
-          "last_price_bar": "2026-10-26"
+          "last_price": 107299508.39829102,
+          "last_price_bar": "2026-10-27"
         },
-        "us_stock:GOOG": {
-          "quantity": 0.011325648660453966,
-          "avg_price": 421563.5637375489,
-          "last_price": 416578.2419711426,
-          "last_price_bar": "2026-10-26"
+        "crypto:SOL/USDT": {
+          "quantity": 0.04496663908953236,
+          "avg_price": 134316.517265625,
+          "last_price": 134316.517265625,
+          "last_price_bar": "2026-10-27"
         }
       },
       "base_prices": {
@@ -44311,7 +45092,7 @@
         "kr_stock:228790.KS": 4545.0,
         "kr_stock:273130.KS": 109395.0
       },
-      "last_bar": "2026-10-26",
+      "last_bar": "2026-10-27",
       "deposits": [],
       "restarted": {
         "date": "2026-08-13",
@@ -44323,13 +45104,13 @@
       },
       "risk_scale": 1.0,
       "prev_weights": {
-        "crypto:BTC/USDT": 0.253403,
-        "crypto:ETH/USDT": 0.065055,
-        "crypto:SOL/USDT": 0.0,
-        "crypto:BNB/USDT": 0.083703,
-        "crypto:XRP/USDT": 0.142034,
-        "us_stock:SPY": 0.027717,
-        "us_stock:QQQ": 0.126473,
+        "crypto:BTC/USDT": 0.272861,
+        "crypto:ETH/USDT": 0.086204,
+        "crypto:SOL/USDT": 0.017399,
+        "crypto:BNB/USDT": 0.0,
+        "crypto:XRP/USDT": 0.0,
+        "us_stock:SPY": 0.0,
+        "us_stock:QQQ": 0.0,
         "us_stock:GLD": 0.0,
         "us_stock:SLV": 0.0,
         "us_stock:TLT": 0.0,
@@ -44342,59 +45123,64 @@
         "us_stock:XLP": 0.0,
         "us_stock:VNQ": 0.0,
         "us_stock:UUP": 0.0,
-        "us_stock:EWJ": 0.405927,
+        "us_stock:EWJ": 0.0,
         "us_stock:VGK": 0.0,
-        "us_stock:EEM": 0.219431,
-        "us_stock:NVDA": 0.335398,
+        "us_stock:EEM": 0.0,
+        "us_stock:NVDA": 0.334537,
         "us_stock:AAPL": 0.0,
-        "us_stock:GOOGL": 0.28649,
-        "us_stock:GOOG": 0.398041,
-        "us_stock:MSFT": 0.378956,
+        "us_stock:GOOGL": 0.066504,
+        "us_stock:GOOG": 0.36811,
+        "us_stock:MSFT": 0.375388,
         "us_stock:AMZN": 0.0,
         "kr_stock:069500.KS": 0.0,
-        "kr_stock:133690.KS": 0.952653,
+        "kr_stock:133690.KS": 0.848052,
         "kr_stock:132030.KS": 0.0,
         "kr_stock:148070.KS": 0.0,
-        "kr_stock:228790.KS": 0.346662,
-        "kr_stock:273130.KS": 0.831147,
+        "kr_stock:228790.KS": 0.354765,
+        "kr_stock:273130.KS": 0.881803,
         "kr_stock:005930.KS": 0.0,
         "kr_stock:000660.KS": 0.0,
-        "kr_stock:035420.KS": 0.011226,
+        "kr_stock:035420.KS": 0.0,
         "kr_stock:005380.KS": 0.0,
-        "kr_stock:051910.KS": 0.149212,
-        "kr_stock:105560.KS": 0.081968
+        "kr_stock:051910.KS": 0.143379,
+        "kr_stock:105560.KS": 0.1151
       },
       "pending": {
-        "us_stock:GOOG": {
+        "us_stock:EEM": {
           "weight": 0.0,
           "slice": 1.0,
-          "decided_bar": "2026-10-26 00:00:00"
+          "decided_bar": "2026-10-27 00:00:00"
         },
-        "us_stock:GLD": {
+        "us_stock:QQQ": {
           "weight": 0.0,
           "slice": 1.0,
-          "decided_bar": "2026-10-26 00:00:00"
+          "decided_bar": "2026-10-27 00:00:00"
         },
-        "us_stock:EWJ": {
-          "weight": 0.0,
+        "us_stock:NVDA": {
+          "weight": 0.070419,
           "slice": 1.0,
-          "decided_bar": "2026-10-26 00:00:00"
+          "decided_bar": "2026-10-27 00:00:00"
+        },
+        "kr_stock:273130.KS": {
+          "weight": 0.335344,
+          "slice": 1.0,
+          "decided_bar": "2026-10-27 00:00:00"
         }
       },
       "last_trade": {
         "crypto:ETH/USDT": "2026-10-24",
         "crypto:XRP/USDT": "2026-08-20",
         "crypto:BTC/USDT": "2026-10-25",
-        "crypto:SOL/USDT": "2026-08-20",
-        "crypto:BNB/USDT": "2026-10-25",
+        "crypto:SOL/USDT": "2026-10-27",
+        "crypto:BNB/USDT": "2026-10-27",
         "us_stock:AMZN": "2026-10-14",
         "kr_stock:051910.KS": "2026-08-20",
         "kr_stock:105560.KS": "2026-08-20",
         "us_stock:GOOGL": "2026-10-14",
         "kr_stock:069500.KS": "2026-08-24",
-        "us_stock:GOOG": "2026-10-26",
+        "us_stock:GOOG": "2026-10-27",
         "us_stock:SPY": "2026-10-20",
-        "us_stock:EWJ": "2026-10-19",
+        "us_stock:EWJ": "2026-10-27",
         "us_stock:NVDA": "2026-10-26",
         "us_stock:XLP": "2026-10-23",
         "kr_stock:148070.KS": "2026-10-08",
@@ -44411,10 +45197,10 @@
         "kr_stock:228790.KS": "2026-10-19",
         "us_stock:DBC": "2026-10-12",
         "kr_stock:132030.KS": "2026-10-15",
-        "us_stock:GLD": "2026-10-20",
+        "us_stock:GLD": "2026-10-27",
         "us_stock:MSFT": "2026-10-26"
       },
-      "cost_paid": 9325.31,
+      "cost_paid": 9353.69,
       "cost_paid_seed": {
         "amount": 726.64,
         "records": 4,
@@ -44425,7 +45211,7 @@
       "pending_engine": "champions",
       "realized_by_year": {
         "2026": {
-          "us_stock:GOOG": -83.91,
+          "us_stock:GOOG": -143.21,
           "us_stock:DBC": 3.8,
           "us_stock:XLU": 797.29,
           "us_stock:GOOGL": 15.0,
@@ -44433,18 +45219,19 @@
           "kr_stock:132030.KS": -329.74,
           "us_stock:LQD": 431.87,
           "us_stock:VGK": 107.52,
-          "crypto:BNB/USDT": -79.9,
+          "crypto:BNB/USDT": -68.9,
           "kr_stock:228790.KS": -137.52,
           "us_stock:QQQ": -125.82,
           "us_stock:TIP": -655.47,
-          "us_stock:GLD": -14.16,
+          "us_stock:GLD": -41.46,
           "us_stock:SPY": -4.02,
           "us_stock:EEM": -29.93,
           "us_stock:UUP": 20.28,
           "us_stock:XLP": 281.62,
           "crypto:BTC/USDT": -10.94,
           "us_stock:NVDA": -26.82,
-          "us_stock:MSFT": -21.25
+          "us_stock:MSFT": -21.25,
+          "us_stock:EWJ": -6.56
         }
       }
     }
@@ -44453,37 +45240,25 @@
   "symbol": "SHADOW",
   "currency": "KRW",
   "start_cash": 1000000.0,
-  "cash": 995226.6463188458,
+  "cash": 707725.5361842916,
   "positions": {
-    "us_stock:QQQ": {
-      "quantity": 0.0003166988938592152,
-      "avg_price": 971648.6113870699,
-      "last_price": 956514.4952392578,
-      "last_price_bar": "2026-10-27"
-    },
-    "us_stock:EEM": {
-      "quantity": 0.008575809053733048,
-      "avg_price": 82258.44632135006,
-      "last_price": 82913.39574380033,
-      "last_price_bar": "2026-10-27"
-    },
-    "crypto:ETH/USDT": {
-      "quantity": 0.00018723213557498552,
-      "avg_price": 3107148.5312341307,
-      "last_price": 3115989.362529297,
-      "last_price_bar": "2026-10-27"
-    },
     "crypto:BTC/USDT": {
       "quantity": 1.6742835052164606e-05,
       "avg_price": 106580609.84119874,
-      "last_price": 107299508.39829102,
-      "last_price_bar": "2026-10-27"
+      "last_price": 109150550.55584717,
+      "last_price_bar": "2026-10-28"
     },
-    "crypto:SOL/USDT": {
-      "quantity": 0.04496663908953236,
-      "avg_price": 134316.517265625,
-      "last_price": 134316.517265625,
-      "last_price_bar": "2026-10-27"
+    "us_stock:NVDA": {
+      "quantity": 0.2396806831394608,
+      "avg_price": 295056.9839204103,
+      "last_price": 289018.433810547,
+      "last_price_bar": "2026-10-28"
+    },
+    "kr_stock:273130.KS": {
+      "quantity": 1.9987008444511065,
+      "avg_price": 112185.0,
+      "last_price": 111900.0,
+      "last_price_bar": "2026-10-28"
     }
   },
   "base_prices": {
@@ -44530,7 +45305,7 @@
     "kr_stock:228790.KS": 4545.0,
     "kr_stock:273130.KS": 109395.0
   },
-  "last_bar": "2026-10-27",
+  "last_bar": "2026-10-28",
   "deposits": [],
   "restarted": {
     "date": "2026-08-13",
@@ -44542,13 +45317,13 @@
   },
   "risk_scale": 1.0,
   "prev_weights": {
-    "crypto:BTC/USDT": 0.272861,
-    "crypto:ETH/USDT": 0.086204,
-    "crypto:SOL/USDT": 0.017399,
+    "crypto:BTC/USDT": 0.014455,
+    "crypto:ETH/USDT": 0.0,
+    "crypto:SOL/USDT": 0.0,
     "crypto:BNB/USDT": 0.0,
     "crypto:XRP/USDT": 0.0,
-    "us_stock:SPY": 0.0,
-    "us_stock:QQQ": 0.0,
+    "us_stock:SPY": 0.012366,
+    "us_stock:QQQ": 0.04694,
     "us_stock:GLD": 0.0,
     "us_stock:SLV": 0.0,
     "us_stock:TLT": 0.0,
@@ -44564,52 +45339,47 @@
     "us_stock:EWJ": 0.0,
     "us_stock:VGK": 0.0,
     "us_stock:EEM": 0.0,
-    "us_stock:NVDA": 0.334537,
+    "us_stock:NVDA": 0.334388,
     "us_stock:AAPL": 0.0,
-    "us_stock:GOOGL": 0.066504,
-    "us_stock:GOOG": 0.36811,
-    "us_stock:MSFT": 0.375388,
+    "us_stock:GOOGL": 0.0,
+    "us_stock:GOOG": 0.327998,
+    "us_stock:MSFT": 0.373975,
     "us_stock:AMZN": 0.0,
     "kr_stock:069500.KS": 0.0,
-    "kr_stock:133690.KS": 0.848052,
+    "kr_stock:133690.KS": 0.295278,
     "kr_stock:132030.KS": 0.0,
     "kr_stock:148070.KS": 0.0,
-    "kr_stock:228790.KS": 0.354765,
-    "kr_stock:273130.KS": 0.881803,
+    "kr_stock:228790.KS": 0.329304,
+    "kr_stock:273130.KS": 0.837987,
     "kr_stock:005930.KS": 0.0,
     "kr_stock:000660.KS": 0.0,
-    "kr_stock:035420.KS": 0.0,
+    "kr_stock:035420.KS": 0.008764,
     "kr_stock:005380.KS": 0.0,
-    "kr_stock:051910.KS": 0.143379,
-    "kr_stock:105560.KS": 0.1151
+    "kr_stock:051910.KS": 0.048966,
+    "kr_stock:105560.KS": 0.0
   },
   "pending": {
-    "us_stock:EEM": {
-      "weight": 0.0,
+    "us_stock:NVDA": {
+      "weight": 0.007843,
       "slice": 1.0,
-      "decided_bar": "2026-10-27 00:00:00"
+      "decided_bar": "2026-10-28 00:00:00"
     },
     "us_stock:QQQ": {
-      "weight": 0.0,
+      "weight": 0.012299,
       "slice": 1.0,
-      "decided_bar": "2026-10-27 00:00:00"
-    },
-    "us_stock:NVDA": {
-      "weight": 0.070419,
-      "slice": 1.0,
-      "decided_bar": "2026-10-27 00:00:00"
+      "decided_bar": "2026-10-28 00:00:00"
     },
     "kr_stock:273130.KS": {
-      "weight": 0.335344,
+      "weight": 0.446411,
       "slice": 1.0,
-      "decided_bar": "2026-10-27 00:00:00"
+      "decided_bar": "2026-10-28 00:00:00"
     }
   },
   "last_trade": {
-    "crypto:ETH/USDT": "2026-10-24",
+    "crypto:ETH/USDT": "2026-10-28",
     "crypto:XRP/USDT": "2026-08-20",
     "crypto:BTC/USDT": "2026-10-25",
-    "crypto:SOL/USDT": "2026-10-27",
+    "crypto:SOL/USDT": "2026-10-28",
     "crypto:BNB/USDT": "2026-10-27",
     "us_stock:AMZN": "2026-10-14",
     "kr_stock:051910.KS": "2026-08-20",
@@ -44619,13 +45389,13 @@
     "us_stock:GOOG": "2026-10-27",
     "us_stock:SPY": "2026-10-20",
     "us_stock:EWJ": "2026-10-27",
-    "us_stock:NVDA": "2026-10-26",
+    "us_stock:NVDA": "2026-10-28",
     "us_stock:XLP": "2026-10-23",
     "kr_stock:148070.KS": "2026-10-08",
     "us_stock:UUP": "2026-10-22",
-    "us_stock:QQQ": "2026-10-22",
+    "us_stock:QQQ": "2026-10-28",
     "us_stock:XLU": "2026-10-23",
-    "us_stock:EEM": "2026-10-22",
+    "us_stock:EEM": "2026-10-28",
     "us_stock:VNQ": "2026-09-29",
     "us_stock:VGK": "2026-10-26",
     "us_stock:IEF": "2026-10-06",
@@ -44636,9 +45406,10 @@
     "us_stock:DBC": "2026-10-12",
     "kr_stock:132030.KS": "2026-10-15",
     "us_stock:GLD": "2026-10-27",
-    "us_stock:MSFT": "2026-10-26"
+    "us_stock:MSFT": "2026-10-26",
+    "kr_stock:273130.KS": "2026-10-28"
   },
-  "cost_paid": 9353.69,
+  "cost_paid": 9726.87,
   "cost_paid_seed": {
     "amount": 726.64,
     "records": 4,
@@ -44659,17 +45430,19 @@
       "us_stock:VGK": 107.52,
       "crypto:BNB/USDT": -68.9,
       "kr_stock:228790.KS": -137.52,
-      "us_stock:QQQ": -125.82,
+      "us_stock:QQQ": -125.99,
       "us_stock:TIP": -655.47,
       "us_stock:GLD": -41.46,
       "us_stock:SPY": -4.02,
-      "us_stock:EEM": -29.93,
+      "us_stock:EEM": -8.39,
       "us_stock:UUP": 20.28,
       "us_stock:XLP": 281.62,
       "crypto:BTC/USDT": -10.94,
       "us_stock:NVDA": -26.82,
       "us_stock:MSFT": -21.25,
-      "us_stock:EWJ": -6.56
+      "us_stock:EWJ": -6.56,
+      "crypto:SOL/USDT": 138.3,
+      "crypto:ETH/USDT": 10.65
     }
   }
 }
