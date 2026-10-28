@@ -241,8 +241,8 @@
       "exit_window": 20
     },
     "promotions": 0,
-    "last_run_asof": "2026-10-26",
-    "trials_total": 1658,
+    "last_run_asof": "2026-10-27",
+    "trials_total": 1711,
     "parliament": [
       {
         "strategy": "breakout",
@@ -250,7 +250,7 @@
           "window": 55,
           "exit_window": 20
         },
-        "weight": 0.6754,
+        "weight": 0.674,
         "alt_weight": 0.6666
       },
       {
@@ -263,7 +263,7 @@
           "label": "triple",
           "calibrate": "sigmoid"
         },
-        "weight": 0.1928,
+        "weight": 0.1881,
         "alt_weight": 0.1667
       },
       {
@@ -275,7 +275,7 @@
           "retrain_every": 20,
           "label": "triple"
         },
-        "weight": 0.1318,
+        "weight": 0.138,
         "alt_weight": 0.1667
       }
     ]
@@ -1640,14 +1640,14 @@
       "mode": "squeeze"
     },
     "promotions": 0,
-    "trials_total": 1316,
+    "trials_total": 1365,
     "parliament": [
       {
         "strategy": "bollinger",
         "params": {
           "mode": "squeeze"
         },
-        "weight": 0.5863,
+        "weight": 0.589,
         "alt_weight": 0.6666
       },
       {
@@ -1656,7 +1656,7 @@
           "entry": 0.2,
           "exit": 0.8
         },
-        "weight": 0.2242,
+        "weight": 0.2266,
         "alt_weight": 0.1667
       },
       {
@@ -1668,11 +1668,11 @@
           "retrain_every": 20,
           "sizing": "binary"
         },
-        "weight": 0.1895,
+        "weight": 0.1843,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-10-26"
+    "last_run_asof": "2026-10-27"
   },
   "kr_stock:132030.KS": {
     "strategy": "cross_rank",
@@ -1681,7 +1681,7 @@
       "top_frac": 0.5
     },
     "promotions": 0,
-    "trials_total": 1375,
+    "trials_total": 1428,
     "parliament": [
       {
         "strategy": "cross_rank",
@@ -1689,14 +1689,14 @@
           "lookback": 120,
           "top_frac": 0.5
         },
-        "weight": 0.3752,
+        "weight": 0.3487,
         "alt_weight": 0.1667
       },
       {
         "strategy": "ichimoku",
         "params": {},
-        "weight": 0.3744,
-        "alt_weight": 0.2167
+        "weight": 0.3485,
+        "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
@@ -1707,82 +1707,62 @@
           "retrain_every": 20,
           "sizing": "binary"
         },
-        "weight": 0.2504,
-        "alt_weight": 0.6166
+        "weight": 0.3029,
+        "alt_weight": 0.6666
       }
     ],
-    "last_run_asof": "2026-10-26"
+    "last_run_asof": "2026-10-27"
   },
   "kr_stock:148070.KS": {
-    "strategy": "ml",
+    "strategy": "breakout",
     "params": {
-      "model": "logreg",
-      "threshold": 0.55,
-      "train_window": 250,
-      "retrain_every": 20,
-      "calibrate": "isotonic",
-      "label": "triple",
-      "meta": true
+      "window": 55,
+      "exit_window": 20
     },
     "promotions": 0,
-    "trials_total": 1376,
+    "trials_total": 1429,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "logreg",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic",
-          "label": "triple",
-          "meta": true
-        },
-        "weight": 0.3915,
-        "alt_weight": 0.2667
-      },
       {
         "strategy": "breakout",
         "params": {
           "window": 55,
           "exit_window": 20
         },
-        "weight": 0.3559,
-        "alt_weight": 0.5666
+        "weight": 0.4195,
+        "alt_weight": 0.6666
       },
       {
         "strategy": "buy_hold",
         "params": {},
-        "weight": 0.2526,
+        "weight": 0.3252,
+        "alt_weight": 0.1667
+      },
+      {
+        "strategy": "ma_cross",
+        "params": {
+          "fast": 20,
+          "slow": 60
+        },
+        "weight": 0.2553,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-10-26"
+    "last_run_asof": "2026-10-27"
   },
   "kr_stock:228790.KS": {
     "strategy": "ml",
     "params": {
-      "model": "rf",
+      "model": "gb",
       "threshold": 0.55,
       "train_window": 250,
       "retrain_every": 20,
-      "calibrate": "isotonic"
+      "calibrate": "isotonic",
+      "label": "cost",
+      "label_cost": 0.003
     },
     "promotions": 0,
-    "trials_total": 1369,
+    "trials_total": 1421,
     "parliament": [
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "rf",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic"
-        },
-        "weight": 0.4194,
-        "alt_weight": 0.1667
-      },
       {
         "strategy": "ml",
         "params": {
@@ -1794,8 +1774,8 @@
           "label": "cost",
           "label_cost": 0.003
         },
-        "weight": 0.3389,
-        "alt_weight": 0.5416
+        "weight": 0.4249,
+        "alt_weight": 0.6666
       },
       {
         "strategy": "ml",
@@ -1806,11 +1786,25 @@
           "retrain_every": 20,
           "calibrate": "isotonic"
         },
-        "weight": 0.2416,
-        "alt_weight": 0.2917
+        "weight": 0.3137,
+        "alt_weight": 0.1667
+      },
+      {
+        "strategy": "ml",
+        "params": {
+          "model": "logreg",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "calibrate": "isotonic",
+          "label": "triple",
+          "meta": true
+        },
+        "weight": 0.2614,
+        "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-10-26"
+    "last_run_asof": "2026-10-27"
   },
   "kr_stock:273130.KS": {
     "strategy": "cross_rank",
