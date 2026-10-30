@@ -2,7 +2,7 @@
   "cash": 7271.017768643094,
   "quantity": 38.43215177891679,
   "avg_price": 67.06197867611085,
-  "last_bar": "2026-10-29 00:00:00",
+  "last_bar": "2026-10-30 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2393,11 +2393,59 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-10-30",
+      "price": 61.040000915527344,
+      "weight": 0.25,
+      "held_weight": 0.2439,
+      "fractional_lot": false,
+      "equity": 9616.92,
+      "return_pct": -3.83,
+      "hit_rate": 0.5395348837209303,
+      "hit_n": 215,
+      "hit_lo": 0.47279841831837277,
+      "hit_hi": 0.6048833387150251,
+      "hit_conclusive": false,
+      "live_hit": 0.4523809523809524,
+      "live_hit_n": 42,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "entry_day": 25,
+        "exit_day": 3
+      },
+      "reason": "매수 +25% — turn_of_month 전략 신호에 따름 · 🏛 의회 운용: turn_of_month 39% + ml 33% + bollinger 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 61.240002,
+        "bar": "2026-10-30 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-10-29 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "92bd9a61559b",
+      "data_sha256": "a3858941841596c37d3f2698f8daa9cb2b9b2530e6953f7c441bd4be7b4878bf",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2757,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-10-29 00:00:00"
+    "decided_bar": "2026-10-30 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EEM",
