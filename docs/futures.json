@@ -1,9 +1,9 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-10-30T10:21:02+09:00",
+  "updated": "2026-10-30T10:33:05+09:00",
   "start_cash": 10000.0,
-  "equity": 8350.2553,
-  "return_pct": -16.4974,
+  "equity": 8350.2446,
+  "return_pct": -16.4976,
   "gross_return_pct": -6.9462,
   "cost_basis_bp": 15.0,
   "fee_window": {
@@ -11,16 +11,16 @@
     "rounds": 816,
     "fees": 1.4474,
     "gross_pnl": -269.5992,
-    "since": "2026-10-23T10:18:39+09:00"
+    "since": "2026-10-23T10:30:30+09:00"
   },
   "fee_budget": {
     "days": 7,
     "fees": 1.4474,
-    "equity": 8350.2553,
+    "equity": 8350.2446,
     "pct_of_equity": 0.0173,
     "limit_pct": 3.0,
     "breached": false,
-    "since": "2026-10-23T10:18:39+09:00"
+    "since": "2026-10-23T10:30:30+09:00"
   },
   "rebalance_bands": {
     "BTC/USDT": 0.15,
@@ -31,13 +31,13 @@
   },
   "direction_gate": {
     "two_sided": true,
-    "night": "2026-10-30",
-    "age_nights": 0,
+    "night": "2026-10-29",
+    "age_nights": 1,
     "max_age_nights": 7,
-    "t_stat": 1.4173390064893936,
+    "t_stat": 1.3536524723263823,
     "t_threshold": 1.35,
-    "n_symbols": 12,
-    "n_dates": 120
+    "n_symbols": 17,
+    "n_dates": 121
   },
   "engine": {
     "name": "trend_core",
@@ -45,11 +45,11 @@
     "selected_by": "engine.json",
     "target_day": "2026-10-30",
     "band": 0.02,
-    "gross": 0.4877,
+    "gross": 0.4874,
     "weights": {
-      "BTC/USDT": 0.0868,
-      "ETH/USDT": 0.0627,
-      "SOL/USDT": 0.1179,
+      "BTC/USDT": 0.0867,
+      "ETH/USDT": 0.0626,
+      "SOL/USDT": 0.1178,
       "BNB/USDT": 0.1665,
       "XRP/USDT": 0.0538
     }
@@ -65,24 +65,24 @@
       "short": 214.69763
     },
     "funding": {
-      "long": 77.350654,
+      "long": 77.361336,
       "short": -2.365681
     },
     "net": {
-      "long": -1304.608847,
+      "long": -1304.619529,
       "short": -495.49351
     },
-    "rounds": 2547,
+    "rounds": 2548,
     "reconstructed_rounds": 222,
-    "note": "2547회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
-    "unattributed": 150.3577,
+    "note": "2548회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
+    "unattributed": 150.3576,
     "open_positions": {
       "long": 5,
       "short": 0
     }
   },
   "cost_paid": 872.5338,
-  "funding_paid": 82.59184,
+  "funding_paid": 82.602522,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
@@ -115,7 +115,7 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 1.962407,
+  "margin_ratio": 1.962404,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
@@ -138,10 +138,6 @@
   "rounds": 2000,
   "observed_gap_minutes": null,
   "curve": [
-    {
-      "at": "2026-10-26T03:57:22+09:00",
-      "equity": 8605.6591
-    },
     {
       "at": "2026-10-26T04:09:38+09:00",
       "equity": 8599.4363
@@ -2137,6 +2133,10 @@
     {
       "at": "2026-10-30T10:21:02+09:00",
       "equity": 8350.2553
+    },
+    {
+      "at": "2026-10-30T10:33:05+09:00",
+      "equity": 8350.2446
     }
   ],
   "positions": {
@@ -2215,8 +2215,8 @@
   },
   "deployed": {
     "gross": 4255.1088,
-    "pct": 50.9578,
-    "cash": 4095.1465,
+    "pct": 50.9579,
+    "cash": 4095.1358,
     "unknown": 0
   },
   "recent_trades": [
@@ -2371,9 +2371,9 @@
   },
   "krw": {
     "rate": 1340.34,
-    "equity": 11192181.0,
+    "equity": 11192167.0,
     "start_cash": 13403400.0,
-    "pnl": -2211219.0,
+    "pnl": -2211233.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
