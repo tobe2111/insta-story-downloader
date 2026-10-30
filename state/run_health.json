@@ -57,11 +57,16 @@
   },
   "paper": {
     "date": "2026-10-30",
-    "runs": 1,
-    "ok": 34,
-    "failed": 1,
-    "skipped": 5,
+    "runs": 2,
+    "ok": 40,
+    "failed": 0,
+    "skipped": 0,
     "ok_keys": [
+      "crypto:BNB/USDT",
+      "crypto:BTC/USDT",
+      "crypto:ETH/USDT",
+      "crypto:SOL/USDT",
+      "crypto:XRP/USDT",
       "kr_stock:000660.KS",
       "kr_stock:005380.KS",
       "kr_stock:005930.KS",
@@ -93,22 +98,13 @@
       "us_stock:TLT",
       "us_stock:UUP",
       "us_stock:VGK",
+      "us_stock:VNQ",
       "us_stock:XLE",
       "us_stock:XLP",
       "us_stock:XLU"
     ],
-    "skipped_keys": [
-      "crypto:BNB/USDT",
-      "crypto:BTC/USDT",
-      "crypto:ETH/USDT",
-      "crypto:SOL/USDT",
-      "crypto:XRP/USDT"
-    ],
-    "failed_keys": [
-      "us_stock:VNQ"
-    ],
-    "errors": {
-      "us_stock:VNQ": "us_stock/VNQ: 데이터 무결성 위반 {'gaps': 181, 'ohlc_violations': 1} — 기록하지 않습니다."
-    }
+    "skipped_keys": [],
+    "failed_keys": [],
+    "errors": {}
   }
 }
