@@ -2,7 +2,7 @@
   "cash": 7271.017768643094,
   "quantity": 38.43215177891679,
   "avg_price": 67.06197867611085,
-  "last_bar": "2026-10-30 00:00:00",
+  "last_bar": "2026-11-02 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2441,11 +2441,59 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-02",
+      "price": 61.11000061035156,
+      "weight": 0.25,
+      "held_weight": 0.2441,
+      "fractional_lot": false,
+      "equity": 9619.61,
+      "return_pct": -3.8,
+      "hit_rate": 0.5555555555555556,
+      "hit_n": 189,
+      "hit_lo": 0.48430616763103307,
+      "hit_hi": 0.6245914976030243,
+      "hit_conclusive": false,
+      "live_hit": 0.4418604651162791,
+      "live_hit_n": 43,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "entry_day": 25,
+        "exit_day": 3
+      },
+      "reason": "매수 +25% — turn_of_month 전략 신호에 따름 · 🏛 의회 운용: turn_of_month 41% + ml 35% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 62.07,
+        "bar": "2026-11-02 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-10-30 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "79f83be172d0",
+      "data_sha256": "9e2ba89198a186c0fcff5b6c5f3c54bceb70cf57e667ca6d81f2bc97e3074024",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2627,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-10-30 00:00:00"
+    "decided_bar": "2026-11-02 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EEM",

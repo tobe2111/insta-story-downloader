@@ -2,7 +2,7 @@
   "cash": 10024.052026507541,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-10-30 00:00:00",
+  "last_bar": "2026-11-02 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2476,11 +2476,62 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-02",
+      "price": 45.56999969482422,
+      "weight": 0.0363,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10024.05,
+      "return_pct": 0.24,
+      "hit_rate": 0.5478260869565217,
+      "hit_n": 115,
+      "hit_lo": 0.4567826246113187,
+      "hit_hi": 0.6357775563354204,
+      "hit_conclusive": false,
+      "live_hit": 0.5294117647058824,
+      "live_hit_n": 34,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "model": "gb",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "pool": "universe"
+      },
+      "reason": "소액 매수 +3.6% — 그라디언트부스팅·풀링(전 종목 합산 학습) 모델이 내일 상승확률을 약 56%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 사이징: 신호 원비중 9% → 변동성 타깃 조절 후 4% · 참고: 전 종목 합산으로 모델이 56%±10%p라 말한 417번의 실제 상승 비율 50% (95% 신뢰구간 46%~55% · 보합 5일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 11번으로 축적 중) · 🏛 의회 운용: ml 39% + ml 37% + ml 24% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 45.880001,
+        "bar": "2026-11-02 00:00:00",
+        "weight": 0.0011,
+        "decided_bar": "2026-10-30 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "79f83be172d0",
+      "data_sha256": "d8efd92f54234d8ed8e8c4f27d001b1748aeeb5cddba6e13f7d057d165b49f29",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5604846278836907,
+      "drift_psi": 0.266,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0011,
-    "decided_bar": "2026-10-30 00:00:00"
+    "weight": 0.0363,
+    "decided_bar": "2026-11-02 00:00:00"
   },
   "market": "us_stock",
   "symbol": "SLV",
