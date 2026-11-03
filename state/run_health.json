@@ -61,17 +61,12 @@
     }
   },
   "paper": {
-    "date": "2026-11-03",
-    "runs": 3,
-    "ok": 40,
-    "failed": 0,
-    "skipped": 0,
+    "date": "2026-11-04",
+    "runs": 1,
+    "ok": 34,
+    "failed": 1,
+    "skipped": 5,
     "ok_keys": [
-      "crypto:BNB/USDT",
-      "crypto:BTC/USDT",
-      "crypto:ETH/USDT",
-      "crypto:SOL/USDT",
-      "crypto:XRP/USDT",
       "kr_stock:000660.KS",
       "kr_stock:005380.KS",
       "kr_stock:005930.KS",
@@ -88,7 +83,6 @@
       "us_stock:AMZN",
       "us_stock:DBC",
       "us_stock:EEM",
-      "us_stock:EWJ",
       "us_stock:GLD",
       "us_stock:GOOG",
       "us_stock:GOOGL",
@@ -108,8 +102,18 @@
       "us_stock:XLP",
       "us_stock:XLU"
     ],
-    "skipped_keys": [],
-    "failed_keys": [],
-    "errors": {}
+    "skipped_keys": [
+      "crypto:BNB/USDT",
+      "crypto:BTC/USDT",
+      "crypto:ETH/USDT",
+      "crypto:SOL/USDT",
+      "crypto:XRP/USDT"
+    ],
+    "failed_keys": [
+      "us_stock:EWJ"
+    ],
+    "errors": {
+      "us_stock:EWJ": "us_stock/EWJ: 데이터 무결성 위반 {'gaps': 181, 'ohlc_violations': 1} — 기록하지 않습니다."
+    }
   }
 }
