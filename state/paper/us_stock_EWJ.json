@@ -2,7 +2,7 @@
   "cash": 7608.834174519481,
   "quantity": 26.014813743257186,
   "avg_price": 96.47699820795658,
-  "last_bar": "2026-11-02 00:00:00",
+  "last_bar": "2026-11-03 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2384,11 +2384,58 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-03",
+      "price": 92.58999633789062,
+      "weight": 0.25,
+      "held_weight": 0.2404,
+      "fractional_lot": false,
+      "equity": 10017.55,
+      "return_pct": 0.18,
+      "hit_rate": 0.5338345864661654,
+      "hit_n": 266,
+      "hit_lo": 0.4738292964061166,
+      "hit_hi": 0.5928765043303155,
+      "hit_conclusive": false,
+      "live_hit": 0.46808510638297873,
+      "live_hit_n": 47,
+      "live_hit_flat": 1,
+      "hit_flat": 2,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "매수 +25% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 37% + dual_thrust 32% + fomc_drift 31% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 93.379997,
+        "bar": "2026-11-03 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-02 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "93790eebe212",
+      "data_sha256": "0415071a8e3ce95c7c553371ea0f8690f164fa0b66eef7134576960f9ed685dd",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2084,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-02 00:00:00"
+    "decided_bar": "2026-11-03 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EWJ",
