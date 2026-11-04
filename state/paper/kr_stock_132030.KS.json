@@ -2,7 +2,7 @@
   "cash": 9828.174655848712,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-11-03 00:00:00",
+  "last_bar": "2026-11-04 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2414,11 +2414,63 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4773
+    },
+    {
+      "date": "2026-11-04",
+      "price": 22455.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9828.17,
+      "return_pct": -1.72,
+      "hit_rate": 0.5321888412017167,
+      "hit_n": 233,
+      "hit_lo": 0.46811756074226496,
+      "hit_hi": 0.5952159077024677,
+      "hit_conclusive": false,
+      "live_hit": 0.4,
+      "live_hit_n": 30,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "sizing": "binary"
+      },
+      "reason": "관망 (현금) — 로지스틱회귀 모델의 상승확률이 기준(55%)에 못 미쳐 관망 · 🏛 의회 운용: ml 42% + cross_rank 30% + expiry_week 28% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 21980.0,
+        "bar": "2026-11-04 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-11-03 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "95b2a68b3641",
+      "data_sha256": "ca65d30f48dde94fba6255c4b428b98f4a8cba543a53639152e6decb3bc3c7ef",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.11696746737998753,
+      "drift_psi": 0.1235,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4831
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-11-03 00:00:00"
+    "decided_bar": "2026-11-04 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "132030.KS",

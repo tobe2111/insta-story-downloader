@@ -2,7 +2,7 @@
   "cash": 7608.834174519481,
   "quantity": 26.014813743257186,
   "avg_price": 96.47699820795658,
-  "last_bar": "2026-11-03 00:00:00",
+  "last_bar": "2026-11-04 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2431,11 +2431,58 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-04",
+      "price": 93.86000061035156,
+      "weight": 0.25,
+      "held_weight": 0.2429,
+      "fractional_lot": false,
+      "equity": 10050.58,
+      "return_pct": 0.51,
+      "hit_rate": 0.5355805243445693,
+      "hit_n": 267,
+      "hit_lo": 0.4756765066951617,
+      "hit_hi": 0.5944751982127993,
+      "hit_conclusive": false,
+      "live_hit": 0.4583333333333333,
+      "live_hit_n": 48,
+      "live_hit_flat": 1,
+      "hit_flat": 2,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "매수 +25% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 36% + dual_thrust 34% + fomc_drift 30% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 93.019997,
+        "bar": "2026-11-04 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-03 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "95b2a68b3641",
+      "data_sha256": "7c7292324f692311affffd2df8fd55b82c41a1b373ce8428919837876e495ee2",
+      "env": "py3.12.15|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.191,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-03 00:00:00"
+    "decided_bar": "2026-11-04 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EWJ",
