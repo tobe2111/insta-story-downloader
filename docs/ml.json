@@ -6,8 +6,8 @@
     "by_strategy": {
       "ma_cross": 6,
       "buy_hold": 1,
-      "ml": 16,
-      "cross_rank": 2,
+      "ml": 15,
+      "cross_rank": 3,
       "bollinger": 7,
       "connors_rsi2": 1,
       "breakout": 3,
@@ -140,16 +140,16 @@
       {
         "key": "us_stock:AAPL",
         "strategy": "bollinger",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-04",
         "promotions": 0,
-        "trials": 1993
+        "trials": 2042
       },
       {
         "key": "us_stock:AMZN",
         "strategy": "ml",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-04",
         "promotions": 0,
-        "trials": 1833
+        "trials": 1886
       },
       {
         "key": "us_stock:DBC",
@@ -175,37 +175,37 @@
       {
         "key": "us_stock:GLD",
         "strategy": "fomc_drift",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 1979
+        "trials": 2077
       },
       {
         "key": "us_stock:GOOG",
         "strategy": "ml",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-04",
         "promotions": 0,
-        "trials": 1536
+        "trials": 1589
       },
       {
         "key": "us_stock:GOOGL",
         "strategy": "ml",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-04",
         "promotions": 0,
-        "trials": 1588
+        "trials": 1641
       },
       {
         "key": "us_stock:IEF",
         "strategy": "ma_cross",
-        "trained_on": "2026-11-04",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 1798
+        "trials": 1851
       },
       {
         "key": "us_stock:LQD",
-        "strategy": "ml",
-        "trained_on": "2026-11-04",
+        "strategy": "cross_rank",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 1748
+        "trials": 1801
       },
       {
         "key": "us_stock:META",
@@ -217,9 +217,9 @@
       {
         "key": "us_stock:MSFT",
         "strategy": "ml",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-04",
         "promotions": 0,
-        "trials": 1813
+        "trials": 1866
       },
       {
         "key": "us_stock:NVDA",
@@ -231,23 +231,23 @@
       {
         "key": "us_stock:QQQ",
         "strategy": "ibs",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 2147
+        "trials": 2253
       },
       {
         "key": "us_stock:SLV",
         "strategy": "ml",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 2064
+        "trials": 2169
       },
       {
         "key": "us_stock:SPY",
         "strategy": "bollinger",
-        "trained_on": "2026-11-03",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 2349
+        "trials": 2447
       },
       {
         "key": "us_stock:TIP",
@@ -259,9 +259,9 @@
       {
         "key": "us_stock:TLT",
         "strategy": "expiry_week",
-        "trained_on": "2026-11-04",
+        "trained_on": "2026-11-05",
         "promotions": 0,
-        "trials": 1848
+        "trials": 1897
       },
       {
         "key": "us_stock:TSLA",
@@ -316,11 +316,11 @@
     "promotions": 2
   },
   "live": {
-    "hits": 760,
-    "n": 1569,
-    "hit_rate": 0.4844,
-    "ci_lo": 0.4597,
-    "ci_hi": 0.5091,
+    "hits": 781,
+    "n": 1595,
+    "hit_rate": 0.4897,
+    "ci_lo": 0.4652,
+    "ci_hi": 0.5142,
     "beats_chance": false,
     "worse_than_chance": false,
     "per_symbol": [
@@ -351,18 +351,18 @@
       },
       {
         "symbol": "us_stock_MSFT",
-        "hit_rate": 0.5385,
-        "n": 52
+        "hit_rate": 0.5472,
+        "n": 53
       },
       {
         "symbol": "kr_stock_105560.KS",
-        "hit_rate": 0.4286,
-        "n": 49
+        "hit_rate": 0.44,
+        "n": 50
       },
       {
         "symbol": "us_stock_EWJ",
-        "hit_rate": 0.4583,
-        "n": 48
+        "hit_rate": 0.4694,
+        "n": 49
       },
       {
         "symbol": "kr_stock_069500.KS",
@@ -371,12 +371,17 @@
       },
       {
         "symbol": "us_stock_XLE",
-        "hit_rate": 0.587,
-        "n": 46
+        "hit_rate": 0.5745,
+        "n": 47
       },
       {
         "symbol": "us_stock_EEM",
-        "hit_rate": 0.4444,
+        "hit_rate": 0.4565,
+        "n": 46
+      },
+      {
+        "symbol": "kr_stock_051910.KS",
+        "hit_rate": 0.5333,
         "n": 45
       },
       {
@@ -385,54 +390,54 @@
         "n": 44
       },
       {
-        "symbol": "kr_stock_051910.KS",
-        "hit_rate": 0.5227,
+        "symbol": "us_stock_NVDA",
+        "hit_rate": 0.4091,
         "n": 44
       },
       {
-        "symbol": "us_stock_NVDA",
-        "hit_rate": 0.4186,
+        "symbol": "us_stock_GOOGL",
+        "hit_rate": 0.5349,
         "n": 43
       },
       {
-        "symbol": "us_stock_GOOGL",
-        "hit_rate": 0.5238,
+        "symbol": "us_stock_AMZN",
+        "hit_rate": 0.4524,
         "n": 42
       },
       {
-        "symbol": "us_stock_AMZN",
-        "hit_rate": 0.439,
+        "symbol": "kr_stock_005930.KS",
+        "hit_rate": 0.4634,
         "n": 41
       },
       {
-        "symbol": "kr_stock_005930.KS",
-        "hit_rate": 0.475,
-        "n": 40
-      },
-      {
         "symbol": "us_stock_DBC",
-        "hit_rate": 0.5,
-        "n": 40
+        "hit_rate": 0.4878,
+        "n": 41
       },
       {
         "symbol": "us_stock_GOOG",
-        "hit_rate": 0.475,
-        "n": 40
+        "hit_rate": 0.4878,
+        "n": 41
       },
       {
         "symbol": "us_stock_SPY",
-        "hit_rate": 0.4103,
-        "n": 39
+        "hit_rate": 0.425,
+        "n": 40
       },
       {
         "symbol": "us_stock_VNQ",
-        "hit_rate": 0.4211,
-        "n": 38
+        "hit_rate": 0.4359,
+        "n": 39
       },
       {
         "symbol": "us_stock_AAPL",
-        "hit_rate": 0.5405,
-        "n": 37
+        "hit_rate": 0.5526,
+        "n": 38
+      },
+      {
+        "symbol": "us_stock_QQQ",
+        "hit_rate": 0.4737,
+        "n": 38
       },
       {
         "symbol": "us_stock_GLD",
@@ -440,28 +445,28 @@
         "n": 37
       },
       {
-        "symbol": "us_stock_QQQ",
-        "hit_rate": 0.4595,
+        "symbol": "us_stock_SLV",
+        "hit_rate": 0.5405,
         "n": 37
       },
       {
-        "symbol": "us_stock_SLV",
-        "hit_rate": 0.5278,
-        "n": 36
-      },
-      {
         "symbol": "us_stock_UUP",
-        "hit_rate": 0.6471,
-        "n": 34
+        "hit_rate": 0.6286,
+        "n": 35
       },
       {
         "symbol": "kr_stock_133690.KS",
-        "hit_rate": 0.3636,
-        "n": 33
+        "hit_rate": 0.3824,
+        "n": 34
       },
       {
         "symbol": "us_stock_TLT",
         "hit_rate": 0.4516,
+        "n": 31
+      },
+      {
+        "symbol": "us_stock_XLP",
+        "hit_rate": 0.5806,
         "n": 31
       },
       {
@@ -470,23 +475,23 @@
         "n": 30
       },
       {
-        "symbol": "us_stock_XLP",
-        "hit_rate": 0.5667,
-        "n": 30
-      },
-      {
         "symbol": "us_stock_XLU",
-        "hit_rate": 0.5185,
-        "n": 27
+        "hit_rate": 0.5357,
+        "n": 28
       },
       {
         "symbol": "kr_stock_035420.KS",
-        "hit_rate": 0.3846,
-        "n": 26
+        "hit_rate": 0.4074,
+        "n": 27
       },
       {
         "symbol": "kr_stock_228790.KS",
         "hit_rate": 0.2609,
+        "n": 23
+      },
+      {
+        "symbol": "kr_stock_273130.KS",
+        "hit_rate": 0.6957,
         "n": 23
       },
       {
@@ -495,14 +500,9 @@
         "n": 23
       },
       {
-        "symbol": "kr_stock_273130.KS",
-        "hit_rate": 0.6818,
-        "n": 22
-      },
-      {
         "symbol": "kr_stock_148070.KS",
-        "hit_rate": 0.6667,
-        "n": 18
+        "hit_rate": 0.6842,
+        "n": 19
       },
       {
         "symbol": "us_stock_VGK",
@@ -511,13 +511,13 @@
       },
       {
         "symbol": "kr_stock_005380.KS",
-        "hit_rate": 0.2667,
-        "n": 15
+        "hit_rate": 0.3125,
+        "n": 16
       },
       {
         "symbol": "us_stock_LQD",
-        "hit_rate": 0.4286,
-        "n": 14
+        "hit_rate": 0.4667,
+        "n": 15
       },
       {
         "symbol": "us_stock_IEF",
@@ -527,11 +527,11 @@
     ]
   },
   "insample": {
-    "hit_rate": 0.5315,
-    "n": 8587
+    "hit_rate": 0.5312,
+    "n": 8230
   },
   "calibration": {
-    "pairs": 1361,
+    "pairs": 1374,
     "table": [
       {
         "lo": 0.0,
@@ -546,11 +546,11 @@
       {
         "lo": 0.1,
         "hi": 0.2,
-        "n": 91,
-        "said": 0.152,
-        "actual": 0.4835,
-        "ci_lo": 0.3836,
-        "ci_hi": 0.5848,
+        "n": 92,
+        "said": 0.1516,
+        "actual": 0.4891,
+        "ci_lo": 0.3895,
+        "ci_hi": 0.5896,
         "confirmed": true
       },
       {
@@ -566,11 +566,11 @@
       {
         "lo": 0.3,
         "hi": 0.4,
-        "n": 133,
-        "said": 0.3504,
-        "actual": 0.3985,
-        "ci_lo": 0.3193,
-        "ci_hi": 0.4834,
+        "n": 136,
+        "said": 0.3503,
+        "actual": 0.3971,
+        "ci_lo": 0.3187,
+        "ci_hi": 0.481,
         "confirmed": false
       },
       {
@@ -586,31 +586,31 @@
       {
         "lo": 0.5,
         "hi": 0.6,
-        "n": 276,
+        "n": 280,
         "said": 0.5433,
-        "actual": 0.5471,
-        "ci_lo": 0.4881,
-        "ci_hi": 0.6048,
+        "actual": 0.5429,
+        "ci_lo": 0.4843,
+        "ci_hi": 0.6002,
         "confirmed": false
       },
       {
         "lo": 0.6,
         "hi": 0.7,
-        "n": 150,
-        "said": 0.6508,
-        "actual": 0.42,
-        "ci_lo": 0.344,
-        "ci_hi": 0.5,
+        "n": 151,
+        "said": 0.6507,
+        "actual": 0.4172,
+        "ci_lo": 0.3416,
+        "ci_hi": 0.497,
         "confirmed": true
       },
       {
         "lo": 0.7,
         "hi": 0.8,
-        "n": 121,
+        "n": 124,
         "said": 0.7438,
-        "actual": 0.4793,
-        "ci_lo": 0.3923,
-        "ci_hi": 0.5676,
+        "actual": 0.4758,
+        "ci_lo": 0.39,
+        "ci_hi": 0.5631,
         "confirmed": true
       },
       {
@@ -626,23 +626,23 @@
       {
         "lo": 0.9,
         "hi": 1.0,
-        "n": 76,
-        "said": 0.9438,
-        "actual": 0.4474,
-        "ci_lo": 0.3408,
-        "ci_hi": 0.559,
+        "n": 77,
+        "said": 0.9442,
+        "actual": 0.4416,
+        "ci_lo": 0.3361,
+        "ci_hi": 0.5526,
         "confirmed": true
       }
     ],
     "confident_up": {
-      "n": 443,
-      "actual": 0.4695
+      "n": 448,
+      "actual": 0.4665
     },
     "confident_down": {
-      "n": 416,
-      "actual": 0.4615
+      "n": 420,
+      "actual": 0.4619
     },
-    "correlation": 0.0005
+    "correlation": -0.003
   },
   "drift": {
     "grades": {
@@ -653,12 +653,12 @@
     "worst": [
       {
         "symbol": "us_stock_GLD",
-        "psi": 0.8902,
+        "psi": 0.9184,
         "grade": "드리프트"
       },
       {
         "symbol": "us_stock_IEF",
-        "psi": 0.8704,
+        "psi": 0.9124,
         "grade": "드리프트"
       },
       {
@@ -667,23 +667,23 @@
         "grade": "드리프트"
       },
       {
-        "symbol": "kr_stock_035420.KS",
-        "psi": 0.4092,
-        "grade": "주의 (표본 잡음 범위)"
-      },
-      {
         "symbol": "us_stock_LQD",
         "psi": 0.4056,
         "grade": "주의 (표본 잡음 범위)"
       },
       {
-        "symbol": "kr_stock_005380.KS",
-        "psi": 0.3893,
+        "symbol": "us_stock_XLE",
+        "psi": 0.3947,
         "grade": "주의 (표본 잡음 범위)"
       },
       {
         "symbol": "crypto_ETH_USDT",
         "psi": 0.3768,
+        "grade": "주의 (표본 잡음 범위)"
+      },
+      {
+        "symbol": "kr_stock_273130.KS",
+        "psi": 0.3719,
         "grade": "주의 (표본 잡음 범위)"
       },
       {
@@ -693,7 +693,7 @@
       }
     ],
     "notable_line": 0.25,
-    "over_line": 19,
+    "over_line": 17,
     "measured": 42
   },
   "gate": {
