@@ -1591,7 +1591,7 @@
       "retrain_every": 20
     },
     "promotions": 0,
-    "trials_total": 1746,
+    "trials_total": 1799,
     "parliament": [
       {
         "strategy": "ml",
@@ -1601,7 +1601,7 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.4697,
+        "weight": 0.4328,
         "alt_weight": 0.6666
       },
       {
@@ -1613,23 +1613,23 @@
           "retrain_every": 20,
           "calibrate": "sigmoid"
         },
-        "weight": 0.3635,
+        "weight": 0.3557,
         "alt_weight": 0.1667
       },
       {
         "strategy": "ml",
         "params": {
-          "model": "gb",
+          "model": "logreg",
           "threshold": 0.55,
           "train_window": 250,
           "retrain_every": 20,
-          "label": "triple"
+          "pool": "universe"
         },
-        "weight": 0.1668,
+        "weight": 0.2115,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-11-05"
+    "last_run_asof": "2026-11-06"
   },
   "kr_stock:133690.KS": {
     "strategy": "bollinger",
