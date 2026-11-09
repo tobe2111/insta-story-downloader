@@ -36,7 +36,7 @@ def test_a_due_experiment_is_judged_once_with_its_registered_correction(tmp_path
     assert rec["comparisons"] == 3
     p = rec["pairs"]["alloc:hrp-erc"]
     assert abs(p["alpha"] - 0.05 / 3) < 1e-4 and rec["code"] == "significant"
-    assert p["n"] < 200, "판정일 뒤 자료까지 썼다"
+    assert p["n"] <= 120, "판정일(12-17) 뒤 자료까지 썼다 — 08-20부터 120일까지만"
     # 얼린다 — 장부가 바뀌어도 다시 재지 않는다.
     _ledger(tmp_path / "alloc_ladder" / "erc.json", base)
     again = F.judge_due(str(tmp_path), today="2027-06-01")
