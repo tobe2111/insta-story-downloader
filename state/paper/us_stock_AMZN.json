@@ -2,7 +2,7 @@
   "cash": 7759.043571927209,
   "quantity": 9.948797211079837,
   "avg_price": 259.80999755859375,
-  "last_bar": "2026-11-06 00:00:00",
+  "last_bar": "2026-11-09 00:00:00",
   "history": [
     {
       "date": "2026-08-05",
@@ -3193,11 +3193,62 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-09",
+      "price": 266.92999267578125,
+      "weight": 0.25,
+      "held_weight": 0.255,
+      "fractional_lot": false,
+      "equity": 10414.68,
+      "return_pct": 4.15,
+      "hit_rate": 0.4305555555555556,
+      "hit_n": 72,
+      "hit_lo": 0.3225772336645315,
+      "hit_hi": 0.5455690079759403,
+      "hit_conclusive": false,
+      "live_hit": 0.4418604651162791,
+      "live_hit_n": 43,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "rf",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "sizing": "binary"
+      },
+      "reason": "매수 +25% — 랜덤포레스트 모델이 내일 상승확률을 약 57%로 추정(기준 55% 초과) · 사이징: 신호 원비중 100% → 변동성 타깃 조절 후 25% · 참고: 전 종목 합산으로 모델이 57%±10%p라 말한 435번의 실제 상승 비율 49% (95% 신뢰구간 45%~54% · 보합 6일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 23번으로 축적 중) · 🏛 의회 운용: ml 39% + ml 33% + ml 28% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 269.320007,
+        "bar": "2026-11-09 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-06 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "0ef255ac4294",
+      "data_sha256": "dbcae38ff9670115b8bb117ed130da8fc98a3741f81184368c1ff9fa04ea672a",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.5729078641116301,
+      "drift_psi": 0.3433,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-06 00:00:00"
+    "decided_bar": "2026-11-09 00:00:00"
   },
   "market": "us_stock",
   "symbol": "AMZN",
