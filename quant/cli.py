@@ -924,8 +924,26 @@ def _cmd_pins(args) -> None:
               "심사 결과가 아니라 사용자 지정입니다")
 
 
+def _ml_retired(today: str | None = None) -> str | None:
+    """종목별 ML 체계를 은퇴시킬 날이 지났으면 그 날짜(감사 361).
+
+    날짜는 손으로 적지 않고 등록부에서 센다(`prereg.ml_retire_after` — 그 신호를
+    쓰는 실험의 마지막 판정일). 사람이 기억하지 않아도 그날이 지나면 멈춘다.
+    """
+    import datetime as dt
+
+    from quant.live.prereg import ml_retire_after
+    day = ml_retire_after()
+    return day if (today or dt.date.today().isoformat()) > day else None
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
+
+    if args.all and _ml_retired():
+        say(f"🏁 종목별 ML 체계는 {_ml_retired()}에 은퇴했습니다 — 그 신호를 쓰는 사전 "
+            "등록 실험이 모두 판정일을 지났습니다. 밤 오디션을 돌리지 않습니다.")
+        return
 
     target = "전체 종목(AUTO_TARGETS)" if args.all else f"{args.market}/{args.symbol}"
     say(f"🌙 야간 재학습: {target} "

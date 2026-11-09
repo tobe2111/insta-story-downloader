@@ -851,6 +851,24 @@
       "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
         "It goes in as one input (the number of overlapping investors). Whether to keep or drop it is decided by the nightly audition on results — no person decides 'it must be used'.",
       // ── 엔진 전환 — 2026-10-09(감사 335) ───
+      "판정일이 지난 실험 — 기계가 판정일에 한 번 재고 얼린 확정 판정":
+        "Experiments past their judgement date — final verdicts measured once by the machine on that date and frozen",
+      "판정 안 함 — 판정일 전에 닫았습니다":
+        "Not judged — closed before its judgement date",
+      "재료가 없어 판정하지 못했습니다":
+        "Could not be judged — no ledger data",
+      "표본이 모자라 판정하지 않았습니다":
+        "Not judged — the sample is too small",
+      "차이가 우연과 구별되지 않습니다 — 현행 유지":
+        "The difference is indistinguishable from chance — current setup kept",
+      "등록된 기준으로 유의한 차이가 있습니다 — 채택은 사장님 결정입니다":
+        "A significant difference by the registered criteria — adoption is the owner's decision",
+      "기대치에 부합합니다":
+        "Meets the expectation",
+      "기대치 하한에 못 미칩니다":
+        "Falls short of the expectation floor",
+      "실패 기준에 걸렸습니다":
+        "Hit the failure criterion",
       "2026-11-09 정정 — 단타 실험과 코인 선물 트랙을 판정일 전에 닫았습니다.":
         "2026-11-09 correction — the intraday experiments and the crypto futures track were closed before their judgement dates.",
       "사장님 결정으로 단타 실험 다섯(장중 1시간봉 · 주기 사다리 · 지정가 그림자 · 미국 장중 · 미국 지정가 그림자)과 코인 선물 트랙을 판정일(11/16·11/17) 전에 닫았습니다. 장부 실측으로 코인 단타 −12.0%(같은 기간 코인 그냥 보유 +13.4%), 미국 단타 −2.1%, 코인 선물 −18.3%였습니다. 판정일에 닿지 못했으므로 이 실험들의 사전 등록 판정은 내리지 않습니다. 최종 성적은 마지막 장부를 마지막 시세로 정리한 것으로 보고 정리 비용을 뺀 값입니다.":

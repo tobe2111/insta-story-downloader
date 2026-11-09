@@ -4110,6 +4110,12 @@ def write_docs_status(state_dir: str = STATE_DIR,
     try:
         from quant.live.prereg import public as _prereg_public
         status["prereg"] = _prereg_public()
+        # 감사 361 — 판정일이 지난 실험은 기계가 한 번 판정하고 얼린다(사람이 안 잊게).
+        try:
+            from quant.live.final_judgement import judge_due
+            status["prereg"]["final"] = judge_due(state_dir)
+        except Exception as exc:  # noqa: BLE001 — 판정 실패가 배치를 죽이지 않는다
+            status["prereg"]["final_error"] = str(exc)[:200]
     except Exception:  # noqa: BLE001
         status["prereg"] = None
 

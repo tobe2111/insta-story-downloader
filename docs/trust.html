@@ -345,6 +345,7 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 등록 후 기준을 바꿔야 할 정당한 이유가 생기면 몰래 고치지 않고 이 자리에
 정정을 병기합니다. 등록 원문은 저장소 코드(quant/live/prereg.py)와
 status.json에 그대로 실려 있습니다.</p>
+<div class="card" id="final-judgements" style="display:none"></div>
 <p><b>2026-08-16부터 하루 넘게, '오늘의 판단' 페이지가 통째로 죽어 있었습니다.</b>
 그 페이지를 열면 <b>"기록을 불러오지 못했습니다"</b> 한 줄만 보였습니다.
 원인은 사소합니다 — 페이지가 불러오는 <b>파일 이름 하나가 틀려 있었습니다</b>
@@ -1139,6 +1140,22 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
 }).catch(()=>{});
 
 // 의석 현황 — "3석 분산"이 지금 실제인지 약속인지 장부가 말하게 한다(감사 225).
+// 감사 361 — 판정일이 지난 실험의 확정 판정(기계가 판정일에 한 번 재고 얼린다).
+fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  const fin=((st.prereg||{}).final)||{}, box=document.getElementById("final-judgements");
+  const keys=Object.keys(fin);
+  if(!keys.length) return;
+  const CODE={closed:"판정 안 함 — 판정일 전에 닫았습니다",no_data:"재료가 없어 판정하지 못했습니다",
+    thin:"표본이 모자라 판정하지 않았습니다",no_difference:"차이가 우연과 구별되지 않습니다 — 현행 유지",
+    significant:"등록된 기준으로 유의한 차이가 있습니다 — 채택은 사장님 결정입니다",
+    meets:"기대치에 부합합니다",below_floor:"기대치 하한에 못 미칩니다",fail:"실패 기준에 걸렸습니다"};
+  const el=(t,x)=>{const e=document.createElement(t);if(x!=null)e.appendChild(document.createTextNode(String(x)));return e;};
+  box.appendChild(el("h3","판정일이 지난 실험 — 기계가 판정일에 한 번 재고 얼린 확정 판정"));
+  keys.forEach(k=>{const r=fin[k],d=el("div");
+    d.appendChild(el("code",k));d.appendChild(document.createTextNode(" · "+String(r.judge_on||"")+" · "));
+    d.appendChild(el("b",CODE[r.code]||"—"));box.appendChild(d);});
+  box.style.display="";
+}).catch(()=>{});
 // ⚠️ 문장에 상태를 박아 두면 안 된다. 구조가 잠들어 있는 동안에도 계속
 //    "분산 운용 중"이라고 읽히고, 그게 정확히 이번에 고친 결함이다.
 fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
