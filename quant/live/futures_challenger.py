@@ -1471,9 +1471,16 @@ def public_report(st: dict) -> dict:
         "deployed": _deployed(st, eq),
         "recent_trades": trades,
         "limits": list(HONEST_LIMITS),
+        # 몇 기인가(감사 366) — 닫았다 다시 연 트랙은 기마다 성적을 따로 싣는다.
+        "season": _season_public(st, eq),
         # 운용 계좌(감사 346) — 엔진 그대로 / 코인 보유 / 현금 중 기계가 고른 계좌.
         "operated": _operated_public(st),
     }
+
+
+def _season_public(st: dict, equity) -> dict | None:
+    from quant.live.track_closure import season_public
+    return season_public(st, equity)
 
 
 def write_public_report(st: dict, docs_dir: str = "docs") -> str:

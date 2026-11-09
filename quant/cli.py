@@ -682,6 +682,16 @@ def _track_closed(args, track: str) -> bool:
     return True
 
 
+def _track_reopen(args, track: str) -> None:
+    """다시 연 트랙이면(감사 366) 1기를 얼리고 2기를 연다 — 회차보다 먼저, 멱등."""
+    from quant.live import track_closure as TC
+    try:
+        TC.reopen_track(track, args.state_dir, say=say)
+    except Exception as exc:  # noqa: BLE001
+        say(f"   ⚠️ {track} 2기 열기 실패: {exc}")
+        raise
+
+
 def _cmd_futures_round(args) -> None:
     """선물 도전자 1회 — 버려지던 절반(숏)을 쓰는 분리 실험(가상 USDT)."""
     from quant.live.futures_challenger import (
@@ -697,6 +707,7 @@ def _cmd_futures_round(args) -> None:
     # 감사 357 — 트랙을 닫았다(2026-11-09). 최종 성적만 한 번 남기고 회차는 없다.
     if _track_closed(args, "futures"):
         return
+    _track_reopen(args, "futures")
 
     # 회차 시각은 한국 시간 — 다른 두 트랙과 같은 시계를 쓴다.
     now = now_kst_iso()
@@ -741,8 +752,14 @@ def _cmd_intraday_round(args) -> None:
     if _halted(args):
         return
     # 감사 357 — 두 단타 트랙을 닫았다(2026-11-09). 최종 성적만 한 번 남긴다.
-    if _track_closed(args, "intraday") and _track_closed(args, "intraday_us"):
+    coin_closed = _track_closed(args, "intraday")
+    us_closed = _track_closed(args, "intraday_us")
+    if coin_closed and us_closed:
         return
+    # 감사 366 — 다시 연 트랙은 1기를 얼리고 2기를 연다(멱등, 회차보다 먼저).
+    for track, closed in (("intraday", coin_closed), ("intraday_us", us_closed)):
+        if not closed:
+            _track_reopen(args, track)
 
     # 회차·체결 시각은 **한국 시간**으로 찍는다(2026-08-19 사장님 지시).
     # 예전에는 UTC였다 — 같은 순간이지만 기록을 여는 사람이 한국에 있으니
@@ -750,11 +767,14 @@ def _cmd_intraday_round(args) -> None:
     # **같은 값**을 받아야 두 트랙의 회차를 나란히 놓고 볼 수 있으므로
     # 시각은 여기 한 곳에서만 만든다.
     now = now_kst_iso()
-    v = run_intraday_round(now, state_dir=args.state_dir,
-                           docs_dir=args.docs_dir)
-    say(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
-          f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
-          f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
+    if not coin_closed:
+        v = run_intraday_round(now, state_dir=args.state_dir,
+                               docs_dir=args.docs_dir)
+        say(f"🏃 장중 도전자 — 자산 {v['equity']:,.2f} USDT "
+              f"({v['return_pct']:+.2f}%) · 이번 회차 체결 {v['trades']}건 · "
+              f"건너뜀 {v['skipped']}종목 · 누적 비용 {v['cost_paid']:,.2f} USDT")
+    if us_closed:
+        return
 
     # 미국주식 트랙(2026-08-19, 사장님 지시) — 코인 트랙과 분리된 실험.
     # 미국 트랙 실패가 코인 트랙 기록을 볼모로 잡으면 안 된다.

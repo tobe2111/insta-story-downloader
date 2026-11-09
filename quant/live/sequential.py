@@ -200,6 +200,12 @@ def _pair(name: str, a: list[dict], b: list[dict], upto: str | None = None) -> d
     return {name: d} if (d or (a and b)) else {}
 
 
+#: 2기 실험 → 그 트랙의 장부(운용 계좌가 그 안에 산다).
+SEASON2 = {"intraday_s2": ("intraday", "challenger.json"),
+           "intraday_us_s2": ("intraday", "us_challenger.json"),
+           "futures_s2": ("futures", "futures.json")}
+
+
 def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, list[float]]:
     """한 등록 실험이 맞대는 장부 쌍들 — 이름 → 일수익 차이.
 
@@ -241,6 +247,21 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         name = "challenger.json" if key == "limit_shadow" else "us_challenger.json"
         rounds = _load(j("intraday", name)).get("rounds") or []
         return _pair(f"{key}:market-limit", rounds, _shadow_rows(rounds), upto)
+
+    if key in SEASON2:
+        # 감사 366 — 2기 운용 계좌 vs 본 계좌. 2기 시작일 앞의 줄(1기)은 뺀다.
+        from quant.live.prereg import PREREGISTERED
+        main = _load(j("paper", "portfolio_ALL.json"))
+        if main.get("deposits"):
+            return {}
+        start = PREREGISTERED[key]["start"]
+        op = ((_load(j(*SEASON2[key])).get("operated") or {}).get("history") or [])
+
+        def since(rows):
+            return [r for r in rows or []
+                    if str(r.get("date") or r.get("time") or "")[:10] >= start]
+        return _pair(f"{key}:operated-main", since(op),
+                     since(main.get("history") or []), upto)
 
     if key == "gen2_concentration":
         # 등록: "본 계좌 대비 일수익 차이 · 조기 판정 경계 적용".

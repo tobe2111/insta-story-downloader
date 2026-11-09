@@ -691,6 +691,24 @@
         "Minimum hold after a switch (days)",
       "갈아탄 기록":
         "Switch history",
+      "닫았던 트랙을 다시 열었습니다":
+        "This track was closed and has been reopened",
+      "지금":
+        "Now",
+      "시작한 날":
+        "Started on",
+      "이어받은 현금":
+        "Cash carried over",
+      "이번 기 수익률":
+        "Return this season",
+      "이번 기 운용 계좌 수익률":
+        "Operated account return this season",
+      "지난 기의 최종 자산(정리 비용 뺀 값)을 현금으로 이어받았습니다. 누적 수익률은 처음 시작 자산에서 끊김 없이 이어집니다. 이번 기는 운용 계좌가 첫날부터 단타와 그냥 보유(선물은 현금까지) 중에서 고르는 새 실험이고, 판정 기준은 신뢰 페이지에 새로 등록했습니다.":
+        "The previous season's final equity (after the closing cost) was carried over as cash. The cumulative return continues unbroken from the original starting equity. This season is a new experiment in which the operated account chooses from day one between short-term trading and simply holding (and, for futures, cash); its judgement criteria are newly registered on the trust page.",
+      "2026-11-10 정정 — 닫았던 세 트랙을 2기로 다시 엽니다.":
+        "2026-11-10 correction — the three closed tracks reopen as season 2.",
+      "사장님 지시로 하루 전에 닫은 코인 단타 · 미국 단타 · 코인 선물 트랙을 다시 엽니다. 1기 성적은 닫은 날의 숫자 그대로 남기고(코인 단타 −11.86% · 미국 단타 −1.50% · 코인 선물 −18.0%), 그 최종 자산을 현금으로 이어받아 2기를 시작합니다 — 누적 성적은 1기에서 끊김 없이 이어집니다. 1기 실험들의 사전 등록 판정은 여전히 내리지 않습니다. 2기는 새 질문이라 새로 등록했습니다: 기계가 단타·그냥 보유(선물은 현금까지) 중에서 고르는 운용 계좌가 수수료를 뺀 뒤 본 계좌보다 더 버는가, 판정일 2027-02-08.":
+        "By the owner's instruction, the crypto intraday, US intraday and crypto futures tracks closed a day earlier are reopened. Season 1 results stay as they were on the closing day (crypto intraday −11.86% · US intraday −1.50% · crypto futures −18.0%), and season 2 starts with that final equity carried over as cash — the cumulative record continues unbroken from season 1. The preregistered verdicts of the season 1 experiments are still not issued. Season 2 asks a new question and is newly registered: does the operated account, in which the machine chooses between short-term trading and simply holding (and, for futures, cash), earn more than the main account after fees? Judgement date 2027-02-08.",
       "이 트랙은 닫았습니다":
         "This track is closed",
       "닫은 날":
@@ -4193,6 +4211,7 @@
        "The largest holding ($1% of the account) falls 50% in a day"],
       ["^🟡 노출 절반 \\((\\d+)일째\\)$", "🟡 exposure halved (day $1)"],
       ["^지난 기록 (\\d+)건 더 보기$", "Show $1 more past entries"],
+      ["^(\\d+)기$", "Season $1"],
       ["^킬스위치 발동 (\\d+)회 — 첫 발동 (.+) \\(실제 급락일과 일치\\) · 실현 변동성이 목표보다 높습니다: 변동성 추정은 폭락을 하루이틀 늦게 따라갑니다\\. 이 지연은 구조적이며 숨기지 않습니다\\.$",
        "Kill switch fired $1 times — first on $2 (matching a real crash day) · realised volatility runs above target: a volatility estimate follows a crash a day or two late. That lag is structural and we do not hide it."],
       ["^표본 (\\d+)봉 · 95% 신뢰구간 (\\d+)~(\\d+)% — 구간이 50%를 품고 있어 동전던지기와 구별되지 않습니다$",
