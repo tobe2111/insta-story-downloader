@@ -118,7 +118,8 @@ jobs:
         run: python3 scripts/mutation_check.py --dry-run
 
       - name: Run tests
-        run: pytest -q
+        # 감사 365 — 파일 단위로 일꾼 넷이 나란히(requirements-extra의 pytest-xdist).
+        run: pytest -q -n 4 --dist loadfile
 
       - name: 매일 검사 실패 경보 (감사 360)
         # PR·push 실패는 그 작업을 하는 사람이 본다. 매일 돈 main 검사가 깨졌을 때만
