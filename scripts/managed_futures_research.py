@@ -97,6 +97,8 @@ TRIAL_LEDGER = {
     "audit358": ["risk12w", "notional50w", "notional50m", "notional50wm"],
     # 감사 362 — ML 종목 순위 둘(40종목 · 넓은 목록).
     "audit362": ["mlrank", "mlrankw"],
+    # 감사 367 — 기관식 최적화 둘(40종목 · 넓은 목록).
+    "audit367": ["mvo12", "mvo12w"],
 }
 N_TRIALS = sum(len(v) for v in TRIAL_LEDGER.values())
 

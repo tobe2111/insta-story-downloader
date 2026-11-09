@@ -146,6 +146,15 @@ CANDIDATES.update({
     "mlrankw": {"kind": "ml", "variant": "risk12", "universe": "wide"},
 })
 
+# ── 감사 367 — 사장님 "로직도 대기업급으로". 기관식 포트폴리오 구성
+# (`quant/portfolio/mvo.py` — 알파 결합 · 레도이트-울프 위험 모델 · 제약 평균-분산).
+# 같은 두 신호(추세·12-1 모멘텀)를 더 잘 담는 방법이지 새 수익원이 아니다 — 그래서
+# 손으로 바꾸지 않고 후보로 세운다.
+CANDIDATES.update({
+    "mvo12": {"kind": "mvo", "variant": "risk12"},
+    "mvo12w": {"kind": "mvo", "variant": "risk12", "universe": "wide"},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -173,6 +182,8 @@ LABELS = {
     "notional50wm": "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회",
     "mlrank": "머신러닝 순위",
     "mlrankw": "머신러닝 순위 · 넓은 목록",
+    "mvo12": "기관식 최적화(알파 결합 · 위험 모델)",
+    "mvo12w": "기관식 최적화 · 넓은 목록",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
@@ -253,6 +264,9 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
     elif spec["kind"] == "ml":
         from quant.portfolio.ml_rank import ml_weights
         tgt = ml_weights(sub, cfg)
+    elif spec["kind"] == "mvo":
+        from quant.portfolio.mvo import mvo_weights
+        tgt = mvo_weights(sub, cfg)
     elif spec["kind"] == "blend":
         tgt = T.blend_weights(sub, cfg)
     else:

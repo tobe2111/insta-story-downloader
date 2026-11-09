@@ -601,6 +601,10 @@
         "Machine-learning ranking",
       "머신러닝 순위 · 넓은 목록":
         "Machine-learning ranking · broad list",
+      "기관식 최적화(알파 결합 · 위험 모델)":
+        "Institutional optimisation (combined alpha · risk model)",
+      "기관식 최적화 · 넓은 목록":
+        "Institutional optimisation · broad list",
       "상대 강세":
         "Relative strength",
       "추세 + 상대 강세":
