@@ -2426,6 +2426,10 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                                     if fopen is not None else (None, None))
             except Exception as exc:  # noqa: BLE001 — 그 주문만 체결 못 한다
                 log.warning("되돌린 날 %s 체결가 못 찾음: %s", key, exc)
+        # 되감기가 오늘 처음 본 종목의 기준가(벤치마크 첫 관측)도 지운다 — 다시 채운다.
+        # 안 채우면 그 종목이 처음 들어온 날 되돌림이 일어날 때 지수 계산이 죽는다.
+        for key, px in prices.items():
+            st.setdefault("base_prices", {}).setdefault(key, px)
 
     # 이 봉의 계산을 시작하기 전 상태를 통째로 복사해 둔다(되돌림 지점).
     mark_restore_point(st, bar)

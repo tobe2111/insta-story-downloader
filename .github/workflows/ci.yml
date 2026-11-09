@@ -4,12 +4,20 @@ on:
   push:
     branches: [main, "claude/**"]
   pull_request:
+  # 감사 360 — main이 2026-10-12부터 한 달 빨갰는데 아무도 몰랐다. 봇 커밋은
+  # `[skip actions]`라 CI가 안 돌고, 사람 PR이 없는 동안은 검사가 한 번도 안 뜬다.
+  # 장부가 바뀌면 실데이터 검사가 깨질 수 있으므로 **매일 main을 검사하고**, 깨지면
+  # 경보함이 말한다(아래 마지막 단계). 늦게 뜨면 감시가 대신 띄운다(감사 351).
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 # 최소 권한 명시 — 미지정이면 저장소 기본값(조직 설정에 따라
 # write-all일 수 있다)을 물려받는다. 워크플로가 필요한 만큼만 갖게 한다.
 # 테스트만 돈다 — 저장소를 읽기만 하면 된다.
 permissions:
   contents: read
+  issues: write    # 경보함 — 매일 검사가 깨졌을 때만 쓴다(감사 360)
 
 jobs:
   test:
@@ -111,6 +119,22 @@ jobs:
 
       - name: Run tests
         run: pytest -q
+
+      - name: 매일 검사 실패 경보 (감사 360)
+        # PR·push 실패는 그 작업을 하는 사람이 본다. 매일 돈 main 검사가 깨졌을 때만
+        # 경보함에 적는다 — 아무도 안 보는 빨간불을 읽히게 하는 자리다.
+        if: (failure() || cancelled()) && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          ALERT_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          MSG="🚨 [Quant] main 매일 검사(${{ matrix.python-version }}) ${{ job.status == 'cancelled' && '취소(시간 초과?)' || '실패' }} ($(date -u +%F)) — 로그: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          export GH_TOKEN="$ALERT_GITHUB_TOKEN"
+          N=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title -q '.[] | select(.title=="🚨 자동매매 경보함") | .number' 2>/dev/null | head -1 || true)
+          if [ -n "$N" ]; then
+            gh issue comment "$N" -R "$GITHUB_REPOSITORY" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "🚨 자동매매 경보함" --body "@$GITHUB_REPOSITORY_OWNER $MSG" || true
+          fi
 
   # 의존성 감사 — 고정 범위(requirements.txt)가 실제로 설치 가능한지(pip check)와
   # 알려진 취약점(pip-audit)을 확인한다. 테스트 잡과 분리해 서로 막지 않는다.

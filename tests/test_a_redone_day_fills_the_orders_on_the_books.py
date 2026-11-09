@@ -61,7 +61,8 @@ def test_a_redo_fills_yesterdays_orders_not_the_discarded_runs(monkeypatch, tmp_
     on_books = {"us_stock:SPY": {"weight": 0.3, "slice": 1.0, "decided_bar": decided}}
     discarded = {"us_stock:QQQ": {"weight": 0.4, "slice": 1.0, "decided_bar": decided}}
     before = {"cash": 1_000_000.0, "positions": {}, "currency": "KRW",
-              "base_prices": {"us_stock:SPY": 140_000.0, "us_stock:QQQ": 140_000.0},
+              # QQQ는 오늘 처음 본 종목이다 — 되감기가 그 기준가를 지워도 죽지 않아야 한다.
+              "base_prices": {"us_stock:SPY": 140_000.0},
               "last_bar": str(yday.date()), "pending": on_books, "pending_engine": "champions",
               "history": [{"date": str(yday.date()), "equity": 1_000_000.0,
                            "engine": None}]}
