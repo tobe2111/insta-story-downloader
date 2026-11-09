@@ -655,6 +655,12 @@
         "Minimum hold after a switch (days)",
       "갈아탄 기록":
         "Switch history",
+      "정정 — 갈아탈 때 뗀 비용을 노출 금액으로 곱한 계산 오류를 바로잡았습니다. 그 뒤 자산은 기록된 일수익으로 다시 곱했습니다.":
+        "Correction — the switching cost was multiplied by the exposure amount instead of the exposure ratio. Fixed; the equity after that day was recompounded from the recorded daily returns.",
+      "갈아탄 날":
+        "Switch date",
+      "잘못 뗀 비용 → 맞는 비용":
+        "Wrong cost → correct cost",
       "기준일(하루 한 번, 그날 종가로 갱신)":
         "As of (updated once a day at that day's close)",
       "지금 방식으로 바꾼 날":

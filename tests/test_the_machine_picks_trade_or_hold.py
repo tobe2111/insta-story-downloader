@@ -192,8 +192,9 @@ def _fut_rounds(n=40, drift=-0.004, seed=9):
         eq *= 1 + drift + rng.normal(0, 0.002)
         px *= 1 + rng.normal(0.001, 0.01)
         day = pd.Timestamp("2026-08-23") + pd.Timedelta(days=i)
+        # ⚠️ 진짜 회차 기록처럼 노출은 **금액**이다(감사 355 — 배수로 먹여서 놓쳤다).
         out.append({"at": f"{day.date()}T15:00:00+09:00", "equity": eq,
-                    "gross_exposure": 0.8, "prices": {"BTC/USDT": px, "ETH/USDT": px}})
+                    "gross_exposure": 0.8 * eq, "prices": {"BTC/USDT": px, "ETH/USDT": px}})
     return out
 
 

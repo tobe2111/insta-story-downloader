@@ -111,6 +111,14 @@
         box.appendChild(d);
       });
     }
+    var cor = op.corrections || [];
+    if (cor.length) {
+      box.appendChild(el("div", "정정 — 갈아탈 때 뗀 비용을 노출 금액으로 곱한 계산 오류를 바로잡았습니다. 그 뒤 자산은 기록된 일수익으로 다시 곱했습니다.", "sub"));
+      cor.forEach(function (c) {
+        line(box, "갈아탄 날", String(c.switch_on || "—"));
+        line(box, "잘못 뗀 비용 → 맞는 비용", String(c.was_cost) + " → " + String(c.cost));
+      });
+    }
     box.appendChild(el("div", "과거에 나았던 쪽이 앞으로도 낫다는 보장은 없습니다. 그래서 문턱과 최소 유지 기간을 둡니다.", "sub"));
   }
 
