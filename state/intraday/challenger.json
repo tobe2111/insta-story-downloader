@@ -1,44 +1,12 @@
 {
-  "cash": 7067.847433774936,
+  "cash": 7835.419528231664,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
     "SOL/USDT": 10.020866014858962,
-    "XRP/USDT": 794.4059686248452
+    "XRP/USDT": 85.4461030617415
   },
   "rounds": [
-    {
-      "time": "2026-10-23T09:53:14+09:00",
-      "equity": 9476.17,
-      "signals": {
-        "BTC/USDT": 0.0,
-        "ETH/USDT": 0.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 0.0,
-        "XRP/USDT": 0.0
-      },
-      "bar_times": {
-        "BTC/USDT": "2026-10-22 23:00:00",
-        "ETH/USDT": "2026-10-22 23:00:00",
-        "SOL/USDT": "2026-10-22 23:00:00",
-        "BNB/USDT": "2026-10-22 23:00:00",
-        "XRP/USDT": "2026-10-22 23:00:00"
-      },
-      "trades": [],
-      "limit_shadow": {
-        "equity": 9696.21,
-        "filled": 0,
-        "cancelled": 0,
-        "pending": 0
-      },
-      "conviction_scale": {
-        "BTC/USDT": 1.0,
-        "ETH/USDT": 1.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 1.0,
-        "XRP/USDT": 3.0
-      }
-    },
     {
       "time": "2026-10-23T10:05:42+09:00",
       "equity": 9483.38,
@@ -64237,15 +64205,62 @@
         "BNB/USDT": 1.0,
         "XRP/USDT": 3.0
       }
+    },
+    {
+      "time": "2026-11-09T17:12:19+09:00",
+      "equity": 8785.45,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.1054
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-11-09 07:00:00",
+        "ETH/USDT": "2026-11-09 07:00:00",
+        "SOL/USDT": "2026-11-09 07:00:00",
+        "BNB/USDT": "2026-11-09 07:00:00",
+        "XRP/USDT": "2026-11-09 07:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "XRP/USDT",
+          "side": "sell",
+          "notional": -768.73,
+          "price": 1.0843,
+          "cost": 1.1531,
+          "signal": 0.1054,
+          "realized_pnl": -23.5168,
+          "avg_cost": 1.115844
+        }
+      ],
+      "kill_switch": {
+        "drawdown": -0.192,
+        "scale": 0.5
+      },
+      "limit_shadow": {
+        "equity": 9024.8,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      },
+      "conviction_scale": {
+        "BTC/USDT": 1.0,
+        "ETH/USDT": 1.0,
+        "SOL/USDT": 1.0,
+        "BNB/USDT": 1.0,
+        "XRP/USDT": 3.0
+      }
     }
   ],
-  "cost_paid": 812.2561816256004,
+  "cost_paid": 813.4092693989455,
   "last_prices": {
-    "BTC/USDT": 74302.3,
-    "ETH/USDT": 2113.46,
-    "SOL/USDT": 86.06,
-    "BNB/USDT": 681.29,
-    "XRP/USDT": 1.0915
+    "BTC/USDT": 73882.2,
+    "ETH/USDT": 2094.07,
+    "SOL/USDT": 85.56,
+    "BNB/USDT": 675.87,
+    "XRP/USDT": 1.0843
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -64266,7 +64281,14 @@
       "BNB/USDT": 5.665634369433903e-06,
       "XRP/USDT": 815.9325519021436
     },
-    "pending": {},
+    "pending": {
+      "XRP/USDT": {
+        "side": "sell",
+        "limit": 1.0843,
+        "notional": 789.55,
+        "placed_bar": "2026-11-09 07:00:00"
+      }
+    },
     "cost_paid": 535.9892511796337,
     "filled_total": 613,
     "unfilled_total": 809
@@ -64347,13 +64369,6 @@
       }
     ],
     "history": [
-      {
-        "time": "2026-11-06T07:54:28+09:00",
-        "equity": 8947.95,
-        "mode": "hold",
-        "trades": 0,
-        "cost": 0
-      },
       {
         "time": "2026-11-06T08:06:22+09:00",
         "equity": 8938.95,
@@ -67146,14 +67161,21 @@
         "mode": "hold",
         "trades": 0,
         "cost": 0
+      },
+      {
+        "time": "2026-11-09T17:12:19+09:00",
+        "equity": 8711.86,
+        "mode": "hold",
+        "trades": 0,
+        "cost": 0
       }
     ],
     "last_prices": {
-      "BTC/USDT": 74302.3,
-      "ETH/USDT": 2113.46,
-      "SOL/USDT": 86.06,
-      "BNB/USDT": 681.29,
-      "XRP/USDT": 1.0915
+      "BTC/USDT": 73882.2,
+      "ETH/USDT": 2094.07,
+      "SOL/USDT": 85.56,
+      "BNB/USDT": 675.87,
+      "XRP/USDT": 1.0843
     },
     "inherited_from_experiment": "2026-10-11"
   }
