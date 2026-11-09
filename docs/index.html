@@ -1142,6 +1142,9 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
          잡겠다고 정한 바로 그 자리다. */
       const dust=(pfLast.skipped_dust||[]).length;
       const cool=(pfLast.skipped_cooldown||[]).length;
+      /* 감사 363 — 두 시세 소스가 어긋난 종목은 그날 매매하지 않았다. */
+      const so=pfLast.second_opinion||{}, soBad=Object.keys(so.mismatch||{}).length;
+      if(soBad)why.push("두 시세 소스가 어긋나 오늘 매매를 쉰 종목 "+soBad+"곳");
       const bits=[];
       if(dust)bits.push("주문액이 최소 금액에 못 미쳐 "+dust+"곳");
       if(cool)bits.push("최근에 사고팔아 쉬는 중이라 "+cool+"곳");

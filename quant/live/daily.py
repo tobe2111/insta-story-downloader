@@ -2052,6 +2052,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
     open_src: dict = {}             # key → (시장, 일봉) — 되돌림 뒤 체결가를 다시 찾는 재료
+    opinions: dict = {}             # key → 두 번째 소스 대조 결과(감사 363)
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     closes_map: dict = {}           # key → 완성 봉 종가 전체 — 추세 코어 재료(감사 335)
@@ -2117,6 +2118,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # attrs["source"]에 적고 있었지만 **읽는 곳이 한 곳도 없었다**
             # (감사 135) — 기록만 하고 아무도 안 보는 계측기였다.
             sources[key] = str(df.attrs.get("source") or "?")
+            # 감사 363 — 두 번째 소스와 대조. 실데이터로 도는 배치에서만
+            # (검사·연구는 합성·가짜 제공자를 쓰므로 바깥으로 나가지 않는다).
+            if require_real_data:
+                from quant.data.second_opinion import second_opinion
+                op = second_opinion(market, symbol, df)
+                opinions[key] = op
+                if op.get("ok") is False:
+                    raise RuntimeError(f"두 소스 불일치 — {op.get('why')}")
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
@@ -3244,6 +3253,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "skipped_dust": skipped_dust or None,
               # 쿨다운으로 보류한 재조정 — 왜 오늘 안 고쳤는지의 답
               "skipped_cooldown": skipped_cool or None,
+              # 감사 363 — 두 번째 소스 대조. 어긋난 종목은 그날 매매하지 않았다.
+              "second_opinion": ({
+                  "checked": sum(1 for v in opinions.values() if v.get("ok") is not None),
+                  "mismatch": {k: v.get("why") for k, v in opinions.items()
+                               if v.get("ok") is False} or None,
+                  "unmeasured": sum(1 for v in opinions.values() if v.get("ok") is None),
+              } if opinions else None),
               # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
               # ⚠️ ratio는 '오늘 **몇 종목을** 건드렸나'지 회전율이 아니다

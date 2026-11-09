@@ -4432,6 +4432,7 @@
       ["^매수 (\\d+)%$", "Buy $1%"],
       ["^매도 (\\d+)%$", "Sell $1%"],
       ["^([\\d,]+)회$", "$1 times"],
+      ["^두 시세 소스가 어긋나 오늘 매매를 쉰 종목 (\\d+)곳$", "$1 symbols not traded today because two price sources disagreed"],
       ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
       ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],
       ["^상위 비중: (.+)$", "Largest weights: $1"],
