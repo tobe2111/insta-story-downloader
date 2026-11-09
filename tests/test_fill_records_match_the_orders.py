@@ -100,13 +100,17 @@ def test_no_single_fill_exceeds_the_days_gross_exposure():
     고치기 전 기록은 **고치지 않는다.** 새 장부에만 있는 `applied`를
     '수정 이후'의 표시로 삼아, 그 기록들만 본다.
     """
+    # 감사 359 — 되돌린 날이 **버려진 첫 회차의 주문**을 체결하던 결함의 흔적.
+    # 고친 뒤에도 옛 기록은 고치지 않으므로, 확인된 줄만 이름으로 비켜 간다
+    # (재현 검사: test_a_redone_day_fills_the_orders_on_the_books.py).
+    legacy_redo = {("portfolio_SHADOW.json", "2026-11-06")}
     checked = 0
     for fp in (ROOT / "state" / "paper").glob("portfolio_*.json"):
         prev = 0.0
         for rec in json.loads(fp.read_text("utf-8")).get("history") or []:
             today, before = float(rec.get("weight") or 0), prev
             prev = today
-            if not rec.get("applied"):
+            if not rec.get("applied") or (fp.name, rec.get("date")) in legacy_redo:
                 continue                      # 수정 이전 기록 — 건드리지 않는다
             # ⚠️ 시가 체결은 **전날** 정한 주문이다(그날 줄의 총노출은 오늘 새로 정한
             #    목표). 2026-10-22 섀도 장부: 전날 0.3548로 정한 LQD 0.1342가 체결된

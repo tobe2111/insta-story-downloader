@@ -2049,6 +2049,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
+    open_src: dict = {}             # key → (시장, 일봉) — 되돌림 뒤 체결가를 다시 찾는 재료
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     closes_map: dict = {}           # key → 완성 봉 종가 전체 — 추세 코어 재료(감사 335)
@@ -2272,6 +2273,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             bs = bar_status(market, df.index[-1], timeframe)
             if bs:
                 partial_bars[key] = bs["elapsed"]
+            open_src[key] = (market, df)
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
                 # ⚠️ **체결가도 원화로 환산한다**(감사 254). 감사 212가 평가
@@ -2325,6 +2327,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                     st["base_prices"].setdefault(key, prices[key])
                     last_bars[key] = str(dfx.index[-1])
                     sources[key] = str(dfx.attrs.get("source") or "?")
+                    open_src[key] = (market, dfx)
                     xpend = pending.get(key)
                     if xpend and xpend.get("decided_bar"):
                         xbar, xopen = _first_bar_after(dfx, xpend["decided_bar"])
@@ -2405,6 +2408,24 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                      bar, why)
             return {"skipped": True, "last_bar": bar, "redo_why": why}
         log.warning("포트폴리오: %s", why)
+        # ⚠️ 감사 359 — 대기 주문은 **되감은 뒤에** 다시 읽는다. 위 루프는 되감기
+        #    전의 주문(버려질 첫 회차가 다음 시가용으로 남긴 것)으로 체결가를 찾았다.
+        #    그대로 두면 되돌린 날은 장부에 없는 주문을 체결하고, 장부가 들고 있던
+        #    주문(전날 정한 것)은 조용히 사라진다. 실측: 본 계좌 2일(09-23·10-09) ·
+        #    섀도 3일(09-23·11-04·11-06). 옛 기록은 고치지 않는다.
+        pending = st.get("pending") or {}
+        opens_after = {}
+        for key, pend in pending.items():
+            src = open_src.get(key)
+            if not src or not (pend or {}).get("decided_bar"):
+                continue
+            m_, df_ = src
+            try:
+                fbar, fopen = _first_bar_after(df_, pend["decided_bar"])
+                opens_after[key] = ((fbar, _to_krw_or_die(m_, fopen, fx_rate))
+                                    if fopen is not None else (None, None))
+            except Exception as exc:  # noqa: BLE001 — 그 주문만 체결 못 한다
+                log.warning("되돌린 날 %s 체결가 못 찾음: %s", key, exc)
 
     # 이 봉의 계산을 시작하기 전 상태를 통째로 복사해 둔다(되돌림 지점).
     mark_restore_point(st, bar)
