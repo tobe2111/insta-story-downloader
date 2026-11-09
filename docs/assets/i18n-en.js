@@ -589,6 +589,14 @@
         "Equal amount · volatility cap 30%",
       "금액 균등 · 상한 변동성 50%":
         "Equal amount · volatility cap 50%",
+      "위험 균등 · 변동성 12% · 넓은 목록":
+        "Equal risk · 12% volatility · broad list",
+      "금액 균등 · 상한 변동성 50% · 넓은 목록":
+        "Equal amount · volatility cap 50% · broad list",
+      "금액 균등 · 상한 변동성 50% · 월 1회":
+        "Equal amount · volatility cap 50% · monthly",
+      "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회":
+        "Equal amount · volatility cap 50% · broad list · monthly",
       "상대 강세":
         "Relative strength",
       "추세 + 상대 강세":
@@ -4401,7 +4409,7 @@
       ["^· 최대낙폭 (.+)$", "· max drawdown $1"],
       ["^매수 (\\d+)%$", "Buy $1%"],
       ["^매도 (\\d+)%$", "Sell $1%"],
-      ["^(\\d+)회$", "$1 times"],
+      ["^([\\d,]+)회$", "$1 times"],
       ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
       ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],
       ["^상위 비중: (.+)$", "Largest weights: $1"],
@@ -4512,8 +4520,8 @@
        "note: the past record in this probability band ($1%±$2%pt) is still accumulating (shown from $3 cases per symbol)"],
       ["^(\\d{4}-\\d{2}-\\d{2}) 기준$", "as of $1"],
       ["^(\\d+)종목$", "$1 symbols"],
-      ["^(\\d+)봉$", "$1 bars"],
-      ["^(\\d+)회$", "$1 runs"],
+      ["^([\\d,]+)봉$", "$1 bars"],
+      ["^([\\d,]+)회$", "$1 runs"],
       ["^연환산 샤프 ([\\d\\.]+)$", "an annualised Sharpe of $1"],
       ["^\\((\\d{4}-\\d{2}-\\d{2}) 추가\\) 이 보고서는$",
        "(added $1) This report always publishes"],

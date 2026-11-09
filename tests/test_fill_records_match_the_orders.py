@@ -102,10 +102,17 @@ def test_no_single_fill_exceeds_the_days_gross_exposure():
     """
     checked = 0
     for fp in (ROOT / "state" / "paper").glob("portfolio_*.json"):
+        prev = 0.0
         for rec in json.loads(fp.read_text("utf-8")).get("history") or []:
+            today, before = float(rec.get("weight") or 0), prev
+            prev = today
             if not rec.get("applied"):
                 continue                      # 수정 이전 기록 — 건드리지 않는다
-            gross = float(rec.get("weight") or 0)
+            # ⚠️ 시가 체결은 **전날** 정한 주문이다(그날 줄의 총노출은 오늘 새로 정한
+            #    목표). 2026-10-22 섀도 장부: 전날 0.3548로 정한 LQD 0.1342가 체결된
+            #    날, 그날 새 목표는 0.1059였다 — 거짓이 아니라 날짜가 다른 두 숫자다.
+            #    즉시 체결(코인)은 그날 목표다. 그래서 둘 중 큰 쪽이 상한이다.
+            gross = max(today, before)
             for f in rec.get("fills") or []:
                 w = abs(float(f.get("weight") or 0))
                 checked += 1

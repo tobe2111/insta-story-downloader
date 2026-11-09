@@ -123,6 +123,21 @@ CANDIDATES.update({
              "weights": {"us_stock:SPY": 0.6, "us_stock:IEF": 0.4}},
 })
 
+# ── 감사 358 — 사장님 "가장 이상적인 로직으로" → "모두 진행해".
+# ① 안정형 엔진 자체를 **넓은 목록**에서도 돌린다. 지금까지 넓은 목록 버전은
+#    상대 강세·섞기·보유뿐이라, 기계는 '사람이 고른 40종목 덕을 덜 본 안정형'을
+#    고를 수 없었다(risk12: 40종목 6.6% vs 넓은 목록 2.3%).
+# ② 회전을 기계가 고른다 — 같은 엔진을 **월 1회**로 돈 후보. 덜 사고팔아도 성적이
+#    같으면 수수료만큼 남는다. 손으로 주기를 바꾸지 않고 링에 세운다.
+# ⚠️ 후보가 14 → 18이 되면 갈아타기 문턱도 저절로 오른다(`switch_threshold`).
+CANDIDATES.update({
+    "risk12w": {"kind": "trend", "variant": "risk12", "universe": "wide"},
+    "notional50w": {"kind": "trend", "variant": "notional50", "universe": "wide"},
+    "notional50m": {"kind": "trend", "variant": "notional50", "rebalance": "M"},
+    "notional50wm": {"kind": "trend", "variant": "notional50", "universe": "wide",
+                     "rebalance": "M"},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -144,6 +159,10 @@ LABELS = {
     "hold40": "그냥 보유 · 40종목 균등",
     "holdw": "그냥 보유 · 넓은 목록 균등",
     "6040": "그냥 보유 · 주식 60 채권 40",
+    "risk12w": "위험 균등 · 변동성 12% · 넓은 목록",
+    "notional50w": "금액 균등 · 상한 변동성 50% · 넓은 목록",
+    "notional50m": "금액 균등 · 상한 변동성 50% · 월 1회",
+    "notional50wm": "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
@@ -176,6 +195,8 @@ def candidate_config(name: str) -> T.TrendConfig:
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": "M"})
     if spec["kind"] in ("hold", "fixed"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "band": HOLD_BAND})
+    if spec.get("rebalance"):
+        cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": spec["rebalance"]})
     return cfg
 
 

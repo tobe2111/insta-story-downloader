@@ -92,6 +92,9 @@ TRIAL_LEDGER = {
     "audit343": ["xs12w", "blend12w", "xs12f", "xs12fw", "top2"],
     # 감사 344 — 그냥 보유 셋 · 선물 보유 · 선물 현금(선물 추세 둘은 335에 이미 셌다).
     "audit344": ["hold40", "holdw", "6040", "fut_hold", "fut_cash"],
+    # 감사 356 — 선택 규칙 2판(낙폭 −20% 자격). 감사 358 — 넓은 목록 안정형 둘 · 월 1회 둘.
+    "audit356": ["selector_v2"],
+    "audit358": ["risk12w", "notional50w", "notional50m", "notional50wm"],
 }
 N_TRIALS = sum(len(v) for v in TRIAL_LEDGER.values())
 

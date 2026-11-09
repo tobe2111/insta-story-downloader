@@ -65,3 +65,14 @@ def test_the_gate_uses_the_stable_line_and_the_reasons_reach_the_screen():
     assert "w.mdd_long" in js and "rl.version === 2" in js
     import inspect
     assert "floor: float = STABLE_MDD" in inspect.getsource(E.gate)
+
+
+def test_the_stable_engine_also_runs_on_the_broad_list_and_monthly():
+    """감사 358 — 안정형 엔진의 넓은 목록판·월 1회판이 링에 선다(손으로 주기를 안 바꾼다)."""
+    from quant.portfolio import trend_core as T
+    for n in ("risk12w", "notional50w", "notional50m", "notional50wm"):
+        assert n in E.ALL_NAMES and n in E.LABELS
+    assert E.universe_of("notional50w") == "wide" and E.universe_of("notional50m") == "core"
+    assert E.candidate_config("notional50m").rebalance == "M"
+    assert E.candidate_config("notional50").rebalance == T.TrendConfig().rebalance
+    assert E.switch_threshold(len(E.ALL_NAMES)) > E.switch_threshold(15), "후보가 늘었는데 문턱이 그대로다"
