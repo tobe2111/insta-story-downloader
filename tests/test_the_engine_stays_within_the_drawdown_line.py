@@ -76,3 +76,14 @@ def test_the_stable_engine_also_runs_on_the_broad_list_and_monthly():
     assert E.candidate_config("notional50m").rebalance == "M"
     assert E.candidate_config("notional50").rebalance == T.TrendConfig().rebalance
     assert E.switch_threshold(len(E.ALL_NAMES)) > E.switch_threshold(15), "후보가 늘었는데 문턱이 그대로다"
+
+
+def test_the_first_rule_still_refuses_a_pathological_drawdown():
+    """선물 후보(1판)도 최근 3년 낙폭이 −40%보다 나쁜 후보는 안 고른다."""
+    r = _frame()
+    late = r.index[-300]
+    r.loc[late:late + pd.Timedelta(days=60), "wild"] = -0.02
+    r.iloc[-200:, 2] += 0.01
+    dec = E.choose(r, r.index[-1], E.BASELINE, floor=E.MDD_FLOOR)
+    assert dec["table"]["wild"]["mdd"] / 100 < E.MDD_FLOOR
+    assert "wild" not in dec["eligible"]
