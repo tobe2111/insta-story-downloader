@@ -186,7 +186,7 @@ def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
     from quant.portfolio import engine_select as E
     picked = E.active_choice(E.load_state(state_dir), asof)
     name = picked or eng.get("variant") or E.BASELINE
-    if name not in E.ALL_NAMES:
+    if not E.is_known(name):
         name = E.BASELINE
     return name, ("engine_select" if picked else "engine.json")
 

@@ -72,6 +72,23 @@
       rv.appendChild(el("b", null, String(rl.version_on || "—")));
       card.appendChild(rv);
     }
+    // 자동 변이(감사 368) — 이번 주 기계가 만든 후보 수와 누적 시도, 그래서 오른 문턱.
+    var mu = es.mutation;
+    if (mu && mu.made) {
+      var mv = el("div", "sub");
+      mv.appendChild(el("span", null, "이번 주 기계가 지금 엔진 주변에서 만든 후보"));
+      mv.appendChild(document.createTextNode(" "));
+      mv.appendChild(el("b", null, String(mu.made.length)));
+      mv.appendChild(document.createTextNode(" · "));
+      mv.appendChild(el("span", null, "지금까지 만든 변이"));
+      mv.appendChild(document.createTextNode(" "));
+      mv.appendChild(el("b", null, String(es.mutant_trials || 0)));
+      mv.appendChild(document.createTextNode(" · "));
+      mv.appendChild(el("span", null, "갈아타기 문턱 t"));
+      mv.appendChild(document.createTextNode(" "));
+      mv.appendChild(el("b", null, String(rl.t_switch != null ? rl.t_switch : "—")));
+      card.appendChild(mv);
+    }
     var head = el("div");
     head.appendChild(el("span", null, "지금 엔진"));
     head.appendChild(document.createTextNode(" "));
@@ -232,6 +249,7 @@
       "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.",
       "최대낙폭이 −20%보다 나빴던 적이 있는 후보는 고르지 않습니다 — 최근 3년만이 아니라 그날까지의 전 기간(2008년 포함)에서, 넓은 목록에서도 봅니다. 지금 엔진이 그 선을 넘으면 바로 옮깁니다(2026-11-09부터, 사장님이 고른 안정형).",
       "기준 엔진은 금액 균등 · 상한 변동성 50%입니다. 사람이 고른 40종목과 넓은 목록에서 성적이 가장 덜 갈리는 후보라서입니다 — 이 선택은 결과를 본 뒤 사람이 했습니다.",
+      "매주 기계가 지금 엔진의 손잡이 하나를 한 칸 움직인 후보를 만들어 같은 관문에 세웁니다. 만든 후보가 쌓일수록 갈아타기 문턱도 저절로 올라갑니다 — 많이 뽑으면 우연히 좋아 보이는 후보도 많아지기 때문입니다.",
       "숫자는 같은 코드·같은 비용으로 돌린 과거 시뮬레이션입니다. 앞으로의 수익을 약속하지 않습니다."
     ].forEach(function (x) { ul.appendChild(el("li", null, x)); });
     card.appendChild(ul);

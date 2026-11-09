@@ -34,7 +34,7 @@ def _load(path):
         return None
 
 
-def _run_all(closes, fx, core_keys=None, names=None):
+def _run_all(closes, fx, core_keys=None, names=None, n_family=None):
     """후보마다 시뮬레이션 + 선택 규칙 재생.
 
     core_keys: 40종목 열. 주면 40종목 후보는 그 열만, 넓은 목록 후보는 전부를
@@ -53,7 +53,8 @@ def _run_all(closes, fx, core_keys=None, names=None):
     top2, pair = E.build_top2(results, cost, fx_keys=fx_keys, fx_cost=fx)
     results[E.TOP2] = top2
     print(f"  · {E.TOP2} 끝 — 지금 짝 {pair}")
-    meta = E.meta_backtest(results, cost, fx_keys=fx_keys, fx_cost=fx)
+    meta = E.meta_backtest(results, cost, fx_keys=fx_keys, fx_cost=fx,
+                           n_family=n_family)
     return results, meta, pair
 
 
@@ -151,21 +152,35 @@ def main():
     except Exception as exc:  # noqa: BLE001
         print(f"  ✗ 넓은 목록 실패 — 넓은 목록 후보·점검 못 함: {exc}")
     closes = T.align_business_days({**broad, **cur})
-    names = [n for n in E.CANDIDATES
-             if broad or E.universe_of(n) == "core"]
-    results, meta, top2_pair = _run_all(closes, fx, core_keys=core_keys, names=names)
-    wide = None
-    if broad:
-        print("생존 편향 점검(모든 후보를 넓은 목록에서) —")
-        w_results, w_meta, _ = _run_all(closes, fx, core_keys=None, names=names)
-        wide = {"results": w_results, "meta": w_meta}
-    g = E.gate(meta, results, wide=wide)
 
     prev = _load(OUT) or {}
     eng = _load(os.path.join(STATE_DIR, "engine.json")) or {}
+    # 감사 368 — 지난주까지의 변이를 후보 표에 올리고(지금 엔진이 변이일 수 있다),
+    # 이번 주 변이를 지금 엔진에서 새로 만든다.
+    E.register_mutants(prev.get("mutants"))
     incumbent = prev.get("active") or eng.get("variant") or E.BASELINE
-    if incumbent not in E.ALL_NAMES:
+    if not E.is_known(incumbent):
         incumbent = E.BASELINE
+    mutants = E.mutate_engine(incumbent, seed=str(closes.index[-1].date()))
+    E.register_mutants(mutants)
+    trials = int(prev.get("mutant_trials") or 0) + len(mutants)
+    fixed = [n for n in E.CANDIDATES if not n.startswith(E.MUTANT_PREFIX)]
+    names = fixed + ([incumbent] if incumbent.startswith(E.MUTANT_PREFIX) else []) \
+        + list(mutants)
+    names = [n for n in dict.fromkeys(names) if broad or E.universe_of(n) == "core"]
+    # 갈아타기 문턱의 가족 크기 = 고정 후보 + 상위 둘 + 지금까지 만든 변이 전부.
+    n_family = len([n for n in names if not n.startswith(E.MUTANT_PREFIX)]) + 1 + trials
+    print(f"자동 변이 {len(mutants)}개(기반 {incumbent}) · 누적 변이 {trials} · "
+          f"문턱 t ≥ {E.switch_threshold(n_family)}")
+    results, meta, top2_pair = _run_all(closes, fx, core_keys=core_keys, names=names,
+                                        n_family=n_family)
+    wide = None
+    if broad:
+        print("생존 편향 점검(모든 후보를 넓은 목록에서) —")
+        w_results, w_meta, _ = _run_all(closes, fx, core_keys=None, names=names,
+                                        n_family=n_family)
+        wide = {"results": w_results, "meta": w_meta}
+    g = E.gate(meta, results, wide=wide)
     rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
     fridays = rets.index[rets.index.weekday == 4]
     day = fridays[-1] if len(fridays) else rets.index[-1]
@@ -173,7 +188,7 @@ def main():
     if prev.get("since_switch"):
         held = int(((rets.index > pd.Timestamp(prev["since_switch"]))
                     & (rets.index <= day)).sum())
-    dec = E.choose(rets, day, incumbent, held_days=held)
+    dec = E.choose(rets, day, incumbent, held_days=held, n_family=n_family)
     w_rets = (pd.DataFrame({n: r.equity.pct_change()
                             for n, r in wide["results"].items()})
               if wide else None)
@@ -205,9 +220,18 @@ def main():
            "decision": dec, "gate": g,
            "candidates": cands,
            "switches_recent": meta["switches"][-10:],
+           # 감사 368 — 지금 엔진이 변이면 그 명세와 이번 주 변이를 남긴다(따를 수 있게).
+           "mutants": {n: {**E.CANDIDATES[n], "label": E.LABELS[n]}
+                       for n in ([active] if active.startswith(E.MUTANT_PREFIX) else [])
+                       + ([incumbent] if incumbent.startswith(E.MUTANT_PREFIX) else [])
+                       + list(mutants) if n in E.CANDIDATES},
+           "mutant_trials": trials,
+           "mutation": {"base": incumbent, "made": list(mutants),
+                        "axes": E.MUTATION_AXES, "per_week": E.N_MUTANTS},
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
-                    "t_switch": E.switch_threshold(len(results)),
-                    "n_candidates": len(results), "mdd_floor_pct": E.STABLE_MDD * 100,
+                    "t_switch": E.switch_threshold(n_family),
+                    "n_candidates": len(results), "n_family": n_family,
+                    "mdd_floor_pct": E.STABLE_MDD * 100,
                     "mdd_scope": "3년 창 + 그날까지의 전 기간 · 40종목과 넓은 목록 둘 다",
                     "baseline": E.BASELINE, "version": E.RULE_VERSION,
                     "version_on": E.RULE_V2_ON,

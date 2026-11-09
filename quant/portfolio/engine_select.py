@@ -218,6 +218,9 @@ def candidate_config(name: str) -> T.TrendConfig:
         cfg = T.TrendConfig(**{**cfg.__dict__, "band": HOLD_BAND})
     if spec.get("rebalance"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": spec["rebalance"]})
+    if spec.get("overrides"):
+        # 감사 368 — 자동 변이 후보는 기반 후보의 설정 위에 손잡이 하나를 얹는다.
+        cfg = T.TrendConfig(**{**cfg.__dict__, **spec["overrides"]})
     return cfg
 
 
@@ -277,6 +280,131 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
 
 
 ALL_NAMES = tuple(CANDIDATES) + (TOP2,)
+
+
+# ── 감사 368 — 엔진 후보도 **기계가 만든다**(언덕오르기) ─────────────────
+#
+# 사장님 2026-08-27 방침: "손잡이 하나가 아니라 손잡이를 만드는 장치를 짠다."
+# 종목 챔피언에는 그 장치(`mutate_champion`)가 있었지만 엔진 단위에는 없었다 —
+# 후보 22개가 전부 사람이 적은 목록이고, 지금 엔진 주변을 "조금 바꾸면 더 나은가"를
+# 아무도 묻지 않았다. 이제 주간 잡이 매주 **지금 엔진의 손잡이 하나를 한 칸**
+# 움직인 변이 `N_MUTANTS`개를 만들어 링에 세운다(날짜 시드로 결정적).
+#
+# ⚠️ 다중검정 — 변이는 매주 쌓이므로 **누적** 시도 수가 갈아타기 문턱에 들어간다
+#    (`switch_threshold(후보 수 + 누적 변이 수)`). 문턱이 저절로 올라가지 않는
+#    자동 탐색은 개선 장치가 아니라 과최적화 기계다(CLAUDE.md "탐색을 넓히는 것은
+#    공짜가 아니다").
+# ⚠️ 변이도 다른 후보와 **같은 관문**을 지난다 — 낙폭 −20% 자격(3년·전 기간,
+#    40종목·넓은 목록), t 문턱, 최소 유지, 넓은 목록 확인.
+# ⚠️ 정직하게 — 변이는 오늘의 엔진에서 만들어지는데 2016~ 재생(관문)에서는 처음부터
+#    있던 것처럼 쓰인다. 사람이 적은 후보들도 같은 성질(결과를 본 뒤 추가)이라
+#    새로 생긴 편향은 아니지만, 그만큼 관문 숫자가 후하다.
+
+#: 손잡이 → 고를 수 있는 값(한 칸씩 움직인다). 사람이 정하는 것은 **범위**뿐이다.
+MUTATION_AXES = {
+    "target_vol": (0.08, 0.10, 0.12, 0.15, 0.20),
+    "asset_cap": (0.15, 0.20, 0.25, 0.35),
+    "band": (0.01, 0.02, 0.04),
+    "rebalance": ("W-FRI", "M"),
+    "vol_ref": (0.30, 0.50, 0.80),
+}
+#: 종류마다 움직일 수 있는 손잡이 — 그 종류의 계산이 실제로 읽는 것만.
+AXES_BY_KIND = {
+    "trend": ("target_vol", "asset_cap", "band", "rebalance", "vol_ref"),
+    "xs": ("target_vol", "asset_cap", "band", "rebalance"),
+    "blend": ("target_vol", "asset_cap", "band", "rebalance"),
+    "mvo": ("target_vol", "asset_cap", "band", "rebalance"),
+}
+N_MUTANTS = 2
+MUTANT_PREFIX = "mut-"
+
+
+def is_known(name) -> bool:
+    """지금 따를 수 있는 이름인가 — 고정 후보 · 상위 둘 · 등록된 변이."""
+    return name == TOP2 or name in CANDIDATES
+
+
+def register_mutants(registry: dict | None) -> None:
+    """장부에 적힌 변이를 후보 표에 올린다(매일 배치·그림자·주간 잡이 같은 답을 쓰게)."""
+    for name, spec in (registry or {}).items():
+        if not str(name).startswith(MUTANT_PREFIX) or not isinstance(spec, dict):
+            continue
+        if spec.get("kind") not in AXES_BY_KIND:
+            continue
+        CANDIDATES[name] = {k: v for k, v in spec.items() if k != "label"}
+        LABELS[name] = spec.get("label") or name
+
+
+def _cfg_value(cfg: T.TrendConfig, axis: str):
+    return getattr(cfg, axis)
+
+
+def _step(values: tuple, cur, rng) -> object:
+    """지금 값에서 한 칸 옆(양 끝이면 안쪽). 목록에 없으면 가장 가까운 값에서."""
+    if cur in values:
+        i = values.index(cur)
+    elif isinstance(cur, (int, float)):
+        i = min(range(len(values)), key=lambda j: abs(values[j] - cur))
+        if values[i] != cur:
+            return values[i]
+    else:
+        return values[0]
+    nb = [j for j in (i - 1, i + 1) if 0 <= j < len(values)]
+    return values[rng.choice(nb)]
+
+
+def _mutant_name(spec: dict) -> str:
+    import hashlib
+    key = json.dumps({k: spec[k] for k in sorted(spec) if k != "label"},
+                     sort_keys=True, ensure_ascii=False)
+    return MUTANT_PREFIX + hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+
+
+def mutate_engine(base: str, seed: str, n: int = N_MUTANTS) -> dict:
+    """기반 후보의 손잡이 하나를 한 칸 움직인 변이들 {이름: 명세}. 결정적(시드 = 날짜).
+
+    기반이 움직일 수 없는 종류(보유·고정·ML·상위 둘)면 기준 엔진에서 만든다.
+    하는 일이 기반·서로·고정 후보와 같은 변이는 버린다(설정으로 견준다).
+    """
+    import random
+    if CANDIDATES.get(base, {}).get("kind") not in AXES_BY_KIND:
+        base = BASELINE
+    spec0 = CANDIDATES[base]
+    cfg0 = candidate_config(base)
+    rng = random.Random(f"{seed}:{base}")
+    seen = {json.dumps(candidate_config(c).__dict__, sort_keys=True, default=str)
+            + str(universe_of(c)) + CANDIDATES[c]["kind"]
+            for c in CANDIDATES if CANDIDATES[c].get("kind") in AXES_BY_KIND}
+    out: dict = {}
+    axes = list(AXES_BY_KIND[spec0["kind"]])
+    if spec0["kind"] == "trend" and cfg0.sizing != "notional":
+        axes.remove("vol_ref")                    # 위험 균등은 vol_ref를 안 읽는다
+    tries = 0
+    while len(out) < n and tries < 40:
+        tries += 1
+        axis = rng.choice(axes)
+        cur = _cfg_value(cfg0, axis)
+        new = _step(MUTATION_AXES[axis], cur, rng)
+        if new == cur:
+            continue
+        overrides = {**(spec0.get("overrides") or {}), axis: new}
+        spec = {k: v for k, v in spec0.items() if k not in ("label", "overrides")}
+        spec["overrides"] = overrides
+        spec["parent"] = base
+        CANDIDATES["__probe__"] = spec
+        try:
+            key = (json.dumps(candidate_config("__probe__").__dict__, sort_keys=True,
+                              default=str) + str(universe_of("__probe__")) + spec["kind"])
+        finally:
+            CANDIDATES.pop("__probe__", None)
+        if key in seen:
+            continue
+        seen.add(key)
+        name = _mutant_name(spec)
+        spec["label"] = (f"자동 변이 · {LABELS.get(base, base)} · "
+                         f"{axis} {cur}→{new}")
+        out[name] = spec
+    return out
 
 
 def _ml_today(closes: pd.DataFrame, name: str, state: dict | None) -> dict:
@@ -391,7 +519,8 @@ def switch_threshold(n_candidates: int) -> float:
 
 
 def choose(returns: pd.DataFrame, upto, incumbent: str,
-           held_days: int | None = None, floor: float | None = None) -> dict:
+           held_days: int | None = None, floor: float | None = None,
+           n_family: int | None = None) -> dict:
     """그날(upto 포함)까지의 수익으로 다음 엔진을 고른다(규칙 2판).
 
     returns: 날짜 × 후보의 일별 수익(수수료·환전 뺀 것).
@@ -439,7 +568,8 @@ def choose(returns: pd.DataFrame, upto, incumbent: str,
     sd = float(d.std())
     t = float(d.mean() / sd * np.sqrt(len(d))) if sd > 0 else 0.0
     out["t"] = round(t, 2)
-    out["t_needed"] = switch_threshold(returns.shape[1])
+    # 감사 368 — 자동 변이를 쓰면 누적 시도 수(n_family)로 문턱을 정한다.
+    out["t_needed"] = switch_threshold(max(returns.shape[1], n_family or 0))
     if t < out["t_needed"]:
         out["reason"] = "not_significant"
         return out
@@ -552,7 +682,8 @@ def switch_cost(w_old: pd.Series, w_new: pd.Series, cost_rate: dict,
 
 def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
                   fx_keys=(), fx_cost: float = 0.0,
-                  baseline: str = BASELINE, floor: float | None = None) -> dict:
+                  baseline: str = BASELINE, floor: float | None = None,
+                  n_family: int | None = None) -> dict:
     """선택 규칙을 start부터 매주 금요일 돌린 **선택기의 자산 곡선**.
 
     results: {후보: TrendResult}. 금요일 종가에 고르고 다음 영업일부터 그 후보의
@@ -579,7 +710,8 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
         daily.append(r)
         since += 1
         if day.weekday() == 4:
-            dec = choose(rets, day, cur, held_days=since, floor=floor)
+            dec = choose(rets, day, cur, held_days=since, floor=floor,
+                         n_family=n_family)
             if dec["choice"] != cur:
                 pending = dec["choice"]
     meta = pd.Series(daily, index=idx)
@@ -654,7 +786,7 @@ def active_choice(state: dict | None, today) -> str | None:
     if not state or not (state.get("gate") or {}).get("pass"):
         return None
     name = state.get("active")
-    if name not in ALL_NAMES:
+    if not is_known(name):
         return None
     if name == TOP2 and len(state.get("top2_pair") or []) != 2:
         return None
@@ -668,9 +800,12 @@ def active_choice(state: dict | None, today) -> str | None:
 def load_state(state_dir: str) -> dict | None:
     try:
         with open(os.path.join(state_dir, SELECT_FILE), encoding="utf-8") as f:
-            return json.load(f)
+            st = json.load(f)
     except (OSError, ValueError):
         return None
+    # 감사 368 — 장부에 적힌 자동 변이를 후보 표에 올린다(따를 수 있게).
+    register_mutants((st or {}).get("mutants"))
+    return st
 
 
 def public(state_dir: str) -> dict | None:
@@ -692,6 +827,7 @@ def public(state_dir: str) -> dict | None:
                                "judge": c.get("judge")}
                            for n, c in (st.get("candidates") or {}).items()},
             "rule": st.get("rule"), "stale_days": STALE_DAYS,
+            "mutation": st.get("mutation"), "mutant_trials": st.get("mutant_trials"),
             "futures": st.get("futures"),
             "cost_basis": st.get("cost_basis")}
 
