@@ -138,6 +138,14 @@ CANDIDATES.update({
                      "rebalance": "M"},
 })
 
+# ── 감사 362 — 사장님 "머신러닝도 최고급 대기업급으로". ML 종목 순위 엔진
+# (`quant/portfolio/ml_rank.py` — 패널 학습 · 날짜별 순위 · 퍼지 · 워크포워드).
+# 사람이 붙이지 않는다 — 다른 후보와 같은 관문을 지나야 실계좌가 따른다.
+CANDIDATES.update({
+    "mlrank": {"kind": "ml", "variant": "risk12"},
+    "mlrankw": {"kind": "ml", "variant": "risk12", "universe": "wide"},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -163,6 +171,8 @@ LABELS = {
     "notional50w": "금액 균등 · 상한 변동성 50% · 넓은 목록",
     "notional50m": "금액 균등 · 상한 변동성 50% · 월 1회",
     "notional50wm": "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회",
+    "mlrank": "머신러닝 순위",
+    "mlrankw": "머신러닝 순위 · 넓은 목록",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
@@ -191,7 +201,7 @@ HOLD_BAND = 0.005
 def candidate_config(name: str) -> T.TrendConfig:
     spec = CANDIDATES[name]
     cfg = T.variant_config(spec["variant"])
-    if spec["kind"] in ("xs", "hold", "fixed"):
+    if spec["kind"] in ("xs", "hold", "fixed", "ml"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": "M"})
     if spec["kind"] in ("hold", "fixed"):
         cfg = T.TrendConfig(**{**cfg.__dict__, "band": HOLD_BAND})
@@ -240,6 +250,9 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
         tgt = fixed_weights(sub, spec["weights"])
     elif spec["kind"] == "xs":
         tgt = T.xsmom_weights(sub, cfg)
+    elif spec["kind"] == "ml":
+        from quant.portfolio.ml_rank import ml_weights
+        tgt = ml_weights(sub, cfg)
     elif spec["kind"] == "blend":
         tgt = T.blend_weights(sub, cfg)
     else:
@@ -250,6 +263,27 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
 
 
 ALL_NAMES = tuple(CANDIDATES) + (TOP2,)
+
+
+def _ml_today(closes: pd.DataFrame, name: str, state: dict | None) -> dict:
+    """ML 후보의 오늘 목표 — **주간 잡이 긴 역사로 학습해 적어 둔 값**을 따른다.
+
+    ⚠️ 학습·서빙 불일치(감사 362): 매일 배치는 시세를 400봉만 받는다. 이 엔진은
+       3년치 정답이 쌓여야 처음 배우므로, 매일 배치에서 새로 계산하면 **언제나
+       현금**이 된다 — 검증 곡선과 실계좌가 다른 엔진이 된다. 그래서 주간 잡이
+       2003년부터의 자료로 학습해 그 달의 목표를 `ml_targets`에 남기고, 매일
+       배치는 그것을 따른다(같은 모델·같은 날의 목표).
+    ⚠️ 그 값이 없으면 **기준 엔진**으로 돈다고 적는다(조용히 현금이 되지 않게).
+    """
+    rec = ((state or {}).get("ml_targets") or {}).get(name)
+    if not rec or not rec.get("weights"):
+        base = targets_today(closes, BASELINE, None, state)
+        return {**base, "fallback": f"{name}: 주간 학습 목표 없음 — 기준 엔진({BASELINE})"}
+    w = {k: float(rec["weights"].get(k, 0.0)) for k in closes.columns}
+    cfg = candidate_config(name)
+    return {"weights": w, "target_day": str(rec.get("target_day")),
+            "asset_cap": cfg.asset_cap, "band": cfg.band,
+            "trained_through": rec.get("trained_through")}
 
 
 def targets_today(closes: pd.DataFrame, name: str, core_keys=None,
@@ -271,6 +305,8 @@ def targets_today(closes: pd.DataFrame, name: str, core_keys=None,
                 "asset_cap": max(a["asset_cap"], b["asset_cap"]),
                 "band": min(a["band"], b["band"]),
                 "pair": pair}
+    if CANDIDATES.get(name, {}).get("kind") == "ml":
+        return _ml_today(closes, name, state)
     tgt, cfg = candidate_targets(closes, name, core_keys=core_keys)
     day = target_day(tgt.index, cfg.rebalance)
     row = tgt.loc[day].fillna(0.0)

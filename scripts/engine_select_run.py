@@ -57,6 +57,23 @@ def _run_all(closes, fx, core_keys=None, names=None):
     return results, meta, pair
 
 
+def _ml_targets(closes, core_keys, names):
+    out = {}
+    for n in names:
+        if E.CANDIDATES.get(n, {}).get("kind") != "ml":
+            continue
+        try:
+            tgt, cfg = E.candidate_targets(closes, n, core_keys=core_keys)
+            day = E.target_day(tgt.index, cfg.rebalance)
+            row = tgt.loc[day].fillna(0.0)
+            out[n] = {"target_day": str(day.date()),
+                      "trained_through": str(closes.index[-1].date()),
+                      "weights": {k: round(float(v), 6) for k, v in row.items() if v}}
+        except Exception as exc:  # noqa: BLE001 — 없으면 매일 배치가 기준 엔진으로 돈다
+            print(f"  ✗ {n} 학습 목표 실패: {exc}")
+    return out
+
+
 def _run_futures(cur, prev):
     """선물 트랙의 후보 넷(감사 344 ②) — 코인만, 실측 편도 + 펀딩."""
     frames = {k: v for k, v in cur.items() if k.startswith("crypto:")}
@@ -196,7 +213,10 @@ def main():
                     "version_on": E.RULE_V2_ON,
                     "objective": "cagr_net"},
            "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"},
-           "futures": _run_futures(cur, prev)}
+           "futures": _run_futures(cur, prev),
+           # 감사 362 — ML 후보는 매일 배치가 학습할 수 없다(400봉). 여기서 긴 역사로
+           # 학습한 그 달의 목표를 남기고, 매일 배치·그림자가 그대로 따른다.
+           "ml_targets": _ml_targets(closes, core_keys, names)}
 
     print(f"\n=== 감사 341·342·356 — 엔진 자동 선택 ({out['asof']}) ===")
     print(f"{'후보':12s} {'3년 연수익%':>10s} {'3년 낙폭%':>9s} {'2016~ 연수익%':>12s} "

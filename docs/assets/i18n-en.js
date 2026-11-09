@@ -597,6 +597,10 @@
         "Equal amount · volatility cap 50% · monthly",
       "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회":
         "Equal amount · volatility cap 50% · broad list · monthly",
+      "머신러닝 순위":
+        "Machine-learning ranking",
+      "머신러닝 순위 · 넓은 목록":
+        "Machine-learning ranking · broad list",
       "상대 강세":
         "Relative strength",
       "추세 + 상대 강세":

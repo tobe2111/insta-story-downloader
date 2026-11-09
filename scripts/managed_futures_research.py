@@ -95,6 +95,8 @@ TRIAL_LEDGER = {
     # 감사 356 — 선택 규칙 2판(낙폭 −20% 자격). 감사 358 — 넓은 목록 안정형 둘 · 월 1회 둘.
     "audit356": ["selector_v2"],
     "audit358": ["risk12w", "notional50w", "notional50m", "notional50wm"],
+    # 감사 362 — ML 종목 순위 둘(40종목 · 넓은 목록).
+    "audit362": ["mlrank", "mlrankw"],
 }
 N_TRIALS = sum(len(v) for v in TRIAL_LEDGER.values())
 

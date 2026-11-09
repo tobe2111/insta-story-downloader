@@ -238,7 +238,9 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
                 "target_day": t["target_day"],
                 "gross": round(sum(w.values()), 4),
                 "asset_cap": t["asset_cap"], "weights": w,
-                **({"pair": t["pair"]} if t.get("pair") else {})}
+                **({"pair": t["pair"]} if t.get("pair") else {}),
+                # ML 후보가 주간 학습 목표 없이 기준 엔진으로 돈 날(감사 362)
+                **({"fallback": t["fallback"]} if t.get("fallback") else {})}
     except Exception as exc:  # noqa: BLE001
         log.error("추세 코어 계산 실패 — 오늘은 챔피언 체계로 돈다: %s", exc)
         return None
