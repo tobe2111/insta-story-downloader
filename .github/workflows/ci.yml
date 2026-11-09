@@ -124,6 +124,7 @@ jobs:
         # PR·push 실패는 그 작업을 하는 사람이 본다. 매일 돈 main 검사가 깨졌을 때만
         # 경보함에 적는다 — 아무도 안 보는 빨간불을 읽히게 하는 자리다.
         if: (failure() || cancelled()) && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        shell: bash
         env:
           ALERT_GITHUB_TOKEN: ${{ github.token }}
         run: |
