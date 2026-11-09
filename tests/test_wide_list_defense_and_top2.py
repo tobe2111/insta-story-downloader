@@ -103,7 +103,7 @@ def test_more_candidates_raise_the_switch_bar():
     n = len(E.ALL_NAMES)
     rng = np.random.default_rng(0)
     idx = pd.bdate_range("2020-01-01", periods=E.WINDOW + 10)
-    base = rng.normal(0.0002, 0.01, len(idx))
+    base = rng.normal(0.0002, 0.004, len(idx))     # 낙폭 −20% 안(규칙 2판)
     cols = {f"c{i}": base + rng.normal(0, 0.0001, len(idx)) for i in range(n - 2)}
     r = pd.DataFrame({"risk12": base, "xs12": base + 0.00045
                       + rng.normal(0, 0.002, len(idx)), **cols}, index=idx)

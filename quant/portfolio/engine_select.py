@@ -66,9 +66,29 @@ REGISTERED_ON = "2026-10-10"
 WINDOW = 756            # 최근 3년(영업일)
 MIN_HOLD = 63           # 갈아탄 뒤 3개월은 그대로
 T_SWITCH = 1.35         # = retrain.CONFIRM_T_CAP (검사가 같은 값인지 본다)
-MDD_FLOOR = -0.40       # 병적 낙폭 문턱(최적화 손잡이 아님)
+MDD_FLOOR = -0.40       # 병적 낙폭 문턱(최적화 손잡이 아님) — 규칙 1판
 JUDGE_START = "2016-01-01"
-BASELINE = "risk12"
+# ── 규칙 2판(2026-11-09 감사 356) — 사장님이 '안정형 기본 + 기계 개선'을 골랐다.
+#
+# 1판은 "최근 3년 수익률 1등"만 봤다. 그 규칙이 10/9에 가장 크게 흔들리는
+# 엔진(상대 강세, 2016~ 낙폭 −25.8%)을 골랐고, 그 엔진이 다음 한 달 후보 14개
+# 중 끝에서 두 번째(−7.8%)였다. 2판은 **고를 자격**을 먼저 건다:
+#
+#   · 낙폭 −20%가 위험 선호의 선이다(사람이 정한다 — 최적화 손잡이가 아니다).
+#     최근 3년만이 아니라 **그날까지의 전 기간**(2003~, 2008 포함)에서 지켜야
+#     한다 — 3년 창은 2022년 같은 해를 쉽게 빠뜨린다.
+#   · 넓은 목록(생존 편향 없는 쪽)에서 같은 후보도 그 선을 지켜야 한다.
+#   · 자격이 없는 엔진을 쓰고 있으면 t·최소 유지와 무관하게 **바로 나온다**
+#     (자격 있는 후보 중 최근 3년 1등으로, 없으면 기준선으로).
+#
+# 기준선(BASELINE)도 바꿨다: risk12는 40종목에서 2016~ 연 6.6%인데 넓은 목록에서
+# 2.3%다 — 성적 대부분이 사람이 고른 종목에서 나온다. notional50은 5.97% → 5.22%로
+# 목록에 가장 덜 기댄다(낙폭 −9.6% · −10%). ⚠️ 이 선택은 결과를 본 뒤 사람이 한
+# 것이다 — 그래서 여기 적고, 화면과 사전 등록 수정 이력에도 적는다.
+RULE_VERSION = 2
+RULE_V2_ON = "2026-11-09"
+STABLE_MDD = -0.20
+BASELINE = "notional50"
 STALE_DAYS = 14         # 이보다 낡은 선택은 안 쓴다(주간 잡이 두 번 빠진 것)
 SELECT_FILE = "engine_select.json"
 
@@ -300,28 +320,43 @@ def switch_threshold(n_candidates: int) -> float:
 
 
 def choose(returns: pd.DataFrame, upto, incumbent: str,
-           held_days: int | None = None) -> dict:
-    """그날(upto 포함)까지의 수익으로 다음 엔진을 고른다.
+           held_days: int | None = None, floor: float | None = None) -> dict:
+    """그날(upto 포함)까지의 수익으로 다음 엔진을 고른다(규칙 2판).
 
     returns: 날짜 × 후보의 일별 수익(수수료·환전 뺀 것).
     held_days: 지금 엔진을 몇 영업일째 쓰고 있나(None이면 제약 없음).
+    floor: 주면 1판 규칙(최근 3년 낙폭만 그 문턱으로 본다) — 선물 후보용.
+           본 계좌는 안 준다(2판: 전 기간 낙폭까지 `STABLE_MDD`).
     """
-    win = returns.loc[:upto].tail(WINDOW)
+    hist = returns.loc[:upto]
+    win = hist.tail(WINDOW)
     table = {}
     for name in returns.columns:
         r = win[name]
         full = bool(r.notna().all()) and len(r) >= WINDOW
+        long = hist[name].dropna()
         table[name] = {"cagr": round(_cagr(r) * 100, 2) if full else None,
-                       "mdd": round(_mdd(r) * 100, 2) if full else None}
+                       "mdd": round(_mdd(r) * 100, 2) if full else None,
+                       "mdd_long": round(_mdd(long) * 100, 2) if full else None}
     out = {"asof": str(pd.Timestamp(upto).date()), "incumbent": incumbent,
-           "choice": incumbent, "table": table, "t": None, "reason": None}
-    ok = {n: v for n, v in table.items()
-          if v["cagr"] is not None and v["mdd"] / 100 >= MDD_FLOOR}
+           "choice": incumbent, "table": table, "t": None, "reason": None,
+           "rule_version": RULE_VERSION if floor is None else 1}
+    ok = {n: v for n, v in table.items() if stable(v, floor)}
+    out["eligible"] = sorted(ok)
     if not ok:
-        out["reason"] = "no_full_window"
+        out["reason"] = "none_stable" if any(
+            v["cagr"] is not None for v in table.values()) else "no_full_window"
+        if out["reason"] == "none_stable" and floor is None \
+                and incumbent != BASELINE and BASELINE in table:
+            out["choice"] = BASELINE
         return out
     best = max(ok, key=lambda n: ok[n]["cagr"])
     out["best"] = best
+    if incumbent not in ok and table.get(incumbent, {}).get("cagr") is not None:
+        # 자격 없는 엔진을 쓰고 있다 — 우연인지 물을 것 없이 나온다.
+        out["choice"] = best
+        out["reason"] = "incumbent_unstable"
+        return out
     if best == incumbent:
         out["reason"] = "incumbent_best"
         return out
@@ -345,6 +380,17 @@ def choose(returns: pd.DataFrame, upto, incumbent: str,
     return out
 
 
+def stable(row: dict | None, floor: float | None = None) -> bool:
+    """고를 자격(규칙 2판) — 최근 3년과 그날까지의 전 기간 낙폭이 둘 다 선 안.
+    floor를 주면 1판(최근 3년 낙폭만, 그 문턱)."""
+    if not row or row.get("cagr") is None:
+        return False
+    if floor is not None:
+        return row.get("mdd") is not None and row["mdd"] / 100 >= floor
+    return all(row.get(k) is not None and row[k] / 100 >= STABLE_MDD
+               for k in ("mdd", "mdd_long"))
+
+
 def _repick_days(idx: pd.DatetimeIndex) -> set:
     """상위 둘을 다시 고르는 날 — **매달 마지막 금요일**(월 1회).
 
@@ -366,7 +412,7 @@ def top2_pick(returns: pd.DataFrame, upto) -> list | None:
         r = win[n]
         if len(r) < WINDOW or not bool(r.notna().all()):
             continue
-        if _mdd(r) >= MDD_FLOOR:
+        if _mdd(r) >= STABLE_MDD and _mdd(returns.loc[:upto, n].dropna()) >= STABLE_MDD:
             ok[n] = _cagr(r)
     if len(ok) < 2:
         return None
@@ -435,7 +481,7 @@ def switch_cost(w_old: pd.Series, w_new: pd.Series, cost_rate: dict,
 
 def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
                   fx_keys=(), fx_cost: float = 0.0,
-                  baseline: str = BASELINE) -> dict:
+                  baseline: str = BASELINE, floor: float | None = None) -> dict:
     """선택 규칙을 start부터 매주 금요일 돌린 **선택기의 자산 곡선**.
 
     results: {후보: TrendResult}. 금요일 종가에 고르고 다음 영업일부터 그 후보의
@@ -462,7 +508,7 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
         daily.append(r)
         since += 1
         if day.weekday() == 4:
-            dec = choose(rets, day, cur, held_days=since)
+            dec = choose(rets, day, cur, held_days=since, floor=floor)
             if dec["choice"] != cur:
                 pending = dec["choice"]
     meta = pd.Series(daily, index=idx)
@@ -471,7 +517,8 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
 
 
 def gate(meta: dict, results: dict, start: str = JUDGE_START,
-         baseline: str = BASELINE, wide: dict | None = None) -> dict:
+         baseline: str = BASELINE, wide: dict | None = None,
+         floor: float = STABLE_MDD) -> dict:
     """선택기가 실계좌 엔진을 정할 자격 — 판정 구간 연수익이 기준선보다 높고
     최대낙폭이 병적 문턱 안일 때만.
 
@@ -484,14 +531,14 @@ def gate(meta: dict, results: dict, start: str = JUDGE_START,
     base = T.stats(results[baseline].equity[start:])
     m = meta["stats"]
     ok = bool(m and base and m["cagr"] > base["cagr"]
-              and m["mdd"] / 100 >= MDD_FLOOR)
+              and m["mdd"] / 100 >= floor)
     out = {"pass": ok, "start": start, "selector": m, "baseline": base,
            "baseline_name": baseline, "switches": len(meta["switches"])}
     if wide is not None:
         wb = T.stats(wide["results"][baseline].equity[start:])
         wm = wide["meta"]["stats"]
         wok = bool(wm and wb and wm["cagr"] > wb["cagr"]
-                   and wm["mdd"] / 100 >= MDD_FLOOR)
+                   and wm["mdd"] / 100 >= floor)
         out["wide"] = {"pass": wok, "selector": wm, "baseline": wb,
                        "switches": len(wide["meta"]["switches"])}
         out["pass"] = ok and wok
@@ -507,7 +554,7 @@ def confirm_wide(dec: dict, wide_returns: pd.DataFrame | None, upto) -> dict:
     갈아탄다(최근 3년 연수익). 아니면 그대로 두고 이유를 `not_robust`로
     남긴다. 넓은 목록 자료가 없으면 확인을 **못 했다**고 적고 막지 않는다.
     """
-    if dec.get("reason") != "switch":
+    if dec.get("reason") not in ("switch", "incumbent_unstable"):
         return dec
     if wide_returns is None or wide_returns.empty:
         dec["wide"] = None
@@ -516,7 +563,13 @@ def confirm_wide(dec: dict, wide_returns: pd.DataFrame | None, upto) -> dict:
     best, inc = dec["choice"], dec["incumbent"]
     dec["wide"] = {best: w.get(best), inc: w.get(inc)}
     b, i = (w.get(best) or {}).get("cagr"), (w.get(inc) or {}).get("cagr")
-    if b is None or i is None or b <= i:
+    if dec["reason"] == "incumbent_unstable":
+        # 나오는 것은 확정이다. 넓은 목록에서도 자격이 없는 후보로는 안 간다.
+        if not stable(w.get(best)):
+            dec["choice"] = BASELINE
+            dec["reason"] = "incumbent_unstable_to_baseline"
+        return dec
+    if b is None or i is None or b <= i or not stable(w.get(best)):
         dec["choice"] = inc
         dec["reason"] = "not_robust"
     return dec

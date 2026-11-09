@@ -50,13 +50,28 @@
     "gate_failed": "고르는 규칙을 2016년부터 돌려 보니 기준 엔진을 그대로 둔 것보다 못해서, 기준 엔진을 씁니다.",
     "no_full_window": "3년치 자료가 있는 후보가 없어 그대로 둡니다.",
     "incumbent_unmeasured": "지금 엔진의 3년치 자료가 없어 그대로 둡니다.",
-    "not_robust": "40종목에서는 더 나은 후보가 있지만, 규칙으로 고른 넓은 ETF 목록에서는 앞서지 못해 그대로 둡니다."
+    "not_robust": "40종목에서는 더 나은 후보가 있지만, 규칙으로 고른 넓은 ETF 목록에서는 앞서지 못해 그대로 둡니다.",
+    "incumbent_unstable": "지금 엔진이 낙폭 −20% 선을 넘은 적이 있어, 자격 있는 후보 중 최근 3년 수익률이 가장 높은 엔진으로 바로 옮깁니다.",
+    "incumbent_unstable_to_baseline": "지금 엔진이 낙폭 −20% 선을 넘은 적이 있는데, 옮겨 갈 후보가 넓은 목록에서는 자격이 없어 기준 엔진으로 옮깁니다.",
+    "none_stable": "낙폭 −20% 선을 지킨 후보가 없어 기준 엔진을 씁니다."
   };
 
   function render(box, es) {
     box.innerHTML = "";
     var card = el("div", "es");
-    card.appendChild(el("h2", null, "지금 엔진은 누가 골랐나 — 수익률로 기계가 고릅니다"));
+    card.appendChild(el("h2", null, "지금 엔진은 누가 골랐나 — 낙폭 선을 지킨 후보 중에서 기계가 고릅니다"));
+    var rl = es.rule || {};
+    if (rl.version === 2) {
+      var rv = el("div", "sub");
+      rv.appendChild(el("span", null, "고를 자격 — 최대낙폭이 이 선 안(최근 3년과 그날까지의 전 기간, 넓은 목록에서도)"));
+      rv.appendChild(document.createTextNode(" "));
+      rv.appendChild(el("b", null, pct(rl.mdd_floor_pct)));
+      rv.appendChild(document.createTextNode(" · "));
+      rv.appendChild(el("span", null, "규칙을 바꾼 날"));
+      rv.appendChild(document.createTextNode(" "));
+      rv.appendChild(el("b", null, String(rl.version_on || "—")));
+      card.appendChild(rv);
+    }
     var head = el("div");
     head.appendChild(el("span", null, "지금 엔진"));
     head.appendChild(document.createTextNode(" "));
@@ -84,7 +99,7 @@
     var tw = el("div", "tw");
     var t = el("table");
     var hr = el("tr");
-    ["후보", "최근 3년 연수익", "최근 3년 최대낙폭", "2016년 이후 연수익", "2016년 이후 최대낙폭"].forEach(function (h) {
+    ["후보", "최근 3년 연수익", "최근 3년 최대낙폭", "전 기간 최대낙폭", "2016년 이후 연수익", "2016년 이후 최대낙폭", "고를 자격"].forEach(function (h) {
       hr.appendChild(el("th", null, h));
     });
     t.appendChild(hr);
@@ -95,8 +110,11 @@
       tr.appendChild(el("td", null, c.label || k));
       tr.appendChild(el("td", "n", pct(w.cagr)));
       tr.appendChild(el("td", "n", pct(w.mdd)));
+      tr.appendChild(el("td", "n", pct(w.mdd_long)));
       tr.appendChild(el("td", "n", pct(j.cagr)));
       tr.appendChild(el("td", "n", pct(j.mdd)));
+      var elig = ((es.decision || {}).eligible || []);
+      tr.appendChild(el("td", null, w.mdd_long == null ? "—" : (elig.indexOf(k) >= 0 ? "있음" : "없음")));
       t.appendChild(tr);
     });
     tw.appendChild(t);
@@ -212,7 +230,8 @@
     var ul = el("ul", "sub");
     [
       "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.",
-      "최근 3년 최대낙폭이 −40%보다 나쁜 후보는 고르지 않습니다.",
+      "최대낙폭이 −20%보다 나빴던 적이 있는 후보는 고르지 않습니다 — 최근 3년만이 아니라 그날까지의 전 기간(2008년 포함)에서, 넓은 목록에서도 봅니다. 지금 엔진이 그 선을 넘으면 바로 옮깁니다(2026-11-09부터, 사장님이 고른 안정형).",
+      "기준 엔진은 금액 균등 · 상한 변동성 50%입니다. 사람이 고른 40종목과 넓은 목록에서 성적이 가장 덜 갈리는 후보라서입니다 — 이 선택은 결과를 본 뒤 사람이 했습니다.",
       "숫자는 같은 코드·같은 비용으로 돌린 과거 시뮬레이션입니다. 앞으로의 수익을 약속하지 않습니다."
     ].forEach(function (x) { ul.appendChild(el("li", null, x)); });
     card.appendChild(ul);

@@ -23,7 +23,8 @@ from quant.portfolio import trend_core as T  # noqa: E402
 def _rets(n=E.WINDOW + 40, edge=0.0, seed=0):
     rng = np.random.default_rng(seed)
     idx = pd.bdate_range("2020-01-01", periods=n)
-    base = rng.normal(0.0002, 0.01, n)
+    # 규칙 2판(감사 356)은 낙폭 −20% 안의 후보만 고른다 — 변동성을 안정형 크기로.
+    base = rng.normal(0.0002, 0.004, n)
     return pd.DataFrame({"risk12": base,
                          "notional50": base + edge + rng.normal(0, 0.002, n)},
                         index=idx)
@@ -86,7 +87,7 @@ def test_the_selector_is_backtested_with_switching_costs():
     r, res = _results(edge=0.0008)
     start = str(r.index[E.WINDOW + 5].date())
     meta = E.meta_backtest(res, {"us_stock:SPY": 0.001}, start=start,
-                           fx_keys={"us_stock:SPY"}, fx_cost=0.0025)
+                           fx_keys={"us_stock:SPY"}, fx_cost=0.0025, baseline="risk12")
     assert meta["switches"], "앞선 후보로 한 번은 갈아타야 한다"
     sw = meta["switches"][0]
     assert sw["to"] == "notional50"
@@ -103,8 +104,9 @@ def test_the_selector_is_backtested_with_switching_costs():
 
 def test_the_gate_keeps_the_baseline_when_the_rule_does_not_beat_it():
     r, res = _results(edge=-0.0005)
-    meta = E.meta_backtest(res, {}, start=str(r.index[E.WINDOW + 5].date()))
-    g = E.gate(meta, res, start=str(r.index[E.WINDOW + 5].date()))
+    meta = E.meta_backtest(res, {}, start=str(r.index[E.WINDOW + 5].date()),
+                           baseline="risk12")
+    g = E.gate(meta, res, start=str(r.index[E.WINDOW + 5].date()), baseline="risk12")
     assert not g["pass"]
 
 

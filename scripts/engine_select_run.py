@@ -70,9 +70,11 @@ def _run_futures(cur, prev):
         tgt, cfg = E.fut_targets(closes, name)
         results[name] = T.simulate(closes, cost, cfg, targets=tgt)
         print(f"  · {name} 끝")
+    # 선물 후보는 규칙 1판 그대로다(감사 356 — 2판의 낙폭 −20%는 본 계좌의 위험 선호).
     meta = E.meta_backtest(results, cost, start=E.FUT_JUDGE_START,
-                           baseline=E.FUT_BASELINE)
-    g = E.gate(meta, results, start=E.FUT_JUDGE_START, baseline=E.FUT_BASELINE)
+                           baseline=E.FUT_BASELINE, floor=E.MDD_FLOOR)
+    g = E.gate(meta, results, start=E.FUT_JUDGE_START, baseline=E.FUT_BASELINE,
+               floor=E.MDD_FLOOR)
     pf = (prev or {}).get("futures") or {}
     incumbent = pf.get("active") if pf.get("active") in E.FUT_CANDIDATES else E.FUT_BASELINE
     rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
@@ -82,7 +84,7 @@ def _run_futures(cur, prev):
     if pf.get("since_switch"):
         held = int(((rets.index > pd.Timestamp(pf["since_switch"]))
                     & (rets.index <= day)).sum())
-    dec = E.choose(rets, day, incumbent, held_days=held)
+    dec = E.choose(rets, day, incumbent, held_days=held, floor=E.MDD_FLOOR)
     if g["pass"]:
         active = dec["choice"]
     else:
@@ -188,12 +190,15 @@ def main():
            "switches_recent": meta["switches"][-10:],
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
                     "t_switch": E.switch_threshold(len(results)),
-                    "n_candidates": len(results), "mdd_floor_pct": E.MDD_FLOOR * 100,
+                    "n_candidates": len(results), "mdd_floor_pct": E.STABLE_MDD * 100,
+                    "mdd_scope": "3년 창 + 그날까지의 전 기간 · 40종목과 넓은 목록 둘 다",
+                    "baseline": E.BASELINE, "version": E.RULE_VERSION,
+                    "version_on": E.RULE_V2_ON,
                     "objective": "cagr_net"},
            "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"},
            "futures": _run_futures(cur, prev)}
 
-    print(f"\n=== 감사 341·342 — 엔진 자동 선택 ({out['asof']}) ===")
+    print(f"\n=== 감사 341·342·356 — 엔진 자동 선택 ({out['asof']}) ===")
     print(f"{'후보':12s} {'3년 연수익%':>10s} {'3년 낙폭%':>9s} {'2016~ 연수익%':>12s} "
           f"{'샤프':>5s} {'낙폭%':>7s}")
     for n, c in cands.items():
