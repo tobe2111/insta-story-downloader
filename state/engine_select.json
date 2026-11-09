@@ -1,123 +1,191 @@
 {
  "registered_on": "2026-10-10",
  "asof": "2026-11-06",
- "data_end": "2026-11-06",
- "active": "xs12",
- "active_label": "상대 강세",
+ "data_end": "2026-11-09",
+ "active": "notional50",
+ "active_label": "금액 균등 · 상한 변동성 50%",
  "top2_pair": [
-  "hold40",
-  "xs12"
+  "xs12f",
+  "xs12fw"
  ],
  "previous": "xs12",
- "switched": false,
- "since_switch": "2026-10-09",
+ "switched": true,
+ "since_switch": "2026-11-06",
  "decision": {
   "asof": "2026-11-06",
   "incumbent": "xs12",
-  "choice": "xs12",
+  "choice": "xs12f",
   "table": {
    "risk12": {
     "cagr": 8.99,
-    "mdd": -5.71
+    "mdd": -5.71,
+    "mdd_long": -14.7
    },
    "risk20": {
     "cagr": 10.89,
-    "mdd": -6.49
+    "mdd": -6.49,
+    "mdd_long": -19.86
    },
    "notional30": {
     "cagr": 6.75,
-    "mdd": -4.05
+    "mdd": -4.05,
+    "mdd_long": -8.31
    },
    "notional50": {
     "cagr": 8.76,
-    "mdd": -5.63
+    "mdd": -5.63,
+    "mdd_long": -9.59
    },
    "xs12": {
     "cagr": 22.33,
-    "mdd": -16.63
+    "mdd": -16.63,
+    "mdd_long": -35.34
    },
    "blend12": {
     "cagr": 17.11,
-    "mdd": -11.9
+    "mdd": -11.9,
+    "mdd_long": -20.12
    },
    "xs12w": {
     "cagr": 21.26,
-    "mdd": -14.98
+    "mdd": -14.98,
+    "mdd_long": -29.36
    },
    "blend12w": {
-    "cagr": 13.86,
-    "mdd": -9.5
+    "cagr": 13.89,
+    "mdd": -9.5,
+    "mdd_long": -20.19
    },
    "xs12f": {
     "cagr": 18.12,
-    "mdd": -13.43
+    "mdd": -13.43,
+    "mdd_long": -17.43
    },
    "xs12fw": {
     "cagr": 17.0,
-    "mdd": -13.61
+    "mdd": -13.61,
+    "mdd_long": -16.9
    },
    "hold40": {
-    "cagr": 24.79,
-    "mdd": -14.65
+    "cagr": 24.87,
+    "mdd": -14.66,
+    "mdd_long": -42.16
    },
    "holdw": {
-    "cagr": 18.5,
-    "mdd": -12.05
+    "cagr": 18.53,
+    "mdd": -12.06,
+    "mdd_long": -41.76
    },
    "6040": {
-    "cagr": 11.07,
-    "mdd": -10.59
+    "cagr": 11.12,
+    "mdd": -10.59,
+    "mdd_long": -32.27
+   },
+   "risk12w": {
+    "cagr": 4.04,
+    "mdd": -3.16,
+    "mdd_long": -14.55
+   },
+   "notional50w": {
+    "cagr": 6.35,
+    "mdd": -5.36,
+    "mdd_long": -12.72
+   },
+   "notional50m": {
+    "cagr": 9.46,
+    "mdd": -5.92,
+    "mdd_long": -9.71
+   },
+   "notional50wm": {
+    "cagr": 7.82,
+    "mdd": -6.28,
+    "mdd_long": -10.35
+   },
+   "mlrank": {
+    "cagr": 18.07,
+    "mdd": -15.8,
+    "mdd_long": -21.61
+   },
+   "mlrankw": {
+    "cagr": 20.61,
+    "mdd": -16.41,
+    "mdd_long": -24.61
    },
    "top2": {
-    "cagr": 22.3,
-    "mdd": -13.23
+    "cagr": 11.78,
+    "mdd": -12.69,
+    "mdd_long": -27.39
    }
   },
-  "t": 0.38,
-  "reason": "not_significant",
-  "best": "hold40",
-  "t_needed": 1.824
+  "t": null,
+  "reason": "gate_failed",
+  "rule_version": 2,
+  "eligible": [
+   "notional30",
+   "notional50",
+   "notional50m",
+   "notional50w",
+   "notional50wm",
+   "risk12",
+   "risk12w",
+   "risk20",
+   "xs12f",
+   "xs12fw"
+  ],
+  "best": "xs12f",
+  "wide": {
+   "xs12f": {
+    "cagr": 17.0,
+    "mdd": -13.61,
+    "mdd_long": -16.9
+   },
+   "xs12": {
+    "cagr": 21.26,
+    "mdd": -14.98,
+    "mdd_long": -29.36
+   }
+  }
  },
  "gate": {
-  "pass": true,
+  "pass": false,
   "start": "2016-01-01",
   "selector": {
-   "cagr": 15.7,
-   "vol": 13.33,
-   "sharpe": 1.16,
-   "mdd": -25.83,
-   "calmar": 0.61,
+   "cagr": 8.59,
+   "vol": 10.15,
+   "sharpe": 0.86,
+   "mdd": -17.43,
+   "calmar": 0.49,
    "years": 11.2
   },
   "baseline": {
-   "cagr": 6.61,
-   "vol": 5.49,
-   "sharpe": 1.19,
-   "mdd": -14.7,
-   "calmar": 0.45,
+   "cagr": 5.94,
+   "vol": 6.2,
+   "sharpe": 0.96,
+   "mdd": -9.59,
+   "calmar": 0.62,
    "years": 11.2
   },
-  "baseline_name": "risk12",
-  "switches": 2,
+  "baseline_name": "notional50",
+  "switches": 1,
   "wide": {
-   "pass": true,
+   "pass": false,
    "selector": {
-    "cagr": 11.08,
-    "vol": 12.21,
-    "sharpe": 0.92,
-    "mdd": -25.03,
-    "calmar": 0.44,
+    "cagr": 1.37,
+    "vol": 8.3,
+    "sharpe": 0.21,
+    "mdd": -17.67,
+    "calmar": 0.08,
     "years": 11.2
    },
    "baseline": {
-    "cagr": 2.26,
-    "vol": 4.34,
-    "sharpe": 0.54,
-    "mdd": -14.55,
-    "calmar": 0.16,
+    "cagr": 5.18,
+    "vol": 6.14,
+    "sharpe": 0.85,
+    "mdd": -10.73,
+    "calmar": 0.48,
     "years": 11.2
    },
-   "switches": 2
+   "switches": 3
   }
  },
  "candidates": {
@@ -125,10 +193,11 @@
    "label": "위험 균등 · 변동성 12%",
    "window": {
     "cagr": 8.99,
-    "mdd": -5.71
+    "mdd": -5.71,
+    "mdd_long": -14.7
    },
    "judge": {
-    "cagr": 6.61,
+    "cagr": 6.58,
     "vol": 5.49,
     "sharpe": 1.19,
     "mdd": -14.7,
@@ -137,7 +206,7 @@
    },
    "cost_pct_yr": 0.822,
    "wide_judge": {
-    "cagr": 2.26,
+    "cagr": 2.27,
     "vol": 4.34,
     "sharpe": 0.54,
     "mdd": -14.55,
@@ -149,10 +218,11 @@
    "label": "위험 균등 · 변동성 20%",
    "window": {
     "cagr": 10.89,
-    "mdd": -6.49
+    "mdd": -6.49,
+    "mdd_long": -19.86
    },
    "judge": {
-    "cagr": 7.11,
+    "cagr": 7.07,
     "vol": 6.68,
     "sharpe": 1.06,
     "mdd": -19.86,
@@ -161,8 +231,8 @@
    },
    "cost_pct_yr": 0.767,
    "wide_judge": {
-    "cagr": 2.4,
-    "vol": 4.83,
+    "cagr": 2.41,
+    "vol": 4.82,
     "sharpe": 0.52,
     "mdd": -16.77,
     "calmar": 0.14,
@@ -173,10 +243,11 @@
    "label": "금액 균등 · 상한 변동성 30%",
    "window": {
     "cagr": 6.75,
-    "mdd": -4.05
+    "mdd": -4.05,
+    "mdd_long": -8.31
    },
    "judge": {
-    "cagr": 4.18,
+    "cagr": 4.17,
     "vol": 3.99,
     "sharpe": 1.05,
     "mdd": -5.63,
@@ -185,7 +256,7 @@
    },
    "cost_pct_yr": 0.584,
    "wide_judge": {
-    "cagr": 3.57,
+    "cagr": 3.56,
     "vol": 3.93,
     "sharpe": 0.91,
     "mdd": -5.62,
@@ -197,23 +268,24 @@
    "label": "금액 균등 · 상한 변동성 50%",
    "window": {
     "cagr": 8.76,
-    "mdd": -5.63
+    "mdd": -5.63,
+    "mdd_long": -9.59
    },
    "judge": {
-    "cagr": 5.97,
+    "cagr": 5.94,
     "vol": 6.2,
-    "sharpe": 0.97,
+    "sharpe": 0.96,
     "mdd": -9.59,
     "calmar": 0.62,
     "years": 11.2
    },
    "cost_pct_yr": 0.606,
    "wide_judge": {
-    "cagr": 5.22,
+    "cagr": 5.18,
     "vol": 6.14,
-    "sharpe": 0.86,
+    "sharpe": 0.85,
     "mdd": -10.73,
-    "calmar": 0.49,
+    "calmar": 0.48,
     "years": 11.2
    }
   },
@@ -221,10 +293,11 @@
    "label": "상대 강세",
    "window": {
     "cagr": 22.33,
-    "mdd": -16.63
+    "mdd": -16.63,
+    "mdd_long": -35.34
    },
    "judge": {
-    "cagr": 14.11,
+    "cagr": 14.08,
     "vol": 13.46,
     "sharpe": 1.05,
     "mdd": -25.83,
@@ -233,9 +306,9 @@
    },
    "cost_pct_yr": 0.669,
    "wide_judge": {
-    "cagr": 10.69,
+    "cagr": 10.72,
     "vol": 13.03,
-    "sharpe": 0.84,
+    "sharpe": 0.85,
     "mdd": -25.03,
     "calmar": 0.43,
     "years": 11.2
@@ -245,21 +318,22 @@
    "label": "추세 + 상대 강세",
    "window": {
     "cagr": 17.11,
-    "mdd": -11.9
+    "mdd": -11.9,
+    "mdd_long": -20.12
    },
    "judge": {
-    "cagr": 10.9,
+    "cagr": 10.86,
     "vol": 10.01,
     "sharpe": 1.08,
     "mdd": -18.51,
     "calmar": 0.59,
     "years": 11.2
    },
-   "cost_pct_yr": 1.132,
+   "cost_pct_yr": 1.133,
    "wide_judge": {
-    "cagr": 6.39,
+    "cagr": 6.44,
     "vol": 8.65,
-    "sharpe": 0.76,
+    "sharpe": 0.77,
     "mdd": -20.19,
     "calmar": 0.32,
     "years": 11.2
@@ -269,21 +343,22 @@
    "label": "상대 강세 · 넓은 목록",
    "window": {
     "cagr": 21.26,
-    "mdd": -14.98
+    "mdd": -14.98,
+    "mdd_long": -29.36
    },
    "judge": {
-    "cagr": 10.69,
+    "cagr": 10.72,
     "vol": 13.03,
-    "sharpe": 0.84,
+    "sharpe": 0.85,
     "mdd": -25.03,
     "calmar": 0.43,
     "years": 11.2
    },
    "cost_pct_yr": 0.559,
    "wide_judge": {
-    "cagr": 10.69,
+    "cagr": 10.72,
     "vol": 13.03,
-    "sharpe": 0.84,
+    "sharpe": 0.85,
     "mdd": -25.03,
     "calmar": 0.43,
     "years": 11.2
@@ -292,22 +367,23 @@
   "blend12w": {
    "label": "추세 + 상대 강세 · 넓은 목록",
    "window": {
-    "cagr": 13.86,
-    "mdd": -9.5
+    "cagr": 13.89,
+    "mdd": -9.5,
+    "mdd_long": -20.19
    },
    "judge": {
-    "cagr": 6.39,
+    "cagr": 6.44,
     "vol": 8.65,
-    "sharpe": 0.76,
+    "sharpe": 0.77,
     "mdd": -20.19,
     "calmar": 0.32,
     "years": 11.2
    },
-   "cost_pct_yr": 0.92,
+   "cost_pct_yr": 0.921,
    "wide_judge": {
-    "cagr": 6.39,
+    "cagr": 6.44,
     "vol": 8.65,
-    "sharpe": 0.76,
+    "sharpe": 0.77,
     "mdd": -20.19,
     "calmar": 0.32,
     "years": 11.2
@@ -317,10 +393,11 @@
    "label": "상대 강세 · 하락장 방어",
    "window": {
     "cagr": 18.12,
-    "mdd": -13.43
+    "mdd": -13.43,
+    "mdd_long": -17.43
    },
    "judge": {
-    "cagr": 11.01,
+    "cagr": 11.0,
     "vol": 10.68,
     "sharpe": 1.03,
     "mdd": -17.43,
@@ -329,9 +406,9 @@
    },
    "cost_pct_yr": 0.764,
    "wide_judge": {
-    "cagr": 7.38,
+    "cagr": 7.41,
     "vol": 10.14,
-    "sharpe": 0.75,
+    "sharpe": 0.76,
     "mdd": -16.9,
     "calmar": 0.44,
     "years": 11.2
@@ -341,21 +418,22 @@
    "label": "상대 강세 · 하락장 방어 · 넓은 목록",
    "window": {
     "cagr": 17.0,
-    "mdd": -13.61
+    "mdd": -13.61,
+    "mdd_long": -16.9
    },
    "judge": {
-    "cagr": 7.38,
+    "cagr": 7.41,
     "vol": 10.14,
-    "sharpe": 0.75,
+    "sharpe": 0.76,
     "mdd": -16.9,
     "calmar": 0.44,
     "years": 11.2
    },
    "cost_pct_yr": 0.692,
    "wide_judge": {
-    "cagr": 7.38,
+    "cagr": 7.41,
     "vol": 10.14,
-    "sharpe": 0.75,
+    "sharpe": 0.76,
     "mdd": -16.9,
     "calmar": 0.44,
     "years": 11.2
@@ -364,12 +442,13 @@
   "hold40": {
    "label": "그냥 보유 · 40종목 균등",
    "window": {
-    "cagr": 24.79,
-    "mdd": -14.65
+    "cagr": 24.87,
+    "mdd": -14.66,
+    "mdd_long": -42.16
    },
    "judge": {
-    "cagr": 16.9,
-    "vol": 12.27,
+    "cagr": 16.82,
+    "vol": 12.26,
     "sharpe": 1.33,
     "mdd": -24.51,
     "calmar": 0.69,
@@ -377,8 +456,8 @@
    },
    "cost_pct_yr": 0.062,
    "wide_judge": {
-    "cagr": 12.68,
-    "vol": 11.5,
+    "cagr": 12.71,
+    "vol": 11.49,
     "sharpe": 1.1,
     "mdd": -25.39,
     "calmar": 0.5,
@@ -388,12 +467,13 @@
   "holdw": {
    "label": "그냥 보유 · 넓은 목록 균등",
    "window": {
-    "cagr": 18.5,
-    "mdd": -12.05
+    "cagr": 18.53,
+    "mdd": -12.06,
+    "mdd_long": -41.76
    },
    "judge": {
-    "cagr": 12.68,
-    "vol": 11.5,
+    "cagr": 12.71,
+    "vol": 11.49,
     "sharpe": 1.1,
     "mdd": -25.39,
     "calmar": 0.5,
@@ -401,8 +481,8 @@
    },
    "cost_pct_yr": 0.04,
    "wide_judge": {
-    "cagr": 12.68,
-    "vol": 11.5,
+    "cagr": 12.71,
+    "vol": 11.49,
     "sharpe": 1.1,
     "mdd": -25.39,
     "calmar": 0.5,
@@ -412,11 +492,12 @@
   "6040": {
    "label": "그냥 보유 · 주식 60 채권 40",
    "window": {
-    "cagr": 11.07,
-    "mdd": -10.59
+    "cagr": 11.12,
+    "mdd": -10.59,
+    "mdd_long": -32.27
    },
    "judge": {
-    "cagr": 8.88,
+    "cagr": 8.89,
     "vol": 10.26,
     "sharpe": 0.88,
     "mdd": -21.18,
@@ -425,7 +506,7 @@
    },
    "cost_pct_yr": 0.025,
    "wide_judge": {
-    "cagr": 8.88,
+    "cagr": 8.89,
     "vol": 10.26,
     "sharpe": 0.88,
     "mdd": -21.18,
@@ -433,51 +514,200 @@
     "years": 11.2
    }
   },
+  "risk12w": {
+   "label": "위험 균등 · 변동성 12% · 넓은 목록",
+   "window": {
+    "cagr": 4.04,
+    "mdd": -3.16,
+    "mdd_long": -14.55
+   },
+   "judge": {
+    "cagr": 2.27,
+    "vol": 4.34,
+    "sharpe": 0.54,
+    "mdd": -14.55,
+    "calmar": 0.16,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.727,
+   "wide_judge": {
+    "cagr": 2.27,
+    "vol": 4.34,
+    "sharpe": 0.54,
+    "mdd": -14.55,
+    "calmar": 0.16,
+    "years": 11.2
+   }
+  },
+  "notional50w": {
+   "label": "금액 균등 · 상한 변동성 50% · 넓은 목록",
+   "window": {
+    "cagr": 6.35,
+    "mdd": -5.36,
+    "mdd_long": -12.72
+   },
+   "judge": {
+    "cagr": 5.18,
+    "vol": 6.14,
+    "sharpe": 0.85,
+    "mdd": -10.73,
+    "calmar": 0.48,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.345,
+   "wide_judge": {
+    "cagr": 5.18,
+    "vol": 6.14,
+    "sharpe": 0.85,
+    "mdd": -10.73,
+    "calmar": 0.48,
+    "years": 11.2
+   }
+  },
+  "notional50m": {
+   "label": "금액 균등 · 상한 변동성 50% · 월 1회",
+   "window": {
+    "cagr": 9.46,
+    "mdd": -5.92,
+    "mdd_long": -9.71
+   },
+   "judge": {
+    "cagr": 6.91,
+    "vol": 6.68,
+    "sharpe": 1.03,
+    "mdd": -8.64,
+    "calmar": 0.8,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.264,
+   "wide_judge": {
+    "cagr": 6.09,
+    "vol": 6.68,
+    "sharpe": 0.92,
+    "mdd": -10.35,
+    "calmar": 0.59,
+    "years": 11.2
+   }
+  },
+  "notional50wm": {
+   "label": "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회",
+   "window": {
+    "cagr": 7.82,
+    "mdd": -6.28,
+    "mdd_long": -10.35
+   },
+   "judge": {
+    "cagr": 6.09,
+    "vol": 6.68,
+    "sharpe": 0.92,
+    "mdd": -10.35,
+    "calmar": 0.59,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.186,
+   "wide_judge": {
+    "cagr": 6.09,
+    "vol": 6.68,
+    "sharpe": 0.92,
+    "mdd": -10.35,
+    "calmar": 0.59,
+    "years": 11.2
+   }
+  },
+  "mlrank": {
+   "label": "머신러닝 순위",
+   "window": {
+    "cagr": 18.07,
+    "mdd": -15.8,
+    "mdd_long": -21.61
+   },
+   "judge": {
+    "cagr": 12.65,
+    "vol": 13.45,
+    "sharpe": 0.95,
+    "mdd": -21.61,
+    "calmar": 0.59,
+    "years": 11.2
+   },
+   "cost_pct_yr": 1.225,
+   "wide_judge": {
+    "cagr": 9.87,
+    "vol": 13.36,
+    "sharpe": 0.77,
+    "mdd": -24.61,
+    "calmar": 0.4,
+    "years": 11.2
+   }
+  },
+  "mlrankw": {
+   "label": "머신러닝 순위 · 넓은 목록",
+   "window": {
+    "cagr": 20.61,
+    "mdd": -16.41,
+    "mdd_long": -24.61
+   },
+   "judge": {
+    "cagr": 9.87,
+    "vol": 13.36,
+    "sharpe": 0.77,
+    "mdd": -24.61,
+    "calmar": 0.4,
+    "years": 11.2
+   },
+   "cost_pct_yr": 0.953,
+   "wide_judge": {
+    "cagr": 9.87,
+    "vol": 13.36,
+    "sharpe": 0.77,
+    "mdd": -24.61,
+    "calmar": 0.4,
+    "years": 11.2
+   }
+  },
   "top2": {
    "label": "최근 상위 둘 섞기",
    "window": {
-    "cagr": 22.3,
-    "mdd": -13.23
+    "cagr": 11.78,
+    "mdd": -12.69,
+    "mdd_long": -27.39
    },
    "judge": {
-    "cagr": 12.52,
-    "vol": 12.21,
-    "sharpe": 1.03,
-    "mdd": -25.07,
+    "cagr": 8.24,
+    "vol": 9.22,
+    "sharpe": 0.91,
+    "mdd": -16.44,
     "calmar": 0.5,
     "years": 11.2
    },
-   "cost_pct_yr": 0.165,
+   "cost_pct_yr": 0.225,
    "wide_judge": {
-    "cagr": 9.29,
-    "vol": 12.11,
-    "sharpe": 0.79,
-    "mdd": -23.92,
-    "calmar": 0.39,
+    "cagr": 7.46,
+    "vol": 9.95,
+    "sharpe": 0.77,
+    "mdd": -16.9,
+    "calmar": 0.44,
     "years": 11.2
    }
   }
  },
  "switches_recent": [
   {
-   "date": "2016-01-04",
-   "from": "risk12",
-   "to": "xs12",
-   "cost_pct": 0.126
-  },
-  {
-   "date": "2021-08-09",
-   "from": "xs12",
-   "to": "hold40",
-   "cost_pct": 0.111
+   "date": "2017-06-26",
+   "from": "notional50",
+   "to": "xs12f",
+   "cost_pct": 0.199
   }
  ],
  "rule": {
   "window_days": 756,
   "min_hold_days": 63,
-  "t_switch": 1.824,
-  "n_candidates": 14,
-  "mdd_floor_pct": -40.0,
+  "t_switch": 1.99,
+  "n_candidates": 20,
+  "mdd_floor_pct": -20.0,
+  "mdd_scope": "3년 창 + 그날까지의 전 기간 · 40종목과 넓은 목록 둘 다",
+  "baseline": "notional50",
+  "version": 2,
+  "version_on": "2026-11-09",
   "objective": "cagr_net"
  },
  "cost_basis": {
@@ -498,46 +728,55 @@
    "table": {
     "fut_long20": {
      "cagr": 7.66,
-     "mdd": -32.15
+     "mdd": -32.15,
+     "mdd_long": -34.43
     },
     "fut_long40": {
      "cagr": 11.23,
-     "mdd": -55.87
+     "mdd": -55.87,
+     "mdd_long": -58.96
     },
     "fut_hold": {
      "cagr": 16.88,
-     "mdd": -64.62
+     "mdd": -64.62,
+     "mdd_long": -84.62
     },
     "fut_cash": {
      "cagr": 0.0,
-     "mdd": 0.0
+     "mdd": 0.0,
+     "mdd_long": 0.0
     }
    },
    "t": null,
    "reason": "gate_failed",
+   "rule_version": 1,
+   "eligible": [
+    "fut_cash",
+    "fut_long20"
+   ],
    "best": "fut_long20"
   },
   "gate": {
    "pass": false,
    "start": "2022-01-01",
    "selector": {
-    "cagr": 1.26,
-    "vol": 26.04,
-    "sharpe": 0.18,
-    "mdd": -55.87,
-    "calmar": 0.02,
+    "cagr": 2.19,
+    "vol": 23.62,
+    "sharpe": 0.21,
+    "mdd": -50.62,
+    "calmar": 0.04,
     "years": 5.0
    },
    "baseline": {
-    "cagr": 3.78,
+    "cagr": 3.51,
     "vol": 18.54,
-    "sharpe": 0.29,
+    "sharpe": 0.28,
     "mdd": -32.15,
-    "calmar": 0.12,
+    "calmar": 0.11,
     "years": 5.0
    },
    "baseline_name": "fut_long20",
-   "switches": 1,
+   "switches": 2,
    "wide": null
   },
   "candidates": {
@@ -545,55 +784,59 @@
     "label": "추세 · 변동성 20%",
     "window": {
      "cagr": 7.66,
-     "mdd": -32.15
+     "mdd": -32.15,
+     "mdd_long": -34.43
     },
     "judge": {
-     "cagr": 3.78,
+     "cagr": 3.51,
      "vol": 18.54,
-     "sharpe": 0.29,
+     "sharpe": 0.28,
      "mdd": -32.15,
-     "calmar": 0.12,
+     "calmar": 0.11,
      "years": 5.0
     },
-    "cost_pct_yr": 0.485
+    "cost_pct_yr": 0.486
    },
    "fut_long40": {
     "label": "추세 · 변동성 40%",
     "window": {
      "cagr": 11.23,
-     "mdd": -55.87
+     "mdd": -55.87,
+     "mdd_long": -58.96
     },
     "judge": {
-     "cagr": 3.64,
-     "vol": 37.3,
-     "sharpe": 0.28,
+     "cagr": 3.1,
+     "vol": 37.31,
+     "sharpe": 0.27,
      "mdd": -55.87,
-     "calmar": 0.07,
+     "calmar": 0.06,
      "years": 5.0
     },
-    "cost_pct_yr": 1.038
+    "cost_pct_yr": 1.041
    },
    "fut_hold": {
     "label": "코인 그냥 보유(균등)",
     "window": {
      "cagr": 16.88,
-     "mdd": -64.62
+     "mdd": -64.62,
+     "mdd_long": -84.62
     },
     "judge": {
-     "cagr": -1.67,
-     "vol": 59.26,
+     "cagr": -1.69,
+     "vol": 59.39,
      "sharpe": 0.27,
-     "mdd": -75.22,
+     "mdd": -74.38,
      "calmar": -0.02,
      "years": 5.0
     },
-    "cost_pct_yr": 0.161
+    "cost_pct_yr": 0.162
    },
    "fut_cash": {
     "label": "현금(안 한다)",
     "window": {
      "cagr": 0.0,
-     "mdd": 0.0
+     "mdd": 0.0,
+     "mdd_long": 0.0
     },
     "judge": {
      "cagr": 0.0,
@@ -610,6 +853,43 @@
    "judge_start": "2022-01-01",
    "funding_annual": 0.1095,
    "t_switch": 1.35
+  }
+ },
+ "ml_targets": {
+  "mlrank": {
+   "target_day": "2026-10-30",
+   "trained_through": "2026-11-09",
+   "weights": {
+    "us_stock:XLP": 0.25,
+    "us_stock:VNQ": 0.25,
+    "us_stock:VGK": 0.25,
+    "kr_stock:069500.KS": 0.070782,
+    "kr_stock:000660.KS": 0.048163
+   }
+  },
+  "mlrankw": {
+   "target_day": "2026-10-30",
+   "trained_through": "2026-11-09",
+   "weights": {
+    "us_stock:XLE": 0.062188,
+    "us_stock:XLV": 0.078987,
+    "us_stock:XLP": 0.084138,
+    "us_stock:XLB": 0.082565,
+    "us_stock:VNQ": 0.095927,
+    "us_stock:IBB": 0.057096,
+    "us_stock:SMH": 0.032365,
+    "us_stock:EFA": 0.094868,
+    "us_stock:EEM": 0.053802,
+    "us_stock:VGK": 0.093679,
+    "us_stock:EWY": 0.023223,
+    "us_stock:EWT": 0.040558,
+    "us_stock:EWA": 0.082162,
+    "us_stock:USO": 0.029195,
+    "kr_stock:069500.KS": 0.02141,
+    "kr_stock:005930.KS": 0.01741,
+    "kr_stock:000660.KS": 0.014568,
+    "kr_stock:105560.KS": 0.035859
+   }
   }
  }
 }
