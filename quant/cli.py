@@ -672,6 +672,16 @@ def _cmd_web_passwd(args) -> None:
           "웹 조종석을 다시 켜면 로그인 화면이 뜹니다.")
 
 
+def _track_closed(args, track: str) -> bool:
+    """닫힌 트랙이면 최종 성적을 장부·공개 자료에 남기고(멱등) True."""
+    from quant.live import track_closure as TC
+    if not TC.is_closed(track):
+        return False
+    TC.close_all(args.state_dir, getattr(args, "docs_dir", "docs"), say=say)
+    say(f"🔒 {TC.TRACKS[track]['label']} — {TC.CLOSED_ON}에 닫은 트랙이라 회차를 돌리지 않습니다")
+    return True
+
+
 def _cmd_futures_round(args) -> None:
     """선물 도전자 1회 — 버려지던 절반(숏)을 쓰는 분리 실험(가상 USDT)."""
     from quant.live.futures_challenger import (
@@ -683,6 +693,9 @@ def _cmd_futures_round(args) -> None:
     # 본 계좌만 멈추고 실험이 계속 돌면, 사장님이 "다 멈췄다"고 믿는 동안
     # 매매가 계속되는 셈이다.
     if _halted(args):
+        return
+    # 감사 357 — 트랙을 닫았다(2026-11-09). 최종 성적만 한 번 남기고 회차는 없다.
+    if _track_closed(args, "futures"):
         return
 
     # 회차 시각은 한국 시간 — 다른 두 트랙과 같은 시계를 쓴다.
@@ -726,6 +739,9 @@ def _cmd_intraday_round(args) -> None:
     # 수동 킬스위치는 실험 트랙에도 걸린다 — 본 계좌만 멈추고 실험이 계속
     # 돌면, 사장님이 "다 멈췄다"고 믿는 동안 매매가 계속되는 셈이다.
     if _halted(args):
+        return
+    # 감사 357 — 두 단타 트랙을 닫았다(2026-11-09). 최종 성적만 한 번 남긴다.
+    if _track_closed(args, "intraday") and _track_closed(args, "intraday_us"):
         return
 
     # 회차·체결 시각은 **한국 시간**으로 찍는다(2026-08-19 사장님 지시).
@@ -908,8 +924,26 @@ def _cmd_pins(args) -> None:
               "심사 결과가 아니라 사용자 지정입니다")
 
 
+def _ml_retired(today: str | None = None) -> str | None:
+    """종목별 ML 체계를 은퇴시킬 날이 지났으면 그 날짜(감사 361).
+
+    날짜는 손으로 적지 않고 등록부에서 센다(`prereg.ml_retire_after` — 그 신호를
+    쓰는 실험의 마지막 판정일). 사람이 기억하지 않아도 그날이 지나면 멈춘다.
+    """
+    import datetime as dt
+
+    from quant.live.prereg import ml_retire_after
+    day = ml_retire_after()
+    return day if (today or dt.date.today().isoformat()) > day else None
+
+
 def _cmd_retrain(args) -> None:
     from quant.live.retrain import run_retrain
+
+    if args.all and _ml_retired():
+        say(f"🏁 종목별 ML 체계는 {_ml_retired()}에 은퇴했습니다 — 그 신호를 쓰는 사전 "
+            "등록 실험이 모두 판정일을 지났습니다. 밤 오디션을 돌리지 않습니다.")
+        return
 
     target = "전체 종목(AUTO_TARGETS)" if args.all else f"{args.market}/{args.symbol}"
     say(f"🌙 야간 재학습: {target} "

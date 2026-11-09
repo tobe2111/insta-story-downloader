@@ -540,6 +540,11 @@ def live_advisories(state_dir: str = STATE_DIR) -> list[str]:
                   "넣으세요. 검증상 이 기본값에서 우대 95%로 바꾸면 연 약 "
                   "0.4%p가 돌아옵니다."
                   if sp == FX_SPREAD_DEFAULT else "."))
+    # 감사 364 — 엔진을 온전히 따르려면 계좌마다 얼마가 필요한가(주문은 안 낸다).
+    from quant.live.account_plan import advisory as _plan
+    line = _plan(state_dir)
+    if line:
+        out.append(line)
     out.append("세금: 국내 상장 해외·금·채권 ETF는 차익에 15.4%가 붙습니다. "
                "ISA 계좌에 담으면 비과세 한도 안에서 이 세금이 없어집니다 "
                "(해외 주식 직접 보유는 연 250만원까지 공제).")

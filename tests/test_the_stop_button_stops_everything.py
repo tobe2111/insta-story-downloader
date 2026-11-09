@@ -112,5 +112,12 @@ def test_when_the_button_is_off_nothing_is_stopped(name, tmp_path,
     from quant.live import manual_halt
 
     manual_halt.set_halt(str(tmp_path), False, who="사장님", reason="재개")
+    # 감사 357 — 닫힌 트랙의 '제 일'은 최종 성적을 남기는 것이다. 거기까지 갔다는
+    # 증거로 그 자리를 터뜨린다(조용히 끝나면 관문을 지났는지 알 수 없다).
+    from quant.live import track_closure
+
+    def _reached(*a, **k):
+        raise RuntimeError("닫힌 트랙의 정리 단계에 닿았다")
+    monkeypatch.setattr(track_closure, "close_all", _reached)
     with pytest.raises(Exception):
         cli_ns[name](_minimal_args(tmp_path))

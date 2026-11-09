@@ -553,6 +553,30 @@
         "Not passed — the baseline engine is used",
       "매주 금요일 종가로, 후보마다 최근 3년의 수수료·환전 뺀 연수익을 잽니다. 가장 높은 후보가 지금 엔진보다 우연이라 보기 어려울 만큼 앞설 때만 갈아타고, 갈아탄 뒤 3개월은 그대로 둡니다.":
         "Every Friday close, each candidate's last-3-year annual return after fees and currency conversion is measured. The engine switches only when the top candidate leads the current one by more than chance would explain, and stays put for 3 months after a switch.",
+      "지금 엔진은 누가 골랐나 — 낙폭 선을 지킨 후보 중에서 기계가 고릅니다":
+        "Who picked the current engine — the machine, among candidates that stayed within the drawdown line",
+      "고를 자격 — 최대낙폭이 이 선 안(최근 3년과 그날까지의 전 기간, 넓은 목록에서도)":
+        "Eligibility — max drawdown within this line (last 3 years and the whole history to date, also on the broad list)",
+      "규칙을 바꾼 날":
+        "Rule changed on",
+      "전 기간 최대낙폭":
+        "Whole-history max drawdown",
+      "고를 자격":
+        "Eligible",
+      "있음":
+        "Yes",
+      "없음":
+        "No",
+      "지금 엔진이 낙폭 −20% 선을 넘은 적이 있어, 자격 있는 후보 중 최근 3년 수익률이 가장 높은 엔진으로 바로 옮깁니다.":
+        "The current engine has crossed the −20% drawdown line, so it moves at once to the eligible candidate with the highest 3-year return.",
+      "지금 엔진이 낙폭 −20% 선을 넘은 적이 있는데, 옮겨 갈 후보가 넓은 목록에서는 자격이 없어 기준 엔진으로 옮깁니다.":
+        "The current engine has crossed the −20% drawdown line, and the candidate it would move to is not eligible on the broad list, so it moves to the baseline engine.",
+      "낙폭 −20% 선을 지킨 후보가 없어 기준 엔진을 씁니다.":
+        "No candidate stayed within the −20% drawdown line, so the baseline engine is used.",
+      "최대낙폭이 −20%보다 나빴던 적이 있는 후보는 고르지 않습니다 — 최근 3년만이 아니라 그날까지의 전 기간(2008년 포함)에서, 넓은 목록에서도 봅니다. 지금 엔진이 그 선을 넘으면 바로 옮깁니다(2026-11-09부터, 사장님이 고른 안정형).":
+        "A candidate whose max drawdown has ever been worse than −20% is never picked — checked over the whole history to date (including 2008), not just the last 3 years, and on the broad list too. If the current engine crosses that line it moves at once (from 2026-11-09, the stable profile the owner chose).",
+      "기준 엔진은 금액 균등 · 상한 변동성 50%입니다. 사람이 고른 40종목과 넓은 목록에서 성적이 가장 덜 갈리는 후보라서입니다 — 이 선택은 결과를 본 뒤 사람이 했습니다.":
+        "The baseline engine is Equal amount · volatility cap 50%, because its results differ least between the hand-picked 40 symbols and the broad list — this choice was made by a person after seeing the results.",
       "최근 3년 최대낙폭이 −40%보다 나쁜 후보는 고르지 않습니다.":
         "A candidate whose last-3-year max drawdown is worse than −40% is never picked.",
       "숫자는 같은 코드·같은 비용으로 돌린 과거 시뮬레이션입니다. 앞으로의 수익을 약속하지 않습니다.":
@@ -565,6 +589,18 @@
         "Equal amount · volatility cap 30%",
       "금액 균등 · 상한 변동성 50%":
         "Equal amount · volatility cap 50%",
+      "위험 균등 · 변동성 12% · 넓은 목록":
+        "Equal risk · 12% volatility · broad list",
+      "금액 균등 · 상한 변동성 50% · 넓은 목록":
+        "Equal amount · volatility cap 50% · broad list",
+      "금액 균등 · 상한 변동성 50% · 월 1회":
+        "Equal amount · volatility cap 50% · monthly",
+      "금액 균등 · 상한 변동성 50% · 넓은 목록 · 월 1회":
+        "Equal amount · volatility cap 50% · broad list · monthly",
+      "머신러닝 순위":
+        "Machine-learning ranking",
+      "머신러닝 순위 · 넓은 목록":
+        "Machine-learning ranking · broad list",
       "상대 강세":
         "Relative strength",
       "추세 + 상대 강세":
@@ -655,6 +691,30 @@
         "Minimum hold after a switch (days)",
       "갈아탄 기록":
         "Switch history",
+      "이 트랙은 닫았습니다":
+        "This track is closed",
+      "닫은 날":
+        "Closed on",
+      "최종 수익률(정리 비용 뺀 뒤)":
+        "Final return (after the closing cost)",
+      "최종 자산":
+        "Final equity",
+      "시작 자산":
+        "Starting equity",
+      "마지막 시세로 다 판 것으로 보고 뺀 정리 비용":
+        "Closing cost deducted, as if everything were sold at the last price",
+      "마지막 회차":
+        "Last round",
+      "운용 계좌 최종 수익률":
+        "Operated account final return",
+      "수수료를 뺀 성적이 그냥 보유보다 못했거나, 이길 근거가 없어 사장님 결정으로 판정일 전에 닫았습니다. 사전 등록을 판정일 전에 어긴 것이라 신뢰 페이지의 수정 이력에 적었습니다. 아래 기록은 지우지 않고 그대로 둡니다.":
+        "Closed before its judgement date by the owner's decision, because its after-fee results trailed simply holding or gave no evidence of an edge. Closing early breaks the preregistration, so it is recorded in the trust page's amendment history. The records below are kept as they are.",
+      "정정 — 갈아탈 때 뗀 비용을 노출 금액으로 곱한 계산 오류를 바로잡았습니다. 그 뒤 자산은 기록된 일수익으로 다시 곱했습니다.":
+        "Correction — the switching cost was multiplied by the exposure amount instead of the exposure ratio. Fixed; the equity after that day was recompounded from the recorded daily returns.",
+      "갈아탄 날":
+        "Switch date",
+      "잘못 뗀 비용 → 맞는 비용":
+        "Wrong cost → correct cost",
       "기준일(하루 한 번, 그날 종가로 갱신)":
         "As of (updated once a day at that day's close)",
       "지금 방식으로 바꾼 날":
@@ -795,6 +855,32 @@
       "입력 재료 하나로 들어간다(겹친 투자자 수). 쓸지 뺄지는 밤 오디션이 성적으로 정한다 — 사람이 '꼭 써라'라고 정하지 않는다.":
         "It goes in as one input (the number of overlapping investors). Whether to keep or drop it is decided by the nightly audition on results — no person decides 'it must be used'.",
       // ── 엔진 전환 — 2026-10-09(감사 335) ───
+      "판정일이 지난 실험 — 기계가 판정일에 한 번 재고 얼린 확정 판정":
+        "Experiments past their judgement date — final verdicts measured once by the machine on that date and frozen",
+      "판정 안 함 — 판정일 전에 닫았습니다":
+        "Not judged — closed before its judgement date",
+      "재료가 없어 판정하지 못했습니다":
+        "Could not be judged — no ledger data",
+      "표본이 모자라 판정하지 않았습니다":
+        "Not judged — the sample is too small",
+      "차이가 우연과 구별되지 않습니다 — 현행 유지":
+        "The difference is indistinguishable from chance — current setup kept",
+      "등록된 기준으로 유의한 차이가 있습니다 — 채택은 사장님 결정입니다":
+        "A significant difference by the registered criteria — adoption is the owner's decision",
+      "기대치에 부합합니다":
+        "Meets the expectation",
+      "기대치 하한에 못 미칩니다":
+        "Falls short of the expectation floor",
+      "실패 기준에 걸렸습니다":
+        "Hit the failure criterion",
+      "2026-11-09 정정 — 단타 실험과 코인 선물 트랙을 판정일 전에 닫았습니다.":
+        "2026-11-09 correction — the intraday experiments and the crypto futures track were closed before their judgement dates.",
+      "사장님 결정으로 단타 실험 다섯(장중 1시간봉 · 주기 사다리 · 지정가 그림자 · 미국 장중 · 미국 지정가 그림자)과 코인 선물 트랙을 판정일(11/16·11/17) 전에 닫았습니다. 장부 실측으로 코인 단타 −12.0%(같은 기간 코인 그냥 보유 +13.4%), 미국 단타 −2.1%, 코인 선물 −18.3%였습니다. 판정일에 닿지 못했으므로 이 실험들의 사전 등록 판정은 내리지 않습니다. 최종 성적은 마지막 장부를 마지막 시세로 정리한 것으로 보고 정리 비용을 뺀 값입니다.":
+        "By the owner's decision, the five intraday experiments (1-hour intraday · cadence ladder · limit-order shadow · US intraday · US limit-order shadow) and the crypto futures track were closed before their judgement dates (11/16 · 11/17). Measured from the ledgers: crypto intraday −12.0% (simply holding crypto over the same period +13.4%), US intraday −2.1%, crypto futures −18.3%. Because they did not reach their judgement dates, no preregistered verdict is issued for them. The final results treat the last ledger as sold at the last price and deduct that closing cost.",
+      "2026-11-09 정정 — 본 계좌의 엔진 고르는 규칙이 바뀝니다.":
+        "2026-11-09 correction — the rule that picks the main account's engine changes.",
+      "최대낙폭이 −20%보다 나빴던 적이 있는 엔진은 고르지 않습니다(최근 3년과 그날까지의 전 기간, 사람이 고른 40종목과 규칙으로 고른 넓은 목록 둘 다). 기준 엔진은 금액 균등 · 상한 변동성 50%로 바꿨습니다. 이 수정은 결과를 본 뒤 한 것입니다 — 직전 규칙이 고른 엔진이 다음 한 달 후보 14개 중 끝에서 두 번째였습니다. 그래서 본 계좌 실계좌 판정(⑪) 때 엔진 구간을 이전 규칙과 바뀐 규칙으로 나눠 함께 공개합니다.":
+        "An engine whose max drawdown has ever been worse than −20% is no longer picked (over the last 3 years and the whole history to date, on both the hand-picked 40 symbols and the rule-chosen broad list). The baseline engine is now Equal amount · volatility cap 50%. This change was made after seeing results — the engine the previous rule picked was second to last of 14 candidates the following month. So at the main account's live judgement (⑪) the engine periods under the old and new rules will be published side by side.",
       "2026-10-09 정정 — 본 계좌의 엔진이 바뀝니다.":
         "2026-10-09 correction — the main account's engine changes.",
       "2026-10-10부터 본 계좌는 추세추종 코어(여러 자산의 최근 추세를 보고 오르는 것만 담고 내리는 것은 현금으로 피하는 규칙)로 운용됩니다. 그래서 본 계좌를 비교 기준으로 쓰는 실험 셋(장중 1시간봉 · 미국 장중 · 2세대 집중)은 기준이 중간에 바뀝니다. 판정일·통계·문턱은 그대로 두고, 판정 때 본 계좌 구간을 엔진 전과 후로 나눠 함께 공개합니다 — 어느 한 구간만 골라 이겼다고 말하지 않습니다.":
@@ -4345,7 +4431,8 @@
       ["^· 최대낙폭 (.+)$", "· max drawdown $1"],
       ["^매수 (\\d+)%$", "Buy $1%"],
       ["^매도 (\\d+)%$", "Sell $1%"],
-      ["^(\\d+)회$", "$1 times"],
+      ["^([\\d,]+)회$", "$1 times"],
+      ["^두 시세 소스가 어긋나 오늘 매매를 쉰 종목 (\\d+)곳$", "$1 symbols not traded today because two price sources disagreed"],
       ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
       ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],
       ["^상위 비중: (.+)$", "Largest weights: $1"],
@@ -4456,8 +4543,8 @@
        "note: the past record in this probability band ($1%±$2%pt) is still accumulating (shown from $3 cases per symbol)"],
       ["^(\\d{4}-\\d{2}-\\d{2}) 기준$", "as of $1"],
       ["^(\\d+)종목$", "$1 symbols"],
-      ["^(\\d+)봉$", "$1 bars"],
-      ["^(\\d+)회$", "$1 runs"],
+      ["^([\\d,]+)봉$", "$1 bars"],
+      ["^([\\d,]+)회$", "$1 runs"],
       ["^연환산 샤프 ([\\d\\.]+)$", "an annualised Sharpe of $1"],
       ["^\\((\\d{4}-\\d{2}-\\d{2}) 추가\\) 이 보고서는$",
        "(added $1) This report always publishes"],

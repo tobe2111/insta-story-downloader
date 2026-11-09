@@ -61,7 +61,7 @@ def _wide(edge):
     rng = np.random.default_rng(1)
     n = E.WINDOW + 20
     idx = pd.bdate_range("2020-01-01", periods=n)
-    base = rng.normal(0.0002, 0.01, n)
+    base = rng.normal(0.0002, 0.004, n)            # 낙폭 −20% 안(규칙 2판)
     return pd.DataFrame({"risk12": base, "xs12": base + edge}, index=idx)
 
 
@@ -91,10 +91,10 @@ def _res(cagr_daily):
 def test_the_gate_also_needs_the_wide_list():
     results = {"risk12": _res(0.0001)}
     meta = {"stats": T.stats(_res(0.0003).equity["2016-01-01":]), "switches": []}
-    assert E.gate(meta, results)["pass"]
+    assert E.gate(meta, results, baseline="risk12")["pass"]
     bad = {"results": {"risk12": _res(0.0004)},
            "meta": {"stats": T.stats(_res(0.0002).equity["2016-01-01":]), "switches": []}}
-    g = E.gate(meta, results, wide=bad)
+    g = E.gate(meta, results, wide=bad, baseline="risk12")
     assert not g["pass"] and g["wide"]["pass"] is False
 
 

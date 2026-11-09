@@ -73,6 +73,10 @@ def test_the_round_hands_that_korean_stamp_to_both_tracks(tmp_path,
     import quant.live.intraday_challenger as ch
     import quant.live.intraday_us as us
 
+    # 감사 357에 두 트랙을 닫았다 — 이 검사는 회차가 **돈다면** 두 트랙이 같은
+    # 시각을 받는가를 본다. 닫힌 목록을 비워 회차 경로를 연다.
+    from quant.live import track_closure
+    monkeypatch.setattr(track_closure, "TRACKS", {})
     seen = {}
     monkeypatch.setattr(ch, "run_intraday_round", lambda now, **kw: (
         seen.__setitem__("coin", now),

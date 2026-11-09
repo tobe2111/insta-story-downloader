@@ -57,6 +57,23 @@ def _run_all(closes, fx, core_keys=None, names=None):
     return results, meta, pair
 
 
+def _ml_targets(closes, core_keys, names):
+    out = {}
+    for n in names:
+        if E.CANDIDATES.get(n, {}).get("kind") != "ml":
+            continue
+        try:
+            tgt, cfg = E.candidate_targets(closes, n, core_keys=core_keys)
+            day = E.target_day(tgt.index, cfg.rebalance)
+            row = tgt.loc[day].fillna(0.0)
+            out[n] = {"target_day": str(day.date()),
+                      "trained_through": str(closes.index[-1].date()),
+                      "weights": {k: round(float(v), 6) for k, v in row.items() if v}}
+        except Exception as exc:  # noqa: BLE001 — 없으면 매일 배치가 기준 엔진으로 돈다
+            print(f"  ✗ {n} 학습 목표 실패: {exc}")
+    return out
+
+
 def _run_futures(cur, prev):
     """선물 트랙의 후보 넷(감사 344 ②) — 코인만, 실측 편도 + 펀딩."""
     frames = {k: v for k, v in cur.items() if k.startswith("crypto:")}
@@ -70,9 +87,11 @@ def _run_futures(cur, prev):
         tgt, cfg = E.fut_targets(closes, name)
         results[name] = T.simulate(closes, cost, cfg, targets=tgt)
         print(f"  · {name} 끝")
+    # 선물 후보는 규칙 1판 그대로다(감사 356 — 2판의 낙폭 −20%는 본 계좌의 위험 선호).
     meta = E.meta_backtest(results, cost, start=E.FUT_JUDGE_START,
-                           baseline=E.FUT_BASELINE)
-    g = E.gate(meta, results, start=E.FUT_JUDGE_START, baseline=E.FUT_BASELINE)
+                           baseline=E.FUT_BASELINE, floor=E.MDD_FLOOR)
+    g = E.gate(meta, results, start=E.FUT_JUDGE_START, baseline=E.FUT_BASELINE,
+               floor=E.MDD_FLOOR)
     pf = (prev or {}).get("futures") or {}
     incumbent = pf.get("active") if pf.get("active") in E.FUT_CANDIDATES else E.FUT_BASELINE
     rets = pd.DataFrame({n: r.equity.pct_change() for n, r in results.items()})
@@ -82,7 +101,7 @@ def _run_futures(cur, prev):
     if pf.get("since_switch"):
         held = int(((rets.index > pd.Timestamp(pf["since_switch"]))
                     & (rets.index <= day)).sum())
-    dec = E.choose(rets, day, incumbent, held_days=held)
+    dec = E.choose(rets, day, incumbent, held_days=held, floor=E.MDD_FLOOR)
     if g["pass"]:
         active = dec["choice"]
     else:
@@ -188,12 +207,18 @@ def main():
            "switches_recent": meta["switches"][-10:],
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
                     "t_switch": E.switch_threshold(len(results)),
-                    "n_candidates": len(results), "mdd_floor_pct": E.MDD_FLOOR * 100,
+                    "n_candidates": len(results), "mdd_floor_pct": E.STABLE_MDD * 100,
+                    "mdd_scope": "3년 창 + 그날까지의 전 기간 · 40종목과 넓은 목록 둘 다",
+                    "baseline": E.BASELINE, "version": E.RULE_VERSION,
+                    "version_on": E.RULE_V2_ON,
                     "objective": "cagr_net"},
            "cost_basis": {"fx_spread": fx, "one_way": "measured_cost_model"},
-           "futures": _run_futures(cur, prev)}
+           "futures": _run_futures(cur, prev),
+           # 감사 362 — ML 후보는 매일 배치가 학습할 수 없다(400봉). 여기서 긴 역사로
+           # 학습한 그 달의 목표를 남기고, 매일 배치·그림자가 그대로 따른다.
+           "ml_targets": _ml_targets(closes, core_keys, names)}
 
-    print(f"\n=== 감사 341·342 — 엔진 자동 선택 ({out['asof']}) ===")
+    print(f"\n=== 감사 341·342·356 — 엔진 자동 선택 ({out['asof']}) ===")
     print(f"{'후보':12s} {'3년 연수익%':>10s} {'3년 낙폭%':>9s} {'2016~ 연수익%':>12s} "
           f"{'샤프':>5s} {'낙폭%':>7s}")
     for n, c in cands.items():

@@ -238,7 +238,9 @@ def _core_targets(state_dir: str, closes_map: dict, weights: dict) -> dict | Non
                 "target_day": t["target_day"],
                 "gross": round(sum(w.values()), 4),
                 "asset_cap": t["asset_cap"], "weights": w,
-                **({"pair": t["pair"]} if t.get("pair") else {})}
+                **({"pair": t["pair"]} if t.get("pair") else {}),
+                # ML 후보가 주간 학습 목표 없이 기준 엔진으로 돈 날(감사 362)
+                **({"fallback": t["fallback"]} if t.get("fallback") else {})}
     except Exception as exc:  # noqa: BLE001
         log.error("추세 코어 계산 실패 — 오늘은 챔피언 체계로 돈다: %s", exc)
         return None
@@ -2049,6 +2051,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
 
     prices, weights, skipped = {}, {}, []
     opens_after: dict = {}          # key → (체결봉, 시가) — 대기 주문 체결용
+    open_src: dict = {}             # key → (시장, 일봉) — 되돌림 뒤 체결가를 다시 찾는 재료
+    opinions: dict = {}             # key → 두 번째 소스 대조 결과(감사 363)
     last_bars: dict = {}
     rets_map: dict = {}             # key → 최근 90일 수익률 — 위험 배분 재료
     closes_map: dict = {}           # key → 완성 봉 종가 전체 — 추세 코어 재료(감사 335)
@@ -2114,6 +2118,14 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             # attrs["source"]에 적고 있었지만 **읽는 곳이 한 곳도 없었다**
             # (감사 135) — 기록만 하고 아무도 안 보는 계측기였다.
             sources[key] = str(df.attrs.get("source") or "?")
+            # 감사 363 — 두 번째 소스와 대조. 실데이터로 도는 배치에서만
+            # (검사·연구는 합성·가짜 제공자를 쓰므로 바깥으로 나가지 않는다).
+            if require_real_data:
+                from quant.data.second_opinion import second_opinion
+                op = second_opinion(market, symbol, df)
+                opinions[key] = op
+                if op.get("ok") is False:
+                    raise RuntimeError(f"두 소스 불일치 — {op.get('why')}")
             if market == "crypto":
                 from quant.data.funding import attach_funding
                 df = attach_funding(df, symbol)
@@ -2272,6 +2284,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
             bs = bar_status(market, df.index[-1], timeframe)
             if bs:
                 partial_bars[key] = bs["elapsed"]
+            open_src[key] = (market, df)
             pend = pending.get(key)
             if pend and pend.get("decided_bar"):
                 # ⚠️ **체결가도 원화로 환산한다**(감사 254). 감사 212가 평가
@@ -2302,7 +2315,12 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     extra_skipped: dict = {}
     if use_champions:
         from quant.portfolio.engine_select import WIDE_KEYS, wide_extra_keys
-        _held = {k for k, p in (st.get("positions") or {}).items()
+        # ⚠️ 되돌림(감사 359)이 아래에서 계좌를 되감을 수 있다 — 되감기 전 보유만
+        #    보면 되감은 계좌가 들고 있던 넓은 ETF의 시세를 안 받는다. 둘 다 본다
+        #    (더 받는 쪽은 해가 없다).
+        from quant.live.redo import RESTORE_KEY as _RK
+        _before = (((st.get(_RK) or {}).get("state") or {}).get("positions") or {})
+        _held = {k for k, p in {**_before, **(st.get("positions") or {})}.items()
                  if abs(float(p.get("quantity", 0.0))) > 0}
         if _core_engine(state_dir) or (_held & set(WIDE_KEYS)):
             for key in wide_extra_keys(f"{m}:{s_}" for m, s_ in targets):
@@ -2325,6 +2343,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                     st["base_prices"].setdefault(key, prices[key])
                     last_bars[key] = str(dfx.index[-1])
                     sources[key] = str(dfx.attrs.get("source") or "?")
+                    open_src[key] = (market, dfx)
                     xpend = pending.get(key)
                     if xpend and xpend.get("decided_bar"):
                         xbar, xopen = _first_bar_after(dfx, xpend["decided_bar"])
@@ -2405,6 +2424,28 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                      bar, why)
             return {"skipped": True, "last_bar": bar, "redo_why": why}
         log.warning("포트폴리오: %s", why)
+        # ⚠️ 감사 359 — 대기 주문은 **되감은 뒤에** 다시 읽는다. 위 루프는 되감기
+        #    전의 주문(버려질 첫 회차가 다음 시가용으로 남긴 것)으로 체결가를 찾았다.
+        #    그대로 두면 되돌린 날은 장부에 없는 주문을 체결하고, 장부가 들고 있던
+        #    주문(전날 정한 것)은 조용히 사라진다. 실측: 본 계좌 2일(09-23·10-09) ·
+        #    섀도 3일(09-23·11-04·11-06). 옛 기록은 고치지 않는다.
+        pending = st.get("pending") or {}
+        opens_after = {}
+        for key, pend in pending.items():
+            src = open_src.get(key)
+            if not src or not (pend or {}).get("decided_bar"):
+                continue
+            m_, df_ = src
+            try:
+                fbar, fopen = _first_bar_after(df_, pend["decided_bar"])
+                opens_after[key] = ((fbar, _to_krw_or_die(m_, fopen, fx_rate))
+                                    if fopen is not None else (None, None))
+            except Exception as exc:  # noqa: BLE001 — 그 주문만 체결 못 한다
+                log.warning("되돌린 날 %s 체결가 못 찾음: %s", key, exc)
+        # 되감기가 오늘 처음 본 종목의 기준가(벤치마크 첫 관측)도 지운다 — 다시 채운다.
+        # 안 채우면 그 종목이 처음 들어온 날 되돌림이 일어날 때 지수 계산이 죽는다.
+        for key, px in prices.items():
+            st.setdefault("base_prices", {}).setdefault(key, px)
 
     # 이 봉의 계산을 시작하기 전 상태를 통째로 복사해 둔다(되돌림 지점).
     mark_restore_point(st, bar)
@@ -3217,6 +3258,13 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
               "skipped_dust": skipped_dust or None,
               # 쿨다운으로 보류한 재조정 — 왜 오늘 안 고쳤는지의 답
               "skipped_cooldown": skipped_cool or None,
+              # 감사 363 — 두 번째 소스 대조. 어긋난 종목은 그날 매매하지 않았다.
+              "second_opinion": ({
+                  "checked": sum(1 for v in opinions.values() if v.get("ok") is not None),
+                  "mismatch": {k: v.get("why") for k, v in opinions.items()
+                               if v.get("ok") is False} or None,
+                  "unmeasured": sum(1 for v in opinions.values() if v.get("ok") is None),
+              } if opinions else None),
               # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
               # ⚠️ ratio는 '오늘 **몇 종목을** 건드렸나'지 회전율이 아니다
@@ -4085,6 +4133,12 @@ def write_docs_status(state_dir: str = STATE_DIR,
     try:
         from quant.live.prereg import public as _prereg_public
         status["prereg"] = _prereg_public()
+        # 감사 361 — 판정일이 지난 실험은 기계가 한 번 판정하고 얼린다(사람이 안 잊게).
+        try:
+            from quant.live.final_judgement import judge_due
+            status["prereg"]["final"] = judge_due(state_dir)
+        except Exception as exc:  # noqa: BLE001 — 판정 실패가 배치를 죽이지 않는다
+            status["prereg"]["final_error"] = str(exc)[:200]
     except Exception:  # noqa: BLE001
         status["prereg"] = None
 

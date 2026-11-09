@@ -178,7 +178,15 @@ def _shadow_rows(rounds: list[dict]) -> list[dict]:
     return out
 
 
-def _pair(name: str, a: list[dict], b: list[dict]) -> dict:
+def _upto(rows: list[dict], upto: str | None) -> list[dict]:
+    """판정일까지의 줄만(감사 361) — 날짜는 `date`, 없으면 회차 `time`의 앞 10자."""
+    if not upto:
+        return rows
+    return [r for r in rows or []
+            if str(r.get("date") or r.get("time") or "")[:10] <= upto]
+
+
+def _pair(name: str, a: list[dict], b: list[dict], upto: str | None = None) -> dict:
     """장부가 **양쪽 다 있을 때만** 비교를 연다.
 
     ⚠️ 이 가드가 없으면 ``missing``이 영영 안 채워진다 — 장부가 없어도
@@ -187,11 +195,12 @@ def _pair(name: str, a: list[dict], b: list[dict]) -> dict:
        **아무 말 없이 사라지는 것**이 이 파일이 오늘 고친 병 그 자체다.
        (2026-09-07: 이 구멍을 내가 새로 만들었고 변이 시험이 잡았다.)
     """
+    a, b = _upto(a, upto), _upto(b, upto)
     d = paired_daily_returns(a, b)
     return {name: d} if (d or (a and b)) else {}
 
 
-def _pairs_for(key: str, state_dir: str) -> dict[str, list[float]]:
+def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, list[float]]:
     """한 등록 실험이 맞대는 장부 쌍들 — 이름 → 일수익 차이.
 
     ⚠️ 재료가 없으면 **빈 dict**를 돌려준다. 부르는 쪽이 "못 잤다"고
@@ -206,7 +215,7 @@ def _pairs_for(key: str, state_dir: str) -> dict[str, list[float]]:
         out: dict = {}
         for alt in ("erc", "equal", "inv_vol"):
             out |= _pair(f"alloc:hrp-{alt}", base,
-                         _load(j("alloc_ladder", f"{alt}.json")).get("history") or [])
+                         _load(j("alloc_ladder", f"{alt}.json")).get("history") or [], upto)
         return out
 
     if key == "sizing_ladder":
@@ -214,7 +223,7 @@ def _pairs_for(key: str, state_dir: str) -> dict[str, list[float]]:
         out = {}
         for alt in ("half", "kelly", "allin"):
             out |= _pair(f"sizing:current-{alt}", base,
-                         _load(j("sizing_ladder", f"{alt}.json")).get("history") or [])
+                         _load(j("sizing_ladder", f"{alt}.json")).get("history") or [], upto)
         return out
 
     if key == "cadence_ladder":
@@ -224,14 +233,14 @@ def _pairs_for(key: str, state_dir: str) -> dict[str, list[float]]:
         one = _load(j("intraday", "challenger.json")).get("rounds") or []
         m15 = _load(j("intraday", "track_15m.json")).get("rounds") or []
         m5 = _load(j("intraday", "track_5m.json")).get("rounds") or []
-        return (_pair("cadence:1h-15m", one, m15)
-                | _pair("cadence:1h-5m", one, m5)
-                | _pair("cadence:15m-5m", m15, m5))
+        return (_pair("cadence:1h-15m", one, m15, upto)
+                | _pair("cadence:1h-5m", one, m5, upto)
+                | _pair("cadence:15m-5m", m15, m5, upto))
 
     if key in ("limit_shadow", "us_limit_shadow"):
         name = "challenger.json" if key == "limit_shadow" else "us_challenger.json"
         rounds = _load(j("intraday", name)).get("rounds") or []
-        return _pair(f"{key}:market-limit", rounds, _shadow_rows(rounds))
+        return _pair(f"{key}:market-limit", rounds, _shadow_rows(rounds), upto)
 
     if key == "gen2_concentration":
         # 등록: "본 계좌 대비 일수익 차이 · 조기 판정 경계 적용".
@@ -242,7 +251,22 @@ def _pairs_for(key: str, state_dir: str) -> dict[str, list[float]]:
             return {}
         return _pair("gen2:main-concentrated",
                      _load(j("gen2.json")).get("history") or [],
-                     main.get("history") or [])
+                     main.get("history") or [], upto)
+
+    # 감사 361 — 아래 둘은 조기 판정 대상이 아니지만(등록이 그 권리를 선언하지
+    # 않았다) **판정일의 확정 판정**에는 같은 짝 재료가 필요하다.
+    if key == "diversity_shadow":
+        return _pair("diversity:actual-diversity",
+                     _load(j("diversity_shadow", "actual.json")).get("history") or [],
+                     _load(j("diversity_shadow", "diversity.json")).get("history") or [],
+                     upto)
+
+    if key == "budget_shadow":
+        rows = _load(j("budget_shadow.json")).get("history") or []
+        arm = lambda n: [{"date": r.get("date"),             # noqa: E731
+                          "equity": ((r.get("arms") or {}).get(n) or {}).get("equity")}
+                         for r in rows if ((r.get("arms") or {}).get(n) or {}).get("equity")]
+        return _pair("budget:discard-redistribute", arm("discard"), arm("redistribute"), upto)
 
     return {}
 

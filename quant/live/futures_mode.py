@@ -77,15 +77,62 @@ def daily_series(rounds: list[dict]) -> dict:
 
 
 def _exposure(mode: str, rounds: list[dict]) -> float:
+    """자산 대비 총 노출(배수). ⚠️ 회차 기록의 `gross_exposure`는 **금액**(USDT)이다
+    — 그대로 쓰면 10,000 계좌에서 노출이 3,474배가 되어 갈아타는 비용이 자산의
+    6배가 된다(감사 355, 실제로 그렇게 났다). 그 회차의 자산으로 나눈다."""
     if mode == "cash":
         return 0.0
     if mode == "hold":
         return 1.0
     last = (rounds or [{}])[-1]
     try:
-        return abs(float(last.get("gross_exposure") or 0.0))
+        gross = abs(float(last.get("gross_exposure") or 0.0))
+        equity = float(last.get("equity") or 0.0)
     except (TypeError, ValueError):
         return 0.0
+    return gross / equity if equity > 0 else 0.0
+
+
+def repair_switch_costs(op: dict) -> dict:
+    """감사 355 — 노출을 금액으로 셌던 갈아타기 비용을 바로잡는다(멱등).
+
+    옛 식: 뗀 돈 = 자산 × 편도 × 노출**금액**. 맞는 식: 자산 × 편도 × (노출금액/자산)
+    = 편도 × 노출금액. 그러므로 맞는 비용 = 옛 비용 / 그날 자산 — 옛 회차가 장부에서
+    잘려 나가도 기록만으로 정확히 되살아난다.
+
+    ⚠️ 조용히 고치지 않는다. `corrections`에 무엇을 얼마나 고쳤는지 남기고, 화면이
+    그것을 말한다. 고친 날 뒤의 자산은 기록된 일수익으로 다시 곱한다(지어낸 숫자가
+    없다).
+    """
+    hist = op.get("history") or []
+    done = {c.get("switch_on") for c in op.get("corrections") or []}
+    for sw in op.get("switches") or []:
+        on, paid = sw.get("on"), float(sw.get("cost") or 0.0)
+        if on in done or paid <= 0:
+            continue
+        before = [h for h in hist if h["date"] < on]
+        if not before:
+            continue
+        base = float(before[-1]["equity"])
+        # 편도 비용 × 노출 배수(최대 몇 배)는 자산의 몇 %다. 자산의 절반을 넘는
+        # 비용은 이 식으로는 나올 수 없다 — 금액으로 센 흔적이다.
+        if base <= 0 or paid < 0.5 * base:
+            continue
+        fixed = paid / base
+        eq = base - fixed
+        for h in hist:
+            if h["date"] < on:
+                continue
+            if h["date"] > on:
+                eq *= 1.0 + float(h.get("day_ret") or 0.0)
+            h["equity"] = round(eq, 4)
+        op["equity"] = eq if any(h["date"] >= on for h in hist) else float(op["equity"]) + paid - fixed
+        op["cost_paid"] = max(0.0, float(op.get("cost_paid") or 0.0) - paid + fixed)
+        op["peak"] = max([float(op.get("start_cash") or 0.0)] + [float(h["equity"]) for h in hist])
+        sw["cost"] = round(fixed, 4)
+        op["corrections"] = (op.get("corrections") or []) + [{
+            "switch_on": on, "was_cost": round(paid, 4), "cost": round(fixed, 4)}]
+    return op
 
 
 def continue_from(st: dict, today: str) -> dict:
@@ -113,6 +160,7 @@ def step(st: dict, *, now_iso: str, per_side: float) -> dict:
     if not op:
         op = continue_from(st, today)
         st["operated"] = op
+    repair_switch_costs(op)
     if op.get("decided_on") == today:
         return op
     rounds = st.get("rounds") or []
@@ -169,6 +217,7 @@ def public(st: dict) -> dict | None:
             "mdd_pct": round(worst * 100, 2),
             "as_of": op.get("applied_through"),
             "inherited_from_experiment": op.get("inherited_from_experiment"),
+            "corrections": op.get("corrections") or [],
             "rule": {"window_days": IM.WINDOW_DAYS, "min_days": IM.MIN_DAYS,
                      "min_hold_days": IM.MIN_HOLD_DAYS,
                      "t_switch": dec.get("t_needed") or round(IM.t_switch(len(MODES)), 3),
