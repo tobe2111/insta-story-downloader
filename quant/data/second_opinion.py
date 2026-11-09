@@ -47,16 +47,30 @@ def _second(market: str, symbol: str, primary: str):
             return "stooq", lambda: p._via_stooq(symbol, "1d", None, None, 30)
         return "yahoo-http", lambda: p._via_yahoo_http(symbol, "1d", None, None, 30)
     if market == "crypto":
-        from quant.data.crypto import CryptoDataProvider, spot_ladder
-        for ex in spot_ladder():
-            if ex != primary:
-                def fetch(ex=ex):
-                    df = CryptoDataProvider(exchange=ex).get_ohlcv(symbol, "1d", limit=30)
-                    if str(df.attrs.get("source") or ex) == primary:
-                        raise ValueError("보조 거래소가 주 거래소로 넘어갔다")
+        # ⚠️ 보조 거래소는 **사다리 없이 그 거래소 하나에** 직접 묻는다(2026-11-10 실측).
+        #    처음에는 `CryptoDataProvider(exchange=ex).get_ohlcv`를 불렀는데, 그 함수는
+        #    실패하면 사다리를 타고 내려간다. 이 환경에서 바이낸스는 막혀 있어 첫
+        #    '다른 거래소'(binance)가 곧바로 주 거래소(okx)로 넘어갔고, 그 결과를 "같은
+        #    소스"로 거절했다 — 첫 배치에서 코인 5종목이 **전부 못 쟀다**였다. 그리고
+        #    사다리 끝은 합성 데이터다: 그것과 견주면 대조가 아니라 소음이다.
+        from quant.data.crypto import CryptoDataProvider, _build_client, spot_ladder
+        others = [ex for ex in spot_ladder() if ex != primary]
+        if not others:
+            return None, "다른 거래소 없음"
+
+        def fetch():
+            errs = []
+            prov = CryptoDataProvider.__new__(CryptoDataProvider)   # _fetch만 빌린다(접속 없음)
+            prov.exchange_id, prov._client = others[0], None
+            for ex in others:
+                try:
+                    df = prov._fetch(_build_client(ex), symbol, "1d", None, None, 30)
+                    df.attrs["source"] = ex
                     return df
-                return ex, fetch
-        return None, "다른 거래소 없음"
+                except Exception as exc:  # noqa: BLE001 — 다음 거래소로
+                    errs.append(f"{ex}: {str(exc)[:40]}")
+            raise ValueError(" · ".join(errs))
+        return "+".join(others), fetch
     return None, "독립 소스 없음(같은 회사의 같은 자료뿐)"
 
 
@@ -102,5 +116,17 @@ def second_opinion(market: str, symbol: str, primary_df: pd.DataFrame) -> dict:
                 "primary": primary, "second": name}
     _dead[market] = 0
     out = compare_returns(primary_df, df2)
-    out.update({"primary": primary, "second": name})
+    out.update({"primary": primary, "second": str(df2.attrs.get("source") or name)})
     return out
+
+
+def reasons(opinions: dict, top: int = 5) -> dict:
+    """못 잰 이유를 세어 둔다(2026-11-10) — 장부에 개수만 남기면 '40종목 전부 못 쟀다'가
+    고장인지 설계(한국 = 독립 소스 없음)인지 아무도 구별할 수 없다. 종목마다 다른
+    꼬리(예외 문구)는 잘라 같은 원인끼리 묶는다."""
+    import collections
+    c = collections.Counter()
+    for v in (opinions or {}).values():
+        if v.get("ok") is None:
+            c[str(v.get("why") or "?").split(":")[0][:60]] += 1
+    return dict(c.most_common(top))

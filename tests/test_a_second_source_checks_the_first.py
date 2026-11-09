@@ -100,3 +100,42 @@ def test_a_disagreeing_symbol_is_held_by_the_real_batch(monkeypatch, tmp_path):
     assert "us_stock:QQQ" in (champ.get("skipped") or []), champ
     assert "두 소스 불일치" in (champ.get("skipped_why") or {}).get("us_stock:QQQ", "")
     assert rec["second_opinion"]["mismatch"] == {"us_stock:QQQ": "어긋남"}
+
+
+def test_crypto_asks_another_exchange_directly_never_the_primary(monkeypatch):
+    """2026-11-10 실측 — 보조가 사다리를 타고 주 거래소로 넘어가 코인 5종목이 전부 '못 쟀다'였다.
+    이제 다른 거래소에 하나씩 **직접** 묻고, 주 거래소·합성 데이터로는 안 내려간다."""
+    import numpy as np
+    import pandas as pd
+
+    import quant.data.crypto as C
+    from quant.data import second_opinion as SO
+
+    idx = pd.date_range("2026-10-01", periods=10, freq="D")
+    good = pd.DataFrame({"close": np.linspace(100, 110, 10)}, index=idx)
+    asked = []
+    monkeypatch.setattr(C, "_build_client", lambda ex, *a, **k: ex)
+
+    def fake_fetch(self, client, *a, **k):
+        asked.append(client)
+        if client == "kraken":
+            return good.copy()
+        raise RuntimeError(f"{client} blocked")
+    monkeypatch.setattr(C.CryptoDataProvider, "_fetch", fake_fetch)
+    monkeypatch.setattr(SO, "_dead", {})
+    prim = good.copy()
+    prim.attrs["source"] = "okx"
+    out = SO.second_opinion("crypto", "BTC/USDT", prim)
+    assert "okx" not in asked, "주 거래소에 다시 물었다 — 같은 소스 두 번은 대조가 아니다"
+    assert out["ok"] is True and out["second"] == "kraken"
+
+
+def test_the_ledger_says_why_it_could_not_measure():
+    from quant.data import second_opinion as SO
+    ops = {"kr:1": {"ok": None, "why": "독립 소스 없음(같은 회사의 같은 자료뿐)"},
+           "kr:2": {"ok": None, "why": "독립 소스 없음(같은 회사의 같은 자료뿐)"},
+           "us:A": {"ok": None, "why": "stooq 응답 없음: HTTP 403 for A"},
+           "us:B": {"ok": None, "why": "stooq 응답 없음: HTTP 403 for B"},
+           "us:C": {"ok": True}}
+    r = SO.reasons(ops)
+    assert r == {"독립 소스 없음(같은 회사의 같은 자료뿐)": 2, "stooq 응답 없음": 2}
