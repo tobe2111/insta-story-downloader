@@ -229,14 +229,13 @@ def season_public(st: dict, equity: float | None = None) -> dict | None:
     def _ret(now, base):
         return (round((float(now) / float(base) - 1) * 100, 2)
                 if now is not None and base else None)
+    # 화면(closed.js)이 읽는 칸만 싣는다 — 안 읽히는 칸은 '죽은 칸' 계약이 잡는다.
     return {"n": s.get("n"), "since": s.get("since"), "approved": s.get("approved"),
             "start_equity": s.get("start_equity"),
             "return_pct": _ret(equity, s.get("start_equity")),
-            "operated_start_equity": s.get("operated_start_equity"),
             "operated_return_pct": _ret(operated_equity, s.get("operated_start_equity")),
-            "previous": [{k: p.get(k) for k in ("n", "on", "return_pct", "final_equity",
-                                                 "start_cash", "exit_cost", "last_round")}
-                         | {"operated_return_pct": (p.get("operated") or {}).get("return_pct")}
+            "previous": [{"n": p.get("n"), "on": p.get("on"), "return_pct": p.get("return_pct"),
+                          "operated_return_pct": (p.get("operated") or {}).get("return_pct")}
                          for p in st.get("seasons") or []]}
 
 

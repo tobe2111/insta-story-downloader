@@ -42,6 +42,7 @@
     line(box, "이어받은 현금", num(s.start_equity));
     line(box, "이번 기 수익률", pct(s.return_pct));
     if (s.operated_return_pct != null) line(box, "이번 기 운용 계좌 수익률", pct(s.operated_return_pct));
+    if (s.approved) line(box, "결정", String(s.approved));
     (s.previous || []).forEach(function (p) {
       var d = el("div", null, "sub");
       d.appendChild(el("span", String(p.n) + "기"));
