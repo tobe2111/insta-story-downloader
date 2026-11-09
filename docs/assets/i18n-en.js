@@ -713,6 +713,16 @@
         "2026-11-10 correction — the three closed tracks reopen as season 2.",
       "사장님 지시로 하루 전에 닫은 코인 단타 · 미국 단타 · 코인 선물 트랙을 다시 엽니다. 1기 성적은 닫은 날의 숫자 그대로 남기고(코인 단타 −11.86% · 미국 단타 −1.50% · 코인 선물 −18.0%), 그 최종 자산을 현금으로 이어받아 2기를 시작합니다 — 누적 성적은 1기에서 끊김 없이 이어집니다. 1기 실험들의 사전 등록 판정은 여전히 내리지 않습니다. 2기는 새 질문이라 새로 등록했습니다: 기계가 단타·그냥 보유(선물은 현금까지) 중에서 고르는 운용 계좌가 수수료를 뺀 뒤 본 계좌보다 더 버는가, 판정일 2027-02-08.":
         "By the owner's instruction, the crypto intraday, US intraday and crypto futures tracks closed a day earlier are reopened. Season 1 results stay as they were on the closing day (crypto intraday −11.86% · US intraday −1.50% · crypto futures −18.0%), and season 2 starts with that final equity carried over as cash — the cumulative record continues unbroken from season 1. The preregistered verdicts of the season 1 experiments are still not issued. Season 2 asks a new question and is newly registered: does the operated account, in which the machine chooses between short-term trading and simply holding (and, for futures, cash), earn more than the main account after fees? Judgement date 2027-02-08.",
+      "닫기 직전 자산":
+        "Equity just before closing",
+      "닫을 때 들고 있던 금액":
+        "Value held at closing",
+      "운용 계좌 닫기 직전 자산":
+        "Operated account equity just before closing",
+      "결정":
+        "Decision",
+      "사전 등록 수정 이력에 적음":
+        "Recorded in the preregistration amendment history",
       "이 트랙은 닫았습니다":
         "This track is closed",
       "닫은 날":
@@ -2110,6 +2120,11 @@
       "결과를 보고 나서 기준을 정하면 그 선택 자체가 결과에 오염됩니다(골대 이동). 그래서 데이터가 쌓이기 전인 지금, 각 실험의 판정일과 판정 방법을 박아서 공개합니다 — 몇 달 뒤의 판정이 의심받지 않게 하기 위해서입니다.":
         "Setting criteria after seeing the result contaminates the choice with the result (moving the goalposts). So now, before the data accumulates, each experiment's verdict date and method are fixed and published — so that the verdict months from now is not open to doubt.",
       "장중 1시간봉 vs 본 계좌": "Intraday hourly bars vs the main account",
+      "코인 단타 2기 — 운용 계좌 vs 본 계좌": "Crypto intraday season 2 — operated account vs the main account",
+      "미국 단타 2기 — 운용 계좌 vs 본 계좌": "US intraday season 2 — operated account vs the main account",
+      "코인 선물 2기 — 운용 계좌 vs 본 계좌": "Crypto futures season 2 — operated account vs the main account",
+      "현행 유지(2기 계속 기록) + 결과 공개 — 트랙을 닫을지는 사장님 결정":
+        "Keep the status quo (season 2 keeps being recorded) + publish the result — whether to close the track is the owner's decision",
       "— 판정": "— verdict",
       "주기 사다리(1시간·15분·5분)": "Interval ladder (1 hour · 15 min · 5 min)",
       "(90일), 트랙 쌍 3개의 검정에 다중비교 보정(본페로니)을 적용합니다.":

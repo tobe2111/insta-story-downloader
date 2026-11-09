@@ -72,12 +72,17 @@
     line(box, "최종 수익률(정리 비용 뺀 뒤)", pct(c.return_pct));
     line(box, "최종 자산", num(c.final_equity) + " " + String(c.currency || ""));
     line(box, "시작 자산", num(c.start_cash));
+    line(box, "닫기 직전 자산", num(c.equity_before));
+    line(box, "닫을 때 들고 있던 금액", num(c.held_value));
     line(box, "마지막 시세로 다 판 것으로 보고 뺀 정리 비용", num(c.exit_cost));
     line(box, "마지막 회차", String(c.last_round || "—"));
     var op = c.operated;
     if (op) {
       line(box, "운용 계좌 최종 수익률", pct(op.return_pct));
+      line(box, "운용 계좌 닫기 직전 자산", num(op.equity_before));
     }
+    if (c.approved) line(box, "결정", String(c.approved));
+    if (c.prereg_amended) box.appendChild(el("div", "사전 등록 수정 이력에 적음", "sub"));
     box.appendChild(el("div", "수수료를 뺀 성적이 그냥 보유보다 못했거나, 이길 근거가 없어 사장님 결정으로 판정일 전에 닫았습니다. 사전 등록을 판정일 전에 어긴 것이라 신뢰 페이지의 수정 이력에 적었습니다. 아래 기록은 지우지 않고 그대로 둡니다.", "sub"));
   }
 
