@@ -186,7 +186,13 @@ def _upto(rows: list[dict], upto: str | None) -> list[dict]:
             if str(r.get("date") or r.get("time") or "")[:10] <= upto]
 
 
-def _pair(name: str, a: list[dict], b: list[dict], upto: str | None = None) -> dict:
+def _days(rows: list[dict], key: str = "equity") -> set:
+    return {str(r.get("date") or r.get("time"))[:10] for r in rows or []
+            if (r.get("date") or r.get("time")) and r.get(key) is not None}
+
+
+def _pair(name: str, a: list[dict], b: list[dict], upto: str | None = None,
+          cover: dict | None = None) -> dict:
     """장부가 **양쪽 다 있을 때만** 비교를 연다.
 
     ⚠️ 이 가드가 없으면 ``missing``이 영영 안 채워진다 — 장부가 없어도
@@ -197,6 +203,11 @@ def _pair(name: str, a: list[dict], b: list[dict], upto: str | None = None) -> d
     """
     a, b = _upto(a, upto), _upto(b, upto)
     d = paired_daily_returns(a, b)
+    if cover is not None:
+        # 감사 376 — 짝지은 날짜의 처음·끝. 재료가 앞에서 잘리면 '처음'이 뒤로 간다.
+        common = sorted(_days(a) & _days(b))
+        cover[name] = {"first": common[0] if common else None,
+                       "last": common[-1] if common else None, "n": len(common)}
     return {name: d} if (d or (a and b)) else {}
 
 
@@ -206,7 +217,8 @@ SEASON2 = {"intraday_s2": ("intraday", "challenger.json"),
            "futures_s2": ("futures", "futures.json")}
 
 
-def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, list[float]]:
+def _pairs_for(key: str, state_dir: str, upto: str | None = None,
+               cover: dict | None = None) -> dict[str, list[float]]:
     """한 등록 실험이 맞대는 장부 쌍들 — 이름 → 일수익 차이.
 
     ⚠️ 재료가 없으면 **빈 dict**를 돌려준다. 부르는 쪽이 "못 잤다"고
@@ -221,7 +233,7 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         out: dict = {}
         for alt in ("erc", "equal", "inv_vol"):
             out |= _pair(f"alloc:hrp-{alt}", base,
-                         _load(j("alloc_ladder", f"{alt}.json")).get("history") or [], upto)
+                         _load(j("alloc_ladder", f"{alt}.json")).get("history") or [], upto, cover)
         return out
 
     if key == "sizing_ladder":
@@ -229,7 +241,7 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         out = {}
         for alt in ("half", "kelly", "allin"):
             out |= _pair(f"sizing:current-{alt}", base,
-                         _load(j("sizing_ladder", f"{alt}.json")).get("history") or [], upto)
+                         _load(j("sizing_ladder", f"{alt}.json")).get("history") or [], upto, cover)
         return out
 
     if key == "cadence_ladder":
@@ -239,14 +251,14 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         one = _load(j("intraday", "challenger.json")).get("rounds") or []
         m15 = _load(j("intraday", "track_15m.json")).get("rounds") or []
         m5 = _load(j("intraday", "track_5m.json")).get("rounds") or []
-        return (_pair("cadence:1h-15m", one, m15, upto)
-                | _pair("cadence:1h-5m", one, m5, upto)
-                | _pair("cadence:15m-5m", m15, m5, upto))
+        return (_pair("cadence:1h-15m", one, m15, upto, cover)
+                | _pair("cadence:1h-5m", one, m5, upto, cover)
+                | _pair("cadence:15m-5m", m15, m5, upto, cover))
 
     if key in ("limit_shadow", "us_limit_shadow"):
         name = "challenger.json" if key == "limit_shadow" else "us_challenger.json"
         rounds = _load(j("intraday", name)).get("rounds") or []
-        return _pair(f"{key}:market-limit", rounds, _shadow_rows(rounds), upto)
+        return _pair(f"{key}:market-limit", rounds, _shadow_rows(rounds), upto, cover)
 
     if key in SEASON2:
         # 감사 366 — 2기 운용 계좌 vs 본 계좌. 2기 시작일 앞의 줄(1기)은 뺀다.
@@ -264,7 +276,7 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
             return [r for r in rows or []
                     if str(r.get("date") or r.get("time") or "")[:10] >= start]
         return _pair(f"{key}:operated-main", since(op),
-                     since(main.get("history") or []), upto)
+                     since(main.get("history") or []), upto, cover)
 
     if key == "gen2_concentration":
         # 등록: "본 계좌 대비 일수익 차이 · 조기 판정 경계 적용".
@@ -275,7 +287,7 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
             return {}
         return _pair("gen2:main-concentrated",
                      _load(j("gen2.json")).get("history") or [],
-                     main.get("history") or [], upto)
+                     main.get("history") or [], upto, cover)
 
     # 감사 361 — 아래 둘은 조기 판정 대상이 아니지만(등록이 그 권리를 선언하지
     # 않았다) **판정일의 확정 판정**에는 같은 짝 재료가 필요하다.
@@ -283,14 +295,14 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         return _pair("diversity:actual-diversity",
                      _load(j("diversity_shadow", "actual.json")).get("history") or [],
                      _load(j("diversity_shadow", "diversity.json")).get("history") or [],
-                     upto)
+                     upto, cover)
 
     if key == "budget_shadow":
         rows = _load(j("budget_shadow.json")).get("history") or []
         arm = lambda n: [{"date": r.get("date"),             # noqa: E731
                           "equity": ((r.get("arms") or {}).get(n) or {}).get("equity")}
                          for r in rows if ((r.get("arms") or {}).get(n) or {}).get("equity")]
-        return _pair("budget:discard-redistribute", arm("discard"), arm("redistribute"), upto)
+        return _pair("budget:discard-redistribute", arm("discard"), arm("redistribute"), upto, cover)
 
     return {}
 

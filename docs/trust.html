@@ -349,6 +349,7 @@ state/ 폴더에 커밋</a>하며, 각 커밋에는 시각·내용·서명이 �
 정정을 병기합니다. 등록 원문은 저장소 코드(quant/live/prereg.py)와
 status.json에 그대로 실려 있습니다.</p>
 <div class="card" id="final-judgements" style="display:none"></div>
+<div class="card" id="prereg-coverage" style="display:none"></div>
 <p><b>2026-08-16부터 하루 넘게, '오늘의 판단' 페이지가 통째로 죽어 있었습니다.</b>
 그 페이지를 열면 <b>"기록을 불러오지 못했습니다"</b> 한 줄만 보였습니다.
 원인은 사소합니다 — 페이지가 불러오는 <b>파일 이름 하나가 틀려 있었습니다</b>
@@ -1157,6 +1158,21 @@ fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
   keys.forEach(k=>{const r=fin[k],d=el("div");
     d.appendChild(el("code",k));d.appendChild(document.createTextNode(" · "+String(r.judge_on||"")+" · "));
     d.appendChild(el("b",CODE[r.code]||"—"));box.appendChild(d);});
+  box.style.display="";
+}).catch(()=>{});
+// 감사 376 — 판정 재료 감시. 장부가 회차 수로 잘려 판정 창(날짜)의 앞이 사라지면 말한다.
+fetch("status.json").then(r=>{if(!r.ok)throw 0;return r.json()}).then(st=>{
+  const cv=((st.prereg||{}).coverage)||null, box=document.getElementById("prereg-coverage");
+  if(!cv||!box) return;
+  const el=(t,x)=>{const e=document.createElement(t);if(x!=null)e.appendChild(document.createTextNode(String(x)));return e;};
+  const pairs=Object.keys(cv.pairs||{}), lost=cv.lost||[], late=cv.late_start||[];
+  box.appendChild(el("h3","판정 재료 감시 — 판정일까지 재료가 앞에서 잘리지 않는가"));
+  box.appendChild(el("div",`진행 중인 비교 ${pairs.length}쌍 · 앞이 잘린 재료 ${lost.length}쌍 · 늦게 시작한 재료 ${late.length}쌍`));
+  const list=(label,names)=>{if(!names.length)return;const d=el("div");d.appendChild(el("b",label));
+    names.forEach(n=>{d.appendChild(document.createTextNode(" "));d.appendChild(el("code",n));});box.appendChild(d);};
+  list("앞이 잘린 재료 — 판정일에 등록 창의 앞부분 없이 판정이 납니다:",lost);
+  list("늦게 시작한 재료 — 등록 창의 앞부분은 처음부터 판정에 없습니다:",late);
+  box.appendChild(el("div","장부는 회차 개수로 잘리고 판정 창은 날짜로 적혀 있어, 회차 주기가 바뀌면 판정 재료가 조용히 줄 수 있습니다. 그래서 매일 재료의 첫 날짜를 기억해 두고, 그 날짜가 뒤로 가면 알립니다."));
   box.style.display="";
 }).catch(()=>{});
 // ⚠️ 문장에 상태를 박아 두면 안 된다. 구조가 잠들어 있는 동안에도 계속

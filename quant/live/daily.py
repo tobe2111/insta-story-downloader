@@ -4152,6 +4152,12 @@ def write_docs_status(state_dir: str = STATE_DIR,
             status["prereg"]["final"] = judge_due(state_dir)
         except Exception as exc:  # noqa: BLE001 — 판정 실패가 배치를 죽이지 않는다
             status["prereg"]["final_error"] = str(exc)[:200]
+        # 감사 376 — 판정 재료가 앞에서 잘리지 않는가(회차 수 한도 vs 날짜 창).
+        try:
+            from quant.live.prereg_coverage import coverage as _prereg_coverage
+            status["prereg"]["coverage"] = _prereg_coverage(state_dir)
+        except Exception as exc:  # noqa: BLE001 — 감시 실패가 배치를 죽이지 않는다
+            status["prereg"]["coverage_error"] = str(exc)[:200]
     except Exception:  # noqa: BLE001
         status["prereg"] = None
 

@@ -30,6 +30,9 @@ import os
 from statistics import NormalDist
 
 FILE = "final_judgements.json"
+#: 판정일 전에 닫은 1기 실험(감사 357) — 판정하지 않는다. 재료 감시(감사 376)도 같은 목록을 쓴다.
+CLOSED_EXPERIMENTS = frozenset({"intraday_1h", "cadence_ladder", "limit_shadow",
+                                "intraday_us", "us_limit_shadow"})
 MIN_DAYS = 20
 #: trend_core_live 등록 문구의 기준(텍스트와 같은지 검사가 본다).
 TREND_MEETS, TREND_FLOOR, TREND_MDD = 0.5, 0.0, -15.0
@@ -99,7 +102,7 @@ def judge_due(state_dir: str = "state", today: str | None = None) -> dict:
             done = json.load(f)
     except (OSError, ValueError):
         done = {}
-    closed = {"intraday_1h", "cadence_ladder", "limit_shadow", "intraday_us", "us_limit_shadow"}
+    closed = CLOSED_EXPERIMENTS
     changed = False
     for key, exp in PREREGISTERED.items():
         if key in done or today <= str(exp.get("judge_on")):
