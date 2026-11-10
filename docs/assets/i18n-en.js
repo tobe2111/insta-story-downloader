@@ -609,6 +609,7 @@
       "이번 주 기계가 지금 엔진 주변에서 만든 후보": "Candidates the machine made around the current engine this week",
       "지금까지 만든 변이": "Mutations made so far",
       "갈아타기 문턱 t": "Switch threshold t",
+      "하는 일이 같아 뺀 변이": "Mutations dropped for doing the same thing",
       "매주 기계가 지금 엔진의 손잡이 하나를 한 칸 움직인 후보를 만들어 같은 관문에 세웁니다. 만든 후보가 쌓일수록 갈아타기 문턱도 저절로 올라갑니다 — 많이 뽑으면 우연히 좋아 보이는 후보도 많아지기 때문입니다.":
         "Every week the machine makes candidates that move one knob of the current engine by one step and puts them through the same gates. As candidates accumulate, the switching threshold rises on its own — drawing more candidates means more of them look good by chance.",
       "2016년부터 다시 돌린 검증에서 자동 변이는 만들어진 날 이후에만 고를 수 있습니다 — 오늘 만든 후보를 과거에 고른 것처럼 세면 검증 숫자가 실제보다 좋아 보입니다.":

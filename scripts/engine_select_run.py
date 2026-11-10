@@ -34,7 +34,7 @@ def _load(path):
         return None
 
 
-def _run_all(closes, fx, core_keys=None, names=None, n_family=None):
+def _run_all(closes, fx, core_keys=None, names=None, n_family=None, mutants=None):
     """후보마다 시뮬레이션 + 선택 규칙 재생.
 
     core_keys: 40종목 열. 주면 40종목 후보는 그 열만, 넓은 목록 후보는 전부를
@@ -49,6 +49,13 @@ def _run_all(closes, fx, core_keys=None, names=None, n_family=None):
         results[name] = T.simulate(closes, cost, cfg, targets=tgt,
                                    fx_keys=fx_keys, fx_cost=fx)
         print(f"  · {name} 끝")
+    # 감사 370 — 부모와 하는 일이 같은 변이는 빼고, 시도 수에서도 뺀다.
+    noop = E.noop_mutants(results, mutants or {})
+    for n in noop:
+        results.pop(n)
+        print(f"  · {n} — 부모와 하는 일이 같아 뺐다")
+    if n_family is not None:
+        n_family -= len(noop)
     # 상위 둘 섞기(감사 343 ③) — 위 후보들의 결과로 만든다(월 1회 짝 재선정).
     top2, pair = E.build_top2(results, cost, fx_keys=fx_keys, fx_cost=fx)
     results[E.TOP2] = top2
@@ -174,7 +181,16 @@ def main():
     print(f"자동 변이 {len(mutants)}개(기반 {incumbent}) · 누적 변이 {trials} · "
           f"문턱 t ≥ {E.switch_threshold(n_family)}")
     results, meta, top2_pair = _run_all(closes, fx, core_keys=core_keys, names=names,
-                                        n_family=n_family)
+                                        n_family=n_family, mutants=mutants)
+    noop = [m for m in mutants if m not in results]
+    noop_labels = {m: E.LABELS.get(m, m) for m in noop}
+    for m in noop:
+        mutants.pop(m)
+        E.CANDIDATES.pop(m, None)
+        E.LABELS.pop(m, None)
+    trials -= len(noop)
+    n_family -= len(noop)
+    names = [n for n in names if n not in noop]
     wide = None
     if broad:
         print("생존 편향 점검(모든 후보를 넓은 목록에서) —")
@@ -228,6 +244,7 @@ def main():
                        + list(mutants) if n in E.CANDIDATES},
            "mutant_trials": trials,
            "mutation": {"base": incumbent, "made": list(mutants),
+                        "noop": noop_labels,
                         "axes": E.MUTATION_AXES, "per_week": E.N_MUTANTS},
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
                     "t_switch": E.switch_threshold(n_family),
