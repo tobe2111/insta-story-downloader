@@ -403,6 +403,8 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
     axes = list(AXES_BY_KIND[spec0["kind"]])
     if spec0["kind"] == "trend" and cfg0.sizing != "notional":
         axes.remove("vol_ref")                    # 위험 균등은 vol_ref를 안 읽는다
+    if spec0["kind"] == "trend" and cfg0.sizing == "notional":
+        axes.remove("target_vol")                 # 금액 균등은 target_vol을 안 읽는다(감사 370)
     tries = 0
     while len(out) < n and tries < 40:
         tries += 1
@@ -430,6 +432,25 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
         spec["label"] = (f"자동 변이 · {LABELS.get(base, base)} · "
                          f"{axis} {cur}→{new}")
         out[name] = spec
+    return out
+
+
+def noop_mutants(results: dict, mutants: dict) -> list:
+    """하는 일이 부모와 같은 변이(감사 370) — 자산 곡선이 처음부터 끝까지 같다.
+
+    설정이 달라도 계산이 그 손잡이에 닿지 않으면(상한이 안 묶인다 등) 같은
+    엔진이다. 그런 변이는 새 가설이 아니므로 시도 수에 세지 않고 링에서 뺀다 —
+    세면 문턱만 오르고 아무것도 더 재지 않는다.
+    """
+    out = []
+    for name, spec in (mutants or {}).items():
+        parent = (spec or {}).get("parent")
+        if name not in results or parent not in results:
+            continue
+        a, b = results[name].equity, results[parent].equity
+        if len(a) == len(b) and bool(np.allclose(a.values, b.values, rtol=0.0,
+                                                 atol=1e-9, equal_nan=True)):
+            out.append(name)
     return out
 
 
@@ -746,7 +767,7 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
             if dec["choice"] != cur:
                 pending = dec["choice"]
     meta = pd.Series(daily, index=idx)
-    return {"returns": meta, "switches": switches,
+    return {"returns": meta, "switches": switches, "n_family": n_family,
             "stats": T.stats((1.0 + meta).cumprod())}
 
 
@@ -767,7 +788,9 @@ def gate(meta: dict, results: dict, start: str = JUDGE_START,
     ok = bool(m and base and m["cagr"] > base["cagr"]
               and m["mdd"] / 100 >= floor)
     out = {"pass": ok, "start": start, "selector": m, "baseline": base,
-           "baseline_name": baseline, "switches": len(meta["switches"])}
+           "baseline_name": baseline, "switches": len(meta["switches"]),
+           # 재생이 쓴 문턱 가족 수(감사 370) — 오늘 결정의 가족 수와 같아야 한다.
+           "n_family": meta.get("n_family")}
     if wide is not None:
         wb = T.stats(wide["results"][baseline].equity[start:])
         wm = wide["meta"]["stats"]

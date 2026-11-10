@@ -87,6 +87,14 @@
       mv.appendChild(el("span", null, "갈아타기 문턱 t"));
       mv.appendChild(document.createTextNode(" "));
       mv.appendChild(el("b", null, String(rl.t_switch != null ? rl.t_switch : "—")));
+      // 감사 370 — 만들었지만 하는 일이 지금 엔진과 같아 뺀 변이(시도로 안 셌다).
+      var nn = mu.noop ? Object.keys(mu.noop).length : 0;
+      if (nn) {
+        mv.appendChild(document.createTextNode(" · "));
+        mv.appendChild(el("span", null, "하는 일이 같아 뺀 변이"));
+        mv.appendChild(document.createTextNode(" "));
+        mv.appendChild(el("b", null, String(nn)));
+      }
       card.appendChild(mv);
     }
     var head = el("div");

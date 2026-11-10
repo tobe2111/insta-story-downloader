@@ -123,7 +123,9 @@ def test_the_weekly_job_breeds_and_counts_across_weeks(tmp_path, monkeypatch):
     monkeypatch.setattr(R, "fetch_all", fetch)
     R.main()
     w1 = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
-    assert w1["mutant_trials"] == E.N_MUTANTS and len(w1["mutation"]["made"]) == E.N_MUTANTS
+    made1 = w1["mutation"]["made"]
+    assert len(made1) + len(w1["mutation"]["noop"]) == E.N_MUTANTS
+    assert w1["mutant_trials"] == len(made1), "하는 일이 같은 변이까지 시도로 셌다(감사 370)"
     assert all(n in w1["candidates"] for n in w1["mutation"]["made"]), "변이가 링에 안 섰다"
     assert set(w1["mutation"]["made"]) <= set(w1["mutants"])
     assert all(s.get("born") == w1["data_end"] for s in w1["mutants"].values()), \
@@ -134,9 +136,10 @@ def test_the_weekly_job_breeds_and_counts_across_weeks(tmp_path, monkeypatch):
     monkeypatch.setattr(R, "fetch_all", lambda _u, c=c2: {k: c[k].dropna() for k in c.columns})
     R.main()
     w2 = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
-    assert w2["mutant_trials"] == 2 * E.N_MUTANTS, "누적 시도를 안 셌다"
+    made2 = w2["mutation"]["made"]
+    assert w2["mutant_trials"] == w1["mutant_trials"] + len(made2), "누적 시도를 안 셌다"
     assert w2["rule"]["t_switch"] >= t1
-    assert w2["rule"]["n_family"] > w1["rule"]["n_family"]
+    assert w2["rule"]["n_family"] == w1["rule"]["n_family"] + len(made2)
     if w2["active"].startswith(E.MUTANT_PREFIX):
         assert w2["active"] in w2["mutants"], "변이를 골라 놓고 명세를 안 남겼다 — 내일 못 따른다"
 
@@ -178,3 +181,56 @@ def test_the_replay_cannot_pick_a_mutant_before_it_was_born():
     E.CANDIDATES["mut-star"].pop("born")
     early = E.meta_backtest(res, {}, start=str(idx[E.WINDOW].date()))
     assert pd.Timestamp(early["switches"][0]["date"]) < born   # 대조군: 날짜가 막았다
+
+
+# ── 감사 370 — 하는 일이 같은 변이는 시도가 아니다 ───────────────────────────
+
+
+def test_a_notional_engine_is_never_mutated_on_a_knob_it_does_not_read():
+    for seed in [str(i) for i in range(30)]:
+        for spec in E.mutate_engine("notional50", seed=seed, n=4).values():
+            assert "target_vol" not in spec["overrides"], spec["label"]
+
+
+def test_a_mutant_that_does_nothing_is_recognised():
+    class R:
+        def __init__(self, eq):
+            self.equity = pd.Series(eq)
+    res = {"p": R([1.0, 1.01, 1.02]), "mut-same": R([1.0, 1.01, 1.02]),
+           "mut-diff": R([1.0, 1.01, 1.03])}
+    muts = {"mut-same": {"parent": "p"}, "mut-diff": {"parent": "p"}}
+    assert E.noop_mutants(res, muts) == ["mut-same"]
+
+
+def test_the_weekly_job_drops_a_do_nothing_mutant(tmp_path, monkeypatch):
+    """부모와 곡선이 같은 변이는 링·장부·시도 수 어디에도 안 들어간다."""
+    import scripts.engine_select_run as R
+    import scripts.multi_sleeve_research as MS
+
+    c = _closes(n=1400, k=10)
+    monkeypatch.setattr(R, "_universe", lambda: list(c.columns))
+    monkeypatch.setattr(R, "STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(R, "OUT", str(tmp_path / E.SELECT_FILE))
+    monkeypatch.setattr(MS, "fetch_broad", lambda: (_ for _ in ()).throw(RuntimeError("no net")))
+    monkeypatch.setattr(R, "_run_futures", lambda cur, prev: None)
+    monkeypatch.setattr(R, "_ml_targets", lambda *a: {})
+    keep = {k: v for k, v in E.CANDIDATES.items() if v["kind"] in ("trend", "xs", "blend")}
+    monkeypatch.setattr(E, "CANDIDATES", keep)
+    monkeypatch.setattr(R, "fetch_all", lambda _u: {k: c[k].dropna() for k in c.columns})
+    base = {k: v for k, v in keep["notional50"].items()}
+    fake = {   # 상한 0.9는 10종목 균등(각 10%)에서 절대 안 묶인다 → 하는 일이 같다
+        "mut-noop": {**base, "overrides": {"asset_cap": 0.9}, "parent": "notional50",
+                     "label": "noop"},
+        "mut-live": {**base, "overrides": {"band": 0.04}, "parent": "notional50",
+                     "label": "live"}}
+    monkeypatch.setattr(E, "mutate_engine", lambda *a, **k: {n: dict(v) for n, v in fake.items()})
+    R.main()
+    w = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
+    assert w["mutation"]["made"] == ["mut-live"]
+    assert list(w["mutation"]["noop"]) == ["mut-noop"]
+    assert w["mutant_trials"] == 1
+    assert "mut-noop" not in w["candidates"] and "mut-noop" not in w["mutants"]
+    fixed = len([n for n in w["candidates"] if not n.startswith(E.MUTANT_PREFIX)])
+    assert w["rule"]["n_family"] == fixed + 1, "뺀 변이가 문턱 가족 수에 남았다"
+    assert w["gate"]["n_family"] == w["rule"]["n_family"], \
+        "재생과 오늘 결정이 다른 문턱 가족 수를 썼다"
