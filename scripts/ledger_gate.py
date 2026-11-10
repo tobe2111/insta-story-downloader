@@ -42,6 +42,7 @@ LEDGER_CHECKS = (
     "tests/test_ledger_integrity.py",          # 자산 급변·원금+손익 일치 등
     "tests/test_ledger_fields_reach_the_screen.py",   # 장부에만 있고 화면엔 없는 필드
     "tests/test_one_account_cannot_hold_two_currencies.py",  # 통화 혼재(감사 254)
+    "tests/test_past_records_are_not_rewritten.py",   # 지난 줄이 바뀌었나(감사 378)
 )
 
 
