@@ -160,13 +160,18 @@ def test_broadcast_and_site_agree_on_drawdown():
     from quant.live.daily import write_docs_status
     from quant.web.app import broadcast_json
 
-    state = str(ROOT / "state")
-    if not (Path(state) / "paper").is_dir():
+    if not (ROOT / "state" / "paper").is_dir():
         return
+    import shutil
     import tempfile
     with tempfile.TemporaryDirectory() as td:
+        # ⚠️ 진짜 `state/`로 돌리면 상태 빌더가 경보 장부·판정 재료 기억을 **진짜
+        #    장부에** 쓴다(감사 377 — 격리 장치가 CI에서 잡았다). 사본으로 돈다.
+        state = f"{td}/state"
+        shutil.copytree(ROOT / "state", state,
+                        ignore=shutil.ignore_patterns("snapshots"))
         site = write_docs_status(state, docs_path=f"{td}/status.json")
-    bc = json.loads(broadcast_json(state, with_live=False))
+        bc = json.loads(broadcast_json(state, with_live=False))
     site_mdd = {k: v.get("mdd_pct") for k, v in (site.get("paper") or {}).items()}
     for acct in bc.get("accounts", []):
         if acct["key"] in site_mdd:
