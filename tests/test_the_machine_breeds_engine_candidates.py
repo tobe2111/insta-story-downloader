@@ -244,3 +244,49 @@ def test_the_weekly_job_drops_a_do_nothing_mutant(tmp_path, monkeypatch):
     assert w["rule"]["n_family"] == fixed + 1, "뺀 변이가 문턱 가족 수에 남았다"
     assert w["gate"]["n_family"] == w["rule"]["n_family"], \
         "재생과 오늘 결정이 다른 문턱 가족 수를 썼다"
+    # 감사 372 — 뺀 변이까지 '재 봤다'로 남긴다. 안 남기면 다음 주에 또 나온다.
+    assert len(w["mutation_tried"]) == 2, "하는 일이 같아 뺀 변이를 재 본 목록에 안 남겼다"
+    seen_excl = []
+    monkeypatch.setattr(E, "mutate_engine", lambda *a, **k: (
+        seen_excl.append(set(k.get("exclude") or ())), {})[1])
+    c2 = _closes(n=1405, k=10)
+    monkeypatch.setattr(R, "fetch_all", lambda _u: {k: c2[k].dropna() for k in c2.columns})
+    R.main()
+    w2 = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
+    assert seen_excl and all(set(w["mutation_tried"]) <= x for x in seen_excl), \
+        "다음 주 탐색이 재 본 목록을 안 넘겨받았다"
+    assert w2["mutation"]["exhausted"] is True and w2["mutation"]["made"] == []
+    assert set(w["mutation_tried"]) <= set(w2["mutation_tried"])
+
+
+# ── 감사 372 — 탐색이 바닥나도 조용히 멈추지 않는다 ─────────────────────────
+
+
+def test_a_tried_setting_is_never_proposed_again():
+    first = E.mutate_engine("notional50", seed="s", n=10)
+    E.register_mutants(first)
+    keys = {E.config_key(n) for n in first}
+    for n in first:
+        E.CANDIDATES.pop(n)
+    again = E.mutate_engine("notional50", seed="s", n=10, exclude=keys)
+    E.register_mutants(again)
+    assert not ({E.config_key(n) for n in again} & keys), "재 본 설정을 또 냈다"
+
+
+def test_mutants_are_bred_from_the_incumbent_and_the_best_eligible():
+    assert E.breeding_bases("notional50", {"best": "xs12f"}) == ["notional50", "xs12f"]
+    assert E.breeding_bases("notional50", {"best": "hold40"}) == ["notional50"]
+    assert E.breeding_bases("notional50", None) == ["notional50"]
+    assert E.breeding_bases("hold40", {"best": "hold40"}) == [E.BASELINE]
+    m = E.breed(["notional50", "xs12f"], seed="2026-11-06")
+    assert {s["parent"] for s in m.values()} == {"notional50", "xs12f"}
+
+
+def test_an_exhausted_neighbourhood_yields_fewer_not_an_error():
+    every = set()
+    for seed in [str(i) for i in range(60)]:
+        for n, spec in E.mutate_engine("notional50", seed=seed, n=10).items():
+            E.CANDIDATES["__k__"] = {k: v for k, v in spec.items() if k != "label"}
+            every.add(E.config_key("__k__"))
+    E.CANDIDATES.pop("__k__", None)
+    assert E.breed(["notional50"], seed="z", exclude=every) == {}

@@ -380,8 +380,14 @@ def _mutant_name(spec: dict) -> str:
     return MUTANT_PREFIX + hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
 
 
+def config_key(name) -> str:
+    """하는 일로 견주는 열쇠 — 설정 전부 + 목록 + 종류(이름·라벨·태어난 날은 뺀다)."""
+    return (json.dumps(candidate_config(name).__dict__, sort_keys=True, default=str)
+            + str(universe_of(name)) + CANDIDATES[name]["kind"])
+
+
 def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
-                  born: str | None = None) -> dict:
+                  born: str | None = None, exclude=()) -> dict:
     """기반 후보의 손잡이 하나를 한 칸 움직인 변이들 {이름: 명세}. 결정적(시드 = 날짜).
 
     born: 태어난 날(감사 369). 주면 명세에 남고, 2016~ 재생은 그날 전의 금요일에
@@ -396,9 +402,9 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
     spec0 = CANDIDATES[base]
     cfg0 = candidate_config(base)
     rng = random.Random(f"{seed}:{base}")
-    seen = {json.dumps(candidate_config(c).__dict__, sort_keys=True, default=str)
-            + str(universe_of(c)) + CANDIDATES[c]["kind"]
-            for c in CANDIDATES if CANDIDATES[c].get("kind") in AXES_BY_KIND}
+    seen = {config_key(c) for c in CANDIDATES
+            if CANDIDATES[c].get("kind") in AXES_BY_KIND}
+    seen |= set(exclude)          # 감사 372 — 이미 재 본 설정(뺀 것 포함)은 다시 안 낸다
     out: dict = {}
     axes = list(AXES_BY_KIND[spec0["kind"]])
     if spec0["kind"] == "trend" and cfg0.sizing != "notional":
@@ -419,8 +425,7 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
         spec["parent"] = base
         CANDIDATES["__probe__"] = spec
         try:
-            key = (json.dumps(candidate_config("__probe__").__dict__, sort_keys=True,
-                              default=str) + str(universe_of("__probe__")) + spec["kind"])
+            key = config_key("__probe__")
         finally:
             CANDIDATES.pop("__probe__", None)
         if key in seen:
@@ -432,6 +437,40 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
         spec["label"] = (f"자동 변이 · {LABELS.get(base, base)} · "
                          f"{axis} {cur}→{new}")
         out[name] = spec
+    return out
+
+
+def breeding_bases(incumbent: str, decision: dict | None) -> list:
+    """변이를 낳을 기반(감사 372) — 지금 엔진, 그리고 지난 판정에서 자격 있는 후보 중
+    최근 3년 연수익 1위(움직일 수 있는 종류일 때).
+
+    지금 엔진만 흔들면 문턱이 높아 엔진이 잘 안 바뀌는 동안 한 칸 이웃이 몇 주 만에
+    바닥나고 탐색이 조용히 멈춘다. 언덕오르기는 지금 선 자리와 가장 높은 자리
+    둘 다에서 걸음을 내딛는다."""
+    bases = [incumbent if CANDIDATES.get(incumbent, {}).get("kind") in AXES_BY_KIND
+             else BASELINE]
+    best = (decision or {}).get("best")
+    if best and best not in bases and CANDIDATES.get(best, {}).get("kind") in AXES_BY_KIND:
+        bases.append(best)
+    return bases
+
+
+def breed(bases: list, seed: str, born: str | None = None, exclude=(),
+          n: int = N_MUTANTS) -> dict:
+    """기반을 돌아가며 한 개씩 낳는다 — 한 기반의 이웃이 바닥나면 다른 기반이 채운다.
+    모자라면 모자란 채로 돌려준다(부르는 쪽이 '탐색이 바닥났다'고 적는다)."""
+    out: dict = {}
+    progress = True
+    while len(out) < n and progress:
+        progress = False
+        for b in bases:
+            if len(out) >= n:
+                break
+            m = mutate_engine(b, seed, n=1, born=born, exclude=exclude)
+            if m:
+                register_mutants(m)      # 다음 걸음이 이것과 같은 것을 다시 안 낸다
+                out.update(m)
+                progress = True
     return out
 
 

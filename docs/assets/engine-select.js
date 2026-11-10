@@ -96,6 +96,21 @@
         mv.appendChild(el("b", null, String(nn)));
       }
       card.appendChild(mv);
+      // 감사 372 — 어디서 낳았나(지금 엔진 · 최근 1위), 그리고 이웃이 바닥났나.
+      if (mu.bases && mu.bases.length) {
+        var bv = el("div", "sub");
+        bv.appendChild(el("span", null, "변이를 낳은 엔진"));
+        bv.appendChild(document.createTextNode(" "));
+        bv.appendChild(el("b", null, mu.bases.map(function (b) {
+          var c = (es.candidates || {})[b];
+          return (c && c.label) || b;
+        }).join(" · ")));
+        if (mu.exhausted) {
+          bv.appendChild(document.createTextNode(" · "));
+          bv.appendChild(el("span", null, "한 칸 주변을 다 재 봐서 이번 주는 덜 만들었다"));
+        }
+        card.appendChild(bv);
+      }
     }
     var head = el("div");
     head.appendChild(el("span", null, "지금 엔진"));
