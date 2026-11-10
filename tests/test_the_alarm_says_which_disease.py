@@ -199,13 +199,19 @@ def test_the_sweep_actually_writes_the_summary(tmp_path):
     안 쓰면 이 기능이 살아 있는지 확인할 길이 전수(3시간)뿐이고, 그러면
     요약이 조용히 멈춰도 아무도 모른다 — 이 저장소가 이미 두 번 겪은 병이다.
     """
-    work = tmp_path / "run"
-    work.mkdir()
+    # ⚠️ 진짜 저장소에서 돌리지 않는다(감사 377). 이 도구는 대상 파일(공개 첫 화면)을
+    #    **잠깐 망가뜨렸다가 되돌린다** — 일꾼 넷이 나란히 도는 동안 다른 검사가 그
+    #    망가진 화면을 읽을 수 있었다(CI에서 격리 장치가 그 순간을 잡았다). 사본에서 돈다.
+    import shutil
+    work = tmp_path / "repo"
+    shutil.copytree(ROOT, work, ignore=shutil.ignore_patterns(
+        ".git", "snapshots", "__pycache__", ".pytest_cache", "node_modules",
+        "mutation_summary.txt"))
     r = subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "mutation_check.py"),
+        [sys.executable, str(work / "scripts" / "mutation_check.py"),
          "첫 화면이 확정값을"],
-        cwd=ROOT, capture_output=True, text=True, timeout=900)
-    out = (ROOT / "mutation_summary.txt")
+        cwd=work, capture_output=True, text=True, timeout=900)
+    out = (work / "mutation_summary.txt")
     try:
         assert out.exists(), (
             f"요약 파일을 안 썼다 — 경보가 실을 내용이 사라진다:\n{r.stdout[-600:]}")
