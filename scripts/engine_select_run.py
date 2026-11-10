@@ -161,7 +161,8 @@ def main():
     incumbent = prev.get("active") or eng.get("variant") or E.BASELINE
     if not E.is_known(incumbent):
         incumbent = E.BASELINE
-    mutants = E.mutate_engine(incumbent, seed=str(closes.index[-1].date()))
+    mutants = E.mutate_engine(incumbent, seed=str(closes.index[-1].date()),
+                              born=str(closes.index[-1].date()))
     E.register_mutants(mutants)
     trials = int(prev.get("mutant_trials") or 0) + len(mutants)
     fixed = [n for n in E.CANDIDATES if not n.startswith(E.MUTANT_PREFIX)]
