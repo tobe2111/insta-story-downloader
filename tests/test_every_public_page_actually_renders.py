@@ -160,7 +160,12 @@ def test_the_harness_would_notice_a_dead_page(browser, site):
             s.src = "assets/definitely-not-here.js";
             document.head.appendChild(s);
         }""")
-        page.wait_for_timeout(800)
+        # 고정 800ms는 병렬 검사(일꾼 4)로 러너가 바쁠 때 404 응답보다 먼저
+        # 끝났다(2026-11-10 CI) — 응답이 올 때까지 최대 10초를 기다린다.
+        for _ in range(50):
+            if any("definitely-not-here" in u for u in missing):
+                break
+            page.wait_for_timeout(200)
     finally:
         page.close()
     assert any("definitely-not-here" in u for u in missing), (

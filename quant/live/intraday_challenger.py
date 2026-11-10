@@ -814,6 +814,11 @@ def _deployed(st: dict, equity: float):
     return deployed(_holdings(st), equity)
 
 
+def _season_public(st: dict, equity) -> dict | None:
+    from quant.live.track_closure import season_public
+    return season_public(st, equity)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday.json) — 실험 표식과 정직한 한계를 함께 싣는다."""
@@ -873,6 +878,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
         # 체결 방식의 효과다. 지정가는 슬리피지를 아끼는 대신 못 사는
         # 위험(미체결)을 진다 — 어느 쪽이 이기는지는 곡선이 답한다.
         "limit_shadow": _shadow_public(st, lastr),
+        # 몇 기인가(감사 366) — 닫았다 다시 연 트랙은 기마다 성적을 따로 싣는다.
+        "season": _season_public(st, eq),
         # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른 계좌.
         "operated": _operated_public(st),
         # 주기 사다리 — 트랙이 많을수록 우연한 승자 확률도 커진다는 사실을

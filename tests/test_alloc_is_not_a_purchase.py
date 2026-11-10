@@ -160,10 +160,21 @@ def test_the_real_ledger_does_not_advertise_a_stand_aside():
         return
     got = _today_numbers(st)
     date = got["date"]
+    day = [r for r in hist if r.get("date") == date]
+    applied = (day[-1].get("applied") if day else None) or None
     for name in got["top_names"]:
         keys = [k for k, v in (st.get("symbols") or {}).items()
                 if (v.get("name") or k.split(":")[-1]) == name]
         for k in keys:
+            if applied is not None:
+                # 계약 ①② — 장부에 `applied`(본 계좌가 실제로 든 노출)가 있으면 그것이
+                # 기준이다. 2026-10-10 엔진 전환 뒤 종목 장부(`paper[종목]`)는 옛 챔피언의
+                # 단독 계좌라, 본 계좌가 엔진으로 든 종목도 거기선 관망(0)일 수 있다
+                # (2026-11-09 실측: BNB applied 2.29% · 종목 장부 0).
+                assert float(applied.get(k) or 0) > 0, (
+                    f"{date} 캡션이 '{name}'을 배분 상위로 말하는데 본 계좌의 실제 "
+                    f"노출(applied)은 {applied.get(k)}다 — 들지 않은 종목이다")
+                continue
             h = ((st.get("paper") or {}).get(k) or {}).get("history") or []
             recs = [r for r in h if r.get("date") == date]
             if recs:

@@ -48,6 +48,7 @@ def test_the_rounds_do_not_run_once_closed(tmp_path, monkeypatch):
     monkeypatch.setattr(IC, "run_intraday_round", boom)
     monkeypatch.setattr(FC, "run_futures_round", boom)
     monkeypatch.setattr(TC, "close_all", lambda *a, **k: {})
+    monkeypatch.setattr(TC, "REOPENED", {})      # 감사 366 — 다시 연 트랙은 이 검사 밖
     args = SimpleNamespace(state_dir=str(tmp_path), docs_dir=str(tmp_path))
     cli._cmd_intraday_round(args)
     cli._cmd_futures_round(args)

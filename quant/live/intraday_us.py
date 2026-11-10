@@ -692,6 +692,11 @@ def _operated_public(st: dict) -> dict | None:
     return public(st)
 
 
+def _season_public(st: dict, equity) -> dict | None:
+    from quant.live.track_closure import season_public
+    return season_public(st, equity)
+
+
 def write_public_report(st: dict, docs_dir: str = "docs",
                         state_dir: str = "state") -> dict:
     """공개용 요약(docs/intraday_us.json) — 실험 표식·정직한 한계를 함께."""
@@ -752,6 +757,8 @@ def write_public_report(st: dict, docs_dir: str = "docs",
                 #   `us_stock_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
                 #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
                 st, measured_cost_model("us_stock", state_dir).total_one_way()),
+        # 몇 기인가(감사 366) — 닫았다 다시 연 트랙은 기마다 성적을 따로 싣는다.
+        "season": _season_public(st, eq),
         # 운용 계좌(감사 345) — 단타냐 그냥 보유냐를 기계가 고른 계좌.
         "operated": _operated_public(st),
         "judgement": PREREGISTERED_JUDGEMENT,

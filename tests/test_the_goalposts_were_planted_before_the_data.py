@@ -41,7 +41,11 @@ EXPECTED = {"intraday_1h": ("2026-08-18", 90),
             # 2026-10-06 사장님 "둘 다 진행" — 넘친 예산 재분배(감사 332).
             "budget_shadow": ("2026-10-06", 120),
             # 2026-10-10 사장님 "다 해줘" — 새 엔진의 실계좌 기대치(감사 337).
-            "trend_core_live": ("2026-10-10", 182)}
+            "trend_core_live": ("2026-10-10", 182),
+            # 2026-11-10 사장님 "트랙들 다시 시작하자" — 닫았던 트랙의 2기(감사 366).
+            "intraday_s2": ("2026-11-10", 90),
+            "intraday_us_s2": ("2026-11-10", 90),
+            "futures_s2": ("2026-11-10", 90)}
 
 REQUIRED = ("name", "question", "start", "judge_on", "statistic",
             "alpha", "correction", "on_fail")

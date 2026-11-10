@@ -173,6 +173,11 @@ def _core_engine(state_dir: str) -> dict | None:
     return cfg if cfg.get("engine") == "trend_core" else None
 
 
+def _opinion_reasons(opinions: dict) -> dict:
+    from quant.data.second_opinion import reasons
+    return reasons(opinions)
+
+
 def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
     """오늘 목표를 정할 엔진의 이름과 누가 골랐나. 엔진이 꺼져 있으면 None.
 
@@ -186,7 +191,7 @@ def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
     from quant.portfolio import engine_select as E
     picked = E.active_choice(E.load_state(state_dir), asof)
     name = picked or eng.get("variant") or E.BASELINE
-    if name not in E.ALL_NAMES:
+    if not E.is_known(name):
         name = E.BASELINE
     return name, ("engine_select" if picked else "engine.json")
 
@@ -3264,6 +3269,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                   "mismatch": {k: v.get("why") for k, v in opinions.items()
                                if v.get("ok") is False} or None,
                   "unmeasured": sum(1 for v in opinions.values() if v.get("ok") is None),
+                  "unmeasured_why": _opinion_reasons(opinions),
               } if opinions else None),
               # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.

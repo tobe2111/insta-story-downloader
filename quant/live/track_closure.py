@@ -39,7 +39,8 @@ TRACKS = {
 
 
 def is_closed(track: str) -> bool:
-    return track in TRACKS
+    """닫혀 있는가 — 닫은 적이 있어도 다시 열었으면(`REOPENED`) 아니다."""
+    return track in TRACKS and track not in REOPENED
 
 
 def _book(st: dict) -> tuple[dict, dict]:
@@ -132,3 +133,127 @@ def close_all(state_dir: str = "state", docs_dir: str = "docs", say=print) -> di
                 json.dump(pub, f, ensure_ascii=False, indent=2)
         done[track] = st["closed"]
     return done
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2기 — 닫은 트랙을 다시 연다 (2026-11-10 감사 366)
+#
+# 사장님: *"트랙들 다시 시작하자."*
+#
+# ■ 무엇을 이어받나
+#
+#   · **닫을 때의 최종 자산**(마지막 시세로 다 판 것으로 보고 정리 비용을 뺀 값)을
+#     **현금으로** 들고 2기를 연다. 1기 손실을 지우지 않는다 — 누적 수익률은 처음
+#     시작 자산(`start_cash`)에서 끊김 없이 이어진다. 2기만의 성적은 따로 센다.
+#   · 닫을 때 이미 정리 비용을 뺐으므로 포지션도 비운다. 포지션을 그대로 두면
+#     **이미 뺀 정리 비용이 공짜로 되돌아온다**(냈다고 적은 돈을 안 낸 셈이 된다).
+#     2기는 다시 담을 때 진입 비용을 정직하게 문다.
+#   · 운용 계좌(기계가 단타·주기·보유 / 엔진·보유·현금을 고르는 계좌)도 같은 규칙.
+#     방식은 닫을 때 고른 것에서 이어 간다 — 갈아타기 규칙(문턱·최소 유지)은 그대로다.
+#   · 지정가 그림자는 본 실험의 **복제**라 본 실험이 현금이 되면 비교가 깨진다 —
+#     그림자의 1기 요약을 남기고 비운다(다음 회차가 2기 계좌를 다시 복제한다).
+#   · 1기 기록(`closed`)은 `seasons`로 옮겨 **얼린다.** 회차 기록은 지우지 않는다.
+#
+# ■ 왜 같은 것을 다시 여는가 — 정직하게
+#
+#   1기에서 진 이유는 수수료였다(코인 단타 비용 전 −3.9% → 비용 후 −12.0%).
+#   2기의 차이는 전략이 아니라 **고르는 쪽**이다: 운용 계좌가 처음부터 '그냥 보유'와
+#   (선물은) '현금'을 후보로 들고 있어, 단타가 수수료에 지는 동안에는 기계가 매매를
+#   멈출 수 있다. 1기 중반(10/11)에야 생긴 장치라 1기 성적에는 반만 들어 있다.
+#   2기는 그 장치가 첫날부터 도는 실험이고, 판정은 새로 등록했다
+#   (`prereg["*_s2"]` — 본 계좌보다 나은가).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: 다시 연 트랙 → 2기 시작일(한국 날짜). 다시 닫으려면 여기서 뺀다.
+REOPENED = {"intraday": "2026-11-10", "intraday_us": "2026-11-10", "futures": "2026-11-10"}
+REOPEN_APPROVED = "2026-11-10 사장님 — \"트랙들 다시 시작하자\""
+
+
+def _liquidate_book(book: dict, final: float) -> None:
+    book["cash"] = round(float(final), 6)
+    book["positions"] = {}
+    if "avg_cost" in book:
+        book["avg_cost"] = {}
+
+
+def reopen(track: str, st: dict) -> bool:
+    """닫힌 1기를 `seasons`에 얼리고 그 최종 자산을 현금으로 2기를 연다(멱등)."""
+    c = st.get("closed")
+    if track not in REOPENED or not c:
+        return False
+    seasons = st.setdefault("seasons", [])
+    sh = st.pop("limit_shadow", None)
+    seasons.append({"n": len(seasons) + 1, **c, "rounds": len(st.get("rounds") or []),
+                    "limit_shadow_final": ({k: sh.get(k) for k in
+                                            ("since", "start_equity", "cost_paid",
+                                             "filled_total", "unfilled_total")}
+                                           if isinstance(sh, dict) else None)})
+    del st["closed"]
+    _liquidate_book(st, c["final_equity"])
+    # 닫을 때 뺀 정리 비용은 실제로 낸 비용으로 센다 — 안 세면 '낸 비용' 칸이
+    # 자산 변화보다 작아 그 차이가 어디로 갔는지 아무도 모른다.
+    st["cost_paid"] = round(float(st.get("cost_paid") or 0.0) + float(c.get("exit_cost") or 0.0), 6)
+    op, opc = st.get("operated"), c.get("operated")
+    if isinstance(op, dict) and opc:
+        op["cost_paid"] = round(float(op.get("cost_paid") or 0.0)
+                                + float(opc.get("exit_cost") or 0.0), 6)
+        if "positions" in op:            # 체결 장부(단타 운용 계좌)
+            _liquidate_book(op, opc["final_equity"])
+        else:                            # 배분 장부(선물 운용 계좌)
+            op["equity"] = round(float(opc["final_equity"]), 4)
+            op["peak"] = max(float(op.get("peak") or 0.0), op["equity"])
+    st["season"] = {"n": len(seasons) + 1, "since": REOPENED[track],
+                    "approved": REOPEN_APPROVED,
+                    "start_equity": round(float(c["final_equity"]), 2),
+                    "operated_start_equity": (round(float(opc["final_equity"]), 2)
+                                              if opc else None)}
+    return True
+
+
+def _operated_equity(op) -> float | None:
+    if not isinstance(op, dict):
+        return None
+    if "positions" in op:
+        px = op.get("last_prices") or {}
+        return float(op.get("cash") or 0.0) + sum(
+            float(q) * float(px.get(k) or 0.0) for k, q in (op.get("positions") or {}).items())
+    return float(op["equity"]) if op.get("equity") is not None else None
+
+
+def season_public(st: dict, equity: float | None = None) -> dict | None:
+    """공개 자료의 `season` 칸 — 지금 몇 기인가, 그 기의 성적, 지난 기의 최종 성적."""
+    s = st.get("season")
+    if not s:
+        return None
+    operated_equity = _operated_equity(st.get("operated"))
+    def _ret(now, base):
+        return (round((float(now) / float(base) - 1) * 100, 2)
+                if now is not None and base else None)
+    # 화면(closed.js)이 읽는 칸만 싣는다 — 안 읽히는 칸은 '죽은 칸' 계약이 잡는다.
+    return {"n": s.get("n"), "since": s.get("since"), "approved": s.get("approved"),
+            "start_equity": s.get("start_equity"),
+            "return_pct": _ret(equity, s.get("start_equity")),
+            "operated_return_pct": _ret(operated_equity, s.get("operated_start_equity")),
+            "previous": [{"n": p.get("n"), "on": p.get("on"), "return_pct": p.get("return_pct"),
+                          "operated_return_pct": (p.get("operated") or {}).get("return_pct")}
+                         for p in st.get("seasons") or []]}
+
+
+def reopen_track(track: str, state_dir: str = "state", say=print) -> bool:
+    """장부 파일에서 한 트랙을 다시 연다(멱등). 연 날만 True."""
+    meta = TRACKS.get(track)
+    if not meta or track not in REOPENED:
+        return False
+    sp = os.path.join(state_dir, *meta["state"])
+    try:
+        with open(sp, encoding="utf-8") as f:
+            st = json.load(f)
+    except (OSError, ValueError):
+        return False
+    if not reopen(track, st):
+        return False
+    with open(sp, "w", encoding="utf-8") as f:
+        json.dump(st, f, ensure_ascii=False, indent=1)
+    say(f"🔓 {meta['label']} — {st['season']['n']}기 시작 "
+        f"(이어받은 현금 {st['season']['start_equity']:,.2f})")
+    return True
