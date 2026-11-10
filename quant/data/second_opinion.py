@@ -130,3 +130,20 @@ def reasons(opinions: dict, top: int = 5) -> dict:
         if v.get("ok") is None:
             c[str(v.get("why") or "?").split(":")[0][:60]] += 1
     return dict(c.most_common(top))
+
+
+def reason_samples(opinions: dict, top: int = 5, width: int = 160) -> dict:
+    """이유마다 **대표 예외 문구 하나**(2026-11-10) — `reasons`는 같은 원인끼리 묶으려고
+    콜론 뒤(예외 문구)를 잘라 세는데, 그러면 "stooq 응답 없음"이 막힘인지 형식
+    변경인지 키 요구인지 장부 어디에도 안 남는다. 첫 배치(11-10)가 실제로 그랬다
+    — 미국 23종목 전부 '응답 없음'이었고 원인은 아무도 몰랐다."""
+    keys = reasons(opinions, top)
+    out: dict = {}
+    for v in (opinions or {}).values():
+        if v.get("ok") is not None:
+            continue
+        why = str(v.get("why") or "?")
+        k = why.split(":")[0][:60]
+        if k in keys and k not in out:
+            out[k] = why[:width]
+    return out

@@ -1145,6 +1145,11 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
       /* 감사 363 — 두 시세 소스가 어긋난 종목은 그날 매매하지 않았다. */
       const so=pfLast.second_opinion||{}, soBad=Object.keys(so.mismatch||{}).length;
       if(soBad)why.push("두 시세 소스가 어긋나 오늘 매매를 쉰 종목 "+soBad+"곳");
+      /* 대조를 몇 곳 했고 몇 곳 못 했나 — 못 한 것은 막지 않으므로, 말하지 않으면
+         "대조가 돈다"와 "대조가 사실상 꺼져 있다"가 화면에서 같다(2026-11-10). */
+      if(so.checked!=null&&so.unmeasured)
+        why.push("다른 시세 소스로 대조한 종목 "+(so.checked||0)+"곳 · 대조 못 한 종목 "+
+                 so.unmeasured+"곳");
       const bits=[];
       if(dust)bits.push("주문액이 최소 금액에 못 미쳐 "+dust+"곳");
       if(cool)bits.push("최근에 사고팔아 쉬는 중이라 "+cool+"곳");

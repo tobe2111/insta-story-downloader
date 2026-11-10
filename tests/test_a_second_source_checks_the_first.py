@@ -139,3 +139,11 @@ def test_the_ledger_says_why_it_could_not_measure():
            "us:C": {"ok": True}}
     r = SO.reasons(ops)
     assert r == {"독립 소스 없음(같은 회사의 같은 자료뿐)": 2, "stooq 응답 없음": 2}
+    # 2026-11-10 — 개수만으로는 원인을 못 가린다: 이유마다 예외 문구 하나를 남긴다.
+    s = SO.reason_samples(ops)
+    assert s["stooq 응답 없음"] == "stooq 응답 없음: HTTP 403 for A"
+    assert set(s) == set(r)
+    import inspect
+    from quant.live import daily
+    assert '"unmeasured_sample": _opinion_samples(opinions)' in inspect.getsource(daily), \
+        "장부가 대표 예외 문구를 안 싣는다"

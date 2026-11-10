@@ -6480,6 +6480,17 @@ MUTATIONS = [
      '                        "intraday_s2", "intraday_us_s2")',
      '                        )',
      "tests/test_a_reopened_track_carries_its_cash.py"),
+    # ── 시세 대조가 못 잰 이유의 예외 문구를 남긴다 (2026-11-10 감사 373) ──
+    ("못 잰 이유의 예외 문구를 버린다 — 원인을 못 가린다(감사 373)",
+     "quant/data/second_opinion.py",
+     '            out[k] = why[:width]',
+     '            out[k] = k',
+     "tests/test_a_second_source_checks_the_first.py"),
+    ("장부가 대표 예외 문구를 안 싣는다(감사 373)",
+     "quant/live/daily.py",
+     '                  "unmeasured_sample": _opinion_samples(opinions),\n',
+     '',
+     "tests/test_a_second_source_checks_the_first.py"),
     # ── 탐색이 바닥나도 조용히 멈추지 않는다 (2026-11-10 감사 372) ─────────
     ("재 본 설정(뺀 것 포함)을 다시 낸다(감사 372)",
      "quant/portfolio/engine_select.py",
