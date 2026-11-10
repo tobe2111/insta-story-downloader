@@ -50,3 +50,25 @@ def test_a_clean_test_passes(tmp_path):
 def test_the_provenance_check_runs_on_a_copy():
     src = (ROOT / "tests" / "test_site_provenance.py").read_text("utf-8")
     assert 'write_docs_status(str(ROOT / "state")' not in src
+
+
+def test_the_failure_names_the_test_file(tmp_path):
+    r = _run(tmp_path, """
+        from pathlib import Path
+        def test_writes():
+            (Path(__file__).parent / "state" / "flag_state.json").write_text("{}")
+    """)
+    assert r.returncode != 0 and "test_x" in r.stdout and "flag_state.json" in r.stdout
+
+
+def test_a_file_changed_and_restored_is_not_an_alarm(tmp_path):
+    """변이 도구의 부분 실행은 파일을 바꿨다가 되돌린다 — 수정 시각만 바뀐다."""
+    r = _run(tmp_path, """
+        from pathlib import Path
+        def test_touch():
+            p = Path(__file__).parent / "state" / "ledger.json"
+            old = p.read_text()
+            p.write_text("mutated")
+            p.write_text(old)
+    """)
+    assert r.returncode == 0, r.stdout
