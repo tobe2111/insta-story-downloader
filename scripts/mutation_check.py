@@ -373,7 +373,7 @@ MUTATIONS = [
      "tests/test_a_new_day_needs_a_real_bar.py"),
     ("하루를 여는 문턱을 0으로 내린다 — 가드가 이름만 남는다",
      "quant/live/daily.py",
-     "NEW_DAY_MIN_ELAPSED = 0.10          # = UTC 02:24 이전 봉은 하루를 열지 못한다",
+     "NEW_DAY_MIN_ELAPSED = 0.5           # = UTC 12:00 이전 봉은 하루를 열지 못한다",
      "NEW_DAY_MIN_ELAPSED = 0.0",
      "tests/test_a_new_day_needs_a_real_bar.py"),
     ("완성된 봉을 '완성도 0'으로 읽는다 — 주식만 있는 계좌가 하루도 못 연다",
