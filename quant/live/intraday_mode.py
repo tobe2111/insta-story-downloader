@@ -110,6 +110,44 @@ def remember_trade_days(op: dict, mode: str, rounds: list[dict]) -> dict:
     return op["daily"][mode]
 
 
+def remember_equity_day(op: dict, now_iso: str, equity: float) -> None:
+    """운용 계좌 **자신의** 일별 마지막 자산(감사 375).
+
+    ⚠️ `history`는 회차마다 한 줄이고 400줄까지만 남는다 — 12분 감시면 **약 3.4일**
+    이다. 그런데 2기 사전 등록 판정(90일)과 화면의 최대낙폭이 그 `history`를 읽고
+    있었다: 판정일에 '표본 부족'이 나고, 낙폭은 최근 사흘의 낙폭이었다. 날짜 열쇠는
+    장부의 다른 줄과 같은 규약(회차 시각 문자열의 앞 10자)을 쓴다 — 본 계좌와 짝지을
+    때 날짜가 어긋나지 않게.
+    """
+    day = str(now_iso)[:10]
+    if "equity_daily" not in op:
+        # 처음 한 번 — 남아 있는 회차 기록에서 시작한다(그날의 마지막 줄).
+        first: dict = {}
+        for h in op.get("history") or []:
+            if h.get("time") and h.get("equity") is not None:
+                first[str(h["time"])[:10]] = round(float(h["equity"]), 2)
+        op["equity_daily"] = first
+        hist_eq = [float(h["equity"]) for h in op.get("history") or []
+                   if h.get("equity") is not None]
+        op.setdefault("equity_peak_all",
+                      max([float(op.get("start_cash") or 0.0)] + hist_eq))
+    days = dict(op.get("equity_daily") or {})
+    days[day] = round(float(equity), 2)
+    op["equity_daily"] = {k: days[k] for k in sorted(days)[-DAILY_KEEP:]}
+    peak = max(float(op.get("equity_peak_all") or 0.0), float(equity))
+    op["equity_peak_all"] = peak
+    if peak > 0:
+        op["mdd_all"] = min(float(op.get("mdd_all") or 0.0), float(equity) / peak - 1.0)
+
+
+def daily_rows(op: dict) -> list[dict]:
+    """판정·화면이 읽는 운용 계좌의 일별 자산 — 쌓아 둔 것이 없으면 회차 기록."""
+    days = (op or {}).get("equity_daily") or {}
+    if days:
+        return [{"date": k, "equity": days[k]} for k in sorted(days)]
+    return list((op or {}).get("history") or [])
+
+
 def returns_from_days(days: dict):
     """일별 마지막 자산(날짜 → 값) → 일수익."""
     import pandas as pd
@@ -128,9 +166,19 @@ def seed_days(op: dict, seed: dict | None, *, source: str) -> dict:
     for mode, days in (seed.get("daily") or {}).items():
         cur = (op.get("daily") or {}).get(mode) or {}
         op.setdefault("daily", {})[mode] = {**days, **cur}
+    if seed.get("equity_daily"):          # 감사 375 — 운용 계좌 자신의 지난날
+        op["equity_daily"] = {**seed["equity_daily"], **(op.get("equity_daily") or {})}
+        vals = [op["equity_daily"][k] for k in sorted(op["equity_daily"])]
+        peak, worst = 0.0, float(op.get("mdd_all") or 0.0)
+        for v in vals:
+            peak = max(peak, float(v))
+            worst = min(worst, float(v) / peak - 1.0) if peak > 0 else worst
+        op["equity_peak_all"] = max(peak, float(op.get("equity_peak_all") or 0.0))
+        op["mdd_all"] = worst
     op["daily_seeded"] = {"source": source, "made_on": seed.get("made_on"),
                           "from_commits": seed.get("from_commits") or [],
-                          "days": {m: len(d) for m, d in (seed.get("daily") or {}).items()}}
+                          "days": {m: len(d) for m, d in (seed.get("daily") or {}).items()},
+                          "equity_days": len(seed.get("equity_daily") or {})}
     return op
 
 
@@ -353,6 +401,7 @@ def advance(op: dict, *, mode_signals: dict, prices: dict, per_side: float,
     last.update(prices)
     op["last_prices"] = last
     after = mark_equity(op, prices)
+    remember_equity_day(op, now_iso, after)
     op["history"] = (op.get("history") or [])[-(HISTORY_KEEP - 1):] + [
         {"time": str(now_iso), "equity": round(after, 2),
          "mode": op.get("mode"), "trades": len(trades),
@@ -415,6 +464,13 @@ def public(st: dict) -> dict | None:
     for h in hist:
         peak = max(peak, float(h["equity"]))
         worst = min(worst, drawdown_from_index([peak, float(h["equity"])]))
+    # ⚠️ `history`는 약 3.4일 치다 — 그것만 보면 최근 사흘의 낙폭이다(감사 375).
+    #    처음부터 쌓은 최악값과 그 앞의 일별 기록에서 센 값도 함께 본다.
+    p2 = base
+    for v in [(op.get("equity_daily") or {})[k] for k in sorted(op.get("equity_daily") or {})]:
+        p2 = max(p2, float(v))
+        worst = min(worst, drawdown_from_index([p2, float(v)]))
+    worst = min(worst, float(op.get("mdd_all") or 0.0))
     return {"since": op.get("since"), "mode": op.get("mode"),
             "mode_label": LABELS.get(op.get("mode"), op.get("mode")),
             "mode_since": op.get("mode_since"),

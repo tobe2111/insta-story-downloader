@@ -255,7 +255,10 @@ def _pairs_for(key: str, state_dir: str, upto: str | None = None) -> dict[str, l
         if main.get("deposits"):
             return {}
         start = PREREGISTERED[key]["start"]
-        op = ((_load(j(*SEASON2[key])).get("operated") or {}).get("history") or [])
+        # ⚠️ 운용 계좌의 `history`는 회차 단위 400줄(코인 약 3.4일)이다 — 90일
+        #    판정은 일별로 쌓아 둔 자산을 읽는다(감사 375).
+        from quant.live.intraday_mode import daily_rows
+        op = daily_rows(_load(j(*SEASON2[key])).get("operated") or {})
 
         def since(rows):
             return [r for r in rows or []

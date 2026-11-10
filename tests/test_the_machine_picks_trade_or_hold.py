@@ -299,3 +299,60 @@ def test_the_live_runs_pass_the_seed_and_it_is_real():
     assert 'seed_key="futures"' in cli
     ch = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
     assert 'seed_key="intraday"' in ch
+
+
+# ── 감사 375 — 운용 계좌 자신의 자산도 회차 400줄(약 3.4일)에 갇히지 않는다 ──
+
+def _op_run(days=30, per_day=119, keep=400, drop_at=5):
+    """진짜 모양: 회차마다 history 한 줄, 400줄에서 잘린다."""
+    from quant.live import intraday_mode as IM
+    op, eq = {"start_cash": 10_000.0}, 10_000.0
+    for d in range(days):
+        for k in range(per_day):
+            eq *= 0.97 if (d == drop_at and k == 0) else 1.0002
+            t = (pd.Timestamp("2026-11-10T00:00:00+09:00")
+                 + pd.Timedelta(days=d, minutes=12 * k)).isoformat()
+            IM.remember_equity_day(op, t, eq)
+            op["history"] = (op.get("history") or [])[-(keep - 1):] + [
+                {"time": t, "equity": round(eq, 2)}]
+    return op
+
+
+def test_the_season2_judgement_reads_every_day_not_the_last_400_rounds(tmp_path):
+    import json
+    from quant.live import sequential as S
+    from quant.live.prereg import PREREGISTERED
+    op = _op_run()
+    assert len({h["time"][:10] for h in op["history"]}) <= 4, "재현 실패: 회차가 안 잘렸다"
+    start = PREREGISTERED["intraday_s2"]["start"]
+    main = {"history": [{"date": str((pd.Timestamp(start) + pd.Timedelta(days=d)).date()),
+                         "equity": 1_000_000 * (1 + 0.0001 * d)} for d in range(30)]}
+    (tmp_path / "paper").mkdir()
+    (tmp_path / "paper" / "portfolio_ALL.json").write_text(json.dumps(main))
+    (tmp_path / "intraday").mkdir()
+    (tmp_path / "intraday" / "challenger.json").write_text(json.dumps({"operated": op}))
+    pairs = S._pairs_for("intraday_s2", str(tmp_path))
+    n = len(next(iter(pairs.values())))
+    assert n >= 25, f"판정이 {n}일 치만 본다 — 회차 400줄에 갇혔다"
+
+
+def test_the_operated_drawdown_covers_the_whole_run():
+    from quant.live import intraday_mode as IM
+    op = _op_run()
+    op.update({"mode": "hold", "decision": {}})
+    mdd = IM.public({"operated": op})["mdd_pct"]
+    assert mdd <= -2.9, f"최대낙폭이 최근 회차만 본다: {mdd}"
+
+
+def test_the_seed_restores_the_operated_equity_once():
+    from quant.live import intraday_mode as IM
+    op = {"equity_daily": {"2026-11-10": 90.0}}
+    IM.seed_days(op, {"equity_daily": {"2026-10-01": 100.0, "2026-11-10": 1.0}}, source="t")
+    assert op["equity_daily"] == {"2026-10-01": 100.0, "2026-11-10": 90.0}
+    assert round(op["mdd_all"], 3) == -0.1 and op["daily_seeded"]["equity_days"] == 2
+
+
+def test_every_operated_round_remembers_its_day():
+    src = (ROOT / "quant" / "live" / "intraday_mode.py").read_text("utf-8")
+    body = src.split("def advance(", 1)[1].split("\ndef ", 1)[0]
+    assert "remember_equity_day(op, now_iso, after)" in body
