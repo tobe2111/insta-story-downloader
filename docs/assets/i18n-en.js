@@ -900,6 +900,14 @@
       // ── 엔진 전환 — 2026-10-09(감사 335) ───
       "판정일이 지난 실험 — 기계가 판정일에 한 번 재고 얼린 확정 판정":
         "Experiments past their judgement date — final verdicts measured once by the machine on that date and frozen",
+      "판정 재료 감시 — 판정일까지 재료가 앞에서 잘리지 않는가":
+        "Judgement-data watch — is any experiment losing the start of its data before its judgement date",
+      "앞이 잘린 재료 — 판정일에 등록 창의 앞부분 없이 판정이 납니다:":
+        "Data trimmed at the start — the verdict would be reached without the beginning of the registered window:",
+      "늦게 시작한 재료 — 등록 창의 앞부분은 처음부터 판정에 없습니다:":
+        "Data that started late — the beginning of the registered window was never in the verdict:",
+      "장부는 회차 개수로 잘리고 판정 창은 날짜로 적혀 있어, 회차 주기가 바뀌면 판정 재료가 조용히 줄 수 있습니다. 그래서 매일 재료의 첫 날짜를 기억해 두고, 그 날짜가 뒤로 가면 알립니다.":
+        "Ledgers are trimmed by number of rounds while judgement windows are written in dates, so when the round cadence changes the judgement data can shrink silently. So the first date of each experiment's data is remembered every day, and an alarm goes out if it moves later.",
       "판정 안 함 — 판정일 전에 닫았습니다":
         "Not judged — closed before its judgement date",
       "재료가 없어 판정하지 못했습니다":
@@ -4486,6 +4494,7 @@
       ["^매도 (\\d+)%$", "Sell $1%"],
       ["^([\\d,]+)회$", "$1 times"],
       ["^두 시세 소스가 어긋나 오늘 매매를 쉰 종목 (\\d+)곳$", "$1 symbols not traded today because two price sources disagreed"],
+      ["^진행 중인 비교 (\\d+)쌍 · 앞이 잘린 재료 (\\d+)쌍 · 늦게 시작한 재료 (\\d+)쌍$", "Comparisons in progress: $1 pairs · data trimmed at the start: $2 · data that started late: $3"],
       ["^다른 시세 소스로 대조한 종목 (\\d+)곳 · 대조 못 한 종목 (\\d+)곳$", "Cross-checked against a second price source: $1 symbols · could not be checked: $2"],
       ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
       ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],

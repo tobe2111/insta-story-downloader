@@ -41,9 +41,16 @@ def _produced_status_keys() -> set[str]:
 
     src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
     keys = set(re.findall(r'status\["([a-z_][a-z_0-9]*)"\]', src))
+    import shutil
     with tempfile.TemporaryDirectory() as td:
-        st = write_docs_status(str(ROOT / "state"),
-                               docs_path=f"{td}/status.json")
+        # ⚠️ 실제 `state/`로 돌리면 상태 빌더의 부수 기록(판정 재료 감시 기억 ·
+        #    판정일이 지난 실험의 확정 판정)이 **진짜 장부에 남는다**(감사 376에서
+        #    실측 — 검사 한 번에 `state/prereg_coverage.json`이 생겼다). 사본으로 돈다.
+        #    시세 스냅샷(약 100MB)은 상태 문서가 읽지 않으므로 뺀다.
+        state = f"{td}/state"
+        shutil.copytree(ROOT / "state", state,
+                        ignore=shutil.ignore_patterns("snapshots"))
+        st = write_docs_status(state, docs_path=f"{td}/status.json")
         keys |= {k for k in st if re.fullmatch(r"[a-z_][a-z_0-9]*", k)}
     return keys
 
