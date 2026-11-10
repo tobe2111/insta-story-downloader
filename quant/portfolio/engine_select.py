@@ -331,8 +331,28 @@ def register_mutants(registry: dict | None) -> None:
             continue
         if spec.get("kind") not in AXES_BY_KIND:
             continue
-        CANDIDATES[name] = {k: v for k, v in spec.items() if k != "label"}
+        new = {k: v for k, v in spec.items() if k != "label"}
+        # 같은 변이가 다시 나오면 **가장 이른** 태어난 날을 지킨다(감사 369).
+        old = (CANDIDATES.get(name) or {}).get("born")
+        if old and (not new.get("born") or str(old) < str(new["born"])):
+            new["born"] = old
+        CANDIDATES[name] = new
         LABELS[name] = spec.get("label") or name
+
+
+def born_of(name) -> pd.Timestamp | None:
+    """그 후보가 처음 만들어진 날(자동 변이만). 사람이 적은 후보는 None."""
+    b = (CANDIDATES.get(name) or {}).get("born")
+    try:
+        return pd.Timestamp(b) if b else None
+    except (TypeError, ValueError):
+        return None
+
+
+def available_on(names, day) -> list:
+    """그날 이미 태어나 있던 후보만(감사 369) — 재생이 미래에 만든 변이를 못 고르게."""
+    day = pd.Timestamp(day)
+    return [n for n in names if (born_of(n) is None or born_of(n) <= day)]
 
 
 def _cfg_value(cfg: T.TrendConfig, axis: str):
@@ -355,13 +375,17 @@ def _step(values: tuple, cur, rng) -> object:
 
 def _mutant_name(spec: dict) -> str:
     import hashlib
-    key = json.dumps({k: spec[k] for k in sorted(spec) if k != "label"},
+    key = json.dumps({k: spec[k] for k in sorted(spec) if k not in ("label", "born")},
                      sort_keys=True, ensure_ascii=False)
     return MUTANT_PREFIX + hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
 
 
-def mutate_engine(base: str, seed: str, n: int = N_MUTANTS) -> dict:
+def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
+                  born: str | None = None) -> dict:
     """기반 후보의 손잡이 하나를 한 칸 움직인 변이들 {이름: 명세}. 결정적(시드 = 날짜).
+
+    born: 태어난 날(감사 369). 주면 명세에 남고, 2016~ 재생은 그날 전의 금요일에
+    이 변이를 고를 수 없다. 이름(해시)에는 안 들어간다 — 같은 변이는 같은 이름.
 
     기반이 움직일 수 없는 종류(보유·고정·ML·상위 둘)면 기준 엔진에서 만든다.
     하는 일이 기반·서로·고정 후보와 같은 변이는 버린다(설정으로 견준다).
@@ -401,6 +425,8 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS) -> dict:
             continue
         seen.add(key)
         name = _mutant_name(spec)
+        if born:
+            spec["born"] = str(born)
         spec["label"] = (f"자동 변이 · {LABELS.get(base, base)} · "
                          f"{axis} {cur}→{new}")
         out[name] = spec
@@ -710,7 +736,12 @@ def meta_backtest(results: dict, cost_rate: dict, start: str = JUDGE_START,
         daily.append(r)
         since += 1
         if day.weekday() == 4:
-            dec = choose(rets, day, cur, held_days=since, floor=floor,
+            # 감사 369 — 그날 아직 안 태어난 변이는 고를 수 없다. 오늘 만든 변이를
+            # 2016년에 고른 재생은 실제로 돌았을 규칙이 아니라 사후 선택이다.
+            cols = available_on(rets.columns, day)
+            if cur not in cols:
+                cols.append(cur)
+            dec = choose(rets[cols], day, cur, held_days=since, floor=floor,
                          n_family=n_family)
             if dec["choice"] != cur:
                 pending = dec["choice"]

@@ -126,6 +126,8 @@ def test_the_weekly_job_breeds_and_counts_across_weeks(tmp_path, monkeypatch):
     assert w1["mutant_trials"] == E.N_MUTANTS and len(w1["mutation"]["made"]) == E.N_MUTANTS
     assert all(n in w1["candidates"] for n in w1["mutation"]["made"]), "변이가 링에 안 섰다"
     assert set(w1["mutation"]["made"]) <= set(w1["mutants"])
+    assert all(s.get("born") == w1["data_end"] for s in w1["mutants"].values()), \
+        "변이에 태어난 날이 없다 — 재생이 그 변이를 처음부터 있던 것처럼 쓴다(감사 369)"
     t1 = w1["rule"]["t_switch"]
 
     c2 = _closes(n=1405, k=10)
@@ -137,3 +139,42 @@ def test_the_weekly_job_breeds_and_counts_across_weeks(tmp_path, monkeypatch):
     assert w2["rule"]["n_family"] > w1["rule"]["n_family"]
     if w2["active"].startswith(E.MUTANT_PREFIX):
         assert w2["active"] in w2["mutants"], "변이를 골라 놓고 명세를 안 남겼다 — 내일 못 따른다"
+
+
+# ── 감사 369 — 재생은 아직 안 태어난 변이를 못 고른다 ─────────────────────────
+
+
+def test_a_mutant_carries_its_birthday_but_not_in_its_name():
+    a = E.mutate_engine("notional50", seed="s", born="2026-11-06")
+    b = E.mutate_engine("notional50", seed="s", born="2027-01-01")
+    assert a.keys() == b.keys(), "태어난 날이 이름을 바꿨다 — 같은 변이가 둘로 세어진다"
+    assert all(s["born"] == "2026-11-06" for s in a.values())
+    E.register_mutants(a)
+    E.register_mutants(b)                  # 다시 나와도 가장 이른 날을 지킨다
+    assert all(E.born_of(n) == pd.Timestamp("2026-11-06") for n in a)
+    assert E.born_of("risk12") is None
+
+
+def test_the_replay_cannot_pick_a_mutant_before_it_was_born():
+    """미래에 태어난 '완벽한' 변이가 있어도 그 전의 재생은 그것을 고르지 않는다."""
+    idx = pd.bdate_range("2012-01-02", periods=E.WINDOW + 400)
+    rng = np.random.default_rng(5)
+    base = rng.normal(0.0002, 0.005, len(idx))
+    star = base + 0.004                     # 언제나 훨씬 낫다 — 사후에 고른 변이
+    born = idx[-60]
+
+    class R:
+        def __init__(self, r):
+            self.equity = pd.Series(np.cumprod(1 + r), index=idx)
+            self.weights = pd.DataFrame({"x": 0.0}, index=idx)
+
+    E.CANDIDATES["mut-star"] = {"kind": "trend", "variant": "risk12",
+                                "born": str(born.date())}
+    res = {E.BASELINE: R(base), "mut-star": R(star)}
+    m = E.meta_backtest(res, {}, start=str(idx[E.WINDOW].date()))
+    assert m["switches"], "태어난 뒤에도 못 골랐다 — 변이가 링에서 빠졌다"
+    assert all(pd.Timestamp(s["date"]) > born for s in m["switches"]), \
+        "태어나기 전에 골랐다 — 관문 숫자가 사후 선택으로 부풀었다"
+    E.CANDIDATES["mut-star"].pop("born")
+    early = E.meta_backtest(res, {}, start=str(idx[E.WINDOW].date()))
+    assert pd.Timestamp(early["switches"][0]["date"]) < born   # 대조군: 날짜가 막았다
