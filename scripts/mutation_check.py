@@ -6480,6 +6480,12 @@ MUTATIONS = [
      '                        "intraday_s2", "intraday_us_s2")',
      '                        )',
      "tests/test_a_reopened_track_carries_its_cash.py"),
+    # ── 변이는 결정 금요일 하나에 한 번 (2026-11-10 감사 371) ───────────────
+    ("같은 결정일에 다시 돌면 변이를 또 만들어 시도를 센다(감사 371)",
+     "scripts/engine_select_run.py",
+     '    if pm.get("for_day") == for_day:',
+     '    if False:',
+     "tests/test_the_machine_breeds_engine_candidates.py"),
     # ── 하는 일이 같은 변이는 시도가 아니다 (2026-11-10 감사 370) ──────────
     ("금액 균등 엔진을 안 읽는 target_vol로 흔든다(감사 370)",
      "quant/portfolio/engine_select.py",
@@ -6514,8 +6520,8 @@ MUTATIONS = [
      "tests/test_the_machine_breeds_engine_candidates.py"),
     ("주간 잡이 변이에 태어난 날을 안 적는다(감사 369)",
      "scripts/engine_select_run.py",
-     '                              born=str(closes.index[-1].date()))',
-     ')',
+     '        mutants = E.mutate_engine(incumbent, seed=for_day, born=for_day)',
+     '        mutants = E.mutate_engine(incumbent, seed=for_day)',
      "tests/test_the_machine_breeds_engine_candidates.py"),
     # ── 엔진 후보도 기계가 만든다 (2026-11-10 감사 368) ───────────────────
     ("자동 변이의 누적 시도를 안 센다 — 문턱이 안 오른다(감사 368)",

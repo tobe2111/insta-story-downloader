@@ -168,10 +168,21 @@ def main():
     incumbent = prev.get("active") or eng.get("variant") or E.BASELINE
     if not E.is_known(incumbent):
         incumbent = E.BASELINE
-    mutants = E.mutate_engine(incumbent, seed=str(closes.index[-1].date()),
-                              born=str(closes.index[-1].date()))
-    E.register_mutants(mutants)
-    trials = int(prev.get("mutant_trials") or 0) + len(mutants)
+    # 감사 371 — 변이는 **결정 금요일 하나에 한 번**만 만든다. 이 잡은 토요일 예약
+    # 말고도 코드가 main에 머지될 때마다 돈다(2026-11-09~10 사흘에 세 번). 돌 때마다
+    # 새로 만들면 '매주 2개'가 '실행마다 2개'가 되고 시도 수가 실행 횟수를 따라 큰다.
+    fri = closes.index[closes.index.weekday == 4]
+    for_day = str((fri[-1] if len(fri) else closes.index[-1]).date())
+    pm = prev.get("mutation") or {}
+    if pm.get("for_day") == for_day:
+        mutants = {n: dict(E.CANDIDATES[n], label=E.LABELS.get(n, n))
+                   for n in pm.get("made") or [] if n in E.CANDIDATES}
+        trials = int(prev.get("mutant_trials") or 0)
+        print(f"이번 결정일({for_day}) 변이는 이미 만들었다 — 다시 쓴다(시도 수 그대로)")
+    else:
+        mutants = E.mutate_engine(incumbent, seed=for_day, born=for_day)
+        E.register_mutants(mutants)
+        trials = int(prev.get("mutant_trials") or 0) + len(mutants)
     fixed = [n for n in E.CANDIDATES if not n.startswith(E.MUTANT_PREFIX)]
     names = fixed + ([incumbent] if incumbent.startswith(E.MUTANT_PREFIX) else []) \
         + list(mutants)
@@ -244,7 +255,7 @@ def main():
                        + list(mutants) if n in E.CANDIDATES},
            "mutant_trials": trials,
            "mutation": {"base": incumbent, "made": list(mutants),
-                        "noop": noop_labels,
+                        "noop": noop_labels, "for_day": for_day,
                         "axes": E.MUTATION_AXES, "per_week": E.N_MUTANTS},
            "rule": {"window_days": E.WINDOW, "min_hold_days": E.MIN_HOLD,
                     "t_switch": E.switch_threshold(n_family),

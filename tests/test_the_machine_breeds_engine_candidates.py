@@ -128,9 +128,16 @@ def test_the_weekly_job_breeds_and_counts_across_weeks(tmp_path, monkeypatch):
     assert w1["mutant_trials"] == len(made1), "하는 일이 같은 변이까지 시도로 셌다(감사 370)"
     assert all(n in w1["candidates"] for n in w1["mutation"]["made"]), "변이가 링에 안 섰다"
     assert set(w1["mutation"]["made"]) <= set(w1["mutants"])
-    assert all(s.get("born") == w1["data_end"] for s in w1["mutants"].values()), \
+    assert all(s.get("born") == w1["mutation"]["for_day"] for s in w1["mutants"].values()), \
         "변이에 태어난 날이 없다 — 재생이 그 변이를 처음부터 있던 것처럼 쓴다(감사 369)"
     t1 = w1["rule"]["t_switch"]
+
+    # 감사 371 — 같은 결정 금요일에 다시 돌아도(머지마다 도는 잡) 새로 만들지 않는다.
+    R.main()
+    w1b = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
+    assert w1b["mutant_trials"] == w1["mutant_trials"], "같은 주에 다시 돌았다고 시도를 또 셌다"
+    assert w1b["mutation"]["made"] == made1
+    assert w1b["rule"]["n_family"] == w1["rule"]["n_family"]
 
     c2 = _closes(n=1405, k=10)
     monkeypatch.setattr(R, "fetch_all", lambda _u, c=c2: {k: c[k].dropna() for k in c.columns})
@@ -223,12 +230,15 @@ def test_the_weekly_job_drops_a_do_nothing_mutant(tmp_path, monkeypatch):
                      "label": "noop"},
         "mut-live": {**base, "overrides": {"band": 0.04}, "parent": "notional50",
                      "label": "live"}}
-    monkeypatch.setattr(E, "mutate_engine", lambda *a, **k: {n: dict(v) for n, v in fake.items()})
+    monkeypatch.setattr(E, "mutate_engine", lambda *a, **k: {
+        n: dict(v, born=k.get("born")) for n, v in fake.items()})
     R.main()
     w = json.loads((tmp_path / E.SELECT_FILE).read_text("utf-8"))
     assert w["mutation"]["made"] == ["mut-live"]
     assert list(w["mutation"]["noop"]) == ["mut-noop"]
     assert w["mutant_trials"] == 1
+    assert w["mutants"]["mut-live"]["born"] == w["mutation"]["for_day"], \
+        "주간 잡이 태어난 날을 안 넘겼다 — 재생이 변이를 처음부터 있던 것처럼 쓴다(감사 369)"
     assert "mut-noop" not in w["candidates"] and "mut-noop" not in w["mutants"]
     fixed = len([n for n in w["candidates"] if not n.startswith(E.MUTANT_PREFIX)])
     assert w["rule"]["n_family"] == fixed + 1, "뺀 변이가 문턱 가족 수에 남았다"
