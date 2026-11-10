@@ -4486,6 +4486,7 @@
       ["^매도 (\\d+)%$", "Sell $1%"],
       ["^([\\d,]+)회$", "$1 times"],
       ["^두 시세 소스가 어긋나 오늘 매매를 쉰 종목 (\\d+)곳$", "$1 symbols not traded today because two price sources disagreed"],
+      ["^다른 시세 소스로 대조한 종목 (\\d+)곳 · 대조 못 한 종목 (\\d+)곳$", "Cross-checked against a second price source: $1 symbols · could not be checked: $2"],
       ["^([\\d\\.]+)% · 목표 ([\\d,]+)원$", "$1% · target KRW $2"],
       ["^(\\d+)개 \\/ 후보 중 상위 (\\d+)$", "$1 of the top $2 candidates"],
       ["^상위 비중: (.+)$", "Largest weights: $1"],

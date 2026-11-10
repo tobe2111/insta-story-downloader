@@ -178,6 +178,11 @@ def _opinion_reasons(opinions: dict) -> dict:
     return reasons(opinions)
 
 
+def _opinion_samples(opinions: dict) -> dict:
+    from quant.data.second_opinion import reason_samples
+    return reason_samples(opinions)
+
+
 def _engine_name(state_dir: str, asof) -> tuple[str, str] | None:
     """오늘 목표를 정할 엔진의 이름과 누가 골랐나. 엔진이 꺼져 있으면 None.
 
@@ -3270,6 +3275,8 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
                                if v.get("ok") is False} or None,
                   "unmeasured": sum(1 for v in opinions.values() if v.get("ok") is None),
                   "unmeasured_why": _opinion_reasons(opinions),
+                  # 이유마다 예외 문구 하나 — 개수만 있으면 원인을 못 가린다(2026-11-10).
+                  "unmeasured_sample": _opinion_samples(opinions),
               } if opinions else None),
               # 회전율 흔적 — 그날 실제로 몇 종목을 갈아탔는가. 비용이 수익을
               # 먹는지 사후가 아니라 매일 볼 수 있어야 한다.
