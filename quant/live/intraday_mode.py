@@ -85,6 +85,66 @@ def trade_daily_returns(rounds: list[dict]):
     return daily.pct_change().dropna()
 
 
+DAILY_KEEP = 400   # 방식별 일별 마지막 자산 — 판정 창(90일)보다 넉넉히
+
+
+def remember_trade_days(op: dict, mode: str, rounds: list[dict]) -> dict:
+    """회차 → 방식별 **일별 마지막 자산**을 운용 계좌에 쌓는다(감사 374, 멱등).
+
+    ⚠️ 회차 장부는 `ROUNDS_KEEP`(2,000)개까지만 남는다. 장중 감시가 12분마다 돌면
+    (감사 348) 그것이 **약 17일**이라, 판정 창(90일)·최소 일수(20일)를 회차만으로는
+    못 채운다 — 실측(2026-11-10): 코인 1시간봉 실험(`trade`)이 `n 17 · t 없음`으로
+    비교에서 조용히 빠져 있었다. 그날의 마지막 회차는 앞이 잘려도 진짜 마지막이므로
+    덮어써도 맞다.
+    """
+    import pandas as pd
+    pts = [(r.get("time"), r.get("equity")) for r in rounds or []
+           if r.get("time") and r.get("equity") is not None]
+    days = dict(((op.get("daily") or {}).get(mode)) or {})
+    if pts:
+        ts = pd.to_datetime([p[0] for p in pts], utc=True)
+        s = pd.Series([float(p[1]) for p in pts], index=ts).sort_index()
+        for d, v in s.groupby(s.index.date).last().items():
+            days[str(d)] = round(float(v), 6)
+    op.setdefault("daily", {})[mode] = {k: days[k] for k in sorted(days)[-DAILY_KEEP:]}
+    return op["daily"][mode]
+
+
+def returns_from_days(days: dict):
+    """일별 마지막 자산(날짜 → 값) → 일수익."""
+    import pandas as pd
+    keys = sorted(days or {})
+    if len(keys) < 2:
+        return pd.Series(dtype=float, index=pd.DatetimeIndex([]))
+    s = pd.Series([float(days[k]) for k in keys], index=pd.to_datetime(keys))
+    return s.pct_change().dropna()
+
+
+def seed_days(op: dict, seed: dict | None, *, source: str) -> dict:
+    """지나간 날의 일별 재료를 **한 번** 합친다(감사 374). 회차가 가진 날은 회차가
+    이긴다(나중에 `remember_*`가 덮는다). 무엇으로 채웠는지 `daily_seeded`에 남긴다."""
+    if op.get("daily_seeded") or not seed:
+        return op
+    for mode, days in (seed.get("daily") or {}).items():
+        cur = (op.get("daily") or {}).get(mode) or {}
+        op.setdefault("daily", {})[mode] = {**days, **cur}
+    op["daily_seeded"] = {"source": source, "made_on": seed.get("made_on"),
+                          "from_commits": seed.get("from_commits") or [],
+                          "days": {m: len(d) for m, d in (seed.get("daily") or {}).items()}}
+    return op
+
+
+def load_seed(key: str) -> dict | None:
+    """`state/daily_seed.json`의 한 칸. 없거나 깨졌으면 None(아무것도 안 합친다)."""
+    import json
+    from pathlib import Path
+    p = Path(__file__).resolve().parents[2] / "state" / "daily_seed.json"
+    try:
+        return (json.loads(p.read_text("utf-8")) or {}).get(key)
+    except (OSError, ValueError):
+        return None
+
+
 def hold_daily_returns(daily_closes: dict):
     """종목별 일봉 종가 → 균등 평균 일수익(그날 값이 있는 종목끼리)."""
     import pandas as pd
@@ -314,17 +374,21 @@ def needs_decision(st: dict, now_iso: str) -> bool:
 
 def step(st: dict, *, today: str, now_iso: str, prices: dict, signals: dict,
          per_side: float, universe: list[str], daily_closes: dict,
-         tracks: dict | None = None) -> dict:
+         tracks: dict | None = None, seed_key: str | None = None) -> dict:
     """정하고(하루 한 번) → 굴린다(매 회차). 실험 계좌 `st` 안에 `operated`로 산다."""
     op = st.get("operated")
     if not op:
         op = continue_from(st, today)
         st["operated"] = op
     if op.get("decided_on") != today:
-        series = {"trade": trade_daily_returns(st.get("rounds") or []),
+        if seed_key:
+            seed_days(op, load_seed(seed_key), source=f"state/daily_seed.json:{seed_key}")
+        series = {"trade": returns_from_days(
+                      remember_trade_days(op, "trade", st.get("rounds") or [])),
                   "hold": hold_daily_returns(daily_closes)}
         for m, tr in (tracks or {}).items():
-            series[m] = trade_daily_returns(tr.get("rounds") or [])
+            series[m] = returns_from_days(
+                remember_trade_days(op, m, tr.get("rounds") or []))
         dec = decide(op, series, today)
         if dec["choice"] != op.get("mode"):
             op["switches"] = (op.get("switches") or [])[-49:] + [

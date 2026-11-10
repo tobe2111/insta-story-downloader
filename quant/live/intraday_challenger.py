@@ -435,7 +435,8 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     operated_round(st, now_iso, prices, signals, per_side, dfs,
                    data, UNIVERSE, _fetch_real,
                    tracks=_ladder_tracks(state_dir, LADDER_TIMEFRAMES,
-                                         _load_track))
+                                         _load_track),
+                   seed_key="intraday" if data is None else None)
     last = dict(st.get("last_prices") or {})
     last.update(prices)
     st["last_prices"] = last
@@ -486,7 +487,8 @@ def _ladder_tracks(state_dir: str, timeframes, loader) -> dict:
 
 def operated_round(st: dict, now_iso: str, prices: dict, signals: dict,
                    per_side: float, dfs: dict, data, universe: list[str],
-                   fetch, tracks: dict | None = None) -> dict | None:
+                   fetch, tracks: dict | None = None,
+                   seed_key: str | None = None) -> dict | None:
     """운용 계좌 한 회차(감사 345) — 코인·미국 트랙이 **같은 함수**를 쓴다.
 
     일봉은 하루 한 번(정할 때)만 받는다. 주입 실행(검사)은 네트워크로 안
@@ -506,7 +508,8 @@ def operated_round(st: dict, now_iso: str, prices: dict, signals: dict,
                         daily[sym] = None
         return M.step(st, today=M.utc_day(now_iso), now_iso=now_iso,
                       prices=prices, signals=signals, per_side=per_side,
-                      universe=universe, daily_closes=daily, tracks=tracks)
+                      universe=universe, daily_closes=daily, tracks=tracks,
+                      seed_key=seed_key)
     except Exception as exc:  # noqa: BLE001
         log.warning("운용 계좌 실패(실험 무관): %s", exc)
         return None

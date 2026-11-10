@@ -723,7 +723,7 @@ def _cmd_futures_round(args) -> None:
         #   `crypto_etf` 프리셋이 없어 종목을 넘겨도 값이 같다.
         #   그 프리셋이 생기는 날 검사가 이 사유를 거짓이라고 말한다.
         per_side = float(measured_cost_model("crypto", args.state_dir).total_one_way())
-        futures_mode.step(st, now_iso=now, per_side=per_side)
+        futures_mode.step(st, now_iso=now, per_side=per_side, seed_key="futures")
         save_state(st, args.state_dir)
     except Exception as exc:  # noqa: BLE001
         say(f"   ⚠️ 선물 운용 계좌 실패(실험 무관): {exc}")
