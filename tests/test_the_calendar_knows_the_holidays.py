@@ -262,7 +262,8 @@ def test_no_calendar_and_no_cache_is_an_empty_dict(tmp_path, monkeypatch):
 def test_the_site_gets_the_calendar_too():
     """사이트는 파이썬을 못 돌린다 — 배치가 실어 보내지 않으면 영영 모른다."""
     root = Path(__file__).resolve().parent.parent
-    src = (root / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((root / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (root / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["holidays"]' in src, "status.json에 달력을 안 싣는다"
     page = (root / "docs" / "index.html").read_text("utf-8")
     assert "st.holidays" in page, "화면이 달력을 안 읽는다"

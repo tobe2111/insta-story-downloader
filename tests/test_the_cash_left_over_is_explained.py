@@ -39,7 +39,8 @@ def test_the_final_weight_is_one_formula():
     capped = D._final_weight(0.5, eff_scale=1.0, vscale=10.0, kcap=0.25,
                              slice_=0.1)
     assert capped == pytest.approx(0.25 * 0.1)       # 켈리 상한은 슬라이스 전
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     body = src.split("def _target_w(", 1)[1].split("\n    # ", 1)[0]
     assert "_final_weight(" in body and "np.clip" not in body, (
         "본 계좌의 목표 식이 다시 따로 적혔다 — 그림자와 갈라진다")
@@ -69,7 +70,8 @@ def test_when_everything_is_capped_the_rest_has_nowhere_to_go():
 
 
 def test_discard_matches_the_main_account_rule():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "slices = {k: min(v, cap) for k, v in raw_slices.items()}" in src
     assert BS.discard({"a": 0.2, "b": 0.01}, 0.075) == {"a": 0.075, "b": 0.01}
 
@@ -190,7 +192,8 @@ def test_the_public_block_names_cost_basis_and_the_registered_date(tmp_path):
 
 # ── ⑥ 배선 ───────────────────────────────────────────────────────
 def test_the_wiring_reaches_ledger_status_and_screen():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert '"cash_waterfall": _safe_waterfall(' in src
     assert 'status["budget_shadow"] = budget_shadow_public(state_dir)' in src
     call = src.split("from quant.live.budget_shadow import run_budget_shadow", 1)[0]

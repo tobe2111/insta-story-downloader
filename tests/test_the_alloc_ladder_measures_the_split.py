@@ -94,7 +94,8 @@ def test_hrp_and_erc_come_from_the_one_true_place():
 
 
 def test_the_daily_batch_is_wired_and_cannot_be_killed_by_it():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "run_alloc_ladder(bar=bar" in src, "일일 배치에 배선이 없다"
     i = src.find("run_alloc_ladder(bar=bar")
     guard = src[max(0, i - 400):i]
@@ -114,5 +115,6 @@ def test_the_screen_reads_the_warning_from_the_ledger(tmp_path):
     assert "alloc_ladder" in paper and "st.alloc_ladder.note" in paper, (
         "화면이 주의 문구를 장부에서 읽지 않는다 — 산문에 다시 쓰면 "
         "어긋난 날 거짓말이 된다")
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["alloc_ladder"]' in daily, "status.json에 실리지 않는다"

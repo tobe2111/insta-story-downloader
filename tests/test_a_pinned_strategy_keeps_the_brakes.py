@@ -91,7 +91,8 @@ def test_a_pinned_symbol_still_passes_through_the_same_sizing_path():
     daily.py의 크기 결정 경로가 고정 여부를 **모르게** 유지돼야, 브레이크가
     전략을 가리지 않고 걸린다는 문장이 구조로 보장된다.
     """
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     # 크기 결정 함수들 근처에서 pinned를 참조하면 안 된다
     for fn in ("_kill_switch_scale", "vol_scale", "validation_damp"):
         for i, ln in enumerate(src.splitlines()):
@@ -215,7 +216,8 @@ def test_a_corrupt_pin_file_stops_instead_of_silently_unpinning(tmp_path):
 # ── ⑥ 고정 사실이 화면에 남는다 ───────────────────────────────
 
 def test_the_status_page_declares_pins():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["pins"]' in src, (
         "고정 사실이 화면에 안 나간다 — 사용자 지정 전략의 성적이 시스템 "
         "심사의 결과처럼 읽힌다")

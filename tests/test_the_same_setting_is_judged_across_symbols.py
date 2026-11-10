@@ -202,7 +202,8 @@ def test_an_empty_state_is_not_an_error():
 
 def test_the_batch_ships_it_to_the_site():
     """계산해도 안 실으면 화면은 영영 빈칸이다(감사 229)."""
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["crosssection"] = xs' in src
 
 

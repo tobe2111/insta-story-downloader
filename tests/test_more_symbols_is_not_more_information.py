@@ -118,7 +118,8 @@ def test_new_names_are_affordable_in_a_million_won_account():
 
 
 def test_it_is_wired_and_the_screen_reads_the_ledger():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["breadth"]' in daily, "status.json에 실효 표본이 안 실린다"
     i = daily.find('status["breadth"] = breadth')
     assert "try:" in daily[max(0, i - 200):i], "계측기가 예외 방벽 없이 배치에 있다"

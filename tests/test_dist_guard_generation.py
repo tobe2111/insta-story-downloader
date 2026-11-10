@@ -168,7 +168,8 @@ def test_generation_archive_none_when_all_current():
 
 
 def test_wired_into_status_and_site():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    dl = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "_generation_info" in dl and '"generation"' in dl
     assert "_generation_archive" in dl and '"archive"' in dl
     p = (ROOT / "docs" / "paper.html").read_text("utf-8")

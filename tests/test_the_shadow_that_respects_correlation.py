@@ -143,7 +143,8 @@ def test_the_early_start_is_confessed_not_hidden():
 
 
 def test_it_is_wired_into_the_daily_batch():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "mix_pair(market, symbol, df_sig, state_dir)" in src, (
         "재료 수집이 배선되지 않았다 — 계좌는 있는데 영원히 빈다")
     assert "run_diversity_shadow(bar=bar, pairs=div_pairs" in src, (

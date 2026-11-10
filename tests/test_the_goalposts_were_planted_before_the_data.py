@@ -87,7 +87,8 @@ def test_every_verdict_date_is_on_the_public_page():
 
 
 def test_the_registration_reaches_the_ledger():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["prereg"]' in daily, "등록 원문이 status.json에 안 실린다"
     paper = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "st.prereg" in paper, (

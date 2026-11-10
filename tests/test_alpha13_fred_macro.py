@@ -125,7 +125,8 @@ def test_interpret_hand_cases():
 
 
 def test_wired_into_status_site_and_explain():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+    dl = ((ROOT / "quant" / "live" / "daily.py").read_text(encoding="utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text(encoding="utf-8"))
     assert "macro_summary" in dl and '"macro"' in dl
     p = (ROOT / "docs" / "paper.html").read_text(encoding="utf-8")
     assert "오늘의 거시" in p and "st.macro" in p

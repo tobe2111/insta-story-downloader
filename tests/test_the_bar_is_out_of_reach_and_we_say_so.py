@@ -161,7 +161,8 @@ def test_the_paths_out_are_all_about_more_sample_not_a_lower_bar():
 
 
 def test_the_ledger_and_the_page_carry_it():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["provable"]' in daily, "증명 가능성이 장부에 안 실린다"
     page = (ROOT / "docs" / "trust.html").read_text("utf-8")
     assert "st.provable" in page, "공개 페이지가 장부에서 안 읽는다"
