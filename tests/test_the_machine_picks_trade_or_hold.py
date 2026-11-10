@@ -227,3 +227,75 @@ def test_the_futures_page_shows_the_operated_account():
     assert 'data-operated="futures.json"' in html and "assets/operated.js" in html
     cli = (ROOT / "quant" / "cli.py").read_text("utf-8")
     assert "futures_mode.step(" in cli
+
+
+# ── 감사 374 — 회차 장부가 잘려도 판정 재료는 남는다 ─────────────────────
+
+def test_futures_account_decides_even_when_the_round_ledger_holds_only_17_days():
+    """진짜 모양: 회차 장부는 2,000개까지만 남고, 12분 감시면 그것이 약 17일이다.
+    회차만 보면 최소 20일을 영영 못 채운다(2026-11-10 실측 `not_enough_days`)."""
+    from quant.live import futures_mode as F
+    from quant.live import intraday_mode as IM
+    full = _fut_rounds(n=40)
+    keep = 17
+    st = {"start_cash": 10_000.0, "rounds": full[:keep]}
+    first = pd.Timestamp(full[0]["at"]).tz_convert("UTC").date()
+    for i in range(keep, len(full) + 1):
+        st["rounds"] = full[max(0, i - keep):i]          # 진짜처럼 앞이 잘린다
+        today = first + pd.Timedelta(days=i)
+        F.step(st, now_iso=f"{today}T01:00:00+00:00", per_side=0.001)
+    dec = st["operated"]["decision"]
+    assert dec["reason"] != "not_enough_days", dec
+    assert dec["n_days"] >= IM.MIN_DAYS > keep, dec
+    # 쌓아 둔 재료로 낸 일수익이 잘리지 않은 회차로 낸 것과 같아야 한다.
+    whole = F.daily_series(full)
+    kept = F.daily_series([], st["operated"]["daily"])
+    for mode in ("follow", "hold"):
+        a, b = whole[mode], kept[mode]
+        common = a.index.intersection(b.index)
+        assert len(common) >= len(full) - 2, mode
+        assert np.allclose(a[common].values, b[common].values), mode
+
+
+def test_intraday_trade_series_survives_a_trimmed_round_ledger():
+    """코인 1시간봉 실험의 회차도 2,000개(약 17일)에서 잘린다 — 운용 계좌 비교에서
+    `trade`가 `n 17 · t 없음`으로 조용히 빠졌다(2026-11-10 실측)."""
+    from quant.live import intraday_mode as IM
+    rng = np.random.default_rng(3)
+    eq, full = 10_000.0, []
+    for i in range(60):
+        for h in (1, 13, 23):
+            eq *= 1 + rng.normal(0, 0.003)
+            t = pd.Timestamp("2026-08-18") + pd.Timedelta(days=i, hours=h)
+            full.append({"time": t.isoformat() + "+00:00", "equity": eq})
+    op, keep = {}, 17 * 3
+    for i in range(keep, len(full) + 1, 3):
+        IM.remember_trade_days(op, "trade", full[max(0, i - keep):i])
+    kept = IM.returns_from_days(op["daily"]["trade"])
+    whole = IM.trade_daily_returns(full)
+    assert len(kept) >= 55 > keep // 3, len(kept)
+    common = whole.index.intersection(kept.index)
+    assert np.allclose(whole[common].values, kept[common].values)
+
+
+def test_the_seed_fills_past_days_once_and_rounds_win():
+    from quant.live import intraday_mode as IM
+    op = {"daily": {"trade": {"2026-10-02": 101.0}}}
+    seed = {"made_on": "2026-11-10", "from_commits": ["abc"],
+            "daily": {"trade": {"2026-10-01": 100.0, "2026-10-02": 999.0}}}
+    IM.seed_days(op, seed, source="t")
+    assert op["daily"]["trade"] == {"2026-10-01": 100.0, "2026-10-02": 101.0}
+    assert op["daily_seeded"]["days"] == {"trade": 2}
+    IM.seed_days(op, {"daily": {"trade": {"2026-09-01": 1.0}}}, source="t")
+    assert "2026-09-01" not in op["daily"]["trade"], "씨앗을 두 번 합쳤다"
+
+
+def test_the_live_runs_pass_the_seed_and_it_is_real():
+    import json
+    seed = json.loads((ROOT / "state" / "daily_seed.json").read_text("utf-8"))
+    for key in ("futures", "intraday"):
+        assert seed[key]["from_commits"] and seed[key]["daily"], key
+    cli = (ROOT / "quant" / "cli.py").read_text("utf-8")
+    assert 'seed_key="futures"' in cli
+    ch = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
+    assert 'seed_key="intraday"' in ch

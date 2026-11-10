@@ -43,6 +43,41 @@ LABELS = {"follow": "선물 엔진 그대로 따라가기",
           "hold": "코인 그냥 보유(1배, 펀딩 냄)",
           "cash": "현금(아무것도 안 함)"}
 HISTORY_KEEP = 400
+DAILY_KEEP = 400     # 일별 재료(마지막 자산·가격) — 판정 창(90일)보다 넉넉히
+
+
+def remember_days(op: dict, rounds: list[dict]) -> dict:
+    """회차에서 **일별 재료**를 뽑아 운용 계좌에 쌓는다(감사 374, 멱등).
+
+    ⚠️ 회차 장부는 `ROUNDS_KEEP`(2,000)개까지만 남는다. 장중 감시가 12분마다 돌면
+    (감사 348) 그것이 **약 17일**이라, 판정 창(90일)·최소 일수(20일)를 회차만으로는
+    영영 못 채운다 — 실측(2026-11-10): `n_days 17 · not_enough_days`가 매일 반복됐고
+    아무 빨간불도 없었다. 그래서 하루가 끝날 때의 자산과 가격을 따로 남긴다.
+
+    회차의 첫날은 앞부분이 잘려 있어도 **마지막 회차는 그날의 진짜 마지막**이므로
+    덮어써도 맞다.
+    """
+    eq_d, px_d = _daily_rounds(rounds)
+    daily = dict(op.get("daily") or {})
+    for i, v in eq_d.items():
+        key = str(i.date())
+        row = {"equity": round(float(v), 6)}
+        if len(px_d) and i in px_d.index:
+            prices = {k: float(x) for k, x in px_d.loc[i].items() if x == x}
+            if prices:
+                row["prices"] = prices
+        daily[key] = row
+    op["daily"] = {k: daily[k] for k in sorted(daily)[-DAILY_KEEP:]}
+    return op
+
+
+def _daily_from_store(daily: dict):
+    import pandas as pd
+    keys = sorted(daily or {})
+    idx = pd.to_datetime(keys)
+    eq = pd.Series([float(daily[k]["equity"]) for k in keys], index=idx, dtype=float)
+    px = pd.DataFrame([daily[k].get("prices") or {} for k in keys], index=idx)
+    return eq, px
 
 
 def _daily_rounds(rounds: list[dict]):
@@ -62,10 +97,10 @@ def _daily_rounds(rounds: list[dict]):
     return eq_d, px_d
 
 
-def daily_series(rounds: list[dict]) -> dict:
-    """방식마다 수수료·펀딩 뺀 일수익."""
+def daily_series(rounds: list[dict], daily: dict | None = None) -> dict:
+    """방식마다 수수료·펀딩 뺀 일수익. `daily`(쌓아 둔 일별 재료)가 있으면 그것을 쓴다."""
     from quant.portfolio.trend_core import FUTURES_CARRY
-    eq_d, px_d = _daily_rounds(rounds)
+    eq_d, px_d = _daily_from_store(daily) if daily else _daily_rounds(rounds)
     follow = eq_d.pct_change().dropna()
     if len(px_d) > 1:
         hold = px_d.astype(float).pct_change().mean(axis=1, skipna=True).dropna()
@@ -152,7 +187,8 @@ def continue_from(st: dict, today: str) -> dict:
             "history": hist, "inherited_from_experiment": today}
 
 
-def step(st: dict, *, now_iso: str, per_side: float) -> dict:
+def step(st: dict, *, now_iso: str, per_side: float,
+         seed_key: str | None = None) -> dict:
     """하루가 바뀐 첫 회차에 — 지난날의 수익을 곱하고, 오늘의 방식을 정한다."""
     import pandas as pd
     today = IM.utc_day(now_iso)
@@ -161,10 +197,19 @@ def step(st: dict, *, now_iso: str, per_side: float) -> dict:
         op = continue_from(st, today)
         st["operated"] = op
     repair_switch_costs(op)
+    rounds = st.get("rounds") or []
+    if seed_key and not op.get("daily_seeded"):
+        seed = IM.load_seed(seed_key)
+        if seed:
+            op["daily"] = {**(seed.get("daily") or {}), **(op.get("daily") or {})}
+            op["daily_seeded"] = {"source": f"state/daily_seed.json:{seed_key}",
+                                  "made_on": seed.get("made_on"),
+                                  "from_commits": seed.get("from_commits") or [],
+                                  "days": len(seed.get("daily") or {})}
+    remember_days(op, rounds)      # 매 회차 — 하루를 건너뛴 날도 재료는 남긴다
     if op.get("decided_on") == today:
         return op
-    rounds = st.get("rounds") or []
-    series = daily_series(rounds)
+    series = daily_series(rounds, op.get("daily"))
     # ① 끝난 날들의 수익을 곱한다 — 그날 들고 있던 방식으로.
     after = op.get("applied_through")
     cur = series.get(op["mode"])
