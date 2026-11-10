@@ -219,5 +219,6 @@ def test_the_threshold_is_above_normal_operation():
 
 def test_the_status_carries_the_gap_so_the_alarm_can_read_it():
     """배선이 없으면 경보는 영영 안 울린다(장치만 있고 전선이 없는 상태)."""
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["audition_gap"] = audition_gaps(state_dir)' in src

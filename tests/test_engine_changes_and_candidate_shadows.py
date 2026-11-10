@@ -36,7 +36,8 @@ def test_the_engine_that_placed_the_orders_is_remembered_or_inferred():
 
 
 def test_the_daily_run_drops_old_engine_orders_and_says_so():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "was = _pending_engine(st)" in src
     assert "if was is not None and was != now_name:" in src
     assert 'st["pending_engine"] = (core["variant"] if core is not None else "champions")' in src
@@ -158,7 +159,8 @@ def test_fx_is_charged_only_on_the_net_dollar_flow():
 
 
 def test_the_shadows_reach_the_screen():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["engine_shadow"] = engine_shadow_public(state_dir)' in daily
     assert "run_engine_shadow(" in daily
     js = (ROOT / "docs" / "assets" / "engine-select.js").read_text("utf-8")

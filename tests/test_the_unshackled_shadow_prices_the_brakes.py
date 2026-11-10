@@ -75,7 +75,8 @@ def test_drawdown_is_tracked_not_hidden(tmp_path):
 
 
 def test_the_daily_batch_is_wired_and_cannot_be_killed_by_it():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "run_unshackled(bar=bar" in src, "일일 배치에 배선이 없다"
     i = src.find("run_unshackled(bar=bar")
     assert "try:" in src[max(0, i - 400):i], (

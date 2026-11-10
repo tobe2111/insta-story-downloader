@@ -397,8 +397,9 @@ def test_a_normal_audition_does_not_raise_the_vacuous_alarm(tmp_path, monkeypatc
 
 def test_the_status_feed_carries_the_vacuous_flag():
     """장부 → status → 화면 배선이 끊기면 경보가 영원히 안 켜진다."""
-    src = (Path(__file__).resolve().parent.parent
-           / "quant" / "live" / "daily.py").read_text("utf-8")
+    _live = Path(__file__).resolve().parent.parent / "quant" / "live"
+    src = ((_live / "daily.py").read_text("utf-8")
+           + (_live / "status_doc.py").read_text("utf-8"))
     assert '"vacuous": bool(rec.get("vacuous"))' in src, (
         "retrain_recent에 공회전 표식이 실리지 않는다")
 

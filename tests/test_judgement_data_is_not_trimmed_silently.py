@@ -79,7 +79,8 @@ def test_the_alarm_fires_from_the_real_status_shape(tmp_path):
 
 
 def test_it_is_wired_into_the_batch_and_the_trust_page():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["prereg"]["coverage"] = _prereg_coverage(state_dir)' in daily
     trust = (ROOT / "docs" / "trust.html").read_text("utf-8")
     assert 'id="prereg-coverage"' in trust and "(st.prereg||{}).coverage" in trust

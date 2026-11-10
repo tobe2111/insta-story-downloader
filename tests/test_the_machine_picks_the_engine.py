@@ -161,7 +161,8 @@ def test_every_reason_the_rule_can_give_is_said_on_screen():
 
 
 def test_the_choice_reaches_both_screens():
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["engine_select"] = engine_select_public(state_dir)' in daily
     for page in ("index.html", "paper.html"):
         html = (ROOT / "docs" / page).read_text("utf-8")

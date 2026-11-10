@@ -131,7 +131,8 @@ def test_us_rounds_are_grouped_by_the_new_york_date():
 
 
 def test_the_status_writer_carries_both_new_blocks():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["market_beta"] = market_beta_public(state_dir)' in src
     assert 'status["guru13f"] = guru13f_public(state_dir)' in src
 

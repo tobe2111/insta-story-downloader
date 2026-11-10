@@ -65,7 +65,7 @@ def test_the_daily_batch_and_the_trust_page_carry_the_verdicts():
     from pathlib import Path
     root = Path(__file__).resolve().parent.parent
     assert 'status["prereg"]["final"] = judge_due(state_dir)' in (
-        root / "quant" / "live" / "daily.py").read_text("utf-8")
+        root / "quant" / "live" / "status_doc.py").read_text("utf-8")
     html = (root / "docs" / "trust.html").read_text("utf-8")
     assert 'id="final-judgements"' in html and "st.prereg||{}).final" in html
     for code in ("closed", "no_data", "thin", "no_difference", "significant",

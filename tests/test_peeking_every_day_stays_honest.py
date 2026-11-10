@@ -112,7 +112,8 @@ def test_the_amendment_is_public():
 
 def test_it_is_wired_and_reads_only_the_ledger():
     """배선 — 배치가 실어 보내고, 화면은 장부에서만 읽는다."""
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["sequential"]' in daily, "status.json에 진도가 안 실린다"
     i = daily.find('status["sequential"] = sequential_status')
     assert "try:" in daily[max(0, i - 200):i], (

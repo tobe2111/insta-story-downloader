@@ -48,7 +48,8 @@ def test_it_lands_in_the_warning_panel():
 
 def test_the_batch_still_ships_the_field():
     """화면이 읽어도 **배치가 안 실으면** 영영 빈칸이다(감사 229)."""
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["run_health"]' in src, "배치가 건강 기록을 안 실어 보낸다"
 
 

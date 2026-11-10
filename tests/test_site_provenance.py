@@ -39,7 +39,8 @@ def _produced_status_keys() -> set[str]:
     import tempfile
     from quant.live.daily import write_docs_status
 
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     keys = set(re.findall(r'status\["([a-z_][a-z_0-9]*)"\]', src))
     import shutil
     with tempfile.TemporaryDirectory() as td:
@@ -242,5 +243,6 @@ def test_pages_only_recompute_as_fallback():
 
 
 def test_day_pct_is_actually_produced():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'record["day_pct"]' in src

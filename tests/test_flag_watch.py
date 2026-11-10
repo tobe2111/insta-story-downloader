@@ -182,7 +182,8 @@ def test_overfit_and_dsr_alerts(tmp_path, monkeypatch):
 
 
 def test_validation_wired_into_status():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    dl = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "validation.json" in dl and '"validation"' in dl
 
 
@@ -213,7 +214,8 @@ def test_weekly_health_section(tmp_path):
 
 
 def test_wired_into_write_docs_status():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    dl = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "check_and_notify_flags" in dl
     assert "killswitch" in (ROOT / "quant" / "live" / "flag_watch.py").read_text("utf-8")
 
@@ -248,7 +250,8 @@ def test_threshold_constant_is_shared_not_duplicated():
     from pathlib import Path as _P
     root = _P(__file__).resolve().parent.parent
     fw = (root / "quant" / "live" / "flag_watch.py").read_text("utf-8")
-    dl = (root / "quant" / "live" / "daily.py").read_text("utf-8")
+    dl = ((root / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (root / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "MEASURED_COST_MIN_SAMPLES" in dl
     assert "MEASURED_COST_MIN_SAMPLES" in fw, "경보가 문턱을 따로 적어 두고 있다"
     assert 'row.get("n", 0) < MEASURED_COST_MIN_SAMPLES' in dl

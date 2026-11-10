@@ -101,7 +101,8 @@ def test_publishing_writes_what_it_saw(tmp_path):
 
 
 def test_the_batch_publishes_it_without_being_hostage():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     i = src.find("write_changelog(")
     assert i > 0, "밤 배치가 개선 이력을 발행하지 않는다"
     assert "except Exception" in src[i:i + 300], (

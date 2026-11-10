@@ -103,7 +103,8 @@ def test_max_drawdown_uses_the_same_basis():
 
 
 def test_wired_into_daily_and_site():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert "drawdown = drawdown_from_index(_series)" in src
     assert "mdd = max_drawdown_from_index(twr_index(" in src
     # 자산 고점으로 낙폭을 재던 옛 코드가 되살아나면 안 된다
