@@ -375,7 +375,7 @@ def _step(values: tuple, cur, rng) -> object:
 
 def _mutant_name(spec: dict) -> str:
     import hashlib
-    key = json.dumps({k: spec[k] for k in sorted(spec) if k not in ("label", "born")},
+    key = json.dumps({k: spec[k] for k in sorted(spec) if k != "label"},
                      sort_keys=True, ensure_ascii=False)
     return MUTANT_PREFIX + hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
 
