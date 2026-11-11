@@ -68,6 +68,7 @@ def test_the_summary_counts_them_from_the_ledger(tmp_path):
 def test_the_name_is_the_one_the_ledger_writes():
     """판정 이름이 두 개면 언젠가 갈라진다 — 장부가 쓰는 이름 하나만 쓴다."""
     retrain = (ROOT / "quant" / "live" / "retrain.py").read_text("utf-8")
-    daily = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    daily = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "weekly.py").read_text("utf-8"))
     assert '"vacuous": True' in retrain, "장부가 이 표식을 안 쓴다"
     assert 'rec.get("vacuous")' in daily, "요약이 장부의 이름을 안 읽는다"
