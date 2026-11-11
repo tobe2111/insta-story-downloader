@@ -139,8 +139,15 @@ def test_stock_path_is_unchanged(monkeypatch, tmp_path):
 
 def test_partial_bar_is_still_disclosed_in_the_ledger(monkeypatch, tmp_path):
     """판단에서 뺐다고 사실을 숨기지는 않는다 — 완성도는 계속 기록한다."""
-    df = _frame()
-    _, rec = _run_portfolio(monkeypatch, tmp_path, df)
+    # ⚠️ UTC 자정을 걸쳐 돌면 거짓으로 빨개졌다(2026-11-11 CI 실측 00:02 UTC): 프레임은
+    #    자정 **전**의 '오늘'로 끝나는데 배치는 자정 **뒤**에 봉을 재서 "이미 완성된 봉"
+    #    이라고 본다. 그럴 때는 새 날짜로 한 번 다시 돈다 — 날짜가 안 바뀌었으면 그대로 판정.
+    for attempt in (0, 1):
+        day0 = dt.datetime.now(dt.timezone.utc).date()
+        df = _frame()
+        _, rec = _run_portfolio(monkeypatch, tmp_path / f"run{attempt}", df)
+        if dt.datetime.now(dt.timezone.utc).date() == day0:
+            break
     assert rec.get("bar_partial"), "진행 중 봉이었다는 사실이 장부에서 사라졌다"
 
 

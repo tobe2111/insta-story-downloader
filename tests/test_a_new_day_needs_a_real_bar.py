@@ -132,8 +132,9 @@ def test_no_bars_at_all_is_an_error_not_a_guess():
 @pytest.mark.parametrize("elapsed,opens", [
     (0.0003, False),   # 자정 직후 — 실제 사고 값
     (0.0310, False),   # 00:45 UTC — Actions가 45분 늦어도 여기까지다
-    (0.0999, False),   # 문턱 바로 아래
-    (0.1000, True),    # 문턱
+    (0.1745, False),   # 2026-11-10 04:13 UTC — 늦게 온 크론이 실제로 다음 날을 열었던 값(감사 380)
+    (0.4999, False),   # 문턱 바로 아래
+    (0.5000, True),    # 문턱
     (0.9271, True),    # 정규 배치 22:15 UTC
 ])
 def test_the_threshold_is_where_it_says_it_is(elapsed, opens):
@@ -153,8 +154,13 @@ def test_the_threshold_clears_the_worst_observed_delay():
     """
     worst_delay_min = 60          # 실측 48분에 여유를 얹은 값
     assert NEW_DAY_MIN_ELAPSED > worst_delay_min / 1440.0 * 2
+    # ⚠️ 그 실측은 낡았다(감사 380). 대신 띄우기 뒤에 **원래 크론이 4~6시간 늦게**
+    #    도착한다 — 2026-11-10에는 04:13 UTC(완성도 0.1745)에 와서 다음 날을 열었다.
+    #    문턱은 그 값의 두 배보다 위여야 한다.
+    worst_late_cron = 0.1745
+    assert NEW_DAY_MIN_ELAPSED > worst_late_cron * 2
     # 그러면서 정규 시각(22:15 UTC → 0.927)과는 멀리 떨어져 있어야 한다
-    assert NEW_DAY_MIN_ELAPSED < 0.5
+    assert NEW_DAY_MIN_ELAPSED <= 0.6
 
 
 # ── 계좌를 실제로 돌려서 확인한다 ──────────────────────────────
