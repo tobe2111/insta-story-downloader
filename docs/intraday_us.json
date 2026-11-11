@@ -3,29 +3,31 @@
   "label": "미국주식 장중 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USD",
   "start_cash": 10000.0,
-  "equity": 9820.13,
-  "return_pct": -1.7987,
-  "gross_return_pct": -0.4668,
-  "cost_paid": 133.19,
+  "equity": 9835.0,
+  "return_pct": -1.65,
+  "gross_return_pct": -0.311,
+  "cost_paid": 133.9,
   "cost_basis_bp": {
     "kr_stock": 14.0,
     "us_stock": 6.0,
     "crypto": 15.0,
     "kr_stock_etf": 6.5
   },
-  "trades_total": 783,
-  "rounds_total": 203,
+  "trades_total": 787,
+  "rounds_total": 204,
   "since": "2026-08-19T13:52:01+00:00",
-  "last_time": "2026-11-11T05:36:33+09:00",
+  "last_time": "2026-11-12T00:38:32+09:00",
   "observed_gap_minutes": 4405.033333333334,
   "market_hours": "미국 정규장(뉴욕 09:30~16:00)에서만 판단·체결 — 장 밖 회차는 기록이 없습니다",
   "quote_source": "무료 공개 시세(야후) — 비공식 경로라 요청이 몰리면 막힐 수 있습니다. 못 받은 종목은 그 회차를 쉽니다",
   "positions": {
     "SPY": 0.57140323,
     "VGK": 4.78063805,
-    "NVDA": 1.43483779,
     "XLU": 9.81057957,
-    "EWJ": 4.7356587
+    "EWJ": 4.7356587,
+    "DBC": 13.76373122,
+    "VNQ": 3.84770954,
+    "GOOG": 0.41817919
   },
   "rule_changes": [
     {
@@ -180,62 +182,86 @@
         "sell": 2
       }
     ],
-    "fetched_on": "2026-11-10",
+    "fetched_on": "2026-11-11",
     "filers_total": 20,
     "filers_seen": 18,
     "caveat": "13F 공시는 분기말 후 최대 45일 뒤에야 나오고 롱·미국주식만 담깁니다 — 우리가 보는 순간 그 매수는 최대 4.5개월 묵은 것이라, 저명 투자자가 '지금 사라'는 신호가 아니라 '지난 분기에 들고 있었다'는 참고입니다.",
     "strength": 0.15,
     "strength_pct": 15,
-    "strength_why": "앞선다는 증거가 약하다(t=-2.14 < 1.35 또는 차이≤0) — 중립 유지."
+    "strength_why": "앞선다는 증거가 약하다(t=-2.09 < 1.35 또는 차이≤0) — 중립 유지."
   },
   "holdings": [
+    {
+      "symbol": "DBC",
+      "direction": "long",
+      "quantity": 13.7637312233,
+      "avg_cost": 31.06999969,
+      "last_price": 31.06999969,
+      "currency": "USD",
+      "value": 427.6391,
+      "cost": 427.6391,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    },
     {
       "symbol": "EWJ",
       "direction": "long",
       "quantity": 4.7356587037,
       "avg_cost": 90.12000275,
-      "last_price": 90.31999969,
+      "last_price": 91.63009644,
       "currency": "USD",
-      "value": 427.7247,
+      "value": 433.9289,
       "cost": 426.7776,
-      "pnl": 0.9471,
-      "pnl_pct": 0.2219
+      "pnl": 7.1513,
+      "pnl_pct": 1.6756
     },
     {
-      "symbol": "NVDA",
+      "symbol": "GOOG",
       "direction": "long",
-      "quantity": 1.4348377939,
-      "avg_cost": 171.41499329,
-      "last_price": 168.69000244,
+      "quantity": 0.4181791853,
+      "avg_cost": 288.20001221,
+      "last_price": 288.20001221,
       "currency": "USD",
-      "value": 242.0428,
-      "cost": 245.9527,
-      "pnl": -3.9099,
-      "pnl_pct": -1.5897
+      "value": 120.5192,
+      "cost": 120.5192,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "SPY",
       "direction": "long",
       "quantity": 0.5714032342,
       "avg_cost": 749.4699707,
-      "last_price": 749.40997314,
+      "last_price": 756.74499512,
       "currency": "USD",
-      "value": 428.2153,
+      "value": 432.4065,
       "cost": 428.2496,
-      "pnl": -0.0343,
-      "pnl_pct": -0.008
+      "pnl": 4.157,
+      "pnl_pct": 0.9707
     },
     {
       "symbol": "VGK",
       "direction": "long",
       "quantity": 4.7806380494,
       "avg_cost": 89.58000183,
-      "last_price": 89.625,
+      "last_price": 89.04499817,
       "currency": "USD",
-      "value": 428.4647,
+      "value": 425.6919,
       "cost": 428.2496,
-      "pnl": 0.2151,
-      "pnl_pct": 0.0502
+      "pnl": -2.5577,
+      "pnl_pct": -0.5972
+    },
+    {
+      "symbol": "VNQ",
+      "direction": "long",
+      "quantity": 3.8477095431,
+      "avg_cost": 96.76999664,
+      "last_price": 96.76999664,
+      "currency": "USD",
+      "value": 372.3428,
+      "cost": 372.3428,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
     },
     {
       "symbol": "XLU",
@@ -251,14 +277,14 @@
     }
   ],
   "holdings_total": {
-    "pnl": -1.7519,
-    "counted": 5,
+    "pnl": 9.7807,
+    "counted": 7,
     "unknown": 0
   },
   "deployed": {
-    "gross": 1954.7283,
-    "pct": 19.9053,
-    "cash": 7865.4017,
+    "gross": 2640.8092,
+    "pct": 26.8511,
+    "cash": 7194.1908,
     "unknown": 0
   },
   "risk_scale": 1.0,
@@ -1075,16 +1101,20 @@
     [
       "2026-11-11T05:36:33+09:00",
       9820.13
+    ],
+    [
+      "2026-11-12T00:38:32+09:00",
+      9835.0
     ]
   ],
-  "hold_return_pct": -4.6563,
+  "hold_return_pct": -4.1613,
   "season": {
     "n": 2,
     "since": "2026-11-10",
     "approved": "2026-11-10 사장님 — \"트랙들 다시 시작하자\"",
     "start_equity": 9849.74,
-    "return_pct": -0.3,
-    "operated_return_pct": -0.3,
+    "return_pct": -0.15,
+    "operated_return_pct": -0.15,
     "previous": [
       {
         "n": 1,
@@ -1100,50 +1130,52 @@
     "mode_label": "단타(1시간봉 신호대로 사고팔기)",
     "mode_since": null,
     "decision": {
-      "date": "2026-11-10",
+      "date": "2026-11-11",
       "incumbent": "trade",
       "choice": "trade",
-      "n_days": 57,
-      "t": -0.536,
+      "n_days": 58,
+      "t": -0.69,
       "t_needed": 1.35,
       "table": {
         "hold": {
-          "n": 56,
-          "pct": -3.382,
-          "incumbent_pct": -1.458,
-          "t": -0.536
+          "n": 57,
+          "pct": -4.241,
+          "incumbent_pct": -1.777,
+          "t": -0.69
         },
         "trade_15m": {
-          "n": 57,
-          "pct": -2.945,
-          "incumbent_pct": -1.47,
-          "t": -1.208
+          "n": 58,
+          "pct": -3.032,
+          "incumbent_pct": -1.788,
+          "t": -1.0
         },
         "trade": {
-          "n": 57,
+          "n": 58,
           "t": null,
           "incumbent_pct": null,
-          "pct": -1.47
+          "pct": -1.788
         }
       },
-      "hold_pct": -3.382,
-      "trade_pct": -1.47,
+      "hold_pct": -4.241,
+      "trade_pct": -1.788,
       "best_challenger": "hold",
       "reason": "keep"
     },
     "switches": [],
     "start_cash": 10000.0,
-    "equity": 9820.13,
-    "return_pct": -1.7987,
-    "cost_paid": 133.19,
+    "equity": 9835.0,
+    "return_pct": -1.65,
+    "cost_paid": 133.9,
     "mdd_pct": -2.26,
     "inherited_from_experiment": "2026-10-12",
     "positions": {
       "SPY": 0.57140323,
       "VGK": 4.78063805,
-      "NVDA": 1.43483779,
       "XLU": 9.81057957,
-      "EWJ": 4.7356587
+      "EWJ": 4.7356587,
+      "DBC": 13.76373122,
+      "VNQ": 3.84770954,
+      "GOOG": 0.41817919
     },
     "rule": {
       "window_days": 90,
@@ -1173,65 +1205,27 @@
   "limit_shadow": {
     "since": "2026-11-11T00:32:15+09:00",
     "start_equity": 9847.68,
-    "equity": 9821.72,
-    "return_pct_since": -0.2636,
-    "cost_paid": 0.3,
-    "filled_total": 7,
+    "equity": 9837.28,
+    "return_pct_since": -0.1056,
+    "cost_paid": 0.32,
+    "filled_total": 8,
     "unfilled_total": 0,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
   "ladder": [
     {
       "timeframe": "15m",
-      "equity": 9697.81,
-      "return_pct": -3.0219,
-      "hold_return_pct": -4.6509,
-      "trades_total": 1026,
-      "cost_paid": 189.72,
-      "rounds_total": 203,
+      "equity": 9709.44,
+      "return_pct": -2.9056,
+      "hold_return_pct": -4.1562,
+      "trades_total": 1034,
+      "cost_paid": 191.32,
+      "rounds_total": 204,
       "since": "2026-08-19T13:52:01+00:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다. 지금은 15분까지만 돕니다 — 무료 공개 시세로 5분 트랙을 돌리면 요청이 막혀 오히려 기록이 비기 때문입니다.",
   "recent_trades": [
-    {
-      "time": "2026-11-06T05:40:44+09:00",
-      "symbol": "NVDA",
-      "side": "buy",
-      "notional": 321.29,
-      "price": 183.11000061035156,
-      "cost": 0.1928,
-      "signal": 0.7555
-    },
-    {
-      "time": "2026-11-06T05:40:44+09:00",
-      "symbol": "GOOG",
-      "side": "buy",
-      "notional": 125.35,
-      "price": 282.8450012207031,
-      "cost": 0.0752,
-      "signal": 0.5718
-    },
-    {
-      "time": "2026-11-07T00:31:21+09:00",
-      "symbol": "SLV",
-      "side": "buy",
-      "notional": 287.25,
-      "price": 46.900001525878906,
-      "cost": 0.1723,
-      "signal": 0.6747
-    },
-    {
-      "time": "2026-11-07T00:31:21+09:00",
-      "symbol": "EWJ",
-      "side": "sell",
-      "notional": -416.24,
-      "price": 88.44000244140625,
-      "cost": 0.2497,
-      "signal": 0.0,
-      "realized_pnl": -10.0393,
-      "avg_cost": 90.519997
-    },
     {
       "time": "2026-11-07T00:31:21+09:00",
       "symbol": "NVDA",
@@ -1583,6 +1577,44 @@
       "signal": 0.5669,
       "realized_pnl": -3.0056,
       "avg_cost": 171.414993
+    },
+    {
+      "time": "2026-11-12T00:38:32+09:00",
+      "symbol": "DBC",
+      "side": "buy",
+      "notional": 427.64,
+      "price": 31.06999969482422,
+      "cost": 0.2566,
+      "signal": 1.0
+    },
+    {
+      "time": "2026-11-12T00:38:32+09:00",
+      "symbol": "VNQ",
+      "side": "buy",
+      "notional": 372.34,
+      "price": 96.7699966430664,
+      "cost": 0.2234,
+      "signal": 0.8707
+    },
+    {
+      "time": "2026-11-12T00:38:32+09:00",
+      "symbol": "NVDA",
+      "side": "sell",
+      "notional": -249.99,
+      "price": 174.2299041748047,
+      "cost": 0.15,
+      "signal": 0.0,
+      "realized_pnl": 3.8889,
+      "avg_cost": 171.414993
+    },
+    {
+      "time": "2026-11-12T00:38:32+09:00",
+      "symbol": "GOOG",
+      "side": "buy",
+      "notional": 120.52,
+      "price": 288.20001220703125,
+      "cost": 0.0723,
+      "signal": 0.2818
     }
   ],
   "honest_limits": [
@@ -1596,9 +1628,9 @@
   "rule": "본 계좌 미국 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1343.84,
-    "equity": 13196683.0,
+    "equity": 13216666.0,
     "start_cash": 13438400.0,
-    "pnl": -241716.0,
+    "pnl": -221734.0,
     "assumed_peg": false,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USD이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USD 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
