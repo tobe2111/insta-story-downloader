@@ -218,6 +218,7 @@ def test_no_skip_no_alert(tmp_path, monkeypatch):
 
 
 def test_record_carries_plan_and_reasons():
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "weekly.py").read_text("utf-8"))
     assert '"planned": len(targets)' in src
     assert '"skipped_why"' in src

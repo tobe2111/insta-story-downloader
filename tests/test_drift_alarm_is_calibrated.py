@@ -112,7 +112,8 @@ def test_missing_values_do_not_become_stable():
 
 def test_the_ledger_carries_the_yardstick():
     """값만 남기면 읽는 사람이 0.25로 읽는다 — 등급과 잣대를 같이 남긴다."""
-    src = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "weekly.py").read_text("utf-8"))
     for field in ('"drift_psi": psi_v,', '"drift_grade": drift_grade(psi_v),',
                   '"drift_ref": drift_reference()'):
         assert field in src, f"장부에 {field}가 없다"

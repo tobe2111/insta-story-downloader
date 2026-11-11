@@ -232,7 +232,8 @@ def test_the_footnote_matches_what_the_code_does():
 
 def test_the_batch_ships_the_archive():
     """화면이 읽어도 배치가 안 실으면 영영 빈칸이다(감사 229)."""
-    src = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    src = (((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "weekly.py").read_text("utf-8"))
             + (ROOT / "quant" / "live" / "status_doc.py").read_text("utf-8"))
     assert 'status["weekly"] = wk' in src, "배치가 주간 집계를 안 실어 보낸다"
 

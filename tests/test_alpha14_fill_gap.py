@@ -72,7 +72,8 @@ def test_report_none_without_samples(tmp_path):
 
 
 def test_wired_into_status_and_site():
-    dl = (ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+    dl = ((ROOT / "quant" / "live" / "daily.py").read_text("utf-8")
+            + (ROOT / "quant" / "live" / "weekly.py").read_text("utf-8"))
     assert "fill_gap_report" in dl and '"fill_check"' in dl
     p = (ROOT / "docs" / "paper.html").read_text("utf-8")
     assert "체결 가정 검증" in p and "st.fill_check" in p
