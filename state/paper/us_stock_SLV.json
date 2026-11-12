@@ -2,7 +2,7 @@
   "cash": 10047.183378824999,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-11-10 00:00:00",
+  "last_bar": "2026-11-11 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2832,11 +2832,62 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-11",
+      "price": 46.650001525878906,
+      "weight": 0.1823,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10047.18,
+      "return_pct": 0.47,
+      "hit_rate": 0.5681818181818182,
+      "hit_n": 88,
+      "hit_lo": 0.46398482983322936,
+      "hit_hi": 0.6666749147705233,
+      "hit_conclusive": false,
+      "live_hit": 0.5,
+      "live_hit_n": 40,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20
+      },
+      "reason": "매수 +18% — 로지스틱회귀 모델이 내일 상승확률을 약 14%로 추정(기준 55% 초과) · 사이징: 신호 원비중 43% → 변동성 타깃 조절 후 18% · 참고: 전 종목 합산으로 모델이 14%±10%p라 말한 169번의 실제 상승 비율 49% (95% 신뢰구간 42%~57% · 보합 1일 포함 · 봉이 빠진 82번은 제외 · 이 종목 단독 표본은 17번으로 축적 중) · 🏛 의회 운용: ml 37% + ml 35% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 47.400002,
+        "bar": "2026-11-11 00:00:00",
+        "weight": 0.0174,
+        "decided_bar": "2026-11-10 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "b2608f92b0ed",
+      "data_sha256": "70d20b505b3535e94f78aa7ec30fc704c4d7f8f40b41a5f28bb01d88e317b7fb",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.1392830909676138,
+      "drift_psi": 0.2549,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.5
     }
   ],
   "pending": {
-    "weight": 0.0174,
-    "decided_bar": "2026-11-10 00:00:00"
+    "weight": 0.1823,
+    "decided_bar": "2026-11-11 00:00:00"
   },
   "market": "us_stock",
   "symbol": "SLV",

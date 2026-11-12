@@ -2,7 +2,7 @@
   "cash": 8216.354332414701,
   "quantity": 6.410289077630045,
   "avg_price": 285.05023978366546,
-  "last_bar": "2026-11-10 00:00:00",
+  "last_bar": "2026-11-11 00:00:00",
   "history": [
     {
       "date": "2026-08-18",
@@ -2993,11 +2993,61 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-11",
+      "price": 293.45001220703125,
+      "weight": 0.1461,
+      "held_weight": 0.1863,
+      "fractional_lot": false,
+      "equity": 10097.45,
+      "return_pct": 0.97,
+      "hit_rate": 0.4794520547945205,
+      "hit_n": 146,
+      "hit_lo": 0.3999858090092327,
+      "hit_hi": 0.5599719063381742,
+      "hit_conclusive": false,
+      "live_hit": 0.5319148936170213,
+      "live_hit_n": 47,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "rsi_period": 2,
+        "entry": 10.0,
+        "exit_ma": 5,
+        "trend_window": 200
+      },
+      "reason": "매수 +15% — connors_rsi2 전략 신호에 따름 · 🏛 의회 운용: connors_rsi2 42% + ml 38% + ml 20% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 290.089996,
+        "bar": "2026-11-11 00:00:00",
+        "weight": 0.1563,
+        "decided_bar": "2026-11-10 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "b2608f92b0ed",
+      "data_sha256": "b3a54385aec9ba877f741c4bd47825e553bd3309992a37fa6e483f4294fc5e8c",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2353,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1563,
-    "decided_bar": "2026-11-10 00:00:00"
+    "weight": 0.1461,
+    "decided_bar": "2026-11-11 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GOOGL",
