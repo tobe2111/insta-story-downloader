@@ -280,6 +280,94 @@ class StockDataProvider(DataProvider):
             subset=_PRICE_COLS)        # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
 
+    def _via_nasdaq(self, symbol, timeframe, start, end, limit,
+                    _get=None) -> pd.DataFrame:
+        """나스닥 공개 시세 JSON — 야후와 **다른 회사**의 미국 일봉(2026-11-13 감사 383).
+
+        ⚠️ 왜 stooq가 아니라 이것인가 — 받은 것을 보고 골랐다. 감사 382가 오류에
+           본문 머리를 싣게 한 뒤 첫 배치(11-12)의 stooq 응답이
+           *"This site requires JavaScript to verify your browser"*였다 — 봇 차단
+           페이지다. 헤더로 풀 수 있는 종류가 아니다. 그리고 이 저장소는 같은 회사의
+           공개 API(스크리너)를 GitHub 러너에서 이미 받고 있다(유니버스 2026-11-01
+           재구성이 그것으로 났다) — 러너에서 닿는다는 근거가 장부에 있다.
+
+        무조정 종가다(배당 조정 없음). 대조는 일수익으로 하고 문턱이 하루 2%p라
+        상관없다(stooq도 무조정이었다). 주식과 ETF는 `assetclass`가 달라, 틀리면
+        자료 없이 400을 돌려준다 — 그래서 둘을 차례로 묻는다.
+        """
+        if _TF_MAP.get(timeframe, "1d") != "1d":
+            raise ValueError("nasdaq 대조는 일봉만 지원")
+        if "." in symbol or "/" in symbol:
+            raise ValueError("nasdaq 대조는 미국 티커만 지원")
+        import datetime as _dt
+        import json as _json
+
+        from quant.utils.http import get_text          # 상한·방어 공유(감사 178)
+        get = _get or get_text
+        today = _dt.date.today()
+        frm = today - _dt.timedelta(days=max(60, int(limit or 30) * 2))
+        hdr = {"User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                              "Chrome/120.0 Safari/537.36"),
+               "Accept": "application/json, text/plain, */*",
+               "Accept-Language": "en-US,en;q=0.9"}
+        tried = []
+        for cls in ("stocks", "etf"):
+            url = (f"https://api.nasdaq.com/api/quote/{symbol.upper()}/historical"
+                   f"?assetclass={cls}&fromdate={frm.isoformat()}"
+                   f"&todate={today.isoformat()}&limit={max(int(limit or 30), 10)}")
+            try:
+                text = get(url, hdr, timeout=15)
+            except Exception as exc:  # noqa: BLE001 — 다른 자산군으로
+                # 틀린 자산군은 400(HttpError)으로 온다 — 다음 것을 묻는다.
+                tried.append(f"{cls}: {str(exc)[:60]}")
+                continue
+            try:
+                data = _json.loads(text)
+            except ValueError:
+                raise ValueError(f"nasdaq 응답 형식 오류 — 받은 것: {_body_hint(text)}")
+            rows = ((((data or {}).get("data") or {}).get("tradesTable") or {})
+                    .get("rows") or [])
+            if not rows:
+                st = (data or {}).get("status") or {}
+                msg = st.get("bCodeMessage") or st.get("rCode")
+                tried.append(f"{cls}: 자료 없음({str(msg)[:60]})")
+                continue
+            df = _nasdaq_rows(rows)
+            if df.empty:
+                tried.append(f"{cls}: 읽을 수 있는 줄 없음")
+                continue
+            df.attrs["source"] = "nasdaq"
+            return _cut_range(df, start, end, limit)
+        raise ValueError("nasdaq 자료 없음 — " + " · ".join(tried))
+
+
+def _nasdaq_num(v) -> float:
+    s = str(v or "").replace("$", "").replace(",", "").strip()
+    try:
+        return float(s)
+    except ValueError:
+        return float("nan")             # 'N/A' 등 — 가격이면 그 줄은 아래에서 빠진다
+
+
+def _nasdaq_rows(rows) -> pd.DataFrame:
+    """나스닥 표 줄 → 오름차순 OHLCV. 날짜는 MM/DD/YYYY다(ISO가 아니다)."""
+    recs = []
+    for r in rows:
+        try:
+            day = pd.to_datetime(str(r.get("date")), format="%m/%d/%Y")
+        except (ValueError, TypeError):
+            continue
+        recs.append({"date": day, **{k: _nasdaq_num(r.get(k)) for k in
+                                     ("open", "high", "low", "close", "volume")}})
+    if not recs:
+        return pd.DataFrame(columns=["open", "high", "low", "close", "volume"])
+    df = pd.DataFrame(recs).set_index("date").sort_index()
+    df = df[~df.index.duplicated(keep="last")]
+    # 종가만 본다 — 대조는 일수익이라 종가뿐이고, 나스닥 ETF 표는 시가 칸이
+    # 'N/A'인 날이 있어 네 가격을 다 요구하면 멀쩡한 날까지 버린다.
+    return df[["open", "high", "low", "close", "volume"]].dropna(subset=["close"])
+
 
 def _body_hint(text, width: int = 90) -> str:
     """오류에 실을 본문 머리 — 태그를 떼고 공백을 접는다. 비었으면 비었다고 말한다.
