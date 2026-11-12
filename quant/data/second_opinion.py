@@ -9,7 +9,7 @@
 ■ 무엇을 대조하나
 
   **최근 며칠의 일수익**을 견준다(가격 수준이 아니다). 주 소스(yfinance)는
-  배당 조정가, 보조 소스(Stooq)는 무조정가라 수준은 원래 다르다. 수익률은 배당일
+  배당 조정가, 보조 소스(나스닥 — 감사 383 전에는 Stooq)는 무조정가라 수준은 원래 다르다. 수익률은 배당일
   하루를 빼면 같아야 한다 — 그래서 문턱을 **하루 2%p**로 넉넉히 둔다(ETF 분배금은
   대개 1% 아래). 2%p를 넘게 갈리면 둘 중 하나는 그 종목의 하루를 틀리게 말하고 있다.
 
@@ -43,8 +43,14 @@ def _second(market: str, symbol: str, primary: str):
     if market == "us_stock":
         from quant.data.stock import StockDataProvider
         p = StockDataProvider(market="us_stock")
-        if primary != "stooq":
-            return "stooq", lambda: p._via_stooq(symbol, "1d", None, None, 30)
+        # ⚠️ stooq가 아니라 나스닥이다(2026-11-13 감사 383) — 받은 것을 보고 바꿨다.
+        #    감사 382가 오류에 본문을 싣게 한 뒤 첫 배치(11-12)의 stooq 응답이
+        #    "This site requires JavaScript to verify your browser"(봇 차단)였다.
+        #    11-10~11-12 사흘 동안 미국 23종목이 전부 그 벽에 막혀 대조에서 빠졌다.
+        #    나스닥은 야후와 다른 회사이고, 같은 회사의 스크리너를 러너가 이미
+        #    받고 있다(유니버스 2026-11-01 재구성) — 닿는다는 근거가 장부에 있다.
+        if primary != "nasdaq":
+            return "nasdaq", lambda: p._via_nasdaq(symbol, "1d", None, None, 30)
         return "yahoo-http", lambda: p._via_yahoo_http(symbol, "1d", None, None, 30)
     if market == "crypto":
         # ⚠️ 보조 거래소는 **사다리 없이 그 거래소 하나에** 직접 묻는다(2026-11-10 실측).
