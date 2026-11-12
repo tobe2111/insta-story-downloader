@@ -780,6 +780,37 @@ def test_a_clause_inside_brackets_is_not_split(browser, site):
         page.close()
 
 
+@pytest.mark.parametrize("ko, must", [
+    # 2026-11-12 밤 처음 화면에 나온 꼴 그대로(감사 383) — 한 종목 표본이 문턱을 넘은 날.
+    ("참고: 이 종목에서 모델이 56%±10%p라 말한 최근 28번의 실제 상승 비율 50% "
+     "(95% 신뢰구간 33%~67% · 봉이 빠진 2번은 제외)", "excluding 2 rounds"),
+    ("참고: 이 종목에서 모델이 56%±10%p라 말한 최근 28번의 실제 상승 비율 50% "
+     "(95% 신뢰구간 33%~67% · 보합 1일 포함 · 봉이 빠진 2번은 제외)", "including 1 flat days"),
+    ("참고: 이 종목에서 모델이 56%±10%p라 말한 최근 28번의 실제 상승 비율 50% "
+     "(95% 신뢰구간 33%~67% · 보합 3일 포함)", "including 3 flat days"),
+    ("참고: 이 종목에서 모델이 56%±10%p라 말한 최근 28번의 실제 상승 비율 50% "
+     "(95% 신뢰구간 33%~67%)", "95% CI 33-67%)"),
+    ("참고: 전 종목 합산으로 모델이 60%±10%p라 말한 50번의 실제 상승 비율 55% "
+     "(95% 신뢰구간 40%~70% · 이 종목 단독 표본은 2번으로 축적 중)", "2 so far"),
+    ("참고: 전 종목 합산으로 모델이 60%±10%p라 말한 50번의 실제 상승 비율 55% "
+     "(95% 신뢰구간 40%~70% · 보합 4일 포함 · 이 종목 단독 표본은 2번으로 축적 중)",
+     "including 4 flat days"),
+])
+def test_every_calibration_note_shape_reads_in_english(browser, site, ko, must):
+    """해설의 신뢰도 절은 보합·빠진 봉 유무로 네 꼴이 난다 — 꼴마다 규칙이 있어야 한다.
+
+    조건부 문장이라 그날 자료가 그 꼴을 안 만들면 페이지 검사는 못 본다. 그래서
+    꼴을 손으로 박아 번역기에 직접 묻는다(`explain._calibration_note`가 만드는 꼴).
+    """
+    page, _ = _open(browser, site, "us.html?lang=en", wait=1500)
+    try:
+        got = page.evaluate("(s) => QuantI18N.look(s)", ko)
+        assert got and must in got, f"영어 규칙이 없다: {ko} → {got}"
+        assert not any("\uac00" <= ch <= "\ud7a3" for ch in got), got
+    finally:
+        page.close()
+
+
 def test_the_tooltip_carries_the_whole_reason(browser, site):
     """도움말을 중간에서 자르지 않는다.
 

@@ -4602,6 +4602,22 @@
        "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat days · excluding $8 rounds with a missing bar · this symbol alone is still accumulating, $9 so far)"],
       ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 봉이 빠진 (\\d+)번은 제외 · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",
        "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · excluding $7 rounds with a missing bar · this symbol alone is still accumulating, $8 so far)"],
+      /* 2026-11-13 감사 383 — 한 종목의 표본이 처음으로 문턱(MIN_BAND_SAMPLES)을 넘자
+         '이 종목에서' 꼴이 화면에 처음 나왔고, 그 꼴에는 규칙이 하나도 없었다. 조건부
+         문장이라 붙인 날 검사가 못 봤다(2026-09-08 교훈 그대로). 보합·빠진 봉 절의
+         네 조합을 다 둔다 — 합산 꼴에서 빠져 있던 두 조합도 함께. */
+      ["^참고: 이 종목에서 모델이 (\\d+)%±(\\d+)%p라 말한 최근 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함 · 봉이 빠진 (\\d+)번은 제외\\)$",
+       "note: for this symbol, of the last $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat days · excluding $8 rounds with a missing bar)"],
+      ["^참고: 이 종목에서 모델이 (\\d+)%±(\\d+)%p라 말한 최근 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함\\)$",
+       "note: for this symbol, of the last $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat days)"],
+      ["^참고: 이 종목에서 모델이 (\\d+)%±(\\d+)%p라 말한 최근 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 봉이 빠진 (\\d+)번은 제외\\)$",
+       "note: for this symbol, of the last $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · excluding $7 rounds with a missing bar)"],
+      ["^참고: 이 종목에서 모델이 (\\d+)%±(\\d+)%p라 말한 최근 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)%\\)$",
+       "note: for this symbol, of the last $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6%)"],
+      ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 보합 (\\d+)일 포함 · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",
+       "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · including $7 flat days · this symbol alone is still accumulating, $8 so far)"],
+      ["^참고: 전 종목 합산으로 모델이 (\\d+)%±(\\d+)%p라 말한 (\\d+)번의 실제 상승 비율 (\\d+)% \\(95% 신뢰구간 (\\d+)%~(\\d+)% · 이 종목 단독 표본은 (\\d+)번으로 축적 중\\)$",
+       "note: pooled across every symbol, of the $3 times the model said $1%±$2%pt, $4% actually rose (95% CI $5-$6% · this symbol alone is still accumulating, $7 so far)"],
       ["^참고: 이 확률대\\((\\d+)%±(\\d+)%p\\)의 과거 성적은 표본 축적 중 \\(종목 (\\d+)건부터 표시\\)$",
        "note: the past record in this probability band ($1%±$2%pt) is still accumulating (shown from $3 cases per symbol)"],
       ["^(\\d{4}-\\d{2}-\\d{2}) 기준$", "as of $1"],
