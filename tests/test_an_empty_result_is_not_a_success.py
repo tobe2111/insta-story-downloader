@@ -314,3 +314,38 @@ def test_both_providers_check_after_validating(mod, name):
     """배선 고정 — 두 제공자 모두 '검증 뒤'에 비었는지 보는가."""
     src = (ROOT / mod).read_text("utf-8")
     assert "검증 후 빈 결과" in src, f"{name} 제공자에 검증 후 빈 결과 검사가 없다"
+
+
+# ── 감사 382 — 형식 오류는 **받은 것**을 말한다 ──────────────────
+#
+# 미국 23종목이 이틀 연속 대조에서 빠졌는데 장부에 남은 원인은 "stooq 응답
+# 형식 오류"뿐이었다. 막힘인지 키 요구인지 빈 자료인지 고를 수 없으면, 다음
+# 사람은 짐작으로 소스를 갈아 끼운다.
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("body, must", [
+    (b"<html><body><h1>Exceeded the daily hits limit</h1></body></html>",
+     "Exceeded the daily hits limit"),
+    (b"No data", "No data"),
+    (b"", "(빈 본문)"),
+])
+def test_the_stooq_format_error_carries_what_came_back(monkeypatch, body, must):
+    _fake_urlopen(monkeypatch, body)
+    with pytest.raises(ValueError) as e:
+        StockDataProvider(market="us_stock")._via_stooq(
+            "SPY", "1d", None, None, 10)
+    msg = str(e.value)
+    assert "형식 오류" in msg and must in msg, (
+        f"형식 오류가 받은 본문을 버린다 — 원인을 고를 수 없다: {msg}")
+    assert "<" not in msg.split("받은 것:", 1)[1], "태그를 그대로 싣는다"
+
+
+def test_the_hint_survives_the_ledger_width():
+    """장부 표본은 160자에서 잘린다 — 본문 머리가 그 안에 들어와야 한다."""
+    from quant.data.second_opinion import reason_samples
+    why = ("stooq 응답 없음: stooq 응답 형식 오류 — 받은 것: "
+           "'Exceeded the daily hits limit'")
+    out = reason_samples({"us_stock:SPY": {"ok": None, "why": why}})
+    assert any("daily hits" in v for v in out.values()), out

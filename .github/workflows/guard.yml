@@ -144,7 +144,9 @@ jobs:
           WAIT=$(( 720 - ( $(date +%s) - ${GUARD_T0:-$(date +%s)} ) ))
           if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
           OTHERS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/guard.yml/runs?per_page=20" \
-            --jq "[.workflow_runs[] | select((.status==\"queued\" or .status==\"in_progress\" or .status==\"waiting\" or .status==\"pending\") and .id != ${GITHUB_RUN_ID})] | length" || echo 1)
+            --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID}) | select(.status==\"in_progress\" or ((.status==\"queued\" or .status==\"waiting\" or .status==\"pending\") and ((.created_at | fromdateiso8601) > (now - 1500))))] | length" || echo 1)
+          # ⚠️ 러너를 25분 넘게 못 받은 회차는 세지 않는다(감사 382) — 박힌 회차를
+          #    '줄에 있다'로 세면 사슬이 거기서 끊긴다(2026-11-11 실측 3시간 19분).
           if [ "${OTHERS:-1}" != "0" ]; then
             echo "다른 회차가 이미 줄에 있다(${OTHERS}) — 사슬을 늘리지 않는다"
             exit 0

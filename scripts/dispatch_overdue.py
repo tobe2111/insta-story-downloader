@@ -127,14 +127,35 @@ def _ts(s: str) -> dt.datetime:
 
 
 PENDING = {"queued", "in_progress", "waiting", "pending", "requested"}
+WAITING = PENDING - {"in_progress"}
+
+# 러너를 못 받고 줄에만 서 있는 실행은 이만큼 지나면 **없는 것으로 본다**(감사 382).
+# 2026-11-11 실측: 감시 회차 하나가 20:17 UTC에 줄을 서서 러너를 끝내 못 받고
+# 21:00에 실패로 끝났다. 사슬은 돌던 회차 안에서만 다음을 띄우므로 거기서 끊겼고,
+# 그 사이 크론도 하나도 안 떠 **3시간 19분 동안 아무 잡도 안 돌았다**(일일 기록 ·
+# 재학습 · 검증 · SNS 전부). 줄에 박힌 실행을 '도는 중'으로 세면 되살리는 쪽까지
+# "이미 줄에 있다"며 손을 뗀다. 정상 회차는 몇 초 안에 러너를 받는다.
+STUCK_QUEUED_MIN = 25
+
+
+def _alive(r: dict, now: dt.datetime) -> bool:
+    """줄에 서 있거나 돌고 있는 실행 — 러너를 못 받고 오래 박힌 것은 빼고."""
+    st = r.get("status")
+    if st not in PENDING:
+        return False
+    if st in WAITING and r.get("created_at"):
+        return now - _ts(r["created_at"]) <= dt.timedelta(minutes=STUCK_QUEUED_MIN)
+    return True
 
 
 def decide(wf: str, crons: list[str], runs: list[dict], now: dt.datetime) -> str | None:
     """띄울 이유(문장) 또는 None. 네트워크 없이 검사할 수 있게 갈라 둔다."""
-    if any(r.get("status") in PENDING for r in runs):
+    if any(_alive(r, now) for r in runs):
         return None
     if wf == "guard.yml":
-        last = max((_ts(r["created_at"]) for r in runs), default=None)
+        # 박힌 실행은 '최근에 돌았다'의 근거가 아니다 — 실제로 돌았던 것만 센다.
+        last = max((_ts(r["created_at"]) for r in runs
+                    if r.get("status") not in WAITING), default=None)
         if last is None or now - last > dt.timedelta(minutes=GUARD_MAX_GAP_MIN):
             return f"감시가 {GUARD_MAX_GAP_MIN}분 넘게 조용하다(마지막 {last})"
         return None
@@ -144,7 +165,9 @@ def decide(wf: str, crons: list[str], runs: list[dict], now: dt.datetime) -> str
     if not ticks:
         return None
     tick = max(ticks)
-    if any(_ts(r["created_at"]) >= tick - dt.timedelta(minutes=1) for r in runs):
+    # 박힌 실행(러너를 못 받고 끝난 것 포함)은 '그 예약이 돌았다'의 근거가 아니다.
+    if any(_ts(r["created_at"]) >= tick - dt.timedelta(minutes=1)
+           and r.get("status") not in WAITING for r in runs):
         return None
     return f"예약 {tick:%m-%d %H:%M} UTC 이후 실행이 없다"
 

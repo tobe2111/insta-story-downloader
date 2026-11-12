@@ -106,3 +106,50 @@ def test_the_mutation_sweep_is_revived_late_not_never():
     runs = [_run("2026-10-11T19:58:00")]
     assert D.decide("mutation-sweep.yml", crons, runs, _at("2026-10-12T18:00")) is None, "너무 일찍 띄운다"
     assert D.decide("mutation-sweep.yml", crons, runs, _at("2026-10-12T22:40")), "6시간이 지나도 안 띄운다"
+
+
+# ── 감사 382 — 러너를 못 받고 박힌 회차가 사슬을 끊었다 ─────────────
+#
+# 2026-11-11 실측: 감시 회차가 20:17 UTC에 줄을 서서 러너를 못 받고 21:00에 실패.
+# 그 사이와 그 뒤 크론이 하나도 안 떠 00:36까지 아무 잡도 안 돌았다.
+
+
+def test_a_run_stuck_in_the_queue_does_not_block_revival():
+    now = _at("2026-11-11T21:40")
+    runs = [_run("2026-11-11T20:05:19"), _run("2026-11-11T20:17:29", "queued")]
+    assert D.decide("guard.yml", [], runs, now), (
+        "러너를 83분째 못 받은 회차를 '도는 중'으로 셌다 — 사슬이 안 살아난다")
+    assert D.decide("daily-paper.yml", ["15 22 * * *"],
+                    [_run("2026-11-10T22:27:03"),
+                     _run("2026-11-11T22:16:00", "queued")],
+                    _at("2026-11-11T22:50")), "박힌 회차가 일일 기록을 막는다"
+
+
+def test_a_freshly_queued_run_still_counts():
+    """정상 회차는 몇 초 안에 러너를 받는다 — 방금 선 줄까지 버리면 겹쳐 띄운다."""
+    now = _at("2026-11-11T20:20")
+    runs = [_run("2026-11-11T19:40:00"), _run("2026-11-11T20:17:29", "queued")]
+    assert D.decide("guard.yml", [], runs, now) is None
+
+
+def test_a_long_running_job_is_not_mistaken_for_stuck():
+    """도는 중(in_progress)은 오래 걸려도 산 것이다 — 변이 전수는 세 시간 돈다."""
+    now = _at("2026-11-11T19:00")
+    runs = [_run("2026-11-11T16:00:00", "in_progress")]
+    assert D.decide("mutation-sweep.yml", ["0 16 * * *"], runs, now) is None
+
+
+def test_the_chain_step_ignores_stuck_runs_too():
+    """감시 사슬의 쉘도 같은 규칙이어야 한다 — 한쪽만 고치면 다른 쪽이 끊는다."""
+    src = (Path(__file__).resolve().parent.parent / ".github" / "workflows"
+           / "guard.yml").read_text("utf-8")
+    assert "fromdateiso8601" in src and "now - 1500" in src
+    assert D.STUCK_QUEUED_MIN * 60 == 1500
+
+
+def test_the_real_dead_window_is_revived():
+    """실측 모양 그대로 — 박힌 회차가 실패로 닫힌 뒤에도 사슬이 살아나야 한다."""
+    runs = [_run("2026-11-11T20:05:19"),
+            {"created_at": "2026-11-11T20:17:29Z", "status": "completed",
+             "conclusion": "failure"}]
+    assert D.decide("guard.yml", [], runs, _at("2026-11-11T21:00"))
