@@ -2,7 +2,7 @@
   "cash": 7468.487928230175,
   "quantity": 3.2760591667407533,
   "avg_price": 759.4500122070312,
-  "last_bar": "2026-11-11 00:00:00",
+  "last_bar": "2026-11-12 00:00:00",
   "history": [
     {
       "date": "2026-08-04",
@@ -3166,6 +3166,53 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-12",
+      "price": 757.1199951171875,
+      "weight": 0.25,
+      "held_weight": 0.2493,
+      "fractional_lot": false,
+      "equity": 9948.86,
+      "return_pct": -0.51,
+      "hit_rate": 0.5472222222222223,
+      "hit_n": 360,
+      "hit_lo": 0.49557371102388276,
+      "hit_hi": 0.5978735473434948,
+      "hit_conclusive": false,
+      "live_hit": 0.4444444444444444,
+      "live_hit_n": 45,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "mode": "reversion"
+      },
+      "reason": "매수 +25% — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 48% + connors_rsi2 33% + turtle 19% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 753.97998,
+        "bar": "2026-11-12 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-11 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "b105c2fbe0ff",
+      "data_sha256": "bfffa5e286db58a373f8e5e139217c2b4d570dc9ef54e5481b7b7d2a75552355",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2953,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "market": "us_stock",
@@ -3173,6 +3220,6 @@
   "start_cash": 10000.0,
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-11 00:00:00"
+    "decided_bar": "2026-11-12 00:00:00"
   }
 }

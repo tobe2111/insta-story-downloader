@@ -2,7 +2,7 @@
   "cash": 9454.048167858518,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-11-11 00:00:00",
+  "last_bar": "2026-11-12 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2590,11 +2590,58 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-12",
+      "price": 165315.0,
+      "weight": 0.0,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9454.05,
+      "return_pct": -5.46,
+      "hit_rate": 0.5769230769230769,
+      "hit_n": 286,
+      "hit_lo": 0.5190163883901806,
+      "hit_hi": 0.6327906676017818,
+      "hit_conclusive": true,
+      "live_hit": 0.3783783783783784,
+      "live_hit_n": 37,
+      "live_hit_flat": 0,
+      "hit_flat": 1,
+      "champion": {
+        "mode": "squeeze"
+      },
+      "reason": "관망 (현금) — bollinger 전략 신호에 따름 · 🏛 의회 운용: bollinger 39% + ma_cross 31% + dual_thrust 30% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 165965.0,
+        "bar": "2026-11-12 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-11-11 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "b105c2fbe0ff",
+      "data_sha256": "f21ff98e2e6648bc9c7bc78350f04d14d75682e94503de5a21ab86a062b2530c",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1923,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.0,
-    "decided_bar": "2026-11-11 00:00:00"
+    "decided_bar": "2026-11-12 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "133690.KS",
