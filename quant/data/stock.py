@@ -264,13 +264,35 @@ class StockDataProvider(DataProvider):
 
         url = f"https://stooq.com/q/d/l/?s={sym}.us&i=d"
         text = get_text(url, {"User-Agent": "Mozilla/5.0"}, timeout=15)
+        # ⚠️ 받은 본문을 오류에 싣는다(2026-11-12 감사 382). 예전 문구는 "응답 형식
+        #    오류"뿐이라 미국 23종목이 매일 대조에서 빠지는데도 막힘·키 요구·빈 자료·
+        #    차단 페이지 중 무엇인지 장부가 말하지 못했다(실측 11-10·11-11). 표 머리에
+        #    Close가 없으면 표가 아니다 — 판다스에 넘기기 전에 본다(넘기면 파서 오류
+        #    문구가 본문을 가린다).
+        head = (text or "").lstrip()[:200]
+        if "Close" not in head.split("\n", 1)[0]:
+            raise ValueError(f"stooq 응답 형식 오류 — 받은 것: {_body_hint(text)}")
         df = pd.read_csv(io.StringIO(text))
         if "Close" not in df.columns:
-            raise ValueError("stooq 응답 형식 오류")
+            raise ValueError(f"stooq 응답 형식 오류 — 받은 것: {_body_hint(text)}")
         df = df.rename(columns=str.lower).set_index(pd.to_datetime(df["Date"]))
         df = df[["open", "high", "low", "close", "volume"]].dropna(
             subset=_PRICE_COLS)        # 거래량 결측으로 봉을 지우지 않는다(감사 163)
         return _cut_range(df, start, end, limit)
+
+
+def _body_hint(text, width: int = 90) -> str:
+    """오류에 실을 본문 머리 — 태그를 떼고 공백을 접는다. 비었으면 비었다고 말한다.
+
+    원인을 고르려면 **받은 것**이 필요하다(짐작으로 새 소스를 붙이지 않는다).
+    이 소스는 공개 시세라 본문에 비밀이 없다.
+    """
+    import re
+    t = re.sub(r"<[^>]*>", " ", str(text or ""))
+    t = re.sub(r"\s+", " ", t).strip()
+    if not t:
+        return "(빈 본문)"
+    return repr(t[:width]) + ("…" if len(t) > width else "")
 
 
 def _cut_range(df: pd.DataFrame, start, end, limit: int) -> pd.DataFrame:
