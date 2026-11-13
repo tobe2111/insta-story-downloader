@@ -1,8 +1,8 @@
 {
-  "cash": 9966.702126295071,
-  "quantity": 0.0,
-  "avg_price": 0.0,
-  "last_bar": "2026-11-12 00:00:00",
+  "cash": 9231.159509374495,
+  "quantity": 8.012006059803642,
+  "avg_price": 91.75,
+  "last_bar": "2026-11-13 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2770,11 +2770,60 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-13",
+      "price": 91.76000213623047,
+      "weight": 0.0099,
+      "held_weight": 0.0738,
+      "fractional_lot": false,
+      "equity": 9966.34,
+      "return_pct": -0.34,
+      "hit_rate": 0.5085470085470085,
+      "hit_n": 234,
+      "hit_lo": 0.444872978175331,
+      "hit_hi": 0.571944937614001,
+      "hit_conclusive": false,
+      "live_hit": 0.4716981132075472,
+      "live_hit_n": 53,
+      "live_hit_flat": 2,
+      "hit_flat": 3,
+      "champion": {
+        "window": 4,
+        "k1": 0.5,
+        "k2": 0.5
+      },
+      "reason": "관망 (현금) — dual_thrust 전략 신호에 따름 · 🏛 의회 운용: dual_thrust 37% + fomc_drift 33% + ml 31% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 91.75,
+        "bar": "2026-11-13 00:00:00",
+        "weight": 0.0738,
+        "decided_bar": "2026-11-12 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "e4e2b5fd8f5d",
+      "data_sha256": "813725e4d1faca4c73adabad989cbc9cbaa79e5b6842de4c931697829901218b",
+      "env": "py3.12.16|np2.5.4|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2516,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0738,
-    "decided_bar": "2026-11-12 00:00:00"
+    "weight": 0.0099,
+    "decided_bar": "2026-11-13 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EWJ",
