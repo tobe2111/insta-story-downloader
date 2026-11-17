@@ -46,10 +46,10 @@ JUDGE_START = "2016-01-01"
 MDD_SLACK = 1.5
 
 
-def fetch_broad() -> dict:
+def fetch_broad(tickers=None) -> dict:
     import yfinance as yf
     out = {}
-    for tk in T.BROAD_ETFS:
+    for tk in (tickers if tickers is not None else T.BROAD_ETFS):
         key = f"us_stock:{tk}"
         try:
             df = yf.download(tk, start="2003-01-01", progress=False,

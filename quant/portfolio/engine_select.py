@@ -155,6 +155,18 @@ CANDIDATES.update({
     "mvo12w": {"kind": "mvo", "variant": "risk12", "universe": "wide"},
 })
 
+# ── 감사 384 — 하락장에서도 버는 후보. 사장님(2026-11-17): "거시적으로 손실
+# 상황에서도 이익을 내는 것이 진정한 실력이야." 넓은 목록에 **하락장 자산**
+# (인버스 ETF −1배 · 매니지드 퓨처스, `T.HEDGE_ETFS`)을 더한 목록에서 같은 엔진을
+# 돌린다. 추세 엔진은 내림장에서 인버스 ETF의 추세를 양수로 보고 저절로 담는다 —
+# 하락 대응 규칙을 손으로 쓰지 않는다. 채택은 다른 후보와 같은 관문이 정한다.
+# ⚠️ 후보가 늘면 갈아타기 문턱이 저절로 오른다(`switch_threshold`).
+CANDIDATES.update({
+    "risk12h": {"kind": "trend", "variant": "risk12", "universe": "hedge"},
+    "notional50h": {"kind": "trend", "variant": "notional50", "universe": "hedge"},
+    "xs12h": {"kind": "xs", "variant": "risk12", "universe": "hedge"},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -184,11 +196,18 @@ LABELS = {
     "mlrankw": "머신러닝 순위 · 넓은 목록",
     "mvo12": "기관식 최적화(알파 결합 · 위험 모델)",
     "mvo12w": "기관식 최적화 · 넓은 목록",
+    "risk12h": "위험 균등 · 변동성 12% · 하락장 자산 포함",
+    "notional50h": "금액 균등 · 상한 변동성 50% · 하락장 자산 포함",
+    "xs12h": "상대 강세 · 하락장 자산 포함",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
 #: 40종목 쪽 시세를 쓴다(같은 열).
 WIDE_KEYS = tuple(f"us_stock:{t}" for t in T.BROAD_ETFS)
+#: 하락장 자산(감사 384) — 'hedge' 목록 후보만 본다.
+HEDGE_KEYS = tuple(f"us_stock:{t}" for t in T.HEDGE_ETFS)
+#: 매일 배치가 엔진 전용으로 따로 받는 종목 전부.
+EXTRA_KEYS = WIDE_KEYS + tuple(k for k in HEDGE_KEYS if k not in WIDE_KEYS)
 
 
 def universe_of(name: str) -> str:
@@ -196,9 +215,12 @@ def universe_of(name: str) -> str:
 
 
 def wide_extra_keys(core_keys) -> list:
-    """넓은 목록 중 40종목(core_keys)에 없는 것 — 매일 배치가 따로 받는다."""
+    """엔진 전용 종목 중 40종목(core_keys)에 없는 것 — 매일 배치가 따로 받는다.
+
+    넓은 목록(감사 343)과 하락장 자산(감사 384) 둘 다다.
+    """
     core = set(core_keys or ())
-    return [k for k in WIDE_KEYS if k not in core]
+    return [k for k in EXTRA_KEYS if k not in core]
 
 
 #: 그냥 보유·고정 비중의 무거래 밴드(감사 353). 추세 엔진의 2%를 그대로 쓰면
@@ -257,6 +279,11 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
     if core_keys is not None and universe_of(name) == "core":
         keep = set(core_keys)
         cols = [c for c in cols if c in keep]
+    if universe_of(name) != "hedge":
+        # 감사 384 — 하락장 자산은 'hedge' 후보만 본다. 생존 편향 점검처럼
+        # core_keys 없이 돌 때도 마찬가지다(아니면 기존 후보가 다른 것이 된다).
+        hedge_only = set(HEDGE_KEYS) - set(core_keys or ())
+        cols = [c for c in cols if c not in hedge_only]
     sub = closes[cols]
     if spec["kind"] == "hold":
         tgt = hold_weights(sub)
@@ -939,12 +966,17 @@ FUT_CANDIDATES = {
     "fut_long40": {"kind": "trend", "variant": "fut_long40"},
     "fut_hold": {"kind": "hold"},
     "fut_cash": {"kind": "cash"},
+    # 감사 384 — 하락장에서 숏으로 버는 후보. 감사 335 ②에서 판정 구간 샤프가
+    # 0.01이라 사람이 껐는데, 방침(2026-08-27)대로 껐다 켰다를 사람이 정하지 않고
+    # 링에 세운다 — 같은 관문(낙폭 자격 · t 문턱)이 정한다.
+    "fut_ls20": {"kind": "trend", "variant": "fut_ls20"},
 }
 FUT_LABELS = {
     "fut_long20": "추세 · 변동성 20%",
     "fut_long40": "추세 · 변동성 40%",
     "fut_hold": "코인 그냥 보유(균등)",
     "fut_cash": "현금(안 한다)",
+    "fut_ls20": "추세 양방향(내리면 숏) · 변동성 20%",
 }
 FUT_BASELINE = "fut_long20"
 FUT_JUDGE_START = "2022-01-01"

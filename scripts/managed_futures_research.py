@@ -99,6 +99,8 @@ TRIAL_LEDGER = {
     "audit362": ["mlrank", "mlrankw"],
     # 감사 367 — 기관식 최적화 둘(40종목 · 넓은 목록).
     "audit367": ["mvo12", "mvo12w"],
+    # 감사 384 — 하락장 자산 포함 셋 · 선물 양방향(335에 이미 셌지만 선택기 후보로 다시).
+    "audit384": ["risk12h", "notional50h", "xs12h", "fut_ls20_sel"],
 }
 N_TRIALS = sum(len(v) for v in TRIAL_LEDGER.values())
 

@@ -155,7 +155,8 @@ def main():
     try:
         from scripts.multi_sleeve_research import fetch_broad
         print("넓은 ETF 목록 —")
-        broad = fetch_broad()
+        # 감사 384 — 하락장 자산(인버스 ETF · 매니지드 퓨처스)도 받는다.
+        broad = fetch_broad(list(T.BROAD_ETFS) + list(T.HEDGE_ETFS))
     except Exception as exc:  # noqa: BLE001
         print(f"  ✗ 넓은 목록 실패 — 넓은 목록 후보·점검 못 함: {exc}")
     closes = T.align_business_days({**broad, **cur})

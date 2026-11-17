@@ -605,6 +605,12 @@
         "Institutional optimisation (combined alpha · risk model)",
       "기관식 최적화 · 넓은 목록":
         "Institutional optimisation · broad list",
+      "위험 균등 · 변동성 12% · 하락장 자산 포함":
+        "Equal risk · 12% volatility · with bear-market assets",
+      "금액 균등 · 상한 변동성 50% · 하락장 자산 포함":
+        "Equal amount · 50% volatility cap · with bear-market assets",
+      "상대 강세 · 하락장 자산 포함":
+        "Relative strength · with bear-market assets",
       "자동 변이": "Auto mutation",
       "이번 주 기계가 지금 엔진 주변에서 만든 후보": "Candidates the machine made around the current engine this week",
       "지금까지 만든 변이": "Mutations made so far",
@@ -816,6 +822,8 @@
         "Simply hold coins (equal)",
       "현금(안 한다)":
         "Cash (do nothing)",
+      "추세 양방향(내리면 숏) · 변동성 20%":
+        "Two-sided trend (short when falling) · 20% volatility",
       "2022년 이후 연수익":
         "Since 2022, annual return",
       "2022년 이후 최대낙폭":

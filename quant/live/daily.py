@@ -2332,7 +2332,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
     extra_keys: list = []
     extra_skipped: dict = {}
     if use_champions:
-        from quant.portfolio.engine_select import WIDE_KEYS, wide_extra_keys
+        from quant.portfolio.engine_select import EXTRA_KEYS, wide_extra_keys
         # ⚠️ 되돌림(감사 359)이 아래에서 계좌를 되감을 수 있다 — 되감기 전 보유만
         #    보면 되감은 계좌가 들고 있던 넓은 ETF의 시세를 안 받는다. 둘 다 본다
         #    (더 받는 쪽은 해가 없다).
@@ -2340,7 +2340,7 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         _before = (((st.get(_RK) or {}).get("state") or {}).get("positions") or {})
         _held = {k for k, p in {**_before, **(st.get("positions") or {})}.items()
                  if abs(float(p.get("quantity", 0.0))) > 0}
-        if _core_engine(state_dir) or (_held & set(WIDE_KEYS)):
+        if _core_engine(state_dir) or (_held & set(EXTRA_KEYS)):
             for key in wide_extra_keys(f"{m}:{s_}" for m, s_ in targets):
                 market, symbol = key.split(":", 1)
                 try:
