@@ -1989,6 +1989,73 @@ def _kill_switch_scale(prev: float, dd: float) -> float:
     return 1.0
 
 
+# 전부 멈춘 뒤 다시 시작하기까지 기다리는 날 수 (2026-11-18 사장님 "응 고쳐줘").
+# ⚠️ 성적으로 맞춘 값이 아니다 — 주간 목표 주기(금요일)와 같은 한 주다. 청산·
+#    레버리지·수수료 예산 관문처럼 "명백히 병적인 상태"에서 빠져나오는 안전장치의
+#    값이라 사람이 적는다.
+KILL_SWITCH_COOLDOWN_DAYS = 7
+
+
+def kill_switch_step(st: dict, level: float, peak: float, now_iso: str
+                     ) -> tuple[float, float]:
+    """킬스위치 한 회차 — 전부 멈춘 계좌가 **다시 시작할 길**까지 포함한다.
+
+    ⚠️ 왜 생겼나 (2026-11-18 실측). `_kill_switch_scale`의 복귀 조건은 "낙폭이
+       −15% 안쪽으로 회복"인데, 낙폭 −25%에서 전부 팔면 계좌는 현금뿐이라 자산이
+       **움직이지 않는다** — 그 조건은 영원히 참이 될 수 없다. 코인 단타 운용
+       계좌가 2026-11-15부터 그 상태로 갇혔다(자산 8,088.05 USDT 고정, 거래 0).
+       5분봉 트랙도 같은 자리에 있었다.
+
+    규칙 — 낙폭 단계(−15% 절반 · −25% 멈춤)는 그대로다. 더한 것은 셋뿐이다.
+      ① 전부 멈춘 지 `KILL_SWITCH_COOLDOWN_DAYS`일이 지나면 **절반으로** 다시 산다.
+      ② 그 순간을 **새 출발점**으로 삼아 낙폭을 거기서부터 잰다. 옛 고점에서 재면
+         다시 산 그 회차에 곧바로 −25%로 또 멈춘다.
+      ③ 새 출발점보다 자산이 올라설 때까지는 절반을 넘지 않는다(수습 기간).
+         절반으로 다시 −25%를 잃으면 또 멈추고, 또 한 주를 기다린다.
+
+    `level`·`peak`는 부르는 쪽의 단위(자산 또는 성장 지수) 그대로다 — 같은 장부는
+    언제나 같은 단위로 부른다. 다시 시작한 사실은 `kill_switch.restarts`에 남는다
+    (조용히 풀면 손실 한도가 없는 것과 구별되지 않는다).
+    """
+    import pandas as pd
+
+    ks = st.setdefault("kill_switch", {})
+    if ks.get("since"):
+        peak = max(float(ks.get("anchor_peak") or 0.0), float(level))
+        ks["anchor_peak"] = peak
+    dd = (float(level) / float(peak) - 1.0) if peak and peak > 0 else 0.0
+    prev = float(st.get("risk_scale", 1.0))
+    scale = _kill_switch_scale(prev, dd)
+    now = pd.Timestamp(str(now_iso))
+    now = now.tz_localize("UTC") if now.tzinfo is None else now.tz_convert("UTC")
+    if scale == 0.0:
+        stopped = ks.get("stopped_at") or now.isoformat()
+        ks["stopped_at"] = stopped
+        s0 = pd.Timestamp(stopped)
+        s0 = s0.tz_localize("UTC") if s0.tzinfo is None else s0.tz_convert("UTC")
+        if (now - s0) >= pd.Timedelta(days=KILL_SWITCH_COOLDOWN_DAYS):
+            ks.setdefault("restarts", []).append({
+                "on": now.isoformat(), "stopped_at": stopped,
+                "drawdown_before": round(dd, 6)})
+            ks.update(since=now.isoformat(), anchor=float(level),
+                      anchor_peak=float(level), probation=True, stopped_at=None)
+            scale, dd = 0.5, 0.0
+    else:
+        ks["stopped_at"] = None
+    if ks.get("probation"):
+        if float(level) > float(ks.get("anchor") or 0.0):
+            ks["probation"] = False
+        else:
+            scale = min(scale, 0.5)
+    st["risk_scale"] = scale
+    return scale, dd
+
+
+def kill_switch_since(st: dict) -> str | None:
+    """다시 시작한 출발점(있으면). 낙폭을 따로 재는 감시가 같은 출발점을 쓰게 한다."""
+    return (st.get("kill_switch") or {}).get("since")
+
+
 def _earnings_calendar_health(symbols, state_dir: str) -> dict:
     """실적 캘린더가 지금 무엇을 알고 있는가 (감사 289).
 
@@ -2662,8 +2729,9 @@ def run_daily_portfolio(targets=None, *, timeframe: str = "1d",
         st.get("deposits") or [],
         start_cash=float(st.get("start_cash", PORTFOLIO_START_CASH)))
     drawdown = drawdown_from_index(_series)
-    risk_scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), drawdown)
-    st["risk_scale"] = risk_scale
+    risk_scale, drawdown = kill_switch_step(
+        st, _series[-1] if _series else 1.0,
+        max(max(_series), 1.0) if _series else 1.0, bar)
     if risk_scale < 1.0:
         log.warning("킬스위치: 낙폭 %.1f%% → 노출 %.0f%%로 제한",
                     drawdown * 100, risk_scale * 100)

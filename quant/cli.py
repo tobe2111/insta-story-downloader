@@ -831,6 +831,15 @@ def _cmd_guard(args) -> None:
         record_heartbeat(now, state_dir=args.state_dir)
         return
 
+    # 킬스위치가 다시 시작했다면 낙폭은 그 출발점부터 잰다 — 옛 고점에서 재면
+    # 다시 산 계좌를 감시가 곧바로 또 멈춘다(2026-11-18).
+    from quant.live.daily import kill_switch_since
+    _since = kill_switch_since(st)
+    if _since:
+        _tail = [float(r["equity"]) for r in hist
+                 if r.get("equity") is not None
+                 and str(r.get("date") or "") >= _since[:10]]
+        eqs = _tail or eqs[-1:]
     v = guard_once(eqs[-1], max(eqs), float(st.get("risk_scale", 1.0)),
                    now_iso=now, state_dir=args.state_dir)
     gap = observed_gap_minutes(args.state_dir, now_iso=now)

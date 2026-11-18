@@ -187,7 +187,7 @@ def test_a_crash_pulls_the_borrowed_kill_switch(tmp_path):
 def test_the_kill_switch_thresholds_are_not_restated():
     """-25%·-15% 문턱이 여기 다시 적히면 실전과 갈라지는 날이 온다."""
     body = SRC.split('"""', 2)[-1]
-    assert "_kill_switch_scale" in SRC, "실전 킬스위치를 빌려 오지 않는다"
+    assert "kill_switch_step(" in SRC, "실전 킬스위치를 빌려 오지 않는다"
     for banned in ("-0.25", "-0.15"):
         assert banned not in body, f"킬스위치 문턱({banned})이 다시 적혀 있다"
 
