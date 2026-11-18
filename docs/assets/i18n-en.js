@@ -437,6 +437,16 @@
       "불러오지 못했습니다.": "Could not load.",
       "시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준":
         "season record · operated account detail · experiment detail · verdict criteria",
+      "최근 체결 · 시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준":
+        "recent fills · season record · operated account detail · experiment detail · verdict criteria",
+      "모든 기록은 공개 저장소에 매일 쌓이고, 누구나 직접 확인할 수 있습니다.":
+        "Every record is added to a public repository every day, and anyone can check it themselves.",
+      "판단 방법 · 지금 굴리는 모델 · 확률 표 · 드리프트 · 안전장치 · 13F":
+        "how it decides · models running now · probability table · drift · safety devices · 13F",
+      "재현성 · 스스로를 의심하는 장치 · 관문 · 가동률 · 재출발·기준 변경 기록 · 13F":
+        "reproducibility · self-doubt devices · gates · uptime · restart & rule-change log · 13F",
+      "모델이 지금까지 얼마나 맞혔는지 그대로 보여 줍니다. 나쁜 구간도 지우지 않습니다.":
+        "Shows, as it is, how often the model has been right so far. Bad stretches are not deleted.",
       "코인 다섯 종목을 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":
         "Looks at five coins every hour and measures, with play money, whether trading often beats simply holding.",
       "미국 주식을 장이 열린 시간에만 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":

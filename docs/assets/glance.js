@@ -109,7 +109,7 @@
       btn.appendChild(document.createTextNode(on ? "간단히 보기 ▴" : "자세히 보기 ▾"));
       btn.appendChild(document.createTextNode(" "));
       // 무엇이 접혀 있는지 이름으로 말한다(감사 282) — 안 그러면 아무도 안 누른다.
-      btn.appendChild(el("span", "sub", "시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준"));
+      btn.appendChild(el("span", "sub", "최근 체결 · 시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준"));
     };
     let saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) { /* 저장소 없음 */ }
@@ -196,7 +196,7 @@
         w.appendChild(el("span", "", "손실이 커지면 스스로 물러나는 브레이크가 걸려 있습니다."));
         rows.appendChild(w);
       }
-      rows.appendChild(el("div", "gl-n",
+      rows.appendChild(el("div", "gl-n adv",
         "기계가 최근 성적을 견줘 방식을 고릅니다 — 우연이 아닐 만큼 앞서야 바꿉니다."));
     }
     const se = d.season || {};
@@ -208,8 +208,10 @@
       rows.appendChild(line("이번 시즌 성적", [v, s]));
     }
     if (o.equity != null && d.equity != null) {
-      rows.appendChild(line("비교용 실험 계좌 (규칙대로 계속 사고파는 계좌)",
-        [fmt(d.equity, unit), el("b", tone(d.return_pct), "(" + pct(d.return_pct) + ")")]));
+      const cmp = line("비교용 실험 계좌 (규칙대로 계속 사고파는 계좌)",
+        [fmt(d.equity, unit), el("b", tone(d.return_pct), "(" + pct(d.return_pct) + ")")]);
+      cmp.classList.add("adv");     // 2026-11-18 — 첫 화면은 '지금 얼마'만. 비교 계좌는 자세히 보기에서.
+      rows.appendChild(cmp);
     }
     const key = host.getAttribute("data-prereg");
     const exps = (((status || {}).prereg || {}).experiments) || {};
@@ -217,7 +219,7 @@
     if (judge) rows.appendChild(line("다음 공식 판정", [String(judge)]));
     const when = d.last_time || d.updated;
     if (when) {
-      const t = el("div", "gl-n");
+      const t = el("div", "gl-n adv");
       t.appendChild(el("span", "", "마지막 갱신"));
       t.appendChild(document.createTextNode(" " + String(when).replace("T", " ").slice(0, 16)));
       rows.appendChild(t);

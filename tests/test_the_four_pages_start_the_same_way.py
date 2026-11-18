@@ -6,8 +6,9 @@
 지키는 것:
 1. 트랙 페이지 셋(코인 단타 · 미국 단타 · 코인 선물)은 제목 바로 다음이 '한눈에'
    카드(assets/glance.js)다 — 다른 설명이 그 앞에 끼지 않는다.
-2. 그 아래 보이는 칸의 순서가 같다: 지금 들고 있는 것 → 최근 체결 → 종목별 손익 →
-   자산 곡선. 실험 세부는 '자세히 보기'(.adv) 안에 있고, 정직한 한계는 언제나 보인다.
+2. 그 아래 보이는 칸의 순서가 같다: 지금 들고 있는 것 → 종목별 손익 → 자산 곡선.
+   최근 체결과 실험 세부는 '자세히 보기'(.adv) 안에 있고(2026-11-18 "필요이상의
+   TMI"), 정직한 한계는 언제나 보인다.
 3. 100만 챌린지의 '한눈에'도 같은 두 줄(기계가 고른 방식 · 다음 공식 판정)을 싣는다.
 4. glance.js의 한국어 조각은 전부 영어 사전에 있다(트랙 페이지는 완역 대상이다).
 """
@@ -17,16 +18,28 @@ from pathlib import Path
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 TRACKS = {"intraday.html": "intraday.json", "us.html": "intraday_us.json",
           "futures.html": "futures.json"}
-ORDER = ["지금 들고 있는 것", "최근 체결", "종목별 손익", "자산 곡선"]
+ORDER = ["지금 들고 있는 것", "종목별 손익", "자산 곡선"]
 
 
 def _visible_h2(html: str) -> list[str]:
-    """'자세히 보기'(.adv) 밖에 있는 h2 제목들 — 위에서부터."""
-    adv = html.index('<div class="adv">')
-    end = html.index("</div>\n\n<h2>정직한 한계", adv)
-    outside = html[:adv] + html[end:]
-    return [re.sub(r"<[^>]+>", "", m).strip()
-            for m in re.findall(r"<h2>(.*?)</h2>", outside)]
+    """'자세히 보기'(.adv) 밖에 있는 h2 제목들 — 위에서부터.
+
+    `.adv` 묶음은 여러 개일 수 있고 안에 div가 겹쳐 있으므로 깊이를 세어 닫는다."""
+    out, i = [], 0
+    while True:
+        a = html.find('<div class="adv">', i)
+        seg = html[i:] if a < 0 else html[i:a]
+        out += [re.sub(r"<[^>]+>", "", m).strip()
+                for m in re.findall(r"<h2>(.*?)</h2>", seg)]
+        if a < 0:
+            return out
+        depth, k = 0, a
+        for m in re.finditer(r"<div\b|</div>", html[a:]):
+            depth += 1 if m.group(0) != "</div>" else -1
+            if depth == 0:
+                k = a + m.end()
+                break
+        i = k
 
 
 def test_track_pages_open_with_the_glance_card():
@@ -50,7 +63,8 @@ def test_visible_sections_follow_the_same_order():
         idx = [next(i for i, o in enumerate(ORDER) if t.startswith(o)) for t in seen]
         assert idx == sorted(idx), f"{page}: 순서가 다르다 {seen}"
         assert titles[-1].startswith("정직한 한계"), f"{page}: 정직한 한계가 마지막에 안 보인다"
-        assert {"최근 체결", "종목별 손익", "자산 곡선"} <= {
+        assert "최근 체결" not in titles, f"{page}: 체결 표는 '자세히 보기' 안에 있어야 한다"
+        assert {"종목별 손익", "자산 곡선"} <= {
             o for o in ORDER for t in titles if t.startswith(o)}, page
 
 

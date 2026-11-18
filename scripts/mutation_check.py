@@ -7517,7 +7517,7 @@ MUTATIONS = [
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
     ('보유·현금 줄을 통째로 뺀다(지금 뭘 들고 있는지가 첫 화면에서 사라진다)',
      'docs/index.html',
-     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+",
+     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b>'+",
      "            ''+",
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
 
