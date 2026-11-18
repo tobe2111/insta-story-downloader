@@ -1,41 +1,11 @@
 {
-  "cash": 6967.805694861343,
+  "cash": 7823.97678943267,
   "start_cash": 10000.0,
   "currency": "USDT",
   "positions": {
-    "XRP/USDT": 887.2889839332317,
-    "BNB/USDT": 1.4788335698873178
+    "XRP/USDT": 887.2889839332317
   },
   "rounds": [
-    {
-      "time": "2026-11-01T03:37:40+09:00",
-      "equity": 9141.31,
-      "signals": {
-        "BTC/USDT": 0.0,
-        "ETH/USDT": 0.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 0.0,
-        "XRP/USDT": 1.0
-      },
-      "bar_times": {
-        "BTC/USDT": "2026-10-31 17:00:00",
-        "ETH/USDT": "2026-10-31 17:00:00",
-        "SOL/USDT": "2026-10-31 17:00:00",
-        "BNB/USDT": "2026-10-31 17:00:00",
-        "XRP/USDT": "2026-10-31 17:00:00"
-      },
-      "trades": [],
-      "kill_switch": {
-        "drawdown": -0.1594,
-        "scale": 0.5
-      },
-      "limit_shadow": {
-        "equity": 9366.95,
-        "filled": 0,
-        "cancelled": 0,
-        "pending": 0
-      }
-    },
     {
       "time": "2026-11-01T03:49:51+09:00",
       "equity": 9141.31,
@@ -67843,15 +67813,55 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-11-19T02:02:14+09:00",
+      "equity": 8685.0,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 1.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-11-18 16:00:00",
+        "ETH/USDT": "2026-11-18 16:00:00",
+        "SOL/USDT": "2026-11-18 16:00:00",
+        "BNB/USDT": "2026-11-18 16:00:00",
+        "XRP/USDT": "2026-11-18 16:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "BNB/USDT",
+          "side": "sell",
+          "notional": -857.46,
+          "price": 579.82,
+          "cost": 1.2862,
+          "signal": 0.0,
+          "realized_pnl": -15.3203,
+          "avg_cost": 589.31
+        }
+      ],
+      "kill_switch": {
+        "drawdown": -0.2012,
+        "scale": 0.5
+      },
+      "limit_shadow": {
+        "equity": 8695.92,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 846.9869900711283,
+  "cost_paid": 848.2731759918664,
   "last_prices": {
-    "BTC/USDT": 63123.6,
-    "ETH/USDT": 1768.48,
-    "SOL/USDT": 73.48,
-    "BNB/USDT": 582.36,
-    "XRP/USDT": 0.9767
+    "BTC/USDT": 62762.5,
+    "ETH/USDT": 1749.18,
+    "SOL/USDT": 72.83,
+    "BNB/USDT": 579.82,
+    "XRP/USDT": 0.9704
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -67863,8 +67873,7 @@
   "peak_equity": 10874.704134523268,
   "risk_scale": 0.5,
   "avg_cost": {
-    "XRP/USDT": 0.9836,
-    "BNB/USDT": 589.31
+    "XRP/USDT": 0.9836
   },
   "operated": {
     "since": "2026-08-18",
@@ -67926,13 +67935,6 @@
       }
     ],
     "history": [
-      {
-        "time": "2026-11-15T14:13:34+09:00",
-        "equity": 8088.05,
-        "mode": "hold",
-        "trades": 0,
-        "cost": 0
-      },
       {
         "time": "2026-11-15T14:25:58+09:00",
         "equity": 8088.05,
@@ -70725,14 +70727,21 @@
         "mode": "hold",
         "trades": 0,
         "cost": 0
+      },
+      {
+        "time": "2026-11-19T02:02:14+09:00",
+        "equity": 8088.05,
+        "mode": "hold",
+        "trades": 0,
+        "cost": 0
       }
     ],
     "last_prices": {
-      "BTC/USDT": 63123.6,
-      "ETH/USDT": 1768.48,
-      "SOL/USDT": 73.48,
-      "BNB/USDT": 582.36,
-      "XRP/USDT": 0.9767
+      "BTC/USDT": 62762.5,
+      "ETH/USDT": 1749.18,
+      "SOL/USDT": 72.83,
+      "BNB/USDT": 579.82,
+      "XRP/USDT": 0.9704
     },
     "inherited_from_experiment": "2026-10-11",
     "equity_daily": {
@@ -71184,7 +71193,14 @@
       "BTC/USDT": 6.548494239401459e-08,
       "BNB/USDT": 1.480324447234902
     },
-    "pending": {},
+    "pending": {
+      "BNB/USDT": {
+        "side": "sell",
+        "limit": 579.82,
+        "notional": 858.32,
+        "placed_bar": "2026-11-18 16:00:00"
+      }
+    },
     "cost_paid": 19.373558687920266,
     "filled_total": 39,
     "unfilled_total": 140
