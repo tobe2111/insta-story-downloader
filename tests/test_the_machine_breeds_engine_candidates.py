@@ -27,7 +27,9 @@ def _closes(n=700, k=10, seed=0):
 
 
 def _one_knob_apart(name, base):
-    a, b = E.candidate_config(name).__dict__, E.candidate_config(base).__dict__
+    # 담는 비율(감사 385)은 설정이 아니라 명세의 손잡이라 함께 견준다.
+    a = {**E.candidate_config(name).__dict__, "scale": E.scale_of(name)}
+    b = {**E.candidate_config(base).__dict__, "scale": E.scale_of(base)}
     return [k for k in a if a[k] != b[k]]
 
 
@@ -42,8 +44,8 @@ def test_mutants_move_one_knob_one_step_and_are_deterministic():
         assert len(diff) == 1, diff
         axis = diff[0]
         vals = E.MUTATION_AXES[axis]
-        new, old = getattr(E.candidate_config(name), axis), getattr(
-            E.candidate_config("notional50"), axis)
+        new = E._cfg_value(E.candidate_config(name), axis, name)
+        old = E._cfg_value(E.candidate_config("notional50"), axis, "notional50")
         assert new in vals
         if old in vals:
             assert abs(vals.index(new) - vals.index(old)) == 1, "한 칸보다 멀리 갔다"
@@ -51,15 +53,15 @@ def test_mutants_move_one_knob_one_step_and_are_deterministic():
 
 
 def test_a_mutant_never_duplicates_an_existing_candidate():
-    fixed = {json.dumps(E.candidate_config(c).__dict__, sort_keys=True, default=str)
-             + E.universe_of(c) + E.CANDIDATES[c]["kind"]
+    # 하는 일로 견주는 열쇠는 `config_key` 한 곳이 정한다(감사 385 — 담는 비율·필터까지
+    # 본다). 여기서 따로 지으면 '같은 설정 · 80%만 담기'가 중복으로 잘못 잡힌다.
+    fixed = {E.config_key(c)
              for c in E.CANDIDATES if E.CANDIDATES[c]["kind"] in E.AXES_BY_KIND}
     for seed in ("a", "b", "c", "d"):
         for base in ("risk12", "notional50", "xs12", "mvo12"):
             for name, spec in E.mutate_engine(base, seed=seed).items():
                 E.register_mutants({name: spec})
-                key = (json.dumps(E.candidate_config(name).__dict__, sort_keys=True,
-                                  default=str) + E.universe_of(name) + spec["kind"])
+                key = E.config_key(name)
                 assert key not in fixed, f"{base}의 변이가 기존 후보와 같다"
 
 
