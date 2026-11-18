@@ -93,6 +93,9 @@ def _render_futures(tmp_path, report: dict) -> str:
                 block_external(pg)
                 errs: list[str] = []
                 pg.on("pageerror", lambda e: errs.append(str(e)))
+                # 2026-11-18 — 실험 세부(이 숫자가 사는 요약 카드)는 '자세히 보기' 안에
+                # 접혀 있다. 펼친 화면에서 본다(접힌 것은 화면이지 숫자가 아니다).
+                pg.add_init_script("try{localStorage.setItem('quant.detail','1')}catch(e){}")
                 pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/futures.html")
                 pg.wait_for_timeout(1800)
                 text = pg.locator("body").inner_text()
