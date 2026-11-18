@@ -420,7 +420,7 @@
       // ── 한눈에 카드(트랙 페이지 셋 공통, assets/glance.js — 2026-11-18) ──
       "지금 (기계가 운용하는 계좌)": "Now (the account the machine runs)",
       "수수료·미끄러짐 · 위 이익은 이걸 뺀 값": "fees and slippage · the profit above is after these",
-      "지금 기계가 고른 방식": "What the machine has chosen now",
+      "기계가 고른 방식": "What the machine has chosen",
       "기계가 최근 성적을 견줘 방식을 고릅니다 — 우연이 아닐 만큼 앞서야 바꿉니다.":
         "The machine picks the approach by comparing recent results — it only switches when the lead is too large to be luck.",
       "이번 시즌 성적": "This season",

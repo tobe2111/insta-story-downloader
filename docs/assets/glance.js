@@ -9,7 +9,7 @@
  * 카드로 시작한다. 이 파일이 같은 질문에 **같은 순서·같은 말**로 답한다:
  *
  *   이 계좌는 무엇을 하나 → 넣은 돈 → 지금 → 이익/손해 → 이미 낸 비용 →
- *   같은 기간 그냥 들고만 있었다면 → 지금 기계가 고른 방식 → 다음 공식 판정
+ *   같은 기간 그냥 들고만 있었다면 → 기계가 고른 방식 → 다음 공식 판정
  *
  * ⚠️ 계산하지 않는다 — 장부(JSON)에 이미 있는 값만 옮긴다. 화면이 자기 계산을
  *    시작하면 장부와 갈라진다(감사 197).
@@ -184,7 +184,7 @@
         s.appendChild(document.createTextNode(" " + String(o.mode_since).slice(0, 10)));
         parts.push(s);
       }
-      rows.appendChild(line("지금 기계가 고른 방식", parts));
+      rows.appendChild(line("기계가 고른 방식", parts));
       // 방식은 '그냥 보유'인데 실제로는 아무것도 안 들고 있을 수 있다 — 손실 한도
       // 브레이크(고점 대비 −25%)가 전부 팔면 그렇다. 방식 이름만 적으면 거짓이 된다.
       if (o.mode !== "cash" && o.positions && typeof o.positions === "object"

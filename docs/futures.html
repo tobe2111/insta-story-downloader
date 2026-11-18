@@ -305,7 +305,9 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
       '애초에 “내린다”는 신호를 내지 않습니다 — 억지로 만들지 않습니다.'+
       (lo.length?' 지금 롱 전용: <b>'+esc(lo.join(", "))+'</b>':'')+'</li>'+
     /* 규칙이 바뀐 날을 화면이 말한다. 안 적으면 곡선의 한 지점부터
-       성격이 달라지는데 보는 사람은 이유를 모른다 — 조용한 골대 이동이다. */
+       성격이 달라지는데 보는 사람은 이유를 모른다 — 조용한 골대 이동이다.
+       (2026-11-18) 이 칸은 '자세히 보기' 안에 접히므로, 언제나 보이는
+       '정직한 한계' 맨 위에도 같은 항목을 싣는다(아래 #limits). */
     (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+
     '<li><b>본 계좌와 완전히 분리</b>돼 있습니다. 자기 장부만 쓰고, 여기 숫자는 '+
       '100만 챌린지 판단에 쓰이지 않습니다.</li>'+
@@ -584,9 +586,13 @@ fetch("futures.json").then(function(r){return r.ok?r.json():null;}).then(functio
   }
 
   /* ── 한계 ── */
+  /* 규칙이 바뀐 날을 **맨 위에** 적는다 — 안 적으면 곡선의 한 지점부터 성격이
+     달라지는데 보는 사람은 이유를 모른다(조용한 골대 이동). '정직한 한계'는 언제나
+     보이는 칸이라 여기 둔다 — '자세히 보기' 안에 두면 접힌다(코인 단타와 같은 자리). */
   document.getElementById("limits").innerHTML=
-    (d.limits||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join("")
-    ||'<li class="sub">—</li>';
+    (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+
+    ((d.limits||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join("")
+     ||'<li class="sub">—</li>');
 }).catch(function(){
   document.getElementById("sum").innerHTML=
     '<span class="err">기록을 불러오지 못했습니다.</span>';

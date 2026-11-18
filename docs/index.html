@@ -995,7 +995,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
                '</div></div>'
             :'')+
         '</div>'+
-        /* 지금 기계가 고른 방식 · 다음 공식 판정 (2026-11-18) — 트랙 페이지 셋의
+        /* 기계가 고른 방식 · 다음 공식 판정 (2026-11-18) — 트랙 페이지 셋의
            '한눈에'(assets/glance.js)와 같은 두 줄. 네 페이지가 같은 질문에 같은
            자리에서 답한다. 값은 장부(status.json)에서만 읽는다. */
         (function(){
@@ -1003,7 +1003,7 @@ fetch("status.json").then(r=>r.ok?r.json():null).then(st=>{
           const ex=((st.prereg||{}).experiments||{}).trend_core_live||{};
           let h='';
           if(es.active_label)
-            h+='<div class="sub" style="margin-top:12px"><span class="gk">지금 기계가 고른 방식</span> '+
+            h+='<div class="sub" style="margin-top:12px"><span class="gk">기계가 고른 방식</span> '+
                '<b>'+esc(es.active_label)+'</b></div>'+
                '<div class="sub" style="font-size:11.5px">기계가 최근 성적을 견줘 방식을 고릅니다 — 우연이 아닐 만큼 앞서야 바꿉니다.</div>';
           if(ex.judge_on)

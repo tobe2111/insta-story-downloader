@@ -8,7 +8,7 @@
    카드(assets/glance.js)다 — 다른 설명이 그 앞에 끼지 않는다.
 2. 그 아래 보이는 칸의 순서가 같다: 지금 들고 있는 것 → 최근 체결 → 종목별 손익 →
    자산 곡선. 실험 세부는 '자세히 보기'(.adv) 안에 있고, 정직한 한계는 언제나 보인다.
-3. 100만 챌린지의 '한눈에'도 같은 두 줄(지금 기계가 고른 방식 · 다음 공식 판정)을 싣는다.
+3. 100만 챌린지의 '한눈에'도 같은 두 줄(기계가 고른 방식 · 다음 공식 판정)을 싣는다.
 4. glance.js의 한국어 조각은 전부 영어 사전에 있다(트랙 페이지는 완역 대상이다).
 """
 import re
@@ -56,7 +56,7 @@ def test_visible_sections_follow_the_same_order():
 
 def test_the_main_page_glance_answers_the_same_two_questions():
     html = (DOCS / "index.html").read_text("utf-8")
-    for label in ("지금 기계가 고른 방식", "다음 공식 판정"):
+    for label in ("기계가 고른 방식", "다음 공식 판정"):
         assert label in html
 
 
