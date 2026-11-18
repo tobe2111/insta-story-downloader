@@ -1,47 +1,9 @@
 {
-  "cash": 7823.97678943267,
+  "cash": 8674.142134651525,
   "start_cash": 10000.0,
   "currency": "USDT",
-  "positions": {
-    "XRP/USDT": 887.2889839332317
-  },
+  "positions": {},
   "rounds": [
-    {
-      "time": "2026-11-01T09:33:43+09:00",
-      "equity": 9132.16,
-      "signals": {
-        "BTC/USDT": 0.0,
-        "ETH/USDT": 0.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 0.0,
-        "XRP/USDT": 0.0
-      },
-      "bar_times": {
-        "BTC/USDT": "2026-10-31 23:00:00",
-        "ETH/USDT": "2026-10-31 23:00:00",
-        "SOL/USDT": "2026-10-31 23:00:00",
-        "BNB/USDT": "2026-10-31 23:00:00",
-        "XRP/USDT": "2026-10-31 23:00:00"
-      },
-      "trades": [],
-      "kill_switch": {
-        "drawdown": -0.1602,
-        "scale": 0.5
-      },
-      "limit_shadow": {
-        "equity": 9359.0,
-        "filled": 0,
-        "cancelled": 1,
-        "pending": 1
-      },
-      "conviction_scale": {
-        "BTC/USDT": 1.0,
-        "ETH/USDT": 1.0,
-        "SOL/USDT": 1.0,
-        "BNB/USDT": 1.0,
-        "XRP/USDT": 3.0
-      }
-    },
     {
       "time": "2026-11-01T09:46:09+09:00",
       "equity": 9132.16,
@@ -67835,15 +67797,55 @@
         "cancelled": 0,
         "pending": 0
       }
+    },
+    {
+      "time": "2026-11-19T08:06:55+09:00",
+      "equity": 8674.14,
+      "signals": {
+        "BTC/USDT": 0.0,
+        "ETH/USDT": 0.0,
+        "SOL/USDT": 0.0,
+        "BNB/USDT": 0.0,
+        "XRP/USDT": 0.0
+      },
+      "bar_times": {
+        "BTC/USDT": "2026-11-18 22:00:00",
+        "ETH/USDT": "2026-11-18 22:00:00",
+        "SOL/USDT": "2026-11-18 22:00:00",
+        "BNB/USDT": "2026-11-18 22:00:00",
+        "XRP/USDT": "2026-11-18 22:00:00"
+      },
+      "trades": [
+        {
+          "symbol": "XRP/USDT",
+          "side": "sell",
+          "notional": -851.44,
+          "price": 0.9596,
+          "cost": 1.2772,
+          "signal": 0.0,
+          "realized_pnl": -22.5721,
+          "avg_cost": 0.9836
+        }
+      ],
+      "kill_switch": {
+        "drawdown": -0.2022,
+        "scale": 0.5
+      },
+      "limit_shadow": {
+        "equity": 8685.47,
+        "filled": 0,
+        "cancelled": 0,
+        "pending": 1
+      }
     }
   ],
-  "cost_paid": 848.2731759918664,
+  "cost_paid": 849.5503397553399,
   "last_prices": {
-    "BTC/USDT": 62353.7,
-    "ETH/USDT": 1764.88,
-    "SOL/USDT": 72.96,
+    "BTC/USDT": 62250.6,
+    "ETH/USDT": 1757.55,
+    "SOL/USDT": 72.56,
     "BNB/USDT": 577.02,
-    "XRP/USDT": 0.9669
+    "XRP/USDT": 0.9596
   },
   "first_prices": {
     "BTC/USDT": 64235.4,
@@ -67854,9 +67856,7 @@
   },
   "peak_equity": 10874.704134523268,
   "risk_scale": 0.5,
-  "avg_cost": {
-    "XRP/USDT": 0.9836
-  },
+  "avg_cost": {},
   "operated": {
     "since": "2026-08-18",
     "start_cash": 10000.0,
@@ -67917,13 +67917,6 @@
       }
     ],
     "history": [
-      {
-        "time": "2026-11-15T20:05:56+09:00",
-        "equity": 8088.05,
-        "mode": "hold",
-        "trades": 0,
-        "cost": 0
-      },
       {
         "time": "2026-11-15T20:18:08+09:00",
         "equity": 8088.05,
@@ -70716,14 +70709,21 @@
         "mode": "hold",
         "trades": 0,
         "cost": 0
+      },
+      {
+        "time": "2026-11-19T08:06:55+09:00",
+        "equity": 8088.05,
+        "mode": "hold",
+        "trades": 0,
+        "cost": 0
       }
     ],
     "last_prices": {
-      "BTC/USDT": 62353.7,
-      "ETH/USDT": 1764.88,
-      "SOL/USDT": 72.96,
+      "BTC/USDT": 62250.6,
+      "ETH/USDT": 1757.55,
+      "SOL/USDT": 72.56,
       "BNB/USDT": 577.02,
-      "XRP/USDT": 0.9669
+      "XRP/USDT": 0.9596
     },
     "inherited_from_experiment": "2026-10-11",
     "equity_daily": {
@@ -71175,7 +71175,14 @@
       "BTC/USDT": 6.548494239401459e-08,
       "BNB/USDT": 2.968155187632604e-06
     },
-    "pending": {},
+    "pending": {
+      "XRP/USDT": {
+        "side": "sell",
+        "limit": 0.9596,
+        "notional": 852.26,
+        "placed_bar": "2026-11-18 22:00:00"
+      }
+    },
     "cost_paid": 20.231878687920265,
     "filled_total": 40,
     "unfilled_total": 144
