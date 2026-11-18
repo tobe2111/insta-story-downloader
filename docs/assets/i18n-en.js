@@ -611,6 +611,10 @@
         "Equal amount · 50% volatility cap · with bear-market assets",
       "상대 강세 · 하락장 자산 포함":
         "Relative strength · with bear-market assets",
+      "기관식 최적화 · 80%만 담기":
+        "Institutional optimisation · 80% invested",
+      "기관식 최적화 · 60%만 담기":
+        "Institutional optimisation · 60% invested",
       "자동 변이": "Auto mutation",
       "이번 주 기계가 지금 엔진 주변에서 만든 후보": "Candidates the machine made around the current engine this week",
       "지금까지 만든 변이": "Mutations made so far",

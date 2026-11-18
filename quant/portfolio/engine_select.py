@@ -167,6 +167,19 @@ CANDIDATES.update({
     "xs12h": {"kind": "xs", "variant": "risk12", "universe": "hedge"},
 })
 
+# ── 감사 385 — 사장님(2026-11-17): "모두 이상적으로"(위험 한도 판단을 맡김).
+# 위험 한도(낙폭 −20%)는 **그대로 둔다** — 한도를 결과를 보고 풀면 그 자체가 과최적화다.
+# 대신 위험 대비 성적이 가장 높은 엔진을 **덜 담아** 한도 안에 들어오게 한 후보를 세운다.
+# 남는 몫은 현금이다(이자 0으로 센다 — 보수적). 빚을 못 내는 계좌에서 위험을 줄이는
+# 유일한 정직한 방법이고, 샤프가 같으므로 같은 낙폭에서 더 버는 쪽이 이긴다.
+# ⚠️ 결과(mvo12 샤프 1.40 · 낙폭 −25%)를 본 뒤 사람이 고른 후보다 — 시도 장부에 센다.
+#    배율은 고정 사다리(0.8 · 0.6)이지 맞춘 값이 아니다. 배율 자체도 변이 축이다
+#    (`MUTATION_AXES["scale"]`) — 이후로는 기계가 흔든다.
+CANDIDATES.update({
+    "mvo12s80": {"kind": "mvo", "variant": "risk12", "scale": 0.8},
+    "mvo12s60": {"kind": "mvo", "variant": "risk12", "scale": 0.6},
+})
+
 #: 감사 343 ③ — 하나만 고르지 않고 **최근 상위 둘을 반씩** 담는 후보. 다른
 #: 후보들의 결과로 만들어지므로 `CANDIDATES`가 아니라 따로 둔다.
 TOP2 = "top2"
@@ -199,6 +212,8 @@ LABELS = {
     "risk12h": "위험 균등 · 변동성 12% · 하락장 자산 포함",
     "notional50h": "금액 균등 · 상한 변동성 50% · 하락장 자산 포함",
     "xs12h": "상대 강세 · 하락장 자산 포함",
+    "mvo12s80": "기관식 최적화 · 80%만 담기",
+    "mvo12s60": "기관식 최적화 · 60%만 담기",
 }
 
 #: 넓은 목록의 추가 종목 — 규칙으로 고른 ETF(감사 336). 40종목과 겹치는 것은
@@ -242,8 +257,17 @@ def candidate_config(name: str) -> T.TrendConfig:
         cfg = T.TrendConfig(**{**cfg.__dict__, "rebalance": spec["rebalance"]})
     if spec.get("overrides"):
         # 감사 368 — 자동 변이 후보는 기반 후보의 설정 위에 손잡이 하나를 얹는다.
-        cfg = T.TrendConfig(**{**cfg.__dict__, **spec["overrides"]})
+        ov = {k: v for k, v in spec["overrides"].items() if k != "scale"}
+        cfg = T.TrendConfig(**{**cfg.__dict__, **ov})
+    # 장부(JSON)에서 읽으면 목록이 된다 — 같은 설정이 다른 열쇠가 되지 않게.
+    cfg.lookbacks = tuple(cfg.lookbacks)
     return cfg
+
+
+def scale_of(name: str) -> float:
+    """담는 비율(감사 385) — 1이면 전부, 0.6이면 60%만 담고 나머지는 현금."""
+    spec = CANDIDATES.get(name, {})
+    return float((spec.get("overrides") or {}).get("scale", spec.get("scale", 1.0)))
 
 
 def hold_weights(closes: pd.DataFrame) -> pd.DataFrame:
@@ -303,6 +327,8 @@ def candidate_targets(closes: pd.DataFrame, name: str, core_keys=None
         tgt = T.target_weights(sub, cfg)
     if spec.get("filter") == "market":
         tgt = tgt.mul(market_filter(closes), axis=0)
+    if scale_of(name) != 1.0:
+        tgt = tgt * scale_of(name)
     return tgt.reindex(columns=closes.columns, fill_value=0.0), cfg
 
 
@@ -334,13 +360,17 @@ MUTATION_AXES = {
     "band": (0.01, 0.02, 0.04),
     "rebalance": ("W-FRI", "M"),
     "vol_ref": (0.30, 0.50, 0.80),
+    # 감사 385 — 담는 비율(나머지 현금)과 추세를 보는 기간(빠른 추세).
+    "scale": (0.6, 0.8, 1.0),
+    "lookbacks": ((10, 21, 63, 126), (21, 63, 126, 252)),
 }
 #: 종류마다 움직일 수 있는 손잡이 — 그 종류의 계산이 실제로 읽는 것만.
 AXES_BY_KIND = {
-    "trend": ("target_vol", "asset_cap", "band", "rebalance", "vol_ref"),
-    "xs": ("target_vol", "asset_cap", "band", "rebalance"),
-    "blend": ("target_vol", "asset_cap", "band", "rebalance"),
-    "mvo": ("target_vol", "asset_cap", "band", "rebalance"),
+    "trend": ("target_vol", "asset_cap", "band", "rebalance", "vol_ref",
+              "scale", "lookbacks"),
+    "xs": ("target_vol", "asset_cap", "band", "rebalance", "scale"),
+    "blend": ("target_vol", "asset_cap", "band", "rebalance", "scale", "lookbacks"),
+    "mvo": ("target_vol", "asset_cap", "band", "rebalance", "scale", "lookbacks"),
 }
 N_MUTANTS = 2
 MUTANT_PREFIX = "mut-"
@@ -382,8 +412,11 @@ def available_on(names, day) -> list:
     return [n for n in names if (born_of(n) is None or born_of(n) <= day)]
 
 
-def _cfg_value(cfg: T.TrendConfig, axis: str):
-    return getattr(cfg, axis)
+def _cfg_value(cfg: T.TrendConfig, axis: str, name: str | None = None):
+    if axis == "scale":
+        return scale_of(name) if name else 1.0
+    v = getattr(cfg, axis)
+    return tuple(v) if axis == "lookbacks" else v
 
 
 def _step(values: tuple, cur, rng) -> object:
@@ -408,9 +441,12 @@ def _mutant_name(spec: dict) -> str:
 
 
 def config_key(name) -> str:
-    """하는 일로 견주는 열쇠 — 설정 전부 + 목록 + 종류(이름·라벨·태어난 날은 뺀다)."""
+    """하는 일로 견주는 열쇠 — 설정 전부 + 목록 + 종류 + 담는 비율 + 필터
+    (이름·라벨·태어난 날은 뺀다)."""
+    spec = CANDIDATES[name]
     return (json.dumps(candidate_config(name).__dict__, sort_keys=True, default=str)
-            + str(universe_of(name)) + CANDIDATES[name]["kind"])
+            + str(universe_of(name)) + spec["kind"]
+            + f"|scale={scale_of(name)}|filter={spec.get('filter')}")
 
 
 def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
@@ -442,12 +478,15 @@ def mutate_engine(base: str, seed: str, n: int = N_MUTANTS,
     while len(out) < n and tries < 40:
         tries += 1
         axis = rng.choice(axes)
-        cur = _cfg_value(cfg0, axis)
+        cur = _cfg_value(cfg0, axis, base)
         new = _step(MUTATION_AXES[axis], cur, rng)
         if new == cur:
             continue
         overrides = {**(spec0.get("overrides") or {}), axis: new}
-        spec = {k: v for k, v in spec0.items() if k not in ("label", "overrides")}
+        if spec0.get("scale") is not None and "scale" not in overrides:
+            overrides["scale"] = spec0["scale"]
+        spec = {k: v for k, v in spec0.items()
+                if k not in ("label", "overrides", "scale")}
         spec["overrides"] = overrides
         spec["parent"] = base
         CANDIDATES["__probe__"] = spec
