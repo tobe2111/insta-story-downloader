@@ -2,7 +2,7 @@
   "cash": 10009.883413516043,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-11-17 00:00:00",
+  "last_bar": "2026-11-18 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2852,11 +2852,62 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-18",
+      "price": 341.19000244140625,
+      "weight": 0.0094,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 10009.88,
+      "return_pct": 0.1,
+      "hit_rate": 0.5740740740740741,
+      "hit_n": 108,
+      "hit_lo": 0.4798501364705287,
+      "hit_hi": 0.6632093333510761,
+      "hit_conclusive": false,
+      "live_hit": 0.4864864864864865,
+      "live_hit_n": 37,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "calibrate": "sigmoid"
+      },
+      "reason": "소액 매수 +0.9% — 로지스틱회귀 모델이 내일 상승확률을 약 50%로 추정(기준 55% 초과) · 최근 변동성이 커서 위험 조절이 비중을 낮게 잡음 · 참고: 전 종목 합산으로 모델이 50%±10%p라 말한 505번의 실제 상승 비율 52% (95% 신뢰구간 48%~57% · 보합 3일 포함 · 봉이 빠진 117번은 제외 · 이 종목 단독 표본은 4번으로 축적 중) · 🏛 의회 운용: ml 39% + fomc_drift 39% + ml 23% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 346.309998,
+        "bar": "2026-11-18 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-11-17 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50c57131b69e",
+      "data_sha256": "e037fa2839b64c4366351fb30a8fe547393cd56186e008ac0c6be5e35cb214e2",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.49542053387964685,
+      "drift_psi": 0.4969,
+      "drift_grade": "드리프트",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-11-17 00:00:00"
+    "weight": 0.0094,
+    "decided_bar": "2026-11-18 00:00:00"
   },
   "market": "us_stock",
   "symbol": "GLD",

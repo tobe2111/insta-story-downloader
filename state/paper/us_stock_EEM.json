@@ -2,7 +2,7 @@
   "cash": 9256.97366516642,
   "quantity": 6.201933932856461,
   "avg_price": 60.756902743891175,
-  "last_bar": "2026-11-17 00:00:00",
+  "last_bar": "2026-11-18 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -3045,11 +3045,64 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4305
+    },
+    {
+      "date": "2026-11-18",
+      "price": 57.880001068115234,
+      "weight": 0.1629,
+      "held_weight": 0.0373,
+      "fractional_lot": false,
+      "equity": 9615.94,
+      "return_pct": -3.84,
+      "hit_rate": 0.512,
+      "hit_n": 125,
+      "hit_lo": 0.42532911748262675,
+      "hit_hi": 0.5979552875542559,
+      "hit_conclusive": false,
+      "live_hit": 0.4444444444444444,
+      "live_hit_n": 54,
+      "live_hit_flat": 0,
+      "hit_flat": 0,
+      "champion": {
+        "model": "logreg",
+        "threshold": 0.55,
+        "train_window": 250,
+        "retrain_every": 20,
+        "label": "cost",
+        "label_cost": 0.0012
+      },
+      "reason": "매수 +16% — 로지스틱회귀 모델이 내일 상승확률을 약 81%로 추정(기준 55% 초과) · 사이징: 신호 원비중 25% → 변동성 타깃 조절 후 16% · 참고: 전 종목 합산으로 모델이 81%±10%p라 말한 221번의 실제 상승 비율 51% (95% 신뢰구간 45%~58% · 보합 2일 포함 · 봉이 빠진 117번은 제외 · 이 종목 단독 표본은 13번으로 축적 중) · 🏛 의회 운용: ml 39% + ml 34% + ml 27% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 58.279999,
+        "bar": "2026-11-18 00:00:00",
+        "weight": 0.0643,
+        "decided_bar": "2026-11-17 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "50c57131b69e",
+      "data_sha256": "5817e0f675adc464ef5bf8189cbbc197410da675ecec6cc8e35f83cc9f80f20b",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.8067023165958309,
+      "drift_psi": 0.1752,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.5248
     }
   ],
   "pending": {
-    "weight": 0.0643,
-    "decided_bar": "2026-11-17 00:00:00"
+    "weight": 0.1629,
+    "decided_bar": "2026-11-18 00:00:00"
   },
   "market": "us_stock",
   "symbol": "EEM",
