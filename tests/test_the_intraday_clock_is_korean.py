@@ -135,6 +135,8 @@ def _page_text(tmp_path_factory):
             try:
                 pg = b.new_page(viewport={"width": 1440, "height": 900})
                 block_external(pg)
+                # 이 내용은 '자세히 보기' 안에 있다(2026-11-18) — 펼친 화면을 본다.
+                pg.add_init_script("try{localStorage.setItem('quant.detail','1')}catch(e){}")
                 errs = []
                 pg.on("pageerror", lambda e: errs.append(str(e)))
                 pg.goto(f"{url}/intraday.html")

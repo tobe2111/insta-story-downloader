@@ -71,7 +71,7 @@ def test_the_ladder_shares_the_execution_rule():
     src = (ROOT / "quant" / "live" / "intraday_challenger.py").read_text("utf-8")
     body = src.split("def run_ladder", 1)[1].split("\ndef ", 1)[0]
     assert "_execute_targets(" in body, "사다리가 자기만의 체결 규칙을 만들었다"
-    assert "_kill_switch_scale" in body, "사다리 트랙에 브레이크가 없다"
+    assert "kill_switch_step(" in body, "사다리 트랙에 브레이크가 없다"
 
 
 def test_a_ladder_crash_cannot_stop_the_main_round():

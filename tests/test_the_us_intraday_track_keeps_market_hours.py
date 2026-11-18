@@ -112,7 +112,7 @@ def test_the_currency_seal_no_krw_in_this_module():
 def test_the_rules_are_borrowed_not_copied():
     assert "from quant.live.intraday_challenger import" in SRC
     assert "_execute_targets" in SRC, "체결 규칙을 빌려 쓰지 않는다"
-    assert "_kill_switch_scale" in SRC, "킬스위치를 빌려 쓰지 않는다"
+    assert "kill_switch_step(" in SRC, "킬스위치를 빌려 쓰지 않는다"
     assert "def _execute_targets" not in SRC, (
         "체결 규칙을 복사했다 — 두 트랙의 규칙이 갈라질 길을 만들었다")
     assert 'synthetic_fallback' in SRC and 'attrs.get("source")' in SRC, (

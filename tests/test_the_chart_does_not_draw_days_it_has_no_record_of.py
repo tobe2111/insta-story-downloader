@@ -53,6 +53,15 @@ _PIXEL_RUNS = """()=>{
     }
     on.push(v);
   }
+  /* 2픽셀 이하의 틈은 메운다(2026-11-18) — 차트가 넓어지자 선의 시작점에서
+     안티앨리어싱으로 한 칸이 끊겨 한 토막이 둘로 세어졌다. 빈 날은 수십 픽셀
+     폭이라 이 메우기에 안 걸린다(아래 gap_pct가 그 폭을 따로 잰다). */
+  for(let x=1;x<w-1;x++){
+    if(on[x])continue;
+    let k=x; while(k<w&&!on[k])k++;
+    if(k<w&&k-x<=2&&on[x-1]){for(let j=x;j<k;j++)on[j]=true}
+    x=k;
+  }
   let runs=0, prev=false, first=-1, last=-1;
   on.forEach(function(v,x){
     if(v&&!prev)runs++;

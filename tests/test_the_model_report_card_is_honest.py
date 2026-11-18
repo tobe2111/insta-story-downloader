@@ -224,6 +224,8 @@ def _page(tmp_path, ledger: dict) -> str:
         b = pw.chromium.launch(executable_path=chromium_or_skip())
         pg = b.new_page()
         block_external(pg)
+        # 이 내용은 '자세히 보기' 안에 있다(2026-11-18) — 펼친 화면을 본다.
+        pg.add_init_script("try{localStorage.setItem('quant.detail','1')}catch(e){}")
         try:
             pg.goto(f"http://127.0.0.1:{srv.server_address[1]}/ml.html")
             pg.wait_for_timeout(1500)

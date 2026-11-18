@@ -416,6 +416,43 @@
       "숨기지 않습니다": "nothing hidden",
       "자산 곡선": "Equity curve",
       "USDT 기준": "in USDT",
+      "USD 기준": "in USD",
+      // ── 한눈에 카드(트랙 페이지 셋 공통, assets/glance.js — 2026-11-18) ──
+      "지금 (기계가 운용하는 계좌)": "Now (the account the machine runs)",
+      "수수료·미끄러짐 · 위 이익은 이걸 뺀 값": "fees and slippage · the profit above is after these",
+      "기계가 고른 방식": "What the machine has chosen",
+      "기계가 최근 성적을 견줘 방식을 고릅니다 — 우연이 아닐 만큼 앞서야 바꿉니다.":
+        "The machine picks the approach by comparing recent results — it only switches when the lead is too large to be luck.",
+      "이번 시즌 성적": "This season",
+      "비교용 실험 계좌 (규칙대로 계속 사고파는 계좌)":
+        "Comparison experiment account (keeps trading by its registered rules)",
+      "다음 공식 판정": "Next official verdict",
+      "아래 표는 비교용 실험 계좌의 기록입니다": "The tables below are the comparison experiment account's records",
+      "위 큰 숫자(기계가 운용하는 계좌)와 다른 계좌입니다.":
+        "It is a different account from the large number above (the account the machine runs).",
+      "지금은 아무것도 들고 있지 않습니다 (전부 현금)": "It holds nothing right now (all cash)",
+      "손실이 커지면 스스로 물러나는 브레이크가 걸려 있습니다.":
+        "The brake that steps back on its own when losses grow is engaged.",
+      "마지막 갱신": "Last updated",
+      "불러오지 못했습니다.": "Could not load.",
+      "시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준":
+        "season record · operated account detail · experiment detail · verdict criteria",
+      "최근 체결 · 시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준":
+        "recent fills · season record · operated account detail · experiment detail · verdict criteria",
+      "모든 기록은 공개 저장소에 매일 쌓이고, 누구나 직접 확인할 수 있습니다.":
+        "Every record is added to a public repository every day, and anyone can check it themselves.",
+      "판단 방법 · 지금 굴리는 모델 · 확률 표 · 드리프트 · 안전장치 · 13F":
+        "how it decides · models running now · probability table · drift · safety devices · 13F",
+      "재현성 · 스스로를 의심하는 장치 · 관문 · 가동률 · 재출발·기준 변경 기록 · 13F":
+        "reproducibility · self-doubt devices · gates · uptime · restart & rule-change log · 13F",
+      "모델이 지금까지 얼마나 맞혔는지 그대로 보여 줍니다. 나쁜 구간도 지우지 않습니다.":
+        "Shows, as it is, how often the model has been right so far. Bad stretches are not deleted.",
+      "코인 다섯 종목을 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":
+        "Looks at five coins every hour and measures, with play money, whether trading often beats simply holding.",
+      "미국 주식을 장이 열린 시간에만 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":
+        "Looks at US stocks every hour, only while the market is open, and measures, with play money, whether trading often beats simply holding.",
+      "코인 선물로 오를 때뿐 아니라 내릴 때도 걸 수 있는 계좌입니다. 가상 자금이고 최대 3배까지만 겁니다.":
+        "An account that can bet on coins falling as well as rising, through futures. Play money, and never more than 3x.",
       "최근 체결": "Recent fills",
       "종목별 손익": "P&L by symbol",
       "지금 들고 있는 것": "What it holds right now",
@@ -605,6 +642,16 @@
         "Institutional optimisation (combined alpha · risk model)",
       "기관식 최적화 · 넓은 목록":
         "Institutional optimisation · broad list",
+      "위험 균등 · 변동성 12% · 하락장 자산 포함":
+        "Equal risk · 12% volatility · with bear-market assets",
+      "금액 균등 · 상한 변동성 50% · 하락장 자산 포함":
+        "Equal amount · 50% volatility cap · with bear-market assets",
+      "상대 강세 · 하락장 자산 포함":
+        "Relative strength · with bear-market assets",
+      "기관식 최적화 · 80%만 담기":
+        "Institutional optimisation · 80% invested",
+      "기관식 최적화 · 60%만 담기":
+        "Institutional optimisation · 60% invested",
       "자동 변이": "Auto mutation",
       "이번 주 기계가 지금 엔진 주변에서 만든 후보": "Candidates the machine made around the current engine this week",
       "지금까지 만든 변이": "Mutations made so far",
@@ -724,6 +771,10 @@
         "2026-11-10 correction — the three closed tracks reopen as season 2.",
       "사장님 지시로 하루 전에 닫은 코인 단타 · 미국 단타 · 코인 선물 트랙을 다시 엽니다. 1기 성적은 닫은 날의 숫자 그대로 남기고(코인 단타 −11.86% · 미국 단타 −1.50% · 코인 선물 −18.0%), 그 최종 자산을 현금으로 이어받아 2기를 시작합니다 — 누적 성적은 1기에서 끊김 없이 이어집니다. 1기 실험들의 사전 등록 판정은 여전히 내리지 않습니다. 2기는 새 질문이라 새로 등록했습니다: 기계가 단타·그냥 보유(선물은 현금까지) 중에서 고르는 운용 계좌가 수수료를 뺀 뒤 본 계좌보다 더 버는가, 판정일 2027-02-08.":
         "By the owner's instruction, the crypto intraday, US intraday and crypto futures tracks closed a day earlier are reopened. Season 1 results stay as they were on the closing day (crypto intraday −11.86% · US intraday −1.50% · crypto futures −18.0%), and season 2 starts with that final equity carried over as cash — the cumulative record continues unbroken from season 1. The preregistered verdicts of the season 1 experiments are still not issued. Season 2 asks a new question and is newly registered: does the operated account, in which the machine chooses between short-term trading and simply holding (and, for futures, cash), earn more than the main account after fees? Judgement date 2027-02-08.",
+      "2026-11-18 정정 — 손실 한도로 멈춘 계좌가 다시 시작할 수 있게 했습니다.":
+        "2026-11-18 correction — an account stopped by its loss limit can now start again.",
+      "고점 대비 −25%에서 전부 팔고 나면, 옛 규칙의 복귀 조건(손실이 −15% 안쪽으로 회복)은 현금만 든 계좌에서 영원히 채워지지 않았습니다 — 코인 단타 운용 계좌가 11월 15일부터 거래 없이 갇혀 있었습니다. 이제 전부 멈춘 지 7일이 지나면 절반만 다시 사고, 그 순간부터 손실을 새로 잽니다. 다시 산 지점보다 올라서기 전에는 절반을 넘지 않고, 절반으로 다시 −25%를 잃으면 또 멈춥니다. 손실 단계(−15% 절반 · −25% 멈춤)는 그대로입니다. 단타 2기 판정(판정일 2027-02-08)은 기준을 바꾸지 않고, 규칙 전·후 구간을 나눠 함께 공개합니다.":
+        "After selling everything at −25% from the peak, the old re-entry condition (losses recovering to within −15%) could never be met by an account holding only cash — the crypto intraday operated account had been stuck with no trades since November 15. Now, once an account has been fully stopped for 7 days, it buys back at half size and measures losses afresh from that moment. It stays at half until it climbs above that restart point, and if it loses another 25% at half size it stops again. The loss steps (−15% half · −25% stop) are unchanged. The season 2 intraday verdicts (judgement date 2027-02-08) keep their criteria and will publish the periods before and after this rule separately.",
       "닫기 직전 자산":
         "Equity just before closing",
       "닫을 때 들고 있던 금액":
@@ -816,6 +867,8 @@
         "Simply hold coins (equal)",
       "현금(안 한다)":
         "Cash (do nothing)",
+      "추세 양방향(내리면 숏) · 변동성 20%":
+        "Two-sided trend (short when falling) · 20% volatility",
       "2022년 이후 연수익":
         "Since 2022, annual return",
       "2022년 이후 최대낙폭":

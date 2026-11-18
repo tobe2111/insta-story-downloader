@@ -800,6 +800,21 @@ def test_the_page_says_when_the_rule_changed(tmp_path):
         f"그 전에는 1배였다는 사실을 말하지 않는다: {item}")
 
 
+def test_the_rule_change_shows_without_opening_the_details(tmp_path):
+    """규칙 변경은 '자세히 보기'를 안 펼쳐도 보인다 (2026-11-18).
+
+    요약 카드 묶음이 '자세히 보기' 안으로 접히면서 그 안의 규칙 변경 공지도
+    접혔다. 그래서 언제나 보이는 '정직한 한계' 맨 위에도 싣는다.
+    """
+    from quant.live.futures_challenger import LEVERAGE_ENABLED_ON, RULE_CHANGES
+    data = dict(_SAMPLE, rule_changes=list(RULE_CHANGES))
+    v = _render(tmp_path, data)
+    lines = [x.strip() for x in v["한계"].split("\n") if x.strip()]
+    assert any(LEVERAGE_ENABLED_ON in x and "규칙이 바뀌었습니다" in x
+               for x in lines), (
+        f"언제나 보이는 한계 칸이 규칙 변경을 말하지 않는다:\n{v['한계']}")
+
+
 def test_the_report_carries_the_rule_change(tmp_path):
     """**배선** — 화면이 그릴 재료가 리포트에 실린다."""
     from quant.live.futures_challenger import public_report
