@@ -6,8 +6,8 @@
       "slow": 60
     },
     "promotions": 0,
-    "last_run_asof": "2026-11-17",
-    "trials_total": 3661,
+    "last_run_asof": "2026-11-18",
+    "trials_total": 3714,
     "parliament": [
       {
         "strategy": "ma_cross",
@@ -15,8 +15,8 @@
           "fast": 20,
           "slow": 60
         },
-        "weight": 0.6325,
-        "alt_weight": 0.1917
+        "weight": 0.7448,
+        "alt_weight": 0.275
       },
       {
         "strategy": "ml",
@@ -27,20 +27,8 @@
           "retrain_every": 20,
           "pool": "universe"
         },
-        "weight": 0.1878,
-        "alt_weight": 0.1667
-      },
-      {
-        "strategy": "ml",
-        "params": {
-          "model": "gb",
-          "threshold": 0.55,
-          "train_window": 250,
-          "retrain_every": 20,
-          "calibrate": "isotonic"
-        },
-        "weight": 0.1797,
-        "alt_weight": 0.6416
+        "weight": 0.2552,
+        "alt_weight": 0.725
       }
     ]
   },
@@ -52,7 +40,7 @@
     },
     "promoted_at": "2026-08-19",
     "promotions": 1,
-    "trials_total": 3600,
+    "trials_total": 3653,
     "parliament": [
       {
         "strategy": "ma_cross",
@@ -60,8 +48,8 @@
           "fast": 20,
           "slow": 60
         },
-        "weight": 0.648,
-        "alt_weight": 0.3667
+        "weight": 0.6374,
+        "alt_weight": 0.2667
       },
       {
         "strategy": "ml",
@@ -73,19 +61,19 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.1814,
-        "alt_weight": 0.4667
+        "weight": 0.1992,
+        "alt_weight": 0.5666
       },
       {
         "strategy": "bollinger",
         "params": {
           "mode": "squeeze"
         },
-        "weight": 0.1705,
+        "weight": 0.1634,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-11-17"
+    "last_run_asof": "2026-11-18"
   },
   "crypto:SOL/USDT": {
     "strategy": "bollinger",
@@ -93,15 +81,15 @@
       "mode": "squeeze"
     },
     "promotions": 0,
-    "last_run_asof": "2026-11-17",
-    "trials_total": 3415,
+    "last_run_asof": "2026-11-18",
+    "trials_total": 3464,
     "parliament": [
       {
         "strategy": "bollinger",
         "params": {
           "mode": "squeeze"
         },
-        "weight": 0.4618,
+        "weight": 0.4784,
         "alt_weight": 0.4667
       },
       {
@@ -114,13 +102,19 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.332,
+        "weight": 0.3406,
         "alt_weight": 0.3667
       },
       {
-        "strategy": "buy_hold",
-        "params": {},
-        "weight": 0.2062,
+        "strategy": "ml",
+        "params": {
+          "model": "gb",
+          "threshold": 0.55,
+          "train_window": 250,
+          "retrain_every": 20,
+          "pool": "universe"
+        },
+        "weight": 0.181,
         "alt_weight": 0.1667
       }
     ]
@@ -327,7 +321,7 @@
       "slow": 60
     },
     "promotions": 0,
-    "trials_total": 3606,
+    "trials_total": 3659,
     "parliament": [
       {
         "strategy": "ma_cross",
@@ -335,7 +329,7 @@
           "fast": 20,
           "slow": 60
         },
-        "weight": 0.6378,
+        "weight": 0.6377,
         "alt_weight": 0.6666
       },
       {
@@ -344,7 +338,7 @@
           "lookback": 60,
           "top_frac": 0.3
         },
-        "weight": 0.2823,
+        "weight": 0.282,
         "alt_weight": 0.1667
       },
       {
@@ -357,11 +351,11 @@
           "label": "triple",
           "meta": true
         },
-        "weight": 0.0798,
+        "weight": 0.0803,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-11-17"
+    "last_run_asof": "2026-11-18"
   },
   "crypto:XRP/USDT": {
     "strategy": "breakout",
@@ -370,7 +364,7 @@
       "exit_window": 20
     },
     "promotions": 0,
-    "trials_total": 3468,
+    "trials_total": 3521,
     "parliament": [
       {
         "strategy": "breakout",
@@ -378,8 +372,8 @@
           "window": 55,
           "exit_window": 20
         },
-        "weight": 0.3989,
-        "alt_weight": 0.2167
+        "weight": 0.4029,
+        "alt_weight": 0.3667
       },
       {
         "strategy": "ml",
@@ -389,17 +383,17 @@
           "train_window": 250,
           "retrain_every": 20
         },
-        "weight": 0.3772,
-        "alt_weight": 0.6166
+        "weight": 0.3881,
+        "alt_weight": 0.4667
       },
       {
         "strategy": "buy_hold",
         "params": {},
-        "weight": 0.2239,
+        "weight": 0.2091,
         "alt_weight": 0.1667
       }
     ],
-    "last_run_asof": "2026-11-17"
+    "last_run_asof": "2026-11-18"
   },
   "us_stock:MSFT": {
     "strategy": "ml",
