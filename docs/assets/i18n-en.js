@@ -416,6 +416,33 @@
       "숨기지 않습니다": "nothing hidden",
       "자산 곡선": "Equity curve",
       "USDT 기준": "in USDT",
+      "USD 기준": "in USD",
+      // ── 한눈에 카드(트랙 페이지 셋 공통, assets/glance.js — 2026-11-18) ──
+      "지금 (기계가 운용하는 계좌)": "Now (the account the machine runs)",
+      "수수료·미끄러짐 · 위 이익은 이걸 뺀 값": "fees and slippage · the profit above is after these",
+      "지금 기계가 고른 방식": "What the machine has chosen now",
+      "기계가 최근 성적을 견줘 방식을 고릅니다 — 우연이 아닐 만큼 앞서야 바꿉니다.":
+        "The machine picks the approach by comparing recent results — it only switches when the lead is too large to be luck.",
+      "이번 시즌 성적": "This season",
+      "비교용 실험 계좌 (규칙대로 계속 사고파는 계좌)":
+        "Comparison experiment account (keeps trading by its registered rules)",
+      "다음 공식 판정": "Next official verdict",
+      "아래 표는 비교용 실험 계좌의 기록입니다": "The tables below are the comparison experiment account's records",
+      "위 큰 숫자(기계가 운용하는 계좌)와 다른 계좌입니다.":
+        "It is a different account from the large number above (the account the machine runs).",
+      "지금은 아무것도 들고 있지 않습니다 (전부 현금)": "It holds nothing right now (all cash)",
+      "손실이 커지면 스스로 물러나는 브레이크가 걸려 있습니다.":
+        "The brake that steps back on its own when losses grow is engaged.",
+      "마지막 갱신": "Last updated",
+      "불러오지 못했습니다.": "Could not load.",
+      "시즌 기록 · 운용 계좌 상세 · 실험 세부 · 판정 기준":
+        "season record · operated account detail · experiment detail · verdict criteria",
+      "코인 다섯 종목을 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":
+        "Looks at five coins every hour and measures, with play money, whether trading often beats simply holding.",
+      "미국 주식을 장이 열린 시간에만 1시간마다 보고, 자주 사고파는 것이 그냥 들고 있는 것보다 나은지 가상 자금으로 잽니다.":
+        "Looks at US stocks every hour, only while the market is open, and measures, with play money, whether trading often beats simply holding.",
+      "코인 선물로 오를 때뿐 아니라 내릴 때도 걸 수 있는 계좌입니다. 가상 자금이고 최대 3배까지만 겁니다.":
+        "An account that can bet on coins falling as well as rising, through futures. Play money, and never more than 3x.",
       "최근 체결": "Recent fills",
       "종목별 손익": "P&L by symbol",
       "지금 들고 있는 것": "What it holds right now",
