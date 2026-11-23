@@ -2,7 +2,7 @@
   "cash": 9454.048167858518,
   "quantity": 0.0,
   "avg_price": 0.0,
-  "last_bar": "2026-11-20 00:00:00",
+  "last_bar": "2026-11-23 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -2921,11 +2921,60 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-23",
+      "price": 153575.0,
+      "weight": 0.0392,
+      "held_weight": 0.0,
+      "fractional_lot": false,
+      "equity": 9454.05,
+      "return_pct": -5.46,
+      "hit_rate": 0.5753968253968254,
+      "hit_n": 252,
+      "hit_lo": 0.5136857580988785,
+      "hit_hi": 0.6348436444689602,
+      "hit_conclusive": true,
+      "live_hit": 0.3783783783783784,
+      "live_hit_n": 37,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "window": 4,
+        "k1": 0.5,
+        "k2": 0.5
+      },
+      "reason": "관망 (현금) — dual_thrust 전략 신호에 따름 · 🏛 의회 운용: dual_thrust 37% + bollinger 34% + ml 29% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 153115.0,
+        "bar": "2026-11-23 00:00:00",
+        "weight": 0.0,
+        "decided_bar": "2026-11-20 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "db6ef7f4660a",
+      "data_sha256": "9fa8dec2a42554fdb0a56e9a8054d49fe6edcf804d3228a04c9fb707c69c2ffa",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1654,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.0,
-    "decided_bar": "2026-11-20 00:00:00"
+    "weight": 0.0392,
+    "decided_bar": "2026-11-23 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "133690.KS",
