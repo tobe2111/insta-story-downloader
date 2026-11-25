@@ -3,23 +3,25 @@
   "label": "장중 도전자 실험 — 가상 자금 · 실제 돈이 아닙니다",
   "currency": "USDT",
   "start_cash": 10000.0,
-  "equity": 8602.29,
-  "return_pct": -13.9771,
+  "equity": 8601.0,
+  "return_pct": -13.99,
   "gross_return_pct": -4.9853,
-  "cost_paid": 899.18,
+  "cost_paid": 900.47,
   "cost_basis_bp": {
     "kr_stock": 14.0,
     "us_stock": 6.0,
     "crypto": 15.0,
     "kr_stock_etf": 6.5
   },
-  "trades_total": 156,
+  "trades_total": 157,
   "rounds_total": 2000,
-  "since": "2026-11-08T07:18:12+09:00",
-  "last_time": "2026-11-26T04:50:05+09:00",
+  "since": "2026-11-08T07:30:17+09:00",
+  "last_time": "2026-11-26T05:02:14+09:00",
   "booked_interval_minutes": 5,
   "observed_gap_minutes": 489.06666666666666,
-  "positions": {},
+  "positions": {
+    "SOL/USDT": 12.23131867
+  },
   "rule_changes": [
     {
       "on": "2026-08-23",
@@ -27,25 +29,34 @@
       "why": "모델이 상승확률 0.80을 넘은 적이 한 번도 없어, 종목 몫의 10%쯤만 쓰이고 있었습니다. 이 날 이전 회차는 옛 눈금이며 그 기록은 고치지 않았습니다. 크게 굴린다고 더 버는 것은 아니며, 손실도 같은 배로 커집니다."
     }
   ],
-  "holdings": [],
+  "holdings": [
+    {
+      "symbol": "SOL/USDT",
+      "direction": "long",
+      "quantity": 12.2313186682,
+      "avg_cost": 70.33,
+      "last_price": 70.33,
+      "currency": "USDT",
+      "value": 860.2286,
+      "cost": 860.2286,
+      "pnl": 0.0,
+      "pnl_pct": 0.0
+    }
+  ],
   "holdings_total": {
     "pnl": 0.0,
-    "counted": 0,
+    "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 0.0,
-    "pct": 0.0,
-    "cash": 8602.29,
+    "gross": 860.2286,
+    "pct": 10.0015,
+    "cash": 7740.7714,
     "unknown": 0
   },
   "risk_scale": 0.5,
   "last_skipped": {},
   "equity_curve": [
-    [
-      "2026-11-21T18:28:26+09:00",
-      8630.97
-    ],
     [
       "2026-11-21T18:40:34+09:00",
       8630.97
@@ -2041,9 +2052,13 @@
     [
       "2026-11-26T04:50:05+09:00",
       8602.29
+    ],
+    [
+      "2026-11-26T05:02:14+09:00",
+      8601.0
     ]
   ],
-  "hold_return_pct": -8.5238,
+  "hold_return_pct": -7.9904,
   "judgement": {
     "registered_on": "2026-08-18",
     "min_days": 90,
@@ -2063,10 +2078,10 @@
   "limit_shadow": {
     "since": "2026-11-10T09:28:12+09:00",
     "start_equity": 8812.64,
-    "equity": 8629.07,
-    "return_pct_since": -2.083,
-    "cost_paid": 53.11,
-    "filled_total": 131,
+    "equity": 8628.19,
+    "return_pct_since": -2.093,
+    "cost_paid": 53.99,
+    "filled_total": 132,
     "unfilled_total": 501,
     "note": "같은 신호·지정가 체결 복제 계좌 — 슬리피지를 아끼는 대신 미체결 위험을 집니다. 본 실험과의 자산 차이가 체결 방식의 효과입니다."
   },
@@ -2075,7 +2090,7 @@
     "since": "2026-11-10",
     "approved": "2026-11-10 사장님 — \"트랙들 다시 시작하자\"",
     "start_equity": 8813.96,
-    "return_pct": -2.4,
+    "return_pct": -2.42,
     "operated_return_pct": -8.2,
     "previous": [
       {
@@ -2163,37 +2178,28 @@
       "timeframe": "15m",
       "equity": 8216.6,
       "return_pct": -17.834,
-      "hold_return_pct": -8.7885,
+      "hold_return_pct": -8.8738,
       "gross_return_pct": 4.949,
       "trades_total": 838,
       "cost_paid": 2278.3,
       "rounds_total": 4000,
-      "since": "2026-10-14T02:40:25+09:00"
+      "since": "2026-10-14T02:52:27+09:00"
     },
     {
       "timeframe": "5m",
       "equity": 7591.88,
       "return_pct": -24.0812,
-      "hold_return_pct": -8.793,
+      "hold_return_pct": -8.8738,
       "gross_return_pct": 1.9294,
       "trades_total": 560,
       "cost_paid": 2601.06,
       "rounds_total": 4000,
-      "since": "2026-10-21T23:37:05+09:00"
+      "since": "2026-10-21T23:49:38+09:00"
     }
   ],
   "ladder_note": "주기별 트랙은 같은 전략·같은 체결 규칙에 봉 주기만 다릅니다. 트랙 수가 늘면 우연히 좋아 보이는 주기가 나올 확률도 늘어납니다 — 판정은 본 실험(1시간)의 90일 기준만 유효하고, 사다리는 참고 진단입니다.",
   "elapsed_days": 17.9,
   "recent_trades": [
-    {
-      "time": "2026-11-22T19:10:10+09:00",
-      "symbol": "BTC/USDT",
-      "side": "buy",
-      "notional": 862.69,
-      "price": 61126.0,
-      "cost": 1.294,
-      "signal": 1.0
-    },
     {
       "time": "2026-11-22T22:00:40+09:00",
       "symbol": "BNB/USDT",
@@ -2584,6 +2590,15 @@
       "signal": 0.0,
       "realized_pnl": 13.9415,
       "avg_cost": 0.912652
+    },
+    {
+      "time": "2026-11-26T05:02:14+09:00",
+      "symbol": "SOL/USDT",
+      "side": "buy",
+      "notional": 860.23,
+      "price": 70.33,
+      "cost": 1.2903,
+      "signal": 1.0
     }
   ],
   "honest_limits": [
@@ -2596,9 +2611,9 @@
   "rule": "본 계좌 챔피언과 같은 규칙·같은 비용 모델을 1시간봉에 적용 — 빈도의 효과만 분리해 잽니다",
   "krw": {
     "rate": 1341.02,
-    "equity": 11535843.0,
+    "equity": 11534113.0,
     "start_cash": 13410200.0,
-    "pnl": -1874357.0,
+    "pnl": -1876087.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
