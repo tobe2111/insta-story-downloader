@@ -381,20 +381,17 @@ def _judge_symbols(syms: list[str], now_iso: str, timeframe: str,
 
 
 def _advance_account(st: dict, syms: list[str], prices: dict, signals: dict,
-                     per_side: float) -> tuple[float, list]:
+                     per_side: float, now_iso: str) -> tuple[float, list]:
     """평가 → 킬스위치(대여) → 체결(대여) — 코인 트랙과 같은 순서·같은 함수."""
-    from quant.live.daily import _kill_switch_scale
+    from quant.live.daily import kill_switch_step
     from quant.live.intraday_challenger import _execute_targets, mark_equity
-    from quant.live.ledger_basics import drawdown_from_index
 
     equity = mark_equity(st, prices)
     if prices and not st.get("first_prices"):
         st["first_prices"] = dict(prices)
     peak = max(float(st.get("peak_equity") or 0.0), equity)
     st["peak_equity"] = peak
-    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
-    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
-    st["risk_scale"] = scale
+    scale, _dd = kill_switch_step(st, equity, peak, now_iso)
     trades = _execute_targets(st, signals, prices, equity, scale, per_side,
                               universe=syms)
     last = dict(st.get("last_prices") or {})
@@ -468,7 +465,7 @@ def run_us_round(now_iso: str, *, state_dir: str = "state",
         return {"skipped": "같은 봉 재실행", "time": str(now_iso)}
 
     equity_after, trades = _advance_account(st, syms, prices, signals,
-                                            per_side)
+                                            per_side, now_iso)
     # 지정가 그림자 — 같은 신호, 다른 체결(코인 트랙과 **같은 함수**).
     # 주식은 호가 간격이 코인과 달라 '기다리는 체결'의 값이 다를 수 있다.
     # 실패해도 본 실험을 막지 않는다 — 부르는 쪽이 예외를 삼킨다.
@@ -580,7 +577,7 @@ def run_us_ladder(now_iso: str, *, state_dir: str = "state",
             out.append({"timeframe": tf, "skipped": "같은 봉 재실행"})
             continue
         equity_after, trades = _advance_account(st, syms, prices, signals,
-                                                per_side)
+                                                per_side, now_iso)
         rec = {"time": str(now_iso), "equity": round(equity_after, 2),
                "bar_times": bar_times, "trades": trades}
         st["rounds"] = (st.get("rounds") or [])[-(LADDER_ROUNDS_KEEP - 1):] \

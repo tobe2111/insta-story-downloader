@@ -109,10 +109,25 @@ MUTATIONS = [
     #    킬스위치 검사가 셋이나 있었지만 전부 `_kill_switch_scale`을 순수
     #    함수로 부르거나 소스 문자열을 볼 뿐, "낙폭이 커지면 노출이 준다"를
     #    확인하지 않았다. 부품 검사와 배선 검사는 다른 것이다.
+    ("멈춘 계좌가 다시 시작하지 못한다(현금만 들면 낙폭이 영원히 −25%에 머문다)",
+     "quant/live/daily.py",
+     "        if (now - s0) >= pd.Timedelta(days=KILL_SWITCH_COOLDOWN_DAYS):",
+     "        if False:",
+     "tests/test_a_stopped_account_can_start_again.py"),
+    ("다시 산 순간을 새 출발점으로 안 삼는다(옛 고점으로 재서 곧바로 또 멈춘다)",
+     "quant/live/daily.py",
+     "    if ks.get(\"since\"):\n        peak = max(",
+     "    if False:\n        peak = max(",
+     "tests/test_a_stopped_account_can_start_again.py"),
+    ("수습 기간 없이 다시 산 날 전액으로 간다",
+     "quant/live/daily.py",
+     "            scale = min(scale, 0.5)",
+     "            scale = scale",
+     "tests/test_a_stopped_account_can_start_again.py"),
     ("킬스위치 단계 축소를 무효화한다(낙폭에도 노출 유지)",
      "quant/live/daily.py",
-     "    risk_scale = _kill_switch_scale(float(st.get(\"risk_scale\", 1.0)), drawdown)",
-     "    risk_scale = 1.0",
+     "    risk_scale, drawdown = kill_switch_step(\n",
+     "    risk_scale, drawdown = 1.0, drawdown; (\n",
      "tests/test_killswitch_is_wired_to_the_brake.py"),
 
     # 이 항목도 처음엔 test_license_gate.py를 가리켜 통과했다. 전체로
@@ -5734,10 +5749,10 @@ MUTATIONS = [
 
     ("실험 계좌의 킬스위치를 뗀다(폭락장에서 실험이 본 계좌와 다른 조건으로 달린다)",
      "quant/live/intraday_challenger.py",
-     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
-     '    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)',
-     '    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0\n'
-     "    scale = 1.0",
+     '    # 실제로 이 자리를 잡아냈다. 위기 재생 때와 같은 실수, 같은 교훈).\n'
+     '    scale, dd = kill_switch_step(st, equity, peak, now_iso)',
+     '    # 실제로 이 자리를 잡아냈다. 위기 재생 때와 같은 실수, 같은 교훈).\n'
+     "    scale, dd = 1.0, 0.0",
      "tests/test_the_intraday_challenger_stays_in_its_lane.py"),
 
     # ── 조종석 로그인 — 잠근다고 말했으면 실제로 잠겨야 한다 (2026-08-18) ──
@@ -7502,7 +7517,7 @@ MUTATIONS = [
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
     ('보유·현금 줄을 통째로 뺀다(지금 뭘 들고 있는지가 첫 화면에서 사라진다)',
      'docs/index.html',
-     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b> — '+",
+     "            '종목 <b>'+won(heldVal)+'</b> · 현금 <b>'+won(cashVal)+'</b>'+",
      "            ''+",
      'tests/test_the_glance_shows_the_situation_not_an_essay.py'),
 
@@ -7731,6 +7746,11 @@ MUTATIONS = [
      'docs/futures.html',
      '    (window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+',
      '    ""+',
+     'tests/test_the_short_side_is_really_a_short.py'),
+    ('언제나 보이는 한계 칸에서 규칙 변경을 뺀다(자세히 보기를 안 펼치면 못 본다)',
+     'docs/futures.html',
+     '    /*limits-rule*/(window.QuantTrades?QuantTrades.ruleChangeItems(d.rule_changes):"")+',
+     '    /*limits-rule*/""+',
      'tests/test_the_short_side_is_really_a_short.py'),
     ('화면에서 배율 설명을 통째로 지운다(매일 최대치를 태우는 것으로 읽힌다)',
      'docs/futures.html',

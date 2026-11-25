@@ -403,15 +403,12 @@ def run_intraday_round(now_iso: str, *, state_dir: str = "state",
     # 실전과 같은 킬스위치를 **빌려** 건다(FROZEN_IDEAS ①) — 브레이크 없는
     # 실험 계좌는 폭락장에서 본 계좌와 다른 조건으로 달리게 되고, 그러면
     # 성적 차이가 '빈도의 효과'가 아니라 '브레이크 유무의 효과'가 된다.
-    from quant.live.daily import _kill_switch_scale
-    from quant.live.ledger_basics import drawdown_from_index
+    from quant.live.daily import kill_switch_step
     peak = max(float(st.get("peak_equity") or 0.0), equity)
     st["peak_equity"] = peak
-    # 낙폭도 공용 헬퍼로 잰다 — 직접 적으면 언젠가 실전과 갈라진다(감사가
+    # 낙폭·복귀는 공용 한 곳에서 잰다 — 직접 적으면 언젠가 실전과 갈라진다(감사가
     # 실제로 이 자리를 잡아냈다. 위기 재생 때와 같은 실수, 같은 교훈).
-    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
-    scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
-    st["risk_scale"] = scale
+    scale, dd = kill_switch_step(st, equity, peak, now_iso)
 
     trades = _execute_targets(st, signals, prices, equity, scale, per_side)
 
@@ -664,7 +661,7 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
     회차 기록(시각)이 그대로 말한다(숨기지 않는다).
     """
     from quant.live.conviction import recalibrate, spec_of
-    from quant.live.daily import _kill_switch_scale, measured_cost_model
+    from quant.live.daily import kill_switch_step, measured_cost_model
     from quant.live.ledger_basics import drawdown_from_index
     from quant.utils.jsonio import atomic_write_json
 
@@ -714,9 +711,7 @@ def run_ladder(now_iso: str, *, state_dir: str = "state",
             st["first_prices"] = dict(prices)
         peak = max(float(st.get("peak_equity") or 0.0), equity)
         st["peak_equity"] = peak
-        dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
-        scale = _kill_switch_scale(float(st.get("risk_scale", 1.0)), dd)
-        st["risk_scale"] = scale
+        scale, dd = kill_switch_step(st, equity, peak, now_iso)
         trades = _execute_targets(st, signals, prices, equity, scale, per_side)
         equity_after = mark_equity(st, prices)
         # 마지막으로 본 가격 — 운용 계좌가 이 트랙을 따라갈 때 그 값으로 산다

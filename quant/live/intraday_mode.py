@@ -374,16 +374,13 @@ def advance(op: dict, *, mode_signals: dict, prices: dict, per_side: float,
             universe: list[str], now_iso: str,
             tracks: dict | None = None) -> dict:
     """운용 계좌 한 회차 — 실험 계좌와 **같은 체결 함수·같은 킬스위치**."""
-    from quant.live.daily import _kill_switch_scale
+    from quant.live.daily import kill_switch_step
     from quant.live.intraday_challenger import _execute_targets, mark_equity
-    from quant.live.ledger_basics import drawdown_from_index
 
     equity = mark_equity(op, prices)
     peak = max(float(op.get("peak_equity") or 0.0), equity)
     op["peak_equity"] = peak
-    dd = drawdown_from_index([peak, equity]) if peak > 0 else 0.0
-    scale = _kill_switch_scale(float(op.get("risk_scale", 1.0)), dd)
-    op["risk_scale"] = scale
+    scale, _dd = kill_switch_step(op, equity, peak, now_iso)
     mode = op.get("mode")
     track = (tracks or {}).get(mode)
     if mode == "hold":
