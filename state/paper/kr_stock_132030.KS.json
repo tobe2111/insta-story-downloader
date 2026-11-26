@@ -2,7 +2,7 @@
   "cash": 8407.558021329756,
   "quantity": 0.06153645483767134,
   "avg_price": 21540.0,
-  "last_bar": "2026-11-25 00:00:00",
+  "last_bar": "2026-11-26 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -3175,11 +3175,59 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-26",
+      "price": 19915.0,
+      "weight": 0.1795,
+      "held_weight": 0.1272,
+      "fractional_lot": true,
+      "equity": 9633.06,
+      "return_pct": -3.67,
+      "hit_rate": 0.5472636815920398,
+      "hit_n": 201,
+      "hit_lo": 0.4782055101074435,
+      "hit_hi": 0.6145490866150972,
+      "hit_conclusive": false,
+      "live_hit": 0.40540540540540543,
+      "live_hit_n": 37,
+      "live_hit_flat": 0,
+      "hit_flat": 2,
+      "champion": {
+        "lookback": 20,
+        "top_frac": 0.3
+      },
+      "reason": "매수 +18% — cross_rank 전략 신호에 따름 · 🏛 의회 운용: cross_rank 48% + ml 27% + expiry_week 25% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 19925.0,
+        "bar": "2026-11-26 00:00:00",
+        "weight": 0.1215,
+        "decided_bar": "2026-11-25 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "390fac93210e",
+      "data_sha256": "11526f8bf4c62538431aa9d4bc93b1e1dd23c79ceef34c512e4dc211ac9c6d8b",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.1823,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
-    "weight": 0.1215,
-    "decided_bar": "2026-11-25 00:00:00"
+    "weight": 0.1795,
+    "decided_bar": "2026-11-26 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "132030.KS",

@@ -2,7 +2,7 @@
   "cash": 7675.063851333152,
   "quantity": 0.02263500114252913,
   "avg_price": 111400.0,
-  "last_bar": "2026-11-25 00:00:00",
+  "last_bar": "2026-11-26 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -3220,11 +3220,59 @@
       "kelly_cap": 0.25,
       "bar_partial": null,
       "data_source": "yfinance"
+    },
+    {
+      "date": "2026-11-26",
+      "price": 113900.0,
+      "weight": 0.25,
+      "held_weight": 0.2514,
+      "fractional_lot": true,
+      "equity": 10253.19,
+      "return_pct": 2.53,
+      "hit_rate": 0.5063291139240507,
+      "hit_n": 395,
+      "hit_lo": 0.45720093972703285,
+      "hit_hi": 0.5553353654126517,
+      "hit_conclusive": false,
+      "live_hit": 0.7368421052631579,
+      "live_hit_n": 38,
+      "live_hit_flat": 0,
+      "hit_flat": 4,
+      "champion": {
+        "fast": 20,
+        "slow": 60
+      },
+      "reason": "매수 +25% — 이동평균 교차: 20일선이 60일선 위 (상승 추세 지속 판단) · 🏛 의회 운용: ma_cross 34% + buy_hold 34% + cross_rank 32% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 113960.0,
+        "bar": "2026-11-26 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-25 00:00:00"
+      },
+      "fill_cost": 0.00065,
+      "code_sha": "390fac93210e",
+      "data_sha256": "adc706a4d0c6c877c010fa0d22a4fbb59c6a746ee2ac11f9d8ca02b1e99c6722",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": null,
+      "drift_psi": 0.2977,
+      "drift_grade": "주의 (표본 잡음 범위)",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance"
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-25 00:00:00"
+    "decided_bar": "2026-11-26 00:00:00"
   },
   "market": "kr_stock",
   "symbol": "273130.KS",
