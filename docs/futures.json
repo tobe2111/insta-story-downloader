@@ -1,26 +1,26 @@
 {
   "kind": "futures-experiment",
-  "updated": "2026-11-27T23:50:06+09:00",
+  "updated": "2026-11-28T00:02:21+09:00",
   "start_cash": 10000.0,
-  "equity": 7570.0697,
-  "return_pct": -24.2993,
-  "gross_return_pct": -14.2033,
+  "equity": 7474.8554,
+  "return_pct": -25.2514,
+  "gross_return_pct": -15.1553,
   "cost_basis_bp": 15.0,
   "fee_window": {
     "days": 7,
     "rounds": 803,
     "fees": 4.0414,
-    "gross_pnl": 90.2764,
-    "since": "2026-11-20T23:38:20+09:00"
+    "gross_pnl": -4.931,
+    "since": "2026-11-20T23:50:38+09:00"
   },
   "fee_budget": {
     "days": 7,
     "fees": 4.0414,
-    "equity": 7570.0697,
-    "pct_of_equity": 0.0534,
+    "equity": 7474.8554,
+    "pct_of_equity": 0.0541,
     "limit_pct": 3.0,
     "breached": false,
-    "since": "2026-11-20T23:38:20+09:00"
+    "since": "2026-11-20T23:50:38+09:00"
   },
   "rebalance_bands": {
     "BTC/USDT": 0.15,
@@ -32,7 +32,7 @@
   "direction_gate": {
     "two_sided": true,
     "night": "2026-11-26",
-    "age_nights": 1,
+    "age_nights": 2,
     "max_age_nights": 7,
     "t_stat": 1.2592802570226966,
     "t_threshold": 1.35,
@@ -45,11 +45,11 @@
     "selected_by": "engine.json",
     "target_day": "2026-11-27",
     "band": 0.02,
-    "gross": 0.36,
+    "gross": 0.3599,
     "weights": {
       "BTC/USDT": 0.0,
       "ETH/USDT": 0.0,
-      "SOL/USDT": 0.36,
+      "SOL/USDT": 0.3599,
       "BNB/USDT": 0.0,
       "XRP/USDT": 0.0
     }
@@ -57,7 +57,7 @@
   "direction_pnl": {
     "measured": true,
     "gross": {
-      "long": -1295.135205,
+      "long": -1390.342661,
       "short": -283.161561
     },
     "fee": {
@@ -65,16 +65,16 @@
       "short": 214.69763
     },
     "funding": {
-      "long": 102.974376,
+      "long": 102.981239,
       "short": -2.365681
     },
     "net": {
-      "long": -2079.54126,
+      "long": -2174.755579,
       "short": -495.49351
     },
-    "rounds": 5774,
+    "rounds": 5775,
     "reconstructed_rounds": 222,
-    "note": "5774회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
+    "note": "5775회차 중 222회차는 마크 가격이 없던 때라 체결가로 재구성한 값입니다",
     "unattributed": 145.1045,
     "open_positions": {
       "long": 1,
@@ -82,13 +82,13 @@
     }
   },
   "cost_paid": 901.3894,
-  "funding_paid": 108.215588,
+  "funding_paid": 108.222452,
   "funding_rate_per_8h": 0.0001,
   "max_gross_exposure": 3.0,
   "leverage_cap": {
     "max_leverage": 1.0,
     "proven": false,
-    "drawdown": 0.0022,
+    "drawdown": 0.0135,
     "n": 499,
     "why": "평균 수익률의 95% 하한이 0 이하 — 우연과 구별되지 않는다 — 1배로 둡니다"
   },
@@ -115,11 +115,11 @@
     }
   ],
   "maintenance_margin_rate": 0.05,
-  "margin_ratio": 2.718613,
+  "margin_ratio": 2.779453,
   "liquidations": 0,
   "liquidated": null,
   "short_stop_pct": 0.25,
-  "gross_exposure": 2784.5336,
+  "gross_exposure": 2689.3261,
   "long_positions": 1,
   "short_positions": 0,
   "long_only_symbols": [
@@ -137,10 +137,6 @@
   "rounds": 2000,
   "observed_gap_minutes": null,
   "curve": [
-    {
-      "at": "2026-11-23T13:48:53+09:00",
-      "equity": 7484.3447
-    },
     {
       "at": "2026-11-23T14:01:04+09:00",
       "equity": 7484.3447
@@ -2136,6 +2132,10 @@
     {
       "at": "2026-11-27T23:50:06+09:00",
       "equity": 7570.0697
+    },
+    {
+      "at": "2026-11-28T00:02:21+09:00",
+      "equity": 7474.8554
     }
   ],
   "positions": {
@@ -2147,23 +2147,23 @@
       "direction": "long",
       "quantity": 37.931257189,
       "avg_cost": 71.03,
-      "last_price": 73.41,
+      "last_price": 70.9,
       "currency": "USDT",
-      "value": 2784.5336,
+      "value": 2689.3261,
       "cost": 2694.2572,
-      "pnl": 90.2764,
-      "pnl_pct": 3.3507
+      "pnl": -4.9311,
+      "pnl_pct": -0.183
     }
   ],
   "holdings_total": {
-    "pnl": 90.2764,
+    "pnl": -4.9311,
     "counted": 1,
     "unknown": 0
   },
   "deployed": {
-    "gross": 2784.5336,
-    "pct": 36.7835,
-    "cash": 4785.5361,
+    "gross": 2689.3261,
+    "pct": 35.9783,
+    "cash": 4785.5293,
     "unknown": 0
   },
   "recent_trades": [
@@ -2347,7 +2347,7 @@
     "since": "2026-11-10",
     "approved": "2026-11-10 사장님 — \"트랙들 다시 시작하자\"",
     "start_equity": 8199.8,
-    "return_pct": -7.68,
+    "return_pct": -8.84,
     "operated_return_pct": 0.0,
     "previous": [
       {
@@ -2432,9 +2432,9 @@
   },
   "krw": {
     "rate": 1342.97,
-    "equity": 10166376.0,
+    "equity": 10038506.0,
     "start_cash": 13429700.0,
-    "pnl": -3263323.0,
+    "pnl": -3391193.0,
     "assumed_peg": true,
     "note": "읽기 편하라고 덧붙인 환산입니다 — 이 계좌의 단위는 USDT이고, 시드와 지금 자산을 **같은 환율**로 바꿨으므로 퍼센트 수익률은 USDT 기준과 같습니다. 환율 변동은 이 실험의 성적에 들어가지 않습니다."
   }
