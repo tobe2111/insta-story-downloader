@@ -1,94 +1,94 @@
 {
   "kind": "ml-health",
-  "asof": "2026-11-26",
+  "asof": "2026-11-27",
   "champions": {
     "total": 42,
     "by_strategy": {
-      "ma_cross": 4,
+      "ma_cross": 3,
       "bollinger": 5,
-      "ml": 18,
+      "ml": 17,
       "expiry_week": 2,
       "fomc_drift": 2,
       "connors_rsi2": 2,
+      "turn_of_month": 2,
       "breakout": 1,
       "cross_rank": 1,
       "ichimoku": 1,
-      "buy_hold": 1,
+      "buy_hold": 2,
       "psar": 2,
       "rebalance_flow": 1,
-      "turn_of_month": 1,
       "supertrend": 1
     },
     "rows": [
       {
         "key": "crypto:BNB/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-11-26",
+        "trained_on": "2026-11-27",
         "promotions": 0,
-        "trials": 4083
+        "trials": 4136
       },
       {
         "key": "crypto:BTC/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-11-26",
+        "trained_on": "2026-11-27",
         "promotions": 0,
-        "trials": 4138
+        "trials": 4191
       },
       {
         "key": "crypto:ETH/USDT",
         "strategy": "ma_cross",
-        "trained_on": "2026-11-26",
+        "trained_on": "2026-11-27",
         "promotions": 1,
-        "trials": 4077
+        "trials": 4130
       },
       {
         "key": "crypto:SOL/USDT",
         "strategy": "bollinger",
-        "trained_on": "2026-11-26",
+        "trained_on": "2026-11-27",
         "promotions": 0,
-        "trials": 3856
+        "trials": 3905
       },
       {
         "key": "crypto:XRP/USDT",
         "strategy": "ml",
-        "trained_on": "2026-11-26",
+        "trained_on": "2026-11-27",
         "promotions": 0,
-        "trials": 3944
+        "trials": 3997
       },
       {
         "key": "kr_stock:000660.KS",
         "strategy": "expiry_week",
-        "trained_on": "2026-11-25",
+        "trained_on": "2026-11-26",
         "promotions": 1,
-        "trials": 2878
+        "trials": 2927
       },
       {
         "key": "kr_stock:005380.KS",
         "strategy": "ml",
-        "trained_on": "2026-11-25",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2916
+        "trials": 2969
       },
       {
         "key": "kr_stock:005930.KS",
         "strategy": "fomc_drift",
-        "trained_on": "2026-11-25",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2770
+        "trials": 2819
       },
       {
         "key": "kr_stock:035420.KS",
         "strategy": "connors_rsi2",
-        "trained_on": "2026-11-25",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2914
+        "trials": 2967
       },
       {
         "key": "kr_stock:051910.KS",
-        "strategy": "ml",
-        "trained_on": "2026-11-25",
+        "strategy": "turn_of_month",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2917
+        "trials": 2970
       },
       {
         "key": "kr_stock:069500.KS",
@@ -100,9 +100,9 @@
       {
         "key": "kr_stock:105560.KS",
         "strategy": "bollinger",
-        "trained_on": "2026-11-25",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2618
+        "trials": 2667
       },
       {
         "key": "kr_stock:132030.KS",
@@ -134,10 +134,10 @@
       },
       {
         "key": "kr_stock:273130.KS",
-        "strategy": "ma_cross",
-        "trained_on": "2026-11-25",
+        "strategy": "buy_hold",
+        "trained_on": "2026-11-26",
         "promotions": 0,
-        "trials": 2488
+        "trials": 2541
       },
       {
         "key": "us_stock:AAPL",
@@ -318,18 +318,18 @@
     "promotions": 2
   },
   "live": {
-    "hits": 941,
-    "n": 1987,
-    "hit_rate": 0.4736,
-    "ci_lo": 0.4517,
-    "ci_hi": 0.4956,
+    "hits": 942,
+    "n": 1988,
+    "hit_rate": 0.4738,
+    "ci_lo": 0.452,
+    "ci_hi": 0.4958,
     "beats_chance": false,
     "worse_than_chance": true,
     "per_symbol": [
       {
         "symbol": "crypto_SOL_USDT",
-        "hit_rate": 0.4845,
-        "n": 97
+        "hit_rate": 0.4898,
+        "n": 98
       },
       {
         "symbol": "crypto_BTC_USDT",
@@ -529,11 +529,11 @@
     ]
   },
   "insample": {
-    "hit_rate": 0.5239,
-    "n": 8969
+    "hit_rate": 0.5238,
+    "n": 8937
   },
   "calibration": {
-    "pairs": 1560,
+    "pairs": 1561,
     "table": [
       {
         "lo": 0.0,
@@ -578,11 +578,11 @@
       {
         "lo": 0.4,
         "hi": 0.5,
-        "n": 254,
-        "said": 0.4527,
-        "actual": 0.4882,
-        "ci_lo": 0.4274,
-        "ci_hi": 0.5494,
+        "n": 255,
+        "said": 0.4526,
+        "actual": 0.4902,
+        "ci_lo": 0.4294,
+        "ci_hi": 0.5512,
         "confirmed": false
       },
       {
@@ -644,7 +644,7 @@
       "n": 478,
       "actual": 0.454
     },
-    "correlation": -0.0
+    "correlation": -0.0002
   },
   "drift": {
     "grades": {
@@ -679,13 +679,13 @@
         "grade": "드리프트"
       },
       {
-        "symbol": "crypto_SOL_USDT",
-        "psi": 0.4223,
+        "symbol": "us_stock_GLD",
+        "psi": 0.4057,
         "grade": "주의 (표본 잡음 범위)"
       },
       {
-        "symbol": "us_stock_GLD",
-        "psi": 0.4057,
+        "symbol": "crypto_SOL_USDT",
+        "psi": 0.4048,
         "grade": "주의 (표본 잡음 범위)"
       },
       {
@@ -838,7 +838,7 @@
       {
         "key": "us_stock:META",
         "scale": 0.5,
-        "why": "검증 기록이 97일 전 것입니다(유통기한 7일) — 오늘의 판정으로 쓸 수 없어 비중을 절반으로 줄입니다."
+        "why": "검증 기록이 98일 전 것입니다(유통기한 7일) — 오늘의 판정으로 쓸 수 없어 비중을 절반으로 줄입니다."
       },
       {
         "key": "us_stock:MSFT",
@@ -878,7 +878,7 @@
       {
         "key": "us_stock:TSLA",
         "scale": 0.0,
-        "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다. (기록이 97일 전 것이지만 판정은 그대로다)"
+        "why": "과최적화 확률(PBO) 77% — 문서가 '버릴 것'이라 정한 선(70%)을 넘었습니다. 오늘 이 종목은 관망합니다. (기록이 98일 전 것이지만 판정은 그대로다)"
       },
       {
         "key": "us_stock:UUP",
