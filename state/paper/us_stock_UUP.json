@@ -2,7 +2,7 @@
   "cash": 7632.810093353569,
   "quantity": 87.43962830668083,
   "avg_price": 29.079999923706055,
-  "last_bar": "2026-11-25 00:00:00",
+  "last_bar": "2026-11-27 00:00:00",
   "history": [
     {
       "date": "2026-08-21",
@@ -3264,11 +3264,59 @@
       "bar_partial": null,
       "data_source": "yfinance",
       "prob_up_cal": 0.4221
+    },
+    {
+      "date": "2026-11-27",
+      "price": 29.719999313354492,
+      "weight": 0.25,
+      "held_weight": 0.254,
+      "fractional_lot": false,
+      "equity": 10231.52,
+      "return_pct": 2.32,
+      "hit_rate": 0.5350553505535055,
+      "hit_n": 271,
+      "hit_lo": 0.47559554275880506,
+      "hit_hi": 0.5935351856316567,
+      "hit_conclusive": false,
+      "live_hit": 0.6530612244897959,
+      "live_hit_n": 49,
+      "live_hit_flat": 1,
+      "hit_flat": 11,
+      "champion": {
+        "label": "triple"
+      },
+      "reason": "매수 +25% — 로지스틱회귀 모델이 내일 상승확률을 약 16%로 추정(기준 55% 초과) · 사이징: 신호 원비중 45% → 변동성 타깃 조절 후 25% · 참고: 전 종목 합산으로 모델이 16%±10%p라 말한 194번의 실제 상승 비율 47% (95% 신뢰구간 41%~54% · 보합 1일 포함 · 봉이 빠진 117번은 제외 · 이 종목 단독 표본은 5번으로 축적 중) · 🏛 의회 운용: ml 34% + ma_cross 33% + ml 33% — 위 설명은 의석 1위 의원의 논리이며, 오늘의 비중은 의원 신호를 의석 비중으로 가중 평균한 값입니다",
+      "fill": {
+        "price": 29.68,
+        "bar": "2026-11-27 00:00:00",
+        "weight": 0.25,
+        "decided_bar": "2026-11-25 00:00:00"
+      },
+      "fill_cost": 0.0006,
+      "code_sha": "9e44c440f4a4",
+      "data_sha256": "8c901cefdb89484b7dd66c5336436953c9fd667486f76f16fa62583a5e864a87",
+      "env": "py3.12.16|np2.5.5|pd2.3.3|sk1.9.1|lock:29d3d294fd5b",
+      "accounting": "next_open_v2",
+      "prob_up": 0.16087638959557057,
+      "drift_psi": 0.1554,
+      "drift_grade": "안정",
+      "drift_ref": {
+        "p50": 0.1904,
+        "p95": 0.4432,
+        "p99": 0.9437,
+        "n_ref": 250,
+        "n_new": 60
+      },
+      "earnings_guard": null,
+      "kelly_cap": 0.25,
+      "bar_partial": null,
+      "data_source": "yfinance",
+      "prob_up_cal": 0.4857
     }
   ],
   "pending": {
     "weight": 0.25,
-    "decided_bar": "2026-11-25 00:00:00"
+    "decided_bar": "2026-11-27 00:00:00"
   },
   "market": "us_stock",
   "symbol": "UUP",
